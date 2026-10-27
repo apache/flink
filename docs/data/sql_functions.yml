@@ -40,6 +40,12 @@ comparison:
   - sql: value IS NOT NULL
     table: value.isNotNull
     description: Returns TRUE if value is not NULL.
+  - sql: IS_NAN(value)
+    table: value.isNan
+    description: Returns TRUE if value is NaN; returns FALSE if value is a non-NaN numeric value; returns NULL if value is NULL.
+  - sql: IS_NOT_NAN(value)
+    table: value.isNotNan
+    description: Returns TRUE if value is a non-NaN numeric value; returns FALSE if value is NaN; returns NULL if value is NULL.
   - sql: value1 IS DISTINCT FROM value2
     description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS DISTINCT FROM NULL returns TRUE; NULL IS DISTINCT FROM NULL returns FALSE.
   - sql: value1 IS NOT DISTINCT FROM value2
@@ -1080,8 +1086,18 @@ json:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
+      * `TINYINT`
+      * `SMALLINT`
       * `INTEGER`
+      * `BIGINT`
+      * `FLOAT`
       * `DOUBLE`
+      * `DECIMAL`
+
+      JSON string values are coerced to the requested numeric or boolean type (for example `"42"`
+      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`).
+      Values that do not fit the requested type (overflow, non-numeric string, non-0/1 number for
+      `BOOLEAN`) are treated as an error and follow the `ON ERROR` behavior.
 
       For empty path expressions or errors a behavior can be defined to either return `null`, raise
       an error or return a defined default value instead. When omitted, the default is
@@ -1121,7 +1137,11 @@ json:
     description: |
       Extracts JSON values from a JSON string.
 
-      The result is returned as a `STRING` or `ARRAY<STRING>`. This can be controlled with the `RETURNING` clause.
+      The result is returned as a `STRING` by default. Using the `RETURNING` clause it can also be
+      returned as an `ARRAY` whose element type is `STRING` or any of the scalar types supported by
+      `JSON_VALUE` (`BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `FLOAT`, `DOUBLE`,
+      `DECIMAL`). Array elements are converted with the same coercion and `ON ERROR` rules as
+      `JSON_VALUE`.
 
       The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
       and whether to do so unconditionally or only if the value itself isn't an array already.
@@ -1371,7 +1391,7 @@ variant:
       If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
       parser will keep the last occurrence of all fields with the same key, otherwise when
       `allowDuplicateKeys` is false it will throw an error. The default value of
-      `allowDuplicateKeys` is false.
+      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
 
       See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
   - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
@@ -1380,15 +1400,54 @@ variant:
       Try to parse a JSON string into a Variant if possible. If the JSON string is invalid, return
       NULL. To throw an error instead of returning NULL, use the `PARSE_JSON` function.
 
-      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the 
-      parser will keep the last occurrence of all fields with the same key, otherwise when 
-      `allowDuplicateKeys` is false it will throw an error. The default value of 
-      `allowDuplicateKeys` is false.
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
+      parser will keep the last occurrence of all fields with the same key, otherwise when
+      `allowDuplicateKeys` is false it will return NULL. The default value of
+      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
 
       See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
   - sql: JSON_STRING(variant)
     description: |
       Generate a json string from a Variant object.
+  - sql: PARSE_XML(xml_string[, force_array])
+    table: STRING.parseXml([forceArray])
+    description: |
+      Parses an XML string into a Variant. If the XML string is invalid, an error is thrown. To
+      return NULL instead of an error, use the `TRY_PARSE_XML` function.
+
+      The result is an object with a single field for the root element. Attributes are stored as
+      `@name` fields, text as a `$` field, and child elements as fields named after their tag. An
+      element without attributes and child elements is stored as its text directly. A tag that
+      occurs more than once in an element is stored as an array. The `#` field records the order
+      of the children and text of an element.
+
+      If `force_array` is true, every child element, text, and position in a `#` field is stored
+      as an array, even if it occurs only once. This keeps the structure the same across documents
+      that repeat an element a different number of times. The default value of `force_array` is
+      false. A NULL `force_array` is treated as false.
+
+      External entities and external DTDs are not supported, and a document that references one
+      fails to parse.
+
+      ```sql
+      -- {"book":{"#":{"price":1,"title":0},"@pages":"320","price":"12.50","title":"Dune"}}
+      PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>')
+
+      -- 'Dune'
+      CAST(PARSE_XML('<book><title>Dune</title></book>')['book']['title'] AS STRING)
+
+      -- {"book":{"title":["Dune"]}}
+      PARSE_XML('<book><title>Dune</title></book>', TRUE)
+      ```
+
+      See the "XML to VARIANT" section below the function table for how XML is mapped to a Variant.
+  - sql: TRY_PARSE_XML(xml_string[, force_array])
+    table: STRING.tryParseXml([forceArray])
+    description: |
+      Parses an XML string into a Variant. If the XML string is invalid, returns NULL. To throw an
+      error instead of returning NULL, use the `PARSE_XML` function.
+
+      See `PARSE_XML` for the full documentation.
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |

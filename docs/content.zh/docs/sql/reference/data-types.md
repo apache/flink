@@ -1517,8 +1517,9 @@ particularly useful in dynamic environments where schemas may evolve over time.
 
 A `VARIANT` stores a single value of one of the following kinds: `NULL`, `BOOLEAN`, `TINYINT`,
 `SMALLINT`, `INT`, `BIGINT`, `FLOAT`, `DOUBLE`, `DECIMAL` (up to precision 38), `STRING`, `DATE`,
-`TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, or a nested array or object. `TIMESTAMP` and `TIMESTAMP_LTZ`
-are stored with microsecond precision.
+`TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, `UUID`, or a nested array or object. `TIME` is stored
+with microsecond precision, and `TIMESTAMP` and `TIMESTAMP_LTZ` with microsecond or nanosecond
+precision.
 
 The `PARSE_JSON` function produces only the kinds that JSON syntax can express:
 
@@ -1535,15 +1536,18 @@ The `PARSE_JSON` function produces only the kinds that JSON syntax can express:
 | Array                                               | array (elements encoded by the same rules)      |
 | Object                                              | object (values encoded by the same rules)       |
 
-Because JSON has no literal for them, `PARSE_JSON` never produces `FLOAT`, `DATE`, `TIMESTAMP`,
-`TIMESTAMP_LTZ`, or `BYTES`.
+Because JSON has no literal for them, `PARSE_JSON` never produces `FLOAT`, `DATE`, `TIME`,
+`TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, or `UUID`.
 
 The JSON specification has no `NaN` or infinity literals, so `PARSE_JSON('NaN')`,
 `PARSE_JSON('Infinity')`, and `PARSE_JSON('-Infinity')` fail. `PARSE_JSON('1e400')` fails as well
 because a value outside the `DOUBLE` range cannot be stored as a finite number. In all of these
 cases `TRY_PARSE_JSON` returns `NULL`.
-A `VARIANT` has no dedicated kind for these values. To keep one, store it as a JSON string and cast
-it back out, for example `CAST(CAST(PARSE_JSON('"Infinity"') AS STRING) AS FLOAT)`.
+To store one of these values, cast the number to a `VARIANT` instead of parsing it, for example
+`CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
+
+`PARSE_XML` maps an XML document to an object, see
+[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions" >}}#xml-to-variant).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
@@ -1592,6 +1596,11 @@ form, so it renders like a regular `ARRAY` or `MAP` cast to a string: an array a
 object as `{k1=v1, k2=v2}`, with each value rendered by these same rules and a nested variant null
 shown as `NULL`. A string is never quoted, at any depth. Use `JSON_STRING` for the JSON form with
 quoted strings. A variant that stores a JSON `null` casts to SQL `NULL`.
+
+Printed results, for example in the SQL client, render a `VARIANT` the same way as
+`CAST(v AS STRING)`. A binary value prints as `x'68656c6c6f'`, a variant `null` as `NULL` where a
+SQL `NULL` prints as `<NULL>`, a variant type written by a newer version as `<UNKNOWN>`, and other
+data that cannot be decoded as `<INVALID>`. A `TIMESTAMP_LTZ` prints in the session time zone.
 
 A `VARIANT` can also be cast to a constructed target, which imposes a schema on it. A variant array
 casts to `ARRAY<T>`. The variant must be an array, otherwise the cast fails. Each element is itself a
@@ -1664,6 +1673,109 @@ CAST(o AS MAP<STRING, VARIANT>)  -- values kept as variants, the variant null in
 CAST(o AS MAP<INT, STRING>)      -- fails at validation, a MAP key must be a character string
 ```
 
+A scalar value can also be cast to a `VARIANT` with `CAST` or `TRY_CAST`. Only a type that a
+`VARIANT` kind holds without loss is supported, and any other type, such as `INTERVAL`, `RAW`, or
+`BITMAP`, is rejected at validation. The value keeps the kind of its SQL type:
+
+| Input type                                 | Stored `VARIANT` kind                           |
+|--------------------------------------------|-------------------------------------------------|
+| `BOOLEAN`                                  | `BOOLEAN`                                       |
+| `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT` | `TINYINT`, `SMALLINT`, `INT`, `BIGINT`          |
+| `FLOAT`, `DOUBLE`, `DECIMAL`               | `FLOAT`, `DOUBLE`, `DECIMAL`                    |
+| `CHAR`, `VARCHAR`, `STRING`                | `STRING`                                        |
+| `BINARY`, `VARBINARY`, `BYTES`             | `BYTES`                                         |
+| `DATE`, `TIME`, `UUID`                     | `DATE`, `TIME`, `UUID`                          |
+| `TIMESTAMP`, `TIMESTAMP_LTZ`               | `TIMESTAMP`, `TIMESTAMP_LTZ`                    |
+
+- An integer keeps the width of its SQL type, so a `BIGINT` is stored as a `BIGINT` even when the
+  value would fit a smaller kind. `PARSE_JSON('1')` instead picks the smallest kind, a `TINYINT`.
+  Either way it casts back to any integer type that holds the value.
+- A character string is stored as a `STRING` and is never parsed. Use `PARSE_JSON` to parse JSON text.
+- A `TIMESTAMP(p)` or `TIMESTAMP_LTZ(p)` keeps its declared precision. Up to a precision of 6 it is
+  stored with microseconds, and above with nanoseconds, even when the value has no digits below a
+  microsecond. Nanoseconds only cover 1677-09-21 to 2262-04-11, so for a precision above 6 a value
+  outside that range fails the cast, and `TRY_CAST` returns `NULL`.
+- A `TIME` holds the milliseconds of one day. Only a source or a function can produce a value
+  outside that range, but such a value fails the cast, and `TRY_CAST` returns `NULL`.
+- A `NaN` or infinite `FLOAT` or `DOUBLE` is stored as is, although `PARSE_JSON` rejects them. A
+  `VARIANT` is not limited to JSON, but JSON has no literal for them. So `JSON_STRING` fails on such
+  a variant, and so does writing it to a sink with the `json` or `raw` format, which fails the job.
+  Printing it and casting it to `STRING` show `NaN`, and it casts back to `FLOAT` or `DOUBLE`
+  unchanged.
+- A `VARIANT` holds at most 16 MiB, so a string or binary value can have at most 16,777,211 bytes.
+  A longer value fails the cast, and `TRY_CAST` returns `NULL`.
+- A SQL `NULL` casts to a SQL `NULL`, not to a variant null.
+- The cast is never applied implicitly, so writing an `INT` into a `VARIANT` column needs an explicit
+  `CAST`.
+- A constructed type casts element by element when its element, field, or value type casts to
+  `VARIANT`, for example `ARRAY<INT>` to `ARRAY<VARIANT>`. A `NULL` element stays a SQL `NULL`. A
+  whole constructed value can also become a single `VARIANT`, see below.
+- As a `MAP` key or a `MULTISET` element, two `VARIANT` values match only when their binary
+  encodings match. So a `1` cast from `INT` does not match a `1` cast from `BIGINT` or parsed by
+  `PARSE_JSON('1')`.
+
+```sql
+CAST(42 AS VARIANT)                          -- 42, stored as an INT
+CAST(CAST(1 AS BIGINT) AS VARIANT)           -- 1, stored as a BIGINT
+CAST('{"a": 1}' AS VARIANT)                  -- the string '{"a": 1}', not an object
+CAST(NULL AS VARIANT)                        -- NULL
+CAST(CAST('NaN' AS DOUBLE) AS VARIANT)       -- NaN, stored as a DOUBLE
+CAST(INTERVAL '2' DAY AS VARIANT)            -- fails at validation
+CAST(ARRAY[1, NULL] AS ARRAY<VARIANT>)       -- [1, NULL], each element a VARIANT, the NULL stays SQL NULL
+```
+
+A whole `ARRAY`, `MAP`, `ROW`, or `STRUCTURED` value can also be cast into a single `VARIANT`. An
+`ARRAY` becomes a variant array, and a `MAP`, `ROW`, or `STRUCTURED` value a variant object. Each
+leaf is stored by the rules above, so the cast is supported only when every leaf type casts to
+`VARIANT`.
+
+- A `ROW` or `STRUCTURED` value is keyed by its field names.
+- A `MAP` needs a character string key, which becomes the object key. A `NULL` key fails the cast.
+  If a key appears twice, the last value is kept.
+- A variant object sorts its keys by their UTF-8 bytes, so neither the field order of a `ROW` nor
+  the entry order of a `MAP` is kept.
+- A `NULL` element, field, or map value becomes a variant null, so an array keeps its length and an
+  object keeps its keys. A cast element by element differs here: `ARRAY<INT>` to `ARRAY<VARIANT>`
+  keeps a SQL `NULL`, while `ARRAY<INT>` to `VARIANT` turns it into a variant null.
+- A nested `VARIANT` is embedded as is.
+- The whole value must fit into the 16 MiB of a `VARIANT`. Any `ARRAY` or `MAP` can exceed it, and so
+  can a `ROW` with a nested `VARIANT` or with fields whose declared sizes add up to more. The cast
+  then fails, and `TRY_CAST` returns `NULL` for the whole value.
+- Casting the `VARIANT` back to the original type returns the original value, since a cast to `ROW`
+  matches fields by name. There are two exceptions:
+  - A SQL `NULL` in a `VARIANT` field, in an `ARRAY<VARIANT>`, or as a value of a
+    `MAP<STRING, VARIANT>` comes back as a variant null.
+  - A `MAP` that holds a key twice comes back with only the last value for that key.
+
+The following examples use `r` for a column of type `ROW<name STRING, id INT>` that holds
+`('ada', 7)`:
+
+```sql
+CAST(ARRAY[1, NULL] AS VARIANT)              -- [1, null], the NULL becomes a variant null
+CAST(MAP['b', 2, 'a', 1] AS VARIANT)         -- {"a": 1, "b": 2}
+CAST(r AS VARIANT)                           -- {"id": 7, "name": "ada"}
+CAST(MAP[1, 'a'] AS VARIANT)                 -- fails at validation, a MAP key must be a character string
+CAST(ARRAY[INTERVAL '1' DAY] AS VARIANT)     -- fails at validation
+```
+
+A `VARIANT` has no equality and no order, because one value has many valid binary encodings. The
+objects `{"a": 1, "b": 2}` and `{"b": 2, "a": 1}` hold the same value, and so do a `1` stored as a
+`TINYINT` and a `1` stored as a `BIGINT`. So a query cannot use a `VARIANT`, or a type that contains
+one, where it compares values. Examples are a `GROUP BY`, `ORDER BY`, or join key,
+`SELECT DISTINCT`, a comparison such as `=` or `<`, and the array elements of `ARRAY_CONTAINS`.
+
+Such a query fails before it runs. Cast the value to a concrete type first, or use `TRY_CAST` when
+some values do not fit the type. A `VARIANT` can still be selected, read with field access, checked
+with `IS NULL`, cast, and passed to aggregate functions such as `COUNT`, `FIRST_VALUE`, and
+`LAST_VALUE`.
+
+```sql
+SELECT v['a'], COUNT(*) FROM t GROUP BY v['a']                             -- fails
+SELECT CAST(v['a'] AS INT), COUNT(*) FROM t GROUP BY CAST(v['a'] AS INT)   -- one group per number
+SELECT * FROM t WHERE v['a'] = PARSE_JSON('1')                             -- fails
+SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1                              -- compares the number
+```
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}
@@ -1672,10 +1784,11 @@ CAST(o AS MAP<INT, STRING>)      -- fails at validation, a MAP key must be a cha
 VARIANT
 ```
 
-Variant type is usually produced by the `PARSE_JSON` function. For example:
+Variant type is usually produced by the `PARSE_JSON` or `PARSE_XML` function. For example:
 
 ```sql
 SELECT PARSE_JSON('{"a":1,"b":["a","b","c"]}') AS v
+SELECT PARSE_XML('<a><b>1</b><b>2</b></a>') AS v
 ```
 
 {{< /tab >}}
@@ -1689,6 +1802,9 @@ DataTypes.VARIANT()
 | Java Type                                | Input | Output | Remarks   |
 |:-----------------------------------------|:-----:|:------:|:----------|
 | `org.apache.flink.types.variant.Variant` |   X   |   X    | *Default* |
+
+`Variant#toJson()` returns valid JSON and fails for values such as `NaN`. `Variant#toString()` is
+for debugging: it never fails, but can be lossy. Both render a `TIMESTAMP_LTZ` in UTC.
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -1857,26 +1973,26 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 
 | Input\Target                           | `CHAR`¹/<br/>`VARCHAR`¹/<br/>`STRING` | `BINARY`¹/<br/>`VARBINARY`¹/<br/>`BYTES` | `BOOLEAN` | `DECIMAL` | `TINYINT` | `SMALLINT` | `INTEGER` | `BIGINT` | `FLOAT` | `DOUBLE` | `DATE` | `TIME` | `TIMESTAMP` | `TIMESTAMP_LTZ` | `INTERVAL` | `ARRAY` | `MULTISET` | `MAP` | `ROW` | `STRUCTURED` | `RAW` | `VARIANT` | `BITMAP` |
 |:---------------------------------------|:-------------------------------------:|:----------------------------------------:|:---------:|:---------:|:---------:|:----------:|:---------:|:--------:|:-------:|:--------:|:------:|:------:|:-----------:|:---------------:|:----------:|:-------:|:----------:|:-----:|:-----:|:------------:|:-----:|:---------:|:--------:|
-| `CHAR`/<br/>`VARCHAR`/<br/>`STRING`    |                   Y                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `BINARY`/<br/>`VARBINARY`/<br/>`BYTES` |                   Y                   |                    Y                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `BOOLEAN`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `DECIMAL`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `TINYINT`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `SMALLINT`                             |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `INTEGER`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁵     |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `BIGINT`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁶     |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `FLOAT`                                |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `DOUBLE`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `CHAR`/<br/>`VARCHAR`/<br/>`STRING`    |                   Y                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
+| `BINARY`/<br/>`VARBINARY`/<br/>`BYTES` |                   Y                   |                    Y                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
+| `BOOLEAN`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `DECIMAL`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `TINYINT`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `SMALLINT`                             |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `INTEGER`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁵     |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `BIGINT`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁶     |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `FLOAT`                                |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `DOUBLE`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
+| `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
+| `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
 | `INTERVAL`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |    Y⁵     |    Y⁶    |    N    |    N     |   N    |   N    |      N      |        N        |     Y      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     !⁸    |    N     |
 | `MULTISET`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     !³     |   N   |   N   |      N       |   N   |     N     |    N     |
-| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |     N     |    N     |
-| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
-| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
+| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |     !⁸    |    N     |
+| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     !⁸    |    N     |
+| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     !⁸    |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
 | `VARIANT`                              |                   !                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |   !³    |     N      |  !³   |  !³   |      !³      |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
@@ -1890,6 +2006,7 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 5. 支持转换，当且仅当用使用 `INTERVAL` 做“月”到“年”的转换。
 6. 支持转换，当且仅当用使用 `INTERVAL` 做“天”到“时间”的转换。
 7. 仅支持转换到无界的 `VARBINARY`（`BYTES`），因为裁剪或填充会破坏序列化的位图数据。
+8. Supported iff every leaf type casts to `VARIANT` and every `MAP` key is a character string. Always fallible for `ARRAY` and `MAP`. Fallible for `ROW` and `STRUCTURED` iff a field is fallible, a field is a `VARIANT`, or the declared sizes of the fields can exceed the 16 MiB of a `VARIANT`.
 
 请注意：无论是 `CAST` 还是 `TRY_CAST`，当输入为 `NULL` ，输出也为 `NULL`。
 

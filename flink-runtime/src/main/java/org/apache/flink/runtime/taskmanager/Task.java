@@ -230,6 +230,9 @@ public class Task
 
     private final ResultPartitionWriter[] partitionWriters;
 
+    /** Consumer parallelism of each partition in {@link #partitionWriters}, in the same order. */
+    private final int[] partitionConsumerParallelisms;
+
     private final IndexedInputGate[] inputGates;
 
     /** Connection to the task manager. */
@@ -423,6 +426,10 @@ public class Task
                         .toArray(new ResultPartitionWriter[] {});
 
         this.partitionWriters = resultPartitionWriters;
+        this.partitionConsumerParallelisms =
+                resultPartitionDeploymentDescriptors.stream()
+                        .mapToInt(ResultPartitionDeploymentDescriptor::getConsumerParallelism)
+                        .toArray();
 
         // consumed intermediate result partitions
         final IndexedInputGate[] gates =
@@ -731,6 +738,7 @@ public class Task
                             inputSplitProvider,
                             distributedCacheEntries,
                             partitionWriters,
+                            partitionConsumerParallelisms,
                             inputGates,
                             taskEventDispatcher,
                             checkpointResponder,

@@ -36,7 +36,8 @@ public class LateralSnapshotJoinBatchSemanticTests extends BatchSemanticTestBase
         return List.of(
                 LateralSnapshotJoinTestPrograms.INNER_JOIN,
                 LateralSnapshotJoinTestPrograms.LEFT_JOIN,
-                LateralSnapshotJoinTestPrograms.INNER_JOIN_WITH_NON_EQUI_CONDITION,
+                LateralSnapshotJoinTestPrograms.COMPLEX_PRED,
+                LateralSnapshotJoinTestPrograms.NON_EQUI,
                 LateralSnapshotJoinTestPrograms.SNAPSHOT_ARGUMENTS_IGNORED);
     }
 }

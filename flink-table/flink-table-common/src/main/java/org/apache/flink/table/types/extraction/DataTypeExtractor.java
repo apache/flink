@@ -27,6 +27,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
@@ -710,6 +712,17 @@ public final class DataTypeExtractor {
             return dataType;
         }
 
+        // A value view accepts any value type T (including composite ones), so it is handled
+        // before the composite check below. If the type went through regular extraction logic it
+        // is already the structured value view type, otherwise the annotated type directly defines
+        // the value type T and is mapped to the underlying value.
+        if (ValueView.class.isAssignableFrom(clazz)) {
+            if (isValueViewStructuredType(dataType.getLogicalType())) {
+                return dataType;
+            }
+            return ValueView.newValueViewDataType(dataType);
+        }
+
         // data type went through regular extraction logic
         if (isCompositeType(dataType.getLogicalType())) {
             return dataType;
@@ -732,5 +745,18 @@ public final class DataTypeExtractor {
         } else {
             throw extractionError("Invalid data view: %s", clazz.getName());
         }
+    }
+
+    /**
+     * Checks whether the given type is already the structured type of a {@link ValueView} (i.e. it
+     * went through regular reflective extraction) as opposed to an annotated value type that still
+     * needs to be wrapped.
+     */
+    private static boolean isValueViewStructuredType(LogicalType type) {
+        return type instanceof StructuredType
+                && ((StructuredType) type)
+                        .getImplementationClass()
+                        .map(ValueView.class::isAssignableFrom)
+                        .orElse(false);
     }
 }

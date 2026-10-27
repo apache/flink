@@ -19,12 +19,15 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.hint.{FlinkHints, JoinStrategy}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase.SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasNested
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
@@ -154,6 +157,32 @@ trait BatchPhysicalJoinRuleBase {
   }
 
   /**
+   * Whether all equi-join key columns, including nested fields, can be ordered. Every equi-capable
+   * strategy needs this, as the hash join also builds a sort merge fallback. Mirrors
+   * `GenerateUtils.generateCompare`; RAW is conservatively treated as unorderable.
+   *
+   * Only used to decide whether NestedLoopJoin can be excluded; the equi-capable strategies still
+   * do not check key types themselves.
+   */
+  private def hasOrderableJoinKeys(join: Join): Boolean = {
+    val joinInfo = join.analyzeCondition
+    val leftType = FlinkTypeFactory.toLogicalRowType(join.getLeft.getRowType)
+    val rightType = FlinkTypeFactory.toLogicalRowType(join.getRight.getRowType)
+    val keyTypes = joinInfo.leftKeys.map(i => leftType.getTypeAt(i)) ++
+      joinInfo.rightKeys.map(i => rightType.getTypeAt(i))
+    !keyTypes.exists(
+      hasNested(_, _.isAnyOf(TIMESTAMP_WITH_TIME_ZONE, MULTISET, MAP, VARIANT, BITMAP, RAW)))
+  }
+
+  private def hasApplicableEquivJoinStrategy(join: Join, tableConfig: TableConfig): Boolean = {
+    isEquivJoin(join) && hasOrderableJoinKeys(join) && (
+      checkSortMergeJoinApplicable(tableConfig) ||
+        checkShuffleHashApplicable(join, tableConfig, withShuffleHashHint = false)._1 ||
+        checkBroadcastApplicable(join, tableConfig, withBroadcastHint = false)._1
+    )
+  }
+
+  /**
    * Decides whether the join can convert to BroadcastHashJoin.
    *
    * @param join
@@ -168,7 +197,18 @@ trait BatchPhysicalJoinRuleBase {
       tableConfig: TableConfig,
       withBroadcastHint: Boolean): (Boolean, Boolean) = {
 
-    if (!isEquivJoin(join) || isOperatorDisabled(tableConfig, OperatorType.BroadcastHashJoin)) {
+    if (!isEquivJoin(join)) {
+      return (false, false)
+    }
+    checkBroadcastApplicable(join, tableConfig, withBroadcastHint)
+  }
+
+  private def checkBroadcastApplicable(
+      join: Join,
+      tableConfig: TableConfig,
+      withBroadcastHint: Boolean): (Boolean, Boolean) = {
+
+    if (isOperatorDisabled(tableConfig, OperatorType.BroadcastHashJoin)) {
       return (false, false)
     }
 
@@ -235,7 +275,17 @@ trait BatchPhysicalJoinRuleBase {
       join: Join,
       tableConfig: TableConfig,
       withShuffleHashHint: Boolean): (Boolean, Boolean) = {
-    if (!isEquivJoin(join) || isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)) {
+    if (!isEquivJoin(join)) {
+      return (false, false)
+    }
+    checkShuffleHashApplicable(join, tableConfig, withShuffleHashHint)
+  }
+
+  private def checkShuffleHashApplicable(
+      join: Join,
+      tableConfig: TableConfig,
+      withShuffleHashHint: Boolean): (Boolean, Boolean) = {
+    if (isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)) {
       return (false, false)
     }
 
@@ -260,11 +310,11 @@ trait BatchPhysicalJoinRuleBase {
 
   // the sort merge join doesn't distinct the build side
   protected def checkSortMergeJoin(join: Join, tableConfig: TableConfig): Boolean = {
-    if (!isEquivJoin(join) || isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)) {
-      false
-    } else {
-      true
-    }
+    isEquivJoin(join) && checkSortMergeJoinApplicable(tableConfig)
+  }
+
+  private def checkSortMergeJoinApplicable(tableConfig: TableConfig): Boolean = {
+    !isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)
   }
 
   protected def checkNestLoopJoin(
@@ -273,6 +323,10 @@ trait BatchPhysicalJoinRuleBase {
       withNestLoopHint: Boolean): (Boolean, Boolean) = {
 
     if (isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)) {
+      return (false, false)
+    }
+
+    if (!withNestLoopHint && hasApplicableEquivJoinStrategy(join, tableConfig)) {
       return (false, false)
     }
 
@@ -297,7 +351,13 @@ trait BatchPhysicalJoinRuleBase {
 
     }
 
-    // all join can use NEST LOOP JOIN
+    // reached only for:
+    // 1. non-equi joins
+    // 2. equi-joins with an explicit NEST_LOOP hint
+    // 3. equi-joins where no equi-capable strategy is applicable (e.g. ShuffleHashJoin/SortMergeJoin
+    // disabled and BroadcastHashJoin inapplicable, due to unknown or oversized inputs)
+    // 4. equi-joins on keys that cannot be ordered (e.g. MAP), which no equi-capable strategy
+    // supports
     (true, isLeftToBuild)
 
   }

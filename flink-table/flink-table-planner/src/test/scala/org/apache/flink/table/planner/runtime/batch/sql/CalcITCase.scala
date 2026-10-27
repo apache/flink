@@ -1707,6 +1707,52 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testFloatingPointInWithSignedZero(): Unit = {
+    registerCollection(
+      "SignedZeros",
+      Seq(
+        row(1, -0.0f, -0.0d),
+        row(1, -0.0f, -0.0d),
+        row(2, 0.0f, 0.0d),
+        row(3, 1.0f, 1.0d),
+        row(4, null, null),
+        row(5, 2.0f, 2.0d),
+        row(6, Float.NaN, Double.NaN),
+        row(7, Float.PositiveInfinity, Double.PositiveInfinity),
+        row(8, Float.NegativeInfinity, Double.NegativeInfinity)
+      ),
+      new RowTypeInfo(Types.INT, Types.FLOAT, Types.DOUBLE),
+      "id, f, d"
+    )
+
+    checkResult(
+      "SELECT id FROM SignedZeros WHERE f IN (0, 2) AND d IN (0, 2)",
+      Seq(row(1), row(1), row(2), row(5)))
+
+    for (field <- Seq("f", "d")) {
+      checkResult(
+        s"""
+           |SELECT id, $field = 0,
+           |  $field IN (0, 2), $field NOT IN (0, 2),
+           |  $field IN (0, 2, NULL), $field NOT IN (0, 2, NULL)
+           |FROM SignedZeros
+           |""".stripMargin,
+        Seq(
+          row(1, true, true, false, true, false),
+          row(1, true, true, false, true, false),
+          row(2, true, true, false, true, false),
+          row(3, false, false, true, null, null),
+          row(4, null, null, null, null, null),
+          row(5, false, true, false, true, false),
+          row(6, false, false, true, null, null),
+          row(7, false, false, true, null, null),
+          row(8, false, false, true, null, null)
+        )
+      )
+    }
+  }
+
+  @Test
   def testSearch(): Unit = {
     val myTableDataId = TestValuesTableFactory.registerData(
       Seq(row("HC809"), row("H389N     "))

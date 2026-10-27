@@ -20,6 +20,8 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.annotation.StateKind;
+import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate.StateInfoTemplate;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
@@ -94,10 +96,13 @@ interface FunctionResultTemplate {
         static class StateInfoTemplate {
             final DataType dataType;
             final @Nullable Duration ttl;
+            final boolean broadcast;
 
-            private StateInfoTemplate(DataType dataType, @Nullable Duration ttl) {
+            private StateInfoTemplate(
+                    DataType dataType, @Nullable Duration ttl, boolean broadcast) {
                 this.dataType = dataType;
                 this.ttl = ttl;
+                this.broadcast = broadcast;
             }
 
             static StateInfoTemplate of(DataType dataType, @Nullable StateHint stateHint) {
@@ -105,7 +110,25 @@ interface FunctionResultTemplate {
                 if (stateHint != null) {
                     ExtractionUtils.checkStateDataType(dataType);
                 }
-                return new StateInfoTemplate(dataType, createStateTimeToLive(stateHint));
+                final boolean broadcast =
+                        stateHint != null && stateHint.value() == StateKind.BROADCAST;
+                final Duration ttl = createStateTimeToLive(stateHint);
+                if (broadcast) {
+                    checkBroadcastState(dataType, ttl);
+                }
+                return new StateInfoTemplate(dataType, ttl, broadcast);
+            }
+
+            private static void checkBroadcastState(DataType dataType, @Nullable Duration ttl) {
+                if (ttl != null) {
+                    throw extractionError(
+                            "Broadcast state entries must not declare a time-to-live (TTL).");
+                }
+                if (ListView.class.isAssignableFrom(dataType.getConversionClass())) {
+                    throw extractionError(
+                            "Broadcast state entries must not be a ListView. "
+                                    + "Use a MapView, ValueView, or an eager value state instead.");
+                }
             }
 
             @Override
@@ -117,17 +140,23 @@ interface FunctionResultTemplate {
                     return false;
                 }
                 final StateInfoTemplate that = (StateInfoTemplate) o;
-                return Objects.equals(dataType, that.dataType) && Objects.equals(ttl, that.ttl);
+                return broadcast == that.broadcast
+                        && Objects.equals(dataType, that.dataType)
+                        && Objects.equals(ttl, that.ttl);
             }
 
             @Override
             public int hashCode() {
-                return Objects.hash(dataType, ttl);
+                return Objects.hash(dataType, ttl, broadcast);
             }
         }
 
         private FunctionStateTemplate(LinkedHashMap<String, StateInfoTemplate> stateInfos) {
             this.stateInfos = stateInfos;
+        }
+
+        boolean hasBroadcastState() {
+            return stateInfos.values().stream().anyMatch(info -> info.broadcast);
         }
 
         List<Class<?>> toClassList() {
@@ -182,7 +211,10 @@ interface FunctionResultTemplate {
         }
 
         private static StateTypeStrategy createStateTypeStrategy(StateInfoTemplate stateInfo) {
-            return StateTypeStrategy.of(TypeStrategies.explicit(stateInfo.dataType), stateInfo.ttl);
+            return StateTypeStrategy.of(
+                    TypeStrategies.explicit(stateInfo.dataType),
+                    stateInfo.ttl,
+                    stateInfo.broadcast);
         }
 
         private static TypeStrategy createTypeStrategy(DataType dataType) {

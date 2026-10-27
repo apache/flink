@@ -18,12 +18,15 @@
 
 import datetime
 import keyword
+from contextlib import ExitStack
+from decimal import Decimal
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -35,22 +38,67 @@ from typing import (
 
 if TYPE_CHECKING:
     import pandas
+    import pyarrow
     from pyflink.dataframe.udf import _DataTypeLike
-    from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
+    from pyflink.dataframe.udtf import _DataFrameUDTFCall, _DataFrameUDTFWrapper
+    from pyflink.dataframe.llm import LLMAccessor
+    from pyflink.table.table_environment import TableEnvironment
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
 from pyflink.dataframe.datatype import _INT_MAX, DataType
+from pyflink.dataframe.iteration import (
+    _BATCH_FORMATS,
+    CloseableIterator,
+    _build_arrow_schema,
+    _iterate_batches,
+    _iterate_rows,
+    _row_to_dict,
+    _rows_to_batch,
+    _take_rows,
+    _validate_row_kind_field,
+)
+from pyflink.dataframe.validation import _require_choice, _require_int, _require_number
 from pyflink.java_gateway import get_gateway
-from pyflink.table.expression import Expression
+from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.expressions import (
     and_,
     call_sql,
     col as table_col,
+    if_then_else,
+    is_nan,
+    is_not_nan,
     lit as table_lit,
+    or_,
 )
 from pyflink.table.table import Table
+from pyflink.table.statement_set import StatementSet
+from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.types import (
+    ArrayType,
+    MapType,
+    MultisetType,
+    RowType,
+    FloatType,
+    DoubleType,
+    AtomicType,
+    IntegralType,
+    FractionalType,
+    DecimalType,
+    CharType,
+    VarCharType,
+    BooleanType,
+    BinaryType,
+    VarBinaryType,
+    DateType,
+    DayTimeIntervalType,
+    TimeType,
+    TimestampType,
+    LocalZonedTimestampType,
+    DataType as TableDataType,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
 
@@ -58,10 +106,7 @@ T = TypeVar("T")
 
 
 def _validate_row_count(n: int) -> None:
-    if isinstance(n, bool) or not isinstance(n, int):
-        raise TypeError("n must be an integer")
-    if n < 0:
-        raise ValueError("n must be non-negative")
+    _require_int(n, "n", 0)
     if n > _INT_MAX:
         raise ValueError(f"n must be less than or equal to {_INT_MAX}")
 
@@ -117,6 +162,15 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
 
 
 @PublicEvolving()
+def proctime() -> Expression:
+    """Return a processing-time attribute for a lookup :meth:`DataFrame.join_asof`.
+
+    .. versionadded:: 2.4.0
+    """
+    return call_sql("PROCTIME()")
+
+
+@PublicEvolving()
 class DataFrame:
     """
     A modern DataFrame API for PyFlink.
@@ -139,6 +193,154 @@ class DataFrame:
         self._table = table
 
     # ======================== Core Operations ========================
+
+    @PublicEvolving()
+    def map(self, func, *, return_dtype=None) -> "DataFrame":
+        """
+        Apply a function to each row, producing a new DataFrame.
+
+        Pass a Python function, a callable class or instance, a ``ScalarFunction`` or
+        ``AsyncScalarFunction`` class or instance, or a UDF created with
+        :func:`pyflink.dataframe.udf`. The function (or its ``__call__`` or ``eval`` method)
+        receives a dictionary whose keys are input column names and whose values are the
+        values in that row. It must return one dictionary whose keys name the output columns
+        and whose values form the output row. The output replaces the input columns.
+
+        Specify the output schema with ``return_dtype``, or omit it when the callable has a
+        ``TypedDict`` return annotation. For an already declared UDF, its schema is reused
+        and ``return_dtype`` must be omitted. Output columns follow the schema's order;
+        extra dictionary keys are ignored, and missing output fields raise an error.
+
+        :param func: A callable or a DataFrame UDF declared with ``func_type="general"``.
+                     See :func:`pyflink.dataframe.udf` for callable lifecycle behavior.
+        :param return_dtype: Output schema as a struct DataType, TypedDict type, or SQL ROW
+                             type string. May be inferred from a callable's return annotation.
+        :return: A new DataFrame with one output row per input row.
+
+        Examples:
+
+        A Python function with an explicit output schema::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, "alice")], schema=["id", "name"])
+            >>> output_type = pf.DataType.struct({"label": pf.DataType.string()})
+            >>> result = df.map(
+            ...     lambda row: {"label": row["name"].upper()},
+            ...     return_dtype=output_type,
+            ... )
+
+        Infer the output schema from a TypedDict return annotation::
+
+            >>> from typing import TypedDict
+            >>> class Output(TypedDict):
+            ...     label: str
+            >>> def uppercase(row) -> Output:
+            ...     return {"label": row["name"].upper()}
+            >>> result = df.map(uppercase)
+
+        Pass a callable class, or configure an instance before passing it::
+
+            >>> class PrefixName:
+            ...     def __init__(self, prefix="user_"):
+            ...         self.prefix = prefix
+            ...     def __call__(self, row) -> Output:
+            ...         return {"label": self.prefix + row["name"]}
+            >>> result = df.map(PrefixName)
+            >>> result = df.map(PrefixName("member_"))
+
+        Use a ScalarFunction's eval method::
+
+            >>> from pyflink.table.udf import ScalarFunction
+            >>> class UppercaseName(ScalarFunction):
+            ...     def eval(self, row) -> Output:
+            ...         return {"label": row["name"].upper()}
+            >>> result = df.map(UppercaseName())
+
+        Reuse a declared DataFrame UDF without repeating its output schema::
+
+            >>> declared_uppercase = pf.udf(uppercase)
+            >>> result = df.map(declared_uppercase)
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udf import _resolve_map_udf
+
+        function = _resolve_map_udf(func, return_dtype, "general", self.schema.to_row_data_type())
+        return DataFrame(self._table.map(function(*[table_col(name) for name in self.columns])))
+
+    @PublicEvolving()
+    def map_batches(self, func, *, return_dtype=None, batch_format: str) -> "DataFrame":
+        """
+        Apply a function to batches of rows, producing a new DataFrame.
+
+        Flink automatically groups input rows into batches and calls ``func`` once per batch.
+        Pass a Python function, a callable class or instance, a ``ScalarFunction`` class or
+        instance, or a UDF created with :func:`pyflink.dataframe.udf`. The callable receives
+        and returns a dictionary keyed by column name: each non-ROW value is a ``pandas.Series``
+        when ``batch_format="pandas"``, or a ``pyarrow.Array`` when ``batch_format="arrow"``.
+        Input values contain the batched column values; returned values form the output
+        columns, replacing the input columns.
+
+        Each output row must correspond to the input row at the same position, preserving
+        the number and order of rows. Specify
+        the output struct schema with ``return_dtype``; for a declared UDF, omit it to reuse
+        that UDF's schema. Output columns follow the schema's order; extra dictionary keys
+        are ignored, and missing output fields raise an error. Pandas output columns align
+        by index.
+
+        .. note::
+
+            For ROW input and output columns, use ``pandas.DataFrame`` in pandas mode
+            and ``pyarrow.StructArray`` in Arrow mode.
+
+        :param func: A callable or a DataFrame UDF declared for the selected batch format.
+        :param return_dtype: Output struct schema. Required for raw callables in both formats;
+                             must be omitted for an already declared UDF.
+        :param batch_format: ``"pandas"`` or ``"arrow"``. Required even for declared UDFs.
+        :return: A new DataFrame with the same number of rows as the input.
+
+        Examples:
+
+        Transform pandas batches with a Python function::
+
+            >>> import pandas as pd
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1,), (2,), (3,)], schema=["value"])
+            >>> output_type = pf.DataType.struct({"doubled": pf.DataType.int64()})
+            >>> def double_pandas(batch: dict[str, pd.Series]) -> dict[str, pd.Series]:
+            ...     return {"doubled": batch["value"] * 2}
+            >>> result = df.map_batches(
+            ...     double_pandas, batch_format="pandas", return_dtype=output_type,
+            ... )
+
+        Use a callable class to transform Arrow batches::
+
+            >>> import pyarrow as pa
+            >>> import pyarrow.compute as pc
+            >>> class DoubleArrow:
+            ...     def __call__(self, batch: dict[str, pa.Array]) -> dict[str, pa.Array]:
+            ...         return {"doubled": pc.multiply(batch["value"], 2)}
+            >>> result = df.map_batches(
+            ...     DoubleArrow, batch_format="arrow", return_dtype=output_type,
+            ... )
+
+        Reuse a declared UDF, specifying its batch format at the call site::
+
+            >>> declared_double = pf.udf(
+            ...     double_pandas, return_dtype=output_type, func_type="pandas",
+            ... )
+            >>> result = df.map_batches(declared_double, batch_format="pandas")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udf import _resolve_map_udf
+
+        if batch_format not in ("pandas", "arrow"):
+            raise ValueError("batch_format must be 'pandas' or 'arrow'.")
+        function = _resolve_map_udf(
+            func, return_dtype, batch_format, self.schema.to_row_data_type()
+        )
+        return DataFrame(self._table.map(function(*[table_col(name) for name in self.columns])))
 
     @PublicEvolving()
     def filter(
@@ -710,6 +912,581 @@ class DataFrame:
         table = self._table.flat_map(expression)
         # Table UDTFs expose positional field names, so restore the declared names.
         return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
+
+    @PublicEvolving()
+    def explode(
+        self,
+        column: Union[str, Expression, List[Union[str, Expression]]],
+        *,
+        output_column: Optional[Union[str, List[str]]] = None,
+        ignore_empty_and_null: bool = False,
+    ) -> "DataFrame":
+        """
+        Expand an ARRAY, MAP, or MULTISET into rows, preserving duplicate occurrences.
+
+        A referenced input column is replaced in place by the expanded element. For a computed
+        collection expression, all input columns are retained and the expanded element is
+        appended. MAP values yield key and value fields. ROW elements remain a single ROW column;
+        use :attr:`pyflink.table.Expression.flatten` in a subsequent :meth:`select` to expand its
+        fields. Empty and null collections produce a row with null output fields unless
+        ``ignore_empty_and_null`` is true.
+
+        A list of multiple columns or expressions expands ARRAYs together by position. Their lengths
+        must match in each input row, treating empty and null arrays as length zero; otherwise
+        execution fails. Null elements count toward the length. When all arrays are empty or
+        null, ``ignore_empty_and_null`` controls whether to drop the row or retain one row with
+        null expanded fields. Each array produces one output column, including ARRAYs of ROWs.
+        A one-element list follows the single-input behavior.
+
+        .. warning::
+            Single-input expansion of an ARRAY containing null ROW elements may drop those
+            elements or fail during execution, regardless of ``ignore_empty_and_null``.
+            A non-null ROW whose fields are all null is not affected.
+
+        :param column: Collection column name or row-wise expression to expand, or a non-empty
+            list of ARRAY column names or row-wise expressions to expand together.
+        :param output_column: Output name or list of names. Required for multiple fields;
+            a single field defaults to the selected column name. Names must be unique and must
+            not conflict with retained input columns. For multiple ARRAYs, names default to
+            the resolved input names and each ARRAY requires one output name.
+        :param ignore_empty_and_null: Whether to drop rows with empty or null collections.
+        :return: A new DataFrame with the expanded rows.
+        :raises TypeError: If an argument has an unsupported type or the input is not a collection.
+        :raises ValueError: If the expression is not row-wise, selects multiple columns,
+            or output names are invalid.
+
+        Examples:
+
+        Explode an ARRAY of scalar values::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_dict({"id": [1, 2], "tags": [["a", "b"], []]})
+            >>> result = df.explode(
+            ...     "tags", output_column="tag", ignore_empty_and_null=True)
+
+        Explode an ARRAY of ROW values, then expand the ROW fields explicitly::
+
+            >>> import pyflink.dataframe as pf
+            >>> from typing import NamedTuple
+            >>> class Item(NamedTuple):
+            ...     name: str
+            ...     quantity: int
+            >>> orders = pf.from_records(
+            ...     [(1, [Item("apple", 2)])], schema=["id", "items"])
+            >>> exploded = orders.explode("items", ignore_empty_and_null=True)
+            >>> flattened = exploded.select("id", pf.col("items").flatten)
+            >>> flattened.columns
+            ['id', 'items$name', 'items$quantity']
+
+        Expand multiple ARRAYs together, matching their elements by position::
+
+            >>> df = pf.from_dict({"items": [["apple", "pear"]], "counts": [[2, 3]]})
+            >>> result = df.explode(["items", "counts"])
+
+        .. versionadded:: 2.4.0
+        """
+        if isinstance(column, list):
+            if not column:
+                raise ValueError("column must not be empty")
+            if not all(isinstance(value, (str, Expression)) for value in column):
+                raise TypeError("column must contain only column names or expressions")
+            if len(column) == 1:
+                column = column[0]
+        elif not isinstance(column, (str, Expression)):
+            raise TypeError("column must be a column name, expression, or list of these")
+        if not isinstance(ignore_empty_and_null, bool):
+            raise TypeError("ignore_empty_and_null must be a boolean")
+        if output_column is not None and not isinstance(output_column, (str, list)):
+            raise TypeError("output_column must be a string or list of strings")
+        if isinstance(column, list):
+            return self._explode_columns(column, output_column, ignore_empty_and_null)
+
+        expression = table_col(column) if isinstance(column, str) else column
+        selected = self._table.select(expression)
+        schema = selected.get_resolved_schema()
+        if len(schema.get_column_names()) != 1:
+            raise ValueError("column must select a single column")
+        projection = selected._j_table.getQueryOperation()
+        # Aggregates insert an intermediate operation whose field indexes refer to its result.
+        if not projection.getChildren().get(0).equals(self._table._j_table.getQueryOperation()):
+            raise ValueError("column must be a row-wise expression, not an aggregation")
+
+        data_type = schema.get_column_data_types()[0]
+        element_row_type = None
+        element_row_type_sql = None
+        if isinstance(data_type, MapType):
+            field_count = 2
+        elif isinstance(data_type, (ArrayType, MultisetType)):
+            element_type = data_type.element_type
+            element_row_type = element_type if isinstance(element_type, RowType) else None
+            if element_row_type is not None:
+                collection_type = schema._j_resolved_schema.getColumnDataTypes().get(0)
+                element_row_type_sql = (
+                    collection_type.getChildren()
+                    .get(0)
+                    .getLogicalType()
+                    .copy(True)
+                    .asSerializableString()
+                )
+            field_count = 1
+        else:
+            raise TypeError("column must have an ARRAY, MAP, or MULTISET type")
+
+        if output_column is None:
+            if field_count != 1:
+                raise ValueError("output_column is required for multiple output fields")
+            output_names = [schema.get_column_names()[0]]
+        else:
+            output_names = [output_column] if isinstance(output_column, str) else output_column
+        if not all(isinstance(name, str) for name in output_names):
+            raise TypeError("output_column must contain only strings")
+        if len(output_names) != field_count:
+            raise ValueError("output_column must contain %d name(s)" % field_count)
+        if any(not name for name in output_names) or len(set(output_names)) != field_count:
+            raise ValueError("output_column names must be non-empty and unique")
+
+        table = self._table
+        columns = list(table.get_resolved_schema().get_column_names())
+        resolved = projection.getProjectList().get(0)
+        # Resolve the input field by index so an alias does not hide the column to remove.
+        if resolved.getClass().getSimpleName() == "FieldReferenceExpression":
+            output_index = resolved.getFieldIndex()
+            collection_name = columns.pop(output_index)
+        else:
+            output_index = len(columns)
+            taken = set(columns) | set(output_names)
+            collection_name = _unique_name("__pf_explode", taken)
+            table = table.add_columns(expression.alias(collection_name))
+        if set(output_names).intersection(columns):
+            raise ValueError("output_column names conflict with retained input columns")
+
+        unnest_output_names = output_names
+        ordinality_name = None
+        if element_row_type is not None:
+            # SQL UNNEST expands ROW fields. Reassemble them below, using ordinality to
+            # distinguish an outer-join placeholder from a real ROW whose fields are all null.
+            taken = set(columns) | set(output_names) | {collection_name}
+            unnest_output_names = []
+            for index in range(len(element_row_type.fields)):
+                name = _unique_name("__pf_explode_field_%d" % index, taken)
+                taken.add(name)
+                unnest_output_names.append(name)
+            if not ignore_empty_and_null:
+                ordinality_name = _unique_name("__pf_explode_ordinality", taken)
+
+        if element_row_type is None:
+            explode_projection = [
+                "expanded." + _quote_identifier(name) for name in unnest_output_names
+            ]
+        else:
+            row_value = "CAST(ROW(%s) AS %s)" % (
+                ", ".join(
+                    "expanded." + _quote_identifier(name) for name in unnest_output_names
+                ),
+                element_row_type_sql,
+            )
+            if ordinality_name is not None:
+                row_value = "CASE WHEN expanded.%s IS NULL THEN CAST(NULL AS %s) ELSE %s END" % (
+                    _quote_identifier(ordinality_name),
+                    element_row_type_sql,
+                    row_value,
+                )
+            explode_projection = [row_value + " AS " + _quote_identifier(output_names[0])]
+
+        projections = ["src." + _quote_identifier(name) for name in columns]
+        projections[output_index:output_index] = explode_projection
+        query = "SELECT %s FROM %s AS src %s UNNEST(src.%s)%s AS expanded(%s)%s" % (
+            ", ".join(projections),
+            _quote_identifier(str(table)),
+            "CROSS JOIN" if ignore_empty_and_null else "LEFT JOIN",
+            _quote_identifier(collection_name),
+            " WITH ORDINALITY" if ordinality_name is not None else "",
+            ", ".join(
+                _quote_identifier(name)
+                for name in unnest_output_names
+                + ([ordinality_name] if ordinality_name is not None else [])
+            ),
+            "" if ignore_empty_and_null else " ON TRUE",
+        )
+        return DataFrame(table._t_env.sql_query(query))
+
+    def _explode_columns(
+        self,
+        columns: List[Union[str, Expression]],
+        output_column: Optional[Union[str, List[str]]],
+        ignore_empty_and_null: bool,
+    ) -> "DataFrame":
+        table = self._table
+        input_names = table.get_resolved_schema().get_column_names()
+        expressions: List[Expression] = []
+        for value in columns:
+            if isinstance(value, str):
+                expressions.append(table_col(value))
+            else:
+                expressions.append(value)
+        resolved_names = []
+        input_indexes = []
+        for expression in expressions:
+            selected = table.select(expression)
+            schema = selected.get_resolved_schema()
+            if len(schema.get_column_names()) != 1:
+                raise ValueError("each column must select a single column")
+            projection = selected._j_table.getQueryOperation()
+            if not projection.getChildren().get(0).equals(table._j_table.getQueryOperation()):
+                raise ValueError("column must be a row-wise expression, not an aggregation")
+            if not isinstance(schema.get_column_data_types()[0], ArrayType):
+                raise TypeError("multiple columns must all have an ARRAY type")
+            resolved_names.append(schema.get_column_names()[0])
+            resolved = projection.getProjectList().get(0)
+            index: Optional[int] = None
+            if resolved.getClass().getSimpleName() == "FieldReferenceExpression":
+                index = resolved.getFieldIndex()
+            if index is not None and index in input_indexes:
+                raise ValueError("column must not contain duplicate input columns")
+            input_indexes.append(index)
+
+        if output_column is None:
+            output_names = resolved_names
+        elif isinstance(output_column, str):
+            output_names = [output_column]
+        else:
+            output_names = output_column
+        if not all(isinstance(name, str) for name in output_names):
+            raise TypeError("output_column must contain only strings")
+        if len(output_names) != len(columns):
+            raise ValueError("output_column must contain %d name(s)" % len(columns))
+        if any(not name for name in output_names) or len(set(output_names)) != len(columns):
+            raise ValueError("output_column names must be non-empty and unique")
+        retained = []
+        for index, name in enumerate(input_names):
+            if index not in input_indexes:
+                retained.append(name)
+        if set(output_names).intersection(retained):
+            raise ValueError("output_column names conflict with retained input columns")
+
+        taken = set(input_names) | set(output_names)
+        array_names = []
+        computed = []
+        for expression, index in zip(expressions, input_indexes):
+            if index is None:
+                name = _unique_name("__pf_explode", taken)
+                taken.add(name)
+                computed.append(expression.alias(name))
+            else:
+                name = input_names[index]
+            array_names.append(name)
+        if computed:
+            table = table.add_columns(*computed)
+        ordinal_name = _unique_name("__pf_explode_ordinality", taken)
+        gateway = get_gateway()
+        # Validate before producing ordinals, including when the first array is empty.
+        function = gateway.jvm.org.apache.flink.table.utils.python.ExplodeOrdinalityFunction()
+        lengths = to_jarray(
+            gateway.jvm.Object,
+            [_get_java_expression(table_col(name).cardinality) for name in array_names],
+        )
+        ordinals: Expression = Expression(
+            gateway.jvm.Expressions.call(function, lengths)
+        ).alias(ordinal_name)
+        if ignore_empty_and_null:
+            table = table.join_lateral(ordinals)
+        else:
+            table = table.left_outer_join_lateral(ordinals)
+        expanded = [
+            table_col(name).at(table_col(ordinal_name)).alias(output)
+            for name, output in zip(array_names, output_names)
+        ]
+        replacements = {}
+        for index, value in zip(input_indexes, expanded):
+            if index is not None:
+                replacements[index] = value
+        projections: List[Expression] = []
+        for index, name in enumerate(input_names):
+            if index in replacements:
+                projections.append(replacements[index])
+            else:
+                projections.append(table_col(name))
+        for index, value in zip(input_indexes, expanded):
+            if index is None:
+                projections.append(value)
+        return DataFrame(table.select(*projections))
+
+    # ======================== Joins ========================
+
+    @PublicEvolving()
+    def join(
+        self,
+        other: "DataFrame",
+        *,
+        on=None,
+        how: str = "inner",
+        left_on=None,
+        right_on=None,
+    ) -> "DataFrame":
+        """
+        Join this DataFrame with another DataFrame.
+
+        Use ``on`` when both sides share the same named join keys, or pass a boolean expression as
+        the complete join predicate. Use ``left_on`` and ``right_on`` together when the key names
+        differ. In streaming mode, a join without equality keys may use singleton distribution
+        (a single parallel instance) and can be expensive.
+        Shared named keys occur once in the result; other duplicate column names must be renamed
+        before joining. ``semi`` and ``anti`` joins return only columns from this DataFrame, while
+        ``cross`` performs a Cartesian product and accepts no join keys.
+
+        :param other: DataFrame on the right side of the join.
+        :param on: Shared column name, list of shared column names, or a boolean join expression.
+        :param how: Join type: ``"inner"``, ``"left"``, ``"right"``, ``"full"``, ``"outer"``,
+            ``"semi"``, ``"anti"``, or ``"cross"``.
+        :param left_on: Column name, expression, or list of column names from this DataFrame.
+        :param right_on: Column name, expression, or list of column names from ``other``.
+        :return: A new DataFrame containing the join result.
+        :raises TypeError: If an argument has an unsupported type.
+        :raises ValueError: If the join type, keys, schemas, or argument combination is invalid.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> orders = pf.from_records([(1, 10)], schema=["customer_id", "amount"])
+            >>> customers = pf.from_records([(1, "Alice")], schema=["customer_id", "name"])
+            >>> matched = orders.join(customers, on="customer_id")
+            >>> matched = orders.join(
+            ...     customers.rename_columns({"customer_id": "id"}),
+            ...     left_on="customer_id",
+            ...     right_on="id",
+            ...     how="left",
+            ... )
+
+        Expression-based predicates support equality, compound conditions, and non-equi joins::
+
+            >>> customers_by_id = customers.rename_columns({"customer_id": "id"})
+            >>> matched = orders.join(
+            ...     customers_by_id, on=pf.col("customer_id") == pf.col("id"))
+            >>> rules = pf.from_records([(1, 5)], schema=["rule_customer_id", "min_amount"])
+            >>> matched = orders.join(
+            ...     rules,
+            ...     on=(pf.col("customer_id") == pf.col("rule_customer_id"))
+            ...     & (pf.col("amount") >= pf.col("min_amount")),
+            ... )
+            >>> matched = orders.join(rules, on=pf.col("amount") >= pf.col("min_amount"))
+            >>> unmatched = orders.join(
+            ...     customers_by_id,
+            ...     on=pf.col("customer_id") == pf.col("id"),
+            ...     how="anti",
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a pyflink.dataframe.DataFrame")
+        if self._table._t_env._j_tenv != other._table._t_env._j_tenv:
+            raise ValueError("DataFrames must belong to the same TableEnvironment")
+
+        join_type = _normalize_join_type(how)
+        if join_type == "cross":
+            if on is not None or left_on is not None or right_on is not None:
+                raise ValueError("cross join does not accept on, left_on, or right_on")
+            _validate_join_column_conflicts(self.columns, other.columns, set())
+            return DataFrame(self._table.join(other._table))
+
+        (
+            left_table,
+            right_table,
+            predicate,
+            shared_keys,
+        ) = _prepare_join(
+            self._table,
+            other._table,
+            on,
+            left_on,
+            right_on,
+            validate_column_conflicts=join_type not in ("semi", "anti"),
+        )
+
+        with _JoinSqlFactory(self._table._t_env) as sql_factory:
+            if join_type in ("semi", "anti"):
+                return DataFrame(
+                    _build_semi_anti_join_sql(
+                        left_table,
+                        right_table,
+                        predicate,
+                        self.columns,
+                        join_type,
+                        sql_factory,
+                    )
+                )
+
+            return DataFrame(
+                _build_regular_join_sql(
+                    left_table,
+                    right_table,
+                    predicate,
+                    self.columns,
+                    other.columns,
+                    shared_keys,
+                    join_type,
+                    sql_factory,
+                )
+            )
+
+    @PublicEvolving()
+    def join_asof(
+        self,
+        other: "DataFrame",
+        *,
+        how: str = "inner",
+        on: Optional[Union[str, Expression]] = None,
+        by: Optional[Union[str, Expression, List[Union[str, Expression]]]] = None,
+        left_by: Optional[Union[str, Expression, List[Union[str, Expression]]]] = None,
+        right_by: Optional[Union[str, Expression, List[Union[str, Expression]]]] = None,
+    ) -> "DataFrame":
+        """
+        Join a dimension table as of each left row's time attribute.
+
+        Use :func:`proctime` or a left processing-time column for a lookup join. The
+        right table must support lookups. Use a left event-time column for a temporal
+        join; both inputs need watermarks, and the right table's primary key must be
+        covered by the equality keys. These requirements follow the underlying Table API.
+
+        Shared named keys occur once in the result. Other duplicate column names must
+        be renamed before joining. The time attribute may also appear in equality keys
+        and residual conditions.
+        Conditions require an equality between the inputs, optionally AND-combined
+        with other conditions; OR conditions and purely non-equi conditions are rejected.
+
+        :param other: Dimension DataFrame in the same TableEnvironment.
+        :param how: Join type, ``"inner"`` or ``"left"``.
+        :param on: Required left time-attribute column or :func:`proctime` expression.
+        :param by: Shared key name, boolean join expression, or a list of these.
+        :param left_by: Left key name, expression, or list of names or expressions.
+        :param right_by: Right keys paired with ``left_by``, instead of ``by``.
+        :return: A new DataFrame containing the join result.
+        :raises TypeError: If an argument has an unsupported type.
+        :raises ValueError: If the time attribute, keys, or argument combination is invalid.
+
+        Example::
+
+            >>> enriched = orders.join_asof(
+            ...     customers, on=pf.proctime(), by="customer_id", how="left")
+            >>> historical = orders.join_asof(
+            ...     rates, on="event_time", left_by="currency", right_by="currency_id")
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a pyflink.dataframe.DataFrame")
+        if self._table._t_env._j_tenv != other._table._t_env._j_tenv:
+            raise ValueError("DataFrames must belong to the same TableEnvironment")
+        if not isinstance(how, str):
+            raise TypeError("how must be a string")
+        if how not in ("inner", "left"):
+            raise ValueError('how must be "inner" or "left"')
+        if on is None:
+            raise ValueError("on must specify a left time attribute")
+        if not isinstance(on, (str, Expression)):
+            raise TypeError("on must be a column name or expression")
+        if by is not None and (left_by is not None or right_by is not None):
+            raise ValueError("by cannot be combined with left_by or right_by")
+        if by is None and (left_by is None or right_by is None):
+            raise ValueError("join_asof requires by or left_by and right_by together")
+
+        left_table, time_name = _prepare_asof_time(self._table, on, other.columns)
+        join_keys: Union[List[str], Expression, None] = None
+        extra_conditions = []
+        named_keys = []
+        if by is not None:
+            for key in _normalize_join_keys(by, "by", allow_expressions=True):
+                if isinstance(key, str):
+                    named_keys.append(key)
+                else:
+                    extra_conditions.append(key)
+            if named_keys:
+                join_keys = named_keys
+            else:
+                join_keys = (and_(*extra_conditions)
+                             if len(extra_conditions) > 1 else extra_conditions[0])
+                extra_conditions = []
+        left_table, right_table, predicate, shared_keys = _prepare_join(
+            left_table, other._table, join_keys, left_by, right_by,
+            validate_column_conflicts=True, asof_time=time_name,
+        )
+        if extra_conditions:
+            predicate = and_(predicate, *extra_conditions)
+        with _JoinSqlFactory(self._table._t_env) as sql_factory:
+            return DataFrame(_build_regular_join_sql(
+                left_table, right_table, predicate, self.columns, other.columns,
+                shared_keys, how, sql_factory, asof_time=time_name,
+            ))
+
+    @PublicEvolving()
+    def join_lateral(
+        self,
+        table_function_call: Union["_DataFrameUDTFCall", Expression],
+        *,
+        on: Optional[Expression[bool]] = None,
+        ignore_empty: bool = True,
+    ) -> "DataFrame":
+        """
+        Join each input row with the rows emitted by a table function call.
+
+        The function receives the explicit arguments supplied in the call. The result
+        retains the input columns followed by the function's output columns. Output
+        names come from ``alias`` or a named ``TypedDict`` or struct ``return_dtype``.
+        Raw Table API expressions must specify output names with ``alias``. Output
+        names must be non-empty, unique, and distinct from the input column names.
+
+        :param table_function_call: A call to a function declared with
+            :func:`pyflink.dataframe.udtf`, or a Table API table function expression.
+        :param on: Optional boolean join predicate. Left outer lateral joins currently
+            require an omitted or literal ``True`` predicate, as in the Table API.
+        :param ignore_empty: If ``True`` (default), use an inner lateral join. If
+            ``False``, use a left outer lateral join, preserving input rows with no
+            emitted rows and filling the output columns with NULLs.
+        :return: A new DataFrame containing the lateral join result.
+
+        Example::
+
+            >>> from typing import Iterator, TypedDict
+            >>> import pyflink.dataframe as pf
+            >>> @pf.udtf
+            ... def chars(text: str) -> Iterator[str]:
+            ...     yield from text
+            >>> df = pf.from_records([(1, "ab"), (2, "")], schema=["id", "text"])
+            >>> expanded = df.join_lateral(chars(pf.col("text")).alias("ch"))
+            >>> preserved = df.join_lateral(
+            ...     chars(pf.col("text")).alias("ch"), ignore_empty=False)
+            >>> filtered = df.join_lateral(
+            ...     chars(pf.col("text")).alias("ch"), on=pf.col("id") > 0)
+
+        Named multi-field outputs do not require aliases::
+
+            >>> class Token(TypedDict):
+            ...     word: str
+            ...     length: int
+            >>> @pf.udtf
+            ... def tokenize(text: str) -> Iterator[Token]:
+            ...     for word in text.split():
+            ...         yield {"word": word, "length": len(word)}
+            >>> tokens = df.join_lateral(tokenize(pf.col("text")))
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udtf import _resolve_lateral_expression
+
+        if not isinstance(ignore_empty, bool):
+            raise TypeError("ignore_empty must be a bool")
+        if on is not None and not isinstance(on, Expression):
+            raise TypeError("on must be a boolean expression")
+        expression = _resolve_lateral_expression(table_function_call, self.columns)
+        if ignore_empty:
+            table = self._table.join_lateral(expression)
+            if on is not None:
+                # Filtering an inner lateral join is equivalent to its ON predicate and
+                # avoids the Table API's equi-join validation for ordinary joins.
+                table = table.filter(on)
+        else:
+            table = self._table.left_outer_join_lateral(expression, on)
+        return DataFrame(table)
 
     # ======================== Filtering & Ordering ========================
 
@@ -1400,6 +2177,305 @@ class DataFrame:
         """
         return func(self, *args, **kwargs)
 
+    # ======================== Missing Value Handling ========================
+
+    def _validate_subset(self, subset: Optional[List[str]]) -> List[str]:
+        """
+        Validate and normalize the subset parameter.
+
+        :param subset: Column names to validate, or None for all columns.
+        :return: Validated list of column names.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+        """
+        schema = self._table.get_schema()
+        all_columns = schema.get_field_names()
+
+        if subset is None:
+            return all_columns
+
+        if not isinstance(subset, list) or not all(
+            isinstance(column, str) for column in subset
+        ):
+            raise TypeError("subset must be a list of strings")
+
+        # Empty subset is allowed - it's a no-op
+        if not subset:
+            return []
+
+        # Validate all column names exist
+        all_columns_set = set(all_columns)
+        invalid_columns = set(subset) - all_columns_set
+        if invalid_columns:
+            raise ValueError(f"Columns not found in DataFrame: {sorted(invalid_columns)}")
+
+        return subset
+
+    def _is_type_compatible(self, value: Any, col_type: TableDataType) -> bool:
+        """
+        Check if a value's type is compatible with a column's data type.
+
+        Only atomic (primitive) types are supported. Complex types (arrays, maps, rows)
+        are not compatible and will return False.
+
+        :param value: The value to check.
+        :param col_type: The column's Flink data type.
+        :return: True if types are compatible, False otherwise.
+        """
+        # Skip complex types
+        if not isinstance(col_type, AtomicType):
+            return False
+
+        # None is compatible with any atomic column type (assigning NULL)
+        if value is None:
+            return True
+
+        # Map Python types to compatible Flink types
+        type_map = {
+            bool: (BooleanType,),
+            int: (IntegralType, FractionalType, DecimalType),
+            float: (FractionalType, DecimalType),
+            str: (CharType, VarCharType),
+            Decimal: (DecimalType,),
+            bytes: (BinaryType, VarBinaryType),
+            bytearray: (BinaryType, VarBinaryType),
+            datetime.date: (DateType,),
+            datetime.time: (TimeType,),
+            datetime.datetime: (TimestampType, LocalZonedTimestampType),
+            datetime.timedelta: (DayTimeIntervalType,),
+        }
+
+        compatible_types = type_map.get(type(value))
+        if compatible_types is None:
+            return False
+
+        return isinstance(col_type, compatible_types)
+
+    def _filter_to_float_columns(self, subset: Optional[List[str]]) -> List[str]:
+        """
+        Resolve the floating-point columns to operate on for NaN handling.
+
+        :param subset: Column names to check, or None for all columns.
+        :return: The subset's column names that are FLOAT or DOUBLE typed.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+        """
+        schema = self._table.get_schema()
+        subset = schema.get_field_names() if subset is None else self._validate_subset(subset)
+
+        return [
+            col_name for col_name in subset
+            if isinstance(schema.get_field_data_type(col_name), (FloatType, DoubleType))
+        ]
+
+    def _fill_values(
+        self,
+        value: Any,
+        subset: Optional[List[str]],
+        condition_fn: Callable[[Expression], Expression]
+    ) -> "DataFrame":
+        """
+        Helper method to fill values based on a condition.
+
+        :param value: The value to use as replacement.
+        :param subset: Column names to fill, or None for all columns.
+        :param condition_fn: Function that takes a column expression and returns
+                           a boolean expression indicating when to replace.
+        :return: A new DataFrame with values replaced.
+        """
+        subset = self._validate_subset(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
+        subset_set = set(subset)
+
+        schema = self._table.get_schema()
+        all_columns = schema.get_field_names()
+
+        expressions = []
+        for col_name in all_columns:
+            col_expr = table_col(col_name)
+            if col_name in subset_set:
+                col_type = schema.get_field_data_type(col_name)
+
+                # Only fill type-compatible columns
+                if self._is_type_compatible(value, col_type):
+                    if value is None:
+                        # A NULL literal cannot have its type inferred; it must be
+                        # given explicitly, and must be nullable.
+                        typed_value = table_lit(None, col_type.nullable())
+                    else:
+                        typed_value = table_lit(value).cast(col_type)
+                    filled_expr = if_then_else(
+                        condition_fn(col_expr),
+                        typed_value,
+                        col_expr
+                    ).alias(col_name)
+                    expressions.append(filled_expr)
+                else:
+                    expressions.append(col_expr)
+            else:
+                expressions.append(col_expr)
+
+        return DataFrame(self._table.select(*expressions))
+
+    @PublicEvolving()
+    def drop_null(self, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Remove rows containing NULL values.
+
+        This method uses three-valued logic: NULL values in the specified columns
+        will cause the row to be filtered out. Rows where all checked columns are
+        non-NULL will be retained.
+
+        :param subset: Column names to check. If None, checks all columns.
+        :return: A new DataFrame with rows containing NULL values removed.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "name": "Alice", "age": 30},
+            ...     {"id": 2, "name": None, "age": 25},
+            ...     {"id": 3, "name": "Bob", "age": None},
+            ... ])
+            >>> df.drop_null()  # Drop rows with any NULL
+            >>> df.drop_null(subset=["age"])  # Drop rows where "age" is NULL
+
+        .. versionadded:: 2.4.0
+        """
+        subset = self._validate_subset(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
+        conditions = [table_col(col_name).is_not_null for col_name in subset]
+        condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
+        return DataFrame(self._table.filter(condition))
+
+    @PublicEvolving()
+    def drop_nan(self, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Remove rows containing NaN values (for float/double columns).
+
+        This method uses three-valued logic: NaN values in the specified columns
+        will cause the row to be filtered out. NULL values are preserved (not
+        treated as NaN). Only applies to floating-point numeric types.
+
+        :param subset: Column names to check. If None, checks all columns.
+        :return: A new DataFrame with rows containing NaN values removed.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "score": 0.95},
+            ...     {"id": 2, "score": float('nan')},
+            ... ])
+            >>> df.drop_nan()  # Drop rows with any NaN
+            >>> df.drop_nan(subset=["score"])  # Drop rows where "score" is NaN
+
+        .. versionadded:: 2.4.0
+        """
+        subset = self._filter_to_float_columns(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
+        # Preserve NULL values: (is_not_nan(col) OR col IS NULL)
+        conditions = [
+            or_(is_not_nan(table_col(col_name)), table_col(col_name).is_null)
+            for col_name in subset
+        ]
+        condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
+        return DataFrame(self._table.filter(condition))
+
+    @PublicEvolving()
+    def fill_null(self, value: Any, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Replace NULL values with a specified value.
+
+        This method uses three-valued logic: NULL values in the specified columns
+        are replaced with the provided value, while non-NULL values are preserved.
+        The replacement value is automatically cast to match each column's data type.
+        Columns whose data type is not compatible with ``value`` are left unchanged.
+        If ``value`` is ``None``, the DataFrame is returned unchanged.
+
+        :param value: The value to replace NULL with.
+        :param subset: Column names to fill. If None, fills all columns.
+        :return: A DataFrame with NULL values replaced, or this DataFrame unchanged if ``value``
+            is ``None``.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "name": "Alice", "quantity": 10},
+            ...     {"id": 2, "name": None, "quantity": None},
+            ... ])
+            >>> df.fill_null(0, subset=["quantity"])
+            >>> df.fill_null("unknown", subset=["name"])
+
+        .. versionadded:: 2.4.0
+        """
+        if value is None:
+            self._validate_subset(subset)
+            return self
+
+        return self._fill_values(value, subset, lambda col: col.is_null)
+
+    @PublicEvolving()
+    def fill_nan(self, value: Any, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Replace NaN values with a specified value (for float/double columns).
+
+        This method uses three-valued logic: NaN values in the specified columns
+        are replaced with the provided value, while non-NaN values are preserved.
+        NULL values are preserved (not treated as NaN). The replacement value is
+        automatically cast to match each column's data type. If ``value`` is
+        ``None``, NaN values are converted to NULL.
+
+        Non-floating-point columns in ``subset`` are ignored, since only
+        floating-point types support NaN. Columns whose data type is not
+        compatible with ``value`` are also left unchanged.
+
+        :param value: The value to replace NaN with. Can be ``None`` to convert
+            NaN values to NULL.
+        :param subset: Column names to fill. If None, fills all floating-point
+            columns.
+        :return: A new DataFrame with NaN values replaced.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "score": 0.95},
+            ...     {"id": 2, "score": float('nan')},
+            ... ])
+            >>> df.fill_nan(0.0, subset=["score"])
+
+        .. versionadded:: 2.4.0
+        """
+        subset = self._filter_to_float_columns(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
+        return self._fill_values(value, subset, lambda col: is_nan(col))
+
     # ======================== Conversion ========================
 
     @PublicEvolving()
@@ -1421,6 +2497,204 @@ class DataFrame:
         """
         with self._table.execute().collect() as rows:
             return list(rows)
+
+    @PublicEvolving()
+    def iter_rows(
+        self,
+        *,
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> CloseableIterator[Dict[str, Any]]:
+        """
+        Execute this DataFrame and iterate over its rows as they arrive, one dict per row.
+
+        Rows are fetched incrementally, so this also works on unbounded sources. The job runs until
+        the iterator is exhausted or closed; use it in a ``with`` block.
+
+        On an updating DataFrame, such as a streaming aggregation, every changelog entry is a
+        separate row. Set ``include_row_kind`` to tell insertions, updates and deletions apart.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param include_row_kind: Whether to add each row's change kind, one of ``"+I"``,
+            ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Key under which the change kind is added. It must not clash with a
+            column name.
+        :return: An iterator of dicts mapping column names to values.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}])
+            >>> with df.iter_rows() as rows:
+            ...     for row in rows:
+            ...         print(row["id"])
+
+        .. versionadded:: 2.4.0
+        """
+        columns = self.columns
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        return _iterate_rows(self._table, columns, row_kind_field if include_row_kind else None)
+
+    @PublicEvolving()
+    def iter_batches(
+        self,
+        *,
+        batch_size: int = 1000,
+        batch_format: Literal["pandas", "pyarrow"] = "pandas",
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> CloseableIterator[Union["pandas.DataFrame", "pyarrow.Table"]]:
+        """
+        Execute this DataFrame and iterate over its rows in batches of ``batch_size``.
+
+        Every batch except possibly the last holds exactly ``batch_size`` rows, so on a slow
+        unbounded source a batch is only emitted once enough rows have arrived. The job runs until
+        the iterator is exhausted or closed; use it in a ``with`` block.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param batch_size: Number of rows per batch.
+        :param batch_format: ``"pandas"`` for pandas DataFrames or ``"pyarrow"`` for PyArrow
+            Tables.
+        :param include_row_kind: Whether to add a column with each row's change kind, one of
+            ``"+I"``, ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Name of the change kind column. It must not clash with a column
+            name.
+        :return: An iterator of batches in the requested format.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.range(10)
+            >>> with df.iter_batches(batch_size=4) as batches:
+            ...     for batch in batches:
+            ...         print(len(batch))
+
+        .. versionadded:: 2.4.0
+        """
+        _require_int(batch_size, "batch_size", 1)
+        _require_choice(batch_format, "batch_format", _BATCH_FORMATS)
+        schema = self._table.get_resolved_schema()
+        columns = schema.get_column_names()
+        data_types = schema.get_column_data_types()
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        row_kind_field = row_kind_field if include_row_kind else None
+        return _iterate_batches(
+            self._table,
+            batch_size,
+            batch_format,
+            data_types,
+            _build_arrow_schema(columns, data_types, row_kind_field),
+            row_kind_field,
+        )
+
+    @PublicEvolving()
+    def take(
+        self,
+        n: int,
+        *,
+        timeout: Optional[float] = None,
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute this DataFrame and return its first ``n`` rows as dicts.
+
+        The job is cancelled once ``n`` rows have arrived if it is still running, so this is a
+        safe way to peek at an unbounded source. Fewer rows are returned if the result ends first
+        or ``timeout`` expires.
+        The query itself is not limited: on an updating DataFrame the rows are the first ``n``
+        changelog entries.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param n: Maximum number of rows to return.
+        :param timeout: Maximum number of seconds to wait for rows once the job is submitted.
+            ``None`` waits until ``n`` rows arrive or the result ends.
+        :param include_row_kind: Whether to add each row's change kind, one of ``"+I"``,
+            ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Key under which the change kind is added. It must not clash with a
+            column name.
+        :return: Up to ``n`` dicts mapping column names to values.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.range(100)
+            >>> df.take(2)
+            [{'id': 0}, {'id': 1}]
+
+        .. versionadded:: 2.4.0
+        """
+        _validate_row_count(n)
+        if timeout is not None:
+            _require_number(timeout, "timeout", 0)
+        columns = self.columns
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        row_kind_field = row_kind_field if include_row_kind else None
+        return [
+            _row_to_dict(row, columns, row_kind_field)
+            for row in _take_rows(self._table, n, timeout)
+        ]
+
+    @PublicEvolving()
+    def take_batch(
+        self,
+        n: int,
+        *,
+        timeout: Optional[float] = None,
+        batch_format: Literal["pandas", "pyarrow"] = "pandas",
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> Union["pandas.DataFrame", "pyarrow.Table"]:
+        """
+        Execute this DataFrame and return its first ``n`` rows as a single batch.
+
+        Behaves like :meth:`take` but returns a pandas DataFrame or PyArrow Table.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param n: Maximum number of rows to return.
+        :param timeout: Maximum number of seconds to wait for rows once the job is submitted.
+            ``None`` waits until ``n`` rows arrive or the result ends.
+        :param batch_format: ``"pandas"`` for a pandas DataFrame or ``"pyarrow"`` for a PyArrow
+            Table.
+        :param include_row_kind: Whether to add a column with each row's change kind, one of
+            ``"+I"``, ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Name of the change kind column. It must not clash with a column
+            name.
+        :return: A batch of up to ``n`` rows in the requested format.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.range(100)
+            >>> pdf = df.take_batch(5)
+
+        .. versionadded:: 2.4.0
+        """
+        _validate_row_count(n)
+        if timeout is not None:
+            _require_number(timeout, "timeout", 0)
+        _require_choice(batch_format, "batch_format", _BATCH_FORMATS)
+        schema = self._table.get_resolved_schema()
+        columns = schema.get_column_names()
+        data_types = schema.get_column_data_types()
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        row_kind_field = row_kind_field if include_row_kind else None
+        arrow_schema = _build_arrow_schema(columns, data_types, row_kind_field)
+        return _rows_to_batch(
+            _take_rows(self._table, n, timeout),
+            data_types,
+            arrow_schema,
+            batch_format,
+            row_kind_field,
+        )
 
     @PublicEvolving()
     def to_table(self) -> Table:
@@ -1463,6 +2737,22 @@ class DataFrame:
         return self._table.to_pandas()
 
     # ======================== Properties ========================
+
+    @property
+    @PublicEvolving()
+    def llm(self) -> "LLMAccessor":
+        """
+        Access model inference operations for this DataFrame.
+
+        Example::
+
+            >>> result = df.llm.predict("question", provider="chat", model="gpt-6-luna")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.llm import LLMAccessor
+
+        return LLMAccessor(self)
 
     @property
     @PublicEvolving()
@@ -1526,12 +2816,14 @@ class DataFrame:
         partition_commit_policy_kind: Optional[str] = None,
         connector_options: Optional[Dict[str, str]] = None,
         format_options: Optional[Dict[str, str]] = None,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
         """
         Write Parquet files using Flink's filesystem connector.
 
-        The filesystem connector and Parquet format must be available to Flink. The write
-        is submitted immediately and waits for completion for local or MiniCluster execution.
+        The filesystem connector and Parquet format must be available to Flink. By default,
+        the write is submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
         Sink columns are derived from this DataFrame's schema. Writes default to append in both
         batch and streaming execution. Explicit overwrite requires batch execution and is rejected
         by the filesystem connector in streaming execution. Partitioned overwrite replaces only
@@ -1591,10 +2883,14 @@ class DataFrame:
             leave dictionary values unchanged; conflicting explicit values are rejected.
             For INT64 timestamp encoding, use ``{"write.int64.timestamp": "true",
             "timestamp.time.unit": "micros"}``. The default encoding is INT96.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
         :raises TypeError: If an argument has an invalid type.
         :raises ValueError: If the path is empty, the write mode is unsupported, the partition
             specification is empty or contains empty or duplicate names, or options conflict
-            or contain reserved, empty or duplicate keys.
+            or contain reserved, empty or duplicate keys, or the statement set belongs to a
+            different TableEnvironment.
 
         Example::
 
@@ -1635,7 +2931,13 @@ class DataFrame:
             extra_connector_options=connector_options,
             extra_format_options=format_options,
         )
-        self._write("filesystem", options, mode=mode, partition_by=partition_by)
+        self._write(
+            "filesystem",
+            options,
+            mode=mode,
+            partition_by=partition_by,
+            statement_set=statement_set,
+        )
 
     @PublicEvolving()
     def write_json(
@@ -1660,12 +2962,14 @@ class DataFrame:
         partition_commit_policy_kind: Optional[str] = None,
         connector_options: Optional[Dict[str, str]] = None,
         format_options: Optional[Dict[str, str]] = None,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
         """
         Write newline-delimited JSON files using Flink's filesystem connector.
 
-        The filesystem connector and JSON format must be available to Flink. The write
-        is submitted immediately and waits for completion for local or MiniCluster execution.
+        The filesystem connector and JSON format must be available to Flink. By default,
+        the write is submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
         Sink columns are derived from this DataFrame's schema. Writes default to append in both
         batch and streaming execution. Explicit overwrite requires batch execution and is rejected
         by the filesystem connector in streaming execution. Partitioned overwrite replaces only
@@ -1728,10 +3032,14 @@ class DataFrame:
             the ``json.`` prefix, for example ``{"timestamp-format.standard": "ISO-8601"}``.
             ``None`` parameters leave dictionary values unchanged; conflicting explicit values
             are rejected.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
         :raises TypeError: If an argument has an invalid type.
         :raises ValueError: If the path is empty, the write mode is unsupported, the partition
             specification is empty or contains empty or duplicate names, or options conflict
-            or contain reserved, empty or duplicate keys.
+            or contain reserved, empty or duplicate keys, or the statement set belongs to a
+            different TableEnvironment.
 
         Example::
 
@@ -1774,22 +3082,154 @@ class DataFrame:
             extra_connector_options=connector_options,
             extra_format_options=format_options,
         )
-        self._write("filesystem", options, mode=mode, partition_by=partition_by)
+        self._write(
+            "filesystem",
+            options,
+            mode=mode,
+            partition_by=partition_by,
+            statement_set=statement_set,
+        )
 
     @PublicEvolving()
-    def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
+    def write_kafka(
+        self,
+        bootstrap_servers: str,
+        *,
+        topic: str,
+        format: str = "json",
+        format_options: Optional[Dict[str, str]] = None,
+        key_format: Optional[str] = None,
+        key_format_options: Optional[Dict[str, str]] = None,
+        key_fields: Optional[List[str]] = None,
+        value_format: Optional[str] = None,
+        value_format_options: Optional[Dict[str, str]] = None,
+        value_fields_include: Literal["ALL", "EXCEPT_KEY"] = "ALL",
+        delivery_guarantee: Literal[
+            "none", "at-least-once", "exactly-once"
+        ] = "at-least-once",
+        transactional_id_prefix: Optional[str] = None,
+        partitioner: Optional[str] = None,
+        properties: Optional[Dict[str, str]] = None,
+        parallelism: Optional[int] = None,
+        options: Optional[Dict[str, str]] = None,
+        statement_set: Optional[StatementSet] = None,
+    ) -> None:
+        """
+        Write this DataFrame to Kafka using Flink's Kafka SQL connector.
+
+        The Kafka connector must be available to Flink. By default, the write is
+        submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
+        Sink columns are derived from this DataFrame's schema.
+
+        ``format`` and ``value_format`` are aliases; ``value_format`` takes
+        precedence when both are set. ``format_options`` and ``value_format_options`` are both
+        normalized to ``value.<format>.<key>``; conflicting values are rejected.
+
+        :param bootstrap_servers: Comma-separated Kafka bootstrap server
+            addresses.
+        :param topic: Kafka topic to write to.
+        :param format: Value format, for example ``"json"``, ``"csv"``,
+            ``"avro"``.
+        :param format_options: Value format options with string values, with
+            or without the ``<format>.`` prefix.
+        :param key_format: Key format, for example ``"json"`` or ``"avro"``.
+        :param key_format_options: Key format options with string values, with
+            or without the ``key.<key_format>.`` prefix.
+        :param key_fields: List of column names that make up the key.
+        :param value_format: Alternative to ``format`` for specifying the
+            value format.
+        :param value_format_options: Alternative to ``format_options`` for
+            specifying value format options.
+        :param value_fields_include: Whether value fields include key fields:
+            ``"ALL"`` or ``"EXCEPT_KEY"``.
+        :param delivery_guarantee: Delivery guarantee: ``"none"``,
+            ``"at-least-once"``, or ``"exactly-once"``. Exactly-once requires
+            checkpointing and a transaction id prefix.
+        :param transactional_id_prefix: Prefix for Kafka transaction identifiers.
+            Required for ``"exactly-once"``, unless set via ``options``. Use a unique
+            prefix for each concurrently running Kafka sink.
+        :param partitioner: Kafka sink partitioner, for example ``"default"``, ``"fixed"``,
+            ``"round-robin"``, or the fully qualified name of a custom
+            ``FlinkKafkaPartitioner`` subclass. ``None`` uses the connector default.
+        :param properties: Additional Kafka producer properties with string
+            keys and values. Keys may be supplied with or without the
+            ``properties.`` prefix. ``properties.bootstrap.servers`` must use
+            the dedicated argument.
+        :param parallelism: Sink parallelism. The connector default is the
+            upstream parallelism.
+        :param options: Additional raw Kafka connector options with string keys and values,
+            excluding ``connector``. Keys are passed through unchanged. Conflicts with
+            options generated by other arguments (including defaults) raise ``ValueError``.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
+
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If required arguments are missing, mutually
+            exclusive arguments conflict, or an option is invalid.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records(
+            ...     [(1, "login")], schema=["user_id", "event"])
+            >>> events.write_kafka(
+            ...     "localhost:9092",
+            ...     topic="output-events",
+            ...     format="json",
+            ...     delivery_guarantee="at-least-once",
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import _build_kafka_sink_options
+
+        kafka_options = _build_kafka_sink_options(
+            bootstrap_servers,
+            topic=topic,
+            value_format=value_format if value_format is not None else format,
+            format=format,
+            format_options=format_options,
+            value_format_options=value_format_options,
+            key_format=key_format,
+            key_format_options=key_format_options,
+            key_fields=key_fields,
+            value_fields_include=value_fields_include,
+            delivery_guarantee=delivery_guarantee,
+            transactional_id_prefix=transactional_id_prefix,
+            partitioner=partitioner,
+            properties=properties,
+            parallelism=parallelism,
+            extra_options=options,
+        )
+        self._write("kafka", kafka_options, statement_set=statement_set)
+
+    @PublicEvolving()
+    def write_generic(
+        self,
+        connector: str,
+        *,
+        options: Dict[str, str],
+        statement_set: Optional[StatementSet] = None,
+    ) -> None:
         """
         Write this DataFrame using a connector and its raw Table connector options.
 
-        The connector must be available through Flink's factory discovery mechanism. The write is
-        submitted immediately and waits for completion when using local or MiniCluster execution.
+        The connector must be available through Flink's factory discovery mechanism. By default,
+        the write is submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
         Sink columns are derived from this DataFrame's output schema.
 
         :param connector: Factory identifier used as the ``connector`` Table option.
         :param options: Connector options, excluding the reserved ``connector`` option.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
         :raises TypeError: If an argument has an invalid type.
-        :raises ValueError: If the connector or an option key is empty, or if ``options`` contains
-            the reserved ``connector`` key.
+        :raises ValueError: If the connector or an option key is empty, if ``options`` contains
+            the reserved ``connector`` key, if Flink rejects the connector or its options, or
+            if the statement set belongs to a different TableEnvironment.
 
         Example::
 
@@ -1805,7 +3245,7 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
-        self._write(connector, options)
+        self._write(connector, options, statement_set=statement_set)
 
     def _write(
         self,
@@ -1814,7 +3254,9 @@ class DataFrame:
         *,
         mode: str = "append",
         partition_by: Optional[Union[str, List[str]]] = None,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
+        from pyflink.dataframe.errors import _raise_as_value_error
         from pyflink.dataframe.io import _build_generic_descriptor
 
         if not isinstance(mode, str):
@@ -1822,7 +3264,79 @@ class DataFrame:
         if mode not in ("append", "overwrite"):
             raise ValueError("mode must be 'append' or 'overwrite'")
         descriptor = _build_generic_descriptor(connector, options, partition_by=partition_by)
-        result = self._table.execute_insert(descriptor, overwrite=mode == "overwrite")
+        try:
+            self._execute_insert(descriptor, mode == "overwrite", statement_set=statement_set)
+        except Exception as error:
+            _raise_as_value_error(error)
+
+    @PublicEvolving()
+    def write_catalog_table(
+        self,
+        path: str,
+        *,
+        overwrite: bool = False,
+        statement_set: Optional[StatementSet] = None,
+    ) -> None:
+        """
+        Write this DataFrame to a table registered in a catalog.
+
+        ``path`` is ``table_name``, ``db_name.table_name``, or ``catalog_name.db_name.table_name``.
+        Missing parts are resolved against the current catalog and database, see
+        :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. The
+        write runs right away by default. On a local or MiniCluster setup the call blocks until
+        the write is done. Passing ``statement_set`` stages the write without executing it.
+
+        :param path: Path of the catalog table.
+        :param overwrite: Whether existing data should be replaced, like ``INSERT OVERWRITE``.
+            Not every connector supports overwriting.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
+        :raises TypeError: If ``path`` is not a string, ``overwrite`` is not a bool, or
+            ``statement_set`` is neither a StatementSet nor ``None``.
+        :raises ValueError: If ``path`` is empty, malformed, or does not name a table, or if the
+            DataFrame's columns do not match the table, or the statement set belongs to a
+            different TableEnvironment.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_catalog_table("my_catalog.my_database.events")
+            >>> pf.use_catalog("my_catalog")
+            >>> events.write_catalog_table("my_database.events", overwrite=True)
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.catalog import _validate_name
+        from pyflink.dataframe.errors import _raise_as_value_error
+
+        _validate_name(path, "path")
+        if not isinstance(overwrite, bool):
+            raise TypeError("overwrite must be a bool")
+        try:
+            self._execute_insert(path, overwrite, statement_set=statement_set)
+        except Exception as error:
+            _raise_as_value_error(error)
+
+    def _execute_insert(
+        self,
+        target: Union[str, TableDescriptor],
+        overwrite: bool = False,
+        *,
+        statement_set: Optional[StatementSet] = None,
+    ) -> None:
+        if statement_set is not None:
+            if not isinstance(statement_set, StatementSet):
+                raise TypeError("statement_set must be a StatementSet or None")
+            if self._table._t_env._j_tenv != statement_set._t_env._j_tenv:
+                raise ValueError(
+                    "DataFrame and statement_set must belong to the same TableEnvironment"
+                )
+            statement_set.add_insert(target, self._table, overwrite=overwrite)
+            return
+
+        result = self._table.execute_insert(target, overwrite=overwrite)
         execution_target = self._table._t_env.get_config().get(
             "execution.target", None
         )
@@ -1882,6 +3396,462 @@ class GroupedDataFrame:
 
 
 # ======================== Internal Helpers ========================
+
+
+def _normalize_join_type(how: str) -> str:
+    if not isinstance(how, str):
+        raise TypeError("how must be a string")
+    aliases = {
+        "inner": "inner",
+        "left": "left",
+        "right": "right",
+        "full": "full",
+        "outer": "full",
+        "semi": "semi",
+        "anti": "anti",
+        "cross": "cross",
+    }
+    if how not in aliases:
+        raise ValueError(
+            'how must be one of "inner", "left", "right", "full", "outer", '
+            '"semi", "anti", or "cross"'
+        )
+    return aliases[how]
+
+
+def _normalize_join_keys(
+    value, parameter_name: str, *, allow_expressions: bool = False
+) -> List[Union[str, Expression]]:
+    if isinstance(value, (str, Expression)):
+        return [value]
+    if isinstance(value, list):
+        if not value:
+            raise ValueError("%s must not be empty" % parameter_name)
+        key_types = (str, Expression) if allow_expressions else (str,)
+        if not all(isinstance(key, key_types) for key in value):
+            raise TypeError(
+                "%s must be a string, an expression, or a list of strings" % parameter_name
+            )
+        names = set()
+        for key in value:
+            if isinstance(key, str):
+                if key in names:
+                    raise ValueError("%s must not contain duplicate column names" % parameter_name)
+                names.add(key)
+        return value
+    raise TypeError(
+        "%s must be a string, an expression, or a list of strings" % parameter_name
+    )
+
+
+def _validate_join_columns(
+    keys: List[Union[str, Expression]], columns: List[str], parameter_name: str
+) -> None:
+    for key in keys:
+        if isinstance(key, str) and key not in columns:
+            raise ValueError(
+                "%s column '%s' does not exist, available columns: %s"
+                % (parameter_name, key, columns)
+            )
+
+
+def _validate_join_column_conflicts(
+    left_columns: List[str], right_columns: List[str], shared_keys: Set[str]
+) -> None:
+    conflicts = sorted((set(left_columns) & set(right_columns)) - shared_keys)
+    if conflicts:
+        raise ValueError(
+            "join() found duplicate non-key columns %s; rename them with rename_columns() "
+            "before joining" % conflicts
+        )
+
+
+def _prepare_join(
+    left_table: Table,
+    right_table: Table,
+    on,
+    left_on,
+    right_on,
+    *,
+    validate_column_conflicts: bool,
+    asof_time: Optional[str] = None,
+) -> Tuple[Table, Table, Expression, Dict[str, str]]:
+    left_columns = list(left_table.get_resolved_schema().get_column_names())
+    right_columns = list(right_table.get_resolved_schema().get_column_names())
+
+    if on is not None:
+        if left_on is not None or right_on is not None:
+            raise ValueError("on cannot be combined with left_on or right_on")
+        if isinstance(on, Expression):
+            if validate_column_conflicts:
+                _validate_join_column_conflicts(left_columns, right_columns, set())
+            return left_table, right_table, on, {}
+        left_keys = _normalize_join_keys(on, "on")
+        right_keys = list(left_keys)
+        _validate_join_columns(left_keys, left_columns, "on")
+        _validate_join_columns(right_keys, right_columns, "on")
+    else:
+        if left_on is None and right_on is None:
+            raise ValueError("join() requires on or both left_on and right_on")
+        if left_on is None or right_on is None:
+            raise ValueError("left_on and right_on must be provided together")
+        left_keys = _normalize_join_keys(
+            left_on, "left_on", allow_expressions=asof_time is not None)
+        right_keys = _normalize_join_keys(
+            right_on, "right_on", allow_expressions=asof_time is not None)
+        if len(left_keys) != len(right_keys):
+            raise ValueError("left_on and right_on must have the same number of keys")
+        _validate_join_columns(left_keys, left_columns, "left_on")
+        _validate_join_columns(right_keys, right_columns, "right_on")
+
+    if asof_time is not None:
+        # Preserve direct field references so temporal joins retain the right primary key.
+        left_keys, right_keys = list(left_keys), list(right_keys)
+        for table, keys, columns in (
+            (left_table, left_keys, left_columns), (right_table, right_keys, right_columns)
+        ):
+            for index, key in enumerate(keys):
+                if isinstance(key, Expression):
+                    selected = table.select(key)
+                    if len(selected.get_resolved_schema().get_column_names()) != 1:
+                        raise ValueError("each join key must select a single column")
+                    projection = selected._j_table.getQueryOperation()
+                    if not projection.getChildren().get(0).equals(
+                        table._j_table.getQueryOperation()
+                    ):
+                        raise ValueError("join keys must be row-wise expressions, not aggregations")
+                    resolved = projection.getProjectList().get(0)
+                    _asof_expression_info(resolved, len(columns))
+                    field_index = _asof_field_index(resolved)
+                    if field_index is not None:
+                        keys[index] = columns[field_index]
+
+    shared_names = {
+        left_key
+        for left_key, right_key in zip(left_keys, right_keys)
+        if isinstance(left_key, str)
+        and isinstance(right_key, str)
+        and left_key == right_key
+    }
+    if validate_column_conflicts:
+        _validate_join_column_conflicts(left_columns, right_columns, shared_names)
+
+    taken = set(left_columns) | set(right_columns)
+    shared_keys: Dict[str, str] = {}
+    right_rename_expressions: List[Expression] = []
+    for name in left_columns:
+        if name in shared_names:
+            temporary_name = _unique_name("__pf_join_right_%s" % name, taken)
+            taken.add(temporary_name)
+            shared_keys[name] = temporary_name
+            right_rename_expressions.append(table_col(name).alias(temporary_name))
+    left_key_names: List[str] = []
+    right_key_names: List[str] = []
+    left_computed_keys: List[Expression] = []
+    right_computed_keys: List[Expression] = []
+    for index, (left_key, right_key) in enumerate(zip(left_keys, right_keys)):
+        if isinstance(left_key, str):
+            left_key_names.append(left_key)
+        else:
+            temporary_name = _unique_name("__pf_join_left_key_%d" % index, taken)
+            taken.add(temporary_name)
+            left_key_names.append(temporary_name)
+            left_computed_keys.append(left_key.alias(temporary_name))
+
+        if isinstance(right_key, str):
+            right_key_names.append(shared_keys.get(right_key, right_key))
+        else:
+            temporary_name = _unique_name("__pf_join_right_key_%d" % index, taken)
+            taken.add(temporary_name)
+            right_key_names.append(temporary_name)
+            right_computed_keys.append(right_key.alias(temporary_name))
+
+    if left_computed_keys:
+        left_table = left_table.add_columns(*left_computed_keys)
+    if right_computed_keys:
+        right_table = right_table.add_columns(*right_computed_keys)
+    if right_rename_expressions:
+        right_table = right_table.rename_columns(*right_rename_expressions)
+
+    conditions = [
+        table_col(left_name) == table_col(right_name)
+        for left_name, right_name in zip(left_key_names, right_key_names)
+    ]
+    predicate = conditions[0] if len(conditions) == 1 else and_(*conditions)
+    return (
+        left_table,
+        right_table,
+        predicate,
+        shared_keys,
+    )
+
+
+def _asof_field_index(expression) -> Optional[int]:
+    definitions = get_gateway().jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+    checks = get_gateway().jvm.org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+    while (expression.getClass().getSimpleName() == "CallExpression" and
+           expression.getFunctionDefinition().equals(definitions.CAST)):
+        child = expression.getResolvedChildren().get(0)
+        # DataType equality ignores time-attribute kinds; casting materializes such attributes.
+        if (not expression.getOutputDataType().equals(child.getOutputDataType()) or
+                checks.isTimeAttribute(child.getOutputDataType().getLogicalType())):
+            return None
+        expression = child
+    if expression.getClass().getSimpleName() == "FieldReferenceExpression":
+        return expression.getFieldIndex()
+    if expression.getClass().getSimpleName() == "RexNodeExpression":
+        node = expression.getRexNode()
+        while node.getKind().name() == "CAST":
+            child = node.getOperands().get(0)
+            if not node.getType().equals(child.getType()):
+                return None
+            node = child
+        if node.getKind().name() == "INPUT_REF":
+            return node.getIndex()
+    return None
+
+
+def _prepare_asof_time(table: Table, on, right_columns: List[str]) -> Tuple[Table, str]:
+    expression = table_col(on) if isinstance(on, str) else on
+    selected = table.select(expression)
+    projection = selected._j_table.getQueryOperation()
+    if not projection.getChildren().get(0).equals(table._j_table.getQueryOperation()):
+        raise ValueError("on must be a row-wise time attribute, not an aggregation")
+    schema = selected._j_table.getResolvedSchema()
+    checks = get_gateway().jvm.org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+    if schema.getColumnCount() != 1 or not checks.isTimeAttribute(
+        schema.getColumnDataTypes().get(0).getLogicalType()
+    ):
+        raise ValueError("on must be a left processing-time or event-time attribute")
+    resolved = projection.getProjectList().get(0)
+    columns = list(table.get_resolved_schema().get_column_names())
+    _asof_expression_info(resolved, len(columns))
+    field_index = _asof_field_index(resolved)
+    if field_index is not None:
+        return table, columns[field_index]
+    name = _unique_name("__pf_asof_time", set(columns) | set(right_columns))
+    return table.add_columns(expression.alias(name)), name
+
+
+def _asof_expression_info(expression, left_arity: int) -> Tuple[Set[int], bool]:
+    """Return referenced inputs and whether an equi-join key is present."""
+    class_name = expression.getClass().getSimpleName()
+    if class_name == "RexNodeExpression":
+        return _asof_expression_info(expression.getRexNode(), left_arity)
+    if class_name == "FieldReferenceExpression":
+        return {expression.getInputIndex()}, False
+    operator = None
+    if expression.getClass().getName().startswith("org.apache.calcite.rex."):
+        # SQL expressions use flattened input indices rather than Table API input/field pairs.
+        operator = expression.getKind().name()
+        if operator == "INPUT_REF":
+            index = expression.getIndex()
+            return {0 if index < left_arity else 1}, False
+        if operator == "LITERAL":
+            return set(), False
+        if operator == "FIELD_ACCESS":
+            children = [expression.getReferenceExpr()]
+        else:
+            if expression.getOperator().isAggregator():
+                raise ValueError("join expressions must be row-wise, not aggregations")
+            children = expression.getOperands()
+    else:
+        children = expression.getResolvedChildren()
+        if class_name == "CallExpression":
+            definitions = (
+                get_gateway().jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+            )
+            for name in ("AND", "OR", "EQUALS"):
+                if expression.getFunctionDefinition().equals(getattr(definitions, name)):
+                    operator = name
+                    break
+    if operator == "OR":
+        raise ValueError("join_asof does not support OR conditions")
+    child_info = []
+    references = set()
+    for child in children:
+        info = _asof_expression_info(child, left_arity)
+        references.update(info[0])
+        child_info.append(info)
+    has_equality = False
+    if operator == "AND":
+        has_equality = any(info[1] for info in child_info)
+    elif operator == "EQUALS":
+        left, right = child_info[0][0], child_info[1][0]
+        has_equality = (left == {0} and right == {1}) or (left == {1} and right == {0})
+    return references, has_equality
+
+
+class _JoinSqlFactory:
+    """Keep inline UDFs registered until the join SQL has been resolved."""
+
+    def __init__(self, t_env: "TableEnvironment"):
+        self._t_env = t_env
+        self._functions: Dict[Any, str] = {}
+        self._taken_names: Optional[Set[str]] = None
+        self._cleanup = ExitStack()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return self._cleanup.__exit__(*exc_info)
+
+    def serializeInlineFunction(self, definition):
+        if definition not in self._functions:
+            if self._taken_names is None:
+                self._taken_names = {name.lower() for name in self._t_env.list_functions()}
+            name = _unique_name("__pf_join_udf", self._taken_names)
+            self._t_env._j_tenv.createTemporarySystemFunction(name, definition)
+            self._cleanup.callback(self._t_env.drop_temporary_system_function, name)
+            self._taken_names.add(name)
+            self._functions[definition] = name
+        return _quote_identifier(self._functions[definition])
+
+    class Java:
+        implements = ["org.apache.flink.table.expressions.SqlFactory"]
+
+
+def _serialize_join_predicate(
+    left_table: Table,
+    right_table: Table,
+    predicate: Expression,
+    sql_factory: _JoinSqlFactory,
+    asof_time: Optional[str] = None,
+) -> Tuple[str, str, str]:
+    left_alias, right_alias = "__pf_join_left", "__pf_join_right"
+    operation_tree_builder = (
+        left_table._j_table.getTableEnvironment().getOperationTreeBuilder()
+    )
+    gateway = get_gateway()
+    query_operations = to_jarray(
+        gateway.jvm.org.apache.flink.table.operations.QueryOperation,
+        [
+            left_table._j_table.getQueryOperation(),
+            right_table._j_table.getQueryOperation(),
+        ],
+    )
+    resolved_predicate = operation_tree_builder.resolveExpression(
+        _get_java_expression(predicate), query_operations
+    )
+    if asof_time is not None:
+        columns = list(left_table.get_resolved_schema().get_column_names())
+        _, has_equality = _asof_expression_info(resolved_predicate, len(columns))
+        if not has_equality:
+            raise ValueError("join_asof requires an AND-combined equality between the inputs")
+
+    aliases = gateway.jvm.java.util.HashMap()
+    aliases.put(0, left_alias)
+    aliases.put(1, right_alias)
+    operation_expression_utils = (
+        gateway.jvm.org.apache.flink.table.operations.utils.OperationExpressionsUtils
+    )
+    predicate_sql = operation_expression_utils.scopeReferencesWithAlias(
+        aliases, resolved_predicate
+    ).asSerializableString(sql_factory)
+    return left_alias, right_alias, predicate_sql
+
+
+def _build_regular_join_sql(
+    left_table: Table,
+    right_table: Table,
+    predicate: Expression,
+    left_output_columns: List[str],
+    right_output_columns: List[str],
+    shared_keys: Dict[str, str],
+    join_type: str,
+    sql_factory: _JoinSqlFactory,
+    *,
+    asof_time: Optional[str] = None,
+) -> Table:
+    left_alias, right_alias, predicate_sql = _serialize_join_predicate(
+        left_table, right_table, predicate, sql_factory, asof_time
+    )
+    left_alias_sql = _quote_identifier(left_alias)
+    right_alias_sql = _quote_identifier(right_alias)
+
+    projections = []
+    for name in left_output_columns:
+        left_field = "%s.%s" % (left_alias_sql, _quote_identifier(name))
+        if name in shared_keys and join_type in ("right", "full"):
+            right_field = "%s.%s" % (
+                right_alias_sql,
+                _quote_identifier(shared_keys[name]),
+            )
+            expression = (
+                right_field
+                if join_type == "right"
+                else "COALESCE(%s, %s)" % (left_field, right_field)
+            )
+        else:
+            expression = left_field
+        projections.append("%s AS %s" % (expression, _quote_identifier(name)))
+    projections.extend(
+        "%s.%s AS %s"
+        % (right_alias_sql, _quote_identifier(name), _quote_identifier(name))
+        for name in right_output_columns
+        if name not in shared_keys
+    )
+
+    join_keyword = {
+        "inner": "INNER JOIN",
+        "left": "LEFT OUTER JOIN",
+        "right": "RIGHT OUTER JOIN",
+        "full": "FULL OUTER JOIN",
+    }[join_type]
+    temporal_clause = ""
+    if asof_time is not None:
+        temporal_clause = " FOR SYSTEM_TIME AS OF %s.%s" % (
+            left_alias_sql, _quote_identifier(asof_time))
+    query = (
+        "SELECT %s FROM %s AS %s %s %s%s AS %s ON %s"
+        % (
+            ", ".join(projections),
+            _quote_identifier(str(left_table)),
+            left_alias_sql,
+            join_keyword,
+            _quote_identifier(str(right_table)),
+            temporal_clause,
+            right_alias_sql,
+            predicate_sql,
+        )
+    )
+    return left_table._t_env.sql_query(query)
+
+
+def _build_semi_anti_join_sql(
+    left_table: Table,
+    right_table: Table,
+    predicate: Expression,
+    output_columns: List[str],
+    join_type: str,
+    sql_factory: _JoinSqlFactory,
+) -> Table:
+    left_alias, right_alias, predicate_sql = _serialize_join_predicate(
+        left_table, right_table, predicate, sql_factory
+    )
+    left_alias_sql = _quote_identifier(left_alias)
+    right_alias_sql = _quote_identifier(right_alias)
+    select_list = ", ".join(
+        "%s.%s" % (left_alias_sql, _quote_identifier(name)) for name in output_columns
+    )
+    left_source_sql = _quote_identifier(str(left_table))
+    right_source_sql = _quote_identifier(str(right_table))
+    existence_predicate = {"semi": "EXISTS", "anti": "NOT EXISTS"}[join_type]
+    query = (
+        "SELECT %s FROM %s AS %s WHERE %s ("
+        "SELECT 1 FROM %s AS %s WHERE %s)"
+        % (
+            select_list,
+            left_source_sql,
+            left_alias_sql,
+            existence_predicate,
+            right_source_sql,
+            right_alias_sql,
+            predicate_sql,
+        )
+    )
+    return left_table._t_env.sql_query(query)
 
 
 def _normalize_subset(

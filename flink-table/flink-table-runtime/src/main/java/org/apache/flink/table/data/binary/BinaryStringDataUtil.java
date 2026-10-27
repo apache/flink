@@ -18,13 +18,12 @@
 package org.apache.flink.table.data.binary;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.util.SegmentsUtil;
-import org.apache.flink.table.runtime.util.StringUtf8Utils;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -156,7 +155,7 @@ public class BinaryStringDataUtil {
     }
 
     /** Parse a {@link StringData} to boolean. */
-    public static boolean toBoolean(BinaryStringData str) throws TableException {
+    public static boolean toBoolean(BinaryStringData str) {
         BinaryStringData lowerCase = str.toLowerCase();
         if (TRUE_STRINGS.contains(lowerCase)) {
             return true;
@@ -164,7 +163,7 @@ public class BinaryStringDataUtil {
         if (FALSE_STRINGS.contains(lowerCase)) {
             return false;
         }
-        throw new TableException("Cannot parse '" + str + "' as BOOLEAN.");
+        throw new TableRuntimeException("Cannot cast '" + str + "' as BOOLEAN.");
     }
 
     /** Calculate the hash value of the given bytes use {@link MessageDigest}. */

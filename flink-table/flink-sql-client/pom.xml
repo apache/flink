@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>2.4-SNAPSHOT</version>
+		<version>2.5-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-client</artifactId>
@@ -78,14 +78,14 @@ under the License.
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-terminal</artifactId>
-			<version>3.30.12</version>
+			<version>3.30.17</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-reader</artifactId>
-			<version>3.30.12</version>
+			<version>3.30.17</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -222,7 +222,7 @@ under the License.
 				<!-- dependency convergence -->
 				<groupId>commons-beanutils</groupId>
 				<artifactId>commons-beanutils</artifactId>
-				<version>1.9.4</version>
+				<version>1.11.0</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>

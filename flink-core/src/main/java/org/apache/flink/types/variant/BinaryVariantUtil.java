@@ -24,8 +24,10 @@ import org.apache.flink.types.variant.Variant.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
@@ -84,7 +86,7 @@ public class BinaryVariantUtil {
      * Object value. The content contains a size, a list of field ids, a list of field offsets, and
      * the actual field data. The length of the id list is {@code size}, while the length of the
      * offset list is {@code size + 1}, where the last offset represent the total size of the field
-     * data. The fields in an object must be sorted by the field name in alphabetical order.
+     * data. The fields in an object must be sorted by the unsigned UTF-8 bytes of their names.
      * Duplicate field names in one object are not allowed.
      *
      * <p>We use 5 bits in the type info to specify the integer type of the object header: it should
@@ -438,6 +440,37 @@ public class BinaryVariantUtil {
     }
 
     /**
+     * Returns the placeholder for a node that cannot be decoded: {@code <UNKNOWN>} for a type id
+     * this version does not know, such as one written by a newer version, and {@code <INVALID>}
+     * otherwise. Never throws.
+     */
+    public static String undecodableNode(byte[] value, int pos) {
+        return isUnknownType(value, pos) ? "<UNKNOWN>" : "<INVALID>";
+    }
+
+    /** Same as {@link #undecodableNode(byte[], int)} for a {@link BinaryVariant} node. */
+    public static String undecodableNode(Variant variant) {
+        if (!(variant instanceof BinaryVariant)) {
+            return "<INVALID>";
+        }
+        final BinaryVariant binary = (BinaryVariant) variant;
+        return undecodableNode(binary.rawValue(), binary.getPos());
+    }
+
+    private static boolean isUnknownType(byte[] value, int pos) {
+        if (pos < 0 || pos >= value.length || (value[pos] & BASIC_TYPE_MASK) != PRIMITIVE) {
+            return false;
+        }
+        // With the header in bounds, getType fails on a primitive only for an unknown type id.
+        try {
+            getType(value, pos);
+            return false;
+        } catch (VariantTypeException e) {
+            return true;
+        }
+    }
+
+    /**
      * Compute the size in bytes of the variant value {@code value[pos...]}. {@code value.length -
      * pos} is an upper bound of the size, but the actual size can be smaller.
      *
@@ -593,9 +626,17 @@ public class BinaryVariantUtil {
         return Double.longBitsToDouble(readLong(value, pos + 1, 8));
     }
 
+    /**
+     * Returns whether a decimal can be stored as a variant decimal: its precision and its
+     * non-negative scale must both be at most {@code maxPrecision}.
+     */
+    static boolean fitsVariantDecimal(BigDecimal d, int maxPrecision) {
+        return d.scale() >= 0 && d.scale() <= maxPrecision && d.precision() <= maxPrecision;
+    }
+
     /** Check whether the precision and scale of the decimal are within the limit. */
     private static void checkDecimal(BigDecimal d, int maxPrecision) {
-        if (d.precision() > maxPrecision || d.scale() > maxPrecision) {
+        if (!fitsVariantDecimal(d, maxPrecision)) {
             throw malformedVariant();
         }
     }
@@ -721,6 +762,14 @@ public class BinaryVariantUtil {
         return new UUID(msb, lsb);
     }
 
+    static Instant microsToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.MICROS);
+    }
+
+    static Instant nanosToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.NANOS);
+    }
+
     /** A handler that receives the decoded header fields of a variant object. */
     public interface ObjectHandler<T> {
         /**
@@ -801,6 +850,58 @@ public class BinaryVariantUtil {
      *     considered a malformed variant because it is read from the corresponding variant value.
      */
     public static String getMetadataKey(byte[] metadata, int id) {
+        long range = metadataKeyRange(metadata, id);
+        return new String(metadata, keyStart(range), keyLength(range), StandardCharsets.UTF_8);
+    }
+
+    /** Encodes an object key the way the variant metadata stores it. */
+    static byte[] encodeKey(String key) {
+        return key.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Whether the key at {@code id} in the variant metadata is the UTF-8 encoded {@code key}. */
+    static boolean metadataKeyEquals(byte[] metadata, int id, byte[] key) {
+        long range = metadataKeyRange(metadata, id);
+        int start = keyStart(range);
+        int length = keyLength(range);
+        return length == key.length
+                && Arrays.equals(metadata, start, start + length, key, 0, length);
+    }
+
+    /**
+     * Compares the key at {@code id} in the variant metadata with the UTF-8 encoded {@code key} by
+     * their unsigned bytes, the order of object fields in the variant spec.
+     */
+    static int compareMetadataKey(byte[] metadata, int id, byte[] key) {
+        long range = metadataKeyRange(metadata, id);
+        int start = keyStart(range);
+        return Arrays.compareUnsigned(
+                metadata, start, start + keyLength(range), key, 0, key.length);
+    }
+
+    /**
+     * Whether the UTF-8 encoded {@code key} has a code point from U+E000 up, which encodes to a
+     * lead byte of 0xEE or above. UTF-16 order differs from UTF-8 byte order only between a code
+     * point from U+E000 to U+FFFF and one from U+10000 up, whose UTF-16 surrogates sort below
+     * U+E000. So a binary search for a key without such a code point finds the same field in either
+     * order, and a miss is final.
+     */
+    static boolean hasCodePointFromE000(byte[] key) {
+        for (byte b : key) {
+            if ((b & 0xFF) >= 0xEE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Locates the key at {@code id} in the variant metadata. The range is packed into a long so
+     * that a lookup allocates nothing.
+     *
+     * @return the start index of the key in the high 32 bits and its length in the low 32 bits
+     */
+    private static long metadataKeyRange(byte[] metadata, int id) {
         checkIndex(0, metadata.length);
         // Extracts the highest 2 bits in the metadata header to determine the integer size of the
         // offset list.
@@ -818,7 +919,51 @@ public class BinaryVariantUtil {
             throw malformedVariant();
         }
         checkIndex(stringStart + nextOffset - 1, metadata.length);
-        return new String(
-                metadata, stringStart + offset, nextOffset - offset, StandardCharsets.UTF_8);
+        return ((long) (stringStart + offset) << 32) | (nextOffset - offset);
+    }
+
+    private static int keyStart(long range) {
+        return (int) (range >>> 32);
+    }
+
+    private static int keyLength(long range) {
+        return (int) range;
+    }
+
+    /**
+     * Returns the microseconds since the epoch, as stored by a microsecond precision timestamp.
+     *
+     * @throws VariantTypeException if the instant is outside the supported range
+     */
+    public static long microsSinceEpoch(Instant instant) {
+        try {
+            return Math.addExact(
+                    Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+                    instant.getNano() / 1000);
+        } catch (ArithmeticException e) {
+            throw new VariantTypeException(
+                    String.format(
+                            "%s is outside the range supported by microsecond precision variant "
+                                    + "timestamps.",
+                            instant));
+        }
+    }
+
+    /**
+     * Returns the nanoseconds since the epoch, as stored by a nanosecond precision timestamp.
+     *
+     * @throws VariantTypeException if the instant is outside the supported range
+     */
+    public static long nanosSinceEpoch(Instant instant) {
+        try {
+            return ChronoUnit.NANOS.between(Instant.EPOCH, instant);
+        } catch (ArithmeticException e) {
+            throw new VariantTypeException(
+                    String.format(
+                            "%s is outside the +/-292 year range (1677-09-21 to 2262-04-11) "
+                                    + "supported by nanosecond precision variant timestamps. Use "
+                                    + "microsecond precision instead.",
+                            instant));
+        }
     }
 }

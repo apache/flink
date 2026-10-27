@@ -22,7 +22,7 @@ from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
+    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType, create_arrow_schema
 from pyflink.util.api_stability_decorators import Internal
 from pyflink.util.java_utils import to_jarray
 import datetime
@@ -161,6 +161,44 @@ def _get_offsets(column):
 
 
 @Internal()
+def create_pandas_table_row_schema(row_type):
+    import pyarrow as pa
+
+    if len(row_type) != 1 or not isinstance(row_type[0].data_type, RowType):
+        raise TypeError("A table-row result must have exactly one ROW field.")
+    field = row_type[0]
+    # Validate its children as physical columns, not as fields of a user ROW column.
+    child_schema = create_arrow_schema(
+        field.data_type.field_names(), field.data_type.field_types())
+    return pa.schema([pa.field(field.name, pa.struct(list(child_schema)),
+                               nullable=field.data_type._nullable)])
+
+
+@Internal()
+def pandas_table_row_to_arrow(schema, timezone, row_type, dataframe):
+    import pyarrow as pa
+
+    field_types = row_type.field_types()
+    widths = [len(field_type) if isinstance(field_type, RowType) else 1
+              for field_type in field_types]
+    field_count = sum(widths)
+    if dataframe.shape[1] != field_count:
+        raise ValueError(f"Pandas table-row result has {dataframe.shape[1]} columns, "
+                         f"expected {field_count}.")
+    columns = []
+    offset = 0
+    for field_type, width in zip(field_types, widths):
+        # Schema positions retain ROW boundaries even when flattened names are duplicated.
+        columns.append(dataframe.iloc[:, offset:offset + width]
+                       if isinstance(field_type, RowType) else dataframe.iloc[:, offset])
+        offset += width
+    batch = pandas_to_arrow(
+        pa.schema(list(schema[0].type)), timezone, field_types, columns)
+    array = pa.StructArray.from_arrays(batch.columns, fields=list(schema[0].type))
+    return pa.RecordBatch.from_arrays([array], schema=schema)
+
+
+@Internal()
 def pandas_to_arrow(schema, timezone, field_types, series):
     import pyarrow as pa
     import pandas as pd
@@ -179,13 +217,12 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         field_type = field_types[i]
         schema_type = schema.types[i]
         if type(s) == pd.DataFrame:
-            array_names = [(create_array(s[s.columns[j]], field.type), field.name)
-                           for j, field in enumerate(schema_type)]
-            struct_arrays, struct_names = zip(*array_names)
-            arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
+            struct_arrays = [create_array(s[s.columns[j]], field.type)
+                             for j, field in enumerate(schema_type)]
+            arrays.append(pa.StructArray.from_arrays(struct_arrays, fields=list(schema_type)))
         else:
             arrays.append(create_array(
-                tz_convert_to_internal(s, field_type, timezone), schema_type))
+                tz_convert_to_internal(s, field_type), schema_type))
     return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
 
@@ -208,28 +245,28 @@ def arrow_to_pandas(timezone, field_types, batches):
 @Internal()
 def tz_convert_from_internal(s, t: DataType, local_tz):
     """
-    Converts the timestamp series from internal according to the specified local timezone.
+    Converts UTC-backed TIMESTAMP_LTZ series to the specified local timezone.
 
-    Returns the same series if the series is not a timestamp series. Otherwise,
-    returns a converted series.
+    Returns the same series for other data types.
     """
     if type(t) == LocalZonedTimestampType:
-        return s.dt.tz_localize(local_tz)
+        return s.dt.tz_localize('UTC').dt.tz_convert(local_tz)
     else:
         return s
 
 
 @Internal()
-def tz_convert_to_internal(s, t: DataType, local_tz):
+def tz_convert_to_internal(s, t: DataType):
     """
-    Converts the timestamp series to internal according to the specified local timezone.
+    Converts timezone-aware TIMESTAMP_LTZ series to UTC and removes the timezone.
+    Timezone-naive series and other data types are left unchanged.
     """
     if type(t) == LocalZonedTimestampType:
         from pandas.api.types import is_datetime64_dtype, is_datetime64tz_dtype
         if is_datetime64_dtype(s.dtype):
             return s.dt.tz_localize(None)
         elif is_datetime64tz_dtype(s.dtype):
-            return s.dt.tz_convert(local_tz).dt.tz_localize(None)
+            return s.dt.tz_convert('UTC').dt.tz_localize(None)
     return s
 
 
@@ -244,6 +281,9 @@ def to_expression_jarray(exprs):
 
 @Internal()
 def pickled_bytes_to_python_converter(data, field_type: DataType):
+    # PythonBridgeUtils encodes NULL as an empty byte array at every nesting level.
+    if len(data) == 0:
+        return None
     if isinstance(field_type, RowType):
         row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
         data = zip(list(data[1:]), field_type.field_types())

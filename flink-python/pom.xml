@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.4-SNAPSHOT</version>
+		<version>2.5-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-python</artifactId>
@@ -155,7 +155,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.6.2</version>
+			<version>0.6.3</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -871,21 +871,17 @@ under the License.
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>com.github.os72</groupId>
-				<artifactId>protoc-jar-maven-plugin</artifactId>
-				<version>3.11.4</version>
+				<groupId>io.github.ascopes</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
 				<executions>
 					<execution>
-						<phase>generate-sources</phase>
 						<goals>
-							<goal>run</goal>
+							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<protocArtifact>com.google.protobuf:protoc:${protoc.version}
-							</protocArtifact>
-							<inputDirectories>
-								<include>pyflink/proto</include>
-							</inputDirectories>
+							<sourceDirectories>
+								<sourceDirectory>${project.basedir}/pyflink/proto</sourceDirectory>
+							</sourceDirectories>
 						</configuration>
 					</execution>
 				</executions>

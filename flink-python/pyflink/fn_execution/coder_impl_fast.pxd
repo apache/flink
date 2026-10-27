@@ -91,6 +91,7 @@ cdef class RowCoderImpl(FieldCoderImpl):
 
 cdef class ArrowCoderImpl(FieldCoderImpl):
     cdef object _batch_format
+    cdef bint _returns_table_row
     cdef object _schema
     cdef list _field_types
     cdef object _timezone

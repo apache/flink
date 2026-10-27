@@ -72,7 +72,7 @@ public class HandwrittenSelectorUtil {
             BinaryRowData ret = new BinaryRowData(keyFields.length);
             BinaryRowWriter writer = new BinaryRowWriter(ret);
             for (int i = 0; i < keyFields.length; i++) {
-                if (value.isNullAt(i)) {
+                if (value.isNullAt(keyFields[i])) {
                     writer.setNullAt(i);
                 } else {
                     BinaryWriter.write(

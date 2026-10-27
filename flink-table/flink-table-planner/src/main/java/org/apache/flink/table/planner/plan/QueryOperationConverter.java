@@ -93,6 +93,7 @@ import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.plan.utils.LateralSnapshotJoinUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
@@ -284,7 +285,17 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         @Override
         public RelNode visit(JoinQueryOperation join) {
             final Set<CorrelationId> corSet;
-            if (join.isCorrelated()) {
+            // Check if this is a LATERAL SNAPSHOT join. The SNAPSHOT function never references the
+            // outer row. Emit a plain LogicalJoin instead of a Correlate, so that
+            // LogicalJoinToLateralSnapshotJoinRule matches.
+            final QueryOperation right = join.getChildren().get(1);
+            final boolean isLateralSnapshotJoin =
+                    right instanceof CorrelatedFunctionQueryOperation
+                            && LateralSnapshotJoinUtil.isSnapshotFunction(
+                                    ((CorrelatedFunctionQueryOperation) right)
+                                            .getResolvedFunction()
+                                            .getDefinition());
+            if (join.isCorrelated() && !isLateralSnapshotJoin) {
                 corSet = Collections.singleton(relBuilder.peek().getCluster().createCorrel());
             } else {
                 corSet = Collections.emptySet();
@@ -352,44 +363,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                             .map(
                                     resolvedArg -> {
                                         if (resolvedArg instanceof TableReferenceExpression) {
-                                            final TableReferenceExpression tableRef =
-                                                    (TableReferenceExpression) resolvedArg;
-                                            final LogicalType tableArgType =
-                                                    tableRef.getOutputDataType().getLogicalType();
-                                            final RelDataType rowType =
-                                                    typeFactory.buildRelNodeRowType(
-                                                            (RowType) tableArgType);
-                                            final int[] partitionKeys;
-                                            final int[] orderKeys;
-                                            final SortOrder[] sortOrders;
-                                            if (tableRef.getQueryOperation()
-                                                    instanceof PartitionQueryOperation) {
-                                                final PartitionQueryOperation partitionOperation =
-                                                        (PartitionQueryOperation)
-                                                                tableRef.getQueryOperation();
-                                                partitionKeys =
-                                                        partitionOperation.getPartitionKeys();
-                                                orderKeys = partitionOperation.getOrderKeys();
-                                                final SortDirection[] directions =
-                                                        partitionOperation.getOrderDirections();
-                                                sortOrders = new SortOrder[directions.length];
-                                                for (int i = 0; i < directions.length; i++) {
-                                                    sortOrders[i] =
-                                                            SortOrder.fromSortDirection(
-                                                                    directions[i]);
-                                                }
-                                            } else {
-                                                partitionKeys = new int[0];
-                                                orderKeys = new int[0];
-                                                sortOrders = new SortOrder[0];
-                                            }
                                             final RexTableArgCall tableArgCall =
-                                                    new RexTableArgCall(
-                                                            rowType,
+                                                    buildTableArgCall(
+                                                            (TableReferenceExpression) resolvedArg,
                                                             inputStack.size(),
-                                                            partitionKeys,
-                                                            orderKeys,
-                                                            sortOrders);
+                                                            typeFactory);
                                             inputStack.add(relBuilder.build());
                                             return tableArgCall;
                                         }
@@ -400,22 +378,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             // relBuilder.build() works in LIFO fashion, this restores the original input order
             Collections.reverse(inputStack);
 
-            final BridgingSqlFunction sqlFunction =
-                    BridgingSqlFunction.of(relBuilder.getCluster(), contextFunction);
-
-            final RexNode call =
-                    relBuilder
-                            .getRexBuilder()
-                            .makeCall(outputRelDataType, sqlFunction, rexNodeArgs);
-            final RelNode functionScan =
-                    LogicalTableFunctionScan.create(
-                            relBuilder.getCluster(),
-                            inputStack,
-                            call,
-                            null,
-                            outputRelDataType,
-                            Collections.emptySet());
-            relBuilder.push(functionScan);
+            relBuilder.push(
+                    createTableFunctionScan(
+                            contextFunction, rexNodeArgs, inputStack, outputRelDataType));
             return relBuilder.build();
         }
 
@@ -430,6 +395,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         public RelNode visit(CorrelatedFunctionQueryOperation correlatedFunction) {
             final ContextResolvedFunction contextFunction =
                     correlatedFunction.getResolvedFunction();
+            // SNAPSHOT is currently the only PTF valid in a lateral join and hence the only
+            // function accepting table args.
+            if (LateralSnapshotJoinUtil.isSnapshotFunction(contextFunction.getDefinition())) {
+                return convertCorrelatedFunctionWithTableArgs(correlatedFunction);
+            }
             final List<RexNode> parameters = convertToRexNodes(correlatedFunction.getArguments());
 
             final FunctionDefinition functionDefinition = contextFunction.getDefinition();
@@ -453,6 +423,81 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     correlatedFunction.getResolvedSchema().getColumnNames());
 
             return relBuilder.build();
+        }
+
+        private RelNode convertCorrelatedFunctionWithTableArgs(
+                CorrelatedFunctionQueryOperation correlatedFunction) {
+            final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(relBuilder);
+            final List<RelNode> inputs = new ArrayList<>();
+            final List<RexNode> args = new ArrayList<>();
+            for (ResolvedExpression arg : correlatedFunction.getArguments()) {
+                if (arg instanceof TableReferenceExpression) {
+                    final TableReferenceExpression tableRef = (TableReferenceExpression) arg;
+                    args.add(buildTableArgCall(tableRef, inputs.size(), typeFactory));
+                    inputs.add(tableRef.getQueryOperation().accept(QueryOperationConverter.this));
+                } else {
+                    args.add(convertExprToRexNode(arg));
+                }
+            }
+            // Derive the output row type like the FROM-clause PTF path
+            // (FunctionQueryOperation#getOutputDataType).
+            final RelDataType outputType =
+                    typeFactory.buildRelNodeRowType(
+                            (RowType)
+                                    DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
+                                                    correlatedFunction.getResolvedSchema())
+                                            .getLogicalType());
+            return createTableFunctionScan(
+                    correlatedFunction.getResolvedFunction(), args, inputs, outputType);
+        }
+
+        /**
+         * Converts a {@link TableReferenceExpression} table argument into a {@link
+         * RexTableArgCall}, carrying PARTITION BY / ORDER BY keys when the referenced operation is
+         * a {@link PartitionQueryOperation}.
+         */
+        private RexTableArgCall buildTableArgCall(
+                TableReferenceExpression tableRef, int inputIndex, FlinkTypeFactory typeFactory) {
+            final RelDataType rowType =
+                    typeFactory.buildRelNodeRowType(
+                            (RowType) tableRef.getOutputDataType().getLogicalType());
+            final int[] partitionKeys;
+            final int[] orderKeys;
+            final SortOrder[] sortOrders;
+            if (tableRef.getQueryOperation() instanceof PartitionQueryOperation) {
+                final PartitionQueryOperation partitionOperation =
+                        (PartitionQueryOperation) tableRef.getQueryOperation();
+                partitionKeys = partitionOperation.getPartitionKeys();
+                orderKeys = partitionOperation.getOrderKeys();
+                final SortDirection[] directions = partitionOperation.getOrderDirections();
+                sortOrders = new SortOrder[directions.length];
+                for (int i = 0; i < directions.length; i++) {
+                    sortOrders[i] = SortOrder.fromSortDirection(directions[i]);
+                }
+            } else {
+                partitionKeys = new int[0];
+                orderKeys = new int[0];
+                sortOrders = new SortOrder[0];
+            }
+            return new RexTableArgCall(rowType, inputIndex, partitionKeys, orderKeys, sortOrders);
+        }
+
+        /** Builds a {@link LogicalTableFunctionScan} for a function call with table arguments. */
+        private RelNode createTableFunctionScan(
+                ContextResolvedFunction function,
+                List<RexNode> args,
+                List<RelNode> inputs,
+                RelDataType outputType) {
+            final BridgingSqlFunction sqlFunction =
+                    BridgingSqlFunction.of(relBuilder.getCluster(), function);
+            final RexNode call = relBuilder.getRexBuilder().makeCall(outputType, sqlFunction, args);
+            return LogicalTableFunctionScan.create(
+                    relBuilder.getCluster(),
+                    inputs,
+                    call,
+                    null,
+                    outputType,
+                    Collections.emptySet());
         }
 
         private RelNode convertLegacyTableFunction(

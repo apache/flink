@@ -300,6 +300,15 @@ is scoped by a key context.
 It is also possible not to provide a key (if the argument is declared with `ArgumentTrait.OPTIONAL_PARTITION_BY`), in
 which case only one virtual processor handles the entire table, thereby losing scalability benefits.
 
+### Table Argument with Broadcast Semantics
+
+A PTF that takes at least one table with row or set semantics can additionally take a table with broadcast semantics.
+Every row of a broadcast table is sent to all virtual processors, independently of any key partitioning. Broadcast tables
+are intended for low-throughput data such as rules, configuration, or control events. They enable parameterizing a
+PTF instance during runtime, avoiding downtime due to restarts.
+
+See [Broadcast State](#broadcast-state) for more information.
+
 Call Syntax
 -----------
 
@@ -712,30 +721,102 @@ class CountingFunction extends ProcessTableFunction<String> {
 
 Flink's state backends provide different types of state to efficiently handle large state.
 
-Currently, PTFs support three types of state:
+Every state entry can store data ranging from a single scalar, a composite type, or even a whole list or map. What
+differs is *how* the data is accessed:
 
-- **Value state**: Represents a single value.
-- **List state**: Represents a list of values, supporting operations like appending, removing, and iterating.
-- **Map state**: Represents a map (key-value pair) for efficient lookups, modifications, and removal of individual entries.
+- **Eager value state**: The value follows a Read-Modify-Write cycle. On access the complete value is deserialized, and
+  on update it is serialized again - regardless of how much of it is actually read or changed.
+- **Value view** (`org.apache.flink.table.api.dataview.ValueView`): A value with lazy access. The complete value
+  is only deserialized on read and serialized on update.
+- **List view** (`org.apache.flink.table.api.dataview.ListView`): A list of values with lazy access for each element,
+  supporting operations like appending, removing, and iterating.
+- **Map view** (`org.apache.flink.table.api.dataview.MapView`): A map (key-value pair) with lazy access for each pair,
+  supporting efficient lookups, modifications, and removal of individual entries.
 
-By default, state entries in a PTF are represented as value state. This means that every state entry is fully read from
-the state backend when the evaluation method is called, and the value is written back to the state backend once the
-evaluation method finishes.
+By default, a state entry in a PTF is represented as eager value state. Value state is not limited to a single scalar. It can also
+hold a whole list or map (for example a `Row` or POJO with an `ARRAY` or `MAP` field). In that case the *complete* collection is
+deserialized when `eval()` is called and serialized again when it returns, no matter how many elements are actually accessed.
 
-To optimize state access and avoid unnecessary (de)serialization, state entries can be declared as:
-- `org.apache.flink.table.api.dataview.ListView` (for list state)
-- `org.apache.flink.table.api.dataview.MapView` (for map state)
+{{< tabs "2739eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that stores a whole list as eager value state.
+// The entire list is deserialized on entry and serialized on exit of every call.
+class HistoryFunction extends ProcessTableFunction<String> {
+  public static class MyState {
+    public List<String> events = new ArrayList<>();
+  }
 
-These provide direct views to the underlying Flink state backend.
+  public void eval(
+    @StateHint MyState memory,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    memory.events.add(input.getFieldAs("eventId"));
+    collect("Seen " + memory.events.size() + " events");
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
 
-For example, when using a `MapView`, accessing a value via `MapView#get` will only deserialize the value associated with
-the specified key. This allows for efficient access to individual entries without needing to load the entire map. This
-approach is particularly useful when the map does not fit entirely into memory.
+`ValueView`, `ListView`, and `MapView` are the lazy counterparts. They provide direct views to the underlying Flink
+state backend and are preferred over eager value state, especially when state is accessed conditionally or is too large
+to fit into memory.
+
+For example, a `ValueView` only deserializes its value when `ValueView#getValue` is called and only serializes it when
+`ValueView#setValue` or `ValueView#clear` is called. A `ListView` appends or iterates elements without materializing the
+full list, and a `MapView` accesses a value via `MapView#get` by only deserializing the value associated with the
+specified key. This allows for efficient access to individual entries without needing to load the entire collection.
 
 {{< hint info >}}
 State TTL is applied individually to each entry in a list or map, allowing for fine-grained expiration control over state
 elements.
 {{< /hint >}}
+
+The following example demonstrates how to declare and use a `ValueView` for counting events per user.
+
+{{< tabs "2837eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a value view for counting events per user with lazy state access
+class CountingFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint ValueView<Integer> count,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Integer currentCount = count.getValue();
+    if (currentCount == null) {
+      currentCount = 0;
+    }
+    count.setValue(currentCount + 1);
+    collect("Count for user: " + (currentCount + 1));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The `ValueView` value type is reflectively extracted. If reflection is not feasible - such as when a `Row` object is
+involved - a type hint can be provided. In contrast to list and map views, the hint defines the value type directly.
+
+{{< tabs "2937eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a value view of a row
+class CountingFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint(type = @DataTypeHint("ROW<count INT>")) ValueView<Row> count,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Row v = count.getValue();
+    Integer c = (v == null) ? 0 : v.getFieldAs("count");
+    count.setValue(Row.of(c + 1));
+    collect("Count for user: " + (c + 1));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The following example demonstrates how to declare and use a `MapView`. It assumes the PTF processes a table with the
 schema `(userId, eventId, ...)`, partitioned by `userId`, with a high cardinality of distinct `eventId` values. For this
@@ -814,6 +895,28 @@ class CountingFunction extends ProcessTableFunction<String> {
       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
       ctx.clearAllState();
     }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+We recommend the use of the [`VARIANT`]({{< ref "docs/sql/reference/data-types" >}}#variant) data type for future schema
+evolution. For example, a `ValueView<Variant>` can lazily store semi-structured data whose schema may
+change over time:
+
+{{< tabs "3037eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that lazily stores the latest semi-structured payload per key
+class VariantFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint ValueView<Variant> last,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Variant previous = last.getValue();
+    last.setValue(input.getFieldAs("payload"));
+    collect(previous == null ? "First payload" : "Updated payload");
   }
 }
 ```
@@ -1199,7 +1302,9 @@ A PTF can process multiple tables simultaneously. This enables a variety of use 
 
 The `eval()` method can specify multiple table arguments to support multiple inputs. All table arguments must be declared
 with set semantics and use consistent partitioning. In other words, the number of columns and their data types in the
-`PARTITION BY` clause must match across all involved table arguments.
+`PARTITION BY` clause must match across all involved table arguments. Tables with [broadcast semantics](#broadcast-state)
+are excluded from this rule. They can be declared next to a table with row semantics or one or more tables with set
+semantics.
 
 Rows from either input are passed to the function one at a time. Thus, only one table argument is non-null at a time. Use
 null checks to determine which input is currently being processed.
@@ -1278,6 +1383,182 @@ The result will look similar to:
 +----+--------------------------------+--------------------------------+--------------------------------+
 ```
 
+### Broadcast State
+
+Broadcast state enables patterns such as a **rule engine** where rules are dynamically updated at runtime, or **dynamic
+configuration** that influences the processing of the main table(s).
+
+Broadcast state is tightly coupled to a broadcast semantic table. A table argument declared with `ArgumentTrait.BROADCAST_SEMANTIC_TABLE`
+defines a broadcast semantic table, which acts as a "side" or "control" input. Every row of a broadcast table is
+sent to *all* virtual processors, regardless of any `PARTITION BY` clause. A PTF can store this broadcast information in
+state entries declared with `@StateHint(StateKind.BROADCAST)`. This *broadcast state* is shared across all sets and can
+be read when processing rows from the main table(s).
+
+The following example filters a stream of sentences using a dynamically updated list of bad words. The list is broadcast
+to all virtual processors, and processing the rows of the main table is embarrassingly parallelizable.
+
+{{< tabs "5a6f7b2c-7c1e-4a8e-9f2a-2b3c4d5e6f70" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW Sentences(sentence) AS VALUES ('Hello World'), ('Bad words are bad')");
+env.executeSql("CREATE VIEW BadWords(word) AS VALUES ('bad')");
+
+env.createFunction("RuleFilter", RuleFilter.class);
+
+env
+  .executeSql("SELECT * FROM RuleFilter(data => TABLE Sentences, rules => TABLE BadWords)")
+  .print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that filters sentences based on a dynamic set of rules
+public static class RuleFilter extends ProcessTableFunction<String> {
+
+  public void eval(
+      @StateHint(StateKind.BROADCAST) MapView<String, Boolean> badWords,
+      @ArgumentHint(ROW_SEMANTIC_TABLE) Row data,
+      @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules
+  ) throws Exception {
+    // Process row from table BadWords: write access to broadcast state
+    if (rules != null) {
+      badWords.put(rules.getFieldAs("word"), true);
+      return;
+    }
+
+    // Process row from table Sentences: read access to broadcast state
+    String sentence = data.getFieldAs("sentence");
+    for (String word : sentence.toLowerCase().split(" ")) {
+      if (badWords.contains(word)) {
+        return;
+      }
+    }
+    collect(sentence);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The result will look similar to:
+
+```text
++----+--------------------------------+
+| op |                         EXPR$0 |
++----+--------------------------------+
+| +I |                    Hello World |
++----+--------------------------------+
+```
+
+{{< hint warning >}}
+Similar to other multi-table PTFs, the system decides which input row is streamed through the virtual processor next. A
+change to a broadcast state entry has no effect on rows of the main table(s) that have been processed before. In the
+example above, a sentence might pass the filter if it arrives before the corresponding bad word.
+{{< /hint >}}
+
+The following rules apply to broadcast tables and broadcast state:
+
+- At least one table argument with row or set semantics must be declared next to broadcast tables. Multiple broadcast
+  tables and multiple broadcast state entries are supported.
+- A broadcast table cannot be partitioned as it is broadcast to all virtual processors.
+- Broadcast state can only be modified while processing a broadcast row. When processing rows of the main table(s),
+  broadcast state is read-only.
+- While processing a broadcast row, there is no key context. State entries that are scoped to a set are passed as `null`,
+  results can not be emitted via `collect()`, and timers cannot be registered or cleared. `Context#clearAllState()`
+  only clears broadcast state in this case.
+- Broadcast state can be declared as `MapView` (recommended for many entries), `ValueView`, or eager value state (i.e. a
+  row or POJO). `ListView` and state TTL are not supported.
+- It is the responsibility of the PTF implementer to maintain identical broadcast state across all virtual processors,
+  i.e. broadcast state should only be updated deterministically based on the broadcast rows.
+
+#### Notifying Stateful Sets
+
+By default, a change to a broadcast state entry has no effect on sets that have been processed before. Especially when
+building a rule engine, the question arises how to re-evaluate previously processed sets with the new broadcast
+information. For this, a broadcast table can be declared with `ArgumentTrait.NOTIFY_STATEFUL_SETS`.
+
+For every row of such a broadcast table, `eval()` is called multiple times:
+
+1. First, without scoping to a set (as described above): This call updates the broadcast state, if available.
+2. Next, once for every set that holds at least one state entry: In this phase, the `eval()` implementation
+   has access to the incoming broadcast row, as well as all (keyed) state entries.
+
+The following example deduplicates events per key. A row of the broadcast table resets the deduplication for all keys.
+
+{{< tabs "5ddc43b1-d719-4bb6-be26-4aed9476e5d3" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW Events(id, payload) AS VALUES (1, 'a'), (1, 'a'), (2, 'b')");
+env.executeSql("CREATE VIEW Resets(reason) AS VALUES ('cache invalidation')");
+
+env.createFunction("ControllableDedup", ControllableDedup.class);
+
+env
+  .executeSql("SELECT * FROM ControllableDedup(data => TABLE Events PARTITION BY id, resets => TABLE Resets)")
+  .print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that deduplicates events per key until a reset is broadcast
+public static class ControllableDedup extends ProcessTableFunction<String> {
+
+  public void eval(
+      Context ctx,
+      @StateHint ValueView<String> seen,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row data,
+      @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row resets
+  ) throws Exception {
+    // Process row from table 'Events': emit only the first payload per key
+    if (data != null) {
+      if (seen.getValue() == null) {
+        String payload = data.getFieldAs("payload");
+        seen.setValue(payload);
+        collect(payload);
+      }
+      return;
+    }
+
+    // Process row from table 'Resets' - broadcast phase:
+    // state scoped to a set is null, nothing to do
+    if (resets != null && seen == null) {
+      return;
+    }
+
+    // Process row from table 'Resets' - notification phase:
+    // state scoped to a set is present, act on notification
+    if (resets != null && seen != null) {
+      ctx.clearAllState();
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The following rules apply to notifying stateful sets:
+
+- At least one state entry scoped to a set must be declared. Sets without state entries are not notified. Registered timers alone don't count as state.
+- Sets whose state entries have expired due to [state TTL](#state-ttl) might still be notified until the state backend
+  has cleaned them up. In this case, the state entries of the set are empty, and writing to them during notification
+  keeps the set alive.
+- During notification, state entries of the set and timers are accessible and broadcast state is read-only. Similar to processing a row
+  of the main table(s), the PTF can emit results via `collect()` and register timers. Results contain the partition key
+  of the set.
+
+{{< hint warning >}}
+Notifying stateful sets is expensive. For every broadcast row, all keys in state are loaded and a PTF's eval() is called for
+each of them. Processing of other rows and checkpointing is blocked until all sets have been notified. Thus, this trait
+should only be used if broadcast rows are rare compared to rows of the main table(s) and the overall key space is
+relatively low.
+{{< /hint >}}
+
 ### Efficiency and Design Principles
 
 A high number of input tables can negatively impact a single TaskManager or subtask. Network buffers must be allocated
@@ -1299,7 +1580,7 @@ the surrounding operators of the query. The state entries of a PTF can be persis
 surrounding query or the PTF itself changes. As long as the schema of the state entries remains unchanged.
 
 For future query evolution, the framework enforces a unique identifier (UID) for all PTFs that operate on tables with set
-semantics. The UID can be provided through the implicit `uid` string argument. It is used when persisting the PTF's state
+or broadcast semantics. The UID can be provided through the implicit `uid` string argument. It is used when persisting the PTF's state
 entries to checkpoints or savepoints. If the `uid` argument is not specified, the function name will be used by the framework,
 ensuring one unique PTF invocation per statement. If a PTF is invoked multiple times, validation will require a manually
 specified UID to ensure it is unique across the entire Flink job.
@@ -2031,12 +2312,124 @@ for `Charly` could not be found.
 +----+-------------+-------------+--------------------------------+--------------------------------+
 ```
 
+{{< top >}}
+
+### Blockable Score Aggregation
+
+The following example combines various PTF concepts for influencing the aggregation of scores:
+- a table with set semantics,
+- broadcast table with broadcast state that notifies previous stateful sets,
+- and an updating output.
+
+The PTF sums up scores per user and emits the current sum as an upsert. A broadcast table contains blocked
+users that are stored in broadcast state. Score events of blocked users are ignored. If a user is blocked after being
+processed, the notification removes the user's state and sends a `RowKind.DELETE` downstream.
+
+{{< tabs "16dccd99-2d64-415b-9f5e-9683e30e9300" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW ScoreEvents(name, score) AS VALUES ('Bob', 12), ('Alice', 42), ('Bob', 7), ('Alice', 3)");
+env.executeSql("CREATE VIEW BlockedUsers(name) AS VALUES ('Bob')");
+
+// The PTF emits upserts, thus, the sink declares the PARTITION BY key as primary key
+env.executeSql(
+  "CREATE TABLE UserScores (name STRING, total INT, PRIMARY KEY (name) NOT ENFORCED) WITH ("
+    + "'connector' = 'upsert-kafka', "
+    + "'topic' = 'user-scores', "
+    + "'properties.bootstrap.servers' = 'localhost:9092', "
+    + "'key.format' = 'json', "
+    + "'value.format' = 'json')");
+
+env.createFunction("BlockableScoreSum", BlockableScoreSum.class);
+
+env.executeSql(
+  "INSERT INTO UserScores SELECT * FROM BlockableScoreSum("
+    + "scores => TABLE ScoreEvents PARTITION BY name, "
+    + "blockedUsers => TABLE BlockedUsers)");
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that sums up and continuously updates scores per user.
+// It removes blocked users from the result when instructed to do so from a
+// controlling BlockedUsers table.
+@DataTypeHint("ROW<total INT>")
+public static class BlockableScoreSum
+  extends ProcessTableFunction<Row>
+  implements ChangelogFunction {
+
+  @Override
+  public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+    // Tells the system that the PTF produces upserts with deletes that contain all fields
+    return ChangelogMode.upsert(false);
+  }
+
+  public static class UserScore {
+    public String name;
+    public int total;
+  }
+
+  public void eval(
+      Context ctx,
+      @StateHint UserScore user,
+      @StateHint(StateKind.BROADCAST) MapView<String, Boolean> blockList,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row scores,
+      @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row blockedUsers
+  ) throws Exception {
+    // Process row from table 'ScoreEvents': ignore blocked users, otherwise emit the current sum
+    if (scores != null) {
+      String name = scores.getFieldAs("name");
+      if (blockList.contains(name)) {
+        return;
+      }
+      RowKind kind = user.name == null ? RowKind.INSERT : RowKind.UPDATE_AFTER;
+      user.name = name;
+      user.total += scores.<Integer>getFieldAs("score");
+      collect(Row.ofKind(kind, user.total));
+      return;
+    }
+
+    String blockedName = blockedUsers.getFieldAs("name");
+
+    // Process row from table 'BlockedUsers' - broadcast phase:
+    // state scoped to a set is null, store the blocked user
+    if (user == null) {
+      blockList.put(blockedName, true);
+      return;
+    }
+
+    // Process row from table 'BlockedUsers' - notification phase:
+    // state scoped to a set is present, remove the blocked user from the result and from state
+    if (blockedName.equals(user.name)) {
+      collect(Row.ofKind(RowKind.DELETE, user.total));
+      ctx.clearAllState();
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+If `Bob` is blocked after his first score event has been processed, the sink receives the following changelog:
+
+```text
++I[Bob, 12]
+-D[Bob, 12]
++I[Alice, 42]
++U[Alice, 45]
+```
+
+If the broadcast row is processed before any score event of `Bob`, `Bob` never appears in the changelog. In both cases,
+the materialized result only contains `Alice` with a total of 45.
+
 Limitations
 -----------
 
 PTFs are in an early stage. The following limitations apply:
 - PTFs cannot run in batch mode.
-- Broadcast state
 
 Testing Process Table Functions
 -------------------------------

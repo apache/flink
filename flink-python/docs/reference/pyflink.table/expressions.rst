@@ -35,6 +35,8 @@ Expressions
     and_
     or_
     not_
+    is_nan
+    is_not_nan
     current_database
     current_date
     current_time
@@ -120,6 +122,8 @@ arithmetic functions
     Expression.if_null
     Expression.is_null
     Expression.is_not_null
+    Expression.is_nan
+    Expression.is_not_nan
     Expression.is_true
     Expression.is_false
     Expression.is_not_true

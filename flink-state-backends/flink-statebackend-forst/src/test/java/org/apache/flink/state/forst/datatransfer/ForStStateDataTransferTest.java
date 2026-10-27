@@ -40,9 +40,7 @@ import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -62,13 +60,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test class for {@link ForStStateDataTransfer}. */
-class ForStStateDataTransferTest extends TestLogger {
+class ForStStateDataTransferTest {
 
     @TempDir private java.nio.file.Path temporaryFolder;
 
@@ -483,9 +478,9 @@ class ForStStateDataTransferTest extends TestLogger {
                                     pathContainer.getRemoteForStPath())),
                     new CloseableRegistry(),
                     RecoveryClaimMode.DEFAULT);
-            fail();
+            fail("Exception is expected");
         } catch (Exception e) {
-            assertEquals(expectedCause, e.getCause());
+            assertThat(e.getCause()).isEqualTo(expectedCause);
         }
     }
 
@@ -517,7 +512,7 @@ class ForStStateDataTransferTest extends TestLogger {
             StateHandleTransferSpec transferRequest = transferRequests.get(i);
             Path dstPath = transferRequest.getTransferDestination();
 
-            assertTrue(dstPath.getFileSystem().exists(dstPath));
+            assertThat(dstPath.getFileSystem().exists(dstPath)).isTrue();
 
             for (int j = 0; j < numSubHandles; ++j) {
                 assertStateContentEqual(
@@ -565,15 +560,15 @@ class ForStStateDataTransferTest extends TestLogger {
         // Check that all transfer directories have been deleted
         for (StateHandleTransferSpec transferRequest : transferRequests) {
             Path dstPath = transferRequest.getTransferDestination();
-            assertFalse(dstPath.getFileSystem().exists(dstPath));
+            assertThat(dstPath.getFileSystem().exists(dstPath)).isFalse();
         }
         // The passed in closable registry should not be closed by us on failure.
-        assertFalse(closeableRegistry.isClosed());
+        assertThat(closeableRegistry.isClosed()).isFalse();
     }
 
     private void assertStateContentEqual(byte[] expected, Path path) throws IOException {
         byte[] actual = readHeadBytes(path, -1);
-        Assertions.assertEquals(expected.length, actual.length);
+        assertThat(actual).hasSameSizeAs(expected);
         assertThat(actual).isEqualTo(expected);
     }
 

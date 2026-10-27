@@ -23,8 +23,11 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -42,6 +45,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Plan tests for the {@code LATERAL SNAPSHOT} processing-time temporal table join. */
@@ -203,6 +207,46 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         + "ON probe.pk = s.bk");
     }
 
+    @Test
+    void testNonEquiInnerLateralSnapshotJoin() {
+        // An INNER LATERAL SNAPSHOT join without an equi-key runs with a SINGLETON distribution
+        // (single-threaded), like other Flink joins without an equi-key.
+        util.verifyRelPlan(
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pv > s.bv");
+    }
+
+    @Test
+    void testNonEquiLeftLateralSnapshotJoin() {
+        // A LEFT OUTER LATERAL SNAPSHOT join without an equi-key runs with a SINGLETON distribution
+        // (single-threaded), like other Flink joins without an equi-key.
+        util.verifyRelPlan(
+                "SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pv > s.bv");
+    }
+
+    @Test
+    void testLocalPredicateOnJoinKeyColumn() {
+        // Reproduces FLINK-40902: a local filter on the same column that carries the equi-join
+        // predicate (probe.pk = s.bk together with WHERE probe.pk = 'key1') must still plan as a
+        // LATERAL SNAPSHOT join. Calcite folds the equi-key to a constant on each side (pk = 'key1'
+        // AND bk = 'key1') and simplifies the join condition away; the join then runs single-
+        // threaded (SINGLETON).
+        util.verifyRelPlan(
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pk = s.bk "
+                        + "WHERE probe.pk = 'key1'");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Behavior and compilation smoke tests
     // ------------------------------------------------------------------------------------------
@@ -257,6 +301,47 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                         + ") AS s ON probe.pk = s.bk");
         assertThat(plan).contains("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
+    }
+
+    @Test
+    void testRejectNonDeterministicUpdatingBuildColumnWithPrimaryKey() {
+        // The LSJ operator keys its state by the whole build row, so retractions are matched by
+        // exact row equality. A non-deterministic build column therefore breaks retraction even
+        // when the build side has a unique key (FLINK-40890). TRY_RESOLVE must reject it.
+        enableTryResolve();
+        createUpdatingPkBuildSource();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW b_view AS "
+                                + "SELECT bk, CAST(NOW() AS STRING) AS bn, bts FROM b_pk");
+
+        final String sql =
+                "SELECT probe.pk, s.bk, s.bn FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_view, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+
+        assertThatThrownBy(() -> util.tableEnv().explainSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("can not satisfy the determinism requirement");
+    }
+
+    @Test
+    void testAcceptDeterministicUpdatingBuildColumnWithPrimaryKey() {
+        // Counterpart to the rejection test: a deterministic build column over the same
+        // primary-keyed, updating source must still pass TRY_RESOLVE (no over-rejection).
+        enableTryResolve();
+        createUpdatingPkBuildSource();
+        util.tableEnv()
+                .executeSql("CREATE VIEW b_view AS SELECT bk, UPPER(bk) AS bn, bts FROM b_pk");
+
+        final String sql =
+                "SELECT probe.pk, s.bk, s.bn FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_view, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+
+        assertThatCode(() -> util.tableEnv().explainSql(sql)).doesNotThrowAnyException();
     }
 
     @Test
@@ -466,20 +551,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testRejectMissingEqualityPredicate() {
-        final String sql =
-                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ") AS s "
-                        + "ON probe.pv > s.bv";
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "LATERAL SNAPSHOT join requires at least one equality predicate.");
-    }
-
-    @Test
     void testRejectNonConstantLoadCompletedTime() {
         final String sql =
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
@@ -680,5 +751,29 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         () ->
                                 new AssertionError(
                                         "No LateralSnapshotJoinOperator found in the plan."));
+    }
+
+    private void enableTryResolve() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+    }
+
+    private void createUpdatingPkBuildSource() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_pk ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3),"
+                                + "  WATERMARK FOR bts AS bts,"
+                                + "  PRIMARY KEY (bk) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
     }
 }

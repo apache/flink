@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -29,6 +30,7 @@ import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -41,11 +43,14 @@ import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexNodeAndFieldIndex;
+import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -163,6 +168,103 @@ public class PythonUtil {
             return ((PythonFunction) bsf.getDefinition()).takesRowAsInput();
         }
         return false;
+    }
+
+    /** Returns the Python function represented by the call, or {@code null} for other calls. */
+    public static PythonFunction extractPythonFunction(RexCall call) {
+        final FunctionDefinition definition;
+        if (call.getOperator() instanceof ScalarSqlFunction) {
+            definition = ((ScalarSqlFunction) call.getOperator()).scalarFunction();
+        } else if (call.getOperator() instanceof TableSqlFunction) {
+            definition = ((TableSqlFunction) call.getOperator()).udtf();
+        } else if (call.getOperator() instanceof BridgingSqlFunction) {
+            definition = ((BridgingSqlFunction) call.getOperator()).getDefinition();
+        } else {
+            return null;
+        }
+        return definition instanceof PythonFunction ? (PythonFunction) definition : null;
+    }
+
+    /** Returns the call's explicit parallelism without inspecting nested calls. */
+    public static Optional<Integer> getOwnParallelism(RexNode node) {
+        if (!(node instanceof RexCall)) {
+            return Optional.empty();
+        }
+        final PythonFunction function = extractPythonFunction((RexCall) node);
+        if (function == null || function.getParallelism() <= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(function.getParallelism());
+    }
+
+    /** Returns the first explicit Python parallelism in dependency order. */
+    public static Optional<Integer> firstExplicitParallelism(RexNode node) {
+        if (node instanceof RexCall) {
+            for (RexNode operand : ((RexCall) node).getOperands()) {
+                final Optional<Integer> nestedParallelism = firstExplicitParallelism(operand);
+                if (nestedParallelism.isPresent()) {
+                    return nestedParallelism;
+                }
+            }
+        } else if (node instanceof RexFieldAccess) {
+            return firstExplicitParallelism(((RexFieldAccess) node).getReferenceExpr());
+        }
+        return getOwnParallelism(node);
+    }
+
+    /** Rejects explicit concurrency that can reorder updates and deletes. */
+    public static void validatePythonCalcConcurrency(StreamPhysicalRel calc, RexProgram program) {
+        validatePythonConcurrency(
+                calc,
+                program.getProjectList().stream()
+                        .map(program::expandLocalRef)
+                        .anyMatch(node -> firstExplicitParallelism(node).isPresent()));
+    }
+
+    /** Rejects explicit concurrency in a correlate that can reorder updates and deletes. */
+    public static void validatePythonCorrelateConcurrency(
+            StreamPhysicalRel correlate, RexNode invocation) {
+        validatePythonConcurrency(correlate, firstExplicitParallelism(invocation).isPresent());
+    }
+
+    private static void validatePythonConcurrency(
+            StreamPhysicalRel rel, boolean hasExplicitParallelism) {
+        if (hasExplicitParallelism && !ChangelogPlanUtils.inputInsertOnly(rel)) {
+            throw new TableException(
+                    "Python UDF concurrency is only supported for insert-only streaming inputs. "
+                            + "The input may contain updates or deletes. "
+                            + "Omit concurrency to inherit the upstream parallelism.");
+        }
+    }
+
+    /** Returns all explicit Python parallelisms in the expression tree. */
+    public static Set<Integer> extractDistinctParallelisms(RexNode node) {
+        final Set<Integer> parallelisms = new LinkedHashSet<>();
+        node.accept(
+                new RexDefaultVisitor<Void>() {
+                    @Override
+                    public Void visitCall(RexCall call) {
+                        getOwnParallelism(call).ifPresent(parallelisms::add);
+                        call.getOperands().forEach(operand -> operand.accept(this));
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitFieldAccess(RexFieldAccess fieldAccess) {
+                        return fieldAccess.getReferenceExpr().accept(this);
+                    }
+
+                    @Override
+                    public Void visitNode(RexNode rexNode) {
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+                        throw new UnsupportedOperationException("not supported yet");
+                    }
+                });
+        return parallelisms;
     }
 
     private static boolean isPythonFunction(

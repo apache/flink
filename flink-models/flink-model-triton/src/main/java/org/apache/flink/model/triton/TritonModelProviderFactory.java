@@ -75,6 +75,12 @@ public class TritonModelProviderFactory implements ModelProviderFactory {
         set.add(TritonOptions.RETRY_INITIAL_BACKOFF);
         set.add(TritonOptions.RETRY_MAX_BACKOFF);
         set.add(TritonOptions.DEFAULT_VALUE);
+        set.add(TritonOptions.HEALTH_CHECK_ENABLED);
+        set.add(TritonOptions.HEALTH_CHECK_INTERVAL);
+        set.add(TritonOptions.CIRCUIT_BREAKER_ENABLED);
+        set.add(TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD);
+        set.add(TritonOptions.CIRCUIT_BREAKER_TIMEOUT);
+        set.add(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
         return set;
     }
 

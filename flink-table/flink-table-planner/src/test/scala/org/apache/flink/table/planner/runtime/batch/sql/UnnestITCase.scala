@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
@@ -316,10 +317,88 @@ class UnnestITCase extends BatchTestBase {
   }
 
   @Test
+  def testUnnestArrayWithNullRow(): Unit = {
+    checkResult(
+      """
+        |SELECT *
+        |FROM UNNEST(ARRAY[
+        |  CAST(NULL AS ROW<n INT, s STRING>),
+        |  CAST(NULL AS ROW<n INT, s STRING>),
+        |  CAST(ROW(1, 'a') AS ROW<n INT, s STRING>),
+        |  CAST(ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) AS ROW<n INT, s STRING>)])
+        |""".stripMargin,
+      Seq(row(null, null), row(null, null), row(1, "a"), row(null, null))
+    )
+  }
+
+  @Test
+  def testLeftUnnestArrayWithNullRow(): Unit = {
+    checkResult(
+      """
+        |SELECT id, n, s
+        |FROM (VALUES (1, ARRAY[
+        |  CAST(NULL AS ROW<n INT, s STRING>),
+        |  CAST(NULL AS ROW<n INT, s STRING>),
+        |  CAST(ROW(1, 'a') AS ROW<n INT, s STRING>)])) AS T(id, items)
+        |LEFT JOIN UNNEST(T.items) AS U(n, s) ON TRUE
+        |""".stripMargin,
+      Seq(row(1, null, null), row(1, null, null), row(1, 1, "a"))
+    )
+  }
+
+  @Test
+  def testUnnestMultisetWithNullRow(): Unit = {
+    registerNullRowMultiset()
+
+    checkResult(
+      "SELECT n, s FROM M, UNNEST(M.items) AS U(n, s)",
+      Seq(row(null, null), row(null, null)))
+  }
+
+  @Test
+  def testUnnestMultisetWithNullRowAndOrdinality(): Unit = {
+    registerNullRowMultiset()
+
+    checkResult(
+      "SELECT n, s, o FROM M, UNNEST(M.items) WITH ORDINALITY AS U(n, s, o)",
+      Seq(row(null, null, 1), row(null, null, 2)))
+  }
+
+  private def registerNullRowMultiset(): Unit = {
+    val items = new java.util.HashMap[Row, Integer]()
+    items.put(null, 2)
+    val dataId = TestValuesTableFactory.registerData(List(row(items)))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE M (items MULTISET<ROW<n INT, s STRING>>)
+                       |WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+  }
+
+  @Test
   def testUnnestWithOrdinalityWithValuesStream(): Unit = {
     checkResult(
       "SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3]) WITH ORDINALITY",
       Seq(row('a', 1, 1), row('a', 2, 2), row('a', 3, 3))
+    )
+  }
+
+  @Test
+  def testUnnestArrayWithNullRowAndOrdinality(): Unit = {
+    checkResult(
+      """
+        |SELECT *
+        |FROM UNNEST(ARRAY[
+        |  CAST(NULL AS ROW<n INT, s STRING>),
+        |  CAST(NULL AS ROW<n INT, s STRING>),
+        |  CAST(ROW(1, 'a') AS ROW<n INT, s STRING>),
+        |  CAST(ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) AS ROW<n INT, s STRING>)])
+        |WITH ORDINALITY
+        |""".stripMargin,
+      Seq(row(null, null, 1), row(null, null, 2), row(1, "a", 3), row(null, null, 4))
     )
   }
 

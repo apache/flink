@@ -26,7 +26,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.InjectMiniCluster;
@@ -68,7 +67,8 @@ class CheckpointSyncPhaseTimeoutITCase extends TestLogger {
 
     @Test
     void testStuckSyncPhaseFailsJob(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
-        env.addSource(new BlockingSnapshotSource()).sinkTo(new DiscardingSink<>());
+        // A single vertex job for deterministic task name on the failure message:
+        env.addOperator(env.addSource(new BlockingSnapshotSource()).getTransformation());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 
         assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))

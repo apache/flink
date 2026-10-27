@@ -576,7 +576,7 @@ Calc(select=[a1])
    :  +- Calc(select=[a1])
    :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[pk1]])
-      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1], metadata=[]]], fields=[pk1])
+      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1]]], fields=[pk1])
 ]]>
     </Resource>
   </TestCase>
@@ -644,7 +644,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_
       :        +- Calc(select=[city_id], changelogMode=[I,UB,UA,D])
       :           +- ChangelogNormalize(key=[customer_id], changelogMode=[I,UB,UA,D])
       :              +- Exchange(distribution=[hash[customer_id]], changelogMode=[I,UA,D])
-      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
          +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
             +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
@@ -660,7 +660,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_
       :        +- Calc(select=[city_id])
       :           +- ChangelogNormalize(key=[customer_id])
       :              +- Exchange(distribution=[hash[customer_id]])
-      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id]]], fields=[city_id, customer_id])
       +- Exchange(distribution=[hash[id]])
          +- ChangelogNormalize(key=[id])
             +- Exchange(distribution=[hash[id]])
@@ -689,7 +689,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, 
       :        +- Calc(select=[city_id], changelogMode=[I,UB,UA,D])
       :           +- ChangelogNormalize(key=[customer_id], changelogMode=[I,UB,UA,D])
       :              +- Exchange(distribution=[hash[customer_id]], changelogMode=[I,UA,D])
-      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
          +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
             +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
@@ -705,7 +705,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, 
       :        +- Calc(select=[city_id])
       :           +- ChangelogNormalize(key=[customer_id])
       :              +- Exchange(distribution=[hash[customer_id]])
-      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id]]], fields=[city_id, customer_id])
       +- Exchange(distribution=[hash[id]])
          +- ChangelogNormalize(key=[id])
             +- Exchange(distribution=[hash[id]])
@@ -761,10 +761,10 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_na
    +- Join(joinType=[InnerJoin], where=[=(city_name, city_name0)], select=[id, city_name, city_id, city_name0, city_detail], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA])
       :- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA])
       :  +- DropUpdateBefore(changelogMode=[I,UA])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city, project=[id, city_name], metadata=[]]], fields=[id, city_name], changelogMode=[I,UB,UA])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city, project=[id, city_name]]], fields=[id, city_name], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA])
          +- DropUpdateBefore(changelogMode=[I,UA])
-            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail, project=[city_id, city_name, city_detail], metadata=[]]], fields=[city_id, city_name, city_detail], changelogMode=[I,UB,UA])
+            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail, project=[city_id, city_name, city_detail]]], fields=[city_id, city_name, city_detail], changelogMode=[I,UB,UA])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_name, city_detail], conflictStrategy=[DEDUPLICATE])
@@ -772,10 +772,10 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_na
    +- Join(joinType=[InnerJoin], where=[(city_name = city_name0)], select=[id, city_name, city_id, city_name0, city_detail], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
       :- Exchange(distribution=[hash[city_name]])
       :  +- DropUpdateBefore
-      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city, project=[id, city_name], metadata=[]]], fields=[id, city_name])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city, project=[id, city_name]]], fields=[id, city_name])
       +- Exchange(distribution=[hash[city_name]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail, project=[city_id, city_name, city_detail], metadata=[]]], fields=[city_id, city_name, city_detail])
+            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail, project=[city_id, city_name, city_detail]]], fields=[city_id, city_name, city_detail])
 ]]>
     </Resource>
   </TestCase>
@@ -800,7 +800,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, 
       :        +- Calc(select=[city_id], changelogMode=[I,UB,UA,D])
       :           +- ChangelogNormalize(key=[customer_id], changelogMode=[I,UB,UA,D])
       :              +- Exchange(distribution=[hash[customer_id]], changelogMode=[I,UA,D])
-      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id]]], fields=[city_id, customer_id], changelogMode=[I,UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
          +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
             +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
@@ -816,7 +816,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, 
       :        +- Calc(select=[city_id])
       :           +- ChangelogNormalize(key=[customer_id])
       :              +- Exchange(distribution=[hash[customer_id]])
-      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id], metadata=[]]], fields=[city_id, customer_id])
+      :                 +- TableSourceScan(table=[[default_catalog, default_database, source_customer, project=[city_id, customer_id]]], fields=[city_id, customer_id])
       +- Exchange(distribution=[hash[id]])
          +- ChangelogNormalize(key=[id])
             +- Exchange(distribution=[hash[id]])

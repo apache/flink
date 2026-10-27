@@ -18,7 +18,7 @@
 import abc
 import functools
 import inspect
-from typing import Union, List, Type, Callable, TypeVar, Generic, Iterable
+from typing import Union, List, Type, Callable, TypeVar, Generic, Iterable, Optional
 
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
@@ -445,7 +445,8 @@ class UserDefinedFunctionWrapper(object):
     etc. It's for internal use only.
     """
 
-    def __init__(self, func, input_types, func_type, deterministic=None, name=None):
+    def __init__(self, func, input_types, func_type, deterministic=None, name=None,
+                 concurrency=None, batch_size=None):
         if inspect.isclass(func) or (
                 not isinstance(func, UserDefinedFunction) and not callable(func)):
             raise TypeError(
@@ -483,6 +484,9 @@ class UserDefinedFunctionWrapper(object):
         self._func_type = func_type
         self._judf_placeholder = None
         self._takes_row_as_input = False
+        self._returns_table_row = False
+        self._concurrency = concurrency
+        self._batch_size = batch_size
 
     def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
@@ -543,9 +547,10 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
     Wrapper for Python user-defined scalar function.
     """
 
-    def __init__(self, func, input_types, result_type, func_type, deterministic, name):
+    def __init__(self, func, input_types, result_type, func_type, deterministic, name,
+                 concurrency=None, batch_size=None):
         super(UserDefinedScalarFunctionWrapper, self).__init__(
-            func, input_types, func_type, deterministic, name)
+            func, input_types, func_type, deterministic, name, concurrency, batch_size)
 
         if not isinstance(result_type, (DataType, str)):
             raise TypeError(
@@ -570,7 +575,10 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_function_kind,
             self._deterministic,
             self._takes_row_as_input,
-            _get_python_env())
+            self._returns_table_row,
+            _get_python_env(),
+            self._concurrency if self._concurrency is not None else -1,
+            self._batch_size if self._batch_size is not None else -1)
         return j_scalar_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:
@@ -582,9 +590,10 @@ class UserDefinedAsyncScalarFunctionWrapper(UserDefinedFunctionWrapper):
     Wrapper for Python user-defined async scalar function.
     """
 
-    def __init__(self, func, input_types, result_type, func_type, deterministic, name):
+    def __init__(self, func, input_types, result_type, func_type, deterministic, name,
+                 concurrency=None, batch_size=None):
         super(UserDefinedAsyncScalarFunctionWrapper, self).__init__(
-            func, input_types, func_type, deterministic, name)
+            func, input_types, func_type, deterministic, name, concurrency, batch_size)
 
         if not isinstance(result_type, (DataType, str)):
             raise TypeError(
@@ -609,7 +618,10 @@ class UserDefinedAsyncScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_function_kind,
             self._deterministic,
             self._takes_row_as_input,
-            _get_python_env())
+            self._returns_table_row,
+            _get_python_env(),
+            self._concurrency if self._concurrency is not None else -1,
+            self._batch_size if self._batch_size is not None else -1)
         return j_async_scalar_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:
@@ -761,7 +773,8 @@ def _get_python_env():
     return gateway.jvm.org.apache.flink.table.functions.python.PythonEnv(exec_type)
 
 
-def _create_udf(f, input_types, result_type, func_type, deterministic, name):
+def _create_udf(f, input_types, result_type, func_type, deterministic, name,
+                concurrency=None, batch_size=None):
     if func_type in ('pandas', 'arrow'):
         target = f
         while isinstance(target, functools.partial):
@@ -777,10 +790,12 @@ def _create_udf(f, input_types, result_type, func_type, deterministic, name):
                 f"Async scalar functions do not support {func_type} func_type. "
                 "Please use func_type='general' (default) for async functions.")
         return UserDefinedAsyncScalarFunctionWrapper(
-            f, input_types, result_type, func_type, deterministic, name)
+            f, input_types, result_type, func_type, deterministic, name,
+            concurrency, batch_size)
     else:
         return UserDefinedScalarFunctionWrapper(
-            f, input_types, result_type, func_type, deterministic, name)
+            f, input_types, result_type, func_type, deterministic, name,
+            concurrency, batch_size)
 
 
 def _create_udtf(f, input_types, result_types, deterministic, name):
@@ -800,7 +815,8 @@ def _create_udtaf(f, input_types, result_type, accumulator_type, func_type, dete
 def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
         input_types: Union[List[DataType], DataType, str, List[str]] = None,
         result_type: Union[DataType, str] = None,
-        deterministic: bool = None, name: str = None, func_type: str = "general"
+        deterministic: bool = None, name: str = None, func_type: str = "general",
+        concurrency: Optional[int] = None, batch_size: Optional[int] = None
         ) -> Union[
         UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, Callable]:
     """
@@ -851,6 +867,9 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
     :param name: the function name.
     :param func_type: the type of the python function, available value: general, pandas, arrow,
                      (default: general)
+    :param concurrency: optional parallelism for the Python operator that executes this UDF.
+                        Only supported for insert-only streaming inputs.
+    :param batch_size: optional maximum Arrow batch size. Only supported for pandas or Arrow UDFs.
     :return: UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, or function.
 
     .. versionadded:: 1.10.0
@@ -858,14 +877,31 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
 
     if func_type not in ('general', 'pandas', 'arrow'):
         raise ValueError(f"The func_type must be one of 'general, pandas, arrow', got {func_type}.")
+    _validate_udf_execution_options(func_type, concurrency, batch_size)
 
     # decorator
     if f is None:
         return functools.partial(_create_udf, input_types=input_types, result_type=result_type,
                                  func_type=func_type, deterministic=deterministic,
-                                 name=name)
+                                 name=name, concurrency=concurrency, batch_size=batch_size)
     else:
-        return _create_udf(f, input_types, result_type, func_type, deterministic, name)
+        return _create_udf(f, input_types, result_type, func_type, deterministic, name,
+                           concurrency, batch_size)
+
+
+def _validate_udf_execution_options(func_type, concurrency, batch_size):
+    for option_name, option_value in (
+            ('concurrency', concurrency), ('batch_size', batch_size)):
+        if option_value is not None and (
+                isinstance(option_value, bool)
+                or not isinstance(option_value, int)
+                or not 1 <= option_value <= 2147483647):
+            raise ValueError(
+                f"{option_name} must be a positive integer no greater than 2147483647, "
+                f"got: {option_value}")
+
+    if batch_size is not None and func_type not in ('pandas', 'arrow'):
+        raise ValueError("batch_size is only supported for pandas or Arrow UDFs.")
 
 
 def udtf(f: Union[Callable, TableFunction, Type] = None,

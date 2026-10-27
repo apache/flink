@@ -41,6 +41,37 @@ def generate_random_table_name():
     return "Table{0}".format(str(uuid.uuid1()).replace("-", "_"))
 
 
+class UdfExecutionOptionsTests(unittest.TestCase):
+    def test_valid_options(self):
+        for kind in ("general", "pandas", "arrow"):
+            for concurrency in (None, 1, 3, 2147483647):
+                for batch_size in ((None,) if kind == "general" else (None, 1, 64, 2147483647)):
+                    with self.subTest(kind=kind, concurrency=concurrency, batch_size=batch_size):
+                        wrapper = udf(lambda value: value, result_type=DataTypes.BIGINT(),
+                                      func_type=kind, concurrency=concurrency,
+                                      batch_size=batch_size)
+                        self.assertEqual(wrapper._concurrency, concurrency)
+                        self.assertEqual(wrapper._batch_size, batch_size)
+
+    def test_invalid_option_values(self):
+        for option in ("concurrency", "batch_size"):
+            for value in (0, -1, True, False, 1.5, "2", 2147483648, 10 ** 100):
+                with self.subTest(option=option, value=value):
+                    with self.assertRaisesRegex(ValueError, f"{option} must be a positive integer"):
+                        udf(lambda value: value, result_type=DataTypes.BIGINT(),
+                            func_type="pandas", **{option: value})
+
+    def test_general_functions_reject_batch_size(self):
+        async def async_identity(value):
+            return value
+
+        for function in (lambda value: value, async_identity):
+            with self.subTest(function=function):
+                with self.assertRaisesRegex(
+                        ValueError, "batch_size is only supported for pandas or Arrow UDFs"):
+                    udf(function, result_type=DataTypes.BIGINT(), batch_size=32)
+
+
 class ArrowScalarOperationTests(unittest.TestCase):
     def operation(self, func, inputs, takes_row_as_input=False, preceding=(), output_indices=()):
         function = proto.UserDefinedFunction(
@@ -200,6 +231,38 @@ class ArrowScalarOperationTests(unittest.TestCase):
             [pa.array(["alice", None, "Bob"])], names=["name"]))
         self.assertIsInstance(result, pa.RecordBatch)
         self.assertEqual(result.column(0).to_pylist(), ["ALICE", None, "BOB"])
+
+
+class ProcessModeLocalZonedTimestampTests(object):
+
+    def test_local_zoned_timestamp_instants(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+
+                @udf(result_type=DataTypes.TIMESTAMP_LTZ(3))
+                def add_hour(value):
+                    if value is None:
+                        return None
+                    assert str(value.tzinfo) == timezone
+                    assert value == datetime.datetime(2024, 11, 3, 5, 30, 0, 123000,
+                                                      tzinfo=pytz.UTC)
+                    return value + datetime.timedelta(hours=1)
+
+                table = self.t_env.sql_query(
+                    'SELECT TO_TIMESTAMP_LTZ(epoch_millis, 3) AS ltz '
+                    'FROM (VALUES (1730611800123), (CAST(NULL AS BIGINT))) AS v(epoch_millis)')
+                results = table.select(add_hour(table.ltz))._j_table.execute().collect()
+                actual = []
+                try:
+                    while results.hasNext():
+                        value = results.next().getField(0)
+                        actual.append(None if value is None else value.toEpochMilli())
+                finally:
+                    results.close()
+                self.assertCountEqual([1730615400123, None], actual)
 
 
 class UserDefinedFunctionTests(object):
@@ -1236,8 +1299,8 @@ def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                            PyFlinkStreamTableTestCase):
+class PyFlinkStreamUserDefinedFunctionTests(
+        ProcessModeLocalZonedTimestampTests, UserDefinedFunctionTests, PyFlinkStreamTableTestCase):
     def test_deterministic(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         self.assertTrue(add_one._deterministic)
@@ -1304,8 +1367,8 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 
     def test_data_types(self):
         timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+        local_datetime = datetime.datetime(
+            1970, 1, 1, 0, 0, 0, 123000, tzinfo=pytz.UTC).astimezone(pytz.timezone(timezone))
 
         @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
@@ -1319,9 +1382,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.t_env.from_elements(
-            [(local_datetime,)],
-            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+        t = self.t_env.sql_query('SELECT TO_TIMESTAMP_LTZ(123, 3) AS a')
 
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
             .execute_insert(sink_table) \
@@ -1420,8 +1481,8 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         self.assert_equals(actual, ['+I[42]', '+I[5]', '+I[1000]', '+I[1000]'])
 
 
-class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                           PyFlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(
+        ProcessModeLocalZonedTimestampTests, UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     pass
 
 

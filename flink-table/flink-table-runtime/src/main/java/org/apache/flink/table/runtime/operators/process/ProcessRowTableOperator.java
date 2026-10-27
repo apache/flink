@@ -31,6 +31,7 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 
 import javax.annotation.Nullable;
 

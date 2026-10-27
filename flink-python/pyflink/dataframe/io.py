@@ -16,15 +16,18 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
+from pyflink.dataframe.catalog import _validate_name
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame, _normalize_subset
 from pyflink.dataframe.datatype import DataType
-from pyflink.table import Schema, TableDescriptor
+from pyflink.dataframe.errors import _raise_as_value_error
+from pyflink.java_gateway import get_gateway
+from pyflink.table import Schema, Table, TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["read_generic", "read_json", "read_parquet"]
+__all__ = ["read_catalog_table", "read_generic", "read_json", "read_kafka", "read_parquet"]
 
 
 def _build_filesystem_options(
@@ -273,6 +276,427 @@ def read_json(
     )
 
 
+def _normalize_kafka_properties(
+    properties: Optional[Dict[str, str]], *, reserved: tuple
+) -> Optional[Dict[str, str]]:
+    if properties is None:
+        return None
+    _validate_options(properties)
+    normalized = {
+        key if key.startswith("properties.") else f"properties.{key}": value
+        for key, value in properties.items()
+    }
+    for key in reserved:
+        if key in normalized:
+            raise ValueError(
+                f"{key!r} must be configured through its dedicated DataFrame "
+                f"argument, not through properties")
+    return normalized
+
+
+def _merge_kafka_format_options(
+    options: Dict[str, str],
+    value_format: str,
+    *,
+    format_options: Optional[Dict[str, str]],
+    value_format_options: Optional[Dict[str, str]],
+) -> None:
+    normalized_format_options = _normalize_kafka_format_options(
+        format_options, value_format=value_format)
+    normalized_value_format_options = _normalize_kafka_format_options(
+        value_format_options, value_format=value_format)
+    _merge_options(options, normalized_format_options)
+    _merge_options(options, normalized_value_format_options)
+
+
+def _merge_kafka_key_format_options(
+    options: Dict[str, str],
+    key_format: str,
+    key_format_options: Optional[Dict[str, str]],
+) -> None:
+    if key_format_options is None:
+        return
+    _validate_options(key_format_options)
+    normalized = {
+        key if key.startswith("key.") else f"key.{key_format}.{key}": value
+        for key, value in key_format_options.items()
+    }
+    _merge_options(options, normalized)
+
+
+def _normalize_kafka_format_options(
+    options: Optional[Dict[str, str]],
+    *,
+    value_format: str,
+) -> Dict[str, str]:
+    if options is None:
+        return {}
+    _validate_options(options)
+    value_prefix = f"value.{value_format}."
+    normalized: Dict[str, str] = {}
+    for key, value in options.items():
+        if key.startswith(value_prefix):
+            normalized[key] = value
+        elif key.startswith(f"{value_format}."):
+            normalized[value_prefix + key[len(f"{value_format}."):]] = value
+        else:
+            normalized[value_prefix + key] = value
+    return normalized
+
+
+def _build_kafka_options(
+    bootstrap_servers: str,
+    *,
+    topic: Optional[Union[str, List[str]]],
+    topic_pattern: Optional[str],
+    group_id: Optional[str],
+    value_format: str,
+    format_options: Optional[Dict[str, str]],
+    value_format_options: Optional[Dict[str, str]],
+    key_format: Optional[str],
+    key_format_options: Optional[Dict[str, str]],
+    key_fields: Optional[List[str]],
+    key_fields_prefix: Optional[str],
+    value_fields_include: str,
+    startup_mode: str,
+    startup_specific_offsets: Optional[Union[str, Dict[int, int]]],
+    startup_timestamp_millis: Optional[int],
+    topic_partition_discovery_interval: Optional[str],
+    bounded_mode: str,
+    bounded_timestamp_millis: Optional[int],
+    bounded_specific_offsets: Optional[Union[str, Dict[int, int]]],
+    properties: Optional[Dict[str, str]],
+    extra_options: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    if not isinstance(bootstrap_servers, str):
+        raise TypeError("bootstrap_servers must be a string")
+    if not bootstrap_servers:
+        raise ValueError("bootstrap_servers must not be empty")
+
+    if topic is None and topic_pattern is None:
+        raise ValueError("either 'topic' or 'topic_pattern' must be specified")
+    if topic is not None and topic_pattern is not None:
+        raise ValueError("'topic' and 'topic_pattern' are mutually exclusive")
+    if topic is not None:
+        if isinstance(topic, str):
+            resolved_topic = topic
+        elif isinstance(topic, list):
+            if not topic:
+                raise ValueError("topic must not be an empty list")
+            if not all(isinstance(t, str) for t in topic):
+                raise TypeError("topic list elements must be strings")
+            resolved_topic = ";".join(topic)
+        else:
+            raise TypeError("topic must be a string or a list of strings")
+    else:
+        resolved_topic = None
+    if topic_pattern is not None and not isinstance(topic_pattern, str):
+        raise TypeError("topic_pattern must be a string")
+
+    if group_id is not None and not isinstance(group_id, str):
+        raise TypeError("group_id must be a string")
+
+    if not isinstance(value_format, str):
+        raise TypeError("format must be a string")
+    if not value_format:
+        raise ValueError("format must not be empty")
+
+    _validate_literal(value_fields_include, ("ALL", "EXCEPT_KEY"), "value_fields_include")
+    _validate_literal(startup_mode, _STARTUP_MODES, "startup_mode")
+    _validate_literal(bounded_mode, _BOUNDED_MODES, "bounded_mode")
+
+    if startup_mode == "specific-offsets":
+        startup_specific_offsets = _convert_specific_offsets(
+            startup_specific_offsets, "startup_specific_offsets")
+        if startup_specific_offsets is None:
+            raise ValueError(
+                "startup_specific_offsets is required when "
+                "startup_mode='specific-offsets'")
+    else:
+        startup_specific_offsets = None
+    if startup_mode == "timestamp" and startup_timestamp_millis is None:
+        raise ValueError(
+            "startup_timestamp_millis is required when startup_mode='timestamp'")
+    if (
+        startup_timestamp_millis is not None
+        and (
+            isinstance(startup_timestamp_millis, bool)
+            or not isinstance(startup_timestamp_millis, int)
+        )
+    ):
+        raise TypeError("startup_timestamp_millis must be an int")
+
+    if bounded_mode == "specific-offsets":
+        bounded_specific_offsets = _convert_specific_offsets(
+            bounded_specific_offsets, "bounded_specific_offsets")
+        if bounded_specific_offsets is None:
+            raise ValueError(
+                "bounded_specific_offsets is required when "
+                "bounded_mode='specific-offsets'")
+    else:
+        bounded_specific_offsets = None
+    if bounded_mode == "timestamp" and bounded_timestamp_millis is None:
+        raise ValueError(
+            "bounded_timestamp_millis is required when bounded_mode='timestamp'")
+    if (
+        bounded_timestamp_millis is not None
+        and (
+            isinstance(bounded_timestamp_millis, bool)
+            or not isinstance(bounded_timestamp_millis, int)
+        )
+    ):
+        raise TypeError("bounded_timestamp_millis must be an int")
+
+    if (
+        topic_partition_discovery_interval is not None
+        and not isinstance(topic_partition_discovery_interval, str)
+    ):
+        raise TypeError("topic_partition_discovery_interval must be a string")
+
+    if key_format is not None and not isinstance(key_format, str):
+        raise TypeError("key_format must be a string")
+    if key_fields is not None:
+        if not isinstance(key_fields, list):
+            raise TypeError("key_fields must be a list of strings")
+        if not key_fields:
+            raise ValueError("key_fields must not be empty")
+        if not all(isinstance(f, str) for f in key_fields):
+            raise TypeError("key_fields elements must be strings")
+    if key_fields_prefix is not None and not isinstance(key_fields_prefix, str):
+        raise TypeError("key_fields_prefix must be a string")
+
+    normalized_properties = _normalize_kafka_properties(
+        properties, reserved=("properties.bootstrap.servers", "properties.group.id"))
+
+    options: Dict[str, str] = {
+        "properties.bootstrap.servers": bootstrap_servers,
+        "value.format": value_format,
+        "value.fields-include": value_fields_include,
+    }
+    if group_id is not None:
+        options["properties.group.id"] = group_id
+    if resolved_topic is not None:
+        options["topic"] = resolved_topic
+    if topic_pattern is not None:
+        options["topic-pattern"] = topic_pattern
+    options["scan.topic-partition-discovery.interval"] = (
+        topic_partition_discovery_interval
+        if topic_partition_discovery_interval is not None else "0")
+    options["scan.startup.mode"] = startup_mode
+    if startup_specific_offsets is not None:
+        options["scan.startup.specific-offsets"] = startup_specific_offsets
+    if startup_timestamp_millis is not None:
+        options["scan.startup.timestamp-millis"] = str(startup_timestamp_millis)
+    if bounded_mode != "unbounded":
+        options["scan.bounded.mode"] = bounded_mode
+        if bounded_timestamp_millis is not None:
+            options["scan.bounded.timestamp-millis"] = str(bounded_timestamp_millis)
+        if bounded_specific_offsets is not None:
+            options["scan.bounded.specific-offsets"] = bounded_specific_offsets
+
+    if key_format is not None:
+        options["key.format"] = key_format
+    _merge_kafka_key_format_options(options, key_format, key_format_options)
+    if key_fields is not None:
+        options["key.fields"] = ";".join(key_fields)
+    if key_fields_prefix is not None:
+        options["key.fields-prefix"] = key_fields_prefix
+
+    _merge_kafka_format_options(
+        options,
+        value_format,
+        format_options=format_options,
+        value_format_options=value_format_options,
+    )
+
+    if normalized_properties is not None:
+        _merge_options(options, normalized_properties)
+    if extra_options is not None:
+        _merge_options(options, extra_options)
+
+    return options
+
+
+_STARTUP_MODES = (
+    "earliest-offset", "latest-offset", "group-offsets",
+    "timestamp", "specific-offsets")
+_BOUNDED_MODES = (
+    "unbounded", "group-offsets", "latest-offset",
+    "timestamp", "specific-offsets")
+_DELIVERY_GUARANTEES = ("none", "at-least-once", "exactly-once")
+
+
+def _validate_literal(value: str, choices: tuple, name: str) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be a string")
+    if value not in choices:
+        raise ValueError(
+            f"{name} must be one of {choices}, got {value!r}")
+
+
+def _convert_specific_offsets(
+    value: Optional[Union[str, Dict[int, int]]], name: str
+) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        parts = []
+        for partition, offset in value.items():
+            if not isinstance(partition, int) or isinstance(partition, bool):
+                raise TypeError(f"{name} keys must be ints (partition numbers)")
+            if not isinstance(offset, int) or isinstance(offset, bool):
+                raise TypeError(f"{name} values must be ints (offsets)")
+            parts.append(f"partition:{partition},offset:{offset}")
+        return ";".join(parts)
+    raise TypeError(f"{name} must be a str or a Dict[int, int]")
+
+
+@PublicEvolving()
+def read_kafka(
+    bootstrap_servers: str,
+    *,
+    schema: Dict[str, DataType],
+    topic: Optional[Union[str, List[str]]] = None,
+    topic_pattern: Optional[str] = None,
+    group_id: Optional[str] = None,
+    format: str = "json",
+    format_options: Optional[Dict[str, str]] = None,
+    key_format: Optional[str] = None,
+    key_format_options: Optional[Dict[str, str]] = None,
+    key_fields: Optional[List[str]] = None,
+    key_fields_prefix: Optional[str] = None,
+    value_format: Optional[str] = None,
+    value_format_options: Optional[Dict[str, str]] = None,
+    value_fields_include: Literal["ALL", "EXCEPT_KEY"] = "ALL",
+    startup_mode: Literal[
+        "earliest-offset", "latest-offset", "group-offsets",
+        "timestamp", "specific-offsets"
+    ] = "group-offsets",
+    startup_specific_offsets: Optional[Union[str, Dict[int, int]]] = None,
+    startup_timestamp_millis: Optional[int] = None,
+    topic_partition_discovery_interval: Optional[str] = "5 min",
+    bounded_mode: Literal[
+        "unbounded", "group-offsets", "latest-offset",
+        "timestamp", "specific-offsets"
+    ] = "unbounded",
+    bounded_timestamp_millis: Optional[int] = None,
+    bounded_specific_offsets: Optional[Union[str, Dict[int, int]]] = None,
+    properties: Optional[Dict[str, str]] = None,
+    options: Optional[Dict[str, str]] = None,
+    computed_columns: Optional[Dict[str, str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
+    """
+    Read data from Kafka using Flink's Kafka SQL connector.
+
+    The Kafka connector must be available to Flink. Exactly one of ``topic`` or
+    ``topic_pattern`` must be specified. Physical columns in ``schema`` are followed by
+    computed columns in dictionary insertion order. A watermark can reference a physical
+    or computed timestamp column.
+
+    ``format`` and ``value_format`` are aliases; ``value_format`` takes precedence when
+    both are set.
+    ``format_options`` and ``value_format_options`` are both normalized to
+    ``value.<format>.<key>``; conflicting values are rejected.
+
+    :param bootstrap_servers: Comma-separated Kafka bootstrap server addresses.
+    :param schema: Non-empty mapping of physical column names to DataFrame data types.
+    :param topic: Kafka topic name or list of names. Mutually exclusive with
+        ``topic_pattern``.
+    :param topic_pattern: Regular expression matching Kafka topic names. Mutually
+        exclusive with ``topic``.
+    :param group_id: Kafka consumer group id. Maps to ``properties.group.id``.
+    :param format: Value format, for example ``"json"``, ``"csv"``, ``"avro"``.
+    :param format_options: Value format options with string values, with or without
+        the ``<format>.`` prefix.
+    :param key_format: Key format, for example ``"json"`` or ``"avro"``.
+    :param key_format_options: Key format options with string values, with or without
+        the ``key.<key_format>.`` prefix.
+    :param key_fields: List of column names that make up the key.
+    :param key_fields_prefix: Prefix for key fields to avoid name clashes with value
+        fields.
+    :param value_format: Alternative to ``format`` for specifying the value format.
+    :param value_format_options: Alternative to ``format_options`` for specifying
+        value format options.
+    :param value_fields_include: Whether value fields include key fields:
+        ``"ALL"`` or ``"EXCEPT_KEY"``.
+    :param startup_mode: Startup mode: ``"earliest-offset"``, ``"latest-offset"``,
+        ``"group-offsets"``, ``"timestamp"``, or ``"specific-offsets"``.
+    :param startup_specific_offsets: Specific offsets for ``startup_mode`` of
+        ``"specific-offsets"``, as a string
+        (``"partition:0,offset:42;partition:1,offset:300"``) or a dict
+        (``{partition: offset}``).
+    :param startup_timestamp_millis: Startup timestamp in milliseconds for
+        ``startup_mode`` of ``"timestamp"``.
+    :param topic_partition_discovery_interval: Interval for topic partition
+        discovery, for example ``"5 min"``. Set to ``None`` to disable by setting
+        ``scan.topic-partition-discovery.interval`` to ``"0"``.
+    :param bounded_mode: Bounded mode: ``"unbounded"``, ``"group-offsets"``,
+        ``"latest-offset"``, ``"timestamp"``, or ``"specific-offsets"``.
+    :param bounded_timestamp_millis: Bounded timestamp in milliseconds for
+        ``bounded_mode`` of ``"timestamp"``.
+    :param bounded_specific_offsets: Specific offsets for ``bounded_mode`` of
+        ``"specific-offsets"``, using the same string or dict syntax as
+        ``startup_specific_offsets``.
+    :param properties: Additional Kafka consumer properties with string keys and
+        values. Keys may be supplied with or without the ``properties.`` prefix.
+        ``properties.bootstrap.servers`` and ``properties.group.id`` must use
+        their dedicated arguments.
+    :param options: Additional raw Kafka connector options with string keys and values,
+        excluding ``connector``. Keys are passed through unchanged. Conflicts with
+        options generated by other arguments (including defaults) raise ``ValueError``.
+    :param computed_columns: Optional SQL expressions keyed by computed column name.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
+    :return: A DataFrame backed by the Kafka source.
+    :raises TypeError: If an argument has an invalid type.
+    :raises ValueError: If required arguments are missing, mutually exclusive
+        arguments conflict, or an option is invalid.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> events = pf.read_kafka(
+        ...     "localhost:9092",
+        ...     schema={"user_id": pf.DataType.int64(), "event": pf.DataType.string()},
+        ...     topic="events",
+        ...     format="json",
+        ...     startup_mode="earliest-offset",
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    effective_value_format = value_format or format
+    kafka_options = _build_kafka_options(
+        bootstrap_servers,
+        topic=topic,
+        topic_pattern=topic_pattern,
+        group_id=group_id,
+        value_format=effective_value_format,
+        format_options=format_options,
+        value_format_options=value_format_options,
+        key_format=key_format,
+        key_format_options=key_format_options,
+        key_fields=key_fields,
+        key_fields_prefix=key_fields_prefix,
+        value_fields_include=value_fields_include,
+        startup_mode=startup_mode,
+        startup_specific_offsets=startup_specific_offsets,
+        startup_timestamp_millis=startup_timestamp_millis,
+        topic_partition_discovery_interval=topic_partition_discovery_interval,
+        bounded_mode=bounded_mode,
+        bounded_timestamp_millis=bounded_timestamp_millis,
+        bounded_specific_offsets=bounded_specific_offsets,
+        properties=properties,
+        extra_options=options,
+    )
+    return _read(
+        "kafka", schema=schema, options=kafka_options,
+        computed_columns=computed_columns, watermark=watermark,
+    )
+
+
 def _validate_connector(connector: str) -> None:
     if not isinstance(connector, str):
         raise TypeError("connector must be a string")
@@ -296,9 +720,7 @@ def _validate_options(options: Dict[str, str]) -> None:
             raise TypeError(f"option {key!r} must have a string value")
 
 
-def _validate_computed_columns(
-    computed_columns: Optional[Dict[str, str]], physical_columns: Dict[str, DataType]
-) -> Dict[str, str]:
+def _validate_computed_columns(computed_columns: Optional[Dict[str, str]]) -> Dict[str, str]:
     if computed_columns is None:
         return {}
     if not isinstance(computed_columns, dict):
@@ -310,10 +732,6 @@ def _validate_computed_columns(
             raise TypeError("computed column names must be strings")
         if not name:
             raise ValueError("computed column names must not be empty")
-        if name in physical_columns:
-            raise ValueError(
-                f"computed column {name!r} conflicts with a physical column"
-            )
         if not isinstance(expression, str):
             raise TypeError(f"computed column {name!r} must use a string expression")
         if not expression:
@@ -358,9 +776,7 @@ def _build_source_schema(
             raise TypeError(f"schema column {name!r} must use a DataType value")
         schema_builder.column(name, data_type._to_table_data_type())
 
-    for name, expression in _validate_computed_columns(
-        computed_columns, schema
-    ).items():
+    for name, expression in _validate_computed_columns(computed_columns).items():
         schema_builder.column_by_expression(name, expression)
 
     validated_watermark = _validate_watermark(watermark)
@@ -408,7 +824,11 @@ def _read(
     descriptor = _build_generic_descriptor(
         connector, options, schema=source_schema, partition_by=partition_by)
     table_environment = get_or_create_table_environment()
-    return DataFrame(table_environment.from_descriptor(descriptor))
+    try:
+        table = table_environment.from_descriptor(descriptor)
+    except Exception as error:
+        _raise_as_value_error(error)
+    return DataFrame(table)
 
 
 @PublicEvolving()
@@ -435,7 +855,8 @@ def read_generic(
     :return: A DataFrame backed by the configured source.
     :raises TypeError: If an argument has an invalid type.
     :raises ValueError: If a connector, schema, option key, computed column, or watermark value is
-        empty, or if a computed column conflicts with a physical column.
+        empty, or if Flink rejects the schema, such as a computed column that duplicates a
+        physical column or an invalid computed column or watermark expression.
 
     Example::
 
@@ -461,3 +882,259 @@ def read_generic(
         connector, schema=schema, options=options,
         computed_columns=computed_columns, watermark=watermark,
     )
+
+
+def _extend_catalog_table(
+    table: Table,
+    computed_columns: Dict[str, str],
+    watermark: Optional[Tuple[str, str]],
+) -> Table:
+    """
+    Read the catalog table behind ``table`` with extra computed columns and, optionally, a
+    different watermark.
+
+    Flink has no way to add columns to an existing table at read time, so this builds a nameless
+    copy of the table definition with the new schema and reads from that instead. Everything else
+    is copied over unchanged: options, partition keys, distribution, snapshot, connection and
+    comment. The connector sees the same table it always did, only with more columns. The real
+    catalog table is not touched.
+
+    This is the same thing ``TableEnvironment.from(TableDescriptor)`` does in Java. We build the
+    ``CatalogTable`` ourselves because ``TableDescriptor`` cannot take a distribution or snapshot
+    object directly.
+
+    Tables whose catalog supplies the connector, such as Paimon or Hive, cannot be extended this
+    way: the copy has no catalog to ask, so it would not know which connector to use. That is why
+    the ``connector`` option is required.
+    """
+    jvm = get_gateway().jvm
+    catalog = jvm.org.apache.flink.table.catalog
+
+    source = table._j_table.getQueryOperation().getContextResolvedTable()
+    identifier = source.getIdentifier().asSummaryString()
+    source_table = source.getTable()
+    table_kind = source_table.getTableKind()
+    if table_kind != catalog.CatalogBaseTable.TableKind.TABLE:
+        raise ValueError(
+            f"{identifier} is a {table_kind.name().lower()}; computed columns and watermarks can "
+            f"only be added to tables"
+        )
+    if not source_table.getOptions().get("connector"):
+        raise ValueError(
+            f"{identifier} has no 'connector' option, so its connector comes from the catalog and "
+            f"cannot be reused for an extended copy. Read it without computed_columns and "
+            f"watermark, or use read_generic."
+        )
+
+    source_schema = source_table.getUnresolvedSchema()
+
+    schema_builder = jvm.org.apache.flink.table.api.Schema.newBuilder()
+    if watermark is None:
+        schema_builder.fromSchema(source_schema)
+    else:
+        # A schema can only have one watermark. Copy the columns and primary key by hand so the
+        # table's own watermark is left out, then add the new one below.
+        schema_builder.fromColumns(source_schema.getColumns())
+        primary_key = source_schema.getPrimaryKey()
+        if primary_key.isPresent():
+            schema_builder.primaryKeyNamed(
+                primary_key.get().getConstraintName(), primary_key.get().getColumnNames()
+            )
+    for name, expression in computed_columns.items():
+        schema_builder.columnByExpression(name, expression)
+    if watermark is not None:
+        schema_builder.watermark(*watermark)
+
+    catalog_table = (
+        catalog.CatalogTable.newBuilder()
+        .schema(schema_builder.build())
+        .options(source_table.getOptions())
+        .partitionKeys(source_table.getPartitionKeys())
+        .distribution(source_table.getDistribution().orElse(None))
+        .snapshot(source_table.getSnapshot().orElse(None))
+        .connection(source_table.getConnection().orElse(None))
+        .comment(source_table.getComment())
+        .build()
+    )
+
+    j_table_environment = table._t_env._j_tenv
+    try:
+        resolved_table = j_table_environment.getCatalogManager().resolveCatalogTable(catalog_table)
+    except Exception as error:
+        _raise_as_value_error(error)
+    query_operation = jvm.org.apache.flink.table.operations.SourceQueryOperation(
+        catalog.ContextResolvedTable.anonymous(resolved_table)
+    )
+    return Table(j_table_environment.createTable(query_operation), table._t_env)
+
+
+@PublicEvolving()
+def read_catalog_table(
+    path: str,
+    *,
+    computed_columns: Optional[Dict[str, str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
+    """
+    Read a table registered in a catalog.
+
+    ``path`` is ``table_name``, ``db_name.table_name``, or ``catalog_name.db_name.table_name``.
+    Missing parts are resolved against the current catalog and database, see
+    :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. Names that
+    are reserved keywords or contain dots must be escaped with backticks.
+
+    Use ``computed_columns`` and ``watermark`` to add columns or change the watermark for this read
+    only. The new columns go after the table's own columns, in the order given. The watermark
+    replaces whatever the table declares and may use the new columns. Nothing is written back to
+    the catalog.
+
+    This only works for tables that set the ``connector`` option. Tables from catalogs that supply
+    their own connector, such as Paimon or Hive, can still be read, just without these two
+    arguments.
+
+    :param path: Path of the catalog table.
+    :param computed_columns: Optional SQL expressions keyed by computed column name.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
+    :return: A DataFrame backed by the catalog table.
+    :raises TypeError: If ``path`` is not a string or another argument has an invalid type.
+    :raises ValueError: If ``path`` is empty, malformed, or does not name a table. Also if
+        ``computed_columns`` or ``watermark`` contain empty strings, are used on a view or on a
+        table without a ``connector`` option, or if Flink rejects the resulting schema, for example
+        a duplicate column name or an expression that does not compile.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> pf.create_catalog("my_catalog", {"type": "generic_in_memory"})
+        >>> orders = pf.read_catalog_table("my_catalog.default.orders")
+        >>> pf.use_catalog("my_catalog")
+        >>> orders = pf.read_catalog_table("default.orders")
+        >>> pf.use_database("default")
+        >>> orders = pf.read_catalog_table(
+        ...     "orders",
+        ...     computed_columns={"order_time": "TO_TIMESTAMP_LTZ(ts_millis, 3)"},
+        ...     watermark=("order_time", "order_time - INTERVAL '5' SECOND"),
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    _validate_name(path, "path")
+    table_environment = get_or_create_table_environment()
+    try:
+        table = table_environment.from_path(path)
+    except Exception as error:
+        _raise_as_value_error(error)
+    validated_columns = _validate_computed_columns(computed_columns)
+    validated_watermark = _validate_watermark(watermark)
+    if validated_columns or validated_watermark is not None:
+        table = _extend_catalog_table(table, validated_columns, validated_watermark)
+    return DataFrame(table)
+
+
+def _build_kafka_sink_options(
+    bootstrap_servers: str,
+    *,
+    topic: str,
+    value_format: str,
+    format: str,
+    format_options: Optional[Dict[str, str]],
+    value_format_options: Optional[Dict[str, str]],
+    key_format: Optional[str],
+    key_format_options: Optional[Dict[str, str]],
+    key_fields: Optional[List[str]],
+    value_fields_include: str,
+    delivery_guarantee: str,
+    properties: Optional[Dict[str, str]],
+    parallelism: Optional[int],
+    transactional_id_prefix: Optional[str] = None,
+    partitioner: Optional[str] = None,
+    extra_options: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    if not isinstance(bootstrap_servers, str):
+        raise TypeError("bootstrap_servers must be a string")
+    if not bootstrap_servers:
+        raise ValueError("bootstrap_servers must not be empty")
+
+    if not isinstance(topic, str):
+        raise TypeError("topic must be a string")
+    if not topic:
+        raise ValueError("topic must not be empty")
+
+    if not isinstance(value_format, str):
+        raise TypeError("format must be a string")
+    if not value_format:
+        raise ValueError("format must not be empty")
+
+    _validate_literal(value_fields_include, ("ALL", "EXCEPT_KEY"), "value_fields_include")
+    _validate_literal(delivery_guarantee, _DELIVERY_GUARANTEES, "delivery_guarantee")
+
+    if key_format is not None and not isinstance(key_format, str):
+        raise TypeError("key_format must be a string")
+    if key_fields is not None:
+        if not isinstance(key_fields, list):
+            raise TypeError("key_fields must be a list of strings")
+        if not key_fields:
+            raise ValueError("key_fields must not be empty")
+        if not all(isinstance(f, str) for f in key_fields):
+            raise TypeError("key_fields elements must be strings")
+    if key_format_options is not None:
+        _validate_options(key_format_options)
+
+    if parallelism is not None:
+        if isinstance(parallelism, bool) or not isinstance(parallelism, int):
+            raise TypeError("parallelism must be an int or None")
+
+    if transactional_id_prefix is not None:
+        if not isinstance(transactional_id_prefix, str):
+            raise TypeError("transactional_id_prefix must be a string")
+        if not transactional_id_prefix:
+            raise ValueError("transactional_id_prefix must not be empty")
+    if partitioner is not None:
+        if not isinstance(partitioner, str):
+            raise TypeError("partitioner must be a string")
+        if not partitioner:
+            raise ValueError("partitioner must not be empty")
+
+    normalized_properties = _normalize_kafka_properties(
+        properties, reserved=("properties.bootstrap.servers",))
+
+    options: Dict[str, str] = {
+        "properties.bootstrap.servers": bootstrap_servers,
+        "topic": topic,
+        "value.format": value_format,
+        "value.fields-include": value_fields_include,
+        "sink.delivery-guarantee": delivery_guarantee,
+    }
+    if transactional_id_prefix is not None:
+        options["sink.transactional-id-prefix"] = transactional_id_prefix
+    if partitioner is not None:
+        options["sink.partitioner"] = partitioner
+    if key_format is not None:
+        options["key.format"] = key_format
+    _merge_kafka_key_format_options(options, key_format, key_format_options)
+    if key_fields is not None:
+        options["key.fields"] = ";".join(key_fields)
+
+    _merge_kafka_format_options(
+        options,
+        value_format,
+        format_options=format_options,
+        value_format_options=value_format_options,
+    )
+
+    if parallelism is not None:
+        options["sink.parallelism"] = str(parallelism)
+
+    if normalized_properties is not None:
+        _merge_options(options, normalized_properties)
+    if extra_options is not None:
+        _merge_options(options, extra_options)
+
+    if (
+        options["sink.delivery-guarantee"] == "exactly-once"
+        and not options.get("sink.transactional-id-prefix")
+    ):
+        raise ValueError(
+            "sink.transactional-id-prefix is required when delivery_guarantee='exactly-once'")
+
+    return options

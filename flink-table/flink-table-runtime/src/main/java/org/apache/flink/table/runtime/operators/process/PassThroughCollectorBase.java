@@ -59,6 +59,11 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
 
     public abstract void setPrefix(int pos, RowData input);
 
+    /** Sets the prefix from a key, i.e. the partition keys of all tables with set semantics. */
+    public void setKeyPrefix(RowData key) {
+        prefix = key;
+    }
+
     public void setRowtime(Long time) {
         rowtime = GenericRowData.of(TimestampData.fromEpochMillis(time));
     }

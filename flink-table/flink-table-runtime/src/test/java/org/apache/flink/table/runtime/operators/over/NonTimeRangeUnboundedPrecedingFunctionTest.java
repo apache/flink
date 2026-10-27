@@ -24,10 +24,11 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.types.RowKind;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -56,7 +57,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
                 SORT_KEY_SELECTOR) {};
     }
 
-    @Test
+    @TestTemplate
     void testInsertOnlyRecordsWithCustomSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -97,7 +98,61 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
+    void testInsertWithDuplicateSortKeyAndLastValueAgg() throws Exception {
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(
+                        new NonTimeRangeUnboundedPrecedingFunction<>(
+                                0L,
+                                lastValueAggsHandleFunction,
+                                GENERATED_ROW_VALUE_EQUALISER,
+                                GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_SORT_KEY_COMPARATOR_ASC,
+                                lastValueAccTypes,
+                                inputFieldTypes,
+                                SORT_KEY_TYPES,
+                                SORT_KEY_SELECTOR) {});
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+        testHarness.open();
+
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(insertRecord("key1", 4L, 400L));
+        testHarness.processElement(insertRecord("key1", 5L, 503L));
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 500L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        outputRecord(RowKind.INSERT, "key1", 1L, 100L, 100L),
+                        outputRecord(RowKind.INSERT, "key1", 2L, 200L, 200L),
+                        outputRecord(RowKind.INSERT, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.INSERT, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.INSERT, "key1", 4L, 400L, 400L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 503L),
+                        outputRecord(RowKind.INSERT, "key1", 5L, 503L, 503L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.DELETE, "key1", 5L, 500L, 503L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 503L, 503L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 503L, 503L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 600L));
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @TestTemplate
     void testInsertOnlyRecordsWithCustomSortKeyAndLongSumAgg() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -146,7 +201,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testInsertOnlyRecordsWithDuplicateSortKeys() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -226,7 +281,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testRetractingRecordsWithCustomSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -294,7 +349,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testRetractWithFirstDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -344,7 +399,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testRetractWithMiddleDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -394,7 +449,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testRetractWithLastDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -444,7 +499,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testRetractWithDescendingSort() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
@@ -500,8 +555,9 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testRetractWithEarlyOut() throws Exception {
+        assumeEarlyOutSupported();
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRangeUnboundedPrecedingFunction(
@@ -550,7 +606,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         validateRows(actualRows, expectedRows);
     }
 
-    @Test
+    @TestTemplate
     void testInsertAndRetractAllWithStateValidation() throws Exception {
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 getNonTimeRangeUnboundedPrecedingFunction(0L, GENERATED_SORT_KEY_COMPARATOR_ASC);
@@ -562,31 +618,31 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         testHarness.open();
 
         // put some records
-        GenericRowData firstRecord = GenericRowData.of("key1", 1L, 100L);
+        GenericRowData firstRecord = GenericRowData.of(StringData.fromString("key1"), 1L, 100L);
         testHarness.processElement(insertRecord("key1", 1L, 100L));
         validateState(function, firstRecord, 0, 1, 0, 1, 0, 1, true);
 
-        GenericRowData secondRecord = GenericRowData.of("key1", 2L, 200L);
+        GenericRowData secondRecord = GenericRowData.of(StringData.fromString("key1"), 2L, 200L);
         testHarness.processElement(insertRecord("key1", 2L, 200L));
         validateState(function, secondRecord, 1, 2, 0, 1, 1, 2, true);
 
-        GenericRowData thirdRecord = GenericRowData.of("key1", 2L, 201L);
+        GenericRowData thirdRecord = GenericRowData.of(StringData.fromString("key1"), 2L, 201L);
         testHarness.processElement(insertRecord("key1", 2L, 201L));
         validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
 
-        GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
+        GenericRowData fourthRecord = GenericRowData.of(StringData.fromString("key1"), 5L, 500L);
         testHarness.processElement(insertRecord("key1", 5L, 500L));
         validateState(function, fourthRecord, 2, 3, 0, 1, 3, 4, true);
 
-        GenericRowData fifthRecord = GenericRowData.of("key1", 5L, 502L);
+        GenericRowData fifthRecord = GenericRowData.of(StringData.fromString("key1"), 5L, 502L);
         testHarness.processElement(insertRecord("key1", 5L, 502L));
         validateState(function, fifthRecord, 2, 3, 1, 2, 4, 5, true);
 
-        GenericRowData sixthRecord = GenericRowData.of("key1", 5L, 501L);
+        GenericRowData sixthRecord = GenericRowData.of(StringData.fromString("key1"), 5L, 501L);
         testHarness.processElement(insertRecord("key1", 5L, 501L));
         validateState(function, sixthRecord, 2, 3, 2, 3, 5, 6, true);
 
-        GenericRowData seventhRecord = GenericRowData.of("key1", 6L, 600L);
+        GenericRowData seventhRecord = GenericRowData.of(StringData.fromString("key1"), 6L, 600L);
         testHarness.processElement(insertRecord("key1", 6L, 600L));
         validateState(function, seventhRecord, 3, 4, 0, 1, 6, 7, true);
 
@@ -617,7 +673,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         assertThat(function.getNumOfIdsNotFound().getCount()).isZero();
     }
 
-    @Test
+    @TestTemplate
     void testInsertWithStateTTLExpiration() throws Exception {
         Duration stateTtlTime = Duration.ofMillis(10);
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
@@ -631,15 +687,15 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         testHarness.open();
 
         // put some records
-        GenericRowData firstRecord = GenericRowData.of("key1", 1L, 100L);
+        GenericRowData firstRecord = GenericRowData.of(StringData.fromString("key1"), 1L, 100L);
         testHarness.processElement(insertRecord("key1", 1L, 100L));
         validateState(function, firstRecord, 0, 1, 0, 1, 0, 1, true);
 
-        GenericRowData secondRecord = GenericRowData.of("key1", 2L, 200L);
+        GenericRowData secondRecord = GenericRowData.of(StringData.fromString("key1"), 2L, 200L);
         testHarness.processElement(insertRecord("key1", 2L, 200L));
         validateState(function, secondRecord, 1, 2, 0, 1, 1, 2, true);
 
-        GenericRowData thirdRecord = GenericRowData.of("key1", 2L, 201L);
+        GenericRowData thirdRecord = GenericRowData.of(StringData.fromString("key1"), 2L, 201L);
         testHarness.processElement(insertRecord("key1", 2L, 201L));
         validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
 
@@ -651,7 +707,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         testHarness.setProcessingTime(stateTtlTime.toMillis() + 1);
 
         // After insertion of the following record, there should be only 1 record in state
-        GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
+        GenericRowData fourthRecord = GenericRowData.of(StringData.fromString("key1"), 5L, 500L);
         testHarness.processElement(insertRecord("key1", 5L, 500L));
         validateState(function, fourthRecord, 0, 1, 0, 1, 0, 1, true);
 
@@ -668,7 +724,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         assertThat(function.getNumOfIdsNotFound().getCount()).isZero();
     }
 
-    @Test
+    @TestTemplate
     void testInsertAndRetractWithStateTTLExpiration() throws Exception {
         Duration stateTtlTime = Duration.ofMillis(10);
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
@@ -682,23 +738,23 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
         testHarness.open();
 
         // put some records
-        GenericRowData firstRecord = GenericRowData.of("key1", 1L, 100L);
+        GenericRowData firstRecord = GenericRowData.of(StringData.fromString("key1"), 1L, 100L);
         testHarness.processElement(insertRecord("key1", 1L, 100L));
         validateState(function, firstRecord, 0, 1, 0, 1, 0, 1, true);
 
-        GenericRowData secondRecord = GenericRowData.of("key1", 2L, 200L);
+        GenericRowData secondRecord = GenericRowData.of(StringData.fromString("key1"), 2L, 200L);
         testHarness.processElement(insertRecord("key1", 2L, 200L));
         validateState(function, secondRecord, 1, 2, 0, 1, 1, 2, true);
 
-        GenericRowData thirdRecord = GenericRowData.of("key1", 2L, 201L);
+        GenericRowData thirdRecord = GenericRowData.of(StringData.fromString("key1"), 2L, 201L);
         testHarness.processElement(insertRecord("key1", 2L, 201L));
         validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
 
-        GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
+        GenericRowData fourthRecord = GenericRowData.of(StringData.fromString("key1"), 5L, 500L);
         testHarness.processElement(insertRecord("key1", 5L, 500L));
         validateState(function, fourthRecord, 2, 3, 0, 1, 3, 4, true);
 
-        GenericRowData fifthRecord = GenericRowData.of("key1", 5L, 502L);
+        GenericRowData fifthRecord = GenericRowData.of(StringData.fromString("key1"), 5L, 502L);
         testHarness.processElement(insertRecord("key1", 5L, 502L));
         validateState(function, fifthRecord, 2, 3, 1, 2, 4, 5, true);
 

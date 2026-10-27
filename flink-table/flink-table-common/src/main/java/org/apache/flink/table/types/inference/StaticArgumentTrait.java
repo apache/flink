@@ -42,12 +42,16 @@ public enum StaticArgumentTrait {
     // For TABLE
     ROW_SEMANTIC_TABLE(TABLE),
     SET_SEMANTIC_TABLE(TABLE),
+    BROADCAST_SEMANTIC_TABLE(TABLE),
     PASS_COLUMNS_THROUGH(TABLE),
     SUPPORT_UPDATES(TABLE),
     REQUIRE_ON_TIME(TABLE),
 
     // For SET_SEMANTIC_TABLE
     OPTIONAL_PARTITION_BY(SET_SEMANTIC_TABLE),
+
+    // For BROADCAST_SEMANTIC_TABLE
+    NOTIFY_STATEFUL_SETS(BROADCAST_SEMANTIC_TABLE),
 
     // For SUPPORT_UPDATES
     REQUIRE_UPDATE_BEFORE(SUPPORT_UPDATES),
@@ -72,14 +76,17 @@ public enum StaticArgumentTrait {
 
     /**
      * Returns the traits that are mutually exclusive with this one. Adding this trait to a set
-     * implies removing all returned traits. Empty by default.
+     * implies removing all returned traits. A declaration must not contain this trait together with
+     * any of the returned traits. Empty by default.
      */
     public Set<StaticArgumentTrait> getIncompatibleWith() {
         switch (this) {
             case SET_SEMANTIC_TABLE:
-                return Collections.singleton(ROW_SEMANTIC_TABLE);
+                return EnumSet.of(ROW_SEMANTIC_TABLE, BROADCAST_SEMANTIC_TABLE);
             case ROW_SEMANTIC_TABLE:
-                return Collections.singleton(SET_SEMANTIC_TABLE);
+                return EnumSet.of(SET_SEMANTIC_TABLE, BROADCAST_SEMANTIC_TABLE);
+            case BROADCAST_SEMANTIC_TABLE:
+                return EnumSet.of(ROW_SEMANTIC_TABLE, SET_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH);
             default:
                 return Collections.emptySet();
         }

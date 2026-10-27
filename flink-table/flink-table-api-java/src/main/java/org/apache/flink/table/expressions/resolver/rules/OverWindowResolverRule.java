@@ -66,6 +66,34 @@ final class OverWindowResolverRule implements ResolverRule {
 
             if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
                 List<Expression> children = unresolvedCall.getChildren();
+
+                if (children.size() >= 4) {
+                    UnresolvedCallExpression agg = (UnresolvedCallExpression) children.get(0);
+                    List<Expression> expandedChildren = new ArrayList<>(children);
+                    Expression preceding = children.get(2);
+                    Expression following = children.get(3);
+
+                    if (isLeadOrLag(agg)) {
+                        if (!isNullLiteral(preceding) || !isNullLiteral(following)) {
+                            throw leadLagWithBoundsException();
+                        }
+                    } else if (isNullLiteral(preceding) && isNullLiteral(following)) {
+                        expandedChildren.set(2, valueLiteral(OverWindowRange.UNBOUNDED_RANGE));
+                        expandedChildren.set(3, valueLiteral(OverWindowRange.CURRENT_RANGE));
+                    }
+
+                    return unresolvedCall.replaceArgs(
+                            expandedChildren.stream()
+                                    .map(expr -> expr.accept(this))
+                                    .collect(Collectors.toList()));
+                }
+
+                if (children.size() != 2) {
+                    throw new ValidationException(
+                            "An OVER call expects a window alias or an inline window "
+                                    + "specification.");
+                }
+
                 Expression alias = children.get(1);
 
                 LocalOverWindow referenceWindow =
@@ -81,13 +109,10 @@ final class OverWindowResolverRule implements ResolverRule {
                 final List<Expression> newArgs = new ArrayList<>();
                 newArgs.add(agg);
                 newArgs.add(referenceWindow.getOrderBy());
-                if (agg.getFunctionDefinition() == BuiltInFunctionDefinitions.LAG
-                        || agg.getFunctionDefinition() == BuiltInFunctionDefinitions.LEAD) {
+                if (isLeadOrLag(agg)) {
                     if (referenceWindow.getPreceding().isPresent()
                             || referenceWindow.getFollowing().isPresent()) {
-                        throw new ValidationException(
-                                "LEAD/LAG functions do not support "
-                                        + "providing RANGE/ROW bounds.");
+                        throw leadLagWithBoundsException();
                     }
                     newArgs.add(valueLiteral(null, DataTypes.NULL()));
                     newArgs.add(valueLiteral(null, DataTypes.NULL()));
@@ -109,6 +134,21 @@ final class OverWindowResolverRule implements ResolverRule {
                                 .map(expr -> expr.accept(this))
                                 .collect(Collectors.toList()));
             }
+        }
+
+        private static boolean isLeadOrLag(UnresolvedCallExpression aggregate) {
+            return aggregate.getFunctionDefinition() == BuiltInFunctionDefinitions.LAG
+                    || aggregate.getFunctionDefinition() == BuiltInFunctionDefinitions.LEAD;
+        }
+
+        private static boolean isNullLiteral(Expression expression) {
+            return expression instanceof ValueLiteralExpression
+                    && ((ValueLiteralExpression) expression).isNull();
+        }
+
+        private static ValidationException leadLagWithBoundsException() {
+            return new ValidationException(
+                    "LEAD/LAG functions do not support providing RANGE/ROW bounds.");
         }
 
         private Expression calculateOverWindowFollowing(

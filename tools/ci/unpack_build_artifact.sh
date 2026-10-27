@@ -34,13 +34,9 @@ else
 fi
 
 echo "Adjusting timestamps"
-# Set timestamps: proto < source < compiled, so Maven skips recompilation
+# Set timestamps: source < compiled, so Maven skips recompilation
 # 5-second gaps ensure reliable ordering on filesystems with low resolution
 BASE_TIME=$(date +%s)
-
-# T+0: proto files (oldest - won't trigger regeneration)
-PROTO_TIME=$(date -d "@$BASE_TIME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$BASE_TIME" '+%Y-%m-%d %H:%M:%S')
-find . -type f -name '*.proto' -exec touch -d "$PROTO_TIME" {} +
 
 # T+5: source files
 SOURCE_TIME=$(date -d "@$((BASE_TIME + 5))" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$((BASE_TIME + 5))" '+%Y-%m-%d %H:%M:%S')

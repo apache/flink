@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper, JsonValueOnEmptyOrError}
-import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData}
+import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, StringData, TimestampData}
 import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.runtime.functions._
@@ -513,6 +513,18 @@ object BuiltInMethods {
 
   val JSON_PARSE =
     Types.lookupMethod(classOf[SqlJsonUtils], "jsonParse", classOf[String])
+
+  val PARSE_JSON = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "parseJsonToVariant",
+    classOf[StringData],
+    classOf[Boolean])
+
+  val PARSE_JSON_ERROR = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "parseJsonError",
+    classOf[StringData],
+    classOf[Throwable])
 
   val JSON_TYPE =
     Types.lookupMethod(classOf[SqlJsonUtils], "jsonType", classOf[SqlJsonUtils.JsonValueContext])

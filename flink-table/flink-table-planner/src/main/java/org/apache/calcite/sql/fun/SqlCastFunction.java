@@ -304,18 +304,16 @@ public class SqlCastFunction extends SqlFunction {
         SqlTypeName fromTypeName = fromType.getSqlTypeName();
         SqlTypeName toTypeName = toType.getSqlTypeName();
 
-        // Cast to Variant is not support at the moment.
-        // TODO: Support cast to variant (FLINK-37925，FLINK-37926)
-        if (toTypeName == SqlTypeName.VARIANT) {
-            return false;
-        }
         // Cast to BITMAP is not supported at the moment.
         if (toType instanceof BitmapRelDataType) {
             return false;
         }
-        // UUID casts are governed entirely by our own checker in both directions, because Calcite
-        // only allows a UUID to be cast from another UUID.
-        if (toTypeName == SqlTypeName.UUID || fromTypeName == SqlTypeName.UUID) {
+        // UUID and casts to VARIANT are governed entirely by our own checker, because Calcite
+        // only allows a UUID to be cast from another UUID and does not know which types VARIANT
+        // can store.
+        if (toTypeName == SqlTypeName.UUID
+                || fromTypeName == SqlTypeName.UUID
+                || toTypeName == SqlTypeName.VARIANT) {
             return LogicalTypeCasts.supportsExplicitCast(
                     FlinkTypeFactory.toLogicalType(fromType),
                     FlinkTypeFactory.toLogicalType(toType));

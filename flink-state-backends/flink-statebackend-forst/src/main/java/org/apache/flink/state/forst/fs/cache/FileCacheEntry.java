@@ -148,6 +148,19 @@ public final class FileCacheEntry extends ReferenceCounted<Object> {
     }
 
     /**
+     * Removes a closed stream from the queue of opened streams, so that it does not stay there
+     * until the file is evicted or deleted.
+     *
+     * @param stream the closed stream to unregister
+     */
+    void unregisterStream(CachedDataInputStream stream) {
+        // Deliberately not synchronized: LinkedBlockingQueue#remove is safe against the concurrent
+        // iteration in doRemoveFile(), while taking the entry lock would serialize every stream
+        // close against cache eviction.
+        openedStreams.remove(stream);
+    }
+
+    /**
      * Retrieves the cached input stream for this cache entry if it is available and the entry is in
      * a valid state. The method attempts to open the cached stream if the entry is in the LOADED
      * state and retains a reference to it.

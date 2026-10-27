@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataInternalUtils;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -1005,9 +1006,30 @@ public final class BinarySegmentUtils {
             int scale) {
         final int size = ((int) offsetAndSize);
         int subOffset = (int) (offsetAndSize >> 32);
+        // up to 8 bytes fit a long; size 0 keeps the old path
+        if (size > 0 && size <= 8) {
+            final int pos = baseOffset + subOffset;
+            final long unscaled =
+                    inFirstSegment(segments, pos, 8)
+                            // value is in the high bytes, the rest is shifted out
+                            ? segments[0].getLongBigEndian(pos) >> (64 - 8 * size)
+                            : readUnscaledLongMultiSegments(segments, pos, size);
+            // at most 19 digits, so it fits any non-compact precision
+            return DecimalDataInternalUtils.fromUnscaledLong(unscaled, precision, scale);
+        }
         byte[] bytes = new byte[size];
         copyToBytes(segments, baseOffset + subOffset, bytes, 0, size);
         return DecimalData.fromUnscaledBytes(bytes, precision, scale);
+    }
+
+    private static long readUnscaledLongMultiSegments(
+            MemorySegment[] segments, int offset, int size) {
+        // signed first byte sign-extends
+        long unscaled = getByte(segments, offset);
+        for (int i = 1; i < size; i++) {
+            unscaled = (unscaled << 8) | (getByte(segments, offset + i) & 0xFF);
+        }
+        return unscaled;
     }
 
     /**

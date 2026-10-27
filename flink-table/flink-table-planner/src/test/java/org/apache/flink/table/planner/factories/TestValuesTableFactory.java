@@ -1290,22 +1290,21 @@ public final class TestValuesTableFactory
             return Result.of(acceptedFilters, remainingFilters);
         }
 
-        private Function<String, Comparable<?>> getValueGetter(Row row) {
+        private Function<String, Object> getValueGetter(Row row) {
             final List<String> fieldNames = DataTypeUtils.flattenToNames(producedDataType);
             return fieldName -> {
                 int idx = fieldNames.indexOf(fieldName);
-                return (Comparable<?>) row.getField(idx);
+                return row.getField(idx);
             };
         }
 
-        private Function<int[], Comparable<?>> getNestedValueGetter(Row row) {
+        private Function<int[], Object> getNestedValueGetter(Row row) {
             return fieldIndices -> {
                 Object current = row;
                 for (int i = 0; i < fieldIndices.length - 1; i++) {
                     current = ((Row) current).getField(fieldIndices[i]);
                 }
-                return (Comparable<?>)
-                        ((Row) current).getField(fieldIndices[fieldIndices.length - 1]);
+                return ((Row) current).getField(fieldIndices[fieldIndices.length - 1]);
             };
         }
 

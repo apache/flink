@@ -71,6 +71,7 @@ class StateValueConverter implements java.io.Serializable {
     // field/getter is only ever resolved via reflection once per class instead of on every row.
     private transient Map<Tuple2<Class, String>, Optional<Field>> classFieldCache;
     private transient Map<Tuple2<Class, String>, Optional<Method>> classMethodCache;
+    private transient Map<RowType, RowData.FieldGetter[]> rowFieldGetterCache;
 
     private Map<Tuple2<Class, String>, Optional<Field>> classFieldCache() {
         if (classFieldCache == null) {
@@ -84,6 +85,22 @@ class StateValueConverter implements java.io.Serializable {
             classMethodCache = new ConcurrentHashMap<>();
         }
         return classMethodCache;
+    }
+
+    private RowData.FieldGetter[] rowFieldGetters(RowType rowType) {
+        if (rowFieldGetterCache == null) {
+            rowFieldGetterCache = new ConcurrentHashMap<>();
+        }
+        return rowFieldGetterCache.computeIfAbsent(
+                rowType,
+                type -> {
+                    final RowData.FieldGetter[] getters =
+                            new RowData.FieldGetter[type.getFieldCount()];
+                    for (int i = 0; i < getters.length; i++) {
+                        getters[i] = RowData.createFieldGetter(type.getTypeAt(i), i);
+                    }
+                    return getters;
+                });
     }
 
     /**
@@ -190,6 +207,21 @@ class StateValueConverter implements java.io.Serializable {
                     GenericRowData result = new GenericRowData(RowKind.INSERT, targetFieldCount);
                     for (int i = 0; i < targetFieldCount; i++) {
                         result.setField(i, i < sourceRow.getArity() ? sourceRow.getField(i) : null);
+                    }
+                    return result;
+                }
+                if (object instanceof RowData) {
+                    final RowData sourceRow = (RowData) object;
+                    final RowType rowType = (RowType) logicalType;
+                    final RowData.FieldGetter[] getters = rowFieldGetters(rowType);
+                    final GenericRowData result =
+                            new GenericRowData(RowKind.INSERT, rowType.getFieldCount());
+                    for (int i = 0; i < rowType.getFieldCount(); i++) {
+                        result.setField(
+                                i,
+                                i < sourceRow.getArity()
+                                        ? getters[i].getFieldOrNull(sourceRow)
+                                        : null);
                     }
                     return result;
                 }

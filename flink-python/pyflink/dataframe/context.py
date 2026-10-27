@@ -21,6 +21,7 @@ from typing import Optional
 from pyflink.common import Configuration
 from pyflink.java_gateway import get_gateway
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment, TableEnvironment
+from pyflink.table.statement_set import StatementSet
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -28,9 +29,36 @@ __all__ = [
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",
+    "create_statement_set",
 ]
 
 _global_table_environment: Optional[TableEnvironment] = None
+
+
+@PublicEvolving()
+def create_statement_set() -> StatementSet:
+    """
+    Create a statement set for submitting multiple DataFrame writes as one job.
+
+    Pass the set as ``statement_set`` to a DataFrame writer to stage the write without
+    executing it. Call :meth:`~pyflink.table.StatementSet.execute` to submit the staged
+    writes, or :meth:`~pyflink.table.StatementSet.explain` to inspect their execution plan.
+    The set and its DataFrames must belong to the same TableEnvironment.
+
+    :return: A statement set using the configured or newly created DataFrame environment.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+        >>> statement_set = pf.create_statement_set()
+        >>> events.write_json("file:///tmp/events-json", statement_set=statement_set)
+        >>> events.write_generic("blackhole", options={}, statement_set=statement_set)
+        >>> result = statement_set.execute()
+
+    .. versionadded:: 2.4.0
+    """
+    return get_or_create_table_environment().create_statement_set()
 
 
 @PublicEvolving()

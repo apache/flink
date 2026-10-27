@@ -647,7 +647,7 @@ class CoderInfoDescriptor(_message.Message):
         schema: Schema
         def __init__(self, schema: _Optional[_Union[Schema, _Mapping]] = ...) -> None: ...
     class ArrowType(_message.Message):
-        __slots__ = ("schema", "batch_format")
+        __slots__ = ("schema", "batch_format", "returns_table_row")
         class BatchFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
             __slots__ = ()
             PANDAS: _ClassVar[CoderInfoDescriptor.ArrowType.BatchFormat]
@@ -656,9 +656,11 @@ class CoderInfoDescriptor(_message.Message):
         ARROW: CoderInfoDescriptor.ArrowType.BatchFormat
         SCHEMA_FIELD_NUMBER: _ClassVar[int]
         BATCH_FORMAT_FIELD_NUMBER: _ClassVar[int]
+        RETURNS_TABLE_ROW_FIELD_NUMBER: _ClassVar[int]
         schema: Schema
         batch_format: CoderInfoDescriptor.ArrowType.BatchFormat
-        def __init__(self, schema: _Optional[_Union[Schema, _Mapping]] = ..., batch_format: _Optional[_Union[CoderInfoDescriptor.ArrowType.BatchFormat, str]] = ...) -> None: ...
+        returns_table_row: bool
+        def __init__(self, schema: _Optional[_Union[Schema, _Mapping]] = ..., batch_format: _Optional[_Union[CoderInfoDescriptor.ArrowType.BatchFormat, str]] = ..., returns_table_row: bool = ...) -> None: ...
     class OverWindowArrowType(_message.Message):
         __slots__ = ("schema",)
         SCHEMA_FIELD_NUMBER: _ClassVar[int]

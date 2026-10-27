@@ -107,7 +107,7 @@ LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EX
 Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(CAST(NOW() AS INTEGER) AS BIGINT) AS EXPR$2], duplicateChanges=[DISALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -125,7 +125,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
 Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(CAST(NOW() AS INTEGER) AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[ALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[ALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -219,7 +219,7 @@ LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EX
 Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(NOW() AS BIGINT) AS EXPR$2], duplicateChanges=[DISALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -237,7 +237,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
 Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(NOW() AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[ALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[ALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -363,10 +363,10 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
    +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-59999, leftUpperBound=59999, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >(rt, -(rt0, 60000:INTERVAL MINUTE)), <(rt, +(rt0, 60000:INTERVAL MINUTE)))], select=[a, c, rt, a0, b, rt0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       :  +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-            +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -390,11 +390,11 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       :  +- Calc(select=[a, c], duplicateChanges=[DISALLOW])
       :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
          +- Calc(select=[a, b], duplicateChanges=[DISALLOW])
             +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-               +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -418,11 +418,11 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       :  +- Calc(select=[a, c], duplicateChanges=[DISALLOW])
       :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
          +- Calc(select=[a, b], duplicateChanges=[DISALLOW])
             +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-               +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -450,7 +450,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], u
       +- Exchange(distribution=[hash[a, b]], duplicateChanges=[DISALLOW])
          +- Calc(select=[a, b], duplicateChanges=[DISALLOW])
             +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-               +- TableSourceScan(table=[[default_catalog, default_database, retract_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, retract_src2, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -834,7 +834,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
          +- Calc(select=[a], duplicateChanges=[DISALLOW])
             +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-               +- TableSourceScan(table=[[default_catalog, default_database, dim_src, project=[a, rt], metadata=[]]], fields=[a, rt], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, dim_src, project=[a, rt]]], fields=[a, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -865,7 +865,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
          +- Calc(select=[a], duplicateChanges=[DISALLOW])
             +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-               +- TableSourceScan(table=[[default_catalog, default_database, dim_src, project=[a, rt], metadata=[]]], fields=[a, rt], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, dim_src, project=[a, rt]]], fields=[a, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -992,12 +992,12 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
       :  +- Calc(select=[a, c], duplicateChanges=[ALLOW])
       :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
       :        +- DropUpdateBefore(duplicateChanges=[ALLOW])
-      :           +- TableSourceScan(table=[[default_catalog, default_database, retract_src, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[ALLOW])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, retract_src, project=[a, c, rt]]], fields=[a, c, rt], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[ALLOW])
          +- Calc(select=[a, b], duplicateChanges=[ALLOW])
             +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
                +- DropUpdateBefore(duplicateChanges=[ALLOW])
-                  +- TableSourceScan(table=[[default_catalog, default_database, retract_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[ALLOW])
+                  +- TableSourceScan(table=[[default_catalog, default_database, retract_src2, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[ALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -1028,12 +1028,12 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
       :  +- Calc(select=[a, c, window_start, window_end], duplicateChanges=[DISALLOW])
       :     +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[DISALLOW])
       :        +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      :           +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
          +- Calc(select=[a, b, window_start, window_end], duplicateChanges=[DISALLOW])
             +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[DISALLOW])
                +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-                  +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+                  +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>

@@ -27,10 +27,16 @@ import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.functions.ProcessTableFunctionTestHarness.TableArgument;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -41,9 +47,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -404,6 +413,57 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** PTF with ValueView state - counts rows per partition using lazy value state. */
+    @DataTypeHint("ROW<count INT>")
+    public static class PTFWithValueViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint ValueView<Integer> count,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            Integer current = count.getValue();
+            if (current == null) {
+                current = 0;
+            }
+            current += 1;
+            count.setValue(current);
+            collect(Row.of(current));
+        }
+    }
+
+    /**
+     * PTF with ValueView state that accesses state conditionally to demonstrate lazy access:
+     * positive values are stored, a zero clears the state via {@code setValue(null)}, and negative
+     * values don't touch the state at all.
+     */
+    @DataTypeHint("ROW<value INT>")
+    public static class PTFWithConditionalValueViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint ValueView<Integer> memory,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            Integer value = input.getFieldAs("value");
+            if (value == 0) {
+                memory.setValue(null);
+            } else if (value > 0) {
+                memory.setValue(value);
+            }
+            // negative values: no state access at all
+            collect(Row.of(value));
+        }
+    }
+
+    /** PTF with a ValueView of a row-typed value declared via a data type hint. */
+    @DataTypeHint("ROW<count INT>")
+    public static class PTFWithValueViewRowState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(type = @DataTypeHint("ROW<count INT>")) ValueView<Row> count,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            Row v = count.getValue();
+            Integer c = (v == null) ? 0 : v.getFieldAs("count");
+            c += 1;
+            count.setValue(Row.of(c));
+            collect(Row.of(c));
+        }
+    }
+
     /** PTF with Row state - mirrors the doc example using Row as state type. */
     @DataTypeHint("ROW<count BIGINT>")
     public static class PTFWithRowState extends ProcessTableFunction<Row> {
@@ -440,6 +500,43 @@ class ProcessTableFunctionTestHarnessTest {
                 sum += v;
             }
             collect(Row.of(counter.count, sum));
+        }
+    }
+
+    /** PTF that declares two state entries of which the type inference excludes the second one. */
+    public static class PTFWithExcludedState extends ProcessTableFunction<Row> {
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            final LinkedHashMap<String, StateTypeStrategy> stateStrategies = new LinkedHashMap<>();
+            stateStrategies.put(
+                    "counter",
+                    StateTypeStrategy.of(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("count", DataTypes.INT())))));
+            stateStrategies.put("unused", StateTypeStrategy.of(callContext -> Optional.empty()));
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE)))
+                    .stateTypeStrategies(stateStrategies)
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("count", DataTypes.INT()))))
+                    .build();
+        }
+
+        public void eval(Row counter, Row input) {
+            final Integer count = counter.getFieldAs("count");
+            final int newCount = count == null ? 1 : count + 1;
+            counter.setField("count", newCount);
+            collect(Row.of(newCount));
         }
     }
 
@@ -1771,6 +1868,30 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
+    void testStateEntryExcludedByTypeInference() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithExcludedState.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .build();
+
+        harness.processElementForTable("input", Row.of("A", 10));
+        harness.processElementForTable("input", Row.of("A", 20));
+        harness.processElementForTable("input", Row.of("B", 5));
+
+        assertThat(harness.getOutput())
+                .containsExactly(Row.of("A", 1), Row.of("A", 2), Row.of("B", 1));
+
+        final Row counterA = harness.getStateForKey("counter", Row.of("A"));
+        assertThat(counterA.<Integer>getFieldAs("count")).isEqualTo(2);
+
+        harness.close();
+    }
+
+    @Test
     void testInitialStateWithListView() throws Exception {
         ListView<Integer> initialList = new ListView<>();
         initialList.add(100);
@@ -1815,6 +1936,109 @@ class ProcessTableFunctionTestHarnessTest {
 
         harness.processElementForTable("input", Row.of("P1", "existing"));
         assertThat(harness.getOutput()).containsExactly(Row.of("P1", "existing", 43));
+
+        harness.close();
+    }
+
+    @Test
+    void testValueViewState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueViewState.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .build();
+
+        harness.processElementForTable("input", Row.of("A"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", 1));
+
+        harness.processElementForTable("input", Row.of("A"));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("A", 2));
+
+        harness.processElementForTable("input", Row.of("B"));
+        assertThat(harness.getOutput().get(2)).isEqualTo(Row.of("B", 1));
+
+        ValueView<Integer> stateA = harness.getStateForKey("count", Row.of("A"));
+        assertThat(stateA.getValue()).isEqualTo(2);
+        ValueView<Integer> stateB = harness.getStateForKey("count", Row.of("B"));
+        assertThat(stateB.getValue()).isEqualTo(1);
+
+        harness.close();
+    }
+
+    @Test
+    void testValueViewWithRowValue() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueViewRowState.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .build();
+
+        harness.processElementForTable("input", Row.of("A"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", 1));
+
+        harness.processElementForTable("input", Row.of("A"));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("A", 2));
+
+        // The state itself holds a row value.
+        ValueView<Row> state = harness.getStateForKey("count", Row.of("A"));
+        assertThat(state.getValue()).isEqualTo(Row.of(2));
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateWithValueView() throws Exception {
+        ValueView<Integer> initialValue = new ValueView<>();
+        initialValue.setValue(100);
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueViewState.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .withInitialStateForKey("count", Row.of("A"), initialValue)
+                        .build();
+
+        ValueView<Integer> state = harness.getStateForKey("count", Row.of("A"));
+        assertThat(state.getValue()).isEqualTo(100);
+
+        harness.processElementForTable("input", Row.of("A"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", 101));
+
+        harness.close();
+    }
+
+    @Test
+    void testValueViewLazyAccessAndClear() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithConditionalValueViewState.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .build();
+
+        // Negative value: state is never accessed, so it stays unset (empty).
+        harness.processElementForTable("input", Row.of("A", -1));
+        assertThat((Object) harness.getStateForKey("memory", Row.of("A"))).isNull();
+
+        // Positive value: state is written.
+        harness.processElementForTable("input", Row.of("A", 5));
+        ValueView<Integer> state = harness.getStateForKey("memory", Row.of("A"));
+        assertThat(state.getValue()).isEqualTo(5);
+
+        // Zero: state is cleared via setValue(null).
+        harness.processElementForTable("input", Row.of("A", 0));
+        assertThat((Object) harness.getStateForKey("memory", Row.of("A"))).isNull();
 
         harness.close();
     }

@@ -216,7 +216,120 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_empty_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         pdf = table.filter(table.f1 < 0).to_pandas()
-        self.assertTrue(pdf.empty)
+        assert_frame_equal(pdf, table.to_pandas().iloc[:0])
+
+    def test_to_pandas_with_nested_types(self):
+        import pandas as pd
+
+        for expression, error in [('ARRAY[ROW(1)]', ValueError), ('ROW(ROW(1))', TypeError)]:
+            with self.subTest(expression=expression):
+                query = 'SELECT 1 AS a, %s AS payload FROM (VALUES (1)) AS t(x)' % expression
+                result = self.t_env.sql_query(query + ' WHERE FALSE').to_pandas()
+                expected = pd.DataFrame({'a': pd.Series(dtype='int32'),
+                                         'payload': pd.Series(dtype='object')})
+                assert_frame_equal(result, expected)
+                with self.assertRaisesRegex(error, 'ROW is not supported'):
+                    self.t_env.sql_query(query).to_pandas()
+
+    def test_empty_to_pandas_with_timestamps(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['UTC', 'Asia/Shanghai', 'Etc/GMT-8']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+                table = self.t_env.sql_query("""
+                    SELECT
+                        1 AS a,
+                        CAST(TIMESTAMP '2024-01-01 00:00:00.123456789'
+                            AS TIMESTAMP(0)) AS ts_seconds,
+                        CAST(TIMESTAMP '2024-01-01 00:00:00.123456789'
+                            AS TIMESTAMP(3)) AS ts_millis,
+                        CAST(TIMESTAMP '2024-01-01 00:00:00.123456789'
+                            AS TIMESTAMP(6)) AS ts_micros,
+                        TIMESTAMP '2024-01-01 00:00:00.123456789' AS ts_nanos,
+                        TO_TIMESTAMP_LTZ(1704067200123, 3) AS ltz
+                """)
+                expected = table.to_pandas().iloc[:0]
+                result = table.filter(table.a < 0).to_pandas()
+                assert_frame_equal(result, expected)
+                self.assertEqual(timezone, str(result['ltz'].dt.tz))
+
+    def test_to_pandas_with_fixed_offset_timezones(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone, named_timezone, offset_seconds in [
+                ('GMT+08:00', 'Asia/Shanghai', 28800),
+                ('GMT+05:30', 'Asia/Kolkata', 19800),
+                ('GMT-03:30', 'America/St_Johns', -12600)]:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(named_timezone)
+                table = self.t_env.sql_query("""
+                    SELECT 1 AS a, TO_TIMESTAMP_LTZ(1704067200123, 3) AS ltz
+                """)
+                expected_timestamp = table.to_pandas()['ltz'].iloc[0]
+                self.t_env.get_config().set_local_timezone(timezone)
+                result = table.to_pandas()
+                timestamp = result['ltz'].iloc[0]
+                self.assertEqual(expected_timestamp, timestamp)
+                self.assertEqual(datetime.timedelta(seconds=offset_seconds), timestamp.utcoffset())
+                empty_result = table.filter(table.a < 0).to_pandas()
+                assert_frame_equal(empty_result, result.iloc[:0])
+
+    def test_to_pandas_preserves_local_zoned_timestamp_instants(self):
+        import pandas as pd
+
+        timestamps = pd.to_datetime([
+            '1969-12-31 23:59:59.999',
+            '2024-01-01 00:00:00.123',
+            '2024-03-10 06:30:00.000',
+            '2024-03-10 07:30:00.000',
+            '2024-11-03 05:30:00.000',
+            '2024-11-03 06:30:00.000',
+        ], utc=True)
+        values = ', '.join('(%d, %d)' % (i, timestamp.value // 1000000)
+                           for i, timestamp in enumerate(timestamps))
+        values += ', (%d, CAST(NULL AS BIGINT))' % len(timestamps)
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+                table = self.t_env.sql_query("""
+                    SELECT id, TO_TIMESTAMP_LTZ(epoch_millis, 3) AS ltz,
+                        TIMESTAMP '2024-01-01 00:00:00.123' AS ts
+                    FROM (VALUES %s) AS v(id, epoch_millis)
+                """ % values)
+                result = table.to_pandas().sort_values('id')
+
+                self.assertEqual(len(timestamps) + 1, len(result))
+                self.assertEqual(timezone, str(result['ltz'].dt.tz))
+                self.assertEqual(list(timestamps), result['ltz'].iloc[:-1].tolist())
+                self.assertTrue(pd.isna(result['ltz'].iloc[-1]))
+                self.assertIsNone(result['ts'].dt.tz)
+                self.assertTrue((result['ts'] == pd.Timestamp('2024-01-01 00:00:00.123')).all())
+
+    def test_from_pandas_preserves_local_zoned_timestamp_instants(self):
+        import pandas as pd
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        pdf = pd.DataFrame({'ltz': pd.to_datetime(epochs, unit='ms', utc=True)
+                            .tz_convert('Asia/Shanghai')})
+        schema = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+                table = self.t_env.from_pandas(pdf, schema)
+                results = table._j_table.execute().collect()
+                actual = []
+                try:
+                    while results.hasNext():
+                        timestamp = results.next().getField(0)
+                        actual.append(None if timestamp is None else timestamp.toEpochMilli())
+                finally:
+                    results.close()
+                self.assertCountEqual(epochs, actual)
 
     def test_to_pandas_for_retract_table(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)

@@ -19,13 +19,17 @@ package org.apache.flink.model.openai;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -227,6 +231,25 @@ public class OpenAIEmbeddingModelTest {
                                 MODEL_NAME));
         List<Row> result = IteratorUtils.toList(tableResult.collect());
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    public void testBoundedNonNullStringInputSchema() {
+        final DataType inputType = DataTypes.VARCHAR(32).notNull();
+        final Table input =
+                tEnv.fromValues(
+                        DataTypes.ROW(DataTypes.FIELD("input", inputType)), Row.of("hello"));
+        final ModelDescriptor.Builder descriptor =
+                ModelDescriptor.forProvider("openai")
+                        .inputSchema(Schema.newBuilder().column("input", inputType).build())
+                        .outputSchema(OUTPUT_SCHEMA);
+        modelOptions.forEach(descriptor::option);
+
+        assertThat(
+                        tEnv.fromModel(descriptor.build())
+                                .predict(input, ColumnList.of("input"))
+                                .explain())
+                .isNotBlank();
     }
 
     @Test

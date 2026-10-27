@@ -552,7 +552,8 @@ public final class OperationTreeBuilder {
         final ExpressionResolver resolver = getResolverBuilder(child).build();
         final ResolvedExpression resolvedCall = resolveSingleExpression(mapFunction, resolver);
 
-        if (!isFunctionOfKind(resolvedCall, FunctionKind.SCALAR)) {
+        if (!isFunctionOfKind(resolvedCall, FunctionKind.SCALAR)
+                && !isFunctionOfKind(resolvedCall, FunctionKind.ASYNC_SCALAR)) {
             throw new ValidationException(
                     "Only a scalar function can be used in the map operator.");
         }
@@ -1018,6 +1019,9 @@ public final class OperationTreeBuilder {
 
         @Override
         public Void visit(UnresolvedCallExpression call) {
+            if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
+                return null;
+            }
             if (isFunctionOfKind(call, FunctionKind.AGGREGATE)) {
                 throw new ValidationException(exceptionMessage);
             }

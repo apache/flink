@@ -232,6 +232,30 @@ public class CheckpointingOptions {
                                     .build());
 
     /**
+     * Whether the checkpoint directories are created when the job starts, instead of when the first
+     * checkpoint is triggered.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Boolean> CREATE_DIRECTORIES_ON_JOB_START =
+            ConfigOptions.key("execution.checkpointing.create-directories-on-job-start")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to create the directories of the checkpoint storage (for example the "
+                                                    + "'shared' and 'taskowned' directories) when the job starts. If set to false, "
+                                                    + "they are created when the first checkpoint is triggered instead, which avoids "
+                                                    + "blocking job startup on file systems where creating directories is a slow "
+                                                    + "remote call, such as object stores.")
+                                    .linebreak()
+                                    .text(
+                                            "WARNING: If set to false, an unusable checkpoint location is no longer detected "
+                                                    + "when the job starts. It surfaces as checkpoint failures, and fails the job "
+                                                    + "once the tolerable number of checkpoint failures is exceeded.")
+                                    .build());
+
+    /**
      * The minimum size of state data files. All state chunks smaller than that are stored inline in
      * the root checkpoint metadata file.
      */
@@ -730,6 +754,11 @@ public class CheckpointingOptions {
                                                     + "checkpoints disabled for the new execution.",
                                             TextElement.code(
                                                     UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Checkpointing during recovery is currently not supported when %s is greater than 0, and will be disabled in this case.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()))
                                     .build());
 
     /**
@@ -833,7 +862,8 @@ public class CheckpointingOptions {
      *
      * <p>Requires both {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} and unaligned checkpoints to
      * be enabled, because checkpointing during recovery is only supported on the unaligned
-     * barrier-handler path.
+     * barrier-handler path. It is also disabled when {@link #ALIGNED_CHECKPOINT_TIMEOUT} is
+     * positive.
      *
      * @param config the configuration to check
      * @return {@code true} if unaligned checkpointing during recovery is enabled, {@code false}
@@ -842,6 +872,10 @@ public class CheckpointingOptions {
     @Internal
     public static boolean isCheckpointingDuringRecoveryEnabled(Configuration config) {
         if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
+            return false;
+        }
+        // TODO FLINK-40526: Support checkpointing during recovery with aligned checkpoint timeout.
+        if (!config.get(ALIGNED_CHECKPOINT_TIMEOUT).isZero()) {
             return false;
         }
         return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED)

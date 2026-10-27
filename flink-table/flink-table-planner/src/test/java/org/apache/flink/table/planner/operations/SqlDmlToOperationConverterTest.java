@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -349,6 +350,26 @@ class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         TruncateTableOperation truncateTableOperation = (TruncateTableOperation) operation;
         assertThat(truncateTableOperation.getTableIdentifier())
                 .isEqualTo(ObjectIdentifier.of("builtin", "default", "t1"));
+    }
+
+    @Test
+    void testUpdateTypeMismatch() {
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().column("a", DataTypes.INT().notNull()).build())
+                        .options(options)
+                        .build();
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of("builtin", "default", "test_update_mismatch");
+        catalogManager.createTable(catalogTable, tableIdentifier, false);
+
+        // CALCITE-7830: a SET value type mismatch must be reported, not throw
+        // IndexOutOfBoundsException.
+        assertThatThrownBy(() -> parse("UPDATE test_update_mismatch SET a = true"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot assign to target field 'a'");
     }
 
     private void checkExplainSql(String sql) {

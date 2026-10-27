@@ -92,9 +92,15 @@ class LengthPrefixBaseCoder(ABC):
             # are not recognized by pytz, so resolve the timezone only for pandas batches.
             timezone = (None if batch_format == "ARROW"
                         else pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE']))
-            schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
-                                         allow_nested=batch_format == "ARROW")
-            return ArrowCoder(schema, row_type, timezone, batch_format)
+            returns_table_row = coder_info_descriptor_proto.arrow_type.returns_table_row
+            if batch_format == "PANDAS" and returns_table_row:
+                from pyflink.table.utils import create_pandas_table_row_schema
+
+                schema = create_pandas_table_row_schema(row_type)
+            else:
+                schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                             allow_nested=batch_format == "ARROW")
+            return ArrowCoder(schema, row_type, timezone, batch_format, returns_table_row)
         elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
             timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
@@ -243,15 +249,18 @@ class ArrowCoder(FieldCoder):
     Coder for Arrow.
     """
 
-    def __init__(self, schema, row_type, timezone, batch_format="PANDAS"):
+    def __init__(self, schema, row_type, timezone, batch_format="PANDAS",
+                 returns_table_row=False):
         self._batch_format = batch_format
+        self._returns_table_row = returns_table_row
         self._schema = schema
         self._row_type = row_type
         self._timezone = timezone
 
     def get_impl(self):
         return coder_impl.ArrowCoderImpl(
-            self._schema, self._row_type, self._timezone, self._batch_format)
+            self._schema, self._row_type, self._timezone, self._batch_format,
+            self._returns_table_row)
 
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema

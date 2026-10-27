@@ -23,6 +23,9 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
@@ -34,12 +37,21 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
+import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
+import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BinaryVariantTest {
+
+    // U+E000 is EE 80 80 in UTF-8 and U+1F600 is F0 9F 98 80, so UTF-8 byte order puts U+E000
+    // first. UTF-16 order compares E000 with the surrogate D83D and puts U+1F600 first.
+    private static final String BMP_KEY = "\uE000";
+    private static final String SUPPLEMENTARY_KEY = "\uD83D\uDE00";
 
     private BinaryVariantBuilder builder;
 
@@ -112,6 +124,56 @@ class BinaryVariantTest {
 
         assertThat(builder.ofNull().get()).isEqualTo(null);
         assertThat(builder.ofNull().isNull()).isTrue();
+    }
+
+    @Test
+    void testDecimalWithNegativeScale() {
+        Variant variant = builder.of(new BigDecimal("-1e5"));
+        assertThat(variant.getType()).isSameAs(Variant.Type.DECIMAL);
+        assertThat(variant.getDecimal()).isEqualByComparingTo("-100000");
+        assertThat(variant.toJson()).isEqualTo("-100000");
+
+        // 38 digits after rescaling
+        assertThat(builder.of(new BigDecimal("1e37")).getDecimal()).isEqualByComparingTo("1e37");
+        assertThat(builder.of(new BigDecimal("0e999999999")).getDecimal())
+                .isEqualByComparingTo(BigDecimal.ZERO);
+
+        // getDecimal() strips trailing zeros, so its result can have a negative scale
+        BigDecimal stripped = builder.of(BigDecimal.valueOf(100)).getDecimal();
+        assertThat(stripped.scale()).isNegative();
+        assertThat(builder.of(stripped).getDecimal()).isEqualByComparingTo("100");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "12345678901234567890123456789012345678",
+                "-0.12345678901234567890123456789012345678"
+            })
+    void testDecimalWithMaxPrecisionAndScale(final String decimal) {
+        assertThat(builder.of(new BigDecimal(decimal)).getDecimal()).isEqualByComparingTo(decimal);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        // precision 39
+        "123456789012345678901234567890123456789, 39, 0",
+        // scale 39
+        "0.000000000000000000000000000000000000001, 1, 39",
+        // 39 digits after rescaling the negative scale
+        "1e38, 1, -38",
+        "-1e999999999, 1, -999999999",
+        // the scale does not fit into a byte
+        "1e2147483647, 1, -2147483647"
+    })
+    void testDecimalOutOfRange(final String decimal, final int precision, final int scale) {
+        assertThatThrownBy(() -> builder.of(new BigDecimal(decimal)))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage(
+                        "Decimal with precision %d and scale %d is outside the range supported by "
+                                + "variant decimals. After rescaling a negative scale to 0, the "
+                                + "precision and scale must not exceed 38.",
+                        precision, scale);
     }
 
     @Test
@@ -264,26 +326,50 @@ class BinaryVariantTest {
         }
     }
 
-    @Test
-    void testDuplicatedKeyObjectVariant() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("duplicateKeys")
+    void testDuplicatedKeyObjectVariant(
+            final String description,
+            final String key,
+            final String duplicate,
+            final List<String> fieldNames) {
         assertThatThrownBy(
                         () ->
                                 builder.object(false)
-                                        .add("k", builder.of((byte) 10))
-                                        .add("k", builder.of("hello"))
+                                        .add(key, builder.of((byte) 10))
+                                        .add(duplicate, builder.of("hello"))
                                         .build())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("VARIANT_DUPLICATE_KEY");
 
         Variant variant =
                 builder.object(true)
-                        .add("k", builder.of((byte) 10))
-                        .add("k", builder.of("hello"))
+                        .add(key, builder.of((byte) 10))
+                        .add(duplicate, builder.of("hello"))
                         .add("k1", builder.of(10))
                         .build();
 
-        assertThat(variant.getField("k").getString()).isEqualTo("hello");
+        assertThat(variant.getFieldNames()).containsExactlyElementsOf(fieldNames);
+        assertThat(variant.getField(key).getString()).isEqualTo("hello");
         assertThat(variant.getField("k1").getInt()).isEqualTo(10);
+    }
+
+    private static Stream<Arguments> duplicateKeys() {
+        return Stream.of(
+                Arguments.of("same key", "k", "k", List.of("k", "k1")),
+                // UTF-8 has no unpaired surrogates, so the builder stores both keys as "k?".
+                Arguments.of("same UTF-8 bytes", "k?", "k\uD800", List.of("k1", "k?")));
+    }
+
+    @Test
+    void testObjectFieldsAreSortedByUtf8Bytes() {
+        final Variant object =
+                builder.object()
+                        .add(SUPPLEMENTARY_KEY, builder.of(1))
+                        .add(BMP_KEY, builder.of(2))
+                        .build();
+
+        assertThat(object.getFieldNames()).containsExactly(BMP_KEY, SUPPLEMENTARY_KEY);
     }
 
     @Test
@@ -437,6 +523,69 @@ class BinaryVariantTest {
                                 + "\"}}");
     }
 
+    @ParameterizedTest(name = "{0} fields")
+    @ValueSource(ints = {1, BINARY_SEARCH_THRESHOLD})
+    void testGetFieldWithUnpairedSurrogate(final int size) {
+        // UTF-8 has no unpaired surrogates. The builder writes one as '?', and a lookup encodes its
+        // key the same way.
+        final Variant object =
+                objectWithFillerFields(builder, size - 1).add("a\uD800", builder.of(100)).build();
+
+        assertThat(object.getFieldNames()).contains("a?");
+        assertThat(object.getField("a\uD800").getInt()).isEqualTo(100);
+        assertThat(object.getField("a?").getInt()).isEqualTo(100);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("objectsInBothKeyOrders")
+    void testGetFieldWithBinarySearch(final String keyOrder, final Variant object) {
+        assertThat(object.getField("é").getInt()).isEqualTo(100);
+        assertThat(object.getField("中").getInt()).isEqualTo(200);
+        assertThat(object.getField(BMP_KEY).getInt()).isEqualTo(300);
+        assertThat(object.getField(SUPPLEMENTARY_KEY).getInt()).isEqualTo(400);
+        assertThat(object.getField("\uE001")).isNull();
+    }
+
+    private static Stream<Arguments> objectsInBothKeyOrders() {
+        final BinaryVariantBuilder builder = new BinaryVariantBuilder();
+        final BinaryVariant object =
+                (BinaryVariant)
+                        objectWithFillerFields(builder, BINARY_SEARCH_THRESHOLD - 4)
+                                .add("é", builder.of(100))
+                                .add("中", builder.of(200))
+                                .add(BMP_KEY, builder.of(300))
+                                .add(SUPPLEMENTARY_KEY, builder.of(400))
+                                .build();
+        // The other keys sort before the last two in both orders, so swapping the last two fields
+        // turns UTF-8 byte order into UTF-16 order.
+        return Stream.of(
+                Arguments.of("UTF-8 byte order", object),
+                Arguments.of("UTF-16 order", swapLastTwoFields(object)));
+    }
+
+    @Test
+    void testGetFieldWithEmptyKey() {
+        final Variant object =
+                builder.object().add("", builder.of(1)).add("b", builder.of(2)).build();
+
+        assertThat(object.getField("").getInt()).isEqualTo(1);
+        assertThat(object.getField("b").getInt()).isEqualTo(2);
+    }
+
+    @Test
+    void testGetFieldWithMalformedUtf8Key() {
+        final BinaryVariant object =
+                (BinaryVariant) builder.object().add("a", builder.of(1)).build();
+        // The key is the last metadata byte. 0xFF never occurs in UTF-8, so no lookup key encodes
+        // to it, even though getFieldNames decodes it to U+FFFD.
+        final byte[] metadata = object.getMetadata().clone();
+        metadata[metadata.length - 1] = (byte) 0xFF;
+        final Variant malformed = new BinaryVariant(object.getValue(), metadata);
+
+        assertThat(malformed.getFieldNames()).containsExactly("�");
+        assertThat(malformed.getField("�")).isNull();
+    }
+
     @Test
     void testVariantException() {
         assertThatThrownBy(() -> new BinaryVariant(new byte[0], new byte[0]))
@@ -503,5 +652,38 @@ class BinaryVariantTest {
         Variant subVariant = variant.getField("nested");
         assertThat(((BinaryVariant) subVariant).getPos()).isGreaterThan(0);
         assertThat(CommonTestUtils.createCopySerializable(subVariant)).isEqualTo(subVariant);
+    }
+
+    /** Starts an object with {@code count} fields named k00, k01, and so on. */
+    private static BinaryVariantBuilder.VariantObjectBuilder objectWithFillerFields(
+            final BinaryVariantBuilder builder, final int count) {
+        final BinaryVariantBuilder.VariantObjectBuilder object = builder.object();
+        for (int i = 0; i < count; i++) {
+            object.add(String.format("k%02d", i), builder.of(i));
+        }
+        return object;
+    }
+
+    /** Swaps the ids and offsets of the last two fields, which keeps each value with its key. */
+    private static BinaryVariant swapLastTwoFields(final BinaryVariant object) {
+        final byte[] value = object.getValue().clone();
+        handleObject(
+                value,
+                0,
+                (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
+                    swapBytes(value, idStart + idSize * (size - 2), idSize);
+                    swapBytes(value, offsetStart + offsetSize * (size - 2), offsetSize);
+                    return null;
+                });
+        return new BinaryVariant(value, object.getMetadata());
+    }
+
+    /** Swaps the {@code length} bytes at {@code start} with the {@code length} bytes after them. */
+    private static void swapBytes(final byte[] bytes, final int start, final int length) {
+        for (int i = start; i < start + length; i++) {
+            final byte b = bytes[i];
+            bytes[i] = bytes[i + length];
+            bytes[i + length] = b;
+        }
     }
 }

@@ -21,6 +21,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonAsyncCalc
+import org.apache.flink.table.planner.plan.utils.PythonUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -45,6 +46,7 @@ class StreamPhysicalPythonAsyncCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    PythonUtil.validatePythonCalcConcurrency(this, calcProgram)
     val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
     if (calcProgram.getCondition != null) {
       throw new TableException("The condition of StreamPhysicalPythonAsyncCalc should be null.")

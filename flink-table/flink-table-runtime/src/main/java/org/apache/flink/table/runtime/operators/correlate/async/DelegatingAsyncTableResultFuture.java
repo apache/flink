@@ -20,7 +20,10 @@ package org.apache.flink.table.runtime.operators.correlate.async;
 
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.runtime.operators.metrics.UdfMetrics;
 import org.apache.flink.types.Row;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,21 +44,54 @@ public class DelegatingAsyncTableResultFuture implements BiConsumer<Collection<O
 
     private final CompletableFuture<Collection<Object>> completableFuture;
 
+    // Null unless UDF metrics are enabled. The sample decision and start-time are taken on the task
+    // thread in the constructor (invoked at dispatch, before eval); the histogram/counter are
+    // updated at completion (accept, callback thread). The two updated metrics are internally
+    // thread-safe; sample/startNanos are published to the callback via the future's completion.
+    @Nullable private final UdfMetrics udfMetrics;
+    private boolean sample;
+    private long startNanos;
+
     public DelegatingAsyncTableResultFuture(
             ResultFuture<Object> delegatedResultFuture,
             boolean needsWrapping,
             boolean isInternalResultType) {
+        this(delegatedResultFuture, needsWrapping, isInternalResultType, null);
+    }
+
+    public DelegatingAsyncTableResultFuture(
+            ResultFuture<Object> delegatedResultFuture,
+            boolean needsWrapping,
+            boolean isInternalResultType,
+            @Nullable UdfMetrics udfMetrics) {
         this.delegatedResultFuture = delegatedResultFuture;
         this.wrapFunction =
                 needsWrapping
                         ? (isInternalResultType ? this::wrapInternal : this::wrapExternal)
                         : outs -> outs;
         this.completableFuture = new CompletableFuture<>();
+        this.udfMetrics = udfMetrics;
+        // Sample decision taken on the task thread; the sampler counter is never touched
+        // off-thread. These writes must precede whenComplete below: the callback registration
+        // performs the volatile completion-stack push that establishes the happens-before edge
+        // carrying sample/startNanos to the completing thread's accept().
+        if (udfMetrics != null) {
+            sample = udfMetrics.shouldSample();
+            startNanos = sample ? System.nanoTime() : 0L;
+        }
         this.completableFuture.whenComplete(this);
     }
 
     @Override
     public void accept(Collection<Object> outs, Throwable throwable) {
+        if (udfMetrics != null) {
+            if (throwable != null) {
+                udfMetrics.markException();
+            }
+            if (sample) {
+                udfMetrics.update(System.nanoTime() - startNanos);
+            }
+        }
         if (throwable != null) {
             delegatedResultFuture.completeExceptionally(throwable);
             return;

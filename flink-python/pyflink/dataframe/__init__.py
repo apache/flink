@@ -38,6 +38,16 @@ Example::
     <Row(1, 'Alice', 31)>
 """
 
+from pyflink.dataframe.catalog import (
+    create_catalog,
+    get_catalog,
+    get_current_catalog,
+    get_current_database,
+    list_catalogs,
+    list_databases,
+    use_catalog,
+    use_database,
+)
 from pyflink.dataframe.convert import (
     from_arrow,
     from_dict,
@@ -47,38 +57,80 @@ from pyflink.dataframe.convert import (
     range,
 )
 from pyflink.dataframe.context import (
+    create_statement_set,
     get_or_create_table_environment,
     get_table_environment,
     set_table_environment,
 )
-from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
+from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit, proctime
 from pyflink.dataframe.dataframe_config import config
 from pyflink.dataframe.datatype import DataType
-from pyflink.dataframe.io import read_generic, read_json, read_parquet
+from pyflink.dataframe.io import (
+    read_catalog_table,
+    read_generic,
+    read_json,
+    read_kafka,
+    read_parquet,
+)
+from pyflink.dataframe.iteration import CloseableIterator
+from pyflink.dataframe.llm import (
+    GenericProvider,
+    ModelProvider,
+    OpenAIProvider,
+    TritonProvider,
+    list_model_providers,
+    set_default_model_provider,
+    set_model_provider,
+)
+from pyflink.dataframe.over_window import following, preceding
 from pyflink.dataframe.sql import sql
 from pyflink.dataframe.udf import udf
 from pyflink.dataframe.udtf import udtf
+from pyflink.dataframe.udaf import udaf
 
 __all__ = [
+    "CloseableIterator",
     "DataFrame",
     "GroupedDataFrame",
     "DataType",
+    "ModelProvider",
+    "OpenAIProvider",
+    "TritonProvider",
+    "GenericProvider",
+    "set_model_provider",
+    "set_default_model_provider",
+    "list_model_providers",
     "col",
     "lit",
+    "proctime",
     "udf",
     "udtf",
+    "udaf",
     "from_arrow",
     "from_dict",
     "from_pandas",
     "from_records",
     "from_table",
     "range",
+    "read_catalog_table",
     "read_generic",
     "read_json",
+    "read_kafka",
     "read_parquet",
+    "create_catalog",
+    "get_catalog",
+    "use_catalog",
+    "get_current_catalog",
+    "list_catalogs",
+    "use_database",
+    "get_current_database",
+    "list_databases",
     "sql",
     "config",
+    "preceding",
+    "following",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",
+    "create_statement_set",
 ]

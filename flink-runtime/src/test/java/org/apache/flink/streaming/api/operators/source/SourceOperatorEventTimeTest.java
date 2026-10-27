@@ -244,6 +244,39 @@ class SourceOperatorEventTimeTest {
                         new Watermark(300));
     }
 
+    @Test
+    void testResumingSplitWithoutAdvancingWatermarkEmitsActive() throws Exception {
+        final WatermarkStrategy<Integer> watermarkStrategy =
+                WatermarkStrategy.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
+
+        InterpretingSourceReader reader =
+                new InterpretingSourceReader(
+                        // Both splits emit a watermark and then go idle. The combined watermark is
+                        // flushed to the maximum watermark (200) and the edge goes IDLE.
+                        output -> output.createOutputForSplit("1").collect(0, 200L),
+                        output -> output.createOutputForSplit("2").collect(0, 100L),
+                        output -> output.createOutputForSplit("1").markIdle(),
+                        output -> output.createOutputForSplit("2").markIdle(),
+                        // Split 1 resumes with backlog that does not advance the combined
+                        // watermark. The edge has to be re-activated, otherwise its records are
+                        // dropped as late downstream.
+                        output -> output.createOutputForSplit("1").collect(0, 150L));
+
+        SourceOperator<Integer, MockSourceSplit> sourceOperator =
+                createTestOperator(reader, watermarkStrategy, true);
+
+        List<Object> events = testSequenceOfEvents(sourceOperator);
+
+        assertThat(events)
+                .containsExactly(
+                        new StreamRecord<>(0, 200L),
+                        new Watermark(200L),
+                        new StreamRecord<>(0, 100L),
+                        new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
+                        new StreamRecord<>(0, 150L),
+                        new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS));
+    }
+
     // ------------------------------------------------------------------------
     //   test execution helpers
     // ------------------------------------------------------------------------

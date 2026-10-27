@@ -181,6 +181,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.from_elements
     TableEnvironment.from_pandas
     TableEnvironment.from_path
+    TableEnvironment.from_model
     TableEnvironment.get_catalog
     TableEnvironment.get_config
     TableEnvironment.get_current_catalog
@@ -239,6 +240,7 @@ StreamTableEnvironment
     StreamTableEnvironment.from_elements
     StreamTableEnvironment.from_pandas
     StreamTableEnvironment.from_path
+    StreamTableEnvironment.from_model
     StreamTableEnvironment.from_data_stream
     StreamTableEnvironment.from_changelog_stream
     StreamTableEnvironment.get_catalog

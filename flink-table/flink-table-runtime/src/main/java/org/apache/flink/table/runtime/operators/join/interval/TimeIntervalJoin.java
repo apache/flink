@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -71,6 +72,10 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     private final long earlyFireDelay;
     // True only for an outer join with a non-negative window span and a non-negative delay.
     private final boolean earlyFireEnabled;
+    // True when the early-fire timer fires on the wall clock while cleanup stays on event time
+    // (an event-time interval join early-firing in processing-time mode). The two timer kinds then
+    // live in different domains and onTimer discriminates them by timeDomain().
+    private final boolean earlyFireCrossDomain;
 
     private transient EmitAwareCollector joinCollector;
 
@@ -87,6 +92,14 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     // on a later match (only a row that was speculatively padded needs correcting).
     private transient MapState<Long, List<Boolean>> leftFiredState;
     private transient MapState<Long, List<Boolean>> rightFiredState;
+
+    // Cross-domain early fire only: maps a firing processing-time to the event-time bucket keys
+    // whose unmatched outer rows are due to be speculatively padded at that wall-clock instant.
+    // The event-time bucket key cannot be recovered from a processing-time firing timestamp alone,
+    // so this index records it at registration and recovers it when the timer fires. Allocated only
+    // when earlyFireCrossDomain is true.
+    private transient MapState<Long, List<Long>> leftEarlyFireSchedule;
+    private transient MapState<Long, List<Long>> rightEarlyFireSchedule;
 
     // state to record the timer on the left stream. 0 means no timer set
     private transient ValueState<Long> leftTimerState;
@@ -110,7 +123,8 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             IntervalJoinFunction joinFunc,
-            long earlyFireDelay) {
+            long earlyFireDelay,
+            boolean earlyFireCrossDomain) {
         this.joinType = joinType;
         this.leftRelativeSize = -leftLowerBound;
         this.rightRelativeSize = leftUpperBound;
@@ -130,6 +144,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 earlyFireDelay >= 0
                         && joinType.isOuter()
                         && (leftRelativeSize + rightRelativeSize) >= 0;
+        this.earlyFireCrossDomain = earlyFireCrossDomain;
     }
 
     @Override
@@ -174,6 +189,25 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                                             "IntervalJoinRightFired",
                                             BasicTypeInfo.LONG_TYPE_INFO,
                                             firedListTypeInfo));
+
+            if (earlyFireCrossDomain) {
+                ListTypeInfo<Long> bucketListTypeInfo =
+                        new ListTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO);
+                leftEarlyFireSchedule =
+                        getRuntimeContext()
+                                .getMapState(
+                                        new MapStateDescriptor<>(
+                                                "IntervalJoinLeftEarlyFireSchedule",
+                                                BasicTypeInfo.LONG_TYPE_INFO,
+                                                bucketListTypeInfo));
+                rightEarlyFireSchedule =
+                        getRuntimeContext()
+                                .getMapState(
+                                        new MapStateDescriptor<>(
+                                                "IntervalJoinRightEarlyFireSchedule",
+                                                BasicTypeInfo.LONG_TYPE_INFO,
+                                                bucketListTypeInfo));
+            }
         }
 
         // Initialize the timer states.
@@ -303,7 +337,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 appendFired(leftFiredState, timeForLeftRow);
                 if (!emitted) {
                     // Schedule a speculative pad of this unmatched left row after the delay.
-                    registerTimer(ctx, timeForLeftRow + earlyFireDelay);
+                    scheduleEarlyFire(ctx, leftEarlyFireSchedule, timeForLeftRow);
                 }
             }
             if (rightTimerState.value() == null) {
@@ -419,7 +453,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 appendFired(rightFiredState, timeForRightRow);
                 if (!emitted) {
                     // Schedule a speculative pad of this unmatched right row after the delay.
-                    registerTimer(ctx, timeForRightRow + earlyFireDelay);
+                    scheduleEarlyFire(ctx, rightEarlyFireSchedule, timeForRightRow);
                 }
             }
             if (leftTimerState.value() == null) {
@@ -439,12 +473,30 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
 
-        // Early fire runs before cleanup at a shared timestamp so a row that is both due to fire
-        // and
-        // due to expire emits its speculative pad here; the cleanup branch's fired-bit gate then
-        // suppresses a second pad. A cleanup-only timestamp finds no live unfired-unmatched row at
-        // timestamp - earlyFireDelay and is a cheap no-op.
-        if (earlyFireEnabled) {
+        if (earlyFireEnabled && earlyFireCrossDomain) {
+            // Cross-domain: early-fire timers are processing-time, cleanup timers are event-time.
+            // timeDomain() is the authoritative discriminator (a processing-time value can
+            // numerically equal an event-time cleanup value, so timestamp arithmetic is unsafe).
+            if (ctx.timeDomain() == TimeDomain.PROCESSING_TIME) {
+                if (joinType.isLeftOuter()) {
+                    fireScheduled(
+                            leftCache, leftFiredState, leftEarlyFireSchedule, timestamp, true);
+                }
+                if (joinType.isRightOuter()) {
+                    fireScheduled(
+                            rightCache, rightFiredState, rightEarlyFireSchedule, timestamp, false);
+                }
+                // Cleanup is event-time; there is nothing else to do at a processing-time firing.
+                return;
+            }
+            // EVENT_TIME falls through to the cleanup branches below; no early fire in this domain.
+        } else if (earlyFireEnabled) {
+            // Natural pairing: the early-fire timer shares its domain with cleanup and fires at
+            // rowTime + delay, so the bucket key is recovered as timestamp - delay. Early fire runs
+            // before cleanup at a shared timestamp so a row that is both due to fire and due to
+            // expire emits its speculative pad here; the cleanup branch's fired-bit gate then
+            // suppresses a second pad. A cleanup-only timestamp finds no live unfired-unmatched row
+            // and is a cheap no-op.
             long rowTime = timestamp - earlyFireDelay;
             if (joinType.isLeftOuter()) {
                 earlyFire(leftCache, leftFiredState, rowTime, true);
@@ -513,6 +565,53 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         if (changed) {
             firedState.put(rowTime, fired);
         }
+    }
+
+    /**
+     * Register the early-fire timer for an unmatched outer row. For the natural pairing the timer
+     * shares the cleanup domain and fires at {@code bucketKey + earlyFireDelay}, recoverable later
+     * as {@code timestamp - earlyFireDelay}. For the cross-domain case the timer is a
+     * processing-time timer at {@code currentProcessingTime() + earlyFireDelay}, and the event-time
+     * bucket key is recorded in the schedule under that firing time so it can be recovered when the
+     * processing-time timer fires.
+     */
+    private void scheduleEarlyFire(Context ctx, MapState<Long, List<Long>> schedule, long bucketKey)
+            throws Exception {
+        if (earlyFireCrossDomain) {
+            long firingTime = ctx.timerService().currentProcessingTime() + earlyFireDelay;
+            List<Long> buckets = schedule.get(firingTime);
+            if (buckets == null) {
+                buckets = new ArrayList<>(1);
+            }
+            buckets.add(bucketKey);
+            schedule.put(firingTime, buckets);
+            ctx.timerService().registerProcessingTimeTimer(firingTime);
+        } else {
+            registerTimer(ctx, bucketKey + earlyFireDelay);
+        }
+    }
+
+    /**
+     * Recover the event-time buckets scheduled to fire at the given processing-time and early-fire
+     * each one, then drop the schedule entry. A missing entry is a no-op; a bucket already cleaned
+     * by event-time expiry resolves to an empty cache lookup inside {@link #earlyFire} and is
+     * likewise a no-op.
+     */
+    private void fireScheduled(
+            MapState<Long, List<Tuple2<RowData, Boolean>>> rowCache,
+            MapState<Long, List<Boolean>> firedState,
+            MapState<Long, List<Long>> schedule,
+            long firingTime,
+            boolean padLeft)
+            throws Exception {
+        List<Long> buckets = schedule.get(firingTime);
+        if (buckets == null) {
+            return;
+        }
+        for (Long bucketKey : buckets) {
+            earlyFire(rowCache, firedState, bucketKey, padLeft);
+        }
+        schedule.remove(firingTime);
     }
 
     /**

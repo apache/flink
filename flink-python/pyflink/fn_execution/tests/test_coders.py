@@ -36,25 +36,75 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class ArrowSchemaTests(unittest.TestCase):
-    def test_nested_types_require_arrow_mode(self):
+    def test_pandas_row_preserves_field_nullability(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import pandas_to_arrow
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("total", DataTypes.BIGINT().not_null()),
+            DataTypes.FIELD("label", DataTypes.STRING()),
+        ]).not_null()
+        schema = create_arrow_schema(["summary"], [row_type])
+        values = [{"total": 6, "label": None}, {"total": 9, "label": "ok"}]
+        dataframe = pd.DataFrame(values)
+        for size in (0, len(values)):
+            with self.subTest(size=size):
+                batch = pandas_to_arrow(schema, pytz.UTC, [row_type], [dataframe.iloc[:size]])
+                with pa.BufferOutputStream() as output:
+                    with pa.ipc.new_stream(output, schema) as writer:
+                        writer.write_batch(batch)
+                    decoded = pa.ipc.open_stream(output.getvalue()).read_next_batch()
+                self.assertEqual(decoded.schema, schema)
+                self.assertFalse(decoded.column(0).type.field("total").nullable)
+                self.assertTrue(decoded.column(0).type.field("label").nullable)
+                self.assertEqual(decoded.to_pylist(),
+                                 [{"summary": value} for value in values[:size]])
+
+    def test_pandas_positional_rows_require_matching_arity(self):
+        import pandas as pd
+        from pyflink.common import Row
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import pandas_to_arrow
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("a", DataTypes.BIGINT()),
+            DataTypes.FIELD("b", DataTypes.BIGINT()),
+        ])
+        for data_type, wrap in (
+            (row_type, lambda value: value),
+            (DataTypes.MAP(DataTypes.STRING(), row_type), lambda value: {"key": value}),
+        ):
+            schema = create_arrow_schema(["value"], [data_type])
+            for value in ((1,), (1, 2, 3), [1], [1, 2, 3], Row(1), Row(1, 2, 3)):
+                with self.subTest(data_type=data_type, value=value):
+                    with self.assertRaises(RuntimeError):
+                        pandas_to_arrow(schema, pytz.UTC, [data_type],
+                                        [pd.Series([wrap(value)], dtype=object)])
+
+        schema = create_arrow_schema(["value"], [row_type])
+        self.assertEqual(pandas_to_arrow(
+            schema, pytz.UTC, [row_type], [pd.Series([{"a": 1}], dtype=object)]
+        ).to_pylist(), [{"value": {"a": 1, "b": None}}])
+
+    def test_pandas_row_ltz_and_arrow_array_ltz_schemas(self):
         from pyflink.table import DataTypes
         from pyflink.table.types import create_arrow_schema
 
-        for data_type, error, expected in (
-            (DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD("v", DataTypes.INT())])), ValueError,
-             pa.list_(pa.field("item", pa.struct([pa.field("v", pa.int32())])))),
-            (DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)), ValueError, pa.list_(pa.timestamp('ms'))),
-            (DataTypes.ROW([DataTypes.FIELD("r", DataTypes.ROW([
-                DataTypes.FIELD("v", DataTypes.INT())]))]), TypeError,
-             pa.struct([pa.field("r", pa.struct([pa.field("v", pa.int32())]))])),
-            (DataTypes.ROW([DataTypes.FIELD("t", DataTypes.TIMESTAMP_LTZ(3))]), TypeError,
-             pa.struct([pa.field("t", pa.timestamp('ms'))])),
+        row = DataTypes.ROW([DataTypes.FIELD("v", DataTypes.BIGINT())])
+        for data_type, error in (
+            (DataTypes.ROW([DataTypes.FIELD("t", DataTypes.TIMESTAMP_LTZ(3))]), TypeError),
+            (DataTypes.ROW([DataTypes.FIELD("inner", row)]), TypeError),
+            (DataTypes.ARRAY(row), ValueError),
+            (DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)), ValueError),
         ):
             with self.subTest(data_type=data_type):
                 with self.assertRaises(error):
                     create_arrow_schema(["value"], [data_type])
-                schema = create_arrow_schema(["value"], [data_type], allow_nested=True)
-                self.assertEqual(schema.field("value").type, expected)
+                self.assertEqual(len(create_arrow_schema(["value"], [data_type],
+                                                         allow_nested=True)), 1)
 
     def test_pandas_collection_schema_and_round_trip(self):
         import pandas as pd
@@ -118,6 +168,54 @@ class ArrowSchemaTests(unittest.TestCase):
 
 class ArrowCodersTests(unittest.TestCase):
     from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def test_pandas_ltz_decode_preserves_instants(self):
+        import pandas as pd
+        from pandas.testing import assert_series_equal
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        row_type = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            timezone = pytz.timezone(zone)
+            for size in [0, len(epochs)]:
+                with self.subTest(timezone=zone, size=size):
+                    batch = pa.record_batch(
+                        [pa.array(epochs[:size], type=pa.timestamp('ms'))], schema=schema)
+                    with pa.BufferOutputStream() as output:
+                        with pa.ipc.new_stream(output, schema) as writer:
+                            writer.write_batch(batch)
+                        data = output.getvalue().to_pybytes()
+                    coder = self.implementation.ArrowCoderImpl(schema, row_type, timezone)
+                    result = coder.decode(data)[0]
+                    expected = pd.Series(pd.to_datetime(epochs[:size], unit='ms', utc=True),
+                                         name='ltz') \
+                        .dt.tz_convert(timezone)
+                    self.assertEqual(zone, str(result.dt.tz))
+                    assert_series_equal(result, expected.astype(result.dtype))
+
+    def test_pandas_ltz_encode_preserves_epoch_values(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        row_type = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        aware = pd.Series(pd.to_datetime(epochs, unit='ms', utc=True)) \
+            .dt.tz_convert('Asia/Shanghai')
+        naive = pd.Series(pd.to_datetime(epochs, unit='ms'))
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for values in [aware, naive]:
+                for size in [0, len(epochs)]:
+                    with self.subTest(timezone=zone, dtype=values.dtype, size=size):
+                        coder = self.implementation.ArrowCoderImpl(
+                            schema, row_type, pytz.timezone(zone))
+                        encoded = coder.encode([values.iloc[:size]])
+                        result = pa.ipc.open_stream(encoded).read_all().column(0)
+                        self.assertEqual(epochs[:size], result.cast(pa.int64()).to_pylist())
 
     def arrow_coder(self, schema, row_type):
         return self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC, "ARROW")
@@ -253,6 +351,71 @@ class ArrowCodersTests(unittest.TestCase):
         result = coder.decode(coder.encode([values]))
         self.assertEqual(result[0].tolist(), [[("value", 10)], [("value", 20)], None, []])
 
+    def test_pandas_table_row_results_round_trip(self):
+        import datetime
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        result_type = DataTypes.ROW([
+            DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3)),
+            DataTypes.FIELD("payload", DataTypes.ROW([
+                DataTypes.FIELD("v", DataTypes.BIGINT()),
+                DataTypes.FIELD("other", DataTypes.BIGINT())])),
+            DataTypes.FIELD("other", DataTypes.ROW([DataTypes.FIELD("v", DataTypes.STRING())])),
+        ])
+        timezone = pytz.timezone("Asia/Shanghai")
+        columns = [
+            pd.Series(pd.to_datetime(["2020-01-01T00:00:00Z", None]).tz_convert(timezone)),
+            pd.DataFrame({"v": pd.Series([9007199254740993, None], dtype=object),
+                          "other": pd.Series([7, None], dtype=object)}),
+            pd.DataFrame({"v": ["other", None]}),
+        ]
+        cases = [
+            (columns, [
+                {"result": {"ts": datetime.datetime(2020, 1, 1, 0),
+                            "payload": {"v": 9007199254740993, "other": 7},
+                            "other": {"v": "other"}}},
+                {"result": {"ts": None, "payload": {"v": None, "other": None},
+                            "other": {"v": None}}},
+            ]),
+            ([column.head(0) for column in columns], []),
+        ]
+        for result, expected in cases:
+            with self.subTest(empty_batch=not expected):
+                row_type = DataTypes.ROW([DataTypes.FIELD("result", result_type)])
+                schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                             allow_nested=True)
+                coder = self.implementation.ArrowCoderImpl(
+                    schema, row_type, timezone, "PANDAS", True)
+                restored = self.arrow_coder(schema, row_type).decode(
+                    coder.encode([pd.concat(result, axis=1)])).to_pylist()
+                self.assertEqual(restored, expected)
+
+    def test_pandas_row_collections_round_trip(self):
+        import numpy as np
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        mapping = DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT())
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("payload", DataTypes.ROW([DataTypes.FIELD("payload", mapping)])),
+            DataTypes.FIELD("legacy", DataTypes.ARRAY(DataTypes.BIGINT()))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        coder = self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC)
+        columns = [pd.Series([{"payload": [("x", 1), ("y", 2)]}, {"payload": []}]),
+                   pd.Series([[1, None], []])]
+        encoded = coder.encode(columns)
+        restored = coder.decode(encoded)
+        self.assertEqual(restored[0]["payload"].tolist(), [[("x", 1), ("y", 2)], []])
+        self.assertEqual(restored[1].iloc[0].dtype, np.dtype("float64"))
+        self.assertEqual(restored[1].iloc[0][0], 1.0)
+        self.assertTrue(np.isnan(restored[1].iloc[0][1]))
+        arrow_coder = self.arrow_coder(schema, row_type)
+        self.assertEqual(arrow_coder.decode(coder.encode(restored)).to_pylist(),
+                         arrow_coder.decode(encoded).to_pylist())
+
     def test_inferred_struct_nullability(self):
         from pyflink.table import DataTypes
         from pyflink.table.types import create_arrow_schema
@@ -327,6 +490,71 @@ except ImportError:
 
 @unittest.skipIf(coder_impl_fast is None, "Compiled coders are not installed")
 class FastArrowCodersTests(ArrowCodersTests):
+    implementation = coder_impl_fast
+
+
+class LocalZonedTimestampCodersTests(unittest.TestCase):
+    from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def test_timestamp_before_epoch(self):
+        import datetime
+        import struct
+
+        for precision, micros in [(3, 999000), (6, 999456)]:
+            with self.subTest(precision=precision):
+                coder = self.implementation.TimestampCoderImpl(precision)
+                value = datetime.datetime(1969, 12, 31, 23, 59, 59, micros)
+                data = struct.pack('>q', -1)
+                if precision == 6:
+                    data += struct.pack('>i', 456000)
+                self.assertEqual(data, coder.encode(value))
+                self.assertEqual(value, coder.decode(data))
+
+    def test_decode_preserves_instants(self):
+        import datetime
+        import struct
+
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for precision in [3, 6]:
+                for millis in [-1001, -1000, -1, 0, 1, 1704067200123, 1710052200123, 1710055800123,
+                               1730611800123, 1730615400123]:
+                    with self.subTest(zone=zone, precision=precision, millis=millis):
+                        nanos = 456000 if precision == 6 else 0
+                        data = struct.pack('>q', millis)
+                        if precision == 6:
+                            data += struct.pack('>i', nanos)
+                        coder = self.implementation.LocalZonedTimestampCoderImpl(
+                            precision, pytz.timezone(zone))
+                        result = coder.decode(data)
+                        expected = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC) + \
+                            datetime.timedelta(milliseconds=millis, microseconds=nanos // 1000)
+                        self.assertEqual(expected, result)
+                        self.assertEqual(zone, str(result.tzinfo))
+
+    def test_encode_preserves_epoch_values(self):
+        import datetime
+        import struct
+
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for precision in [3, 6]:
+                for millis in [-1001, -1000, -1, 0, 1, 1704067200123, 1730611800123, 1730615400123]:
+                    nanos = 456000 if precision == 6 else 0
+                    instant = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC) + \
+                        datetime.timedelta(milliseconds=millis, microseconds=nanos // 1000)
+                    expected = struct.pack('>q', millis)
+                    if precision == 6:
+                        expected += struct.pack('>i', nanos)
+                    coder = self.implementation.LocalZonedTimestampCoderImpl(
+                        precision, pytz.timezone(zone))
+                    for value in [instant.astimezone(pytz.timezone('Asia/Shanghai')),
+                                  instant.astimezone(pytz.timezone('America/New_York')),
+                                  instant.replace(tzinfo=None)]:
+                        with self.subTest(zone=zone, precision=precision, value=value):
+                            self.assertEqual(expected, coder.encode(value))
+
+
+@unittest.skipIf(coder_impl_fast is None, "Compiled coders are not installed")
+class FastLocalZonedTimestampCodersTests(LocalZonedTimestampCodersTests):
     implementation = coder_impl_fast
 
 

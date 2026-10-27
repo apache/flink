@@ -37,9 +37,9 @@ public class DoubleHashSet extends OptimizableHashSet {
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
     }
 
-    /** See {@link Double#equals(Object)}. */
+    /** See {@link Double#equals(Object)}, except that both signs of zero are considered equal. */
     public boolean add(final double k) {
-        long longKey = Double.doubleToLongBits(k);
+        final long longKey = k == 0.0d ? 0L : Double.doubleToLongBits(k);
         if (longKey == 0L) {
             if (this.containsZero) {
                 return false;
@@ -75,9 +75,9 @@ public class DoubleHashSet extends OptimizableHashSet {
         return true;
     }
 
-    /** See {@link Double#equals(Object)}. */
+    /** See {@link Double#equals(Object)}, except that both signs of zero are considered equal. */
     public boolean contains(final double k) {
-        long longKey = Double.doubleToLongBits(k);
+        final long longKey = k == 0.0d ? 0L : Double.doubleToLongBits(k);
         if (longKey == 0L) {
             return this.containsZero;
         } else {
