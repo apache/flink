@@ -819,6 +819,15 @@ class DataTypeVerificationTests(PyFlinkTestCase):
 
 class DataTypeConvertTests(PyFlinkTestCase):
 
+    def test_timestamp_precision(self):
+        for type_factory in (DataTypes.TIMESTAMP, DataTypes.TIMESTAMP_LTZ):
+            for precision in (0, 3, 6, 9):
+                for nullable in (True, False):
+                    data_type = type_factory(precision, nullable)
+                    with self.subTest(data_type=data_type, precision=precision, nullable=nullable):
+                        self.assertEqual(
+                            data_type, _from_java_data_type(_to_java_data_type(data_type)))
+
     def test_basic_type(self):
         test_types = [DataTypes.STRING(),
                       DataTypes.BOOLEAN(),
