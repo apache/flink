@@ -669,6 +669,17 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
 
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
+    def test_collect_nullable_nested_values(self):
+        result = self.t_env.execute_sql(
+            "SELECT CAST(ROW(CAST(NULL AS STRING), ARRAY['row']) "
+            "AS ROW<text STRING,tags ARRAY<STRING>>) AS nested, "
+            "ARRAY[CAST(NULL AS INT), 7] AS numbers, "
+            "MAP['key', CAST(NULL AS INT)] AS attributes, "
+            "CAST(NULL AS STRING) AS missing")
+        with result.collect() as rows:
+            self.assertEqual([Row(Row(None, ['row']), [None, 7], {'key': None}, None)],
+                             list(rows))
+
     def test_collect_with_retract(self):
         expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
                               RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER]
