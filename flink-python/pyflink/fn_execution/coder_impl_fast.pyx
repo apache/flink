@@ -21,6 +21,7 @@
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 from libc.stdint cimport int32_t, int64_t
 from libc.stdlib cimport free, malloc
+cimport cython
 
 import datetime
 import decimal
@@ -698,7 +699,8 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
     cpdef encode_to_stream(self, value, OutputStream out_stream):
         cdef int32_t microseconds_of_second, nanoseconds
         cdef int64_t timestamp_seconds, timestamp_milliseconds
-        timestamp_seconds = <int64_t> (value.replace(tzinfo=datetime.timezone.utc).timestamp())
+        timestamp_seconds = <int64_t> (
+            value.replace(microsecond=0, tzinfo=datetime.timezone.utc).timestamp())
         microseconds_of_second = value.microsecond
         timestamp_milliseconds = timestamp_seconds * 1000 + microseconds_of_second // 1000
         nanoseconds = microseconds_of_second % 1000 * 1000
@@ -711,6 +713,7 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self._decode_timestamp_data_from_stream(in_stream)
 
+    @cython.cdivision(False)
     cdef _decode_timestamp_data_from_stream(self, InputStream in_stream):
         cdef int64_t milliseconds
         cdef int32_t nanoseconds, seconds, microseconds
@@ -734,7 +737,13 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         self._timezone = timezone
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
-        return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
+        return self._decode_timestamp_data_from_stream(in_stream) \
+            .replace(tzinfo=datetime.timezone.utc).astimezone(self._timezone)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value.tzinfo is not None:
+            value = value.astimezone(datetime.timezone.utc)
+        TimestampCoderImpl.encode_to_stream(self, value, out_stream)
 
 cdef class InstantCoderImpl(FieldCoderImpl):
     """
