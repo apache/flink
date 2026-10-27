@@ -36,6 +36,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -584,6 +585,30 @@ class BinaryVariantTest {
 
         assertThat(malformed.getFieldNames()).containsExactly("�");
         assertThat(malformed.getField("�")).isNull();
+    }
+
+    @Test
+    void testGetFieldWithGetterWhenIndexChanges() {
+        final List<Variant> objects =
+                List.of(
+                        builder.object().add("a", builder.of(1)).add("user", builder.of(2)).build(),
+                        builder.object().add("a", builder.of(3)).add("user", builder.of(4)).build(),
+                        builder.object().add("user", builder.of(5)).build(),
+                        builder.object().add("a", builder.of(6)).add("b", builder.of(7)).build(),
+                        builder.object().build(),
+                        builder.object()
+                                .add("a", builder.of(8))
+                                .add("user", builder.of(9))
+                                .build());
+
+        final VariantFieldGetter userFieldGetter = new VariantFieldGetter("user");
+        final List<Integer> actualValues = new ArrayList<>();
+        for (final Variant object : objects) {
+            final Variant field = userFieldGetter.getField(object);
+            actualValues.add(field == null ? null : field.getInt());
+        }
+
+        assertThat(actualValues).containsExactly(2, 4, 5, null, null, 9);
     }
 
     @Test
