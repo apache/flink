@@ -35,6 +35,7 @@ import org.apache.flink.types.variant.VariantBuilder;
 import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.nullOf;
 
 /** Semantic tests for {@link DataTypes#VARIANT()} type. */
 public class VariantSemanticTest extends SemanticTestBase {
@@ -477,6 +478,48 @@ public class VariantSemanticTest extends SemanticTestBase {
                             "sink_t")
                     .build();
 
+    static final TableTestProgram VARIANT_ARRAY_ACCESS_WITH_NON_LITERAL_INDEX =
+            TableTestProgram.of(
+                            "variant-array-access-with-non-literal-index",
+                            "validates variant array element access with an index that is not a literal")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v VARIANT", "i INT")
+                                    .producedValues(
+                                            Row.of(
+                                                    BUILDER.array()
+                                                            .add(BUILDER.of(1))
+                                                            .add(BUILDER.of("hello"))
+                                                            .build(),
+                                                    1),
+                                            Row.of(
+                                                    BUILDER.array()
+                                                            .add(BUILDER.of(10))
+                                                            .add(BUILDER.of("world"))
+                                                            .build(),
+                                                    2),
+                                            Row.of(BUILDER.array().add(BUILDER.of(10)).build(), 2),
+                                            Row.of(BUILDER.array().add(BUILDER.of(10)).build(), 0))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("e VARIANT", "n VARIANT")
+                                    .consumedValues(
+                                            Row.of(BUILDER.of(1), null),
+                                            Row.of(BUILDER.of("world"), null),
+                                            Row.of(null, null),
+                                            Row.of(null, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT v[i], v[CAST(NULL AS INT)] FROM t")
+                    .runTableApi(
+                            t ->
+                                    t.from("t")
+                                            .select(
+                                                    $("v").at($("i")).as("e"),
+                                                    $("v").at(nullOf(DataTypes.INT())).as("n")),
+                            "sink_t")
+                    .build();
+
     static final TableTestProgram VARIANT_OBJECT_ACCESS =
             TableTestProgram.of(
                             "variant-object-access",
@@ -491,6 +534,50 @@ public class VariantSemanticTest extends SemanticTestBase {
                                                     $("v").at("name").as("name"),
                                                     $("v").at("age").as("age"),
                                                     $("v").at("city").as("city")),
+                            "sink_t")
+                    .build();
+
+    static final TableTestProgram VARIANT_OBJECT_ACCESS_WITH_NON_LITERAL_KEY =
+            TableTestProgram.of(
+                            "variant-object-access-with-non-literal-key",
+                            "validates variant object field access with a key that is not a literal")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v VARIANT", "k STRING")
+                                    .producedValues(
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("name", BUILDER.of("Alice"))
+                                                            .add("age", BUILDER.of(30))
+                                                            .build(),
+                                                    "name"),
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("name", BUILDER.of("Bob"))
+                                                            .add("age", BUILDER.of(25))
+                                                            .build(),
+                                                    "age"),
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("name", BUILDER.of("Carol"))
+                                                            .build(),
+                                                    "city"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("f VARIANT", "n VARIANT")
+                                    .consumedValues(
+                                            Row.of(BUILDER.of("Alice"), null),
+                                            Row.of(BUILDER.of(25), null),
+                                            Row.of(null, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT v[k], v[CAST(NULL AS STRING)] FROM t")
+                    .runTableApi(
+                            t ->
+                                    t.from("t")
+                                            .select(
+                                                    $("v").at($("k")).as("f"),
+                                                    $("v").at(nullOf(DataTypes.STRING())).as("n")),
                             "sink_t")
                     .build();
 
@@ -609,7 +696,9 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_FIELD_AS_JOIN_KEY,
                 VARIANT_ARRAY_ACCESS,
                 VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES,
+                VARIANT_ARRAY_ACCESS_WITH_NON_LITERAL_INDEX,
                 VARIANT_OBJECT_ACCESS,
+                VARIANT_OBJECT_ACCESS_WITH_NON_LITERAL_KEY,
                 VARIANT_NESTED_ACCESS,
                 VARIANT_ARRAY_ERROR_ACCESS,
                 VARIANT_OBJECT_ERROR_ACCESS,

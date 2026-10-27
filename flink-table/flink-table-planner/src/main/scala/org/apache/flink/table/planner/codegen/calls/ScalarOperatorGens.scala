@@ -1747,11 +1747,17 @@ object ScalarOperatorGens {
         tmpValue
       )
     } else if (isCharacterString(keyType)) {
-      val fieldName = key.literalValue.get.toString
+      val fieldAccess = key.literalValue match {
+        case Some(fieldName) if fieldName != null =>
+          s"""$variantTerm.getField("${EncodingUtils.escapeJava(fieldName.toString)}")"""
+        // A key that is not a literal, or a NULL literal, whose access code never runs. The key is
+        // a StringData, and getField takes a String.
+        case _ => s"$variantTerm.getField($keyTerm.toString())"
+      }
       generateCharacterStringKeyAccess(
         variantTerm,
         variantTypeTerm,
-        fieldName,
+        fieldAccess,
         resultTerm,
         nullTerm,
         tmpValue
@@ -1777,14 +1783,13 @@ object ScalarOperatorGens {
   private def generateCharacterStringKeyAccess(
       variantTerm: String,
       variantTypeTerm: String,
-      fieldName: String,
+      fieldAccess: String,
       resultTerm: String,
       nullTerm: String,
       tmpValue: String): String = {
-    val escapedFieldName = EncodingUtils.escapeJava(fieldName)
     s"""
        |  if ($variantTerm.isObject()){
-       |    $variantTypeTerm $tmpValue = $variantTerm.getField("$escapedFieldName");
+       |    $variantTypeTerm $tmpValue = $fieldAccess;
        |    if ($tmpValue == null) {
        |      $nullTerm = true;
        |    } else {
