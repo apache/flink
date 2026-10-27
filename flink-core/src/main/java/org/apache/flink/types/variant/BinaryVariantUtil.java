@@ -788,26 +788,44 @@ public class BinaryVariantUtil {
      * parameters and returns what it returns.
      */
     public static <T> T handleObject(byte[] value, int pos, ObjectHandler<T> handler) {
-        checkIndex(pos, value.length);
-        int basicType = value[pos] & BASIC_TYPE_MASK;
-        int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
-        if (basicType != OBJECT) {
-            throw unexpectedType(Type.OBJECT);
-        }
-        // Refer to the comment of the `OBJECT` constant for the details of the object header
-        // encoding. Suppose `typeInfo` has a bit representation of 0_b4_b3b2_b1b0, the following
-        // line extracts b4 to determine whether the object uses a 1/4-byte size.
-        boolean largeSize = ((typeInfo >> 4) & 0x1) != 0;
-        int sizeBytes = (largeSize ? U32_SIZE : 1);
+        int typeInfo = objectTypeInfo(value, pos);
+        int sizeBytes = objectSizeBytes(typeInfo);
         int size = readUnsigned(value, pos + 1, sizeBytes);
-        // Extracts b3b2 to determine the integer size of the field id list.
-        int idSize = ((typeInfo >> 2) & 0x3) + 1;
-        // Extracts b1b0 to determine the integer size of the offset list.
-        int offsetSize = (typeInfo & 0x3) + 1;
+        int idSize = objectIdSize(typeInfo);
+        int offsetSize = objectOffsetSize(typeInfo);
         int idStart = pos + 1 + sizeBytes;
         int offsetStart = idStart + size * idSize;
         int dataStart = offsetStart + (size + 1) * offsetSize;
         return handler.apply(size, idSize, offsetSize, idStart, offsetStart, dataStart);
+    }
+
+    /**
+     * Returns the type info of the object at {@code pos}. Refer to the comment of the {@code
+     * OBJECT} constant for its encoding, a bit representation of 0_b4_b3b2_b1b0.
+     *
+     * @throws VariantTypeException if the value at {@code pos} is not an object
+     */
+    static int objectTypeInfo(byte[] value, int pos) {
+        checkIndex(pos, value.length);
+        if ((value[pos] & BASIC_TYPE_MASK) != OBJECT) {
+            throw unexpectedType(Type.OBJECT);
+        }
+        return (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
+    }
+
+    /** Extracts b4 of an object type info to determine whether the size takes 1 or 4 bytes. */
+    static int objectSizeBytes(int typeInfo) {
+        return ((typeInfo >> 4) & 0x1) != 0 ? U32_SIZE : 1;
+    }
+
+    /** Extracts b3b2 of an object type info to determine the integer size of the field ids. */
+    static int objectIdSize(int typeInfo) {
+        return ((typeInfo >> 2) & 0x3) + 1;
+    }
+
+    /** Extracts b1b0 of an object type info to determine the integer size of the offsets. */
+    static int objectOffsetSize(int typeInfo) {
+        return (typeInfo & 0x3) + 1;
     }
 
     /** A handler that receives the decoded header fields of a variant array. */

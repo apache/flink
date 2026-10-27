@@ -20,6 +20,8 @@ package org.apache.flink.types.variant;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -47,6 +49,10 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.malformedVariant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.metadataKeyEquals;
 import static org.apache.flink.types.variant.BinaryVariantUtil.microsToInstant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.nanosToInstant;
+import static org.apache.flink.types.variant.BinaryVariantUtil.objectIdSize;
+import static org.apache.flink.types.variant.BinaryVariantUtil.objectOffsetSize;
+import static org.apache.flink.types.variant.BinaryVariantUtil.objectSizeBytes;
+import static org.apache.flink.types.variant.BinaryVariantUtil.objectTypeInfo;
 import static org.apache.flink.types.variant.BinaryVariantUtil.readUnsigned;
 import static org.apache.flink.types.variant.BinaryVariantUtil.valueSize;
 import static org.apache.flink.types.variant.BinaryVariantUtil.variantConstructorSizeLimit;
@@ -288,6 +294,16 @@ public final class BinaryVariant implements Variant {
         return getFieldByKey(fieldName);
     }
 
+    /**
+     * Returns the field whose key has the UTF-8 bytes {@code key}, like {@link #getField(String)}
+     * without decoding the key, or null if the object has no such field.
+     *
+     * @throws VariantTypeException if the variant is not an object
+     */
+    public @Nullable Variant getFieldByUtf8Key(byte[] key) {
+        return getFieldByKey(key, null);
+    }
+
     @Override
     public List<String> getFieldNames() throws VariantTypeException {
         return handleObject(
@@ -341,32 +357,68 @@ public final class BinaryVariant implements Variant {
     // Find the field value whose key is equal to `key`. Return null if the key is not found.
     // It is only legal to call it when `getType()` is `Type.OBJECT`.
     private BinaryVariant getFieldByKey(String key) {
-        byte[] keyBytes = encodeKey(key);
-        return handleObject(
-                value,
-                pos,
-                (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
-                    int index;
-                    // Use linear search for a short list. Switch to binary search when the length
-                    // reaches `BINARY_SEARCH_THRESHOLD`.
-                    if (size < BINARY_SEARCH_THRESHOLD) {
-                        index = findFieldLinear(keyBytes, size, idSize, idStart);
-                    } else {
-                        index = findFieldBinary(keyBytes, size, idSize, idStart);
-                        // Objects that earlier Flink versions wrote are sorted in UTF-16 order
-                        // instead. Only a miss for a key with a code point from U+E000 up can be
-                        // wrong there, see `hasCodePointFromE000`. Such a miss scans all fields,
-                        // because an object does not record which order it uses.
-                        if (index < 0 && hasCodePointFromE000(keyBytes)) {
-                            index = findFieldLinear(keyBytes, size, idSize, idStart);
-                        }
-                    }
-                    if (index < 0) {
-                        return null;
-                    }
-                    int offset = readUnsigned(value, offsetStart + offsetSize * index, offsetSize);
-                    return new BinaryVariant(value, metadata, dataStart + offset);
-                });
+        return getFieldByKey(encodeKey(key), null);
+    }
+
+    /**
+     * Returns the field whose key has the UTF-8 bytes {@code key}, or null if there is none.
+     *
+     * <p>A {@code getter} remembers the index at which it last found its key. That field is checked
+     * first, so a correct guess skips the search and a wrong one costs one key comparison.
+     *
+     * @throws VariantTypeException if the variant is not an object
+     */
+    @Nullable
+    BinaryVariant getFieldByKey(byte[] key, @Nullable VariantFieldGetter getter) {
+        // Decode the header here instead of in `handleObject` and its capturing lambda, so that a
+        // lookup allocates nothing but the returned view.
+        int typeInfo = objectTypeInfo(value, pos);
+        int sizeBytes = objectSizeBytes(typeInfo);
+        int size = readUnsigned(value, pos + 1, sizeBytes);
+        int idSize = objectIdSize(typeInfo);
+        int idStart = pos + 1 + sizeBytes;
+        // Read the remembered index once, so that a getter shared between threads only ever
+        // returns a field whose key it checked.
+        int index = getter == null ? -1 : getter.lastIndex;
+        if (index < 0 || !hasKeyAt(key, index, size, idSize, idStart)) {
+            index = findField(key, size, idSize, idStart);
+            if (index < 0) {
+                return null;
+            }
+            if (getter != null) {
+                getter.lastIndex = index;
+            }
+        }
+        int offsetSize = objectOffsetSize(typeInfo);
+        int offsetStart = idStart + size * idSize;
+        int dataStart = offsetStart + (size + 1) * offsetSize;
+        int offset = readUnsigned(value, offsetStart + offsetSize * index, offsetSize);
+        return new BinaryVariant(value, metadata, dataStart + offset);
+    }
+
+    private boolean hasKeyAt(byte[] key, int index, int size, int idSize, int idStart) {
+        return index < size
+                && metadataKeyEquals(
+                        metadata, readUnsigned(value, idStart + idSize * index, idSize), key);
+    }
+
+    /**
+     * Like {@code findFieldLinear}, but uses binary search from {@code BINARY_SEARCH_THRESHOLD}
+     * fields on.
+     */
+    private int findField(byte[] key, int size, int idSize, int idStart) {
+        if (size < BINARY_SEARCH_THRESHOLD) {
+            return findFieldLinear(key, size, idSize, idStart);
+        }
+        int index = findFieldBinary(key, size, idSize, idStart);
+        // Objects that earlier Flink versions wrote are sorted in UTF-16 order instead. Only a miss
+        // for a key with a code point from U+E000 up can be wrong there, see
+        // `hasCodePointFromE000`. Such a miss scans all fields, because an object does not record
+        // which order it uses.
+        if (index < 0 && hasCodePointFromE000(key)) {
+            index = findFieldLinear(key, size, idSize, idStart);
+        }
+        return index;
     }
 
     // Return the index of the field whose key has the UTF-8 bytes `key`, or -1 if there is none.
