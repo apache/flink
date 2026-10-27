@@ -230,6 +230,9 @@ public class Task
 
     private final ResultPartitionWriter[] partitionWriters;
 
+    /** Consumer parallelism of each partition in {@link #partitionWriters}, in the same order. */
+    private final int[] partitionConsumerParallelisms;
+
     private final IndexedInputGate[] inputGates;
 
     /** Connection to the task manager. */
@@ -423,6 +426,10 @@ public class Task
                         .toArray(new ResultPartitionWriter[] {});
 
         this.partitionWriters = resultPartitionWriters;
+        this.partitionConsumerParallelisms =
+                resultPartitionDeploymentDescriptors.stream()
+                        .mapToInt(ResultPartitionDeploymentDescriptor::getConsumerParallelism)
+                        .toArray();
 
         // consumed intermediate result partitions
         final IndexedInputGate[] gates =
@@ -731,6 +738,7 @@ public class Task
                             inputSplitProvider,
                             distributedCacheEntries,
                             partitionWriters,
+                            partitionConsumerParallelisms,
                             inputGates,
                             taskEventDispatcher,
                             checkpointResponder,
@@ -1879,20 +1887,23 @@ public class Task
         }
     }
 
-    public static void logTaskThreadStackTrace(
-            Thread thread, String taskName, long timeoutMs, String action) {
+    public static StringBuilder getTaskThreadStackTrace(Thread thread) {
         StackTraceElement[] stack = thread.getStackTrace();
         StringBuilder stackTraceStr = new StringBuilder();
         for (StackTraceElement e : stack) {
             stackTraceStr.append(e).append('\n');
         }
+        return stackTraceStr;
+    }
 
+    public static void logTaskThreadStackTrace(
+            Thread thread, String taskName, long timeoutMs, String action) {
         LOG.warn(
                 "Task '{}' did not react to cancelling signal - {}; it is stuck for {} seconds in method:\n {}",
                 taskName,
                 action,
                 timeoutMs / 1000,
-                stackTraceStr);
+                getTaskThreadStackTrace(thread));
     }
 
     /** Various operation of notify checkpoint. */

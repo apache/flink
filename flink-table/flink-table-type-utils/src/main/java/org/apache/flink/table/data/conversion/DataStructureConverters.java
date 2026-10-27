@@ -31,9 +31,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.bitmap.Bitmap;
-import org.apache.flink.types.bitmap.RoaringBitmapData;
-import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -41,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -197,9 +195,8 @@ public final class DataStructureConverters {
         putConverter(LogicalTypeRoot.STRUCTURED_TYPE, RowData.class, identity());
         putConverter(LogicalTypeRoot.RAW, byte[].class, RawByteArrayConverter::create);
         putConverter(LogicalTypeRoot.RAW, RawValueData.class, identity());
-        putConverter(LogicalTypeRoot.VARIANT, Variant.class, identity());
-        putConverter(LogicalTypeRoot.BITMAP, Bitmap.class, constructor(BitmapBitmapConverter::new));
-        putConverter(LogicalTypeRoot.BITMAP, RoaringBitmapData.class, identity());
+        putConverter(LogicalTypeRoot.UUID, UUID.class, constructor(UuidUuidConverter::new));
+        putConverter(LogicalTypeRoot.UUID, byte[].class, identity());
     }
 
     /** Returns a converter for the given {@link DataType}. */
@@ -239,6 +236,10 @@ public final class DataStructureConverters {
                 return StructuredObjectConverter.create(dataType);
             case RAW:
                 return RawObjectConverter.create(dataType);
+            case VARIANT:
+            case BITMAP:
+                // The conversion class is already validated by supports{Input,Output}Conversion.
+                return IdentityConverter.INSTANCE;
             default:
                 throw new TableException("Could not find converter for data type: " + dataType);
         }
@@ -254,7 +255,7 @@ public final class DataStructureConverters {
     }
 
     private static DataStructureConverterFactory identity() {
-        return constructor(IdentityConverter::new);
+        return constructor(() -> IdentityConverter.INSTANCE);
     }
 
     private static DataStructureConverterFactory constructor(

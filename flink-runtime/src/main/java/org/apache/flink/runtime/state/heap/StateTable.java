@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Spliterators;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -273,6 +274,24 @@ public abstract class StateTable<K, N, S>
                                         Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0),
                                         false))
                 .map(entry -> Tuple2.of(entry.getKey(), entry.getNamespace()));
+    }
+
+    /**
+     * Returns all entries paired with the key-group they are physically stored under, i.e. the
+     * {@link #keyGroupedStateMaps} slot holding them, rather than a key-group recomputed from the
+     * key's {@code hashCode()}.
+     */
+    public Stream<Tuple2<StateEntry<K, N, S>, Integer>> getEntriesWithKeyGroup() {
+        final int offset = getKeyGroupOffset();
+        return IntStream.range(0, keyGroupedStateMaps.length)
+                .boxed()
+                .flatMap(
+                        i ->
+                                StreamSupport.stream(
+                                                Spliterators.spliteratorUnknownSize(
+                                                        keyGroupedStateMaps[i].iterator(), 0),
+                                                false)
+                                        .map(entry -> Tuple2.of(entry, i + offset)));
     }
 
     public StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(

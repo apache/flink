@@ -44,11 +44,16 @@ import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesSummary;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.SlotSharingGroupRescale;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminatedReason;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.TriggerCause;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,6 +163,144 @@ class JobRescaleDetailsHandlerTest {
         JobRescaleDetails jobRescaleDetails =
                 testInstance.handleRequest(request, executionGraphInfo);
         assertThat(jobRescaleDetails).isEqualTo(fromRescale(rescale, true));
+    }
+
+    @Test
+    void testRequestLatestRescaleEvictedFromHistory()
+            throws HandlerRequestException, RestHandlerException {
+        final Rescale latestIgnoredRescale =
+                createTerminatedRescale(TerminatedReason.RESOURCE_REQUIREMENTS_UPDATED);
+        final Rescale retainedCompletedRescale =
+                createTerminatedRescale(TerminatedReason.SUCCEEDED);
+        final ExecutionGraphInfo executionGraphInfo =
+                createExecutionGraphInfo(latestIgnoredRescale, retainedCompletedRescale);
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(
+                        executionGraphInfo.getJobId(),
+                        latestIgnoredRescale.getRescaleIdInfo().getRescaleUuid());
+
+        assertThat(testInstance.handleRequest(request, executionGraphInfo))
+                .isEqualTo(fromRescale(latestIgnoredRescale, true));
+    }
+
+    @Test
+    void testRequestHistoryOnlyRescale() throws HandlerRequestException, RestHandlerException {
+        final Rescale latestIgnoredRescale =
+                createTerminatedRescale(TerminatedReason.RESOURCE_REQUIREMENTS_UPDATED);
+        final Rescale retainedCompletedRescale =
+                createTerminatedRescale(TerminatedReason.SUCCEEDED);
+        final Rescale historyOnlyFailedRescale =
+                createTerminatedRescale(TerminatedReason.EXCEPTION_OCCURRED);
+        final ExecutionGraphInfo executionGraphInfo =
+                createExecutionGraphInfo(
+                        latestIgnoredRescale,
+                        retainedCompletedRescale,
+                        List.of(historyOnlyFailedRescale, retainedCompletedRescale));
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(
+                        executionGraphInfo.getJobId(),
+                        historyOnlyFailedRescale.getRescaleIdInfo().getRescaleUuid());
+
+        assertThat(testInstance.handleRequest(request, executionGraphInfo))
+                .isEqualTo(fromRescale(historyOnlyFailedRescale, true));
+    }
+
+    @Test
+    void testRequestUnknownRescale() throws HandlerRequestException {
+        final Rescale latestIgnoredRescale =
+                createTerminatedRescale(TerminatedReason.RESOURCE_REQUIREMENTS_UPDATED);
+        final Rescale retainedCompletedRescale =
+                createTerminatedRescale(TerminatedReason.SUCCEEDED);
+        final Rescale historyOnlyFailedRescale =
+                createTerminatedRescale(TerminatedReason.EXCEPTION_OCCURRED);
+        final ExecutionGraphInfo executionGraphInfo =
+                createExecutionGraphInfo(
+                        latestIgnoredRescale,
+                        retainedCompletedRescale,
+                        List.of(historyOnlyFailedRescale, retainedCompletedRescale));
+        final RescaleIdInfo.RescaleUUID unknownRescaleUuid = new RescaleIdInfo.RescaleUUID();
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(executionGraphInfo.getJobId(), unknownRescaleUuid);
+
+        assertThatThrownBy(() -> testInstance.handleRequest(request, executionGraphInfo))
+                .isInstanceOfSatisfying(
+                        RestHandlerException.class,
+                        exception -> {
+                            assertThat(exception.getHttpResponseStatus())
+                                    .isEqualTo(HttpResponseStatus.NOT_FOUND);
+                            assertThat(exception.getMessage())
+                                    .contains(unknownRescaleUuid.toString());
+                        });
+    }
+
+    @Test
+    void testArchiveIncludesLatestRescaleEvictedFromHistory() throws IOException {
+        final Rescale latestIgnoredRescale =
+                createTerminatedRescale(TerminatedReason.RESOURCE_REQUIREMENTS_UPDATED);
+        final Rescale retainedCompletedRescale =
+                createTerminatedRescale(TerminatedReason.SUCCEEDED);
+        final Rescale historyOnlyFailedRescale =
+                createTerminatedRescale(TerminatedReason.EXCEPTION_OCCURRED);
+        final ExecutionGraphInfo executionGraphInfo =
+                createExecutionGraphInfo(
+                        latestIgnoredRescale,
+                        retainedCompletedRescale,
+                        List.of(historyOnlyFailedRescale, retainedCompletedRescale));
+
+        final Collection<ArchivedJson> archives =
+                testInstance.archiveJsonWithPath(executionGraphInfo);
+
+        assertThat(archives)
+                .extracting(ArchivedJson::getPath)
+                .containsExactlyInAnyOrder(
+                        getDetailsPath(executionGraphInfo, latestIgnoredRescale),
+                        getDetailsPath(executionGraphInfo, retainedCompletedRescale),
+                        getDetailsPath(executionGraphInfo, historyOnlyFailedRescale));
+    }
+
+    private static ExecutionGraphInfo createExecutionGraphInfo(
+            Rescale latestIgnoredRescale, Rescale retainedCompletedRescale) {
+        return createExecutionGraphInfo(
+                latestIgnoredRescale, retainedCompletedRescale, List.of(retainedCompletedRescale));
+    }
+
+    private static ExecutionGraphInfo createExecutionGraphInfo(
+            Rescale latestIgnoredRescale,
+            Rescale retainedCompletedRescale,
+            List<Rescale> rescaleHistory) {
+        final RescalesSummary rescalesSummary = new RescalesSummary(1);
+        rescalesSummary.addTerminated(latestIgnoredRescale);
+        rescalesSummary.addTerminated(retainedCompletedRescale);
+        return new ExecutionGraphInfo(
+                new ArchivedExecutionGraphBuilder().build(),
+                List.of(),
+                null,
+                null,
+                new RescalesStatsSnapshot(
+                        rescaleHistory,
+                        Map.of(
+                                latestIgnoredRescale.getTerminalState(),
+                                latestIgnoredRescale,
+                                retainedCompletedRescale.getTerminalState(),
+                                retainedCompletedRescale),
+                        rescalesSummary.createSnapshot()));
+    }
+
+    private static Rescale createTerminatedRescale(TerminatedReason terminatedReason) {
+        return new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L))
+                .setStartTimestamp(1L)
+                .setEndTimestamp(2L)
+                .setTriggerCause(TriggerCause.UPDATE_REQUIREMENT)
+                .setTerminatedReason(terminatedReason);
+    }
+
+    private static String getDetailsPath(ExecutionGraphInfo executionGraphInfo, Rescale rescale) {
+        return JobRescaleDetailsHeaders.getInstance()
+                .getTargetRestEndpointURL()
+                .replace(':' + JobIDPathParameter.KEY, executionGraphInfo.getJobId().toString())
+                .replace(
+                        ':' + JobRescaleIDPathParameter.KEY,
+                        rescale.getRescaleIdInfo().getRescaleUuid().toString());
     }
 
     private static HandlerRequest<EmptyRequestBody> createRequest(

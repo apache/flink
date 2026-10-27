@@ -172,7 +172,7 @@ $ java -version
 # Java 11、17 或 21
 
 $ python --version
-# Python 3.9、3.10、3.11 或 3.12
+# Python 3.9、3.10、3.11、3.12 或 3.13
 ```
 
 ### 步骤 2：安装 PyFlink

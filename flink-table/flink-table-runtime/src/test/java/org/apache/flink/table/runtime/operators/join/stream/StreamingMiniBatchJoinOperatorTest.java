@@ -48,12 +48,33 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for StreamingMiniBatchJoinOperatorTest. */
 final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTestBase {
 
     private RowDataKeySelector leftUniqueKeySelector;
     private RowDataKeySelector rightUniqueKeySelector;
+
+    @Tag("miniBatchSize=3")
+    @Test
+    void testLeftJoinSkipsNullKeys() throws Exception {
+        testHarness.processElement1(insertRecord("Ord#1", null, "3 Bellevue Drive"));
+        testHarness.processElement2(insertRecord("Ord#X", null, "AIR"));
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#2", "4 Bellevue Drive"));
+        assertor.shouldEmitAll(
+                testHarness,
+                rowOfKind(RowKind.INSERT, "Ord#1", null, "3 Bellevue Drive", null, null, null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#2",
+                        "LineOrd#2",
+                        "4 Bellevue Drive",
+                        null,
+                        null,
+                        null));
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
+    }
 
     @Tag("miniBatchSize=3")
     @Test
@@ -1252,6 +1273,120 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
         testLeftJoinWithUpdateRecordsMultipleCases();
     }
 
+    /**
+     * A suppressed -U/+U pair on one of two matches of the left row keeps both matches, so deleting
+     * the other one does not null pad the left row.
+     */
+    @Tag("miniBatchSize=10")
+    @Test
+    void testLeftJoinHasUniqueKeyUpdatesOneOfTwoMatchesWithinBundle() throws Exception {
+        final String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", address));
+        testHarness.processElement2(insertRecord("Ord#1", "LineOrd#1", "AIR"));
+        testHarness.processElement2(insertRecord("Ord#2", "LineOrd#1", "SHIP"));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateBeforeRecord("Ord#1", "LineOrd#1", "AIR"));
+        testHarness.processElement2(updateAfterRecord("Ord#1", "LineOrd#1", "TRUCK"));
+        testHarness.prepareSnapshotPreBarrier(2L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord("Ord#2", "LineOrd#1", "SHIP"));
+        testHarness.prepareSnapshotPreBarrier(3L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#2",
+                        "LineOrd#1",
+                        "SHIP"));
+    }
+
+    /**
+     * With a non-equi condition, a -U/+U pair within a bundle may lose or gain the match of the
+     * left row, so its null padding is updated, but not if both records match it. The same holds
+     * for a +U without -U.
+     */
+    @Tag("miniBatchSize=10")
+    @Test
+    void testLeftJoinHasUniqueKeyNonEquiUpdatesMatchWithinBundle() throws Exception {
+        final String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", address));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR"));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateBeforeRecord("Ord#X", "LineOrd#1", "AIR"));
+        testHarness.processElement2(updateAfterRecord("Ord#X", "LineOrd#1", UNKNOWN));
+        testHarness.prepareSnapshotPreBarrier(2L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.UPDATE_BEFORE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", address, null, null, null));
+
+        testHarness.processElement2(updateBeforeRecord("Ord#X", "LineOrd#1", UNKNOWN));
+        testHarness.processElement2(updateAfterRecord("Ord#X", "LineOrd#1", "SHIP"));
+        testHarness.prepareSnapshotPreBarrier(3L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", address, null, null, null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "SHIP"));
+
+        testHarness.processElement2(updateBeforeRecord("Ord#X", "LineOrd#1", "SHIP"));
+        testHarness.processElement2(updateAfterRecord("Ord#X", "LineOrd#1", "TRUCK"));
+        testHarness.prepareSnapshotPreBarrier(4L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.UPDATE_BEFORE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "SHIP"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "TRUCK"));
+
+        testHarness.processElement2(updateAfterRecord("Ord#X", "LineOrd#1", UNKNOWN));
+        testHarness.prepareSnapshotPreBarrier(5L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "TRUCK"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", address, null, null, null));
+    }
+
     @Tag("miniBatchSize=4")
     @Test
     void testLeftJoinJoinKeyContainsUniqueKeyWithUpdateMultipleCases() throws Exception {
@@ -1830,16 +1965,21 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
         FlinkJoinType joinType = flinkJoinTypeExtractor.apply(testInfo.getDisplayName());
         int batchSize = miniBatchSizeExtractor.apply(testInfo.getTags());
         Long[] ttl = STATE_RETENTION_TIME_EXTRACTOR.apply(testInfo.getTags());
+        final boolean hasNonEquiCondition = testInfo.getDisplayName().contains("NonEqui");
 
         return MiniBatchStreamingJoinOperator.newMiniBatchStreamJoinOperator(
                 joinType,
                 leftTypeInfo,
                 rightTypeInfo,
-                joinCondition,
+                hasNonEquiCondition ? knownValuesNonEquiCondition() : joinCondition,
                 inputSideSpecs[0],
                 inputSideSpecs[1],
                 isOuter[0],
                 isOuter[1],
+                // the tests send both retract and upsert inputs
+                null,
+                null,
+                hasNonEquiCondition,
                 new boolean[] {true},
                 ttl[0],
                 ttl[0],
@@ -1972,7 +2112,7 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                             RowType.of(
                                     new LogicalType[] {
                                         new CharType(false, 20),
-                                        new CharType(false, 20),
+                                        new CharType(true, 20),
                                         new CharType(true, 10)
                                     },
                                     new String[] {

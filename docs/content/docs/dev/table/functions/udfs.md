@@ -1130,7 +1130,7 @@ In order to define a table function, one has to extend the base class `TableFunc
 
 In the Table API, a table function is used with `.joinLateral(...)` or `.leftOuterJoinLateral(...)`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table.
 
-In SQL, use `LATERAL TABLE(<TableFunction>)` with `JOIN` or `LEFT JOIN` with an `ON TRUE` join condition.
+In SQL, use `LATERAL <TableFunction>(...)` (or the equivalent `LATERAL TABLE(<TableFunction>(...))`) with `JOIN` or `LEFT JOIN` with an `ON TRUE` join condition.
 
 The following example shows how to define your own split function and call it in a query. See the [Implementation Guide](#implementation-guide) for more details.
 
@@ -1189,17 +1189,17 @@ env
 // call registered function in SQL
 env.sqlQuery(
   "SELECT myField, word, length " +
-  "FROM MyTable, LATERAL TABLE(SplitFunction(myField))");
+  "FROM MyTable, LATERAL SplitFunction(myField)");
 env.sqlQuery(
   "SELECT myField, word, length " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) ON TRUE");
+  "LEFT JOIN LATERAL SplitFunction(myField) ON TRUE");
 
 // rename fields of the function in SQL
 env.sqlQuery(
   "SELECT myField, newWord, newLength " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) AS T(newWord, newLength) ON TRUE");
+  "LEFT JOIN LATERAL SplitFunction(myField) AS T(newWord, newLength) ON TRUE");
 
 ```
 {{< /tab >}}
@@ -1254,17 +1254,17 @@ env
 // call registered function in SQL
 env.sqlQuery(
   "SELECT myField, word, length " +
-  "FROM MyTable, LATERAL TABLE(SplitFunction(myField))")
+  "FROM MyTable, LATERAL SplitFunction(myField)")
 env.sqlQuery(
   "SELECT myField, word, length " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) ON TRUE")
+  "LEFT JOIN LATERAL SplitFunction(myField) ON TRUE")
 
 // rename fields of the function in SQL
 env.sqlQuery(
   "SELECT myField, newWord, newLength " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) AS T(newWord, newLength) ON TRUE")
+  "LEFT JOIN LATERAL SplitFunction(myField) AS T(newWord, newLength) ON TRUE")
 
 ```
 {{< /tab >}}
@@ -1354,7 +1354,7 @@ env.from("MyTable")
         .select($("*"))
 
 // call registered function in SQL
-env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))");
+env.sqlQuery("SELECT * FROM MyTable, LATERAL BackgroundFunction(myField)");
 
 ```
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -32,8 +33,10 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -86,15 +89,33 @@ public class PythonMapMergeRule extends RelOptRule {
             return false;
         }
 
+        // Async calls are split into separate operators. Removing the flatten calc would
+        // make a subsequent row-input function receive the enclosing row instead of its fields.
+        if (AsyncUtil.containsAsyncCall(topProjects.get(0))
+                || AsyncUtil.containsAsyncCall(bottomProjects.get(0))) {
+            return false;
+        }
+
         // only Python functions with same Python function kind can be merged together.
-        if (PythonUtil.isPythonCall(topProjects.get(0), PythonFunctionKind.GENERAL)
-                ^ PythonUtil.isPythonCall(bottomProjects.get(0), PythonFunctionKind.GENERAL)) {
+        if (Arrays.stream(PythonFunctionKind.values())
+                .noneMatch(
+                        kind ->
+                                PythonUtil.isPythonCall(topProjects.get(0), kind)
+                                        && PythonUtil.isPythonCall(bottomProjects.get(0), kind))) {
             return false;
         }
 
         return PythonUtil.isFlattenCalc(middleCalc)
                 && isTopCalcTakesWholeMiddleCalcAsInputs(
-                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount());
+                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount())
+                && hasCompatibleParallelism(
+                        (RexCall) topProjects.get(0), (RexCall) bottomProjects.get(0));
+    }
+
+    private boolean hasCompatibleParallelism(RexCall topCall, RexCall bottomCall) {
+        final Set<Integer> parallelisms = PythonUtil.extractDistinctParallelisms(topCall);
+        parallelisms.addAll(PythonUtil.extractDistinctParallelisms(bottomCall));
+        return parallelisms.size() <= 1;
     }
 
     private boolean isTopCalcTakesWholeMiddleCalcAsInputs(

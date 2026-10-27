@@ -37,6 +37,16 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         self.assertEqual('[plus(a, 1), b, c]',
                          query_operation.getProjectList().toString())
 
+    def test_invert_nullable_boolean_expression(self):
+        schema = DataTypes.ROW([
+            DataTypes.FIELD("a", DataTypes.BOOLEAN())
+        ])
+        table = self.t_env.from_elements([(True,), (False,), (None,)], schema)
+
+        actual = [tuple(row) for row in table.select(table.a, ~table.a).execute().collect()]
+
+        self.assertCountEqual(actual, [(True, False), (False, True), (None, None)])
+
     def test_alias(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         t = t.alias("d", "e", "f")

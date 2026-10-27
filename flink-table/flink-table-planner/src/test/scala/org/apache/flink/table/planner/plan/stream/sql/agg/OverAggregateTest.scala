@@ -66,6 +66,10 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      // thrown while applying a rule: the exception keeps its type instead of Calcite's wrapper
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageStartingWith("Cannot generate a valid execution plan for the given query: " +
+        "Frame exclusion 'EXCLUDE GROUP' is not supported in over windows.\n\nPlan:\n")
       .hasRootCauseInstanceOf(classOf[ValidationException])
       .hasRootCauseMessage("Frame exclusion 'EXCLUDE GROUP' is not supported in over windows.")
   }

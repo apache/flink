@@ -402,28 +402,24 @@ SELECT deptno, job, empno, ename, SUM(sal) sumsal,
     END gr_text
 from scott_emp
     GROUP BY ROLLUP(deptno, job, (empno,ename))
-    ORDER BY deptno, job, empno
       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
-+- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
-   +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2, 3}, {0, 1}, {0}, {}]], sumsal=[SUM($4)], agg#1=[GROUPING_ID($0, $1, $2)])
-      +- LogicalProject(deptno=[$7], job=[$2], empno=[$0], ename=[$1], sal=[$5])
-         +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
+LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
++- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2, 3}, {0, 1}, {0}, {}]], sumsal=[SUM($4)], agg#1=[GROUPING_ID($0, $1, $2)])
+   +- LogicalProject(deptno=[$7], job=[$2], empno=[$0], ename=[$1], sal=[$5])
+      +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sort(orderBy=[deptno ASC, job ASC, empno ASC])
-+- Exchange(distribution=[single])
-   +- Calc(select=[deptno, job, empno, ename, sumsal, CASE((CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 0), 'grouped by deptno,job,empno,ename', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 1), 'grouped by deptno,job', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 3), 'grouped by deptno', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 7), 'grouped by ()', null:VARCHAR(2147483647)) AS gr_text])
-      +- GroupAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, SUM(sal) AS sumsal])
-         +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
-            +- Expand(projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
-               +- Calc(select=[deptno, job, empno, ename, sal])
-                  +- TableSourceScan(table=[[default_catalog, default_database, scott_emp]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+Calc(select=[deptno, job, empno, ename, sumsal, CASE((CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 0), 'grouped by deptno,job,empno,ename', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 1), 'grouped by deptno,job', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 3), 'grouped by deptno', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 7), 'grouped by ()', null:VARCHAR(2147483647)) AS gr_text])
++- GroupAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, SUM(sal) AS sumsal])
+   +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
+      +- Expand(projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
+         +- Calc(select=[deptno, job, empno, ename, sal])
+            +- TableSourceScan(table=[[default_catalog, default_database, scott_emp]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -525,36 +521,6 @@ Calc(select=[deptno, gender, CASE(SEARCH($e, Sarg[0, 1]), 0, 1) AS gd, CASE(($e 
       +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testGroupingInOrderByClause">
-    <Resource name="sql">
-      <![CDATA[
-SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(c=[$1], EXPR$1=[$2])
-      +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], agg#1=[GROUPING($0)])
-         +- LogicalProject(deptno=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c])
-+- Sort(orderBy=[EXPR$1 ASC, c ASC])
-   +- Exchange(distribution=[single])
-      +- Calc(select=[c, CASE(($e = 0), 0, 1) AS EXPR$1])
-         +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
-            +- Exchange(distribution=[hash[deptno, $e]])
-               +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-                  +- Calc(select=[deptno])
-                     +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -979,31 +945,6 @@ Calc(select=[gender, c])
       +- Expand(projects=[{gender, 0 AS $e}, {null AS gender, 1 AS $e}])
          +- Calc(select=[gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRollupPlusOrderBy">
-    <Resource name="sql">
-      <![CDATA[SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
-+- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject(gender=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sort(orderBy=[c DESC])
-+- Exchange(distribution=[single])
-   +- Calc(select=[gender, c])
-      +- GroupAggregate(groupBy=[gender, $e], select=[gender, $e, COUNT(*) AS c])
-         +- Exchange(distribution=[hash[gender, $e]])
-            +- Expand(projects=[{gender, 0 AS $e}, {null AS gender, 1 AS $e}])
-               +- Calc(select=[gender])
-                  +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>

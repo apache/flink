@@ -53,10 +53,12 @@ public interface ResultProvider {
     RowDataToStringConverter getRowDataStringConverter();
 
     /**
-     * Return true if the first row is ready.
+     * Returns {@code true} once the result is ready to be consumed.
      *
-     * <p>The first row is ready when {@link CloseableIterator#hasNext} method returns true or
-     * {@link CloseableIterator#next()} method returns a row.
+     * <p>The result is ready when {@link CloseableIterator#hasNext()} returns {@code true} (a first
+     * row can be accessed) or {@link CloseableIterator#next()} returns a row, and when {@link
+     * CloseableIterator#hasNext()} returns {@code false} because the job has finished without
+     * producing rows.
      */
     boolean isFirstRowReady();
 

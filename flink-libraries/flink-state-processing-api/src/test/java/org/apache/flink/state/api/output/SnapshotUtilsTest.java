@@ -33,23 +33,24 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests that snapshot utils can properly snapshot an operator. */
-public class SnapshotUtilsTest {
+class SnapshotUtilsTest {
 
     private static final List<String> EXPECTED_CALL_OPERATOR_SNAPSHOT =
             Arrays.asList("prepareSnapshotPreBarrier", "snapshotState", "notifyCheckpointComplete");
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir private File folder;
 
     private static final List<String> ACTUAL_ORDER_TRACKING =
             Collections.synchronizedList(new ArrayList<>(EXPECTED_CALL_OPERATOR_SNAPSHOT.size()));
@@ -57,17 +58,17 @@ public class SnapshotUtilsTest {
     private static SnapshotType actualSnapshotType;
 
     @Test
-    public void testSnapshotUtilsLifecycleWithDefaultSavepointFormatType() throws Exception {
+    void testSnapshotUtilsLifecycleWithDefaultSavepointFormatType() throws Exception {
         testSnapshotUtilsLifecycleWithSavepointFormatType(SavepointFormatType.DEFAULT);
     }
 
     @Test
-    public void testSnapshotUtilsLifecycleWithCanonicalSavepointFormatType() throws Exception {
+    void testSnapshotUtilsLifecycleWithCanonicalSavepointFormatType() throws Exception {
         testSnapshotUtilsLifecycleWithSavepointFormatType(SavepointFormatType.CANONICAL);
     }
 
     @Test
-    public void testSnapshotUtilsLifecycleWithNativeSavepointFormatType() throws Exception {
+    void testSnapshotUtilsLifecycleWithNativeSavepointFormatType() throws Exception {
         testSnapshotUtilsLifecycleWithSavepointFormatType(SavepointFormatType.NATIVE);
     }
 
@@ -75,7 +76,7 @@ public class SnapshotUtilsTest {
             SavepointFormatType savepointFormatType) throws Exception {
         ACTUAL_ORDER_TRACKING.clear();
         StreamOperator<Void> operator = new LifecycleOperator();
-        Path path = new Path(folder.newFolder().getAbsolutePath());
+        Path path = new Path(folder.getAbsolutePath());
 
         SnapshotUtils.snapshot(
                 0L,
@@ -88,8 +89,8 @@ public class SnapshotUtilsTest {
                 path,
                 savepointFormatType);
 
-        Assert.assertEquals(SavepointType.savepoint(savepointFormatType), actualSnapshotType);
-        Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
+        assertThat(actualSnapshotType).isEqualTo(SavepointType.savepoint(savepointFormatType));
+        assertThat(ACTUAL_ORDER_TRACKING).isEqualTo(EXPECTED_CALL_OPERATOR_SNAPSHOT);
     }
 
     private static class LifecycleOperator implements StreamOperator<Void> {

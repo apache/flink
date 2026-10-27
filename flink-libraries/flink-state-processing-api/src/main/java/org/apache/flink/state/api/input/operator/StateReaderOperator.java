@@ -23,9 +23,13 @@ import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.state.api.runtime.VoidTriggerable;
@@ -37,6 +41,11 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Base class for executing functions that read keyed state.
@@ -51,6 +60,17 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
         implements KeyContext, AutoCloseable, Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * Sentinel for {@link #setCurrentKeyAndKeyGroup} meaning the key-group is unknown, in which
+     * case it is derived from {@code key.hashCode()} instead. Used by backend lookup APIs that do
+     * not expose the physically stored key-group.
+     */
+    public static final int UNKNOWN_KEY_GROUP = -1;
+
+    private static final String EVENT_TIMER_STATE = "event-time-timers";
+
+    private static final String PROC_TIMER_STATE = "proc-time-timers";
 
     protected final F function;
 
@@ -80,7 +100,7 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
 
     public abstract void processElement(KEY key, N namespace, Collector<OUT> out) throws Exception;
 
-    public abstract CloseableIterator<Tuple2<KEY, N>> getKeysAndNamespaces(
+    public abstract CloseableIterator<Tuple3<KEY, N, Integer>> getKeysAndNamespaces(
             SavepointRuntimeContext ctx) throws Exception;
 
     public final void setup(
@@ -100,6 +120,77 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
     protected final InternalTimerService<N> getInternalTimerService(String name) {
         return timerServiceManager.getInternalTimerService(
                 name, keySerializer, namespaceSerializer, VoidTriggerable.instance());
+    }
+
+    /**
+     * Snapshots the timers currently registered in {@code timerService} into keyed list state under
+     * {@code timerStateName} and returns a {@link TimerRegistration} exposing them.
+     *
+     * <p>Only timers whose namespace matches {@code namespaceFilter} are snapshotted: namespaced
+     * readers (e.g. window state) and non-namespaced ones (plain keyed state, registered under
+     * {@link org.apache.flink.runtime.state.VoidNamespace}) differ in which timers belong to the
+     * state being read.
+     */
+    protected final TimerRegistration registerTimers(
+            InternalTimerService<N> timerService,
+            String timerStateName,
+            Predicate<N> namespaceFilter)
+            throws Exception {
+        ListState<Long> eventTimers =
+                keyedStateBackend.getPartitionedState(
+                        timerStateName,
+                        StringSerializer.INSTANCE,
+                        new ListStateDescriptor<>(EVENT_TIMER_STATE, Types.LONG));
+
+        timerService.forEachEventTimeTimer(
+                (namespace, timer) -> {
+                    if (namespaceFilter.test(namespace)) {
+                        eventTimers.add(timer);
+                    }
+                });
+
+        ListState<Long> procTimers =
+                keyedStateBackend.getPartitionedState(
+                        timerStateName,
+                        StringSerializer.INSTANCE,
+                        new ListStateDescriptor<>(PROC_TIMER_STATE, Types.LONG));
+
+        timerService.forEachProcessingTimeTimer(
+                (namespace, timer) -> {
+                    if (namespaceFilter.test(namespace)) {
+                        procTimers.add(timer);
+                    }
+                });
+
+        return new TimerRegistration(eventTimers, procTimers);
+    }
+
+    /** Read-only view over the timers snapshotted by {@link #registerTimers}. */
+    protected static final class TimerRegistration {
+
+        private final ListState<Long> eventTimers;
+
+        private final ListState<Long> procTimers;
+
+        private TimerRegistration(ListState<Long> eventTimers, ListState<Long> procTimers) {
+            this.eventTimers = eventTimers;
+            this.procTimers = procTimers;
+        }
+
+        public Set<Long> registeredEventTimeTimers() throws Exception {
+            return toSet(eventTimers.get());
+        }
+
+        public Set<Long> registeredProcessingTimeTimers() throws Exception {
+            return toSet(procTimers.get());
+        }
+
+        private static Set<Long> toSet(Iterable<Long> timers) {
+            if (timers == null) {
+                return Collections.emptySet();
+            }
+            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+        }
     }
 
     public void open() throws Exception {
@@ -130,6 +221,16 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
     @SuppressWarnings("unchecked")
     public final void setCurrentKey(Object key) {
         keyedStateBackend.setCurrentKey((KEY) key);
+    }
+
+    /** Restores the reading context for the given key. See {@link #UNKNOWN_KEY_GROUP}. */
+    @SuppressWarnings("unchecked")
+    public final void setCurrentKeyAndKeyGroup(Object key, int keyGroup) {
+        if (keyGroup == UNKNOWN_KEY_GROUP) {
+            keyedStateBackend.setCurrentKey((KEY) key);
+        } else {
+            keyedStateBackend.setCurrentKeyAndKeyGroup((KEY) key, keyGroup);
+        }
     }
 
     @Override

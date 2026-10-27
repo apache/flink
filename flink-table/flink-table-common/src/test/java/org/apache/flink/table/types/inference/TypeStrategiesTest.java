@@ -32,6 +32,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.CAST;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.PERCENTILE;
 
 /** Tests for built-in {@link TypeStrategies}. */
@@ -40,6 +41,29 @@ class TypeStrategiesTest extends TypeStrategiesTestBase {
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
+                TestSpec.forStrategy("Casting a non-null VARIANT to a scalar", CAST)
+                        .inputTypes(DataTypes.VARIANT().notNull(), DataTypes.INT())
+                        .expectDataType(DataTypes.INT()),
+                TestSpec.forStrategy("Casting a nullable VARIANT to a scalar", CAST)
+                        .inputTypes(DataTypes.VARIANT(), DataTypes.INT().notNull())
+                        .expectDataType(DataTypes.INT()),
+                TestSpec.forStrategy("Casting VARIANT preserves nested nullability", CAST)
+                        .inputTypes(
+                                DataTypes.VARIANT().notNull(),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull())
+                        .expectDataType(DataTypes.ARRAY(DataTypes.INT().notNull())),
+                TestSpec.forStrategy("Casting a non-null VARIANT to VARIANT", CAST)
+                        .inputTypes(DataTypes.VARIANT().notNull(), DataTypes.VARIANT())
+                        .expectDataType(DataTypes.VARIANT().notNull()),
+                TestSpec.forStrategy("Casting a nullable VARIANT to VARIANT", CAST)
+                        .inputTypes(DataTypes.VARIANT(), DataTypes.VARIANT().notNull())
+                        .expectDataType(DataTypes.VARIANT()),
+                TestSpec.forStrategy("Casting a non-null scalar", CAST)
+                        .inputTypes(DataTypes.INT().notNull(), DataTypes.BIGINT())
+                        .expectDataType(DataTypes.BIGINT().notNull()),
+                TestSpec.forStrategy("Casting a nullable scalar", CAST)
+                        .inputTypes(DataTypes.INT(), DataTypes.BIGINT().notNull())
+                        .expectDataType(DataTypes.BIGINT()),
                 // missing strategy with arbitrary argument
                 TypeStrategiesTestBase.TestSpec.forStrategy(MISSING)
                         .inputTypes(DataTypes.INT())

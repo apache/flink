@@ -26,6 +26,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.List;
@@ -42,6 +43,21 @@ public final class SpecificTypeStrategies {
 
     /** See {@link UnusedTypeStrategy}. */
     public static final TypeStrategy UNUSED = new UnusedTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#CAST}. */
+    public static final TypeStrategy CAST =
+            callContext -> {
+                final LogicalType sourceType =
+                        callContext.getArgumentDataTypes().get(0).getLogicalType();
+                final DataType targetType = callContext.getArgumentDataTypes().get(1);
+                final boolean nullable =
+                        sourceType.isNullable()
+                                || (sourceType.is(LogicalTypeRoot.VARIANT)
+                                        && !targetType
+                                                .getLogicalType()
+                                                .is(LogicalTypeRoot.VARIANT));
+                return Optional.of(nullable ? targetType.nullable() : targetType.notNull());
+            };
 
     /** See {@link RowTypeStrategy}. */
     public static final TypeStrategy ROW = new RowTypeStrategy();
@@ -170,6 +186,27 @@ public final class SpecificTypeStrategies {
                                             .getElementDataType(),
                                     ((CollectionDataType) callContext.getArgumentDataTypes().get(1))
                                             .getElementDataType()));
+
+    /**
+     * Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ENTRIES}.
+     *
+     * <p>Derives {@code MAP<key, value>} from the {@code ROW} element of the {@code ARRAY}
+     * argument. The result is nullable if the array itself is nullable or if its elements are,
+     * since a {@code NULL} entry makes the whole map {@code NULL}.
+     */
+    public static final TypeStrategy MAP_FROM_ENTRIES =
+            callContext -> {
+                final DataType arrayDataType = callContext.getArgumentDataTypes().get(0);
+                final DataType entryDataType =
+                        ((CollectionDataType) arrayDataType).getElementDataType();
+                final List<DataType> fieldDataTypes = DataType.getFieldDataTypes(entryDataType);
+                final DataType mapDataType =
+                        DataTypes.MAP(fieldDataTypes.get(0), fieldDataTypes.get(1));
+                final boolean nullable =
+                        arrayDataType.getLogicalType().isNullable()
+                                || entryDataType.getLogicalType().isNullable();
+                return Optional.of(nullable ? mapDataType.nullable() : mapDataType.notNull());
+            };
 
     /**
      * Strategy for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#LAG} and

@@ -1,0 +1,136 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+"""
+A DataFrame API for PyFlink.
+
+It provides a fluent interface for composing and executing data transformations.
+
+Example::
+
+    >>> import pyflink.dataframe as pf
+    >>> df = pf.from_records(
+    ...     [(1, "Alice", 30), (2, "Bob", 17)],
+    ...     schema=["id", "name", "age"],
+    ... )
+    >>> result = (
+    ...     df.filter(pf.col("age") >= 18)
+    ...     .with_column("age_next_year", pf.col("age") + 1)
+    ...     .select("id", "name", "age_next_year")
+    ... )
+    >>> for row in result.collect():
+    ...     print(row)
+    <Row(1, 'Alice', 31)>
+"""
+
+from pyflink.dataframe.catalog import (
+    create_catalog,
+    get_catalog,
+    get_current_catalog,
+    get_current_database,
+    list_catalogs,
+    list_databases,
+    use_catalog,
+    use_database,
+)
+from pyflink.dataframe.convert import (
+    from_arrow,
+    from_dict,
+    from_pandas,
+    from_records,
+    from_table,
+    range,
+)
+from pyflink.dataframe.context import (
+    create_statement_set,
+    get_or_create_table_environment,
+    get_table_environment,
+    set_table_environment,
+)
+from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit, proctime
+from pyflink.dataframe.dataframe_config import config
+from pyflink.dataframe.datatype import DataType
+from pyflink.dataframe.io import (
+    read_catalog_table,
+    read_generic,
+    read_json,
+    read_kafka,
+    read_parquet,
+)
+from pyflink.dataframe.iteration import CloseableIterator
+from pyflink.dataframe.llm import (
+    GenericProvider,
+    ModelProvider,
+    OpenAIProvider,
+    TritonProvider,
+    list_model_providers,
+    set_default_model_provider,
+    set_model_provider,
+)
+from pyflink.dataframe.over_window import following, preceding
+from pyflink.dataframe.sql import sql
+from pyflink.dataframe.udf import udf
+from pyflink.dataframe.udtf import udtf
+from pyflink.dataframe.udaf import udaf
+
+__all__ = [
+    "CloseableIterator",
+    "DataFrame",
+    "GroupedDataFrame",
+    "DataType",
+    "ModelProvider",
+    "OpenAIProvider",
+    "TritonProvider",
+    "GenericProvider",
+    "set_model_provider",
+    "set_default_model_provider",
+    "list_model_providers",
+    "col",
+    "lit",
+    "proctime",
+    "udf",
+    "udtf",
+    "udaf",
+    "from_arrow",
+    "from_dict",
+    "from_pandas",
+    "from_records",
+    "from_table",
+    "range",
+    "read_catalog_table",
+    "read_generic",
+    "read_json",
+    "read_kafka",
+    "read_parquet",
+    "create_catalog",
+    "get_catalog",
+    "use_catalog",
+    "get_current_catalog",
+    "list_catalogs",
+    "use_database",
+    "get_current_database",
+    "list_databases",
+    "sql",
+    "config",
+    "preceding",
+    "following",
+    "set_table_environment",
+    "get_table_environment",
+    "get_or_create_table_environment",
+    "create_statement_set",
+]

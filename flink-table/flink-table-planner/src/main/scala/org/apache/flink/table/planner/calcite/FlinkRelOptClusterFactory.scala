@@ -34,6 +34,9 @@ object FlinkRelOptClusterFactory {
 
   def create(planner: RelOptPlanner, rexBuilder: RexBuilder): RelOptCluster = {
     val cluster = RelOptCluster.create(planner, rexBuilder)
+    // Installs the metadata provider (and seeds RelMetadataQueryBase.THREAD_PROVIDERS on this
+    // thread). FlinkRelMetadataQuery.instance() re-seeds the same provider on foreign threads
+    // (FLINK-36298); keep the two in sync if this provider ever changes.
     cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
     cluster.setMetadataQuerySupplier(new Supplier[RelMetadataQuery]() {
       def get: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()

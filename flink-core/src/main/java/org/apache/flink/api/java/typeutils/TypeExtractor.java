@@ -77,6 +77,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
@@ -1498,10 +1499,16 @@ public class TypeExtractor {
             // check for Java Basic Types
             if (typeInfo instanceof BasicTypeInfo) {
 
-                TypeInformation<?> actual;
                 // check if basic type at all
-                if (!(type instanceof Class<?>)
-                        || (actual = BasicTypeInfo.getInfoFor((Class<?>) type)) == null) {
+                if (!(type instanceof Class<?>)) {
+                    throw new InvalidTypesException("Basic type expected.");
+                }
+                // UUID is not registered for automatic extraction to preserve existing serializers.
+                final TypeInformation<?> actual =
+                        type == UUID.class
+                                ? BasicTypeInfo.UUID_TYPE_INFO
+                                : BasicTypeInfo.getInfoFor((Class<?>) type);
+                if (actual == null) {
                     throw new InvalidTypesException("Basic type expected.");
                 }
                 // check if correct basic type

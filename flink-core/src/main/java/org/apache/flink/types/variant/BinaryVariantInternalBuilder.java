@@ -21,6 +21,7 @@ package org.apache.flink.types.variant;
 import org.apache.flink.annotation.Internal;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactoryBuilder;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
@@ -32,9 +33,9 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.UUID;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.ARRAY;
 import static org.apache.flink.types.variant.BinaryVariantUtil.BASIC_TYPE_MASK;
@@ -58,8 +59,11 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZ
 import static org.apache.flink.types.variant.BinaryVariantUtil.NULL;
 import static org.apache.flink.types.variant.BinaryVariantUtil.OBJECT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_NS;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_NS;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TRUE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U16_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U24_MAX;
@@ -69,6 +73,8 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
+import static org.apache.flink.types.variant.BinaryVariantUtil.fitsVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
@@ -91,6 +97,15 @@ public class BinaryVariantInternalBuilder {
             new VariantTypeException("VARIANT_SIZE_LIMIT");
     public static final VariantTypeException VARIANT_DUPLICATE_KEY_EXCEPTION =
             new VariantTypeException("VARIANT_DUPLICATE_KEY");
+    // Byte input is always UTF-8. Charset detection would take NUL bytes or a BOM as a UTF-16 or
+    // UTF-32 hint and could turn input that is not valid JSON into a value.
+    private static final JsonFactory JSON_FACTORY =
+            new JsonFactoryBuilder().disable(JsonFactory.Feature.CHARSET_DETECTION).build();
+    // An unscaled value fits DECIMAL4 or DECIMAL8 when its magnitude is below 10^precision.
+    private static final long DECIMAL4_UNSCALED_LIMIT =
+            BigInteger.TEN.pow(MAX_DECIMAL4_PRECISION).longValueExact();
+    private static final long DECIMAL8_UNSCALED_LIMIT =
+            BigInteger.TEN.pow(MAX_DECIMAL8_PRECISION).longValueExact();
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -103,7 +118,21 @@ public class BinaryVariantInternalBuilder {
      */
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
-        try (JsonParser parser = new JsonFactory().createParser(json)) {
+        try (JsonParser parser = JSON_FACTORY.createParser(json)) {
+            parser.nextToken();
+            return parseJson(parser, allowDuplicateKeys);
+        }
+    }
+
+    /**
+     * Parse UTF-8 encoded JSON bytes as a Variant value. Invalid UTF-8 is rejected rather than
+     * replaced with U+FFFD.
+     *
+     * @throws IOException if any JSON parsing error happens.
+     */
+    public static BinaryVariant parseJson(byte[] bytes, boolean allowDuplicateKeys)
+            throws IOException {
+        try (JsonParser parser = JSON_FACTORY.createParser(bytes)) {
             parser.nextToken();
             return parseJson(parser, allowDuplicateKeys);
         }
@@ -161,18 +190,33 @@ public class BinaryVariantInternalBuilder {
     }
 
     public void appendString(String str) {
-        byte[] text = str.getBytes(StandardCharsets.UTF_8);
-        boolean longStr = text.length > MAX_SHORT_STR_SIZE;
-        checkCapacity((longStr ? 1 + U32_SIZE : 1) + text.length);
+        appendString(str.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Appends a string given as UTF-8 bytes. The bytes are copied as they are, so the caller must
+     * make sure they are valid UTF-8, which the variant spec requires of every string.
+     */
+    public void appendString(byte[] utf8) {
+        appendString(utf8, 0, utf8.length);
+    }
+
+    /**
+     * Like {@link #appendString(byte[])}, for the UTF-8 bytes {@code utf8[offset, offset +
+     * length)}.
+     */
+    public void appendString(byte[] utf8, int offset, int length) {
+        boolean longStr = length > MAX_SHORT_STR_SIZE;
+        checkCapacity(1 + (longStr ? U32_SIZE : 0) + length);
         if (longStr) {
             writeBuffer[writePos++] = primitiveHeader(LONG_STR);
-            writeLong(writeBuffer, writePos, text.length, U32_SIZE);
+            writeLong(writeBuffer, writePos, length, U32_SIZE);
             writePos += U32_SIZE;
         } else {
-            writeBuffer[writePos++] = shortStrHeader(text.length);
+            writeBuffer[writePos++] = shortStrHeader(length);
         }
-        System.arraycopy(text, 0, writeBuffer, writePos, text.length);
-        writePos += text.length;
+        System.arraycopy(utf8, offset, writeBuffer, writePos, length);
+        writePos += length;
     }
 
     public void appendNull() {
@@ -232,23 +276,28 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
-    // Append a decimal value to the variant builder. The caller should guarantee that its precision
-    // and scale fit into `MAX_DECIMAL16_PRECISION`.
-    public void appendDecimal(BigDecimal d) {
+    /**
+     * Appends a decimal value to the variant builder. A negative scale is rescaled to 0, which
+     * keeps the numeric value.
+     *
+     * @throws VariantTypeException if the precision or the scale of the rescaled decimal exceeds
+     *     {@link BinaryVariantUtil#MAX_DECIMAL16_PRECISION}
+     */
+    public void appendDecimal(BigDecimal decimal) {
+        final BigDecimal d = toVariantDecimal(decimal);
         checkCapacity(2 + 16);
         BigInteger unscaled = d.unscaledValue();
-        if (d.scale() <= MAX_DECIMAL4_PRECISION && d.precision() <= MAX_DECIMAL4_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL4_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL4);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.intValueExact(), 4);
             writePos += 4;
-        } else if (d.scale() <= MAX_DECIMAL8_PRECISION && d.precision() <= MAX_DECIMAL8_PRECISION) {
+        } else if (fitsVariantDecimal(d, MAX_DECIMAL8_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL8);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.longValueExact(), 8);
             writePos += 8;
         } else {
-            assert d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION;
             writeBuffer[writePos++] = primitiveHeader(DECIMAL16);
             writeBuffer[writePos++] = (byte) d.scale();
             // `toByteArray` returns a big-endian representation. We need to copy it reversely and
@@ -264,6 +313,88 @@ public class BinaryVariantInternalBuilder {
             }
             writePos += 16;
         }
+    }
+
+    /**
+     * Appends a decimal given as its unscaled value and scale. The result is the same as {@link
+     * #appendDecimal(BigDecimal)} for {@code BigDecimal.valueOf(unscaled, scale)}, but a decimal
+     * that fits {@link BinaryVariantUtil#DECIMAL4} or {@link BinaryVariantUtil#DECIMAL8} is written
+     * without building a {@link BigDecimal}.
+     */
+    public void appendDecimal(long unscaled, int scale) {
+        if (scale < 0
+                || scale > MAX_DECIMAL8_PRECISION
+                || unscaled <= -DECIMAL8_UNSCALED_LIMIT
+                || unscaled >= DECIMAL8_UNSCALED_LIMIT) {
+            appendDecimal(BigDecimal.valueOf(unscaled, scale));
+            return;
+        }
+        checkCapacity(2 + 8);
+        if (scale <= MAX_DECIMAL4_PRECISION
+                && unscaled > -DECIMAL4_UNSCALED_LIMIT
+                && unscaled < DECIMAL4_UNSCALED_LIMIT) {
+            writeBuffer[writePos++] = primitiveHeader(DECIMAL4);
+            writeBuffer[writePos++] = (byte) scale;
+            writeLong(writeBuffer, writePos, unscaled, 4);
+            writePos += 4;
+        } else {
+            writeBuffer[writePos++] = primitiveHeader(DECIMAL8);
+            writeBuffer[writePos++] = (byte) scale;
+            writeLong(writeBuffer, writePos, unscaled, 8);
+            writePos += 8;
+        }
+    }
+
+    /**
+     * Appends a JSON number literal the way {@link #parseJson(String, boolean)} stores it: as the
+     * smallest integer that holds it, else as a decimal, else as a double. A caller that holds JSON
+     * in another form, such as a tree built by its own Jackson, uses this so its numbers match
+     * {@code PARSE_JSON}. The literal is read with the same parser and number handling as {@code
+     * PARSE_JSON}, so surrounding whitespace is allowed.
+     *
+     * @throws IOException if {@code literal} is not exactly one JSON number, or is out of the range
+     *     of a double. The builder must not be used after that.
+     */
+    void appendJsonNumber(String literal) throws IOException {
+        try (JsonParser parser = JSON_FACTORY.createParser(literal)) {
+            final JsonToken token = parser.nextToken();
+            if (token != JsonToken.VALUE_NUMBER_INT && token != JsonToken.VALUE_NUMBER_FLOAT) {
+                throw new JsonParseException(parser, "Expected a JSON number but got " + token);
+            }
+            buildJson(parser);
+            if (parser.nextToken() != null) {
+                throw new JsonParseException(parser, "Unexpected content after the JSON number");
+            }
+        }
+    }
+
+    // The variant spec requires a scale in [0, 38] and a precision of at most 38.
+    public static BigDecimal toVariantDecimal(BigDecimal d) {
+        BigDecimal result = d;
+        if (d.scale() < 0) {
+            // A non-zero value with a scale below -38 has more than 38 digits after rescaling.
+            // Reject it upfront because setScale is slow for exponents like 1e9999999 and throws
+            // an ArithmeticException for exponents like 1e999999999.
+            if (d.signum() != 0 && d.scale() < -MAX_DECIMAL16_PRECISION) {
+                throw decimalOutOfRange(d);
+            }
+            // Rescaling a non-zero value gives it precision - scale digits. For example, 12345e34
+            // has precision 5 and scale -34, so it has 5 - (-34) = 39 digits after rescaling.
+            result = d.setScale(0);
+        }
+        if (!fitsVariantDecimal(result, MAX_DECIMAL16_PRECISION)) {
+            throw decimalOutOfRange(d);
+        }
+        return result;
+    }
+
+    private static VariantTypeException decimalOutOfRange(BigDecimal d) {
+        return new VariantTypeException(
+                String.format(
+                        "Decimal with precision %d and scale %d is outside the range supported by "
+                                + "variant decimals. After rescaling a negative scale to 0, the "
+                                + "precision and scale must not exceed %d.",
+                        d.precision(), d.scale(), MAX_DECIMAL16_PRECISION));
     }
 
     public void appendDate(int daysSinceEpoch) {
@@ -287,6 +418,27 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
+    public void appendTime(long microsSinceMidnight) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIME);
+        writeLong(writeBuffer, writePos, microsSinceMidnight, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampLtzNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_LTZ_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
     public void appendFloat(float f) {
         checkCapacity(1 + 4);
         writeBuffer[writePos++] = primitiveHeader(FLOAT);
@@ -303,6 +455,18 @@ public class BinaryVariantInternalBuilder {
         writePos += binary.length;
     }
 
+    public void appendUuid(UUID uuid) {
+        checkCapacity(1 + 16);
+        writeBuffer[writePos++] = primitiveHeader(BinaryVariantUtil.UUID);
+        // The variant spec stores UUIDs as 16 big-endian bytes: the most significant 8 bytes
+        // followed by the least significant 8 bytes. UUID is the only primitive that is not
+        // little-endian, so we use the big-endian writer instead of writeLong.
+        BinaryVariantUtil.writeLongBigEndian(writeBuffer, writePos, uuid.getMostSignificantBits());
+        BinaryVariantUtil.writeLongBigEndian(
+                writeBuffer, writePos + 8, uuid.getLeastSignificantBits());
+        writePos += 16;
+    }
+
     // Add a key to the variant dictionary. If the key already exists, the dictionary is not
     // modified.
     // In either case, return the id of the key.
@@ -313,7 +477,7 @@ public class BinaryVariantInternalBuilder {
         } else {
             id = dictionaryKeys.size();
             dictionary.put(key, id);
-            dictionaryKeys.add(key.getBytes(StandardCharsets.UTF_8));
+            dictionaryKeys.add(encodeKey(key));
         }
         return id;
     }
@@ -322,6 +486,12 @@ public class BinaryVariantInternalBuilder {
     // `finishWritingObject` or `finishWritingArray`.
     public int getWritePos() {
         return writePos;
+    }
+
+    // Add a field to the object that starts at `start`. Call it right before writing the value,
+    // since the field records the current write position as its offset.
+    public void addField(ArrayList<FieldEntry> fields, int start, String key) {
+        fields.add(new FieldEntry(addKey(key), writePos - start));
     }
 
     // Finish writing a variant object after all of its fields have already been written. The
@@ -334,20 +504,21 @@ public class BinaryVariantInternalBuilder {
     // record the offset of the field. The offset is computed as `getWritePos() - start`.
     // 3. The caller calls `finishWritingObject` to finish writing a variant object.
     //
-    // This function is responsible to sort the fields by key. If there are duplicate field keys:
+    // This function is responsible to sort the fields by the unsigned UTF-8 bytes of their keys,
+    // as the variant spec requires. Fields whose keys have the same bytes are duplicates:
     // - when `allowDuplicateKeys` is true, the field with the greatest offset value (the last
     // appended one) is kept.
     // - otherwise, throw an exception.
     public void finishWritingObject(int start, ArrayList<FieldEntry> fields) {
         int size = fields.size();
-        Collections.sort(fields);
+        fields.sort(keyOrder);
         int maxId = size == 0 ? 0 : fields.get(0).id;
         if (allowDuplicateKeys) {
             int distinctPos = 0;
             // Maintain a list of distinct keys in-place.
             for (int i = 1; i < size; ++i) {
                 maxId = Math.max(maxId, fields.get(i).id);
-                if (fields.get(i).id == fields.get(i - 1).id) {
+                if (keyOrder.compare(fields.get(i - 1), fields.get(i)) == 0) {
                     // Found a duplicate key. Keep the field with a greater offset.
                     if (fields.get(distinctPos).offset < fields.get(i).offset) {
                         fields.set(
@@ -383,13 +554,12 @@ public class BinaryVariantInternalBuilder {
                 }
                 writePos = start + currentOffset;
                 // Change back to the sort order by field keys to meet the variant spec.
-                Collections.sort(fields);
+                fields.sort(keyOrder);
             }
         } else {
             for (int i = 1; i < size; ++i) {
                 maxId = Math.max(maxId, fields.get(i).id);
-                String key = fields.get(i).key;
-                if (key.equals(fields.get(i - 1).key)) {
+                if (keyOrder.compare(fields.get(i - 1), fields.get(i)) == 0) {
                     throw VARIANT_DUPLICATE_KEY_EXCEPTION;
                 }
             }
@@ -446,7 +616,9 @@ public class BinaryVariantInternalBuilder {
     // the
     // input variant, we can directly copy the binary slice.
     public void appendVariant(BinaryVariant v) {
-        appendVariantImpl(v.getValue(), v.getMetadata(), v.getPos());
+        // A nested variant, such as a field or an element of another variant, starts at its own
+        // position in the shared buffer. getValue() would copy it to position 0 instead.
+        appendVariantImpl(v.rawValue(), v.getMetadata(), v.getPos());
     }
 
     private void appendVariantImpl(byte[] value, byte[] metadata, int pos) {
@@ -467,8 +639,7 @@ public class BinaryVariantInternalBuilder {
                                                 value, offsetStart + offsetSize * i, offsetSize);
                                 int elementPos = dataStart + offset;
                                 String key = getMetadataKey(metadata, id);
-                                int newId = addKey(key);
-                                fields.add(new FieldEntry(key, newId, writePos - start));
+                                addField(fields, start, key);
                                 appendVariantImpl(value, metadata, elementPos);
                             }
                             finishWritingObject(start, fields);
@@ -526,24 +697,17 @@ public class BinaryVariantInternalBuilder {
     // Temporarily store the information of a field. We need to collect all fields in an JSON
     // object,
     // sort them by their keys, and build the variant object in sorted order.
-    public static final class FieldEntry implements Comparable<FieldEntry> {
-        final String key;
+    public static final class FieldEntry {
         final int id;
         final int offset;
 
-        public FieldEntry(String key, int id, int offset) {
-            this.key = key;
+        FieldEntry(int id, int offset) {
             this.id = id;
             this.offset = offset;
         }
 
         FieldEntry withNewOffset(int newOffset) {
-            return new FieldEntry(key, id, newOffset);
-        }
-
-        @Override
-        public int compareTo(FieldEntry other) {
-            return key.compareTo(other.key);
+            return new FieldEntry(id, newOffset);
         }
     }
 
@@ -560,8 +724,7 @@ public class BinaryVariantInternalBuilder {
                     while (parser.nextToken() != JsonToken.END_OBJECT) {
                         String key = parser.currentName();
                         parser.nextToken();
-                        int id = addKey(key);
-                        fields.add(new FieldEntry(key, id, writePos - start));
+                        addField(fields, start, key);
                         buildJson(parser);
                     }
                     finishWritingObject(start, fields);
@@ -607,10 +770,13 @@ public class BinaryVariantInternalBuilder {
         }
     }
 
-    // Choose the smallest unsigned integer type that can store `value`. It must be within
-    // `[0, U24_MAX]`.
+    // Choose the smallest unsigned integer type that can store `value`. A size, offset or id above
+    // `U24_MAX` only occurs in a variant over the size limit.
     private int getIntegerSize(int value) {
-        assert value >= 0 && value <= U24_MAX;
+        assert value >= 0;
+        if (value > U24_MAX) {
+            throw VARIANT_SIZE_LIMIT_EXCEPTION;
+        }
         if (value <= U8_MAX) {
             return 1;
         }
@@ -622,7 +788,17 @@ public class BinaryVariantInternalBuilder {
 
     private void parseFloatingPoint(JsonParser parser) throws IOException {
         if (!tryParseDecimal(parser.getText())) {
-            appendDouble(parser.getDoubleValue());
+            final double d = parser.getDoubleValue();
+            // Jackson coerces out-of-range numbers like 1e400 to +/-Infinity. Reject them instead
+            // of storing a non-finite double that toJson() could not render as valid JSON.
+            if (Double.isInfinite(d) || Double.isNaN(d)) {
+                throw new JsonParseException(
+                        parser,
+                        String.format(
+                                "Numeric value '%s' is out of the range of double precision and cannot be stored as a Variant.",
+                                parser.getText()));
+            }
+            appendDouble(d);
         }
     }
 
@@ -637,7 +813,7 @@ public class BinaryVariantInternalBuilder {
             }
         }
         BigDecimal d = new BigDecimal(input);
-        if (d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL16_PRECISION)) {
             appendDecimal(d);
             return true;
         }
@@ -651,5 +827,9 @@ public class BinaryVariantInternalBuilder {
     private final HashMap<String, Integer> dictionary = new HashMap<>();
     // Store all keys in `dictionary` in the order of id.
     private final ArrayList<byte[]> dictionaryKeys = new ArrayList<>();
+    // Order fields by the stored UTF-8 bytes of their keys. Keys that differ as Strings but are
+    // stored as the same bytes, such as an unpaired surrogate and '?', compare as equal.
+    private final Comparator<FieldEntry> keyOrder =
+            (a, b) -> Arrays.compareUnsigned(dictionaryKeys.get(a.id), dictionaryKeys.get(b.id));
     private final boolean allowDuplicateKeys;
 }

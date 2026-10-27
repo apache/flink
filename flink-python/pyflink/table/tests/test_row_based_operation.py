@@ -25,7 +25,29 @@ from pyflink.table.types import DataTypes
 from pyflink.table.udf import udf, udtf, udaf, AggregateFunction, TableAggregateFunction, udtaf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
-    PyFlinkStreamTableTestCase
+    PyFlinkStreamTableTestCase, PyFlinkUTTestCase
+
+
+class RowBasedOperationPlanningTests(PyFlinkUTTestCase):
+    def test_async_map_resolves_scalar_and_row_outputs(self):
+        table = self.t_env.from_elements([(1,)], ["input"])
+
+        async def identity(value):
+            return value
+
+        for result_type, names, types in (
+            (DataTypes.BIGINT(), ["f0"], [DataTypes.BIGINT()]),
+            (DataTypes.ROW([DataTypes.FIELD("label", DataTypes.STRING()),
+                            DataTypes.FIELD("value", DataTypes.BIGINT())]),
+             ["label", "value"], [DataTypes.STRING(), DataTypes.BIGINT()]),
+        ):
+            for as_expression in (True, False):
+                with self.subTest(result_type=result_type, as_expression=as_expression):
+                    function = udf(identity, result_type=result_type)
+                    result = table.map(function(table.input) if as_expression else function)
+                    schema = result.get_resolved_schema()
+                    self.assertEqual(list(schema.get_column_names()), names)
+                    self.assertEqual(schema.get_column_data_types(), types)
 
 
 class RowBasedOperationTests(object):

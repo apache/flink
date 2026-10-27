@@ -498,6 +498,17 @@ public class CheckpointConfig implements java.io.Serializable {
                 CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
     }
 
+    @Experimental
+    public Duration getCheckpointSyncPhaseTimeout() {
+        return configuration.get(CheckpointingOptions.CHECKPOINTING_SYNC_PHASE_TIMEOUT);
+    }
+
+    @Experimental
+    public void setCheckpointSyncPhaseTimeout(Duration checkpointSyncPhaseTimeout) {
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_SYNC_PHASE_TIMEOUT, checkpointSyncPhaseTimeout);
+    }
+
     /**
      * @return the number of subtasks to share the same channel state file, as configured via {@link
      *     #setMaxSubtasksPerChannelStateFile(int)} or {@link
@@ -643,6 +654,9 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT)
                 .ifPresent(this::setPauseSourcesUntilFirstCheckpoint);
+        configuration
+                .getOptional(CheckpointingOptions.CHECKPOINTING_SYNC_PHASE_TIMEOUT)
+                .ifPresent(this::setCheckpointSyncPhaseTimeout);
     }
 
     public void setPauseSourcesUntilFirstCheckpoint(boolean pauseCheckpointsIfTasksNotRunning) {

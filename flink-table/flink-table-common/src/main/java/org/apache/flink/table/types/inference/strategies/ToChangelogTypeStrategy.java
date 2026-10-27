@@ -102,42 +102,28 @@ public final class ToChangelogTypeStrategy {
 
     private static Optional<List<DataType>> validateInputs(
             final CallContext callContext, final boolean throwOnFailure) {
-        Optional<List<DataType>> error;
-
-        error = validateTableArg(callContext, throwOnFailure);
+        final Optional<String> error =
+                validateTableArg(callContext)
+                        .or(() -> validateOpDescriptor(callContext))
+                        .or(() -> validateOpMapping(callContext));
         if (error.isPresent()) {
-            return error;
+            return callContext.fail(throwOnFailure, error.get());
         }
-
-        error = validateOpDescriptor(callContext, throwOnFailure);
-        if (error.isPresent()) {
-            return error;
-        }
-
-        error = validateOpMapping(callContext, throwOnFailure);
-        if (error.isPresent()) {
-            return error;
-        }
-
         return Optional.of(callContext.getArgumentDataTypes());
     }
 
-    private static Optional<List<DataType>> validateTableArg(
-            final CallContext callContext, final boolean throwOnFailure) {
+    private static Optional<String> validateTableArg(final CallContext callContext) {
         if (callContext.getTableSemantics(ARG_TABLE).isEmpty()) {
-            return callContext.fail(
-                    throwOnFailure, "First argument must be a table for TO_CHANGELOG.");
+            return Optional.of("First argument must be a table for TO_CHANGELOG.");
         }
         return Optional.empty();
     }
 
-    private static Optional<List<DataType>> validateOpDescriptor(
-            final CallContext callContext, final boolean throwOnFailure) {
+    private static Optional<String> validateOpDescriptor(final CallContext callContext) {
         final Optional<ColumnList> opDescriptor =
                 callContext.getArgumentValue(ARG_OP, ColumnList.class);
         if (opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1) {
-            return callContext.fail(
-                    throwOnFailure,
+            return Optional.of(
                     "The descriptor for argument 'op' must contain exactly one column name.");
         }
         return Optional.empty();
@@ -145,19 +131,16 @@ public final class ToChangelogTypeStrategy {
 
     /** Validates op_mapping is a constant literal and that its keys are well-formed. */
     @SuppressWarnings("rawtypes")
-    private static Optional<List<DataType>> validateOpMapping(
-            final CallContext callContext, final boolean throwOnFailure) {
+    private static Optional<String> validateOpMapping(final CallContext callContext) {
         final boolean hasMappingArgProvided = !callContext.isArgumentNull(ARG_OP_MAPPING);
         final boolean isMappingArgLiteral = callContext.isArgumentLiteral(ARG_OP_MAPPING);
         if (hasMappingArgProvided && !isMappingArgLiteral) {
-            return callContext.fail(
-                    throwOnFailure, "The 'op_mapping' argument must be a constant MAP literal.");
+            return Optional.of("The 'op_mapping' argument must be a constant MAP literal.");
         }
 
         final Optional<Map> opMapping = callContext.getArgumentValue(ARG_OP_MAPPING, Map.class);
         if (opMapping.isPresent()) {
-            return validateOpMappingKeys(
-                    callContext, (Map<String, String>) opMapping.get(), throwOnFailure);
+            return validateOpMappingKeys((Map<String, String>) opMapping.get());
         }
         return Optional.empty();
     }
@@ -168,18 +151,14 @@ public final class ToChangelogTypeStrategy {
      * trimmed. Names are case-sensitive and must match exactly (e.g., {@code INSERT}, not {@code
      * insert}). Each name must be valid and appear at most once across all entries.
      */
-    private static Optional<List<DataType>> validateOpMappingKeys(
-            final CallContext callContext,
-            final Map<String, String> opMapping,
-            final boolean throwOnFailure) {
+    private static Optional<String> validateOpMappingKeys(final Map<String, String> opMapping) {
         final Set<String> allRowKindsSeen = new HashSet<>();
         for (final String key : opMapping.keySet()) {
             final String[] rowKindNames = key.split(",");
             for (final String rawName : rowKindNames) {
                 final String rowKindName = rawName.trim();
                 if (!VALID_ROW_KIND_NAMES.contains(rowKindName)) {
-                    return callContext.fail(
-                            throwOnFailure,
+                    return Optional.of(
                             String.format(
                                     "Invalid target mapping for argument 'op_mapping'. "
                                             + "Unknown change operation: '%s'. Operations are case-sensitive. Valid values are: %s.",
@@ -187,8 +166,7 @@ public final class ToChangelogTypeStrategy {
                 }
                 final boolean isDuplicate = !allRowKindsSeen.add(rowKindName);
                 if (isDuplicate) {
-                    return callContext.fail(
-                            throwOnFailure,
+                    return Optional.of(
                             String.format(
                                     "Invalid target mapping for argument 'op_mapping'. "
                                             + "Duplicate change operation: '%s'.",

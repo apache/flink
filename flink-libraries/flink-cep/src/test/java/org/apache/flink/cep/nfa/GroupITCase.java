@@ -24,11 +24,10 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,14 +35,14 @@ import java.util.List;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT tests covering {@link GroupPattern}. */
 @SuppressWarnings("unchecked")
-public class GroupITCase extends TestLogger {
+class GroupITCase {
 
     @Test
-    public void testGroupFollowedByTimes() throws Exception {
+    void testGroupFollowedByTimes() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -87,7 +86,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByOptional() throws Exception {
+    void testGroupFollowedByOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -130,7 +129,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testFollowedByGroupTimesOptional() throws Exception {
+    void testFollowedByGroupTimesOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -168,7 +167,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByOneOrMore() throws Exception {
+    void testGroupFollowedByOneOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -214,7 +213,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByZeroOrMore() throws Exception {
+    void testGroupFollowedByZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -262,7 +261,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByAnyTimesCombinations() throws Exception {
+    void testGroupFollowedByAnyTimesCombinations() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -314,7 +313,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByAnyTimesOptional() throws Exception {
+    void testGroupFollowedByAnyTimesOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -366,7 +365,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByAnyOneOrMore() throws Exception {
+    void testGroupFollowedByAnyOneOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -420,7 +419,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupNextZeroOrMore() throws Exception {
+    void testGroupNextZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -474,7 +473,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupNotFollowedBy() throws Exception {
+    void testGroupNotFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -521,7 +520,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupNotNext() throws Exception {
+    void testGroupNotNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -568,7 +567,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupNest() throws Exception {
+    void testGroupNest() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event d = new Event(40, "d", 1.0);
@@ -631,7 +630,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupNestTimes() throws Exception {
+    void testGroupNestTimes() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event d = new Event(40, "d", 1.0);
@@ -712,7 +711,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupNestTimesConsecutive() throws Exception {
+    void testGroupNestTimesConsecutive() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event d = new Event(40, "d", 1.0);
@@ -793,7 +792,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupBegin() throws Exception {
+    void testGroupBegin() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(41, "a", 2.0);
@@ -836,7 +835,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testGroupFollowedByOneOrMoreWithUntilCondition() throws Exception {
+    void testGroupFollowedByOneOrMoreWithUntilCondition() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -884,12 +883,12 @@ public class GroupITCase extends TestLogger {
                         Lists.newArrayList(c, a1, b1, d),
                         Lists.newArrayList(c, a1, b1, a2, b2, d)));
 
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("start");
     }
 
     @Test
-    public void testGroupStartsWithOptionalPattern() throws Exception {
+    void testGroupStartsWithOptionalPattern() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a = new Event(40, "a", 1.0);
@@ -929,7 +928,7 @@ public class GroupITCase extends TestLogger {
     }
 
     @Test
-    public void testFollowedByOptionalGroupPattern() throws Exception {
+    void testFollowedByOptionalGroupPattern() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a = new Event(40, "a", 1.0);

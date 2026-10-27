@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
@@ -44,6 +45,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     private final RuntimeChangelogMode consumedChangelogMode;
     private final boolean passColumnsThrough;
     private final boolean hasSetSemantics;
+    private final boolean hasBroadcastSemantics;
+    private final boolean notifiesStatefulSets;
     private final int timeColumn;
     private final List<int[]> upsertKeyColumns;
 
@@ -59,6 +62,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
             RuntimeChangelogMode consumedChangelogMode,
             boolean passColumnsThrough,
             boolean hasSetSemantics,
+            boolean hasBroadcastSemantics,
+            boolean notifiesStatefulSets,
             int timeColumn,
             List<int[]> upsertKeyColumns) {
         this.argName = argName;
@@ -70,6 +75,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
         this.consumedChangelogMode = consumedChangelogMode;
         this.passColumnsThrough = passColumnsThrough;
         this.hasSetSemantics = hasSetSemantics;
+        this.hasBroadcastSemantics = hasBroadcastSemantics;
+        this.notifiesStatefulSets = notifiesStatefulSets;
         this.timeColumn = timeColumn;
         this.upsertKeyColumns = upsertKeyColumns;
     }
@@ -88,6 +95,14 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     public boolean hasSetSemantics() {
         return hasSetSemantics;
+    }
+
+    public boolean hasBroadcastSemantics() {
+        return hasBroadcastSemantics;
+    }
+
+    public boolean notifiesStatefulSets() {
+        return notifiesStatefulSets;
     }
 
     public ChangelogMode getChangelogMode() {

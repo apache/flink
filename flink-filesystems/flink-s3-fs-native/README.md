@@ -6,6 +6,12 @@ This module provides a native S3 filesystem implementation for Apache Flink usin
 
 The Native S3 FileSystem is a direct implementation of Flink's FileSystem interface using AWS SDK v2, without Hadoop dependencies. It provides exactly-once semantics for checkpointing and file sinks through S3 multipart uploads.
 
+### Cleaning Up Unfinished Uploads
+
+The Native S3 FileSystem never aborts a multipart upload on its own. An upload that is in progress may be referenced by a checkpoint or savepoint, and Flink cannot tell whether that is the case when a stream is closed, cancelled, or fails to commit. Aborting such an upload would make the referencing checkpoint or savepoint unrecoverable. Uploads that are no longer needed (for example after a job is cancelled and never restored, or after a failed commit) therefore remain in the bucket and are billed as storage until they are removed.
+
+**You must configure an S3 lifecycle rule that aborts incomplete multipart uploads** on every bucket written through this file system. Without such a rule, abandoned uploads accumulate indefinitely. See the [S3 documentation on aborting incomplete multipart uploads](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html) for how to configure the rule. Choose a retention period long enough for uploads to finish and for jobs to recover, including any planned downtime. S3 measures this period from when an upload starts. Cleaning up uploads too soon can prevent recovery from older checkpoints or savepoints. This rule does not remove other temporary files. See the [S3-specific FileSink guidance](../../docs/content/docs/connectors/datastream/filesystem.md#s3-specific).
+
 ## Supported URI Schemes
 
 This module supports both `s3://` and `s3a://` URI schemes:
@@ -71,11 +77,33 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.upload.max.concurrent.uploads | CPU cores | Maximum concurrent part uploads per stream |
 | s3.entropy.key | (none) | Key for entropy injection in paths |
 | s3.entropy.length | 4 | Length of entropy string |
-| s3.bulk-copy.enabled | true | Enable bulk copy operations using S3TransferManager |
+| s3.bulk-copy.enabled | true | Enable bulk copy operations for S3-to-local downloads |
 | s3.bulk-copy.max-concurrent | 16 | Maximum number of concurrent copy operations |
-| s3.connection.max | 50 | Maximum HTTP connections in the S3 client connection pool. Applies to both sync (Apache HTTP) and async (Netty) clients. Must be ≥ `s3.bulk-copy.max-concurrent` |
+| s3.bulk-copy.download-buffer-size | 262144 (256KB) | Buffer size for writing bulk-copy downloads to local disk. Bounds the JDK's cached temporary direct buffers, preventing direct-memory OutOfMemoryError during large RocksDB state restores |
+| s3.connection.max | 50 | Maximum HTTP connections in the S3 client connection pool. Applies to sync and async clients, including CRT when enabled. Must be ≥ `s3.bulk-copy.max-concurrent` |
 | s3.async.enabled | true | Enable async read/write with TransferManager |
 | s3.read.buffer.size | 262144 (256KB) | Read buffer size per stream (64KB - 4MB) |
+| s3.delete.batch.enabled | true | Use S3's batch `DeleteObjects` API when recursively deleting a directory, instead of issuing one `DeleteObject` call per file. Disable for S3-compatible stores that do not support multi-object delete |
+
+### Metrics
+
+When the native S3 plugin is loaded in a JobManager or TaskManager, it can publish AWS SDK operation metrics into Flink's process-level metric group. Metrics are scoped under `filesystem.filesystem_type.<scheme>`, where `<scheme>` is `s3` or `s3a`.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| s3.metrics.enabled | true | Enable S3 operation metrics. Set to `false` to avoid attaching the AWS SDK metric publisher |
+| s3.metrics.allowlist | `api_call_count`, `api_call_duration_ms`, `throttle_count`, `retry_count`, `iops` | Metrics to register. Use `*` to register every metric emitted by the plugin. Empty lists are rejected; set `s3.metrics.enabled: false` to disable metrics. `iops` is derived by reporters from `api_call_count`, so allowing `iops` also registers `api_call_count` |
+| s3.metrics.histogram.window-size | 1024 | Number of recent samples retained per `api_call_duration_ms` histogram |
+
+The plugin emits the following metric names:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| api_call_count | Counter | `op`, `status_class` | Number of completed S3 API calls, grouped by operation and result class |
+| api_call_duration_ms | Histogram | `op` | Completed S3 API call latency in milliseconds |
+| throttle_count | Counter | `op` | Number of throttled S3 responses (`429` or `503`) |
+| retry_count | Counter | `op`, `reason` | Number of AWS SDK retries, grouped by retry reason |
+| iops | Derived rate | `op`, `status_class` | Reporter-side rate derived from `api_call_count` |
 
 ### Credentials Provider
 
@@ -135,6 +163,7 @@ Only the following properties can be overridden at the bucket level. Any other `
 - **Credentials:** `access-key`, `secret-key`, `aws.credentials.provider`
 - **Encryption:** `sse.type`, `sse.kms.key-id`
 - **IAM Assume Role:** `assume-role.arn`, `assume-role.external-id`, `assume-role.session-name`, `assume-role.session-duration`
+- **Delete behavior:** `delete.batch.enabled`
 
 Timeouts, retries, encoding/checksum flags, entropy, upload/copy settings, and the credentials provider chain are configured globally only.
 
@@ -277,6 +306,7 @@ For S3-compatible servers (SeaweedFS, LocalStack, Ceph RGW, etc.), set the endpo
 
 ```yaml
 s3.endpoint: http://localhost:8333
+s3.region: us-east-1
 fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 
 # Required: SeaweedFS serves the S3 API in path-style and does not support
@@ -289,7 +319,9 @@ s3.chunked-encoding.enabled: false
 s3.checksum-validation.enabled: false
 ```
 
-The exact subset of compatibility flags needed depends on the server and version — consult its documentation. The defaults in this filesystem (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) are tuned for AWS S3.
+The AWS SDK requires a region for custom endpoints. Use the server's region, or `us-east-1` if the server ignores it.
+
+Required compatibility flags vary by server and version. Disable checksum validation only if the server does not support it. The defaults (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) target AWS S3.
 
 ## Memory Optimization for Large Files
 
@@ -353,6 +385,84 @@ When enabled, file uploads automatically use TransferManager for:
 - **Reduced memory pressure** through streaming
 - Better utilization of available bandwidth
 - Lower heap requirements for write operations
+
+## AWS Common Runtime (CRT) Support
+
+The filesystem optionally supports the [AWS Common Runtime (CRT)](https://github.com/awslabs/aws-crt-java) HTTP transport
+for higher throughput on large S3 workloads.
+
+When enabled, the CRT transport replaces:
+- **Sync client**: Apache HTTP Client → `AwsCrtHttpClient`
+- **Async client**: Netty NIO → `S3AsyncClient.crtBuilder()` (with built-in multipart acceleration)
+
+### Prerequisites
+
+The `aws-crt` artifact contains JNI-linked native libraries whose C-side `FindClass` paths are
+hardcoded, making Maven shade relocation incompatible. Therefore **the `aws-crt` JAR is not
+bundled** in the fat JAR and must be placed manually.
+
+### Setup
+
+1. From the module directory, run the helper script to download the `aws-crt`
+   JAR (auto-resolves the compatible version for the AWS SDK version this
+   module was built against):
+
+   ```bash
+   ./tools/download-crt-jars.sh
+   ```
+
+   This places the JAR in `./crt-jars/`. Pass a different directory as the
+   first argument if needed. Requires `mvn` on `PATH`.
+
+2. Copy the JAR into the Flink plugin directory alongside `flink-s3-fs-native.jar`:
+
+   ```bash
+   cp crt-jars/aws-crt-*.jar $FLINK_HOME/plugins/s3-fs-native/
+   ```
+
+   > **Note:** `aws-crt-client` does **not** need to be downloaded or placed
+   > separately — it is bundled (shaded) directly inside `flink-s3-fs-native.jar`
+   > at build time. Only `aws-crt` (the JNI native lib) must be placed manually
+   > because its C-side `FindClass` paths are hardcoded and incompatible with
+   > Maven shade relocation.
+
+3. Enable CRT in your Flink configuration (`conf/config.yaml`):
+
+   ```yaml
+   s3.crt.enabled: true
+   ```
+
+If the `aws-crt` JAR is missing when `s3.crt.enabled: true`, the filesystem
+fails fast at startup with an `IllegalStateException` pointing back to this
+setup procedure.
+
+#### Manual download (alternative)
+
+If `mvn` is unavailable, fetch the JAR by hand from Maven Central:
+
+`aws-crt-<version>.jar` (groupId: `software.amazon.awssdk.crt`) — the version is
+declared as the `<dependency>` on `software.amazon.awssdk.crt:aws-crt` inside
+`aws-crt-client-<version>.pom` on Maven Central. The `aws-crt` artifact uses an
+independent versioning scheme (e.g. `0.45.x`) that does **not** track the AWS SDK
+version.
+
+`aws-crt-client` does **not** need to be downloaded — it is bundled inside the fat JAR.
+
+### CRT Configuration Options
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| s3.crt.enabled | false | Enable CRT HTTP transport for both sync and async S3 clients |
+| s3.crt.target-throughput-gbps | (none) | Soft target throughput in Gbps for the CRT async client. Hint, not a hard cap — actual throughput may exceed the configured value. When unset, the AWS CRT runtime applies its own internal default; set this only to override it (e.g. to match the network bandwidth available to a single TaskManager). |
+| s3.crt.max-native-memory-limit | (none) | Maximum native memory the CRT async client may use. When unset, the AWS CRT runtime applies its own internal limit. |
+| s3.crt.read-buffer-size | (none) | Read buffer size for the CRT sync and async clients. Decoupled from `s3.read.buffer.size` so lowering the streaming read buffer does not shrink CRT's native transfer buffers. When unset, the AWS CRT runtime applies its own (larger) default. |
+| s3.crt.max-concurrency | 256 | Max concurrent in-flight requests for the CRT sync and async clients. Decoupled from `s3.connection.max` because CRT fans one logical transfer into many part-sized requests; reusing the smaller connection-pool size causes "failed to acquire a connection" timeouts under parallel checkpoint upload/restore. |
+
+The CRT read buffer is controlled independently via `s3.crt.read-buffer-size`; when unset, the CRT runtime keeps its own default rather than inheriting `s3.read.buffer.size`.
+
+> **Note on options silently ignored under CRT:**
+> - `s3.socket.timeout` — `AwsCrtHttpClient` has no socket-level read timeout; the CRT runtime uses `ConnectionHealthConfiguration` for stalled-read detection instead.
+> - `s3.chunked-encoding.enabled` — `S3CrtAsyncClientBuilder` manages wire encoding internally and exposes no equivalent setter.
 
 ## Checkpointing
 

@@ -154,7 +154,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SimpleVersionedSerializer<SplitT> splitSerializer,
             SplitAssignmentTracker<SplitT> splitAssignmentTracker,
             boolean supportsConcurrentExecutionAttempts) {
-        this.workerExecutor = workerExecutor;
+        this.workerExecutor = MdcUtils.scopeToJob(jobID, workerExecutor);
         this.coordinatorExecutor = MdcUtils.scopeToJob(jobID, coordinatorExecutor);
         this.coordinatorThreadFactory = coordinatorThreadFactory;
         this.operatorCoordinatorContext = operatorCoordinatorContext;
@@ -170,7 +170,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                                 new ThrowableCatchingRunnable(
                                         this::handleUncaughtExceptionFromAsyncCall, runnable));
 
-        this.notifier = new ExecutorNotifier(workerExecutor, errorHandlingCoordinatorExecutor);
+        // Must be the field, not the constructor parameter: the field is the scopeToJob-wrapped
+        // executor, so the callables ExecutorNotifier schedules on it, one-shot and periodic alike,
+        // log with the job id rather than an empty MDC.
+        this.notifier = new ExecutorNotifier(this.workerExecutor, errorHandlingCoordinatorExecutor);
     }
 
     boolean isConcurrentExecutionAttemptsSupported() {

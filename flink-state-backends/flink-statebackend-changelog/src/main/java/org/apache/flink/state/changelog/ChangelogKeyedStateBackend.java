@@ -295,6 +295,11 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
+    public void setCurrentKeyForStateAccess(K newKey) {
+        keyedStateBackend.setCurrentKeyForStateAccess(newKey);
+    }
+
+    @Override
     public K getCurrentKey() {
         return keyedStateBackend.getCurrentKey();
     }
@@ -317,6 +322,11 @@ public class ChangelogKeyedStateBackend<K>
     @Override
     public <N> Stream<K> getKeys(List<String> states, N namespace) {
         return keyedStateBackend.getKeys(states, namespace);
+    }
+
+    @Override
+    public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(List<String> states, N namespace) {
+        return keyedStateBackend.getKeysAndKeyGroups(states, namespace);
     }
 
     @Override

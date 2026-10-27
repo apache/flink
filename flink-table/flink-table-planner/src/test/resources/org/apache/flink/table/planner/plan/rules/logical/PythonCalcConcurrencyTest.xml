@@ -1,0 +1,250 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testBatchSizeAllowsTopNPushdown">
+    <Resource name="sql">
+      <![CDATA[SELECT a, vector(a, b) FROM T ORDER BY a DESC LIMIT 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
++- LogicalProject(a=[$0], EXPR$1=[vector($0, $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[a, vector(a, b) AS EXPR$1])
++- SortLimit(orderBy=[a DESC], offset=[0], fetch=[3], strategy=[AppendFastStrategy])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDifferentConcurrencySplitsCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT p2(a, b), p4(a, c) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p2($0, $1)], EXPR$1=[p4($0, $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[f0 AS EXPR$0, p4(a, c) AS EXPR$1])
++- PythonCalc(select=[a, c, p2(a, b) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeyedAggregationRepartitionsAfterPython">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(v) FROM (SELECT a, p2(b, c) AS v FROM T) GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
++- LogicalProject(a=[$0], v=[p2($1, $2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[a], select=[a, SUM(v) AS EXPR$1])
++- Exchange(distribution=[hash[a]])
+   +- PythonCalc(select=[a, p2(b, c) AS v])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedConcurrencyRemainsBeforeTopN">
+    <Resource name="sql">
+      <![CDATA[SELECT a, plain(p2(a, b), b) + 1 FROM T ORDER BY a DESC LIMIT 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
++- LogicalProject(a=[$0], EXPR$1=[+(plain(p2($0, $1), $1), 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortLimit(orderBy=[a DESC], offset=[0], fetch=[3], strategy=[AppendFastStrategy])
++- Exchange(distribution=[single])
+   +- Calc(select=[a, +(f0, 1) AS EXPR$1])
+      +- PythonCalc(select=[a, plain(p2(a, b), b) AS f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedDifferentConcurrencySplitsDeterministically">
+    <Resource name="sql">
+      <![CDATA[SELECT p2(a, p1(a, c)) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p2($0, p1($0, $2))])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[p2(a, f0) AS EXPR$0])
++- PythonCalc(select=[a, p1(a, c) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonDeterministicDependenciesRemainSeparate">
+    <Resource name="sql">
+      <![CDATA[SELECT p1(random(a, b), b), p2(random(a, b), b) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p1(random($0, $1), $1)], EXPR$1=[p2(random($0, $1), $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[f0 AS EXPR$0, p2(f1, b) AS EXPR$1])
++- PythonCalc(select=[b, p1(random(a, b), b) AS f0, random(a, b) AS f1])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowFieldConcurrencyRemainsBeforeTopN">
+    <Resource name="sql">
+      <![CDATA[SELECT a, row_func(a).f0 FROM T ORDER BY a DESC LIMIT 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
++- LogicalProject(a=[$0], EXPR$1=[row_func($0).f0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortLimit(orderBy=[a DESC], offset=[0], fetch=[3], strategy=[AppendFastStrategy])
++- Exchange(distribution=[single])
+   +- Calc(select=[a, f0.f0 AS EXPR$1])
+      +- PythonCalc(select=[a, row_func(a) AS f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSameAndUnspecifiedConcurrencyStayTogether">
+    <Resource name="sql">
+      <![CDATA[SELECT p2(a, b), p2(a, c), plain(a, b) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p2($0, $1)], EXPR$1=[p2($0, $2)], EXPR$2=[plain($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[p2(a, b) AS EXPR$0, p2(a, c) AS EXPR$1, plain(a, b) AS EXPR$2])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSharedDependencyAcrossAlternatingConcurrencies">
+    <Resource name="sql">
+      <![CDATA[SELECT p1(a, b), p1(p2(p1(a, b), c), b) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p1($0, $1)], EXPR$1=[p1(p2(p1($0, $1), $2), $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[f0 AS EXPR$0, p1(f00, b) AS EXPR$1])
++- PythonCalc(select=[f0, b, p2(f1, c) AS f00])
+   +- Calc(select=[f0 AS c, f1 AS b, f2 AS f0, f2 AS f1])
+      +- PythonCalc(select=[c AS f0, b AS f1, p1(a, b) AS f2])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnorderedLimitAllowsPushdown">
+    <Resource name="sql">
+      <![CDATA[SELECT a, p2(a, b) FROM T LIMIT 3 OFFSET 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[1], fetch=[3])
++- LogicalProject(a=[$0], EXPR$1=[p2($0, $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[a, p2(a, b) AS EXPR$1])
++- Limit(offset=[1], fetch=[3])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnspecifiedConcurrencyAllowsTopNPushdown">
+    <Resource name="sql">
+      <![CDATA[SELECT a, plain(a, b) FROM T ORDER BY a DESC LIMIT 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
++- LogicalProject(a=[$0], EXPR$1=[plain($0, $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[a, plain(a, b) AS EXPR$1])
++- SortLimit(orderBy=[a DESC], offset=[0], fetch=[3], strategy=[AppendFastStrategy])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnspecifiedOuterWithDifferentInnerConcurrencies">
+    <Resource name="sql">
+      <![CDATA[SELECT plain(p1(a, b), p2(a, c)) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[plain(p1($0, $1), p2($0, $2))])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[plain(f0, p2(a, c)) AS EXPR$0])
++- PythonCalc(select=[a, c, p1(a, b) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

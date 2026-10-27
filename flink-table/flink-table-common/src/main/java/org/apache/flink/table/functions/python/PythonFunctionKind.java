@@ -25,5 +25,7 @@ import org.apache.flink.annotation.Internal;
 public enum PythonFunctionKind {
     GENERAL,
 
-    PANDAS
+    PANDAS,
+
+    ARROW
 }

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.gateway.rest;
 
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
@@ -159,6 +161,30 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
     }
 
     @Test
+    void testGetSessionConfigurationHidesSensitiveValues() throws Exception {
+        Map<String, String> sensitiveProperties = new HashMap<>();
+        sensitiveProperties.put("s3.secret-key", "super-secret-value");
+        CompletableFuture<OpenSessionResponseBody> openResponse =
+                sendRequest(
+                        openSessionHeaders,
+                        emptyParameters,
+                        new OpenSessionRequestBody(SESSION_NAME, sensitiveProperties));
+        SessionHandle handle =
+                new SessionHandle(UUID.fromString(openResponse.get().getSessionHandle()));
+        SessionMessageParameters parameters = new SessionMessageParameters(handle);
+
+        CompletableFuture<GetSessionConfigResponseBody> future =
+                sendRequest(GetSessionConfigHeaders.getInstance(), parameters, emptyRequestBody);
+        Map<String, String> getProperties = future.get().getProperties();
+
+        assertThat(getProperties).containsKey("s3.secret-key");
+        assertThat(getProperties.get("s3.secret-key"))
+                .isEqualTo(GlobalConfiguration.HIDDEN_CONTENT);
+
+        sendRequest(closeSessionHeaders, parameters, emptyRequestBody).get();
+    }
+
+    @Test
     void testTouchSession() throws Exception {
         Session session =
                 SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle);
@@ -166,13 +192,14 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
 
         long lastAccessTime = session.getLastAccessTime();
 
+        CommonTestUtils.waitUntilCondition(() -> System.currentTimeMillis() > lastAccessTime);
         CompletableFuture<EmptyResponseBody> future =
                 sendRequest(
                         TriggerSessionHeartbeatHeaders.getInstance(),
                         sessionMessageParameters,
                         emptyRequestBody);
         future.get();
-        assertThat(session.getLastAccessTime()).isGreaterThanOrEqualTo(lastAccessTime);
+        assertThat(session.getLastAccessTime()).isGreaterThan(lastAccessTime);
     }
 
     @Test

@@ -146,8 +146,8 @@ class ExpressionReducer(
             unreduced.getType.getSqlTypeName match {
               // we insert the original expression for object literals
               case SqlTypeName.ANY | SqlTypeName.OTHER | SqlTypeName.ROW | SqlTypeName.STRUCTURED |
-                  SqlTypeName.ARRAY | SqlTypeName.MAP | SqlTypeName.MULTISET |
-                  SqlTypeName.VARIANT =>
+                  SqlTypeName.ARRAY | SqlTypeName.MAP | SqlTypeName.MULTISET | SqlTypeName.VARIANT |
+                  SqlTypeName.UUID =>
                 reducedValues.add(unreduced)
               case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
                 val escapeVarchar = BinaryStringDataUtil.safeToString(
@@ -274,25 +274,30 @@ class ExpressionReducer(
         // we don't support object literals yet, we skip those constant expressions
         case (SqlTypeName.ANY, _) | (SqlTypeName.OTHER, _) | (SqlTypeName.ROW, _) |
             (SqlTypeName.STRUCTURED, _) | (SqlTypeName.ARRAY, _) | (SqlTypeName.MAP, _) |
-            (SqlTypeName.MULTISET, _) =>
+            (SqlTypeName.MULTISET, _) | (SqlTypeName.VARIANT, _) | (SqlTypeName.UUID, _) =>
           None
 
         case (_, call: RexCall) => {
           // to ensure the division is non-zero when the operator is DIVIDE
           if (call.getOperator.getKind.equals(SqlKind.DIVIDE)) {
             val ops = call.getOperands
-            val divisionLiteral = ops.get(ops.size() - 1)
+            val divisor = ops.get(ops.size() - 1)
 
             // according to BuiltInFunctionDefinitions, the DEVIDE's second op must be numeric
-            assert(RexUtil.isDeterministic(divisionLiteral))
-            val divisionValue = divisionLiteral.asInstanceOf[RexLiteral].getValue
-            val isZero = divisionValue match {
-              case d: java.lang.Double => d == 0.0
-              case bd: java.math.BigDecimal => bd.signum() == 0
-              case _ => false
-            }
-            if (isZero) {
-              throw new ArithmeticException("Division by zero")
+            assert(RexUtil.isDeterministic(divisor))
+            // The divisor may itself be an unreduced constant expression, e.g. 1 / (2 + 3),
+            // in which case it is evaluated together with the division below.
+            divisor match {
+              case divisionLiteral: RexLiteral =>
+                val isZero = divisionLiteral.getValue match {
+                  case d: java.lang.Double => d == 0.0
+                  case bd: java.math.BigDecimal => bd.signum() == 0
+                  case _ => false
+                }
+                if (isZero) {
+                  throw new ArithmeticException("Division by zero")
+                }
+              case _ =>
             }
           }
           // Exclude some JSON functions which behave differently

@@ -27,6 +27,8 @@ import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.AtomicDataType;
@@ -80,6 +82,7 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -400,6 +403,43 @@ class AvroRowDataDeSerializationSchemaTest {
                 .isEqualTo("2014-03-01T12:12:12.321");
         assertThat(rowData.getTimestamp(3, 6).toLocalDateTime().toString())
                 .isEqualTo("1970-01-01T00:02:03.456");
+    }
+
+    @Test
+    void testTimestampTypeNewMappingInNestedRow() throws Exception {
+        // TIMESTAMP_LTZ is only supported by the non-legacy mapping, so a nested row holding one
+        // only converts if the flag is propagated into the nested converters as well.
+        final DataType dataType =
+                ROW(
+                                FIELD("id", INT().notNull()),
+                                FIELD(
+                                        "nested",
+                                        ROW(
+                                                        FIELD("ltz3", TIMESTAMP_LTZ(3).notNull()),
+                                                        FIELD("name", STRING().notNull()))
+                                                .notNull()))
+                        .notNull();
+
+        AvroRowDataSerializationSchema serializationSchema =
+                createSerializationSchema(dataType, AvroEncoding.BINARY, false);
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchema(dataType, AvroEncoding.BINARY, false);
+
+        final GenericRowData nested = new GenericRowData(2);
+        nested.setField(0, TimestampData.fromEpochMillis(1589530213123L));
+        nested.setField(1, StringData.fromString("inner"));
+        final GenericRowData row = new GenericRowData(2);
+        row.setField(0, 7);
+        row.setField(1, nested);
+
+        RowData roundTripped =
+                deserializationSchema.deserialize(serializationSchema.serialize(row));
+
+        assertThat(roundTripped.getInt(0)).isEqualTo(7);
+        final RowData actualNested = roundTripped.getRow(1, 2);
+        assertThat(actualNested.getTimestamp(0, 3).toInstant())
+                .isEqualTo(Instant.ofEpochMilli(1589530213123L));
+        assertThat(actualNested.getString(1).toString()).isEqualTo("inner");
     }
 
     private AvroRowDataSerializationSchema createSerializationSchema(

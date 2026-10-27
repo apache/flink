@@ -80,13 +80,13 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3])
       :        :        +- Exchange(distribution=[hash[b1, b2]])
       :        :           +- DropUpdateBefore
-      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1], metadata=[]]], fields=[b2, b1])
+      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1]]], fields=[b2, b1])
       :        +- Exchange(distribution=[hash[c1, c2]])
       :           +- DropUpdateBefore
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3]], fields=[c0, c1, c2])
       +- Exchange(distribution=[hash[d1, d2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -127,7 +127,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :     +- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), =(a2, b2), <>(a0, CAST(b1 AS INTEGER)))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :        :        :- Exchange(distribution=[hash[a1, a2]])
       :        :        :  +- DropUpdateBefore
-      :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, project=[a0, a1, a2]]], fields=[a0, a1, a2])
       :        :        +- Exchange(distribution=[hash[b1, b2]])
       :        :           +- DropUpdateBefore
       :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
@@ -136,7 +136,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3]], fields=[c0, c1, c2])
       +- Exchange(distribution=[hash[d1, d2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -183,10 +183,10 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(c1, d1), =(c2, d2), <>(c1, CAST(d2 AS DOUBLE)))], leftToRight=[Binary], rightToLeft=[Binary], select=[c1, c2, d1, d2])
                :- Exchange(distribution=[hash[c1, c2]])
                :  +- DropUpdateBefore
-               :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
                +- Exchange(distribution=[hash[d1, d2]])
                   +- DropUpdateBefore
-                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -233,10 +233,10 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(c1, d1), =(c2, d2), <>(c1, CAST(d2 AS DOUBLE)))], leftToRight=[Binary], rightToLeft=[Binary], select=[c1, c2, d1, d2])
                :- Exchange(distribution=[hash[c1, c2]])
                :  +- DropUpdateBefore
-               :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
                +- Exchange(distribution=[hash[d1, d2]])
                   +- DropUpdateBefore
-                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -283,10 +283,10 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(c1, d1), =(c2, d2), <>(c1, CAST(d2 AS DOUBLE)))], leftToRight=[Binary], rightToLeft=[Binary], select=[c1, c2, d1, d2])
                :- Exchange(distribution=[hash[c1, c2]])
                :  +- DropUpdateBefore
-               :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
                +- Exchange(distribution=[hash[d1, d2]])
                   +- DropUpdateBefore
-                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -469,7 +469,7 @@ LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1])
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1], conflictStrategy=[DEDUPLICATE])
-+- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1], metadata=[]]], fields=[a0, a1])
++- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1]]], fields=[a0, a1])
 ]]>
     </Resource>
   </TestCase>
@@ -612,7 +612,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5
 +- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a2, a1, b1, b2, b0])
       :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[>(a0, 1)], project=[a0, a2, a1], metadata=[]]], fields=[a0, a2, a1])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[>(a0, 1)], project=[a0, a2, a1]]], fields=[a0, a2, a1])
       +- Exchange(distribution=[hash[b1, b2]])
          +- Calc(select=[b1, b2, b0], where=[<(b1, 10)])
             +- TableSourceScan(table=[[default_catalog, default_database, src2, filter=[<>(b0, 0)]]], fields=[b0, b2, b1])
@@ -914,7 +914,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
       +- Exchange(distribution=[hash[c1, c2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
 ]]>
     </Resource>
   </TestCase>
@@ -955,7 +955,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
       +- Exchange(distribution=[hash[c1, c2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
 ]]>
     </Resource>
   </TestCase>
@@ -1139,10 +1139,10 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
       :        +- Exchange(distribution=[hash[c1, c2]])
       :           +- DropUpdateBefore
-      :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
       +- Exchange(distribution=[hash[d1, d2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -1189,10 +1189,10 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
       :        +- Exchange(distribution=[hash[c1, c2]])
       :           +- DropUpdateBefore
-      :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
       +- Exchange(distribution=[hash[d1, d2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -1236,13 +1236,13 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3])
       :        :        +- Exchange(distribution=[hash[b1, b2]])
       :        :           +- DropUpdateBefore
-      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1], metadata=[]]], fields=[b2, b1])
+      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1]]], fields=[b2, b1])
       :        +- Exchange(distribution=[hash[c1, c2]])
       :           +- DropUpdateBefore
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3]], fields=[c0, c1, c2])
       +- Exchange(distribution=[hash[d1, d2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -1277,7 +1277,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(b1, d1), =(b2, d2), <>(d1, CAST(b2 AS DOUBLE)))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src4], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=d1, b2=d2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src2], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=b1, a2=b2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}, {round=[3], sourceTables=[default_catalog.default_database.no_delete_src1, default_catalog.default_database.no_delete_src2], lookupTable=[default_catalog.default_database.no_delete_src3], lookupKeys=[c1=a1, c2=a2], remaining=[(c1 <> CAST(a2 AS DOUBLE))]}]], rightToLeft=[Binary], select=[d1, d2, b0, b2, b1, a0, a1, a2, a3])
       :- Exchange(distribution=[hash[d1, d2]])
       :  +- DropUpdateBefore
-      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- Calc(select=[b0, b2, b1, a0, a1, a2, a3])
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, c1), =(a2, c2), <>(c1, CAST(a2 AS DOUBLE)))], leftToRight=[Binary], rightToLeft=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src3], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=c1, a2=c2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], select=[b0, b2, b1, a0, a1, a2, a3, c1, c2])
@@ -1292,7 +1292,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
                :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
                +- Exchange(distribution=[hash[c1, c2]])
                   +- DropUpdateBefore
-                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
 ]]>
     </Resource>
   </TestCase>
@@ -1327,7 +1327,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, d1), =(a2, d2), <>(d1, CAST(a2 AS DOUBLE)))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src4], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=d1, a2=d2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}, {round=[3], sourceTables=[default_catalog.default_database.no_delete_src1, default_catalog.default_database.no_delete_src2], lookupTable=[default_catalog.default_database.no_delete_src3], lookupKeys=[c1=a1, c2=a2], remaining=[(c1 <> CAST(a2 AS DOUBLE))]}]], rightToLeft=[Binary], select=[d1, d2, b0, b2, b1, a0, a1, a2, a3])
       :- Exchange(distribution=[hash[d1, d2]])
       :  +- DropUpdateBefore
-      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
       +- Exchange(distribution=[hash[a1, a2]])
          +- Calc(select=[b0, b2, b1, a0, a1, a2, a3])
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, c1), =(a2, c2), <>(c1, CAST(a2 AS DOUBLE)))], leftToRight=[Binary], rightToLeft=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src3], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=c1, a2=c2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], select=[b0, b2, b1, a0, a1, a2, a3, c1, c2])
@@ -1342,7 +1342,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
                :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])
                +- Exchange(distribution=[hash[c1, c2]])
                   +- DropUpdateBefore
-                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+                     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
 ]]>
     </Resource>
   </TestCase>
@@ -1377,7 +1377,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(c1, d1), =(c2, d2), <>(d1, CAST(c2 AS DOUBLE)))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src4], lookupTable=[default_catalog.default_database.no_delete_src3], lookupKeys=[c1=d1, c2=d2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src3], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=c1, a2=c2]}, {round=[3], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], rightToLeft=[Binary], select=[d1, d2, c0, c1, c2, a0, a1, a2, a3])
       :- Exchange(distribution=[hash[d1, d2]])
       :  +- DropUpdateBefore
-      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
       +- Exchange(distribution=[hash[c1, c2]])
          +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, c1), =(a2, c2), <>(c1, CAST(a2 AS DOUBLE)))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src3], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=c1, a2=c2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], rightToLeft=[Binary], select=[c0, c1, c2, a0, a1, a2, a3])
             :- Exchange(distribution=[hash[c1, c2]])
@@ -1391,7 +1391,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
                      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3])
                      +- Exchange(distribution=[hash[b1, b2]])
                         +- DropUpdateBefore
-                           +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1], metadata=[]]], fields=[b2, b1])
+                           +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1]]], fields=[b2, b1])
 ]]>
     </Resource>
   </TestCase>
@@ -1597,7 +1597,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a2, a1], where=[>(a0, RAND(10))])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -1669,7 +1669,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a2, a1], where=[>(a0, RAND(10))])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -1808,7 +1808,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], 
 +- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a2, a1, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, src1WithPartition, partitions=[{pt=1}], project=[a0, a2, a1], metadata=[]]], fields=[a0, a2, a1])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1WithPartition, partitions=[{pt=1}], project=[a0, a2, a1]]], fields=[a0, a2, a1])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -1899,7 +1899,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
 +- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -1925,7 +1925,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4
 +- Calc(select=[a0 AS a2, a1 AS a0, a2 AS a1, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a1, a2, a0, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a1, a2, a0], metadata=[]]], fields=[a1, a2, a0])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a1, a2, a0]]], fields=[a1, a2, a0])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -1952,7 +1952,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a1, SUBSTRING(a2, 2) AS a2])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -1979,7 +1979,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a1, SUBSTRING(a2, 2) AS a2])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, src1WithMultiIndexes, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1WithMultiIndexes, project=[a0, a1, a2]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
@@ -2013,7 +2013,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, c1), =(a2, c2), <>(c1, CAST(a0 AS DOUBLE)))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src3], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=c1, a2=c2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], rightToLeft=[Binary], select=[c1, c2, b0, b2, b1, a0, a1, a2, a3])
       :- Exchange(distribution=[hash[c1, c2]])
       :  +- DropUpdateBefore
-      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
       +- Exchange(distribution=[hash[a1, a2]])
          +- Calc(select=[b0, b2, b1, a0, a1, a2, a3])
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), <>(a0, CAST(b1 AS INTEGER)))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, a3, b0, b2, b1])
@@ -2054,7 +2054,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(b1, c1), =(b2, c2), <>(c1, CAST(b2 AS DOUBLE)))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src3], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=c1, b2=c2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src2], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=b1, a2=b2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], rightToLeft=[Binary], select=[c1, c2, b0, b2, b1, a0, a1, a2, a3])
       :- Exchange(distribution=[hash[c1, c2]])
       :  +- DropUpdateBefore
-      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2]]], fields=[c1, c2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- Calc(select=[b0, b2, b1, a0, a1, a2, a3])
             +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), <>(a0, CAST(b1 AS INTEGER)))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, a3, b0, b2, b1])
@@ -2269,13 +2269,13 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3])
       :        :        +- Exchange(distribution=[hash[b1, b2]])
       :        :           +- DropUpdateBefore
-      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1], metadata=[]]], fields=[b2, b1])
+      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1]]], fields=[b2, b1])
       :        +- Exchange(distribution=[hash[c1, c2]])
       :           +- DropUpdateBefore
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3]], fields=[c0, c1, c2])
       +- Exchange(distribution=[hash[d1, d2]])
          +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])
+            +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2]]], fields=[d1, d2])
 ]]>
     </Resource>
   </TestCase>
@@ -2316,10 +2316,10 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
       :        :     +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), <>(a0, CAST(b1 AS INTEGER)))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, b2, b1])
       :        :        :- Exchange(distribution=[hash[a1, a2]])
       :        :        :  +- DropUpdateBefore
-      :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      :        :        :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, project=[a0, a1, a2]]], fields=[a0, a1, a2])
       :        :        +- Exchange(distribution=[hash[b1, b2]])
       :        :           +- DropUpdateBefore
-      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1], metadata=[]]], fields=[b2, b1])
+      :        :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2, project=[b2, b1]]], fields=[b2, b1])
       :        +- Exchange(distribution=[hash[c1, c2]])
       :           +- DropUpdateBefore
       :              +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src3]], fields=[c0, c1, c2])

@@ -43,6 +43,9 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+    private final boolean returnsTableRow;
+    private final int parallelism;
+    private final int maxArrowBatchSize;
 
     private DataType[] inputTypes;
     private String[] inputTypesString;
@@ -61,10 +64,63 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
         this(
                 name,
                 serializedAsyncScalarFunction,
+                inputTypes,
+                resultType,
                 pythonFunctionKind,
                 deterministic,
                 takesRowAsInput,
-                pythonEnv);
+                false,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonAsyncScalarFunction(
+            String name,
+            byte[] serializedAsyncScalarFunction,
+            DataType[] inputTypes,
+            DataType resultType,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            boolean returnsTableRow,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAsyncScalarFunction,
+                inputTypes,
+                resultType,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                returnsTableRow,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonAsyncScalarFunction(
+            String name,
+            byte[] serializedAsyncScalarFunction,
+            DataType[] inputTypes,
+            DataType resultType,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            boolean returnsTableRow,
+            PythonEnv pythonEnv,
+            int parallelism,
+            int maxArrowBatchSize) {
+        this(
+                name,
+                serializedAsyncScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                returnsTableRow,
+                pythonEnv,
+                parallelism,
+                maxArrowBatchSize);
         this.inputTypes = inputTypes;
         this.resultType = resultType;
     }
@@ -81,10 +137,63 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
         this(
                 name,
                 serializedAsyncScalarFunction,
+                inputTypesString,
+                resultTypeString,
                 pythonFunctionKind,
                 deterministic,
                 takesRowAsInput,
-                pythonEnv);
+                false,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonAsyncScalarFunction(
+            String name,
+            byte[] serializedAsyncScalarFunction,
+            String[] inputTypesString,
+            String resultTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            boolean returnsTableRow,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAsyncScalarFunction,
+                inputTypesString,
+                resultTypeString,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                returnsTableRow,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonAsyncScalarFunction(
+            String name,
+            byte[] serializedAsyncScalarFunction,
+            String[] inputTypesString,
+            String resultTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            boolean returnsTableRow,
+            PythonEnv pythonEnv,
+            int parallelism,
+            int maxArrowBatchSize) {
+        this(
+                name,
+                serializedAsyncScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                returnsTableRow,
+                pythonEnv,
+                parallelism,
+                maxArrowBatchSize);
         this.inputTypesString = inputTypesString;
         this.resultTypeString = resultTypeString;
     }
@@ -96,12 +205,57 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAsyncScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                false,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonAsyncScalarFunction(
+            String name,
+            byte[] serializedAsyncScalarFunction,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            boolean returnsTableRow,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAsyncScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                returnsTableRow,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonAsyncScalarFunction(
+            String name,
+            byte[] serializedAsyncScalarFunction,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            boolean returnsTableRow,
+            PythonEnv pythonEnv,
+            int parallelism,
+            int maxArrowBatchSize) {
         this.name = name;
         this.serializedAsyncScalarFunction = serializedAsyncScalarFunction;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
         this.takesRowAsInput = takesRowAsInput;
+        this.returnsTableRow = returnsTableRow;
+        this.parallelism = parallelism;
+        this.maxArrowBatchSize = maxArrowBatchSize;
     }
 
     public void eval(CompletableFuture<Object> future, Object... args) {
@@ -127,6 +281,21 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
     @Override
     public boolean takesRowAsInput() {
         return takesRowAsInput;
+    }
+
+    @Override
+    public boolean returnsTableRow() {
+        return returnsTableRow;
+    }
+
+    @Override
+    public int getParallelism() {
+        return parallelism;
+    }
+
+    @Override
+    public int getMaxArrowBatchSize() {
+        return maxArrowBatchSize;
     }
 
     @Override

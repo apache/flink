@@ -800,7 +800,7 @@ class TableSinkTest extends TableTestBase {
                      |)
                      |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable")
     util.verifyExecPlan(stmtSet)
   }
 
@@ -862,6 +862,92 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql(
       "INSERT INTO conflictSink3 SELECT a, b FROM MyTable ON CONFLICT DO DEDUPLICATE")
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testAppendOnlyInputWithoutOnConflict(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(false))
+    util.addTable(s"""
+                     |CREATE TABLE sinkWithPk (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sinkWithPk SELECT a, b FROM MyTable")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUpdatingInputWithoutOnConflict(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(false))
+    util.addTable(s"""
+                     |CREATE TABLE updatingSinkWithPk (
+                     |  `id` INT,
+                     |  `cnt` BIGINT,
+                     |  PRIMARY KEY (id) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    // The upsert key is the grouping key c, which is not written to the sink, so it can never
+    // match the primary key.
+    stmtSet.addInsertSql(
+      "INSERT INTO updatingSinkWithPk SELECT MAX(a), COUNT(*) FROM MyTable GROUP BY c")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testForcedMaterializeWithAppendOnlyInput(): Unit = {
+    util.getStreamEnv.setParallelism(1)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    util.addTable(s"""
+                     |CREATE TABLE forcedSink (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO forcedSink SELECT a, b FROM MyTable")
+    // There is nothing to materialize, so the plan must not contain a SinkMaterializer.
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testForcedMaterializeWithUpdatingInput(): Unit = {
+    util.getStreamEnv.setParallelism(1)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    util.addTable(s"""
+                     |CREATE TABLE forcedSinkWithCount (
+                     |  `c` STRING,
+                     |  `cnt` BIGINT,
+                     |  PRIMARY KEY (c) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO forcedSinkWithCount SELECT c, COUNT(*) FROM MyTable GROUP BY c")
+    // The upsert key already matches the primary key, so only FORCE asks for a SinkMaterializer.
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
   @Test

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -28,8 +29,11 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.ResultRef;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
@@ -40,8 +44,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.PythonCallCseResult;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.PythonCallDeduplicator;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -61,6 +68,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -144,10 +152,20 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         .map(x -> ((RexInputRef) x).getIndex())
                         .collect(Collectors.toList());
 
+        // Flatten nested Python UDF call trees so that a sub-expression shared between calls is
+        // computed only once. The projection-level duplicates have already been removed by
+        // RemoteCalcProjectionCseRule, so this only concerns nested sub-expressions.
+        PythonCallCseResult cseResult = PythonCallDeduplicator.deduplicate(pythonRexCalls);
+        int[] outputIndices = cseResult.getOutputIndices();
+
         Tuple2<int[], PythonFunctionInfo[]> extractResult =
-                extractPythonScalarFunctionInfos(pythonRexCalls, classLoader);
+                extractPythonScalarFunctionInfos(cseResult, classLoader);
         int[] pythonUdfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
+        boolean[] hasColumn = new boolean[pythonFunctionInfos.length];
+        for (int i = 0; i < pythonFunctionInfos.length; i++) {
+            hasColumn[i] = validateArrowInputs(pythonFunctionInfos[i], hasColumn);
+        }
         LogicalType[] inputLogicalTypes =
                 ((InternalTypeInfo<RowData>) inputTransform.getOutputType()).toRowFieldTypes();
         InternalTypeInfo<RowData> pythonOperatorInputTypeInfo =
@@ -157,6 +175,8 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 forwardedFields.stream()
                         .map(i -> inputLogicalTypes[i])
                         .collect(Collectors.toList());
+        // The operator emits only the projection results, so the output row type is built from the
+        // original top-level calls rather than from the wider flattened list.
         List<LogicalType> pythonCallLogicalTypes =
                 pythonRexCalls.stream()
                         .map(node -> FlinkTypeFactory.toLogicalType(node.getType()))
@@ -166,6 +186,17 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         fieldsLogicalTypes.addAll(pythonCallLogicalTypes);
         InternalTypeInfo<RowData> pythonOperatorResultTyeInfo =
                 InternalTypeInfo.ofFields(fieldsLogicalTypes.toArray(new LogicalType[0]));
+        final int maxArrowBatchSize = CommonPythonUtil.deriveArrowBatchSize(pythonFunctionInfos);
+        if (maxArrowBatchSize > 0) {
+            pythonConfig.set(
+                    ConfigOptions.key("python.fn-execution.arrow.batch.size")
+                            .intType()
+                            .noDefaultValue(),
+                    maxArrowBatchSize);
+        }
+        final Optional<Integer> explicitParallelism =
+                CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
+                        pythonFunctionInfos, "Python functions", this instanceof BatchExecNode);
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
                         config,
@@ -175,33 +206,55 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         pythonOperatorResultTyeInfo,
                         pythonUdfInputOffsets,
                         pythonFunctionInfos,
+                        outputIndices,
                         forwardedFields.stream().mapToInt(x -> x).toArray(),
-                        pythonRexCalls.stream()
+                        cseResult.getDeduplicatedCalls().stream()
                                 .anyMatch(
                                         x ->
                                                 PythonUtil.containsPythonCall(
-                                                        x, PythonFunctionKind.PANDAS)));
+                                                                x, PythonFunctionKind.PANDAS)
+                                                        || PythonUtil.containsPythonCall(
+                                                                x, PythonFunctionKind.ARROW)));
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
-                inputTransform.getParallelism(),
-                false);
+                explicitParallelism.orElse(inputTransform.getParallelism()),
+                explicitParallelism.isPresent());
+    }
+
+    private static boolean validateArrowInputs(
+            PythonFunctionInfo function, boolean[] resultHasColumn) {
+        boolean hasColumn = false;
+        for (PythonFunctionInput input : function.getInputs()) {
+            if (input instanceof PythonFunctionInfo) {
+                hasColumn |= validateArrowInputs((PythonFunctionInfo) input, resultHasColumn);
+            } else if (input instanceof InputRef) {
+                hasColumn = true;
+            } else if (input instanceof ResultRef) {
+                hasColumn |= resultHasColumn[((ResultRef) input).getIndex()];
+            }
+        }
+        if (function.getPythonFunction().getPythonFunctionKind() == PythonFunctionKind.ARROW
+                && !hasColumn) {
+            throw new TableException(
+                    "Arrow scalar UDFs require at least one column-valued argument.");
+        }
+        return hasColumn;
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(
-            List<RexCall> rexCalls, ClassLoader classLoader) {
+            PythonCallCseResult cseResult, ClassLoader classLoader) {
+        List<RexCall> rexCalls = cseResult.getDeduplicatedCalls();
         LinkedHashMap<RexNode, Integer> inputNodes = new LinkedHashMap<>();
-        PythonFunctionInfo[] pythonFunctionInfos =
-                rexCalls.stream()
-                        .map(
-                                x ->
-                                        CommonPythonUtil.createPythonFunctionInfo(
-                                                x, inputNodes, classLoader))
-                        .collect(Collectors.toList())
-                        .toArray(new PythonFunctionInfo[rexCalls.size()]);
+        PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[rexCalls.size()];
+        for (int i = 0; i < rexCalls.size(); i++) {
+            pythonFunctionInfos[i] =
+                    CommonPythonUtil.createPythonFunctionInfo(
+                            rexCalls.get(i), inputNodes, classLoader, cseResult.getOperandRefs(i));
+        }
 
         int[] udfInputOffsets =
                 inputNodes.keySet().stream()
@@ -228,6 +281,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
             InternalTypeInfo<RowData> outputRowTypeInfo,
             int[] udfInputOffsets,
             PythonFunctionInfo[] pythonFunctionInfos,
+            int[] udfOutputIndices,
             int[] forwardedFields,
             boolean isArrow) {
         Class<?> clazz;
@@ -270,6 +324,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         clazz.getConstructor(
                                 Configuration.class,
                                 PythonFunctionInfo[].class,
+                                int[].class,
                                 RowType.class,
                                 RowType.class,
                                 RowType.class,
@@ -279,6 +334,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         ctor.newInstance(
                                 pythonConfig,
                                 pythonFunctionInfos,
+                                udfOutputIndices,
                                 inputType,
                                 udfInputType,
                                 udfOutputType,
@@ -309,6 +365,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         clazz.getConstructor(
                                 Configuration.class,
                                 PythonFunctionInfo[].class,
+                                int[].class,
                                 RowType.class,
                                 RowType.class,
                                 RowType.class,
@@ -318,6 +375,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         ctor.newInstance(
                                 pythonConfig,
                                 pythonFunctionInfos,
+                                udfOutputIndices,
                                 inputType,
                                 udfInputType,
                                 udfOutputType,

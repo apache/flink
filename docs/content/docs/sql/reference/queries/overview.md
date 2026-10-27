@@ -316,7 +316,8 @@ tableReference:
 
 tablePrimary:
     [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
-  | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
+  | [ LATERAL ] functionName '(' expression [, expression ]* ')'
+  | [ LATERAL ] TABLE '(' functionName '(' expression [, expression ]* ')' ')'
   | [ LATERAL ] '(' query ')'
   | UNNEST '(' expression ')'
 

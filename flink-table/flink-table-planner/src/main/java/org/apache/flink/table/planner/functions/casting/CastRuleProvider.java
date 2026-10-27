@@ -96,11 +96,16 @@ public class CastRuleProvider {
                 .addRule(MapToMapAndMultisetToMultisetCastRule.INSTANCE)
                 .addRule(RowToRowCastRule.INSTANCE)
                 // Variant rules
-                .addRule(VariantToStringCastRule.INSTANCE)
-                .addRule(VariantToPrimitiveCastRule.INSTANCE)
+                .addRule(FromVariantCastRule.INSTANCE)
+                .addRule(ToVariantCastRule.INSTANCE)
                 // Bitmap rules
                 .addRule(BitmapToStringCastRule.INSTANCE)
                 .addRule(BitmapToBinaryCastRule.INSTANCE)
+                // UUID rules
+                .addRule(UuidToStringCastRule.INSTANCE)
+                .addRule(UuidToBinaryCastRule.INSTANCE)
+                .addRule(StringToUuidCastRule.INSTANCE)
+                .addRule(BinaryToUuidCastRule.INSTANCE)
                 // Special rules
                 .addRule(CharVarCharTrimPadCastRule.INSTANCE)
                 .addRule(NullToStringCastRule.INSTANCE);
@@ -184,6 +189,11 @@ public class CastRuleProvider {
             LogicalType inputLogicalType,
             LogicalType targetLogicalType,
             Object value) {
+        if (resolve(inputLogicalType, targetLogicalType) == IdentityCastRule.INSTANCE) {
+            // identity cast: value is unchanged, no need to compile a CastExecutor
+            return value;
+        }
+
         CastExecutor<Object, Object> castExecutor =
                 (CastExecutor<Object, Object>)
                         CastRuleProvider.create(context, inputLogicalType, targetLogicalType);

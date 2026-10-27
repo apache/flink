@@ -22,7 +22,7 @@ import pytz
 from pyflink.common import Row
 from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
-from pyflink.table.udf import udf
+from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
     PyFlinkStreamTableTestCase, PyFlinkTestCase
@@ -32,11 +32,36 @@ class PandasUDFTests(PyFlinkTestCase):
 
     def test_non_exist_func_type(self):
         with self.assertRaisesRegex(ValueError,
-                                    'The func_type must be one of \'general, pandas\''):
+                                    "The func_type must be one of 'general, pandas, arrow'"):
             udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="non-exist")
 
 
 class PandasUDFITTests(object):
+
+    def test_local_zoned_timestamp_instants(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+
+                @udf(result_type=DataTypes.TIMESTAMP_LTZ(3), func_type='pandas')
+                def add_hour(values):
+                    import pandas as pd
+
+                    assert str(values.dt.tz) == timezone
+                    assert (values == pd.Timestamp(1730611800123, unit='ms', tz='UTC')).all()
+                    return values + pd.Timedelta(hours=1)
+
+                table = self.t_env.sql_query(
+                    'SELECT TO_TIMESTAMP_LTZ(1730611800123, 3) AS ltz')
+                results = table.select(add_hour(table.ltz))._j_table.execute().collect()
+                try:
+                    self.assertTrue(results.hasNext())
+                    self.assertEqual(1730615400123, results.next().getField(0).toEpochMilli())
+                    self.assertFalse(results.hasNext())
+                finally:
+                    results.close()
 
     def test_basic_functionality(self):
         # pandas UDF
@@ -349,12 +374,98 @@ class PandasUDFITTests(object):
         with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
             t.select(result_type_not_series(t.a)).to_pandas()
 
+    def test_nested_pandas_udf_reuse(self):
+        # Nested Pandas UDF calls go through the same flattening as general Python UDFs: a
+        # sub-expression shared between the projected calls is evaluated once and the projected
+        # results are picked from the evaluated list by output_indices. The Arrow operator has its
+        # own row batching, so this pins the whole path down for Pandas UDFs as well.
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas")
+        def plus_one(i):
+            return i + 1
+
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas")
+        def times_ten(i):
+            return i * 10
+
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas", deterministic=False)
+        def nondet_plus_one(i):
+            return i + 1
+
+        self.t_env.create_temporary_system_function("plus_one", plus_one)
+        self.t_env.create_temporary_system_function("times_ten", times_ten)
+        self.t_env.create_temporary_system_function("nondet_plus_one", nondet_plus_one)
+        t = self.t_env.from_elements([(1,), (2,), (3,)], ['a'])
+        self.t_env.create_temporary_view("PandasNested", t)
+
+        cases = [
+            # shared inner call, projected first and last
+            ("SELECT plus_one(a), times_ten(plus_one(a)) FROM PandasNested",
+             [[2, 20], [3, 30], [4, 40]]),
+            ("SELECT times_ten(plus_one(a)), plus_one(a) FROM PandasNested",
+             [[20, 2], [30, 3], [40, 4]]),
+            # shared innermost call three levels down
+            ("SELECT plus_one(a), times_ten(times_ten(plus_one(a))) FROM PandasNested",
+             [[2, 200], [3, 300], [4, 400]]),
+            # one projected column, yet the list is flattened and the result is not results[0]
+            ("SELECT times_ten(plus_one(a)) + plus_one(a) FROM PandasNested",
+             [[22], [33], [44]]),
+            # nothing shared, the tree stays nested
+            ("SELECT times_ten(plus_one(a)) FROM PandasNested",
+             [[20], [30], [40]]),
+            # a non-deterministic call is evaluated once per occurrence but its deterministic
+            # child is still shared; the values only show that the results are correct
+            ("SELECT nondet_plus_one(a), times_ten(nondet_plus_one(a)) FROM PandasNested",
+             [[2, 20], [3, 30], [4, 40]]),
+            ("SELECT plus_one(a), times_ten(nondet_plus_one(plus_one(a))) FROM PandasNested",
+             [[2, 30], [3, 40], [4, 50]]),
+        ]
+        for sql, expected in cases:
+            actual = sorted(
+                [list(r) for r in self.t_env.sql_query(sql).execute().collect()])
+            self.assertEqual(actual, expected, sql)
+
+        import pandas as pd
+
+        class Seven(ScalarFunction):
+            def eval(self):
+                return pd.Series([7])
+
+        zero_argument = udf(Seven(), result_type=DataTypes.BIGINT(),
+                            func_type="pandas")
+        batch_size = self.t_env.get_config().get("python.fn-execution.arrow.batch.size", "1000")
+        try:
+            self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "1")
+            result = t.select(plus_one(t.a), zero_argument()).execute().collect()
+            self.assertEqual(sorted(result, key=lambda row: row[0]),
+                             [Row(2, 7), Row(3, 7), Row(4, 7)])
+        finally:
+            self.t_env.get_config().set("python.fn-execution.arrow.batch.size", batch_size)
+
+        import numpy as np
+
+        square_root = udf(np.sqrt, result_type=DataTypes.DOUBLE(), func_type="pandas")
+        nullable = self.t_env.from_elements(
+            [(1,), (None,), (4,)], DataTypes.ROW([DataTypes.FIELD("v", DataTypes.BIGINT())]))
+        self.assertEqual(list(nullable.select(square_root(nullable.v)).execute().collect()),
+                         [Row(1.0), Row(None), Row(2.0)])
+
+        result_type = DataTypes.MAP(DataTypes.STRING().not_null(), DataTypes.ROW([
+            DataTypes.FIELD("v", DataTypes.BIGINT())]))
+        for as_pairs in (False, True):
+            def produce_rows(values):
+                return pd.Series([{"key": [("v", int(value))] if as_pairs
+                                   else {"v": int(value)}} for value in values])
+
+            rows = udf(produce_rows, result_type=result_type, func_type="pandas")
+            self.assertEqual(list(t.select(rows(t.a)).execute().collect()),
+                             [Row({"key": Row(1)}), Row({"key": Row(2)}), Row({"key": Row(3)})])
+
     def test_data_types(self):
         import pandas as pd
 
         timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 2, 0, 0, 0, 123000))
+        local_datetime = datetime.datetime(
+            1970, 1, 2, 0, 0, 0, 123000, tzinfo=pytz.UTC).astimezone(pytz.timezone(timezone))
 
         @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3), func_type="pandas")
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
@@ -372,9 +483,7 @@ class PandasUDFITTests(object):
         """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.t_env.from_elements(
-            [(local_datetime,)],
-            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+        t = self.t_env.sql_query('SELECT TO_TIMESTAMP_LTZ(86400123, 3) AS a')
 
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
             .execute_insert("Results_test_data_types").wait()

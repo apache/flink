@@ -55,6 +55,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
@@ -309,6 +310,8 @@ public class LogicalTypeParserTest {
                 TestSpec.forString("VARIANT NOT NULL").expectType(new VariantType(false)),
                 TestSpec.forString("BITMAP").expectType(new BitmapType()),
                 TestSpec.forString("BITMAP NOT NULL").expectType(new BitmapType(false)),
+                TestSpec.forString("UUID").expectType(new UuidType()),
+                TestSpec.forString("UUID NOT NULL").expectType(new UuidType(false)),
 
                 // error message testing
 

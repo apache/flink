@@ -25,7 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecurityOptionsTest {
 
     /** Tests whether activation of internal / REST SSL evaluates the config flags correctly. */
-    @SuppressWarnings("deprecation")
     @Test
     void checkEnableSSL() {
         // new options take precedence
@@ -63,6 +62,11 @@ class SecurityOptionsTest {
     void checkDefaultCipherSuite() {
         assertThat(SecurityOptions.SSL_ALGORITHMS.defaultValue())
                 .isEqualTo(
-                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384");
+    }
+
+    @Test
+    void checkDefaultProtocol() {
+        assertThat(SecurityOptions.SSL_PROTOCOL.defaultValue()).isEqualTo("TLSv1.2,TLSv1.3");
     }
 }

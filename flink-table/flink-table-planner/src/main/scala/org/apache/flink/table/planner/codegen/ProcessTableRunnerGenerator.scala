@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.OpenContext
-import org.apache.flink.api.common.state.{ListState, MapState}
+import org.apache.flink.api.common.state.{ListState, MapState, ValueState}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
+import org.apache.flink.table.api.dataview.{DataView, ListView, MapView, ValueView}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.conversion.RowRowConverter
@@ -34,14 +34,16 @@ import org.apache.flink.table.planner.codegen.calls.{BridgingFunctionGenUtil, Sc
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{verifyFunctionAwareOutputType, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.DataViewUtils
 import org.apache.flink.table.runtime.dataview.StateListView.KeyedStateListView
 import org.apache.flink.table.runtime.dataview.StateMapView.KeyedStateMapViewWithKeysNotNull
+import org.apache.flink.table.runtime.dataview.StateValueView.KeyedStateValueView
 import org.apache.flink.table.runtime.generated.{GeneratedProcessTableRunner, ProcessTableRunner}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils
-import org.apache.flink.table.types.inference.TypeInferenceUtil
+import org.apache.flink.table.types.inference.{TypeInference, TypeInferenceUtil}
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
@@ -113,20 +115,14 @@ object ProcessTableRunnerGenerator {
       TypeInferenceUtil.inferStateInfos(castCallContext, inference.getStateTypeStrategies)
     val stateDataTypes = stateInfos.asScala.values.map(_.getDataType).toSeq
     stateDataTypes.foreach(ExtractionUtils.checkStateDataType)
+    verifyBroadcastStateInfos(stateInfos)
 
     val stateHandlesTerm = "stateHandles"
-    val valueStateToFunctionTerm = "valueStateToFunction"
-    val stateClearedTerm = "stateCleared"
-    val valueStateFromFunctionTerm = "valueStateFromFunction"
     val stateEntries = stateInfos.asScala.values.zipWithIndex.toSeq
     val externalStateOperands =
-      generateStateToFunction(ctx, stateEntries, stateHandlesTerm, valueStateToFunctionTerm)
-    val stateFromFunctionCode = generateStateFromFunction(
-      ctx,
-      stateEntries,
-      externalStateOperands,
-      stateClearedTerm,
-      valueStateFromFunctionTerm)
+      generateStateToFunction(ctx, stateEntries, stateHandlesTerm)
+    val stateFromFunctionCode =
+      generateStateFromFunction(ctx, stateEntries, externalStateOperands, stateHandlesTerm)
 
     // Generate result collector
     val resultCollectorTerm =
@@ -139,13 +135,14 @@ object ProcessTableRunnerGenerator {
       ctx,
       udfCall,
       enrichedArgumentDataTypes,
-      externalStateOperands,
+      wrapBroadcastContext(stateEntries, externalStateOperands, inference),
       stateDataTypes,
       udf,
       functionName,
       functionTerm,
       resultCollectorTerm,
-      stateFromFunctionCode)
+      stateFromFunctionCode
+    )
 
     // Generate call to onTimer()
     val onTimerCallCode = generateOnTimerCode(
@@ -203,11 +200,53 @@ object ProcessTableRunnerGenerator {
     GeneratedRunnerResult(generatedRunner, stateInfos)
   }
 
+  private def verifyBroadcastStateInfos(stateInfos: util.LinkedHashMap[String, StateInfo]): Unit = {
+    stateInfos.asScala
+      .filter { case (_, stateInfo) => stateInfo.isBroadcast }
+      .foreach {
+        case (name, stateInfo) =>
+          if (
+            DataViewUtils.isDataView(stateInfo.getDataType.getLogicalType, classOf[ListView[_]])
+          ) {
+            throw new ValidationException(
+              s"Broadcast state entry '$name' must not be a ListView. " +
+                s"Use a MapView, ValueView, or an eager value state instead.")
+          }
+          if (stateInfo.getTimeToLive.isPresent) {
+            throw new ValidationException(
+              s"Broadcast state entry '$name' must not declare a time-to-live (TTL).")
+          }
+      }
+  }
+
+  /**
+   * Keyed state has no key context while processing a table with broadcast semantics. In this case,
+   * the function receives null for all state entries that are scoped to a set.
+   */
+  private def wrapBroadcastContext(
+      stateEntries: Seq[(StateInfo, Int)],
+      externalStateOperands: Seq[GeneratedExpression],
+      inference: TypeInference): Seq[GeneratedExpression] = {
+    val hasBroadcastTables = toScala(inference.getStaticArguments)
+      .exists(StreamPhysicalProcessTableFunction.hasBroadcastTables)
+    if (!hasBroadcastTables) {
+      return externalStateOperands
+    }
+    stateEntries.map {
+      case (stateInfo, pos) =>
+        val operand = externalStateOperands(pos)
+        if (stateInfo.isBroadcast) {
+          operand
+        } else {
+          operand.copy(resultTerm = s"(isProcessingBroadcast() ? null : ${operand.resultTerm})")
+        }
+    }
+  }
+
   private def generateStateToFunction(
       ctx: CodeGeneratorContext,
       stateEntries: Seq[(StateInfo, Int)],
-      stateHandlesTerm: String,
-      valueStateToFunctionTerm: String): Seq[GeneratedExpression] = {
+      stateHandlesTerm: String): Seq[GeneratedExpression] = {
     stateEntries.map {
       case (stateInfo, pos) =>
         val stateDataType = stateInfo.getDataType
@@ -228,7 +267,7 @@ object ProcessTableRunnerGenerator {
           DataViewUtils.checkForInvalidDataViews(stateType)
           generateValueStateToFunction(
             ctx,
-            valueStateToFunctionTerm,
+            stateHandlesTerm,
             pos,
             externalStateTypeTerm,
             externalStateTerm,
@@ -253,23 +292,27 @@ object ProcessTableRunnerGenerator {
         (className[KeyedStateListView[_, _]], className[ListState[_]])
       } else if (DataViewUtils.isDataView(stateType, classOf[MapView[_, _]])) {
         (className[KeyedStateMapViewWithKeysNotNull[_, _, _]], className[MapState[_, _]])
+      } else if (DataViewUtils.isDataView(stateType, classOf[ValueView[_]])) {
+        (className[KeyedStateValueView[_, _]], className[ValueState[_]])
+      } else {
+        throw new IllegalStateException(s"Unsupported data view state type: $stateType")
       }
 
     val openCode =
       s"""
-         |$externalStateTerm = new $constructor(($stateHandleTypeTerm) $stateHandlesTerm[$pos]);
+         |$externalStateTerm = new $constructor(($stateHandleTypeTerm) $stateHandlesTerm[$pos].getState());
          """.stripMargin
     ctx.addReusableOpenStatement(openCode)
   }
 
   private def generateValueStateToFunction(
       ctx: CodeGeneratorContext,
-      valueStateToFunctionTerm: String,
+      stateHandlesTerm: String,
       pos: Int,
       externalStateTypeTerm: String,
       externalStateTerm: String,
       stateDataType: DataType): String = {
-    val stateEntryTerm = s"$valueStateToFunctionTerm[$pos]"
+    val stateEntryTerm = s"$stateHandlesTerm[$pos].getToFunction()"
     val converterCode = genToExternalConverter(ctx, stateDataType, stateEntryTerm)
 
     val constructorCode = stateDataType.getConversionClass match {
@@ -299,8 +342,7 @@ object ProcessTableRunnerGenerator {
       ctx: CodeGeneratorContext,
       stateEntries: Seq[(StateInfo, Int)],
       externalStateOperands: Seq[GeneratedExpression],
-      stateClearedTerm: String,
-      stateFromFunctionTerm: String): String = {
+      stateHandlesTerm: String): String = {
     stateEntries
       .map {
         case (stateInfo, pos) =>
@@ -310,10 +352,10 @@ object ProcessTableRunnerGenerator {
           if (DataViewUtils.isDataView(stateType, classOf[DataView])) {
             NO_CODE
           } else {
-            val stateEntryTerm = s"$stateFromFunctionTerm[$pos]"
+            val stateHandleTerm = s"$stateHandlesTerm[$pos]"
             val externalStateOperandTerm = externalStateOperands(pos).resultTerm
-            s"$stateEntryTerm = $stateClearedTerm[$pos] ? null : " +
-              s"${genToInternalConverter(ctx, stateDataType)(externalStateOperandTerm)};"
+            s"$stateHandleTerm.setFromFunction($stateHandleTerm.isCleared() ? null : " +
+              s"${genToInternalConverter(ctx, stateDataType)(externalStateOperandTerm)});"
           }
       }
       .filter(c => c != NO_CODE)

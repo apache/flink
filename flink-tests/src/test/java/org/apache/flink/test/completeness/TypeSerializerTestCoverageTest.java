@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
 import org.apache.flink.api.common.typeutils.base.SetSerializer;
+import org.apache.flink.api.common.typeutils.base.UuidSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -43,6 +44,7 @@ import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySeria
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
+import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -140,6 +142,7 @@ class TypeSerializerTestCoverageTest {
                         SingleThreadAccessCheckingTypeSerializer.class.getName(),
                         GenericArraySerializer.class.getName(),
                         NullValueSerializer.class.getName(),
+                        NullableSerializer.class.getName(),
                         Tuple0Serializer.class.getName(),
                         CopyableValueSerializer.class.getName(),
                         VoidSerializer.class.getName(),
@@ -267,7 +270,8 @@ class TypeSerializerTestCoverageTest {
                         RowSqnInfoSerializer.class.getName(),
                         MetaSqnInfoSerializer.class.getName(),
                         SetSerializer.class.getName(),
-                        SortedLongSerializer.class.getName());
+                        SortedLongSerializer.class.getName(),
+                        UuidSerializer.class.getName());
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {

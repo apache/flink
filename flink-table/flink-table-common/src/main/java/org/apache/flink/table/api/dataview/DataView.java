@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.ProcessTableFunction;
  *
  * @see ListView
  * @see MapView
+ * @see ValueView
  */
 @PublicEvolving
 public interface DataView {

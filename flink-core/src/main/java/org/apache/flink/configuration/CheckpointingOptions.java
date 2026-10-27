@@ -232,6 +232,30 @@ public class CheckpointingOptions {
                                     .build());
 
     /**
+     * Whether the checkpoint directories are created when the job starts, instead of when the first
+     * checkpoint is triggered.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Boolean> CREATE_DIRECTORIES_ON_JOB_START =
+            ConfigOptions.key("execution.checkpointing.create-directories-on-job-start")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to create the directories of the checkpoint storage (for example the "
+                                                    + "'shared' and 'taskowned' directories) when the job starts. If set to false, "
+                                                    + "they are created when the first checkpoint is triggered instead, which avoids "
+                                                    + "blocking job startup on file systems where creating directories is a slow "
+                                                    + "remote call, such as object stores.")
+                                    .linebreak()
+                                    .text(
+                                            "WARNING: If set to false, an unusable checkpoint location is no longer detected "
+                                                    + "when the job starts. It surfaces as checkpoint failures, and fails the job "
+                                                    + "once the tolerable number of checkpoint failures is exceeded.")
+                                    .build());
+
+    /**
      * The minimum size of state data files. All state chunks smaller than that are stored inline in
      * the root checkpoint metadata file.
      */
@@ -583,6 +607,19 @@ public class CheckpointingOptions {
                                                     + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
                                     .build());
 
+    public static final ConfigOption<Duration> CHECKPOINTING_SYNC_PHASE_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.sync-phase-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDescription(
+                            "A timeout for the synchronous phase of a checkpoint, after which a task cancellation is triggered."
+                                    + " If the task thread is merely slow, the task will restart and continue."
+                                    + " If a true thread blockage is encountered, (e.g. by a blocking native call), "
+                                    + " a fatal error will be thrown after the "
+                                    + TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key()
+                                    + "and trigger a TM restart to address the blockage."
+                                    + " Defaults to 0 (disabled).");
+
     public static final ConfigOption<Boolean> FORCE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.forced")
                     .booleanType()
@@ -610,6 +647,31 @@ public class CheckpointingOptions {
                             "Allows unaligned checkpoints to skip timers that are currently being fired."
                                     + " For this feature to be enabled, it must be also supported by the operator."
                                     + " Currently this is supported by all TableStreamOperators and CepOperator.");
+
+    /**
+     * Controls whether an intermediate watermark is emitted while a watermark advance is
+     * interrupted before completing, for unaligned checkpoints with interruptible timers enabled
+     * (see {@link #ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS}). Has no effect unless interruptible
+     * timers are enabled. The emission interval is governed by {@link
+     * PipelineOptions#AUTO_WATERMARK_INTERVAL}, the same as regular periodic watermark generation,
+     * since both have comparable performance implications.
+     */
+    @Experimental
+    public static final ConfigOption<Boolean>
+            UNALIGNED_INTERRUPTIBLE_TIMERS_EMIT_INTERMEDIATE_WATERMARKS =
+                    ConfigOptions.key(
+                                    "execution.checkpointing.unaligned.interruptible-timers.emit-intermediate-watermarks")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    "When unaligned checkpoints with interruptible timers are enabled (see"
+                                            + " 'execution.checkpointing.unaligned.interruptible-timers.enabled') and"
+                                            + " firing the timers due for a watermark advance is interrupted before"
+                                            + " completing, an intermediate watermark reflecting the progress made so"
+                                            + " far is emitted downstream, at most as often as configured by"
+                                            + " 'pipeline.auto-watermark-interval'. This keeps downstream operators"
+                                            + " from stalling on watermark progress during a long-running catch-up."
+                                            + " Set to false to disable intermediate watermark emission.");
 
     public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
             ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish")
@@ -692,6 +754,11 @@ public class CheckpointingOptions {
                                                     + "checkpoints disabled for the new execution.",
                                             TextElement.code(
                                                     UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Checkpointing during recovery is currently not supported when %s is greater than 0, and will be disabled in this case.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()))
                                     .build());
 
     /**
@@ -793,10 +860,10 @@ public class CheckpointingOptions {
     /**
      * Determines whether unaligned checkpoint support during recovery is enabled.
      *
-     * <p>This feature requires {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} to be enabled. Note
-     * that it does not require unaligned checkpoints to be currently enabled, because a job may
-     * restore from an unaligned checkpoint while having unaligned checkpoints disabled for the new
-     * execution.
+     * <p>Requires both {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} and unaligned checkpoints to
+     * be enabled, because checkpointing during recovery is only supported on the unaligned
+     * barrier-handler path. It is also disabled when {@link #ALIGNED_CHECKPOINT_TIMEOUT} is
+     * positive.
      *
      * @param config the configuration to check
      * @return {@code true} if unaligned checkpointing during recovery is enabled, {@code false}
@@ -807,6 +874,11 @@ public class CheckpointingOptions {
         if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
             return false;
         }
-        return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED);
+        // TODO FLINK-40526: Support checkpointing during recovery with aligned checkpoint timeout.
+        if (!config.get(ALIGNED_CHECKPOINT_TIMEOUT).isZero()) {
+            return false;
+        }
+        return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED)
+                && isUnalignedCheckpointEnabled(config);
     }
 }

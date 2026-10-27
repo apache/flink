@@ -41,6 +41,18 @@ class InternalSourceSplitMetricGroupTest {
     }
 
     @Test
+    void testOnSplitFinishedClosesSplitMetricGroup() {
+        InternalSourceSplitMetricGroup metricGroup = getMetricGroupWithClock(new ManualClock());
+
+        metricGroup.onSplitFinished();
+
+        assertThat(((AbstractMetricGroup<?>) metricGroup.getSplitMetricGroup()).isClosed())
+                .isTrue();
+        assertThat(((AbstractMetricGroup<?>) metricGroup.getSplitWatermarkMetricGroup()).isClosed())
+                .isTrue();
+    }
+
+    @Test
     void testClocksStartTickingAfterSplitStarted() throws InterruptedException {
         ManualClock clock = new ManualClock(System.currentTimeMillis());
         InternalSourceSplitMetricGroup metricGroup = getMetricGroupWithClock(clock);

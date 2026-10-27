@@ -52,6 +52,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
             ReadableConfig tableConfig,
             List<RexNode> projection,
             @Nullable RexNode condition,
+            @Nullable int[] partialDeleteKeys,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -61,6 +62,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 ExecNodeContext.newPersistedConfig(StreamExecCalc.class, tableConfig),
                 projection,
                 condition,
+                partialDeleteKeys,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -73,6 +75,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
             @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
+            @JsonProperty(FIELD_NAME_PARTIAL_DELETE_KEYS) @Nullable int[] partialDeleteKeys,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -82,6 +85,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 persistedConfig,
                 projection,
                 condition,
+                partialDeleteKeys,
                 TableStreamOperator.class,
                 true, // retainHeader
                 inputProperties,

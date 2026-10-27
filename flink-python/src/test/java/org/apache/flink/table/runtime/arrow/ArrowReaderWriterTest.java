@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.arrow;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -39,6 +40,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -53,14 +55,23 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ArrowReader} and {@link ArrowWriter} of RowData. */
 class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
@@ -166,6 +177,87 @@ class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, outputStream);
         arrowStreamWriter.start();
         return Tuple2.of(arrowWriter, arrowStreamWriter);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void testMapsAcrossBatches(int batchSize) throws IOException {
+        final MapType mapType = new MapType(new IntType(false), new IntType());
+        final MapType nestedMapType =
+                new MapType(new IntType(false), RowType.of(RowType.of(new IntType())));
+        final RowType type =
+                RowType.of(
+                        mapType, new ArrayType(mapType), new ArrayType(RowType.of(nestedMapType)));
+        final List<RowData> rows = new ArrayList<>();
+        for (Map<Integer, Integer> values :
+                Arrays.asList(
+                        Map.of(1, 11, 2, 22),
+                        Collections.<Integer, Integer>emptyMap(),
+                        null,
+                        Collections.<Integer, Integer>singletonMap(3, null),
+                        Map.of(4, 44))) {
+            final GenericMapData map = values == null ? null : new GenericMapData(values);
+            final Map<Integer, RowData> nestedValues = new LinkedHashMap<>();
+            if (values != null) {
+                values.forEach(
+                        (key, value) ->
+                                nestedValues.put(
+                                        key,
+                                        value == null
+                                                ? null
+                                                : GenericRowData.of(GenericRowData.of(value))));
+            }
+            rows.add(
+                    GenericRowData.of(
+                            map,
+                            new GenericArrayData(new Object[] {map}),
+                            new GenericArrayData(
+                                    new Object[] {
+                                        GenericRowData.of(
+                                                values == null
+                                                        ? null
+                                                        : new GenericMapData(nestedValues))
+                                    })));
+        }
+
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (BufferAllocator batchAllocator =
+                        ArrowUtils.getRootAllocator()
+                                .newChildAllocator("map-batches", 0, Long.MAX_VALUE);
+                VectorSchemaRoot root =
+                        VectorSchemaRoot.create(ArrowUtils.toArrowSchema(type), batchAllocator);
+                ArrowStreamWriter streamWriter = new ArrowStreamWriter(root, null, output)) {
+            final ArrowWriter<RowData> writer = ArrowUtils.createRowDataArrowWriter(root, type);
+            streamWriter.start();
+            for (int start = 0; start < rows.size(); start += batchSize) {
+                for (RowData row : rows.subList(start, Math.min(start + batchSize, rows.size()))) {
+                    writer.write(row);
+                }
+                writer.finish();
+                streamWriter.writeBatch();
+                writer.reset();
+            }
+            streamWriter.end();
+
+            try (ArrowStreamReader streamReader =
+                    new ArrowStreamReader(
+                            new ByteArrayInputStream(output.toByteArray()), batchAllocator)) {
+                final RowDataSerializer serializer = new RowDataSerializer(type);
+                final ArrowReader reader =
+                        ArrowUtils.createArrowReader(streamReader.getVectorSchemaRoot(), type);
+                int rowIndex = 0;
+                while (streamReader.loadNextBatch()) {
+                    final int rowCount = streamReader.getVectorSchemaRoot().getRowCount();
+                    assertThat(rowCount).isEqualTo(Math.min(batchSize, rows.size() - rowIndex));
+                    for (int i = 0; i < rowCount; i++) {
+                        assertThat(serializer.toBinaryRow(reader.read(i)).copy())
+                                .as("row %s", rowIndex)
+                                .isEqualTo(serializer.toBinaryRow(rows.get(rowIndex++)).copy());
+                    }
+                }
+                assertThat(rowIndex).isEqualTo(rows.size());
+            }
+        }
     }
 
     @Override

@@ -260,6 +260,27 @@ public class FileCatalogStore extends AbstractCatalogStore {
     }
 
     private Path getCatalogPath(String catalogName) {
-        return new Path(catalogStorePath, catalogName + FILE_EXTENSION);
+        Path catalogPath;
+        try {
+            catalogPath = new Path(catalogStorePath, catalogName + FILE_EXTENSION);
+        } catch (Exception e) {
+            // e.g. catalogName embeds its own scheme-qualified URI (like "file:///etc/passwd"),
+            // which Path may reject outright while merging it against catalogStorePath.
+            throw new CatalogException(String.format("Invalid catalog name '%s'.", catalogName), e);
+        }
+
+        // catalogName is caller-supplied and may try to escape catalogStorePath, e.g. via ".."
+        // segments. Path's own resolution above already fully normalizes the result (RFC 3986
+        // dot-segment removal), so checking that the *resolved* path's parent is still
+        // catalogStorePath is sufficient to reject every variant of escape, without needing to
+        // inspect catalogName itself.
+        if (!catalogStorePath.equals(catalogPath.getParent())) {
+            throw new CatalogException(
+                    String.format(
+                            "Invalid catalog name '%s'. It resolves to '%s', which is outside of "
+                                    + "the catalog store directory '%s'.",
+                            catalogName, catalogPath, catalogStorePath));
+        }
+        return catalogPath;
     }
 }

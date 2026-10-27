@@ -139,5 +139,14 @@ public class CsvFormatOptions {
                                     + "(disabled by default). "
                                     + "Only affects deserialization.");
 
+    public static final ConfigOption<Boolean> IGNORE_FIRST_LINE =
+            ConfigOptions.key("ignore-first-line")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to skip the first CSV record of each input file "
+                                    + "(false by default). "
+                                    + "Only affects deserialization.");
+
     private CsvFormatOptions() {}
 }

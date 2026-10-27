@@ -150,7 +150,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     LogicalTypeRoot.INTEGER,
                     LogicalTypeRoot.BIGINT,
                     LogicalTypeRoot.FLOAT,
-                    LogicalTypeRoot.DOUBLE);
+                    LogicalTypeRoot.DOUBLE,
+                    LogicalTypeRoot.VARIANT);
 
     /** Checks the given field type is supported. */
     private static void checkFieldType(LogicalType fieldType) {

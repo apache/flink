@@ -30,6 +30,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 
 import java.io.Serializable;
+import java.time.Duration;
 
 /**
  * An entity keeping all the time-related services.
@@ -78,6 +79,20 @@ public interface InternalTimeServiceManager<K> {
      */
     boolean tryAdvanceWatermark(Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn)
             throws Exception;
+
+    /**
+     * Configures how often an intermediate watermark should be made available (see {@link
+     * #getReachedWatermark()}) while a {@link #tryAdvanceWatermark} call is interrupted before
+     * completing. A {@code interval} of {@link Duration#ZERO zero} disables this. Implementations
+     * that do not support interrupted watermark advancement may ignore this.
+     */
+    default void configureIntermediateWatermarkInterval(Duration interval) {}
+
+    /**
+     * Returns the highest watermark for which all managed {@link InternalTimerService timer
+     * services} are known to have fired all due timers.
+     */
+    long getReachedWatermark();
 
     /**
      * Snapshots the timers to raw keyed state.

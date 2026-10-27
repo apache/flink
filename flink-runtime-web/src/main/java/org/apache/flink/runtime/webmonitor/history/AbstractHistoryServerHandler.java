@@ -19,12 +19,17 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.configuration.HistoryServerOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
+import org.apache.flink.runtime.rest.messages.ApplicationsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -45,6 +50,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -57,7 +64,11 @@ import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.JSON_FILE_ENDING;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.IF_MODIFIED_SINCE;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -73,14 +84,34 @@ public abstract class AbstractHistoryServerHandler<Entry>
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractHistoryServerHandler.class);
 
+    /** Matches jobs/{jobId} or jobs/{jobId}/... paths. */
+    private static final Pattern JOB_ID_PATTERN = Pattern.compile("^jobs/([^/]+)(?:/.*)?$");
+
+    /** Matches applications/{appId}. */
+    private static final Pattern APPLICATION_ID_PATTERN = Pattern.compile("^applications/([^/]+)$");
+
     /** The path in which the static documents are. */
     protected final File rootPath;
 
     protected final ArchiveStorage<Entry> archiveStorage;
 
-    protected AbstractHistoryServerHandler(ArchiveStorage<Entry> archiveStorage, File rootPath)
+    private final HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode;
+
+    // for lazy load
+    @Nullable protected HistoryServerArchiveFetcher<Entry> archiveFetcher;
+    @Nullable protected HistoryServerApplicationArchiveFetcher<Entry> applicationArchiveFetcher;
+
+    protected AbstractHistoryServerHandler(
+            ArchiveStorage<Entry> archiveStorage,
+            HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode,
+            @Nullable HistoryServerArchiveFetcher<Entry> archiveFetcher,
+            @Nullable HistoryServerApplicationArchiveFetcher<Entry> applicationArchiveFetcher,
+            File rootPath)
             throws IOException {
         this.archiveStorage = archiveStorage;
+        this.archiveLoadMode = archiveLoadMode;
+        this.archiveFetcher = archiveFetcher;
+        this.applicationArchiveFetcher = applicationArchiveFetcher;
         this.rootPath = checkNotNull(rootPath).getCanonicalFile();
     }
 
@@ -136,11 +167,12 @@ public abstract class AbstractHistoryServerHandler<Entry>
             requestPath = requestPath + "index.html";
         }
 
-        if (!requestPath.contains(".")) { // we assume that the path ends in either .html or .js
+        // we assume that the path ends in either .html or .js
+        if (!requestPath.contains(".")) {
             requestPath = requestPath + ".json";
 
             LOG.debug("Responding to request for path {}", requestPath);
-            Entry resource = loadResource(requestPath);
+            Entry resource = loadResource(requestPath, archiveLoadMode);
 
             if (resource == null) {
                 LOG.debug("Unable to load requested resource {}", requestPath);
@@ -266,14 +298,67 @@ public abstract class AbstractHistoryServerHandler<Entry>
     /**
      * Loads the resource for the given request path from the archive storage.
      *
+     * <p>The resource has four cases:
+     *
+     * <p>1. /index.html or other web resource files, should be loaded from classloader {@link
+     * #tryLoadFromClassloader}
+     *
+     * <p>2. /config.json, will be created when HistoryServer started
+     *
+     * <p>3. /jobs/overview.json (and /jobs/jobid.json) or /applications/overview.json (and
+     * /applications/applicationid.json), will be loaded synchronously
+     *
+     * <p>4. /jobs/&lt;jobid&gt;/.. will be loaded asynchronously
+     *
      * @param requestPath The request path
+     * @param archiveLoadMode The archive load mode
      * @return The resource for the given request path, or null if not found
      */
-    private Entry loadResource(String requestPath) throws Exception {
+    private Entry loadResource(
+            String requestPath, HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode)
+            throws Exception {
         String requestKey = requestPath.startsWith("/") ? requestPath.substring(1) : requestPath;
+
+        if (LAZY.equals(archiveLoadMode)) {
+            Preconditions.checkNotNull(archiveFetcher);
+            Preconditions.checkNotNull(applicationArchiveFetcher);
+            // need to update for overview
+            if (requestKey.equals(JobsOverviewHeaders.URL.substring(1) + JSON_FILE_ENDING)
+                    || requestKey.equals(
+                            ApplicationsOverviewHeaders.URL.substring(1) + JSON_FILE_ENDING)) {
+                archiveFetcher.fetchArchives(archiveLoadMode);
+                applicationArchiveFetcher.fetchArchives(archiveLoadMode);
+                return archiveStorage.getEntry(requestKey);
+            }
+            // for application/${applicationId}, return directly
+            String applicationId = extractApplicationId(requestKey);
+            if (applicationId != null) {
+                return archiveStorage.getEntry(requestKey);
+            }
+            // for job/${jobId}...
+            String jobId = extractJobId(requestKey);
+            if (jobId != null) {
+                if (archiveStorage.exists(requestKey)) {
+                    return archiveStorage.getEntry(requestKey);
+                }
+                ArchiveMetaInfo jobArchiveMetaInfo = archiveFetcher.getArchiveMetaInfo(jobId);
+                if (archiveFetcher.needLazyLoadIndividually(jobId)) {
+                    Path archivePath =
+                            jobArchiveMetaInfo == null ? null : jobArchiveMetaInfo.getArchivePath();
+                    archiveFetcher.lazyFetchArchiveProactively(jobId, archivePath);
+                }
+                // wait for the job archive to be loaded
+                if (!requestKey.endsWith(jobId + JSON_FILE_ENDING)) {
+                    archiveFetcher.waitLazyFetchArchiveFinished(jobId);
+                }
+                return archiveStorage.getEntry(requestKey);
+            }
+        }
+
         if (archiveStorage.exists(requestKey)) {
             return archiveStorage.getEntry(requestKey);
         }
+
         return null;
     }
 
@@ -319,5 +404,43 @@ public abstract class AbstractHistoryServerHandler<Entry>
                 throw new NotFoundException("Resource not found.");
             }
         }
+    }
+
+    /**
+     * Extracts the job ID from the request path.
+     *
+     * @param requestPath Request path, e.g., {@code /jobs/abc123.../vertices}
+     * @return jobId string; returns {@code null} if path does not match
+     */
+    @Nullable
+    protected static String extractJobId(String requestPath) {
+        Matcher matcher = JOB_ID_PATTERN.matcher(requestPath);
+        if (matcher.matches()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the application ID from the request path.
+     *
+     * @param requestPath Request path, e.g., {@code /applications/abc123...}
+     * @return applicationId string; returns {@code null} if path does not match
+     */
+    @Nullable
+    protected static String extractApplicationId(String requestPath) {
+        Matcher matcher = APPLICATION_ID_PATTERN.matcher(requestPath);
+        if (matcher.matches()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    /** Factory for creating instances of {@link AbstractHistoryServerHandler}. */
+    public interface HistoryServerHandlerFactory {
+        AbstractHistoryServerHandler<?> createHistoryServerHandler(
+                HistoryServerArchiveFetcher<?> archiveFetcher,
+                HistoryServerApplicationArchiveFetcher<?> applicationArchiveFetcher)
+                throws IOException;
     }
 }

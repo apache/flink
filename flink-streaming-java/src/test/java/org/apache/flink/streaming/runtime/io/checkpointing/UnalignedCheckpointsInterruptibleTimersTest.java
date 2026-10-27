@@ -98,11 +98,15 @@ class UnalignedCheckpointsInterruptibleTimersTest {
             assertThat(harness.getOutput())
                     .containsExactly(
                             asFiredRecord("key-0"),
+                            // Intermediate watermark surfacing progress after firing the first of
+                            // the 2 timers due at firstWindowEnd, before the drain is interrupted.
+                            asWatermark(Instant.ofEpochMilli(firstWindowEnd.toEpochMilli() - 1)),
                             asMailRecord("key-0"),
                             asFiredRecord("key-1"),
                             asMailRecord("key-1"),
                             asWatermark(firstWindowEnd),
                             asFiredRecord("key-0"),
+                            asWatermark(Instant.ofEpochMilli(secondWindowEnd.toEpochMilli() - 1)),
                             asMailRecord("key-0"),
                             asFiredRecord("key-1"),
                             asMailRecord("key-1"),
@@ -195,11 +199,128 @@ class UnalignedCheckpointsInterruptibleTimersTest {
             assertThat(harness.getOutput())
                     .containsExactly(
                             asFiredRecord("key-0"),
+                            // Intermediate watermark surfacing progress after firing the first of
+                            // the 2 timers due at windowEnd, before the drain is interrupted.
+                            asWatermark(Instant.ofEpochMilli(windowEnd.toEpochMilli() - 1)),
                             asMailRecord("key-0"),
                             asFiredRecord("key-1"),
                             asMailRecord("key-1"),
                             asWatermark(windowEnd),
                             new EndOfData(StopMode.DRAIN));
+        }
+    }
+
+    @Test
+    void testIntermediateWatermarksEmittedDuringLongDrain() throws Exception {
+        final Instant t1 = Instant.ofEpochMilli(100L);
+        final Instant t2 = Instant.ofEpochMilli(200L);
+        final Instant t3 = Instant.ofEpochMilli(300L);
+
+        try (final StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                        .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
+                        .addJobConfig(
+                                CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true)
+                        .modifyStreamConfig(
+                                UnalignedCheckpointsInterruptibleTimersTest::setupStreamConfig)
+                        .addInput(Types.STRING)
+                        .setupOperatorChain(
+                                SimpleOperatorFactory.of(
+                                        new MultipleTimersAtTheSameTimestamp()
+                                                .withTimers(t1, 1)
+                                                .withTimers(t2, 1)
+                                                .withTimers(t3, 1)))
+                        .name("first")
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+            harness.setAutoProcess(false);
+            harness.processElement(new StreamRecord<>("register timers"));
+            harness.processAll();
+            // A single watermark whose drain requires firing multiple, individually-interrupted
+            // timers (each fired timer schedules a mailbox mail, forcing an interruption).
+            harness.processElement(asWatermark(t3));
+
+            final List<Watermark> seenWatermarks = new ArrayList<>();
+            while (seenWatermarks.isEmpty()
+                    || seenWatermarks.get(seenWatermarks.size() - 1).getTimestamp()
+                            < t3.toEpochMilli()) {
+                harness.processSingleStep();
+                Object outputElement;
+                while ((outputElement = harness.getOutput().poll()) != null) {
+                    if (outputElement instanceof Watermark) {
+                        seenWatermarks.add((Watermark) outputElement);
+                    }
+                }
+            }
+
+            // The drain is interrupted after firing each of the 3 timers. Progress made before
+            // the final interruption should be visible downstream as intermediate watermarks,
+            // not only as the single final watermark once the whole drain completes.
+            assertThat(seenWatermarks).hasSizeGreaterThan(1);
+            assertThat(seenWatermarks.get(0).getTimestamp()).isLessThan(t3.toEpochMilli());
+            assertThat(seenWatermarks.get(seenWatermarks.size() - 1).getTimestamp())
+                    .isEqualTo(t3.toEpochMilli());
+            assertThat(seenWatermarks).extracting(Watermark::getTimestamp).isSorted();
+        }
+    }
+
+    /**
+     * Once one timer service is interrupted, {@link
+     * org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl#tryAdvanceWatermark}
+     * never even attempts the other services this round, so a persistently-behind service can
+     * starve the others' contribution to the reported intermediate watermark for as long as it
+     * itself keeps getting interrupted.
+     */
+    @Test
+    void testStarvedTimerServiceDelaysIntermediateWatermark() throws Exception {
+        final int timersPerService = 20;
+        final Instant watermark = Instant.ofEpochMilli(timersPerService + 10L);
+
+        try (final StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                        .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
+                        .addJobConfig(
+                                CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true)
+                        .modifyStreamConfig(
+                                UnalignedCheckpointsInterruptibleTimersTest::setupStreamConfig)
+                        .addInput(Types.LONG)
+                        .setupOperatorChain(
+                                SimpleOperatorFactory.of(new TwoTimerServicesWithEqualBacklogs()))
+                        .name("first")
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+            harness.setAutoProcess(false);
+            for (long ts = 1; ts <= timersPerService; ts++) {
+                harness.processElement(new StreamRecord<>(ts));
+            }
+            harness.processAll();
+            harness.processElement(asWatermark(watermark));
+
+            int firedCount = 0;
+            Watermark firstWatermark = null;
+            while (firstWatermark == null && firedCount < 2 * timersPerService) {
+                harness.processSingleStep();
+                Object outputElement;
+                while ((outputElement = harness.getOutput().poll()) != null) {
+                    if (outputElement instanceof Watermark) {
+                        firstWatermark = (Watermark) outputElement;
+                        break;
+                    }
+                    firedCount++;
+                }
+            }
+
+            assertThat(firstWatermark).as("a watermark should eventually appear").isNotNull();
+            // With two equally-backlogged services, an intermediate watermark should surface well
+            // before either service's entire backlog has drained -- not only once one of them
+            // (whichever happens to be attempted first) has completely finished firing.
+            assertThat(firedCount)
+                    .as("first watermark should appear before either backlog is drained")
+                    .isLessThan(timersPerService);
         }
     }
 
@@ -278,6 +399,56 @@ class UnalignedCheckpointsInterruptibleTimersTest {
             copy.put(timestamp, count);
             return new MultipleTimersAtTheSameTimestamp(copy);
         }
+    }
+
+    /**
+     * Registers one timer per element (at the timestamp given by the element's value) on each of
+     * two independently-named timer services, each firing one timer at a time (interrupted via a
+     * scheduled mail).
+     */
+    private static class TwoTimerServicesWithEqualBacklogs extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<Long, String>,
+                    Triggerable<String, String>,
+                    YieldingOperator<String> {
+
+        private transient @Nullable MailboxExecutor mailboxExecutor;
+        private transient InternalTimerService<String> serviceA;
+        private transient InternalTimerService<String> serviceB;
+
+        @Override
+        public boolean useInterruptibleTimers(ReadableConfig config) {
+            return true;
+        }
+
+        @Override
+        public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+            super.setMailboxExecutor(mailboxExecutor);
+            this.mailboxExecutor = mailboxExecutor;
+        }
+
+        @Override
+        public void open() throws Exception {
+            super.open();
+            serviceA = getInternalTimerService("serviceA", StringSerializer.INSTANCE, this);
+            serviceB = getInternalTimerService("serviceB", StringSerializer.INSTANCE, this);
+        }
+
+        @Override
+        public void processElement(StreamRecord<Long> element) {
+            setCurrentKey("key");
+            long ts = element.getValue();
+            serviceA.registerEventTimeTimer("A", ts);
+            serviceB.registerEventTimeTimer("B", ts);
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<String, String> timer) throws Exception {
+            mailboxExecutor.execute(() -> {}, "mail");
+            output.collect(asFiredRecord(timer.getNamespace() + "-" + timer.getTimestamp()));
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<String, String> timer) throws Exception {}
     }
 
     /**

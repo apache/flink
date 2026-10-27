@@ -35,6 +35,8 @@ import org.apache.flink.util.Preconditions;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.state.ChannelStateHelper.collectUniqueDisposableInChannelState;
+
 /**
  * Restore operation that restores file-merging information belonging to one subtask for {@link
  * FileMergingSnapshotManager}.
@@ -89,10 +91,15 @@ public class SubtaskFileMergingManagerRestoreOperation {
                                 subtaskState.getRawOperatorState().stream())
                         .flatMap(this::getChildrenStreamHandles);
 
-        // TODO support channel state restore for unaligned checkpoint.
+        Stream<StreamStateHandle> channelStateHandles =
+                collectUniqueDisposableInChannelState(
+                        Stream.of(
+                                subtaskState.getInputChannelState(),
+                                subtaskState.getUpstreamOutputBufferState(),
+                                subtaskState.getResultSubpartitionState()));
 
         Stream<SegmentFileStateHandle> segmentStateHandles =
-                Stream.of(keyedStateHandles, operatorStateHandles)
+                Stream.of(keyedStateHandles, operatorStateHandles, channelStateHandles)
                         .flatMap(Function.identity())
                         .filter(
                                 handle ->

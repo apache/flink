@@ -46,7 +46,7 @@ msgstr ""
 
 #: ../../getting_started/installation.rst:26
 msgid ""
-"Python version (3.9, 3.10, 3.11 or 3.12) is required for PyFlink. Please "
+"Python version (3.9, 3.10, 3.11, 3.12 or 3.13) is required for PyFlink. Please "
 "run the following command to make sure that it meets the requirements:"
 msgstr ""
 

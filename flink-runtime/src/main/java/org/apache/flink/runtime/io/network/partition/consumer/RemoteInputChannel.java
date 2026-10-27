@@ -784,8 +784,10 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
         boolean recycleBuffer = true;
 
         // The first buffer from the producer proves the upstream reader is registered and the
-        // connection is live; release any recovery-side awaiter. On later buffers this is a cheap
-        // idempotent no-op (the latch count is already zero).
+        // connection is live; release any recovery-side awaiter
+        // (see requestRecoveryBufferBlocking). During recovery this first arrival is typically the
+        // upstream's EndOfOutputChannelStateEvent, which is guaranteed and passes the zero-credit
+        // gate. On later buffers this is a cheap idempotent no-op (the latch is already at zero).
         upstreamReady.countDown();
 
         try {
@@ -986,7 +988,8 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
             Iterators.advance(it, receivedBuffers.getNumPriorityElements());
             while (it.hasNext()) {
                 SequenceBuffer sb = it.next();
-                RecoveryCheckpointBarrier barrier = asRecoveryCheckpointBarrier(sb.buffer);
+                RecoveryCheckpointBarrier barrier =
+                        RecoveryCheckpointBarrierUtils.asRecoveryCheckpointBarrier(sb.buffer);
                 if (barrier != null) {
                     long barrierId = barrier.getCheckpointId();
                     if (barrierId == checkpointId) {
@@ -1020,11 +1023,11 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
                 }
             }
         } catch (IOException e) {
-            releaseRetainedBuffers(retained);
+            RecoveryCheckpointBarrierUtils.releaseRetainedBuffers(retained);
             throw e;
         }
         if (sentinel == null) {
-            releaseRetainedBuffers(retained);
+            RecoveryCheckpointBarrierUtils.releaseRetainedBuffers(retained);
             throw new IOException(
                     "Missing RecoveryCheckpointBarrier for checkpoint "
                             + checkpointId
@@ -1045,26 +1048,6 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
         receivedBuffers.getAndRemove(sb -> sb == sentinel);
         totalQueueSizeInBytes -= sentinel.buffer.getSize();
         sentinel.buffer.recycleBuffer();
-    }
-
-    private static void releaseRetainedBuffers(List<Buffer> retained) {
-        for (Buffer buffer : retained) {
-            buffer.recycleBuffer();
-        }
-    }
-
-    @Nullable
-    private static RecoveryCheckpointBarrier asRecoveryCheckpointBarrier(Buffer b)
-            throws IOException {
-        if (b.isBuffer()) {
-            return null;
-        }
-        AbstractEvent event =
-                EventSerializer.fromBuffer(b, RecoveryCheckpointBarrier.class.getClassLoader());
-        b.setReaderIndex(0);
-        return event instanceof RecoveryCheckpointBarrier
-                ? (RecoveryCheckpointBarrier) event
-                : null;
     }
 
     public void checkpointStopped(long checkpointId) {

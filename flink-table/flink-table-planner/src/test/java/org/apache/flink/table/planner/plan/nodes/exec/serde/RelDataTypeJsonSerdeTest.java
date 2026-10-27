@@ -167,6 +167,11 @@ public class RelDataTypeJsonSerdeTest {
                         FACTORY.createSqlType(SqlTypeName.VARBINARY, 1000),
                         FACTORY.createSqlType(SqlTypeName.NULL),
                         FACTORY.createSqlType(SqlTypeName.SYMBOL),
+                        FACTORY.createSqlType(SqlTypeName.VARIANT),
+                        FACTORY.createArrayType(FACTORY.createSqlType(SqlTypeName.VARIANT), -1),
+                        FACTORY.createMapType(
+                                FACTORY.createSqlType(SqlTypeName.VARCHAR, 5),
+                                FACTORY.createSqlType(SqlTypeName.VARIANT)),
                         FACTORY.createMultisetType(FACTORY.createSqlType(SqlTypeName.VARCHAR), -1),
                         FACTORY.createArrayType(FACTORY.createSqlType(SqlTypeName.VARCHAR, 16), -1),
                         FACTORY.createArrayType(

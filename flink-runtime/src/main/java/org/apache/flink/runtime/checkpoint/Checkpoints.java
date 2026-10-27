@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
@@ -28,12 +29,15 @@ import org.apache.flink.runtime.checkpoint.metadata.MetadataV6Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.CollectionUtil;
@@ -64,6 +68,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <pre>[MagicNumber (int) | Format Version (int) | Checkpoint Metadata (variable)]</pre>
  *
  * <p>The actual savepoint serialization is version-specific via the {@link MetadataSerializer}.
+ *
+ * <p>Checkpoint metadata may reference state files through {@link RelativeFileStateHandle}s, which
+ * store only a file name. On recovery such a reference is resolved against the checkpoint's
+ * <i>exclusive directory</i>: the per-checkpoint directory that contains the {@code _metadata} file
+ * and the checkpoint's own, non-shared state files, e.g. {@code /checkpoints/<job-id>/chk-42/} (see
+ * {@link CheckpointedStateScope#EXCLUSIVE}). This yields the correct path only for files that
+ * actually live in that directory, which is why the {@code storeCheckpointMetadata} variants below
+ * differ in how they encode relative handles.
  */
 public class Checkpoints {
 
@@ -76,29 +88,85 @@ public class Checkpoints {
     //  Writing out checkpoint metadata
     // ------------------------------------------------------------------------
 
-    public static void storeCheckpointMetadata(
+    /**
+     * Stores the checkpoint metadata with every {@link RelativeFileStateHandle} kept relative
+     * unconditionally, regardless of where its file currently lives. This is only correct if the
+     * caller guarantees that every referenced file is, or will be, located in the directory the
+     * metadata is eventually read from. The state processor API establishes that guarantee by
+     * copying the referenced files next to the new metadata (see {@code SavepointOutputFormat});
+     * everything else should use {@link #storeCheckpointMetadata(CheckpointMetadata,
+     * CheckpointMetadataOutputStream)}.
+     *
+     * <p>The deliberately different method name (rather than an overload) makes choosing this
+     * encoding an explicit decision at the call site.
+     */
+    public static void storeCheckpointMetadataWithoutExclusiveDir(
             CheckpointMetadata checkpointMetadata, OutputStream out) throws IOException {
 
         DataOutputStream dos = new DataOutputStream(out);
-        storeCheckpointMetadata(checkpointMetadata, dos);
+        storeCheckpointMetadataWithoutExclusiveDir(checkpointMetadata, dos);
     }
 
+    /**
+     * Stores the checkpoint metadata, letting the serializer check every {@link
+     * RelativeFileStateHandle} against the exclusive directory the stream writes into ({@link
+     * CheckpointMetadataOutputStream#getExclusiveCheckpointDir()}): a handle whose file lives in
+     * that directory keeps the relative encoding, while a handle pointing anywhere else (e.g. an
+     * SST file reused from a claimed savepoint) is persisted with its absolute path, because the
+     * relative form would be re-anchored to the wrong directory when the metadata is read back. Use
+     * this variant when writing an actual checkpoint or savepoint.
+     */
     public static void storeCheckpointMetadata(
+            CheckpointMetadata checkpointMetadata, CheckpointMetadataOutputStream out)
+            throws IOException {
+
+        DataOutputStream dos = new DataOutputStream(out);
+        storeCheckpointMetadata(
+                checkpointMetadata,
+                dos,
+                MetadataV6Serializer.INSTANCE,
+                out.getExclusiveCheckpointDir());
+    }
+
+    /**
+     * Variant of {@link #storeCheckpointMetadataWithoutExclusiveDir(CheckpointMetadata,
+     * OutputStream)} for a {@link DataOutputStream}.
+     */
+    public static void storeCheckpointMetadataWithoutExclusiveDir(
             CheckpointMetadata checkpointMetadata, DataOutputStream out) throws IOException {
-        storeCheckpointMetadata(checkpointMetadata, out, MetadataV6Serializer.INSTANCE);
+        storeCheckpointMetadataWithoutExclusiveDir(
+                checkpointMetadata, out, MetadataV6Serializer.INSTANCE);
     }
 
     public static void storeCheckpointMetadata(
             CheckpointMetadata checkpointMetadata,
             DataOutputStream out,
+            @Nullable Path exclusiveDir)
+            throws IOException {
+        storeCheckpointMetadata(
+                checkpointMetadata, out, MetadataV6Serializer.INSTANCE, exclusiveDir);
+    }
+
+    public static void storeCheckpointMetadataWithoutExclusiveDir(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream out,
             MetadataSerializer serializer)
+            throws IOException {
+        storeCheckpointMetadata(checkpointMetadata, out, serializer, null);
+    }
+
+    public static void storeCheckpointMetadata(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream out,
+            MetadataSerializer serializer,
+            @Nullable Path exclusiveDir)
             throws IOException {
 
         // write generic header
         out.writeInt(HEADER_MAGIC_NUMBER);
 
         out.writeInt(serializer.getVersion());
-        serializer.serialize(checkpointMetadata, out);
+        serializer.serialize(checkpointMetadata, out, exclusiveDir);
     }
 
     // ------------------------------------------------------------------------

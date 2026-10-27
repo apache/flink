@@ -397,6 +397,54 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @SuppressWarnings("unchecked")
     @Override
+    public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(List<String> states, N namespace) {
+        final List<StateTable<K, N, ?>> tables =
+                states.stream()
+                        .filter(registeredKVStates::containsKey)
+                        .map(s -> (StateTable<K, N, ?>) registeredKVStates.get(s))
+                        .collect(Collectors.toList());
+        final List<Stream<Tuple2<K, Integer>>> keyStreams = new ArrayList<>();
+        for (int i = 0; i < tables.size(); i++) {
+            int finalI = i;
+            Stream<Tuple2<K, Integer>> keyStream =
+                    tables.get(i)
+                            .getEntriesWithKeyGroup()
+                            .filter(
+                                    entryAndKeyGroup -> {
+                                        StateEntry<K, N, ?> entry = entryAndKeyGroup.f0;
+                                        if (!entry.getNamespace().equals(namespace)) {
+                                            return false;
+                                        }
+                                        // Deduplicate keys across tables. The entry is looked up in
+                                        // its own key-group instead of one recomputed from the
+                                        // key's hashCode(), since a substituted key (e.g. one
+                                        // deserialized without its original class) may not
+                                        // reproduce it faithfully.
+                                        int keyGroup = entryAndKeyGroup.f1;
+                                        for (int j = 0; j < finalI; ++j) {
+                                            if (tables.get(j)
+                                                            .getMapForKeyGroup(keyGroup)
+                                                            .get(
+                                                                    entry.getKey(),
+                                                                    entry.getNamespace())
+                                                    != null) {
+                                                return false;
+                                            }
+                                        }
+                                        return true;
+                                    })
+                            .map(
+                                    entryAndKeyGroup ->
+                                            Tuple2.of(
+                                                    entryAndKeyGroup.f0.getKey(),
+                                                    entryAndKeyGroup.f1));
+            keyStreams.add(keyStream);
+        }
+        return keyStreams.stream().reduce(Stream.empty(), Stream::concat);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
         if (!registeredKVStates.containsKey(state)) {
             return Stream.empty();

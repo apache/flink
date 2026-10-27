@@ -30,6 +30,8 @@ import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
@@ -55,9 +57,30 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
             RowType udfOutputType,
             GeneratedProjection udfInputGeneratedProjection,
             GeneratedProjection forwardedFieldGeneratedProjection) {
+        this(
+                config,
+                scalarFunctions,
+                null,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                udfInputGeneratedProjection,
+                forwardedFieldGeneratedProjection);
+    }
+
+    public PythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            @Nullable int[] udfOutputIndices,
+            RowType inputType,
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
         super(
                 config,
                 scalarFunctions,
+                udfOutputIndices,
                 inputType,
                 udfInputType,
                 udfOutputType,

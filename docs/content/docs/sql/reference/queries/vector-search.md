@@ -37,13 +37,13 @@ The `VECTOR_SEARCH` uses a processing-time attribute to correlate rows to the la
 
 ```sql
 SELECT * 
-FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
+FROM input_table, LATERAL VECTOR_SEARCH(
    TABLE vector_table, 
    input_table.vector_column, 
    DESCRIPTOR(index_column),
    top_k,
    [CONFIG => MAP['key', 'value']]
-   ))
+   )
 ```
 
 ### Parameters
@@ -66,32 +66,32 @@ The following configuration options can be specified in the config map:
 ```sql
 -- Basic usage
 SELECT * FROM 
-input_table, LATERAL TABLE(VECTOR_SEARCH(
+input_table, LATERAL VECTOR_SEARCH(
   TABLE vector_table,
   input_table.vector_column,
   DESCRIPTOR(index_column),
   10
-));
+);
 
 -- With configuration options
 SELECT * FROM 
-input_table, LATERAL TABLE(VECTOR_SEARCH(
+input_table, LATERAL VECTOR_SEARCH(
   TABLE vector_table,
   input_table.vector_column,
   DESCRIPTOR(index_column),
   10,
   MAP['async', 'true', 'timeout', '100s']
-));
+);
 
 -- Using named parameters
 SELECT * FROM 
-input_table, LATERAL TABLE(VECTOR_SEARCH(
+input_table, LATERAL VECTOR_SEARCH(
   SEARCH_TABLE => TABLE vector_table,
   COLUMN_TO_QUERY => input_table.vector_column,
   COLUMN_TO_SEARCH => DESCRIPTOR(index_column),
   TOP_K => 10,
   CONFIG => MAP['async', 'true', 'timeout', '100s']
-));
+);
 
 -- Searching with contant value
 SELECT * 

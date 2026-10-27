@@ -94,6 +94,148 @@ Known Limitations:
 
 {{< sql_functions "variant" >}}
 
+#### XML to VARIANT
+
+The `PARSE_XML` function maps the root element of an XML document to a `VARIANT` object. For
+example:
+
+```sql
+-- {"book":{"#":{"price":[1,2],"title":0},"@pages":"320","price":["12.50","13.50"],"title":"Dune"}}
+PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price><price>13.50</price></book>')
+```
+
+Attributes become fields with an `@` prefix, and a child element that occurs more than once becomes
+an array. The `#` field records the order of the children, as described below. It can be ignored
+when reading fields.
+
+Values are strings, unless the document declares a type with `xsi:type`, see below. Since a cast
+from a `VARIANT` never parses a string, cast a value to `STRING` first and convert it with a regular
+cast:
+
+```sql
+CAST(v['book']['title'] AS STRING)                -- 'Dune'
+CAST(v['book']['price'][2] AS STRING)             -- '13.50'
+CAST(CAST(v['book']['@pages'] AS STRING) AS INT)  -- 320
+```
+
+Each element is mapped by the following rules:
+
+| XML input                                                          | Stored `VARIANT` value                                      |
+|--------------------------------------------------------------------|-------------------------------------------------------------|
+| Element with `xsi:nil="true"`                                      | `null`, or field `$` with `null` if it has other attributes |
+| Element without attributes and child elements                      | its text, or `""` if it is empty                            |
+| Any other element                                                  | object                                                      |
+| Attribute `name`                                                   | field `@name`, a `STRING`                                   |
+| Child element `name`                                               | field `name`                                                |
+| Text of an element with attributes or child elements               | field `$`                                                   |
+| Child element or text that occurs more than once                   | array, in document order                                    |
+| Element with differently named children, or with children and text | field `#` with the order of its content                     |
+
+A `VARIANT` object doesn't keep the order of its fields, so the `#` field records it. It maps each
+key to the position of its item, or to an array of positions if the key occurs more than once.
+Positions count the child elements and texts of the element, starting at 0. For example:
+
+```sql
+-- {"book":{"#":{"$":[1,3],"price":[2,4],"title":0},
+--          "$":["This is a description","Text in between"],
+--          "@pages":"320",
+--          "price":["12.50",{"$":"13.50","@currency":"EUR"}],
+--          "title":"Dune"}}
+PARSE_XML('
+  <book pages="320">
+    <title>Dune</title>
+    This is a description
+    <price>12.50</price>
+    Text in between
+    <price currency="EUR">13.50</price>
+  </book>')
+```
+
+Here, `title` is the first item, the two texts are the second and the fourth, and the two `price`
+elements are the third and the fifth. The second `price` has an attribute, so it is stored as an
+object, while the first one is a string. An element whose content has only one key has no `#` field,
+since the order of an array is the document order.
+
+Whether a child element is stored as a single value or as an array depends on how often it occurs,
+so two documents that follow the same schema can map to different shapes. The default behavior
+ensures a space-efficient representation. With `PARSE_XML(xml, TRUE)`, every child element, text,
+and position in a `#` field is stored as an array, even if it occurs only once. The root element is never wrapped, since a document has exactly one.
+
+```sql
+-- {"book":{"title":["Dune"]}}
+PARSE_XML('<book><title>Dune</title></book>', TRUE)
+```
+
+An `xsi:type` attribute parses the text of an element as the matching kind, which replaces the text,
+or the `$` field if the element has other attributes. The prefix of the type is ignored, so `xs:int`,
+`xsd:int`, and `int` are the same type. If the element has child elements or no text, the type isn't
+listed below, or the text isn't a valid value of the type, the text stays a `STRING` and `xsi:type`
+is kept as an attribute. For example, `<a xsi:type="int">5</a>` maps to `{"a":5}`, and
+`<a xsi:type="int">five</a>` maps to `{"a":{"$":"five","@xsi:type":"int"}}`. The text has to be in
+the lexical form that XML Schema defines for the type, so `1e5` isn't a `decimal`, `1f` isn't a
+`float`, and `12:30` isn't a `time`. Years after 9999 and the time `24:00:00` stay a `STRING` as well.
+
+| `xsi:type`                   | Stored `VARIANT` kind                        |
+|------------------------------|----------------------------------------------|
+| `string`                     | `STRING`                                     |
+| `boolean`                    | `BOOLEAN`, from `true`, `false`, `1`, or `0` |
+| `byte`                       | `TINYINT`                                    |
+| `short`                      | `SMALLINT`                                   |
+| `int`                        | `INT`                                        |
+| `long`                       | `BIGINT`                                     |
+| `integer`, `decimal`         | `DECIMAL`, with at most 38 digits            |
+| `float`                      | `FLOAT`, except for `NaN` and infinity       |
+| `double`                     | `DOUBLE`, except for `NaN` and infinity      |
+| `date` without an offset     | `DATE`                                       |
+| `time` without an offset     | `TIME`                                       |
+| `dateTime` with an offset    | `TIMESTAMP_LTZ`                              |
+| `dateTime` without an offset | `TIMESTAMP`                                  |
+
+The offset of a `dateTime` is `Z` or a signed `hh:mm` of at most 14 hours. It is used to compute the
+instant and isn't stored, since a `TIMESTAMP_LTZ` has no offset. For example,
+`2026-09-30T12:30:00+02:00`, `2026-09-30T10:30:00Z`, and `2026-09-30T06:00:00-04:30` map to the same
+`TIMESTAMP_LTZ`. A `date` or `time` with an offset stays a `STRING`, since it can't be converted to an
+instant without a date or a time.
+
+`TIME` keeps microseconds, so `12:30:45.1234567` is stored as `12:30:45.123456`. `TIMESTAMP` and
+`TIMESTAMP_LTZ` keep nanoseconds, or microseconds outside the nanosecond range from 1677 to 2262.
+Further digits are truncated, like in a cast, instead of keeping the text as a `STRING`.
+
+A typed value casts directly to its type, without the cast to `STRING`:
+
+```sql
+CAST(PARSE_XML('<a xsi:type="int">5</a>')['a'] AS INT)                                  -- 5
+CAST(PARSE_XML('<a xsi:type="dateTime">2026-09-30T12:30:00</a>')['a'] AS TIMESTAMP(3))  -- 2026-09-30 12:30:00.000
+```
+
+An `xsi:nil="true"` attribute takes precedence over the content of an element, so
+`<price xsi:nil="true">12.50</price>` maps to `{"price":null}`. If the element has other attributes,
+its content is replaced with a `null` text, so `<price xsi:nil="true" currency="EUR">12.50</price>`
+maps to `{"price":{"$":null,"@currency":"EUR"}}`. In both cases, `xsi:nil` and `xsi:type` are dropped,
+and so is `xsi:nil="false"`. Like in XML Schema, `xsi:nil` accepts `true`, `false`, `1`, and `0`,
+and any other value is kept as a regular attribute.
+
+`xsi:type` and `xsi:nil` are recognized by their literal `xsi:` prefix, even if the document doesn't
+declare it or binds it to a different namespace. The `xmlns:xsi` declaration is dropped.
+
+`PARSE_XML` also normalizes the document:
+
+- Text is trimmed of spaces, tabs, and line breaks, and whitespace-only text between tags is dropped.
+- Comments and processing instructions are dropped. CDATA sections are text.
+- Entities and character references are expanded, including the entities that the document declares
+  in its DTD.
+- Names are kept as written, including their namespace prefix. Namespace declarations are regular
+  attributes, for example `@xmlns:ns`.
+
+A document fails to parse if it:
+
+- references an external entity or an external DTD,
+- expands more than 64,000 entities, or more than about 16 million characters of entity text,
+- nests elements more than 500 levels deep,
+- is an XML 1.1 document.
+
+In all of these cases, `TRY_PARSE_XML` returns `NULL`.
+
 ### Value Construction Functions
 
 {{< sql_functions "valueconstruction" >}}
@@ -134,6 +276,24 @@ The aggregate functions take an expression across all the rows as the input and 
 - For cardinality-only scenarios where the intermediate bitmap is not needed, prefer `BITMAP_XX_CARDINALITY_AGG()` over `BITMAP_CARDINALITY(BITMAP_XX_AGG())`. They are functionally equivalent, but the former avoids materializing the intermediate bitmap and performs better.
 
 {{< sql_functions "bitmapagg" >}}
+
+Table Functions
+---------------
+
+Table functions take zero, one, or more values as input and return multiple rows (a table) as the result. Most built-in table functions take a table as an input argument.
+Table functions can be used in two ways: as stand-alone inputs, where they are invoked just once, or in a `LATERAL` context, where they are invoked for each row of an outer table.
+
+| Function                                   | Description                                                                                                                                                                                                                                                                                                     |
+|--------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TUMBLE(data => TABLE t, ...)`             | Assigns each row of the `data` table to a tumbling window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#tumble) for the full list of arguments, semantics, and usage.                              |
+| `HOP(data => TABLE t, ...)`                | Assigns each row of the `data` table to a hopping window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#hop) for the full list of arguments, semantics, and usage.                                  |
+| `CUMULATE(data => TABLE t, ...)`           | Assigns each row of the `data` table to a cumulating window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#cumulate) for the full list of arguments, semantics, and usage.                          |
+| `SESSION(data => TABLE t, ...)`            | Assigns each row of the `data` table to a session window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#session) for the full list of arguments, semantics, and usage.                              |
+| `FROM_CHANGELOG(input => TABLE t [, ...])` | Converts an append-only table with an explicit operation column into a dynamic table. See [Changelog Conversion]({{< ref "docs/sql/reference/queries/changelog" >}}#from_changelog) for the full list of arguments, semantics, and usage.                                                                       |
+| `TO_CHANGELOG(input => TABLE t [, ...])`   | Converts a dynamic table into an append-only table with an explicit operation column. See [Changelog Conversion]({{< ref "docs/sql/reference/queries/changelog" >}}#to_changelog) for the full list of arguments, semantics, and usage.                                                                         |
+| `SNAPSHOT(input => TABLE t [, ...])`       | Returns the current state of a dynamic table `t`. `SNAPSHOT` can only be used in a `LATERAL` context and not as a stand-alone table function. See [LATERAL SNAPSHOT join]({{< ref "docs/sql/reference/queries/joins" >}}#lateral-snapshot-join) for the full list of arguments, the join semantics, and usage. |
+
+To implement your own table functions, see [user-defined table functions]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions).
 
 Time Interval and Point Unit Specifiers
 ---------------------------------------

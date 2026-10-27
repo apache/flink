@@ -172,7 +172,7 @@ $ java -version
 # Java 11, 17, or 21
 
 $ python --version
-# Python 3.9, 3.10, 3.11, or 3.12
+# Python 3.9, 3.10, 3.11, 3.12 or 3.13
 ```
 
 ### Step 2: Install PyFlink

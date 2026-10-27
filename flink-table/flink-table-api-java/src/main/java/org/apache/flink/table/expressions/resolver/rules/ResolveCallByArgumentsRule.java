@@ -60,6 +60,7 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil.Result;
 import org.apache.flink.table.types.inference.TypeInferenceUtil.SurroundingInfo;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import javax.annotation.Nullable;
@@ -67,6 +68,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -300,7 +302,10 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             }
 
             SystemTypeInference.checkNoSystemArguments(
-                    inference.disableSystemArguments(), namedArgs.keySet(), functionName);
+                    inference.disableSystemArguments(),
+                    namedArgs.keySet(),
+                    declaredArgs.stream().map(StaticArgument::getName).collect(Collectors.toList()),
+                    functionName);
 
             fillInDefaultNamedArguments(declaredArgs, namedArgs);
             fillInPtfSpecificNamedArguments(
@@ -604,7 +609,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public boolean isArgumentLiteral(int pos) {
             final ResolvedExpression arg = getArgument(pos);
-            return arg instanceof ValueLiteralExpression || arg instanceof TypeLiteralExpression;
+            return arg instanceof ValueLiteralExpression
+                    || arg instanceof TypeLiteralExpression
+                    || isLiteralMap(arg);
         }
 
         @Override
@@ -633,6 +640,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             if (arg instanceof ValueLiteralExpression) {
                 final ValueLiteralExpression literal = (ValueLiteralExpression) arg;
                 return literal.getValueAs(clazz);
+            }
+            if (clazz == Map.class && isLiteralMap(arg)) {
+                return Optional.of((T) toStringMap(arg));
             }
             return Optional.empty();
         }
@@ -710,6 +720,32 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public boolean isGroupedAggregation() {
             return isGroupedAggregation;
+        }
+
+        private static boolean isLiteralMap(ResolvedExpression arg) {
+            return isFunction(arg, BuiltInFunctionDefinitions.MAP)
+                    && arg.getResolvedChildren().stream()
+                            .allMatch(TableApiCallContext::isNonNullStringLiteral);
+        }
+
+        private static boolean isNonNullStringLiteral(ResolvedExpression expression) {
+            return expression instanceof ValueLiteralExpression
+                    && ((ValueLiteralExpression) expression).getValueAs(String.class).isPresent()
+                    && expression
+                            .getOutputDataType()
+                            .getLogicalType()
+                            .is(LogicalTypeFamily.CHARACTER_STRING);
+        }
+
+        private static Map<String, String> toStringMap(ResolvedExpression literalMap) {
+            final List<ResolvedExpression> entries = literalMap.getResolvedChildren();
+            final Map<String, String> map = new LinkedHashMap<>();
+            for (int i = 0; i < entries.size(); i += 2) {
+                map.put(
+                        ExpressionUtils.stringValue(entries.get(i)),
+                        ExpressionUtils.stringValue(entries.get(i + 1)));
+            }
+            return map;
         }
 
         private ResolvedExpression getArgument(int pos) {

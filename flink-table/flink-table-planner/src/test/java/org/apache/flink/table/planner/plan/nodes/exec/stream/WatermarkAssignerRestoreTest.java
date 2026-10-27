@@ -24,7 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /** Restore tests for {@link StreamExecWatermarkAssigner}. */
-class WatermarkAssignerRestoreTest extends RestoreTestBase {
+public class WatermarkAssignerRestoreTest extends RestoreTestBase {
 
     public WatermarkAssignerRestoreTest() {
         super(StreamExecWatermarkAssigner.class);

@@ -155,6 +155,10 @@ public class JavaUserDefinedScalarFunctions {
             return i + j;
         }
 
+        public int eval() {
+            return 0;
+        }
+
         public String eval(String a) {
             return a;
         }
@@ -172,6 +176,120 @@ public class JavaUserDefinedScalarFunctions {
         @Override
         public PythonEnv getPythonEnv() {
             return new PythonEnv(PythonEnv.ExecType.PROCESS);
+        }
+    }
+
+    /** Test for non-deterministic Python Scalar Function. */
+    public static class NonDeterministicPythonScalarFunction extends ScalarFunction
+            implements PythonFunction {
+        private final String name;
+
+        public NonDeterministicPythonScalarFunction(String name) {
+            this.name = name;
+        }
+
+        public int eval(Integer i, Integer j) {
+            return i + j;
+        }
+
+        public int eval() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
+
+        @Override
+        public PythonEnv getPythonEnv() {
+            return new PythonEnv(PythonEnv.ExecType.PROCESS);
+        }
+    }
+
+    /** Test Python scalar function with explicitly configured parallelism. */
+    public static class ParallelPythonScalarFunction extends PythonScalarFunction {
+        private final int parallelism;
+
+        public ParallelPythonScalarFunction(String name, int parallelism) {
+            super(name);
+            this.parallelism = parallelism;
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+    }
+
+    /** Python scalar fixture with execution options. */
+    public static class ResourcePythonScalarFunction extends ParallelPythonScalarFunction {
+        private final PythonFunctionKind kind;
+        private final int maxArrowBatchSize;
+
+        public ResourcePythonScalarFunction(
+                String name, int parallelism, PythonFunctionKind kind, int maxArrowBatchSize) {
+            super(name, parallelism);
+            this.kind = kind;
+            this.maxArrowBatchSize = maxArrowBatchSize;
+        }
+
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return kind;
+        }
+
+        @Override
+        public int getMaxArrowBatchSize() {
+            return maxArrowBatchSize;
+        }
+    }
+
+    /** Async Python fixture with explicit concurrency. */
+    public static class ParallelAsyncPythonScalarFunction extends AsyncPythonScalarFunction {
+        private final int parallelism;
+
+        public ParallelAsyncPythonScalarFunction(String name, int parallelism) {
+            super(name);
+            this.parallelism = parallelism;
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+    }
+
+    /** Vectorized row fixture with execution options. */
+    public static class ResourceRowPythonScalarFunction extends RowPandasScalarFunction {
+        private final int parallelism;
+        private final int maxArrowBatchSize;
+
+        public ResourceRowPythonScalarFunction(
+                String name, int parallelism, int maxArrowBatchSize) {
+            super(name);
+            this.parallelism = parallelism;
+            this.maxArrowBatchSize = maxArrowBatchSize;
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        @Override
+        public int getMaxArrowBatchSize() {
+            return maxArrowBatchSize;
         }
     }
 

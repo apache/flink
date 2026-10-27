@@ -46,5 +46,18 @@ class ObserverStub {
 (window as unknown as { ResizeObserver: unknown }).ResizeObserver = ObserverStub;
 (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver = ObserverStub;
 
+// jsdom has no Web Worker. @antv/g2 spins one up at module load for its label
+// layout; a no-op stub lets the module import and lets chart-backed views render.
+class WorkerStub {
+  onmessage: unknown = null;
+  onmessageerror: unknown = null;
+  postMessage = vi.fn();
+  terminate = vi.fn();
+  addEventListener = vi.fn();
+  removeEventListener = vi.fn();
+}
+
+(window as unknown as { Worker: unknown }).Worker = WorkerStub;
+
 // jsdom logs "Not implemented" for scrolling; ng-zorro overlays call it.
 window.scrollTo = vi.fn();

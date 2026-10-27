@@ -24,6 +24,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.UUID;
 
 /** Builder for variants. */
 @PublicEvolving
@@ -56,7 +58,13 @@ public interface VariantBuilder {
     /** Create a variant from a boolean. */
     Variant of(boolean b);
 
-    /** Create a variant from a BigDecimal. */
+    /**
+     * Create a variant from a BigDecimal. A negative scale is rescaled to 0, which keeps the
+     * numeric value.
+     *
+     * @throws VariantTypeException if the precision or the scale of the rescaled decimal exceeds
+     *     {@link BinaryVariantUtil#MAX_DECIMAL16_PRECISION}
+     */
     Variant of(BigDecimal bigDecimal);
 
     /** Create a variant from an Instant. */
@@ -67,6 +75,12 @@ public interface VariantBuilder {
 
     /** Create a variant from a LocalDateTime. */
     Variant of(LocalDateTime localDateTime);
+
+    /** Create a variant from a LocalTime. Sub-microsecond precision is truncated. */
+    Variant of(LocalTime localTime);
+
+    /** Create a variant from a UUID. */
+    Variant of(UUID uuid);
 
     /** Create a variant of null. */
     Variant ofNull();

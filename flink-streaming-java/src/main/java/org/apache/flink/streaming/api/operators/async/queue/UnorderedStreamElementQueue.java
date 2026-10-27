@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Unordered implementation of the {@link StreamElementQueue}. The unordered stream element queue
@@ -63,6 +64,8 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
 
     private int numberOfEntries;
 
+    private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+
     public UnorderedStreamElementQueue(int capacity) {
         Preconditions.checkArgument(capacity > 0, "The capacity must be larger than 0.");
 
@@ -70,11 +73,12 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
         // most likely scenario are 4 segments <elements, watermark, elements, watermark>
         this.segments = new ArrayDeque<>(4);
         this.numberOfEntries = 0;
+        this.availabilityHelper.resetAvailable();
     }
 
     @Override
     public Optional<ResultFuture<OUT>> tryPut(StreamElement streamElement) {
-        if (size() < capacity) {
+        if (!isFull()) {
             StreamElementQueueEntry<OUT> queueEntry;
             if (streamElement.isRecord()) {
                 queueEntry = addRecord((StreamRecord<?>) streamElement);
@@ -91,6 +95,10 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
                             + "({}/{}).",
                     size(),
                     capacity);
+
+            if (isFull()) {
+                availabilityHelper.resetUnavailable();
+            }
 
             return Optional.of(queueEntry);
         } else {
@@ -155,6 +163,7 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
         if (segments.isEmpty()) {
             return;
         }
+        boolean isFullBefore = isFull();
         final Segment currentSegment = segments.getFirst();
         numberOfEntries -= currentSegment.emitCompleted(output);
 
@@ -162,6 +171,9 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
         // if empty
         if (segments.size() > 1 && currentSegment.isEmpty()) {
             segments.pop();
+        }
+        if (isFullBefore && !isFull()) {
+            availabilityHelper.getUnavailableToResetAvailable().complete(null);
         }
     }
 
@@ -182,6 +194,15 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
     @Override
     public int size() {
         return numberOfEntries;
+    }
+
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return availabilityHelper.getAvailableFuture();
+    }
+
+    private boolean isFull() {
+        return size() >= capacity;
     }
 
     /** An entry that notifies the respective segment upon completion. */

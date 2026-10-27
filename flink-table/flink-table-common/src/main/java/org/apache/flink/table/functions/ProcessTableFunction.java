@@ -24,12 +24,16 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.annotation.StateKind;
+import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
 
 import java.time.Instant;
@@ -75,6 +79,15 @@ import java.time.LocalDateTime;
  * <p>It is also possible not to provide a key ({@link ArgumentTrait#OPTIONAL_PARTITION_BY}), in
  * which case only one virtual processor handles the entire table, thereby losing scalability
  * benefits.
+ *
+ * <h2>Table Argument with Broadcast Semantics</h2>
+ *
+ * <p>A PTF that takes at least one table with row or set semantics can additionally take a table
+ * with broadcast semantics ({@link ArgumentTrait#BROADCAST_SEMANTIC_TABLE}). Every row of a
+ * broadcast table is sent to all virtual processors, independently of any key partitioning.
+ * Broadcast tables are intended for low-throughput data such as rules, configuration, or control
+ * events. They enable parameterizing a PTF instance during runtime, avoiding downtime due to
+ * restarts. See the section about broadcast state below.
  *
  * <h1>Implementation</h1>
  *
@@ -127,8 +140,9 @@ import java.time.LocalDateTime;
  * <h2>Arguments</h2>
  *
  * <p>The {@link ArgumentHint} annotation enables declaring the name, data type, and kind of each
- * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.ROW_SEMANTIC_TABLE, or
- * ArgumentTrait.SET_SEMANTIC_TABLE). It allows specifying other traits for table arguments as well:
+ * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.ROW_SEMANTIC_TABLE,
+ * ArgumentTrait.SET_SEMANTIC_TABLE, or ArgumentTrait.BROADCAST_SEMANTIC_TABLE). It allows
+ * specifying other traits for table arguments as well:
  *
  * <pre>{@code
  * // Function that has two arguments:
@@ -268,6 +282,73 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
+ * <h2>Large State</h2>
+ *
+ * <p>Flink's state backends provide different types of state to efficiently handle large state.
+ *
+ * <p>Every state entry can store data ranging from a single scalar, a composite type, or even a
+ * whole list or map. What differs is <i>how</i> the data is accessed:
+ *
+ * <ul>
+ *   <li><b>Eager value state</b>: The value follows a Read-Modify-Write cycle. On access the
+ *       complete value is deserialized, and on update it is serialized again - regardless of how
+ *       much of it is actually read or changed.
+ *   <li><b>Value view</b>: A value with lazy access via {@link ValueView}. The complete value is
+ *       only deserialized on read and serialized on update.
+ *   <li><b>List view</b>: A list of values with lazy access for each element via {@link ListView},
+ *       supporting operations like appending, removing, and iterating.
+ *   <li><b>Map view</b>: A map (key-value pair) with lazy access for each pair via {@link MapView},
+ *       supporting efficient lookups, modifications, and removal of individual entries.
+ * </ul>
+ *
+ * <p>By default, a state entry in a PTF is represented as eager value state. Value state is not
+ * limited to a single scalar. It can also hold a whole list or map (for example a {@code Row} or
+ * POJO with an {@code ARRAY} or {@code MAP} field). In that case the <i>complete</i> collection is
+ * deserialized when {@code eval()} is called and serialized again when it returns, no matter how
+ * many elements are actually accessed.
+ *
+ * <p>{@link ValueView}, {@link ListView}, and {@link MapView} are the lazy counterparts. They
+ * provide direct views to the underlying Flink state backend and are preferred over eager value
+ * state, especially when state is accessed conditionally or is too large to fit into memory.
+ *
+ * <p>For example, a {@link ListView} appends or iterates elements without materializing the full
+ * list, and a {@link MapView} accesses a value via {@link MapView#get(Object)} by only
+ * deserializing the value associated with the specified key. This allows for efficient access to
+ * individual entries without needing to load the entire collection.
+ *
+ * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
+ * expiration control over state elements.
+ *
+ * <pre>{@code
+ * // Function that uses a value view for counting events per user with lazy state access
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint ValueView<Integer> count, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     Integer currentCount = count.getValue();
+ *     if (currentCount == null) {
+ *       currentCount = 0;
+ *     }
+ *     count.setValue(currentCount + 1);
+ *     collect("Count for user: " + (currentCount + 1));
+ *   }
+ * }
+ *
+ * // Function that uses a map view for storing a large map for an event history per user
+ * class HistoryFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     String eventId = input.getFieldAs("eventId");
+ *     Integer count = largeMemory.get(eventId);
+ *     if (count == null) {
+ *       largeMemory.put(eventId, 1);
+ *     } else {
+ *       if (count > 1000) {
+ *         collect("Anomaly detected: " + eventId);
+ *       }
+ *       largeMemory.put(eventId, count + 1);
+ *     }
+ *   }
+ * }
+ * }</pre>
+ *
  * <h2>Efficiency and Design Principles</h2>
  *
  * <p>A stateful function also means that data layout and data retention should be well thought
@@ -293,53 +374,84 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
- * <h2>Large State</h2>
- *
- * <p>Flink's state backends provide different types of state to efficiently handle large state.
- *
- * <p>Currently, PTFs support three types of state:
- *
- * <ul>
- *   <li><b>Value state</b>: Represents a single value.
- *   <li><b>List state</b>: Represents a list of values, supporting operations like appending,
- *       removing, and iterating.
- *   <li><b>Map state</b>: Represents a map (key-value pair) for efficient lookups, modifications,
- *       and removal of individual entries.
- * </ul>
- *
- * <p>By default, state entries in a PTF are represented as value state. This means that every state
- * entry is fully read from the state backend when the evaluation method is called, and the value is
- * written back to the state backend once the evaluation method finishes.
- *
- * <p>To optimize state access and avoid unnecessary (de)serialization, state entries can be
- * declared as {@link ListView} or {@link MapView}. These provide direct views to the underlying
- * Flink state backend.
- *
- * <p>For example, when using a {@link MapView}, accessing a value via {@link MapView#get(Object)}
- * will only deserialize the value associated with the specified key. This allows for efficient
- * access to individual entries without needing to load the entire map. This approach is
- * particularly useful when the map does not fit entirely into memory.
- *
- * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
- * expiration control over state elements.
+ * <p>We recommend the use of the {@code VARIANT} data type for future schema evolution. For
+ * example, a {@link ValueView} of {@link Variant} can lazily store semi-structured data whose
+ * schema may change over time:
  *
  * <pre>{@code
- * // Function that uses a map view for storing a large map for an event history per user
- * class HistoryFunction extends ProcessTableFunction<String> {
- *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
- *     String eventId = input.getFieldAs("eventId");
- *     Integer count = largeMemory.get(eventId);
- *     if (count == null) {
- *       largeMemory.put(eventId, 1);
- *     } else {
- *       if (count > 1000) {
- *         collect("Anomaly detected: " + eventId);
- *       }
- *       largeMemory.put(eventId, count + 1);
- *     }
+ * // Function that lazily stores the latest semi-structured payload per key
+ * class VariantFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint ValueView<Variant> last, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     Variant previous = last.getValue();
+ *     last.setValue(input.getFieldAs("payload"));
+ *     collect(previous == null ? "First payload" : "Updated payload");
  *   }
  * }
  * }</pre>
+ *
+ * <h2>Broadcast State</h2>
+ *
+ * <p>Broadcast state enables patterns such as a rule engine where rules are dynamically updated at
+ * runtime, or dynamic configuration that influences the processing of the main table(s).
+ *
+ * <p>Broadcast state is tightly coupled to a broadcast semantic table. A table argument declared
+ * with {@link ArgumentTrait#BROADCAST_SEMANTIC_TABLE} acts as a "side" or "control" input. Every
+ * row of a broadcast table is sent to all virtual processors, regardless of any PARTITION BY
+ * clause. A PTF can store this broadcast information in state entries declared with
+ * {@code @StateHint(StateKind.BROADCAST)}. This broadcast state is shared across all sets and can
+ * be read when processing rows from the main table(s).
+ *
+ * <pre>{@code
+ * // Function that filters sentences using a dynamically updated list of bad words
+ * class RuleFunction extends ProcessTableFunction<String> {
+ *   public void eval(
+ *       @StateHint(StateKind.BROADCAST) MapView<String, Boolean> badWords,
+ *       @ArgumentHint(ROW_SEMANTIC_TABLE) Row data,
+ *       @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules) throws Exception {
+ *     // Write access to broadcast state for the broadcast table
+ *     if (rules != null) {
+ *       badWords.put(rules.getFieldAs("word"), true);
+ *       return;
+ *     }
+ *     // Read access to broadcast state for the main table
+ *     String sentence = data.getFieldAs("sentence");
+ *     for (String word : sentence.toLowerCase().split(" ")) {
+ *       if (badWords.contains(word)) {
+ *         return;
+ *       }
+ *     }
+ *     collect(sentence);
+ *   }
+ * }
+ * }</pre>
+ *
+ * <p>The following rules apply to broadcast tables and broadcast state:
+ *
+ * <ul>
+ *   <li>At least one table argument with row or set semantics must be declared next to broadcast
+ *       tables. Multiple broadcast tables and multiple broadcast state entries are supported.
+ *   <li>Broadcast state can only be modified while processing a broadcast row. This includes
+ *       clearing broadcast state. When processing rows of the main table(s), broadcast state is
+ *       read-only.
+ *   <li>While processing a broadcast row, there is no key context. State entries that are scoped to
+ *       a set are passed as null, results can not be emitted via {@code collect()}, and timers
+ *       cannot be registered or cleared. {@link Context#clearAllState()} only clears broadcast
+ *       state in this case.
+ *   <li>It is the responsibility of the PTF implementer to maintain identical broadcast state
+ *       across all virtual processors, i.e. broadcast state should only be updated
+ *       deterministically based on the broadcast rows.
+ * </ul>
+ *
+ * <p>Note: The system decides which input row is streamed through the virtual processor next. A
+ * change to a broadcast state entry has no effect on rows of the main table(s) that have been
+ * processed before.
+ *
+ * <p>Use {@link ArgumentTrait#NOTIFY_STATEFUL_SETS} to re-evaluate previously processed sets. For
+ * every broadcast row, {@code eval()} is then called multiple times: First, without scoping to a
+ * set to update the broadcast state, if available. Next, once for every set that holds at least one
+ * state entry: In this phase, the {@code eval()} implementation has access to the incoming
+ * broadcast row, as well as all (keyed) state entries. Notifying stateful sets is expensive and
+ * should only be used if broadcast rows are rare and the overall key space is relatively low.
  *
  * <h1>Time and Timers</h1>
  *
@@ -543,8 +655,12 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
         /**
          * Clears the given state entry within the virtual partition once the eval() method returns.
          *
-         * <p>Semantically this is equal to setting all fields of the state entry to null shortly
-         * before the eval() method returns.
+         * <p>Semantically, this is equal to calling {@link DataView#clear()} on the state entry if
+         * backed by a data view. For eager value state, semantically this is equal to setting all
+         * fields of the state entry to null shortly before the eval() method returns.
+         *
+         * <p>A broadcast state entry (see {@link StateKind#BROADCAST}) can only be cleared while
+         * processing a table with broadcast semantics.
          *
          * @param stateName name of the state entry; either reflectively extracted or manually
          *     defined via {@link StateHint#name()}.
@@ -555,14 +671,25 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * Clears all state entries within the virtual partition once the eval() method returns.
          *
          * <p>Semantically, this is equal to calling {@link #clearState(String)} on all state
-         * entries.
+         * entries that are accessible in the current context.
+         *
+         * <p>A broadcast state entry (see {@link StateKind#BROADCAST}) can only be cleared while
+         * processing a table with broadcast semantics.
          */
         void clearAllState();
 
-        /** Clears all timers within the virtual partition. */
+        /**
+         * Clears all timers within the virtual partition.
+         *
+         * <p>While processing a table with broadcast semantics, this is a no-op.
+         */
         void clearAllTimers();
 
-        /** Clears the virtual partition including timers and state. */
+        /**
+         * Clears the virtual partition including timers and state.
+         *
+         * <p>This is a shortcut for {@link #clearAllState()} and {@link #clearAllTimers()}.
+         */
         void clearAll();
 
         /**

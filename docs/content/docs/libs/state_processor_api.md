@@ -268,7 +268,6 @@ DataStream<KeyedState> keyRange = savepoint.readKeyedState(
 * `SavepointKeyFilter.exact(K key)` / `SavepointKeyFilter.exact(Set<K> keys)` — match a single key or a finite set of keys.
 * `SavepointKeyFilter.range(K lower, boolean lowerInclusive, K upper, boolean upperInclusive)` — match a range; `K` must implement `Comparable<K>`. Either bound may be `null` to leave that side unbounded.
 * `SavepointKeyFilter.range(K lower, boolean lowerInclusive, K upper, boolean upperInclusive, SerializableComparator<K> comparator)` — same, but with an explicit comparator for key types that do not implement `Comparable<K>`. The comparator must be serializable because the filter is shipped with the job; lambdas and method references assigned to `SerializableComparator` satisfy this automatically.
-* `SavepointKeyFilter.empty()` — match no keys. Not intended for direct use — it only serves as an internal building block for the Table API filter pushdown.
 
 When the built-in filters are not enough, you can implement the `SavepointKeyFilter<K>` interface yourself.
 For use with the DataStream API, only `test(K key)` has to be implemented; it is called for every key in each opened split and decides whether that key will be read.
@@ -327,8 +326,6 @@ DataStream<KeyedState> firstKeys = savepoint.readKeyedState(
     TypeInformation.of(KeyedState.class),
     new UpToKeyFilter(100));
 ```
-
-The remaining interface methods can be left at their defaults for DataStream API usage, as they are only used internally in the Table API during push-down handling.
 
 #### Window State
 
@@ -749,17 +746,13 @@ The following predicates on the key column can be pushed down:
 | Option                           | Required | Default | Type                                   | Description                                                                                                                                                                                                                                                                      |
 |----------------------------------|----------|---------|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | fields.#.state-name              | optional | (none)  | String                                 | Overrides the state name which must be used for state reading. This can be useful when the state name contains characters which are not compliant with SQL column names.                                                                                                         |
-| fields.#.state-type              | optional | (none)  | Enum Possible values: list, map, value | Defines the state type which must be used for state reading, including value, list and map. When it's not provided then it tries to infer from the SQL type (ARRAY=list, MAP=map, all others=value).                                                                             |
-| fields.#.key-class               | optional | (none)  | String                                 | Defines the format class scheme for decoding map key data (for ex. java.lang.Long). Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).        |
-| fields.#.key-type-factory        | optional | (none)  | String                                 | Defines the type information factory for decoding map key data. Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                            |
-| fields.#.value-class             | optional | (none)  | String                                 | Defines the format class scheme for decoding value data (for ex. java.lang.Long). Either value-class or value-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).      |
-| fields.#.value-type-factory      | optional | (none)  | String                                 | Defines the type information factory for decoding value data. Either value-class or value-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                          |
 
 ### Default Data Type Mapping
 
-The state SQL connector infers the data type for primitive types when `fields.#.value-class` and `fields.#.key-class`
-are not defined. The following table shows the `Flink SQL type` -> `Java type` default mapping. If the mapping is not calculated properly
-then it can be overridden with the two mentioned config parameters on a per-column basis.
+The state SQL connector automatically infers each column's data type from the savepoint's serializer
+snapshot metadata (this covers primitive, Avro, Row and POJO types). When no serializer snapshot is
+available for a column, it falls back to inferring a primitive Java type directly from the SQL type,
+using the mapping below.
 
 | Flink SQL type          | Java type                                                               |
 |-------------------------|-------------------------------------------------------------------------|

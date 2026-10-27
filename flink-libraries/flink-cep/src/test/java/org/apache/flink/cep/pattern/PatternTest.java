@@ -26,58 +26,54 @@ import org.apache.flink.cep.pattern.conditions.RichAndCondition;
 import org.apache.flink.cep.pattern.conditions.RichOrCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /** Tests for constructing {@link Pattern}. */
-public class PatternTest extends TestLogger {
+class PatternTest {
 
     /** These test simply test that the pattern construction completes without failure. */
     @Test
-    public void testStrictContiguity() {
+    void testStrictContiguity() {
         Pattern<Object, ?> pattern = Pattern.begin("start").next("next").next("end");
         Pattern<Object, ?> previous;
         Pattern<Object, ?> previous2;
 
-        assertNotNull(previous = pattern.getPrevious());
-        assertNotNull(previous2 = previous.getPrevious());
-        assertNull(previous2.getPrevious());
+        assertThat(previous = pattern.getPrevious()).isNotNull();
+        assertThat(previous2 = previous.getPrevious()).isNotNull();
+        assertThat(previous2.getPrevious()).isNull();
 
-        assertEquals(pattern.getName(), "end");
-        assertEquals(previous.getName(), "next");
-        assertEquals(previous2.getName(), "start");
+        assertThat(pattern.getName()).isEqualTo("end");
+        assertThat(previous.getName()).isEqualTo("next");
+        assertThat(previous2.getName()).isEqualTo("start");
     }
 
     @Test
-    public void testNonStrictContiguity() {
+    void testNonStrictContiguity() {
         Pattern<Object, ?> pattern = Pattern.begin("start").followedBy("next").followedBy("end");
         Pattern<Object, ?> previous;
         Pattern<Object, ?> previous2;
 
-        assertNotNull(previous = pattern.getPrevious());
-        assertNotNull(previous2 = previous.getPrevious());
-        assertNull(previous2.getPrevious());
+        assertThat(previous = pattern.getPrevious()).isNotNull();
+        assertThat(previous2 = previous.getPrevious()).isNotNull();
+        assertThat(previous2.getPrevious()).isNull();
 
-        assertEquals(
-                ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
-        assertEquals(
-                ConsumingStrategy.SKIP_TILL_NEXT, previous.getQuantifier().getConsumingStrategy());
+        assertThat(pattern.getQuantifier().getConsumingStrategy())
+                .isEqualTo(ConsumingStrategy.SKIP_TILL_NEXT);
+        assertThat(previous.getQuantifier().getConsumingStrategy())
+                .isEqualTo(ConsumingStrategy.SKIP_TILL_NEXT);
 
-        assertEquals(pattern.getName(), "end");
-        assertEquals(previous.getName(), "next");
-        assertEquals(previous2.getName(), "start");
+        assertThat(pattern.getName()).isEqualTo("end");
+        assertThat(previous.getName()).isEqualTo("next");
+        assertThat(previous2.getName()).isEqualTo("start");
     }
 
     @Test
-    public void testStrictContiguityWithCondition() {
+    void testStrictContiguityWithCondition() {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .next("next")
@@ -88,21 +84,21 @@ public class PatternTest extends TestLogger {
         Pattern<Event, ?> previous;
         Pattern<Event, ?> previous2;
 
-        assertNotNull(previous = pattern.getPrevious());
-        assertNotNull(previous2 = previous.getPrevious());
-        assertNull(previous2.getPrevious());
+        assertThat(previous = pattern.getPrevious()).isNotNull();
+        assertThat(previous2 = previous.getPrevious()).isNotNull();
+        assertThat(previous2.getPrevious()).isNull();
 
-        assertNotNull(pattern.getCondition());
-        assertNotNull(previous.getCondition());
-        assertNotNull(previous2.getCondition());
+        assertThat(pattern.getCondition()).isNotNull();
+        assertThat(previous.getCondition()).isNotNull();
+        assertThat(previous2.getCondition()).isNotNull();
 
-        assertEquals(pattern.getName(), "end");
-        assertEquals(previous.getName(), "next");
-        assertEquals(previous2.getName(), "start");
+        assertThat(pattern.getName()).isEqualTo("end");
+        assertThat(previous.getName()).isEqualTo("next");
+        assertThat(previous2.getName()).isEqualTo("start");
     }
 
     @Test
-    public void testPatternWithSubtyping() {
+    void testPatternWithSubtyping() {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .next("subevent")
@@ -112,20 +108,20 @@ public class PatternTest extends TestLogger {
         Pattern<Event, ?> previous;
         Pattern<Event, ?> previous2;
 
-        assertNotNull(previous = pattern.getPrevious());
-        assertNotNull(previous2 = previous.getPrevious());
-        assertNull(previous2.getPrevious());
+        assertThat(previous = pattern.getPrevious()).isNotNull();
+        assertThat(previous2 = previous.getPrevious()).isNotNull();
+        assertThat(previous2.getPrevious()).isNull();
 
-        assertNotNull(previous.getCondition());
-        assertTrue(previous.getCondition() instanceof SubtypeCondition);
+        assertThat(previous.getCondition()).isNotNull();
+        assertThat(previous.getCondition()).isInstanceOf(SubtypeCondition.class);
 
-        assertEquals(pattern.getName(), "end");
-        assertEquals(previous.getName(), "subevent");
-        assertEquals(previous2.getName(), "start");
+        assertThat(pattern.getName()).isEqualTo("end");
+        assertThat(previous.getName()).isEqualTo("subevent");
+        assertThat(previous2.getName()).isEqualTo("start");
     }
 
     @Test
-    public void testPatternWithSubtypingAndFilter() {
+    void testPatternWithSubtypingAndFilter() {
         Pattern<Event, Event> pattern =
                 Pattern.<Event>begin("start")
                         .next("subevent")
@@ -136,21 +132,21 @@ public class PatternTest extends TestLogger {
         Pattern<Event, ?> previous;
         Pattern<Event, ?> previous2;
 
-        assertNotNull(previous = pattern.getPrevious());
-        assertNotNull(previous2 = previous.getPrevious());
-        assertNull(previous2.getPrevious());
+        assertThat(previous = pattern.getPrevious()).isNotNull();
+        assertThat(previous2 = previous.getPrevious()).isNotNull();
+        assertThat(previous2.getPrevious()).isNull();
 
-        assertEquals(
-                ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
-        assertNotNull(previous.getCondition());
+        assertThat(pattern.getQuantifier().getConsumingStrategy())
+                .isEqualTo(ConsumingStrategy.SKIP_TILL_NEXT);
+        assertThat(previous.getCondition()).isNotNull();
 
-        assertEquals(pattern.getName(), "end");
-        assertEquals(previous.getName(), "subevent");
-        assertEquals(previous2.getName(), "start");
+        assertThat(pattern.getName()).isEqualTo("end");
+        assertThat(previous.getName()).isEqualTo("subevent");
+        assertThat(previous2.getName()).isEqualTo("start");
     }
 
     @Test
-    public void testPatternWithOrFilter() {
+    void testPatternWithOrFilter() {
         Pattern<Event, Event> pattern =
                 Pattern.<Event>begin("start")
                         .where(SimpleCondition.of(value -> false))
@@ -162,22 +158,22 @@ public class PatternTest extends TestLogger {
         Pattern<Event, ?> previous;
         Pattern<Event, ?> previous2;
 
-        assertNotNull(previous = pattern.getPrevious());
-        assertNotNull(previous2 = previous.getPrevious());
-        assertNull(previous2.getPrevious());
+        assertThat(previous = pattern.getPrevious()).isNotNull();
+        assertThat(previous2 = previous.getPrevious()).isNotNull();
+        assertThat(previous2.getPrevious()).isNull();
 
-        assertEquals(
-                ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
-        assertFalse(previous.getCondition() instanceof RichOrCondition);
-        assertTrue(previous2.getCondition() instanceof RichOrCondition);
+        assertThat(pattern.getQuantifier().getConsumingStrategy())
+                .isEqualTo(ConsumingStrategy.SKIP_TILL_NEXT);
+        assertThat(previous.getCondition()).isNotInstanceOf(RichOrCondition.class);
+        assertThat(previous2.getCondition()).isInstanceOf(RichOrCondition.class);
 
-        assertEquals(pattern.getName(), "end");
-        assertEquals(previous.getName(), "or");
-        assertEquals(previous2.getName(), "start");
+        assertThat(pattern.getName()).isEqualTo("end");
+        assertThat(previous.getName()).isEqualTo("or");
+        assertThat(previous2.getName()).isEqualTo("start");
     }
 
     @Test
-    public void testRichCondition() {
+    void testRichCondition() {
         Pattern<Event, Event> pattern =
                 Pattern.<Event>begin("start")
                         .where(mock(IterativeCondition.class))
@@ -185,125 +181,178 @@ public class PatternTest extends TestLogger {
                         .followedBy("end")
                         .where(mock(IterativeCondition.class))
                         .or(mock(IterativeCondition.class));
-        assertTrue(pattern.getCondition() instanceof RichOrCondition);
-        assertTrue(pattern.getPrevious().getCondition() instanceof RichAndCondition);
+        assertThat(pattern.getCondition()).isInstanceOf(RichOrCondition.class);
+        assertThat(pattern.getPrevious().getCondition()).isInstanceOf(RichAndCondition.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testPatternTimesNegativeTimes() throws Exception {
-        Pattern.begin("start").where(dummyCondition()).times(-1);
+    @Test
+    void testPatternTimesNegativeTimes() {
+        assertThatThrownBy(() -> Pattern.begin("start").where(dummyCondition()).times(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testPatternTimesNegativeFrom() throws Exception {
-        Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+    @Test
+    void testPatternTimesNegativeFrom() {
+        assertThatThrownBy(() -> Pattern.begin("start").where(dummyCondition()).times(-1, 2))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+    @Test
+    void testPatternCanHaveQuantifierSpecifiedOnce1() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .oneOrMore()
+                                        .oneOrMore()
+                                        .optional())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testPatternCanHaveQuantifierSpecifiedOnce2() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().optional().times(1);
+    @Test
+    void testPatternCanHaveQuantifierSpecifiedOnce2() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .oneOrMore()
+                                        .optional()
+                                        .times(1))
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testPatternCanHaveQuantifierSpecifiedOnce3() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).times(1).oneOrMore();
+    @Test
+    void testPatternCanHaveQuantifierSpecifiedOnce3() {
+        assertThatThrownBy(
+                        () -> Pattern.begin("start").where(dummyCondition()).times(1).oneOrMore())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testPatternCanHaveQuantifierSpecifiedOnce4() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore();
+    @Test
+    void testPatternCanHaveQuantifierSpecifiedOnce4() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .oneOrMore()
+                                        .oneOrMore())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testPatternCanHaveQuantifierSpecifiedOnce5() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+    @Test
+    void testPatternCanHaveQuantifierSpecifiedOnce5() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .oneOrMore()
+                                        .oneOrMore()
+                                        .optional())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testNotNextCannotBeOneOrMore() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notNext("not")
-                .where(dummyCondition())
-                .oneOrMore();
+    @Test
+    void testNotNextCannotBeOneOrMore() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .notNext("not")
+                                        .where(dummyCondition())
+                                        .oneOrMore())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testNotNextCannotBeTimes() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notNext("not")
-                .where(dummyCondition())
-                .times(3);
+    @Test
+    void testNotNextCannotBeTimes() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .notNext("not")
+                                        .where(dummyCondition())
+                                        .times(3))
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testNotNextCannotBeOptional() throws Exception {
-
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notNext("not")
-                .where(dummyCondition())
-                .optional();
+    @Test
+    void testNotNextCannotBeOptional() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .notNext("not")
+                                        .where(dummyCondition())
+                                        .optional())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testNotFollowedCannotBeOneOrMore() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notFollowedBy("not")
-                .where(dummyCondition())
-                .oneOrMore();
+    @Test
+    void testNotFollowedCannotBeOneOrMore() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .notFollowedBy("not")
+                                        .where(dummyCondition())
+                                        .oneOrMore())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testNotFollowedCannotBeTimes() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notFollowedBy("not")
-                .where(dummyCondition())
-                .times(3);
+    @Test
+    void testNotFollowedCannotBeTimes() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .notFollowedBy("not")
+                                        .where(dummyCondition())
+                                        .times(3))
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testNotFollowedCannotBeOptional() throws Exception {
-
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notFollowedBy("not")
-                .where(dummyCondition())
-                .optional();
+    @Test
+    void testNotFollowedCannotBeOptional() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .notFollowedBy("not")
+                                        .where(dummyCondition())
+                                        .optional())
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testUntilCannotBeAppliedToTimes() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).times(1).until(dummyCondition());
+    @Test
+    void testUntilCannotBeAppliedToTimes() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .times(1)
+                                        .until(dummyCondition()))
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testUntilCannotBeAppliedToSingleton() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).until(dummyCondition());
+    @Test
+    void testUntilCannotBeAppliedToSingleton() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .until(dummyCondition()))
+                .isInstanceOf(MalformedPatternException.class);
     }
 
-    @Test(expected = MalformedPatternException.class)
-    public void testUntilCannotBeAppliedTwice() throws Exception {
-
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .until(dummyCondition())
-                .until(dummyCondition());
+    @Test
+    void testUntilCannotBeAppliedTwice() {
+        assertThatThrownBy(
+                        () ->
+                                Pattern.begin("start")
+                                        .where(dummyCondition())
+                                        .until(dummyCondition())
+                                        .until(dummyCondition()))
+                .isInstanceOf(MalformedPatternException.class);
     }
 
     private SimpleCondition<Object> dummyCondition() {

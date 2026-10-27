@@ -154,7 +154,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + ")\n"
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
-                        + "AS SELECT t1.* FROM t1";
+                        // the persisted metadata column has to be produced by the query
+                        + "AS SELECT CAST(NULL AS STRING) AS m_p, t1.* FROM t1";
         createMaterializedTableInCatalog(sqlWithMetadataColumn, "base_mtbl_with_metadata");
 
         // MATERIALIZED TABLE without constraint
@@ -849,13 +850,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Column mismatch at position 4: Original column is [`d` STRING], "
                                 + "but new column is [`d` INT]."),
                 TestSpec.of(
-                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST('d' AS STRING) AS d FROM t3",
-                        "When modifying the query of a materialized table, currently only support "
-                                + "appending columns at the end of original schema, dropping, "
-                                + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 4: Original column is [`d` STRING], "
-                                + "but new column is [`d` STRING NOT NULL]."),
-                TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT '123'",
                         "ALTER query for MATERIALIZED TABLE "
                                 + "with schema containing non persisted columns is not supported, "
@@ -879,8 +873,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "`t` AS CURRENT_TIMESTAMP - INTERVAL '5' SECOND. You might want to drop it before adding a new one."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `physical_not_used_in_query` BIGINT NOT NULL",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Invalid schema change. All persisted (physical and metadata) "
+                        "Failed to execute ALTER MATERIALIZED TABLE ADD statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
                                 + "columns in the schema part need to be present in the query part.\n"
                                 + "However, physical column `physical_not_used_in_query` could not be found in the query."),
                 TestSpec.of(
@@ -902,8 +896,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Referenced column `q2` by 'AFTER' does not exist in the table."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `m1` INT METADATA",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Invalid schema change. All persisted (physical and metadata) "
+                        "Failed to execute ALTER MATERIALIZED TABLE ADD statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
                                 + "columns in the schema part need to be present in the query part.\n"
                                 + "However, metadata persisted column `m1` could not be found in the query."));
     }
@@ -920,14 +914,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Invalid column name 'invalid_column' for rowtime attribute in watermark declaration. Available columns are: [t, a, b, c, d]"),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl MODIFY `physical_not_used_in_query` BIGINT NOT NULL",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Invalid schema change. All persisted (physical and metadata) "
+                        "Failed to execute ALTER MATERIALIZED TABLE MODIFY statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
                                 + "columns in the schema part need to be present in the query part.\n"
                                 + "However, physical column `physical_not_used_in_query` could not be found in the query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl MODIFY `not_existed_column` BIGINT NOT NULL",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Invalid schema change. All persisted (physical and metadata) columns in the schema part need to be present in the query part.\n"
+                        "Failed to execute ALTER MATERIALIZED TABLE MODIFY statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) columns in the schema part need to be present in the query part.\n"
                                 + "However, physical column `not_existed_column` could not be found in the query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl MODIFY `a` AS `non_existing_column` + 2",
@@ -947,8 +941,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Referenced column `q2` by 'AFTER' does not exist in the table."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl MODIFY `m1` INT METADATA",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Invalid schema change. All persisted (physical and metadata) "
+                        "Failed to execute ALTER MATERIALIZED TABLE MODIFY statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
                                 + "columns in the schema part need to be present in the query part.\n"
                                 + "However, metadata persisted column `m1` could not be found in the query."),
                 TestSpec.of(
@@ -1009,12 +1003,42 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "CREATE MATERIALIZED TABLE users_shops (a INT, b INT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
-                        "Invalid as physical column 'a' is defined in the DDL, but is not used in a query column."),
+                        "Failed to execute CREATE MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, physical column `a` could not be found in the query."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id INT, b INT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
-                        "Invalid as physical column 'b' is defined in the DDL, but is not used in a query column."),
+                        "Failed to execute CREATE MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, physical column `b` could not be found in the query."),
+                TestSpec.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, user_id INT, m1 INT METADATA)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Failed to execute CREATE MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, metadata persisted column `m1` could not be found in the query."),
+                TestSpec.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, user_id INT, m1 INT METADATA FROM 'k1')"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Failed to execute CREATE MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, metadata persisted column `m1` could not be found in the query."),
+                TestSpec.of(
+                        "CREATE OR ALTER MATERIALIZED TABLE users_shops (shop_id INT, user_id INT, m1 INT METADATA)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Failed to execute CREATE OR ALTER MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, metadata persisted column `m1` could not be found in the query."),
                 // test unsupported constraint
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1 (\n"
@@ -1161,7 +1185,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Column(s) ('d') are used in query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
-                        "Dropping of persisted column `m_p` is not supported."));
+                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                + "Column(s) ('m_p') are used in query."));
     }
 
     private static Collection<TestSpec> alterSet() {
@@ -1475,7 +1500,27 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 List.of(),
                                 UniqueConstraint.primaryKey("PK_user_id", List.of("user_id")),
                                 List.of(),
-                                null)));
+                                null)),
+                // a persisted metadata column is written by the query column of the same name
+                Arguments.of(
+                        operation
+                                + "MATERIALIZED TABLE users_shops (m1 INT METADATA)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id, 3 AS m1",
+                        ResolvedSchema.of(
+                                Column.physical("shop_id", DataTypes.INT().notNull()),
+                                Column.physical("user_id", DataTypes.INT().notNull()),
+                                Column.metadata("m1", DataTypes.INT(), null, false))),
+                // a virtual metadata column is read-only and needs no query column
+                Arguments.of(
+                        operation
+                                + "MATERIALIZED TABLE users_shops (m2 STRING METADATA VIRTUAL)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        ResolvedSchema.of(
+                                Column.metadata("m2", DataTypes.STRING(), null, true),
+                                Column.physical("shop_id", DataTypes.INT().notNull()),
+                                Column.physical("user_id", DataTypes.INT().notNull()))));
     }
 
     /** Boilerplate CatalogMaterializedTable builder for tests. */

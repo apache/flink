@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.python.process.ExternalPythonPro
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.legacy.api.Types;
 
 import org.junit.jupiter.api.Test;
@@ -650,7 +651,7 @@ class PythonOperatorChainingOptimizerTest {
         for (String expectedPythonFunction : expectedChainedPythonFunctions) {
             assertThat(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction())
                     .isEqualTo(expectedPythonFunction.getBytes());
-            Object[] inputs = pythonFunctionInfo.getInputs();
+            PythonFunctionInput[] inputs = pythonFunctionInfo.getInputs();
             if (inputs.length > 0) {
                 assertThat(inputs).hasSize(1);
                 pythonFunctionInfo = (DataStreamPythonFunctionInfo) inputs[0];

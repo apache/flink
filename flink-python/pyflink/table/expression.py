@@ -20,7 +20,12 @@ from typing import Union, TypeVar, Generic, Any
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, DataTypes, _to_java_data_type
+from pyflink.table.types import (
+    DataType,
+    DataTypes,
+    _TableDataTypeLike,
+    _to_java_data_type,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
@@ -90,7 +95,9 @@ _string_doc_seealso = """
              :func:`~Expression.regexp_extract`, :func:`~Expression.substring`,
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
              :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`,
-             :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`
+             :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`,
+             :func:`~Expression.parse_json`, :func:`~Expression.try_parse_json`,
+             :func:`~Expression.parse_xml`, :func:`~Expression.try_parse_xml`
 """
 
 _temporal_doc_seealso = """
@@ -189,7 +196,9 @@ def _make_string_doc():
         Expression.lpad, Expression.rpad, Expression.overlay, Expression.regexp_replace,
         Expression.regexp_extract, Expression.from_base64, Expression.to_base64,
         Expression.ltrim, Expression.rtrim, Expression.repeat,
-        Expression.json_quote, Expression.json_unquote
+        Expression.json_quote, Expression.json_unquote,
+        Expression.parse_json, Expression.try_parse_json,
+        Expression.parse_xml, Expression.try_parse_xml
     ]
 
     for func in string_funcs:
@@ -480,7 +489,7 @@ class Expression(Generic[T]):
     # logic functions
     __and__ = _binary_op("and")
     __or__ = _binary_op("or")
-    __invert__ = _unary_op('isNotTrue')
+    __invert__ = _unary_op("not")
 
     __rand__ = _binary_op("and")
     __ror__ = _binary_op("or")
@@ -760,6 +769,24 @@ class Expression(Generic[T]):
         return _unary_op("isNotFalse")(self)
 
     @property
+    def is_nan(self) -> 'Expression[bool]':
+        """
+        Returns true if the given numeric expression is NaN (Not-a-Number).
+
+        .. seealso:: :py:attr:`~Expression.is_not_nan`
+        """
+        return _unary_op("isNan")(self)
+
+    @property
+    def is_not_nan(self) -> 'Expression[bool]':
+        """
+        Returns true if the given numeric expression is not NaN (Not-a-Number).
+
+        .. seealso:: :py:attr:`~Expression.is_nan`
+        """
+        return _unary_op("isNotNan")(self)
+
+    @property
     def distinct(self) -> 'Expression':
         """
         Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
@@ -886,7 +913,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("asArgument")(self, name)
 
-    def cast(self, data_type: DataType) -> 'Expression':
+    def cast(self, data_type: _TableDataTypeLike) -> 'Expression':
         """
         Returns a new value being cast to type type.
         A cast error throws an exception and fails the job.
@@ -900,7 +927,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
-    def try_cast(self, data_type: DataType) -> 'Expression':
+    def try_cast(self, data_type: _TableDataTypeLike) -> 'Expression':
         """
         Like cast, but in case of error, returns NULL rather than failing the job.
 
@@ -1572,22 +1599,97 @@ class Expression(Generic[T]):
         """
         return _binary_op("repeat")(self, n)
 
-    def over(self, alias) -> 'Expression':
+    def over(
+        self,
+        alias=None,
+        *,
+        order_by=None,
+        partition_by=None,
+        rows=None,
+        range=None,
+    ) -> 'Expression':
         """
-        Defines an aggregation to be used for a previously specified over window.
+        Defines an aggregation over a named Table API window or an inline DataFrame window.
 
-        Example:
-        ::
+        A positional ``alias`` or ``alias=`` refers to a named Table API window. Inline DataFrame
+        windows require ``order_by=`` and can use ``rows`` or ``range``. Matching Table API frame
+        constants are also accepted (``*_ROW`` with ``rows``, ``*_RANGE`` with ``range``).
 
-            >>> tab.window(Over
-            >>>         .partition_by(col('c'))
-            >>>         .order_by(col('rowtime'))
-            >>>         .preceding(row_interval(2))
-            >>>         .following(CURRENT_ROW)
-            >>>         .alias("w")) \\
-            >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
+        A scalar ``rows`` value is a positive integer describing the number of preceding rows. A
+        scalar ``range`` value is a non-negative :class:`datetime.timedelta` or Flink duration
+        string describing the preceding time interval. Both frames can instead be specified as a
+        two-element ``(lower, upper)`` tuple. Explicit bounds are created with
+        :func:`~pyflink.dataframe.over_window.preceding` and
+        :func:`~pyflink.dataframe.over_window.following`, or with matching constants from
+        :mod:`pyflink.table.expressions`.
+
+        :param alias: Expression identifying a previously declared Table API OVER window. It
+                      cannot be combined with inline window arguments.
+        :type alias: Optional[Expression]
+        :param order_by: Column name or expression identifying the single ordering time attribute
+                         of an inline window.
+        :type order_by: Optional[Union[str, Expression]]
+        :param partition_by: Optional column name, expression, or non-empty list or tuple of column
+                             names and expressions used as partition keys.
+        :type partition_by: Optional[Union[str, Expression, List[Union[str, Expression]],
+                            Tuple[Union[str, Expression], ...]]]
+        :param rows: Optional positive row count or two-element ROW-frame bound tuple.
+        :type rows: Optional[Union[int, Expression, Tuple[Union[FrameBoundary, Expression],
+                    Union[FrameBoundary, Expression]]]]
+        :param range: Optional Flink duration string, :class:`datetime.timedelta`, or two-element
+                      RANGE-frame bound tuple.
+        :type range: Optional[Union[str, datetime.timedelta, Expression,
+                     Tuple[Union[FrameBoundary, Expression],
+                     Union[FrameBoundary, Expression]]]]
+        :return: An OVER aggregation expression.
+        :raises TypeError: If named- and inline-window arguments are combined, a required
+                           ``order_by`` is missing, or an argument has an unsupported type.
+        :raises ValueError: If ``rows`` and ``range`` are both provided, or a frame bound has an
+                            invalid value, direction, or frame kind.
+
+        Given a DataFrame ``df`` containing ``key``, ``amount``, and ``rowtime``::
+
+            >>> import pyflink.dataframe as pf
+            >>> from pyflink.table.expressions import CURRENT_ROW, UNBOUNDED_ROW
+            >>> result = df.select(
+            ...     "key",
+            ...     running=pf.col("amount").sum.over(
+            ...         order_by="rowtime", partition_by="key",
+            ...         rows=(pf.preceding(2), CURRENT_ROW)))
+
+        Table API frame constants can also define the bounds::
+
+            >>> cumulative = pf.col("amount").sum.over(
+            ...     order_by="rowtime", rows=(UNBOUNDED_ROW, CURRENT_ROW))
+
+        For an existing named Table API window ``w``::
+
+            >>> pf.col("amount").sum.over(alias=pf.col("w"))
+
+        .. versionchanged:: 2.4.0
+           Added inline DataFrame window arguments while preserving named Table API windows.
         """
-        return _binary_op("over")(self, alias)
+        if alias is not None and order_by is not None:
+            raise TypeError("over() cannot specify both alias and order_by")
+        if alias is not None and (
+            partition_by is not None or rows is not None or range is not None
+        ):
+            raise TypeError("over() cannot combine alias with inline window arguments")
+        if alias is not None:
+            return _binary_op("over")(self, alias)
+
+        if order_by is None:
+            raise TypeError("over() missing required argument: order_by")
+
+        from pyflink.table._over_window import _build_over_expression
+
+        return _build_over_expression(
+            self,
+            order_by,
+            partition_by=partition_by,
+            rows=rows,
+            range_=range,
+        )
 
     @property
     def reverse(self) -> 'Expression[str]':
@@ -1961,6 +2063,42 @@ class Expression(Generic[T]):
         """
         return _unary_op("mapEntries")(self)
 
+    @property
+    def map_from_entries(self) -> 'Expression':
+        """
+        Returns a map created from the given array of entries. Each entry must be a row with
+        exactly two fields, where the first field becomes the key and the second one the value.
+
+        If there are duplicate keys, the value of the last entry with that key wins; None keys are
+        treated as equal and collapse into a single entry. If the array itself or any of its
+        entries is None, None is returned.
+
+        Examples:
+        ::
+
+            >>> array(row(1, "one"), row(2, "two")).map_from_entries # {1=one, 2=two}
+            >>> array(row(1, "one"), row(2, "two"), row(1, "uno")).map_from_entries # {1=uno, 2=two}
+        """
+        return _unary_op("mapFromEntries")(self)
+
+    def map_contains_key(self, key) -> 'Expression':
+        """
+        Returns True if the given key exists in the map, False otherwise. Returns None if the map
+        is None.
+
+        If the search key is None, the function returns True when the map contains a None key.
+        The given key is cast implicitly to the map's key type where Flink's implicit casting
+        rules allow it; otherwise the call fails validation.
+
+        Examples:
+        ::
+
+            >>> map_("a", 1, "b", 2).map_contains_key("a") # True
+            >>> map_("a", 1, "b", 2).map_contains_key("z") # False
+            >>> map_(1, "a").map_contains_key(lit(1, DataTypes.TINYINT())) # True
+        """
+        return _binary_op("mapContainsKey")(self, key)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property
@@ -2167,8 +2305,13 @@ class Expression(Generic[T]):
 
         * `STRING`
         * `BOOLEAN`
+        * `TINYINT`
+        * `SMALLINT`
         * `INT`
+        * `BIGINT`
+        * `FLOAT`
         * `DOUBLE`
+        * `DECIMAL`
 
         For empty path expressions or errors a behavior can be defined to either return `null`,
         raise an error or return a defined default value instead.
@@ -2257,6 +2400,161 @@ class Expression(Generic[T]):
         """
         return _unary_op("jsonUnquote")(self)
 
+    def parse_json(self, allow_duplicate_keys=None) -> 'Expression':
+        """
+        Parses a JSON string into a value of VARIANT type. If the JSON string is invalid,
+        an error is thrown. To return None instead of an error, use
+        :func:`~Expression.try_parse_json`.
+
+        If there are duplicate keys in the input, allow_duplicate_keys controls whether the
+        parser keeps the last occurrence of each duplicated key (True) or throws an error
+        (False). The default value of allow_duplicate_keys is False.
+        """
+        if allow_duplicate_keys is None:
+            return _unary_op("parseJson")(self)
+        else:
+            return _binary_op("parseJson")(self, allow_duplicate_keys)
+
+    def try_parse_json(self, allow_duplicate_keys=None) -> 'Expression':
+        """
+        Parses a JSON string into a value of VARIANT type. If the JSON string is invalid,
+        None is returned. To throw an error instead, use :func:`~Expression.parse_json`.
+
+        If there are duplicate keys in the input, allow_duplicate_keys controls whether the
+        parser keeps the last occurrence of each duplicated key (True) or returns
+        None (False). The default value of allow_duplicate_keys is False.
+        """
+        if allow_duplicate_keys is None:
+            return _unary_op("tryParseJson")(self)
+        else:
+            return _binary_op("tryParseJson")(self, allow_duplicate_keys)
+
+    def parse_xml(self, force_array=None) -> 'Expression':
+        """
+        Parses an XML string into a value of VARIANT type. If the XML string is invalid,
+        an error is thrown. To return None instead of an error, use
+        :func:`~Expression.try_parse_xml`.
+
+        If force_array is True, every child element, text, and position in a # field is stored
+        as an array, even if it occurs only once. force_array can be a bool or a boolean
+        expression, and its default value is False. A NULL value is treated as False.
+        """
+        if force_array is None:
+            return _unary_op("parseXml")(self)
+        else:
+            return _binary_op("parseXml")(self, force_array)
+
+    def try_parse_xml(self, force_array=None) -> 'Expression':
+        """
+        Parses an XML string into a value of VARIANT type. If the XML string is invalid,
+        None is returned. To throw an error instead, use :func:`~Expression.parse_xml`.
+
+        See :func:`~Expression.parse_xml` for the meaning of force_array.
+        """
+        if force_array is None:
+            return _unary_op("tryParseXml")(self)
+        else:
+            return _binary_op("tryParseXml")(self, force_array)
+
+    def json_length(self, path=None) -> 'Expression':
+        """
+        Returns the number of elements in a JSON document, or the length of the value at the
+        specified path if one is provided.
+
+        The input can be a JSON STRING or a VARIANT. Returns None if the argument is None,
+        the json is invalid, or the path is empty, malformed or does not locate a value.
+
+        The path must be a plain path literal such as '$.a.b'. A path carrying a
+        'lax'/'strict' path mode prefix raises an error.
+
+        The length is determined as follows:
+
+        - Scalar values (number, string, boolean) have length 1.
+        - Arrays have a length equal to the number of their elements.
+        - Objects have a length equal to the number of their key-value pairs.
+
+        When provided with a path that uses a wildcard and resolves to 2 or more paths,
+        'json_length' resolves to None.
+
+        json_length also supports input of the VARIANT type; you can pass the output of
+        PARSE_JSON into json_length.
+
+        Because a None result can mean several different things (the input is not valid
+        JSON, the path does not match anything, or a wildcard path matched 2 or more
+        nodes), it is recommended to pair json_length with a helper function so invalid
+        input is handled explicitly rather than silently returning None:
+
+        - Without a path, guard the call with is_json to separate malformed input from a
+          real result.
+        - With a path, use json_exists to tell "the path is absent" apart from "the path
+          matched but was ambiguous / matched 2 or more nodes".
+
+        ::
+
+            # returns the length only for valid JSON, otherwise None means "invalid input"
+            >>> lit("[1,2]").is_json().then(lit("[1,2]").json_length(), null_of(DataTypes.INT()))
+
+            # path is present even when json_length is None due to a multi-match wildcard
+            >>> lit("{}").json_exists("$.items[*]")
+            >>> lit("{}").json_length("$.items[*]")
+
+        Examples:
+        ::
+
+            >>> lit('{"1": "hello", "2": "bye bye"}').json_length() # 2
+            >>> lit('[1,2,3,4,5]').json_length() # 5
+            >>> lit('"hello"').json_length() # 1
+
+            >>> lit('{"1": "hello", "2": "bye bye"}').json_length('$.1') # 1
+            >>> lit('{"1": [1,2,3], "2": "bye bye"}').json_length('$.1') # 3
+            >>> lit('[1,2,3,4,5]').json_length('$[3]') # 1
+
+            >>> lit('[1,2,3,4,5]').json_length('$[7]') # None
+            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
+            >>> lit('[1,2,3,4,5]').json_length('$.[') # None
+        """
+        if path is None:
+            return _unary_op("jsonLength")(self)
+        else:
+            return _binary_op("jsonLength")(self, path)
+
+    def json_type(self, path=None) -> 'Expression':
+        """
+        Returns a string value indicating the type of the input.
+
+        Potential outputs are as following
+
+        * `object`
+        * `array`
+        * `string`
+        * `number`
+        * `boolean`
+        * `null`, for the JSON null literal
+
+        Every number is reported as `number`, whatever its magnitude or precision.
+
+        Returns None if the input is None or is not valid JSON.
+
+        If `path` is given, the type is read at that location instead of the root. A path that
+        does not resolve to exactly one value returns None.
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_type() # 'object'
+            >>> lit('[1, 2]').json_type() # 'array'
+            >>> lit('null').json_type() # 'null'
+            >>> lit('"Hello, World!"').json_type() # 'string'
+            >>> lit('"2015-01-01"').json_type() # 'string'
+            >>> lit('66').json_type() # 'number'
+            >>> lit('11.1').json_type() # 'number'
+            >>> lit('68s').json_type() # None, not valid JSON
+            >>> lit('{"a": [1, 2]}').json_type('$.a') # 'array'
+        """
+        if path is None:
+            return _unary_op("jsonType")(self)
+        else:
+            return _binary_op("jsonType")(self, path)
     # ---------------------------- value modification functions -----------------------------
 
     def object_update(self, *kv) -> "Expression":

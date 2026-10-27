@@ -53,7 +53,8 @@ class MailboxWatermarkProcessorTest {
                         new CollectorOutput<>(emittedElements),
                         new MailboxExecutorImpl(
                                 mailbox, priority, StreamTaskActionExecutor.IMMEDIATE),
-                        timerService);
+                        timerService,
+                        true);
         final List<Watermark> expectedOutput = new ArrayList<>();
         watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(1));
         watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(2));
@@ -84,6 +85,87 @@ class MailboxWatermarkProcessorTest {
         assertThat(emittedElements).containsExactlyElementsOf(expectedOutput);
     }
 
+    /**
+     * An interruption unrelated to the intermediate-watermark nudge (e.g. a checkpoint mail) must
+     * not surface an intermediate watermark when the feature is disabled.
+     */
+    @Test
+    void testIntermediateWatermarkNotEmittedWhenDisabled() throws Exception {
+        int priority = 42;
+        final List<StreamElement> emittedElements = new ArrayList<>();
+        final TaskMailboxImpl mailbox = new TaskMailboxImpl();
+        final InternalTimeServiceManager<?> timerService =
+                new NoOpInternalTimeServiceManager() {
+                    @Override
+                    public long getReachedWatermark() {
+                        return 5;
+                    }
+                };
+
+        final MailboxWatermarkProcessor<StreamRecord<String>> watermarkProcessor =
+                new MailboxWatermarkProcessor<>(
+                        new CollectorOutput<>(emittedElements),
+                        new MailboxExecutorImpl(
+                                mailbox, priority, StreamTaskActionExecutor.IMMEDIATE),
+                        timerService,
+                        false);
+
+        // Unrelated mail interrupts the firing loop for a reason unrelated to the nudge.
+        mailbox.put(new Mail(() -> {}, TaskMailbox.MIN_PRIORITY, "checkpoint mail"));
+
+        watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(10));
+
+        // configureIntermediateWatermarkInterval() was never called on this manager.
+        assertThat(emittedElements).isEmpty();
+    }
+
+    /**
+     * Once a watermark has been fully emitted via the shortcut branch, a later interrupted advance
+     * must not emit an intermediate watermark below it.
+     */
+    @Test
+    void testIntermediateWatermarkNeverBelowAlreadyEmittedWatermark() throws Exception {
+        int priority = 42;
+        final List<StreamElement> emittedElements = new ArrayList<>();
+        final TaskMailboxImpl mailbox = new TaskMailboxImpl();
+        final boolean[] fullyAdvancedOnce = new boolean[] {false};
+        final InternalTimeServiceManager<?> timerService =
+                new NoOpInternalTimeServiceManager() {
+                    @Override
+                    public boolean tryAdvanceWatermark(
+                            Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) {
+                        if (!fullyAdvancedOnce[0]) {
+                            fullyAdvancedOnce[0] = true;
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    @Override
+                    public long getReachedWatermark() {
+                        return 5;
+                    }
+                };
+
+        final MailboxWatermarkProcessor<StreamRecord<String>> watermarkProcessor =
+                new MailboxWatermarkProcessor<>(
+                        new CollectorOutput<>(emittedElements),
+                        new MailboxExecutorImpl(
+                                mailbox, priority, StreamTaskActionExecutor.IMMEDIATE),
+                        timerService,
+                        true);
+
+        // Fully advances to 10 via the shortcut branch.
+        watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(10));
+        // A new, higher watermark arrives but is interrupted; reachedWatermark(5) is below the
+        // watermark(10) already emitted above.
+        watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(20));
+
+        assertThat(emittedElements)
+                .as("watermarks must be non-decreasing")
+                .containsExactly(new Watermark(10));
+    }
+
     private static class NoOpInternalTimeServiceManager
             implements InternalTimeServiceManager<Object> {
         @Override
@@ -104,6 +186,11 @@ class MailboxWatermarkProcessorTest {
         public boolean tryAdvanceWatermark(
                 Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) throws Exception {
             return !shouldStopAdvancingFn.test();
+        }
+
+        @Override
+        public long getReachedWatermark() {
+            return Long.MIN_VALUE;
         }
 
         @Override

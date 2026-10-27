@@ -18,32 +18,44 @@
 
 package org.apache.flink.table.planner.codegen;
 
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.codesplit.JavaCodeSplitter;
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
-import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests that multiple JSON function calls on the same input reuse the parsed JSON. */
 class JsonParseReuseTest {
 
     private static final Pattern JSON_PARSE_PATTERN =
             Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.JSON_PARSE().getName()) + "\\(");
+
+    private static final Pattern PARSE_JSON_PATTERN =
+            Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON().getName()) + "\\(");
+
+    private static final Pattern PARSE_JSON_ERROR_PATTERN =
+            Pattern.compile(
+                    "\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON_ERROR().getName()) + "\\(");
 
     private StreamTableEnvironment tEnv;
 
@@ -65,14 +77,23 @@ class JsonParseReuseTest {
     }
 
     private List<Row> collect(final String sql) {
-        final TableResult result = tEnv.executeSql(sql);
-        final List<Row> rows = new ArrayList<>();
-        result.collect().forEachRemaining(rows::add);
-        return rows;
+        return GeneratedCodeTestUtils.collect(tEnv, sql);
     }
 
     private static int countJsonParse(final String code) {
-        final Matcher m = JSON_PARSE_PATTERN.matcher(code);
+        return count(JSON_PARSE_PATTERN, code);
+    }
+
+    private static int countParseJson(final String code) {
+        return count(PARSE_JSON_PATTERN, code);
+    }
+
+    private static int countParseJsonError(final String code) {
+        return count(PARSE_JSON_ERROR_PATTERN, code);
+    }
+
+    private static int count(final Pattern pattern, final String code) {
+        final Matcher m = pattern.matcher(code);
         int count = 0;
         while (m.find()) {
             count++;
@@ -80,21 +101,12 @@ class JsonParseReuseTest {
         return count;
     }
 
+    private List<String> generatedClassCodes(final String sql) {
+        return GeneratedCodeTestUtils.generatedClassCodes(tEnv, sql);
+    }
+
     private String extractGeneratedCode(final String sql) {
-        final Table table = tEnv.sqlQuery(sql);
-        final Transformation<?> root = tEnv.toChangelogStream(table).getTransformation();
-        final StringBuilder allCode = new StringBuilder();
-        for (final Transformation<?> t : root.getTransitivePredecessors()) {
-            if (t instanceof OneInputTransformation
-                    && ((OneInputTransformation<?, ?>) t).getOperatorFactory()
-                            instanceof CodeGenOperatorFactory) {
-                final CodeGenOperatorFactory<?> factory =
-                        (CodeGenOperatorFactory<?>)
-                                ((OneInputTransformation<?, ?>) t).getOperatorFactory();
-                allCode.append(factory.getGeneratedClass().getCode());
-            }
-        }
-        return allCode.toString();
+        return String.join("", generatedClassCodes(sql));
     }
 
     @Test
@@ -103,9 +115,10 @@ class JsonParseReuseTest {
                 "SELECT JSON_VALUE(json_data, '$.type'), JSON_VALUE(json_data, '$.age') FROM json_src";
         final List<Row> rows = collect(sql);
         assertThat(rows).containsExactlyInAnyOrder(Row.of("account", "42"), Row.of("admin", "30"));
-        assertThat(countJsonParse(extractGeneratedCode(sql)))
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
                 .as("Two JSON_VALUE calls on the same input should parse once")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -118,9 +131,10 @@ class JsonParseReuseTest {
                 .containsExactlyInAnyOrder(
                         Row.of("{\"city\":\"Munich\"}", "[[\"user\",\"viewer\"]]"),
                         Row.of("{\"city\":\"Berlin\"}", "[[\"admin\"]]"));
-        assertThat(countJsonParse(extractGeneratedCode(sql)))
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
                 .as("Two JSON_QUERY calls on the same input should parse once")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -133,9 +147,10 @@ class JsonParseReuseTest {
                 .containsExactlyInAnyOrder(
                         Row.of("account", "{\"city\":\"Munich\"}"),
                         Row.of("admin", "{\"city\":\"Berlin\"}"));
-        assertThat(countJsonParse(extractGeneratedCode(sql)))
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
                 .as("JSON_VALUE + JSON_QUERY on the same input should parse once")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -149,9 +164,171 @@ class JsonParseReuseTest {
                 .containsExactlyInAnyOrder(
                         Row.of("account", "42", "{\"city\":\"Munich\"}"),
                         Row.of("admin", "30", "{\"city\":\"Berlin\"}"));
-        assertThat(countJsonParse(extractGeneratedCode(sql)))
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
                 .as("Three JSON function calls on the same input should parse once")
-                .isEqualTo(1);
+                .isOne();
+    }
+
+    @Test
+    void testReuseSurvivesCodeSplitting() {
+        // an aggressive split must still route the input into each parseJson call site
+        tEnv.getConfig().set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 1);
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), "
+                        + "JSON_VALUE(json_data, '$.age'), "
+                        + "JSON_QUERY(json_data, '$.address'), "
+                        + "JSON_QUERY(json_data, '$.roles' WITH WRAPPER) FROM json_src";
+        // GeneratedClass compiles splitCode, so correct results already prove reuse survives it
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("account", "42", "{\"city\":\"Munich\"}", "[[\"user\",\"viewer\"]]"),
+                        Row.of("admin", "30", "{\"city\":\"Berlin\"}", "[[\"admin\"]]"));
+
+        // assert on the split code, not getCode() (unsplit), since only splitCode is compiled
+        final int maxLength = tEnv.getConfig().get(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
+        final int maxMembers = tEnv.getConfig().get(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE);
+        final List<String> splitCodes =
+                generatedClassCodes(sql).stream()
+                        .map(code -> JavaCodeSplitter.split(code, maxLength, maxMembers))
+                        .collect(Collectors.toList());
+        assertThat(generatedClassCodes(sql))
+                .as("the aggressive limit must actually split some generated class")
+                .anySatisfy(
+                        code ->
+                                assertThat(JavaCodeSplitter.split(code, maxLength, maxMembers))
+                                        .isNotEqualTo(code));
+        assertThat(splitCodes.stream().mapToInt(JsonParseReuseTest::countJsonParse).sum())
+                .as("Even in the split code the input is parsed once")
+                .isOne();
+    }
+
+    @Test
+    void testComputedColumnInputSharesParse() {
+        // calls on the same computed input (TRIM) must still share a parse
+        final String sql =
+                "SELECT JSON_VALUE(TRIM(json_data), '$.type'), "
+                        + "JSON_QUERY(TRIM(json_data), '$.address'), "
+                        + "JSON_TYPE(TRIM(json_data)), "
+                        + "JSON_LENGTH(TRIM(json_data)), "
+                        + "JSON_STRING(PARSE_JSON(TRIM(json_data))), "
+                        + "JSON_STRING(TRY_PARSE_JSON(TRIM(json_data))) FROM json_src";
+        final List<Row> rows = collect(sql);
+        // PARSE_JSON returns a VARIANT, which sorts object keys
+        final String variant1 =
+                "{\"address\":{\"city\":\"Munich\"},\"age\":42,\"roles\":[\"user\",\"viewer\"],\"type\":\"account\"}";
+        final String variant2 =
+                "{\"address\":{\"city\":\"Berlin\"},\"age\":30,\"roles\":[\"admin\"],\"type\":\"admin\"}";
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("account", "{\"city\":\"Munich\"}", "object", 4, variant1, variant1),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object", 4, variant2, variant2));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
+                .as("JSON_VALUE-family calls on the same computed input should parse once")
+                .isOne();
+        assertThat(countParseJson(code))
+                .as("PARSE_JSON + TRY_PARSE_JSON on the same computed input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testFirstCallWithNullArgumentStillParses() {
+        // first call's args are null so its result is NULL, but the parse must still happen
+        final String sql =
+                "SELECT JSON_VALUE(json_data, CAST(NULL AS STRING)), "
+                        + "JSON_QUERY(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of(null, "{\"city\":\"Munich\"}"),
+                        Row.of(null, "{\"city\":\"Berlin\"}"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
+                .as("JSON_VALUE + JSON_QUERY on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testFirstCallInsideNotTakenBranchStillParses() {
+        // The first JSON call owns the parse but sits in a CASE branch that is never taken.
+        final String sql =
+                "SELECT CASE WHEN json_data IS NULL "
+                        + "THEN JSON_VALUE(json_data, '$.type') ELSE 'fallback' END, "
+                        + "JSON_QUERY(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("fallback", "{\"city\":\"Munich\"}"),
+                        Row.of("fallback", "{\"city\":\"Berlin\"}"));
+    }
+
+    @Test
+    void testCallInsideSurvivingBranchSharesWithCallOutside() {
+        // branch guarded by an unrelated column survives the optimizer, yet both rows share a parse
+        final String sql =
+                "SELECT CASE WHEN CHARACTER_LENGTH(other_json) > 3 "
+                        + "THEN JSON_VALUE(json_data, '$.type') ELSE 'fb' END, "
+                        + "JSON_QUERY(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("fb", "{\"city\":\"Munich\"}"),
+                        Row.of("admin", "{\"city\":\"Berlin\"}"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
+                .as("Calls on the same input share one parse even across a CASE boundary")
+                .isOne();
+    }
+
+    @Test
+    void testSingleJsonTypeCall() {
+        final String sql = "SELECT JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("object"), Row.of("object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("A single JSON_TYPE call should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testTwoJsonTypeCalls() {
+        final String sql = "SELECT JSON_TYPE(json_data), JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of("object", "object"), Row.of("object", "object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("Identical JSON_TYPE calls are one expression, so they parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonTypeAndJsonValueMixed() {
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of("account", "object"), Row.of("admin", "object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_VALUE + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonTypeWithJsonValueAndJsonQuery() {
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), "
+                        + "JSON_QUERY(json_data, '$.address'), "
+                        + "JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("account", "{\"city\":\"Munich\"}", "object"),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_VALUE + JSON_QUERY + JSON_TYPE on the same input should parse once")
+                .isOne();
     }
 
     @Test
@@ -163,6 +340,263 @@ class JsonParseReuseTest {
         assertThat(rows).containsExactlyInAnyOrder(Row.of("account", null), Row.of("admin", "1"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_VALUE calls on different inputs should parse separately")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testReuseInOverWindowQueryIsResetPerRow() {
+        // JSON scalars run in a Calc ahead of the OverAggregate; each row must get its own parse
+        final TableEnvironment bEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        bEnv.createTemporaryView(
+                "over_src",
+                bEnv.fromValues(Row.of(1, JSON_ROW1), Row.of(2, JSON_ROW2)).as("id", "j"));
+        final String sql =
+                "SELECT id, "
+                        + "MAX(JSON_VALUE(j, '$.type')) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND CURRENT ROW), "
+                        + "MAX(JSON_QUERY(j, '$.address')) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND CURRENT ROW) "
+                        + "FROM over_src";
+        final List<Row> rows = new ArrayList<>();
+        bEnv.executeSql(sql).collect().forEachRemaining(rows::add);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of(1, "account", "{\"city\":\"Munich\"}"),
+                        Row.of(2, "admin", "{\"city\":\"Berlin\"}"));
+    }
+
+    @Test
+    void testFilterAndProjectionShareParse() {
+        // JSON_VALUE in WHERE and JSON_QUERY in SELECT on the same input share one parse
+        final String sql =
+                "SELECT JSON_QUERY(json_data, '$.address') FROM json_src "
+                        + "WHERE JSON_VALUE(json_data, '$.type') = 'admin'";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactly(Row.of("{\"city\":\"Berlin\"}"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
+                .as("Filter and projection on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testReuseIsResetPerRowInMatchRecognize() {
+        // A matches the first three rows; the per-row parse must give SUM 1+2+3, not 1+1+1
+        final List<Row> data =
+                Arrays.asList(
+                        Row.of(1000, "{\"n\":1}", Instant.ofEpochMilli(1000L)),
+                        Row.of(2000, "{\"n\":2}", Instant.ofEpochMilli(2000L)),
+                        Row.of(3000, "{\"n\":3}", Instant.ofEpochMilli(3000L)),
+                        Row.of(9000, "{\"n\":9}", Instant.ofEpochMilli(9000L)));
+        final String dataId = TestValuesTableFactory.registerData(data);
+        tEnv.executeSql(
+                "CREATE TABLE events ("
+                        + "  f0 INT,"
+                        + "  f1 STRING,"
+                        + "  ts TIMESTAMP_LTZ(3),"
+                        + "  WATERMARK FOR ts AS ts"
+                        + ") WITH ("
+                        + "  'connector' = 'values',"
+                        + "  'data-id' = '"
+                        + dataId
+                        + "',"
+                        + "  'bounded' = 'true')");
+        final String sql =
+                "SELECT total FROM events MATCH_RECOGNIZE ("
+                        + " ORDER BY ts"
+                        + " MEASURES SUM(CAST(JSON_VALUE(A.f1, '$.n') AS INT)) AS total"
+                        + " AFTER MATCH SKIP PAST LAST ROW"
+                        + " PATTERN (A+ B)"
+                        + " DEFINE A AS A.f0 < 9000, B AS B.f0 >= 9000)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactly(Row.of(6));
+    }
+
+    @Test
+    void testReuseIsResetPerRowInBatchFusion() {
+        // a projection Calc is only fused on top of a HashJoin, so force one (disable the rest)
+        final TableEnvironment bEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        bEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, true)
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                        "NestedLoopJoin,SortMergeJoin")
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
+        bEnv.createTemporaryView(
+                "src", bEnv.fromValues(Row.of(1, JSON_ROW1), Row.of(2, JSON_ROW2)).as("id", "j"));
+        bEnv.createTemporaryView("dim", bEnv.fromValues(Row.of(1), Row.of(2)).as("id"));
+        final String sql =
+                "SELECT JSON_VALUE(src.j, '$.type'), JSON_VALUE(src.j, '$.age') "
+                        + "FROM src JOIN dim ON src.id = dim.id";
+        final List<Row> rows = new ArrayList<>();
+        bEnv.executeSql(sql).collect().forEachRemaining(rows::add);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("account", "42"), Row.of("admin", "30"));
+    }
+
+    @Test
+    void testTwoJsonLengthCalls() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_LENGTH(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(4, 1), Row.of(4, 1));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("Two JSON_LENGTH calls on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAndJsonValueMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_VALUE(json_data, '$.type') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(4, "account"), Row.of(4, "admin"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_VALUE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAndJsonQueryMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_QUERY(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of(4, "{\"city\":\"Munich\"}"), Row.of(4, "{\"city\":\"Berlin\"}"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_QUERY on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAndJsonTypeMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data, '$.roles'), JSON_TYPE(json_data, '$.age') "
+                        + "FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "number"), Row.of(1, "number"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAfterSkippedJsonTypeIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_TYPE(j) END, JSON_LENGTH(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '[1]')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "array", 3), Row.of(1, null, 1));
+    }
+
+    @Test
+    void testJsonTypeAfterSkippedJsonLengthIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_LENGTH(j) END, JSON_TYPE(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '{\"a\":1}')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of(2, 3, "array"), Row.of(1, null, "object"));
+    }
+
+    @Test
+    void testJsonLengthAfterShortCircuitedJsonTypeInFilterIsResetPerRow() {
+        final String sql =
+                "SELECT id, JSON_LENGTH(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '[1]')) AS t(id, j) "
+                        + "WHERE id > 1 OR JSON_TYPE(j) = 'array'";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, 3), Row.of(1, 1));
+    }
+
+    @Test
+    void testJsonValueAfterSkippedJsonTypeIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_TYPE(j) END, JSON_VALUE(j, '$.a') "
+                        + "FROM (VALUES (2, '{\"a\":\"x\"}'), (1, '{\"a\":\"y\"}')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "object", "x"), Row.of(1, null, "y"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_TYPE + JSON_VALUE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testParseJsonAndTryParseJsonShareParse() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(json_data)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2).allSatisfy(row -> assertThat(row.getField(0)).isNotNull());
+        assertThat(rows).allSatisfy(row -> assertThat(row.getField(0)).isEqualTo(row.getField(1)));
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("PARSE_JSON + TRY_PARSE_JSON on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testParseErrorRethrowForParseJson() {
+        final String badSrc = "(VALUES ('not json')) AS t(j)";
+        final String sharedSql =
+                "SELECT JSON_STRING(TRY_PARSE_JSON(j)), JSON_STRING(PARSE_JSON(j)) FROM " + badSrc;
+        final String sharedCode = extractGeneratedCode(sharedSql);
+        assertThat(countParseJson(sharedCode))
+                .as("PARSE_JSON + TRY_PARSE_JSON on the same input should parse once")
+                .isOne();
+        assertThat(countParseJsonError(sharedCode))
+                .as("Only the PARSE_JSON call site builds the parse error")
+                .isOne();
+        assertThatThrownBy(() -> collect(sharedSql))
+                .hasStackTraceContaining("Failed to parse JSON string: not json");
+    }
+
+    @Test
+    void testTryParseJsonDoesNotBuildParseError() {
+        tEnv.createTemporaryView(
+                "mixed_src", tEnv.fromValues(Row.of("not json"), Row.of("{\"a\":1}")).as("j"));
+        final String sql = "SELECT JSON_STRING(TRY_PARSE_JSON(j)) FROM mixed_src";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of((String) null), Row.of("{\"a\":1}"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countParseJson(code))
+                .as("TRY_PARSE_JSON must be generated, not constant-folded away")
+                .isOne();
+        assertThat(countParseJsonError(code))
+                .as("TRY_PARSE_JSON drops the parser's exception without building the error")
+                .isZero();
+    }
+
+    @Test
+    void testParseJsonDifferentInputsParseSeparately() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(other_json)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2);
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("PARSE_JSON calls on different inputs should parse separately")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testParseJsonSameAllowDuplicateKeysSharesParse() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data, true)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(json_data, true)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2);
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("same input and allowDuplicateKeys should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testParseJsonDifferentAllowDuplicateKeysParseSeparately() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data, true)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(json_data, false)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2);
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("different allowDuplicateKeys should parse separately")
                 .isEqualTo(2);
     }
 }

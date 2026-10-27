@@ -377,6 +377,13 @@ public class SSLUtils {
                 .clientAuth(clientAuth)
                 .sessionCacheSize(sessionCacheSize)
                 .sessionTimeout(sessionTimeoutMs / 1000)
+                // Internal SSL uses one shared, mutually-trusted certificate across every node
+                // (see docs/deployment/security/security-ssl.md), so it must not be required to
+                // also match each peer's hostname. Explicitly disabled because Netty enables
+                // endpoint identification by default from 4.2 onward (both JDK and OpenSSL
+                // providers), which would otherwise break every connection whose resolved
+                // hostname isn't covered by the shared certificate.
+                .endpointIdentificationAlgorithm(null)
                 .build();
     }
 

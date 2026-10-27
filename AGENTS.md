@@ -24,7 +24,7 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 ## Prerequisites
 
 - Java 11, 17 (default), or 21. Java 11 syntax must be used in all modules. Java 17 syntax (records, sealed classes, pattern matching) is only permitted in the `flink-tests-java17` module.
-- Maven 3.8.6 (Maven wrapper `./mvnw` included; prefer it)
+- Maven 3.9.16 (Maven wrapper `./mvnw` included; prefer it)
 - Git
 - Unix-like environment (Linux, macOS, WSL, Cygwin)
 
@@ -304,6 +304,18 @@ This section maps common types of Flink changes to the modules they touch and th
 - Never add `Co-Authored-By` with an AI agent as co-author; agents are assistants, not authors
 - You must be able to explain the design, code, and tests, debug them, and respond to review feedback substantively
 - Reviewer-ready quality bar: the author owns PR quality. PRs that look AI-generated without author refinement (walls of unreviewed prose, scaffolding without behaviour, tests that do not exercise the change, padded commit messages) will be closed without review
+
+## Code Review Guidelines
+
+When reviewing a PR or diff against this repo:
+
+- Look for opportunities to simplify the code, scoped to the diff itself (not pre-existing code outside the change).
+- Flag comments that are obvious (restate what the code already says) or overly verbose.
+- In test code, look for potential flakiness — e.g. `Thread.sleep` used outside a retry/poll loop, or similar timing-dependent, non-deterministic patterns. Where applicable, suggest clock injection (e.g. a manually-advanced `Clock`/`ManualClock`) instead of relying on wall-clock time, or waiting for the actual condition in a loop with a timeout, for deterministic tests.
+- Check that each commit message conforms to Flink conventions: it must start with `[FLINK-XXXX]` or `[hotfix]`, and must specify a subsystem/component (e.g. `[FLINK-XXXX][runtime] Description`).
+- If a change introduces a new feature controlled by a config option/flag, check that the resolved state (enabled/disabled, and the effective value) is logged at INFO level when the feature initializes/activates.
+- Consider whether a change should be hidden behind a feature flag, especially if it's non-trivial (touches core paths, changes default behavior, or is hard to reason about in isolation). This is mandatory if the change is risky (correctness, performance, backward-compatibility, or data-safety risk) and no flag/kill-switch already exists.
+- For changes to configuration options, check if the corresponding documentation has been regenerated (this should be covered by tests but flagging it earlier speeds up development)
 
 ## Boundaries
 

@@ -69,6 +69,10 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         return streamTask;
     }
 
+    public OperatorChain<OUT, ?> getOperatorChain() {
+        return streamTask.operatorChain;
+    }
+
     public TimerService getTimerService() {
         return streamTask.getTimerService();
     }

@@ -203,6 +203,11 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             }
 
             @Override
+            public void setCurrentKeyForStateAccess(K newKey) {
+                keyedStateBackend.setCurrentKeyForStateAccess(newKey);
+            }
+
+            @Override
             public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
                 keyedStateBackend.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
             }
@@ -236,6 +241,12 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             @Override
             public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
                 return keyedStateBackend.getKeysAndNamespaces(state);
+            }
+
+            @Override
+            public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(
+                    List<String> states, N namespace) {
+                return keyedStateBackend.getKeysAndKeyGroups(states, namespace);
             }
 
             @Nonnull

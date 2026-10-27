@@ -21,6 +21,48 @@
             <td>The local directory (on the TaskManager) where RocksDB puts its files. Per default, it will be &lt;WORKING_DIR&gt;/tmp. See <code class="highlighter-rouge">process.taskmanager.working-dir</code> for more details.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.max-auto-compactions</h5></td>
+            <td style="word-wrap: break-word;">30</td>
+            <td>Integer</td>
+            <td>The maximum number of automatic compactions running for manual compaction to start. If the actual number is higher, manual compaction won't be started to avoid delaying automatic ones.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.max-file-size-to-compact</h5></td>
+            <td style="word-wrap: break-word;">50 kb</td>
+            <td>MemorySize</td>
+            <td>The maximum size of individual input files</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.max-files-to-compact</h5></td>
+            <td style="word-wrap: break-word;">30</td>
+            <td>Integer</td>
+            <td>The maximum number of input files to compact together in a single compaction run</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.max-output-file-size</h5></td>
+            <td style="word-wrap: break-word;">64 mb</td>
+            <td>MemorySize</td>
+            <td>The maximum output file size</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.max-parallel-compactions</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>The maximum number of manual compactions to start. Note that only one of them can run at a time as of v8.10.0; all the others will be waiting</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.min-files-to-compact</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>The minimum number of input files to compact together in a single compaction run</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.manual-compaction.min-interval</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The minimum interval between manual compactions. Zero disables manual compactions</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.options-factory</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

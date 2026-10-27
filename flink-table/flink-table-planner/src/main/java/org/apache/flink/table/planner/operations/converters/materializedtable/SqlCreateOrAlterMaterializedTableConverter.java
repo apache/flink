@@ -49,16 +49,13 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.MergeTableAsUtil;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /** A converter for {@link SqlCreateOrAlterMaterializedTable}. */
 public class SqlCreateOrAlterMaterializedTableConverter
@@ -443,12 +440,10 @@ public class SqlCreateOrAlterMaterializedTableConverter
             @Override
             public Schema getMergedSchema() {
                 final SqlNodeList sqlNodeList = sqlCreateMaterializedTable.getColumnList();
-                if (createOrAlterOperation(sqlCreateMaterializedTable)) {
-                    MaterializedTableUtils.validatePersistedColumnsUsedByQuery(
-                            sqlNodeList, querySchema);
-                } else {
-                    validatePhysicalColumnsUsedByQuery(sqlNodeList, querySchema);
-                }
+                MaterializedTableUtils.validatePersistedColumnsUsedByQuery(
+                        sqlNodeList,
+                        querySchema,
+                        sqlCreateMaterializedTable.getOperator().getName());
                 if (sqlCreateMaterializedTable.isSchemaWithColumnsIdentifiersOnly()) {
                     // If only column identifiers are provided, then these are used to
                     // order the columns in the schema.
@@ -524,22 +519,5 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 return getDerivedFreshness(sqlCreateMaterializedTable);
             }
         };
-    }
-
-    private static void validatePhysicalColumnsUsedByQuery(
-            SqlNodeList sqlNodeList, ResolvedSchema querySchema) {
-        final Set<String> querySchemaColumnNames = new HashSet<>(querySchema.getColumnNames());
-        for (SqlNode column : sqlNodeList) {
-            if (!(column instanceof SqlRegularColumn)) {
-                continue;
-            }
-            final SqlRegularColumn physicalColumn = (SqlRegularColumn) column;
-            if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid as physical column '%s' is defined in the DDL, but is not used in a query column.",
-                                physicalColumn.getName().getSimple()));
-            }
-        }
     }
 }

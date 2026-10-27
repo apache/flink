@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.EarlyFireJoinHintOptions.TimeMode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec
@@ -45,7 +46,9 @@ class StreamPhysicalIntervalJoin(
     val originalCondition: RexNode,
     // remaining join condition contains all of join condition except window bounds
     remainingCondition: RexNode,
-    windowBounds: WindowBounds)
+    windowBounds: WindowBounds,
+    earlyFireDelay: java.lang.Long,
+    earlyFireTimeMode: TimeMode)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, remainingCondition, joinType)
   with StreamPhysicalRel {
 
@@ -60,6 +63,16 @@ class StreamPhysicalIntervalJoin(
   }
 
   override def requireWatermark: Boolean = windowBounds.isEventTime
+
+  /**
+   * Whether this interval join produces update changes because of the EARLY_FIRE hint. Only an
+   * outer join with a non-negative window can speculatively emit a padded row and later correct it;
+   * a negative-window join only ever emits inserts, so it must stay insert-only even with the hint
+   * set.
+   */
+  def produceEarlyFireUpdates: Boolean =
+    earlyFireDelay != null && getJoinType.isOuterJoin &&
+      windowBounds.getLeftUpperBound >= windowBounds.getLeftLowerBound
 
   override def copy(
       traitSet: RelTraitSet,
@@ -76,7 +89,9 @@ class StreamPhysicalIntervalJoin(
       joinType,
       originalCondition,
       conditionExpr,
-      windowBounds)
+      windowBounds,
+      earlyFireDelay,
+      earlyFireTimeMode)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -98,12 +113,16 @@ class StreamPhysicalIntervalJoin(
           preferExpressionFormat(pw),
           pw.getDetailLevel))
       .item("select", getRowType.getFieldNames.mkString(", "))
+      .itemIf("earlyFireDelay", earlyFireDelay, earlyFireDelay != null)
+      .itemIf("earlyFireTimeMode", earlyFireTimeMode, earlyFireTimeMode != null)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecIntervalJoin(
       unwrapTableConfig(this),
       new IntervalJoinSpec(joinSpec, windowBounds),
+      earlyFireDelay,
+      earlyFireTimeMode,
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),

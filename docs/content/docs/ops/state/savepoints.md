@@ -273,8 +273,12 @@ of the old job will not be deleted by Flink
 
 2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
 SST files inside the savepoints directory. This means such savepoints are self-contained and relocatable.
-Please note that, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files, which
-might delay the deletion the savepoints directory.
+Please note that, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files of the
+savepoint. The metadata of such checkpoints references the reused files by their absolute location in the
+savepoints directory, so (like incremental checkpoints in general) these checkpoints are neither
+self-contained nor relocatable. The savepoints directory remains referenced until all checkpoints reusing
+its files have been subsumed; since Flink owns the snapshot in CLAIM mode, Flink manages the lifecycle of
+those files, which might delay the deletion of the savepoints directory.
 {{< /hint >}}
 
 **LEGACY (deprecated)**

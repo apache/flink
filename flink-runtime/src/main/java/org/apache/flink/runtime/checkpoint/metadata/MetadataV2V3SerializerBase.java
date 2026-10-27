@@ -145,8 +145,12 @@ public abstract class MetadataV2V3SerializerBase {
     //  (De)serialization entry points
     // ------------------------------------------------------------------------
 
-    protected void serializeMetadata(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    protected void serializeMetadata(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            SerializationContext context)
             throws IOException {
+        Preconditions.checkNotNull(context, "SerializationContext");
         // first: checkpoint ID
         dos.writeLong(checkpointMetadata.getCheckpointId());
 
@@ -162,7 +166,7 @@ public abstract class MetadataV2V3SerializerBase {
         dos.writeInt(operatorStates.size());
 
         for (OperatorState operatorState : operatorStates) {
-            serializeOperatorState(operatorState, dos);
+            serializeOperatorState(operatorState, dos, context);
         }
     }
 
@@ -267,25 +271,33 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
 
     protected abstract void serializeOperatorState(
-            OperatorState operatorState, DataOutputStream dos) throws IOException;
+            OperatorState operatorState, DataOutputStream dos, SerializationContext context)
+            throws IOException;
 
     protected abstract OperatorState deserializeOperatorState(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException;
 
-    protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos)
+    protected void serializeSubtaskState(
+            OperatorSubtaskState subtaskState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         serializeSingleton(
-                subtaskState.getManagedOperatorState(), dos, this::serializeOperatorStateHandle);
+                subtaskState.getManagedOperatorState(),
+                dos,
+                (handle, out) -> serializeOperatorStateHandle(handle, out, context));
         serializeSingleton(
-                subtaskState.getRawOperatorState(), dos, this::serializeOperatorStateHandle);
-        serializeKeyedStateCol(subtaskState.getManagedKeyedState(), dos);
-        serializeKeyedStateCol(subtaskState.getRawKeyedState(), dos);
+                subtaskState.getRawOperatorState(),
+                dos,
+                (handle, out) -> serializeOperatorStateHandle(handle, out, context));
+        serializeKeyedStateCol(subtaskState.getManagedKeyedState(), dos, context);
+        serializeKeyedStateCol(subtaskState.getRawKeyedState(), dos, context);
     }
 
     private void serializeKeyedStateCol(
-            StateObjectCollection<KeyedStateHandle> managedKeyedState, DataOutputStream dos)
+            StateObjectCollection<KeyedStateHandle> managedKeyedState,
+            DataOutputStream dos,
+            SerializationContext context)
             throws IOException {
-        serializeKeyedStateHandle(extractSingleton(managedKeyedState), dos);
+        serializeKeyedStateHandle(extractSingleton(managedKeyedState), dos, context);
     }
 
     protected OperatorSubtaskState deserializeSubtaskState(
@@ -323,7 +335,8 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    static void serializeKeyedStateHandle(KeyedStateHandle stateHandle, DataOutputStream dos)
+    static void serializeKeyedStateHandle(
+            KeyedStateHandle stateHandle, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (stateHandle == null) {
             dos.writeByte(NULL_HANDLE);
@@ -340,7 +353,7 @@ public abstract class MetadataV2V3SerializerBase {
             for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
                 dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
             }
-            serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
+            serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos, context);
 
             // savepoint state handle would not need to persist state handle id out.
             if (!(stateHandle instanceof KeyGroupsSavepointStateHandle)) {
@@ -358,10 +371,13 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
-            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaDataStateHandle(), dos);
+            serializeStreamStateHandle(
+                    incrementalKeyedStateHandle.getMetaDataStateHandle(), dos, context);
 
-            serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getSharedState(), dos);
-            serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getPrivateState(), dos);
+            serializeHandleAndLocalPathList(
+                    incrementalKeyedStateHandle.getSharedState(), dos, context);
+            serializeHandleAndLocalPathList(
+                    incrementalKeyedStateHandle.getPrivateState(), dos, context);
 
             writeStateHandleId(incrementalKeyedStateHandle, dos);
         } else if (stateHandle instanceof ChangelogStateBackendHandle) {
@@ -375,12 +391,12 @@ public abstract class MetadataV2V3SerializerBase {
 
             dos.writeInt(handle.getMaterializedStateHandles().size());
             for (KeyedStateHandle keyedStateHandle : handle.getMaterializedStateHandles()) {
-                serializeKeyedStateHandle(keyedStateHandle, dos);
+                serializeKeyedStateHandle(keyedStateHandle, dos, context);
             }
 
             dos.writeInt(handle.getNonMaterializedStateHandles().size());
             for (KeyedStateHandle k : handle.getNonMaterializedStateHandles()) {
-                serializeKeyedStateHandle(k, dos);
+                serializeKeyedStateHandle(k, dos, context);
             }
 
             dos.writeLong(handle.getMaterializationID());
@@ -410,7 +426,7 @@ public abstract class MetadataV2V3SerializerBase {
             for (Tuple2<StreamStateHandle, Long> streamHandleAndOffset :
                     handle.getHandlesAndOffsets()) {
                 dos.writeLong(streamHandleAndOffset.f1);
-                serializeStreamStateHandle(streamHandleAndOffset.f0, dos);
+                serializeStreamStateHandle(streamHandleAndOffset.f0, dos, context);
             }
             dos.writeLong(handle.getStateSize());
             dos.writeLong(handle.getCheckpointedSize());
@@ -596,7 +612,8 @@ public abstract class MetadataV2V3SerializerBase {
                 stateHandleId);
     }
 
-    void serializeOperatorStateHandle(OperatorStateHandle stateHandle, DataOutputStream dos)
+    void serializeOperatorStateHandle(
+            OperatorStateHandle stateHandle, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (stateHandle != null) {
             dos.writeByte(
@@ -634,7 +651,7 @@ public abstract class MetadataV2V3SerializerBase {
                                 .toString());
                 dos.writeBoolean(stateHandle instanceof EmptyFileMergingOperatorStreamStateHandle);
             }
-            serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
+            serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos, context);
         } else {
             dos.writeByte(NULL_HANDLE);
         }
@@ -716,14 +733,18 @@ public abstract class MetadataV2V3SerializerBase {
     //  low-level state handles
     // ------------------------------------------------------------------------
 
-    static void serializeStreamStateHandle(StreamStateHandle stateHandle, DataOutputStream dos)
+    static void serializeStreamStateHandle(
+            StreamStateHandle stateHandle, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (stateHandle == null) {
             dos.writeByte(NULL_HANDLE);
 
-        } else if (stateHandle instanceof RelativeFileStateHandle) {
-            dos.writeByte(RELATIVE_STREAM_STATE_HANDLE);
+        } else if (stateHandle instanceof RelativeFileStateHandle
+                && canKeepRelativeEncoding((RelativeFileStateHandle) stateHandle, context)) {
+            // Foreign handles fail canKeepRelativeEncoding and fall through to the
+            // FileStateHandle branch below, which keeps their full absolute path.
             RelativeFileStateHandle relativeFileStateHandle = (RelativeFileStateHandle) stateHandle;
+            dos.writeByte(RELATIVE_STREAM_STATE_HANDLE);
             dos.writeUTF(relativeFileStateHandle.getRelativePath());
             dos.writeLong(relativeFileStateHandle.getStateSize());
         } else if (stateHandle instanceof SegmentFileStateHandle) {
@@ -760,11 +781,43 @@ public abstract class MetadataV2V3SerializerBase {
             for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
                 dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
             }
-            serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
+            serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos, context);
         } else {
             throw new IOException(
                     "Unknown implementation of StreamStateHandle: " + stateHandle.getClass());
         }
+    }
+
+    /**
+     * Decides whether a {@link RelativeFileStateHandle} keeps the relative encoding or must be
+     * written with its absolute path like a plain {@link FileStateHandle}.
+     *
+     * <p>A relative reference is rebuilt on read as {@code <directory containing the
+     * metadata>/<relative path>} (see {@link #resolveRelativeHandle}), so a handle may only stay
+     * relative if its file actually lives in the exclusive directory being written. A handle
+     * pointing anywhere else (e.g. a claimed savepoint's SST that a later incremental checkpoint
+     * still references) would be resolved to a path where its file never existed, so it keeps its
+     * absolute path.
+     *
+     * <p>Without an exclusive directory ({@link SerializationContext#withoutExclusiveDir()}) every
+     * relative reference stays relative unconditionally.
+     */
+    private static boolean canKeepRelativeEncoding(
+            RelativeFileStateHandle handle, SerializationContext context) {
+        Path exclusiveDirPath = context.getExclusiveDirPath();
+        return exclusiveDirPath == null
+                || handle.getFilePath()
+                        .equals(resolveRelativeHandle(exclusiveDirPath, handle.getRelativePath()));
+    }
+
+    /**
+     * Rebuilds the absolute path of a {@link RelativeFileStateHandle} from the exclusive directory
+     * it is resolved against and its relative path. Shared by the write-side encoding decision
+     * ({@link #canKeepRelativeEncoding}) and the read-side reconstruction in {@code
+     * deserializeStreamStateHandle} so the two can never drift.
+     */
+    private static Path resolveRelativeHandle(Path exclusiveDir, String relativePath) {
+        return new Path(exclusiveDir, relativePath);
     }
 
     @Nullable
@@ -791,7 +844,7 @@ public abstract class MetadataV2V3SerializerBase {
             }
             String relativePath = dis.readUTF();
             long size = dis.readLong();
-            Path statePath = new Path(context.getExclusiveDirPath(), relativePath);
+            Path statePath = resolveRelativeHandle(context.getExclusiveDirPath(), relativePath);
             return new RelativeFileStateHandle(statePath, relativePath, size);
         } else if (KEY_GROUPS_HANDLE == type) {
 
@@ -882,12 +935,13 @@ public abstract class MetadataV2V3SerializerBase {
     }
 
     private static void serializeHandleAndLocalPathList(
-            List<HandleAndLocalPath> list, DataOutputStream dos) throws IOException {
+            List<HandleAndLocalPath> list, DataOutputStream dos, SerializationContext context)
+            throws IOException {
 
         dos.writeInt(list.size());
         for (HandleAndLocalPath handleAndLocalPath : list) {
             dos.writeUTF(handleAndLocalPath.getLocalPath());
-            serializeStreamStateHandle(handleAndLocalPath.getHandle(), dos);
+            serializeStreamStateHandle(handleAndLocalPath.getHandle(), dos, context);
         }
     }
 
@@ -911,6 +965,51 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
 
     /**
+     * A context that keeps information needed while <i>serializing</i> checkpoint metadata. It is
+     * the write-side counterpart of {@link DeserializationContext} and is passed through the
+     * serialize methods in the same way.
+     *
+     * <p>It carries the exclusive directory of the checkpoint/savepoint whose metadata is being
+     * written ({@code null} if unknown), which {@link #canKeepRelativeEncoding} uses to decide how
+     * a {@link RelativeFileStateHandle} is persisted.
+     */
+    protected static final class SerializationContext {
+
+        private static final SerializationContext WITHOUT_EXCLUSIVE_DIR =
+                new SerializationContext(null);
+
+        @Nullable private final Path exclusiveDirPath;
+
+        private SerializationContext(@Nullable Path exclusiveDirPath) {
+            this.exclusiveDirPath = exclusiveDirPath;
+        }
+
+        /**
+         * Context for metadata written into a known exclusive directory: a {@link
+         * RelativeFileStateHandle} keeps its relative encoding only when its file lives in {@code
+         * exclusiveDirPath}, otherwise it is persisted with its absolute path.
+         */
+        static SerializationContext withExclusiveDir(Path exclusiveDirPath) {
+            return new SerializationContext(Preconditions.checkNotNull(exclusiveDirPath));
+        }
+
+        /**
+         * Context for metadata written without a known exclusive directory, so every {@link
+         * RelativeFileStateHandle} keeps its relative encoding unconditionally. Correct only when
+         * every referenced file ends up next to the metadata; each call site documents why that
+         * holds for it.
+         */
+        static SerializationContext withoutExclusiveDir() {
+            return WITHOUT_EXCLUSIVE_DIR;
+        }
+
+        @Nullable
+        Path getExclusiveDirPath() {
+            return exclusiveDirPath;
+        }
+    }
+
+    /**
      * A context that keeps information needed during serialization. This context is passed along by
      * the methods. In some sense, this replaces the member fields of the class, because the
      * serializer is supposed to be "singleton stateless", and because there are multiple instances
@@ -925,7 +1024,7 @@ public abstract class MetadataV2V3SerializerBase {
      * <p>This context is currently hardwired to the FileSystem-based State Backends. At the moment,
      * this works because those are the only ones producing relative file paths handles, which are
      * in turn the only ones needing this context. In the future, we should refactor this, though,
-     * and make the DeserializationContext a property of the used checkpoint storage. That makes
+     * and make the DeserializationContext a property of the used checkpoint storage.
      */
     protected static final class DeserializationContext {
 

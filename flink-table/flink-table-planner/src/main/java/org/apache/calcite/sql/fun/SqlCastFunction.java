@@ -77,6 +77,11 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * #checkOperandTypes(SqlCallBinding, boolean)} and new method {@link #canCastFrom(RelDataType,
  * RelDataType)}.
  *
+ * <p>Flink's {@link #deriveType(RelDataTypeFactory, RelDataType, RelDataType, boolean)} preserves
+ * the target type's nested nullability instead of delegating to {@link
+ * #createTypeWithNullabilityFromExpr(RelDataTypeFactory, RelDataType, RelDataType, boolean)}. The
+ * VARIANT rules introduced in Calcite 1.39.0 are also applied in {@code deriveType}.
+ *
  * @see SqlCastOperator
  */
 public class SqlCastFunction extends SqlFunction {
@@ -148,6 +153,21 @@ public class SqlCastFunction extends SqlFunction {
             RelDataType expressionType,
             RelDataType targetType,
             boolean safe) {
+        // Flink modification: apply the same VARIANT nullability rules as
+        // createTypeWithNullabilityFromExpr.
+        if (targetType.getSqlTypeName() == SqlTypeName.VARIANT) {
+            // A variant can be cast from any other type, and it inherits
+            // the nullability of the source.
+            // Note that the order of this test and the next one is important.
+            return typeFactory.createTypeWithNullability(targetType, expressionType.isNullable());
+        }
+
+        if (expressionType.getSqlTypeName() == SqlTypeName.VARIANT) {
+            // A variant can be cast to any other type, but the result
+            // is always nullable, like in the case of a safe cast.
+            return typeFactory.createTypeWithNullability(targetType, true);
+        }
+
         return typeFactory.createTypeWithNullability(
                 targetType, expressionType.isNullable() || safe);
     }
@@ -158,6 +178,19 @@ public class SqlCastFunction extends SqlFunction {
             RelDataType targetType,
             boolean safe) {
         boolean isNullable = expressionType.isNullable() || safe;
+
+        if (targetType.getSqlTypeName() == SqlTypeName.VARIANT) {
+            // A variant can be cast from any other type, and it inherits
+            // the nullability of the source.
+            // Note that the order of this test and the next one is important.
+            return typeFactory.createTypeWithNullability(targetType, expressionType.isNullable());
+        }
+
+        if (expressionType.getSqlTypeName() == SqlTypeName.VARIANT) {
+            // A variant can be cast to any other type, but the result
+            // is always nullable, like in the case of a safe cast.
+            return typeFactory.createTypeWithNullability(targetType, true);
+        }
 
         if (isCollection(expressionType)) {
             RelDataType expressionElementType = expressionType.getComponentType();
@@ -269,15 +302,21 @@ public class SqlCastFunction extends SqlFunction {
 
     private boolean canCastFrom(RelDataType toType, RelDataType fromType) {
         SqlTypeName fromTypeName = fromType.getSqlTypeName();
+        SqlTypeName toTypeName = toType.getSqlTypeName();
 
-        // Cast to Variant is not support at the moment.
-        // TODO: Support cast to variant (FLINK-37925，FLINK-37926)
-        if (toType.getSqlTypeName() == SqlTypeName.VARIANT) {
-            return false;
-        }
         // Cast to BITMAP is not supported at the moment.
         if (toType instanceof BitmapRelDataType) {
             return false;
+        }
+        // UUID and casts to VARIANT are governed entirely by our own checker, because Calcite
+        // only allows a UUID to be cast from another UUID and does not know which types VARIANT
+        // can store.
+        if (toTypeName == SqlTypeName.UUID
+                || fromTypeName == SqlTypeName.UUID
+                || toTypeName == SqlTypeName.VARIANT) {
+            return LogicalTypeCasts.supportsExplicitCast(
+                    FlinkTypeFactory.toLogicalType(fromType),
+                    FlinkTypeFactory.toLogicalType(toType));
         }
         switch (fromTypeName) {
             case ARRAY:

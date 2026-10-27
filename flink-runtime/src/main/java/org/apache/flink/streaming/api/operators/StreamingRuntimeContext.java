@@ -40,9 +40,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -158,6 +161,18 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
         return taskEnvironment.getTaskManagerInfo();
+    }
+
+    public MemoryManager getMemoryManager() {
+        return taskEnvironment.getMemoryManager();
+    }
+
+    public IOManager getIOManager() {
+        return taskEnvironment.getIOManager();
+    }
+
+    public SharedResources getSharedResources() {
+        return taskEnvironment.getSharedResources();
     }
 
     public Configuration getJobConfiguration() {

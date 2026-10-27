@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.api.{TableRuntimeException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.binary.BinaryArrayData
-import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, EqualiserCodeGenerator, GeneratedExpression}
@@ -654,9 +653,10 @@ object ScalarOperatorGens {
           case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")
         }
       }
-      // both sides are binary type
+      // both sides are binary type or UUID (both are backed by a byte[] and order by the same
+      // unsigned byte-wise comparison)
       else if (
-        isBinaryString(left.resultType) &&
+        (isBinaryString(left.resultType) || isUuid(left.resultType)) &&
         isInteroperable(left.resultType, right.resultType)
       ) {
         val utilName = classOf[SqlFunctionUtils].getCanonicalName
@@ -1947,64 +1947,118 @@ object ScalarOperatorGens {
         val rightTerm = args(1)
 
         val resultTerm = newName(ctx, "compareResult")
+        val sizeTerm = newName(ctx, "size")
 
-        val mapCls = className[java.util.Map[_, _]]
-        val keyCls = boxedTypeTermForType(keyType)
-        val valueCls = boxedTypeTermForType(valueType)
+        val leftKeysTerm = newName(ctx, "leftKeys")
+        val leftValuesTerm = newName(ctx, "leftValues")
+        val rightKeysTerm = newName(ctx, "rightKeys")
+        val rightValuesTerm = newName(ctx, "rightValues")
+        val rightMatchedTerm = newName(ctx, "rightMatched")
 
-        val leftMapTerm = newName(ctx, "leftMap")
-        val leftKeyTerm = newName(ctx, "leftKey")
-        val leftValueTerm = newName(ctx, "leftValue")
-        val leftValueNullTerm = newName(ctx, "leftValueIsNull")
-        val leftValueExpr =
-          GeneratedExpression(leftValueTerm, leftValueNullTerm, "", valueType)
+        val leftIndexTerm = newName(ctx, "leftIndex")
+        val rightIndexTerm = newName(ctx, "rightIndex")
+        val unmatchedIndexTerm = newName(ctx, "unmatchedIndex")
+        val laterIndexTerm = newName(ctx, "laterIndex")
 
-        val rightMapTerm = newName(ctx, "rightMap")
-        val rightValueTerm = newName(ctx, "rightValue")
-        val rightValueNullTerm = newName(ctx, "rightValueIsNull")
-        val rightValueExpr =
-          GeneratedExpression(rightValueTerm, rightValueNullTerm, "", valueType)
+        // Reads an element into a typed local. A boxed element would make generateEquals compare
+        // references.
+        def readElement(
+            arrayTerm: String,
+            indexTerm: String,
+            elementType: LogicalType,
+            name: String): (String, GeneratedExpression) = {
+          val elementTerm = newName(ctx, name)
+          val elementNullTerm = newName(ctx, s"${name}IsNull")
+          val code =
+            s"""
+               |${primitiveTypeTermForType(elementType)} $elementTerm =
+               |  ${primitiveDefaultValue(elementType)};
+               |boolean $elementNullTerm = $arrayTerm.isNullAt($indexTerm);
+               |if (!$elementNullTerm) {
+               |  $elementTerm = ${rowFieldReadAccess(indexTerm, arrayTerm, elementType)};
+               |}
+               |""".stripMargin
+          (code, GeneratedExpression(elementTerm, elementNullTerm, "", elementType))
+        }
 
-        val entryTerm = newName(ctx, "entry")
-        val entryCls = classOf[java.util.Map.Entry[AnyRef, AnyRef]].getCanonicalName
+        // Two keys match when they are equal or both NULL.
+        def generateKeysMatch(
+            key: GeneratedExpression,
+            otherKey: GeneratedExpression): (String, String) = {
+          val keysEqual = generateEquals(ctx, key, otherKey, new BooleanType(keyType.isNullable))
+          (keysEqual.code, s"${keysEqual.resultTerm} || (${key.nullTerm} && ${otherKey.nullTerm})")
+        }
+
+        val (leftKeyCode, leftKey) = readElement(leftKeysTerm, leftIndexTerm, keyType, "leftKey")
+        val (rightKeyCode, rightKey) =
+          readElement(rightKeysTerm, rightIndexTerm, keyType, "rightKey")
+        val (keysMatchCode, keysMatch) = generateKeysMatch(leftKey, rightKey)
+
+        val (leftValueCode, leftValue) =
+          readElement(leftValuesTerm, leftIndexTerm, valueType, "leftValue")
+        val (rightValueCode, rightValue) =
+          readElement(rightValuesTerm, rightIndexTerm, valueType, "rightValue")
         val valueEqualsExpr =
-          generateEquals(ctx, leftValueExpr, rightValueExpr, new BooleanType(valueType.isNullable))
+          generateEquals(ctx, leftValue, rightValue, new BooleanType(valueType.isNullable))
 
-        val internalTypeCls = classOf[LogicalType].getCanonicalName
-        val keyTypeTerm = ctx.addReusableObject(keyType, "keyType", internalTypeCls)
-        val valueTypeTerm = ctx.addReusableObject(valueType, "valueType", internalTypeCls)
-        val mapDataUtil = className[MapDataUtil]
+        val (unmatchedKeyCode, unmatchedKey) =
+          readElement(rightKeysTerm, unmatchedIndexTerm, keyType, "unmatchedKey")
+        val (laterKeyCode, laterKey) =
+          readElement(rightKeysTerm, laterIndexTerm, keyType, "laterKey")
+        val (laterKeysMatchCode, laterKeysMatch) = generateKeysMatch(unmatchedKey, laterKey)
 
+        // Keys are compared with SQL '=' like the values, so each left key scans the right keys.
+        // A map can hold a key more than once, and then its last entry counts. Both scans run from
+        // the end, so a key first finds its last entry, and later visits find it already matched.
+        // An unmatched right entry must be an earlier entry of a key that comes later.
         val stmt =
           s"""
-             |boolean $resultTerm;
-             |if ($leftTerm.size() == $rightTerm.size()) {
-             |  $resultTerm = true;
-             |  $mapCls $leftMapTerm = $mapDataUtil
-             |      .convertToJavaMap($leftTerm, $keyTypeTerm, $valueTypeTerm);
-             |  $mapCls $rightMapTerm = $mapDataUtil
-             |      .convertToJavaMap($rightTerm, $keyTypeTerm, $valueTypeTerm);
+             |int $sizeTerm = $leftTerm.size();
+             |boolean $resultTerm = $sizeTerm == $rightTerm.size();
+             |$ARRAY_DATA $leftKeysTerm = $leftTerm.keyArray();
+             |$ARRAY_DATA $leftValuesTerm = $leftTerm.valueArray();
+             |$ARRAY_DATA $rightKeysTerm = $rightTerm.keyArray();
+             |$ARRAY_DATA $rightValuesTerm = $rightTerm.valueArray();
+             |boolean[] $rightMatchedTerm = new boolean[$sizeTerm];
              |
-             |  for ($entryCls $entryTerm : $leftMapTerm.entrySet()) {
-             |    $keyCls $leftKeyTerm = ($keyCls) $entryTerm.getKey();
-             |    if ($rightMapTerm.containsKey($leftKeyTerm)) {
-             |      $valueCls $leftValueTerm = ($valueCls) $entryTerm.getValue();
-             |      $valueCls $rightValueTerm = ($valueCls) $rightMapTerm.get($leftKeyTerm);
-             |      boolean $leftValueNullTerm = ($leftValueTerm == null);
-             |      boolean $rightValueNullTerm = ($rightValueTerm == null);
-             |
-             |      ${valueEqualsExpr.code}
-             |      if (!${valueEqualsExpr.resultTerm}) {
-             |        $resultTerm = false;
-             |        break;
-             |      }
-             |    } else {
-             |      $resultTerm = false;
+             |for (int $leftIndexTerm = $sizeTerm - 1; $resultTerm && $leftIndexTerm >= 0;
+             |    $leftIndexTerm--) {
+             |  $leftKeyCode
+             |  int $rightIndexTerm = $sizeTerm - 1;
+             |  for (; $rightIndexTerm >= 0; $rightIndexTerm--) {
+             |    $rightKeyCode
+             |    $keysMatchCode
+             |    if ($keysMatch) {
              |      break;
              |    }
              |  }
-             |} else {
-             |  $resultTerm = false;
+             |  if ($rightIndexTerm < 0) {
+             |    $resultTerm = false;
+             |  } else if (!$rightMatchedTerm[$rightIndexTerm]) {
+             |    $rightMatchedTerm[$rightIndexTerm] = true;
+             |
+             |    $leftValueCode
+             |    $rightValueCode
+             |    ${valueEqualsExpr.code}
+             |    $resultTerm = ${valueEqualsExpr.resultTerm};
+             |  }
+             |}
+             |
+             |for (int $unmatchedIndexTerm = 0; $resultTerm && $unmatchedIndexTerm < $sizeTerm;
+             |    $unmatchedIndexTerm++) {
+             |  if ($rightMatchedTerm[$unmatchedIndexTerm]) {
+             |    continue;
+             |  }
+             |  $unmatchedKeyCode
+             |  int $laterIndexTerm = $unmatchedIndexTerm + 1;
+             |  for (; $laterIndexTerm < $sizeTerm; $laterIndexTerm++) {
+             |    $laterKeyCode
+             |    $laterKeysMatchCode
+             |    if ($laterKeysMatch) {
+             |      break;
+             |    }
+             |  }
+             |  $resultTerm = $laterIndexTerm < $sizeTerm;
              |}
              """.stripMargin
         (stmt, resultTerm)
@@ -2093,10 +2147,13 @@ object ScalarOperatorGens {
       override def isPrinting(): Boolean = false
       override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
       override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
+      override def getSessionZoneId: ZoneId = TableConfigUtils.getLocalTimeZone(ctx.tableConfig)
       override def declareVariable(ty: String, variablePrefix: String): String =
         ctx.addReusableLocalVariable(ty, variablePrefix)
       override def declareTypeSerializer(ty: LogicalType): String =
         ctx.addReusableTypeSerializer(ty)
+      override def declareReusableObject(obj: AnyRef, fieldPrefix: String): String =
+        ctx.addReusableObject(obj, fieldPrefix)
       override def declareClassField(ty: String, field: String, init: String): String = {
         ctx.addReusableMember(s"private $ty $field = $init;")
         field

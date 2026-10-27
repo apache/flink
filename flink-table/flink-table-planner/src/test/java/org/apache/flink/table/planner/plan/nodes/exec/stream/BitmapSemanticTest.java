@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -217,9 +218,11 @@ public class BitmapSemanticTest extends SemanticTestBase {
                             "INSERT INTO sink_t "
                                     + "SELECT FIRST_VALUE(ts) OVER (ORDER BY bm) "
                                     + "FROM TABLE(TUMBLE(TABLE t, DESCRIPTOR(ts), INTERVAL '1' SECOND))",
-                            UnsupportedOperationException.class,
-                            "Type(BITMAP) is not an orderable data type, "
-                                    + "it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
+                            ValidationException.class,
+                            "Type 'BITMAP' cannot be ordered, so it cannot be used as a key for "
+                                    + "sorting, grouping, or joining (for example in ORDER BY, "
+                                    + "GROUP BY, DISTINCT, or a join condition). Remove it from the "
+                                    + "key, or replace it with a value that can be ordered.")
                     .build();
 
     static final TableTestProgram BITMAP_AS_DISTINCT_KEY =

@@ -67,11 +67,9 @@ public final class ExceptionUtils {
             return STRINGIFIED_NULL_EXCEPTION;
         }
 
-        try {
-            StringWriter stm = new StringWriter();
-            PrintWriter wrt = new PrintWriter(stm);
+        try (StringWriter stm = new StringWriter();
+                PrintWriter wrt = new PrintWriter(stm)) {
             e.printStackTrace(wrt);
-            wrt.close();
             return stm.toString();
         } catch (Throwable t) {
             return e.getClass().getName() + " (error while printing stack trace)";

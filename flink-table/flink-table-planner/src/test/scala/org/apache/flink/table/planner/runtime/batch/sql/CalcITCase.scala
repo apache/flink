@@ -1063,8 +1063,12 @@ class CalcITCase extends BatchTestBase {
     assertThatThrownBy(
       () =>
         checkResult("SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']", Seq()))
+      .isInstanceOf(classOf[ValidationException])
       .hasMessage(
-        "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
+        "Type 'MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL' cannot be ordered, so it cannot " +
+          "be used as a key for sorting, grouping, or joining (for example in ORDER BY, GROUP " +
+          "BY, DISTINCT, or a join condition). Remove it from the key, or replace it with a " +
+          "value that can be ordered.")
   }
 
   @Test
@@ -1700,6 +1704,52 @@ class CalcITCase extends BatchTestBase {
       query,
       Seq(row(1.0f, 11.0f, 12.0f), row(2.0f, 21.0f, 22.0f), row(3.0f, 31.0f, 32.0f))
     )
+  }
+
+  @Test
+  def testFloatingPointInWithSignedZero(): Unit = {
+    registerCollection(
+      "SignedZeros",
+      Seq(
+        row(1, -0.0f, -0.0d),
+        row(1, -0.0f, -0.0d),
+        row(2, 0.0f, 0.0d),
+        row(3, 1.0f, 1.0d),
+        row(4, null, null),
+        row(5, 2.0f, 2.0d),
+        row(6, Float.NaN, Double.NaN),
+        row(7, Float.PositiveInfinity, Double.PositiveInfinity),
+        row(8, Float.NegativeInfinity, Double.NegativeInfinity)
+      ),
+      new RowTypeInfo(Types.INT, Types.FLOAT, Types.DOUBLE),
+      "id, f, d"
+    )
+
+    checkResult(
+      "SELECT id FROM SignedZeros WHERE f IN (0, 2) AND d IN (0, 2)",
+      Seq(row(1), row(1), row(2), row(5)))
+
+    for (field <- Seq("f", "d")) {
+      checkResult(
+        s"""
+           |SELECT id, $field = 0,
+           |  $field IN (0, 2), $field NOT IN (0, 2),
+           |  $field IN (0, 2, NULL), $field NOT IN (0, 2, NULL)
+           |FROM SignedZeros
+           |""".stripMargin,
+        Seq(
+          row(1, true, true, false, true, false),
+          row(1, true, true, false, true, false),
+          row(2, true, true, false, true, false),
+          row(3, false, false, true, null, null),
+          row(4, null, null, null, null, null),
+          row(5, false, true, false, true, false),
+          row(6, false, false, true, null, null),
+          row(7, false, false, true, null, null),
+          row(8, false, false, true, null, null)
+        )
+      )
+    }
   }
 
   @Test

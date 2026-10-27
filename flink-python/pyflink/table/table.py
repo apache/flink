@@ -16,8 +16,10 @@
 # limitations under the License.
 ################################################################################
 
+from datetime import tzinfo
+
 from py4j.java_gateway import get_method
-from typing import Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas
@@ -32,9 +34,10 @@ from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.catalog import ResolvedSchema
-from pyflink.table.types import create_arrow_schema
+from pyflink.table.types import LocalZonedTimestampType, create_arrow_schema
 from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
-    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
+    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper, \
+    UserDefinedAsyncScalarFunctionWrapper
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
@@ -116,10 +119,11 @@ class Table(object):
 
             >>> tab.select(tab.a)
         """
-        if name not in self.get_schema().get_field_names():
+        column_names = self.get_resolved_schema().get_column_names()
+        if name not in column_names:
             raise AttributeError(
                 "The current table has no column named '%s', available columns: [%s]"
-                % (name, ', '.join(self.get_schema().get_field_names())))
+                % (name, ', '.join(column_names)))
         return col(name)
 
     def select(self, *fields: Expression) -> 'Table':
@@ -769,7 +773,11 @@ class Table(object):
         return Table(self._j_table.dropColumns(to_expression_jarray(fields)),
                      self._t_env)
 
-    def map(self, func: Union[Expression, UserDefinedScalarFunctionWrapper]) -> 'Table':
+    def map(
+        self,
+        func: Union[Expression, UserDefinedScalarFunctionWrapper,
+                    UserDefinedAsyncScalarFunctionWrapper],
+    ) -> 'Table':
         """
         Performs a map operation with a user-defined scalar function.
 
@@ -943,27 +951,32 @@ class Table(object):
             .get(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
         batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
-        if batches_iterator.hasNext():
+        schema = self.get_schema()
+        field_types = schema.get_field_data_types()
+        has_rows = batches_iterator.hasNext()
+        arrow_schema = create_arrow_schema(
+            schema.get_field_names(), field_types, allow_nested=not has_rows)
+        timezone: Optional[tzinfo] = None
+        if any(isinstance(field_type, LocalZonedTimestampType) for field_type in field_types):
             import pytz
-            timezone = pytz.timezone(
-                self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
-            serializer = ArrowSerializer(
-                create_arrow_schema(self.get_schema().get_field_names(),
-                                    self.get_schema().get_field_data_types()),
-                self.get_schema().to_row_data_type(),
-                timezone)
+            j_timezone = self._j_table.getTableEnvironment().getConfig().getLocalTimeZone()
+            timezone_id = j_timezone.getId()
+            if timezone_id.startswith(('GMT+', 'GMT-')):
+                timezone = pytz.FixedOffset(j_timezone.normalized().getTotalSeconds() // 60)
+            else:
+                timezone = pytz.timezone(timezone_id)
+        if has_rows:
+            serializer = ArrowSerializer(arrow_schema, schema.to_row_data_type(), timezone)
             import pyarrow as pa
             table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
-            pdf = table.to_pandas()
-
-            schema = self.get_schema()
-            for field_name in schema.get_field_names():
-                pdf[field_name] = tz_convert_from_internal(
-                    pdf[field_name], schema.get_field_data_type(field_name), timezone)
-            return pdf
         else:
-            import pandas as pd
-            return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
+            table = arrow_schema.empty_table()
+        pdf = table.to_pandas()
+
+        for field_name in schema.get_field_names():
+            pdf[field_name] = tz_convert_from_internal(
+                pdf[field_name], schema.get_field_data_type(field_name), timezone)
+        return pdf
 
     @Deprecated(since="2.1.0", detail="Use :func:`Table.get_resolved_schema` instead.")
     def get_schema(self) -> TableSchema:

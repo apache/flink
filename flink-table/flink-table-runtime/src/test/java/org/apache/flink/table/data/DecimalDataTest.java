@@ -19,8 +19,12 @@
 package org.apache.flink.table.data;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.data.DecimalDataUtils.abs;
 import static org.apache.flink.table.data.DecimalDataUtils.add;
@@ -45,9 +49,204 @@ import static org.apache.flink.table.data.DecimalDataUtils.signum;
 import static org.apache.flink.table.data.DecimalDataUtils.sround;
 import static org.apache.flink.table.data.DecimalDataUtils.subtract;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /** Test for {@link DecimalData}. */
 class DecimalDataTest {
+
+    private static Stream<Arguments> compactCastCases() {
+        return Stream.of(
+                // unscaled, srcPrecision, srcScale, targetPrecision, targetScale
+                arguments(0L, 5, 2, 3, 1),
+                arguments(123L, 5, 2, 6, 2),
+                arguments(12345L, 5, 0, 10, 2),
+                arguments(24L, 2, 1, 2, 0),
+                arguments(25L, 2, 1, 2, 0),
+                arguments(-25L, 2, 1, 2, 0),
+                arguments(995L, 3, 2, 2, 1),
+                arguments(-995L, 3, 2, 2, 1),
+                arguments(999_999_999_999_999_999L, 18, 0, 18, 2),
+                arguments(999_999_999_999_999_999L, 18, 0, 18, 0),
+                arguments(-999_999_999_999_999_999L, 18, 0, 18, 0),
+                arguments(12345L, 5, 2, 3, 2));
+    }
+
+    private static Stream<Arguments> longCastCases() {
+        return Stream.of(
+                // val, targetPrecision, targetScale
+                arguments(0L, 3, 1),
+                arguments(123L, 5, 2),
+                arguments(-123L, 5, 2),
+                arguments(Long.MAX_VALUE, 18, 0),
+                arguments(Long.MIN_VALUE, 18, 0),
+                arguments(999_999_999_999_999_999L, 18, 0),
+                arguments(99L, 2, 1));
+    }
+
+    @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
+    @MethodSource("longCastCases")
+    void testCastFromLongCompactMatchesBigDecimal(long val, int targetPrecision, int targetScale) {
+        final DecimalData expected =
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(val), targetPrecision, targetScale);
+        final DecimalData actual = castFrom(val, targetPrecision, targetScale);
+
+        assertDecimalMatches(actual, expected);
+    }
+
+    @ParameterizedTest(name = "unscaled={0} DECIMAL({1},{2}) -> DECIMAL({3},{4})")
+    @MethodSource("compactCastCases")
+    void testCastToDecimalCompactMatchesBigDecimal(
+            long unscaled, int srcPrecision, int srcScale, int targetPrecision, int targetScale) {
+        final DecimalData src = DecimalData.fromUnscaledLong(unscaled, srcPrecision, srcScale);
+        final DecimalData expected =
+                DecimalData.fromBigDecimal(src.toBigDecimal(), targetPrecision, targetScale);
+        final DecimalData actual = castToDecimal(src, targetPrecision, targetScale);
+
+        assertDecimalMatches(actual, expected);
+    }
+
+    private static Stream<Arguments> unscaledLongCases() {
+        return Stream.of(
+                arguments(0L),
+                arguments(1L),
+                arguments(-1L),
+                arguments(127L),
+                arguments(128L),
+                arguments(-128L),
+                arguments(-129L),
+                arguments(1234L),
+                arguments(32767L),
+                arguments(32768L),
+                arguments(-32768L),
+                arguments(-32769L),
+                arguments((long) Integer.MAX_VALUE),
+                arguments((long) Integer.MAX_VALUE + 1),
+                arguments((long) Integer.MIN_VALUE),
+                arguments((long) Integer.MIN_VALUE - 1),
+                arguments((1L << 55) - 1),
+                arguments(1L << 55),
+                arguments(-(1L << 55)),
+                arguments(-(1L << 55) - 1),
+                arguments(Long.MAX_VALUE),
+                arguments(Long.MIN_VALUE));
+    }
+
+    @ParameterizedTest(name = "unscaled={0}")
+    @MethodSource("unscaledLongCases")
+    void testNonCompactLongBackedMatchesBigDecimal(long unscaled) {
+        final DecimalData longBacked = DecimalDataInternalUtils.fromUnscaledLong(unscaled, 38, 2);
+        final DecimalData bigBacked =
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(unscaled, 2), 38, 2);
+
+        assertThat(longBacked.longBacked).isTrue();
+        assertThat(longBacked.toUnscaledBytes()).isEqualTo(bigBacked.toUnscaledBytes());
+        assertThat(longBacked.toUnscaledLong()).isEqualTo(unscaled);
+        assertThat(longBacked.compareTo(bigBacked)).isZero();
+        assertThat(longBacked).isEqualTo(bigBacked).hasSameHashCodeAs(bigBacked);
+
+        // caching the BigDecimal must keep the long fast paths, also for copies
+        longBacked.toBigDecimal();
+        assertThat(longBacked.longBacked).isTrue();
+        assertThat(longBacked.copy().longBacked).isTrue();
+
+        assertThat(doubleValue(longBacked))
+                .isEqualTo(BigDecimal.valueOf(unscaled, 2).doubleValue());
+        assertThat(signum(longBacked)).isEqualTo(Long.signum(unscaled));
+        assertThat(compare(longBacked, unscaled / 100))
+                .isEqualTo(bigBacked.toBigDecimal().compareTo(BigDecimal.valueOf(unscaled / 100)));
+
+        final DecimalData otherScale = DecimalDataInternalUtils.fromUnscaledLong(unscaled, 38, 3);
+        assertThat(Integer.signum(longBacked.compareTo(otherScale)))
+                .isEqualTo(
+                        Integer.signum(
+                                bigBacked.toBigDecimal().compareTo(otherScale.toBigDecimal())));
+
+        assertDecimalMatches(negate(longBacked), negate(bigBacked));
+        assertThat(negate(longBacked).longBacked).isEqualTo(unscaled != Long.MIN_VALUE);
+        assertDecimalMatches(abs(longBacked), abs(bigBacked));
+
+        final DecimalData one = DecimalDataInternalUtils.fromUnscaledLong(1, 38, 2);
+        assertDecimalMatches(add(longBacked, one, 38, 2), add(bigBacked, one, 38, 2));
+        assertThat(add(longBacked, one, 38, 2).longBacked).isEqualTo(unscaled != Long.MAX_VALUE);
+        assertDecimalMatches(subtract(longBacked, one, 38, 2), subtract(bigBacked, one, 38, 2));
+        assertThat(subtract(longBacked, one, 38, 2).longBacked)
+                .isEqualTo(unscaled != Long.MIN_VALUE);
+        assertDecimalMatches(
+                add(longBacked, longBacked, 38, 2),
+                DecimalData.fromBigDecimal(
+                        bigBacked.toBigDecimal().add(bigBacked.toBigDecimal()), 38, 2));
+        assertDecimalMatches(
+                subtract(longBacked, negate(longBacked), 38, 2),
+                DecimalData.fromBigDecimal(
+                        bigBacked.toBigDecimal().subtract(bigBacked.toBigDecimal().negate()),
+                        38,
+                        2));
+    }
+
+    @ParameterizedTest(name = "unscaled={0}")
+    @MethodSource("unscaledLongCases")
+    void testCompactHashCodeMatchesBigDecimal(long unscaled) {
+        final long compact = unscaled % 1_000_000_000_000_000L;
+        final BigDecimal bd = BigDecimal.valueOf(compact, 2);
+
+        assertThat(DecimalData.fromUnscaledLong(compact, 18, 2).hashCode())
+                .isEqualTo(bd.hashCode());
+        assertThat(DecimalData.fromBigDecimal(bd, 18, 2).hashCode()).isEqualTo(bd.hashCode());
+    }
+
+    private static Stream<Arguments> unscaledLongWithTargetCases() {
+        final int[][] targets = {
+            {38, 2}, {38, 4}, {38, 20}, {38, 1}, {19, 0}, {20, 2}, {18, 2}, {18, 0}, {10, 1}
+        };
+        return unscaledLongCases()
+                .flatMap(
+                        value ->
+                                Stream.of(targets).map(t -> arguments(value.get()[0], t[0], t[1])));
+    }
+
+    @ParameterizedTest(name = "unscaled={0} -> DECIMAL({1},{2})")
+    @MethodSource("unscaledLongWithTargetCases")
+    void testCastLongBackedMatchesBigDecimal(long unscaled, int precision, int scale) {
+        final DecimalData longBacked = DecimalDataInternalUtils.fromUnscaledLong(unscaled, 38, 2);
+        final DecimalData bigBacked =
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(unscaled, 2), 38, 2);
+
+        final DecimalData actual = castToDecimal(longBacked, precision, scale);
+        assertDecimalMatches(actual, castToDecimal(bigBacked, precision, scale));
+        if (actual != null && scale >= 2 && !DecimalData.isCompact(precision)) {
+            assertThat(actual.longBacked)
+                    .isEqualTo(actual.toBigDecimal().unscaledValue().bitLength() < 64);
+        }
+    }
+
+    @ParameterizedTest(name = "unscaled={0} -> DECIMAL({1},{2})")
+    @MethodSource("unscaledLongWithTargetCases")
+    void testCastCompactMatchesBigDecimal(long unscaled, int precision, int scale) {
+        final DecimalData compact = DecimalData.fromUnscaledLong(unscaled % 10_000_000_000L, 10, 2);
+
+        assertDecimalMatches(
+                castToDecimal(compact, precision, scale),
+                DecimalData.fromBigDecimal(compact.toBigDecimal(), precision, scale));
+    }
+
+    @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
+    @MethodSource("unscaledLongWithTargetCases")
+    void testCastFromLongMatchesBigDecimal(long val, int precision, int scale) {
+        assertDecimalMatches(
+                castFrom(val, precision, scale),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(val), precision, scale));
+    }
+
+    private static void assertDecimalMatches(DecimalData actual, DecimalData expected) {
+        if (expected == null) {
+            assertThat(actual).isNull();
+        } else {
+            assertThat(actual).isNotNull();
+            assertThat(actual.precision()).isEqualTo(expected.precision());
+            assertThat(actual.scale()).isEqualTo(expected.scale());
+            assertThat(actual.toBigDecimal()).isEqualTo(expected.toBigDecimal());
+        }
+    }
 
     @SuppressWarnings("ConstantConditions")
     @Test

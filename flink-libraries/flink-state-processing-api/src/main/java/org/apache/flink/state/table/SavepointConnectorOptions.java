@@ -32,19 +32,57 @@ public class SavepointConnectorOptions {
 
     public static final String FIELDS = "fields";
     public static final String STATE_NAME = "state-name";
-    public static final String STATE_TYPE = "state-type";
-    public static final String DEPRECATED_MAP_KEY_FORMAT = "map-key-format";
-    public static final String KEY_CLASS = "key-class";
-    public static final String DEPRECATED_VALUE_FORMAT = "value-format";
-    public static final String VALUE_CLASS = "value-class";
-    public static final String KEY_TYPE_FACTORY = "key-type-factory";
-    public static final String VALUE_TYPE_FACTORY = "value-type-factory";
 
     /** Value state types. */
     public enum StateType {
         VALUE,
         LIST,
         MAP
+    }
+
+    /** Determines how a savepoint table's schema and rows are derived from keyed state. */
+    public enum StateReaderMode {
+
+        /** One row per key, one column per keyed state (the general keyed-state table). */
+        KEYED("keyed"),
+
+        /**
+         * Exposes a single keyed LIST/MAP state flattened into one row per list element / map
+         * entry, instead of one row per key.
+         */
+        KEYED_FLAT("keyed-flat"),
+
+        /**
+         * One row per (key, namespace), one column per VALUE-shaped namespaced state (e.g. a window
+         * operator's window-contents accumulator or window-registered value state).
+         */
+        WINDOWED("windowed"),
+
+        /**
+         * Exposes a single namespaced LIST/MAP state flattened into one row per list element / map
+         * entry, instead of one row per (key, namespace).
+         */
+        WINDOWED_FLAT("windowed-flat"),
+
+        /** One row per element of an operator {@code ListState} (no key/namespace concept). */
+        LIST("list"),
+
+        /** One row per element of an operator {@code UnionState} (no key/namespace concept). */
+        UNION("union"),
+
+        /** One row per entry of an operator {@code BroadcastState} (no key/namespace concept). */
+        BROADCAST("broadcast");
+
+        private final String value;
+
+        StateReaderMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -94,6 +132,33 @@ public class SavepointConnectorOptions {
                     .withDescription(
                             "Defines the operator UID hash which must be used for state reading (Can't be used together with UID).");
 
+    /**
+     * Determines whether the table exposes the general keyed-state schema (one row per key, one
+     * column per keyed state) or the flattened schema for a single LIST/MAP state (one row per list
+     * element / map entry). Set automatically by {@code StateCatalog}; not intended for manual use.
+     * In flattened mode, the state type (LIST or MAP) is not configured separately: it is inferred
+     * from whether the table's second column is named {@code list_index} (LIST) or {@code map_key}
+     * (MAP), and the state name is inferred from the name of the third column.
+     */
+    public static final ConfigOption<StateReaderMode> STATE_READER_MODE =
+            ConfigOptions.key("state.reader.mode")
+                    .enumType(StateReaderMode.class)
+                    .defaultValue(StateReaderMode.KEYED)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines whether the table exposes the general keyed-state schema "
+                                                    + "(%s, the default) or the flattened schema for a single LIST/MAP "
+                                                    + "state (%s), which exposes one row per list element / map entry "
+                                                    + "instead of one row per key, or one of the namespaced-state "
+                                                    + "equivalents (%s, %s), which expose state registered under a "
+                                                    + "non-void namespace (e.g. window-scoped state).",
+                                            code(StateReaderMode.KEYED.toString()),
+                                            code(StateReaderMode.KEYED_FLAT.toString()),
+                                            code(StateReaderMode.WINDOWED.toString()),
+                                            code(StateReaderMode.WINDOWED_FLAT.toString()))
+                                    .build());
+
     // --------------------------------------------------------------------------------------------
     // Value options
     // --------------------------------------------------------------------------------------------
@@ -106,73 +171,23 @@ public class SavepointConnectorOptions {
                     .withDescription(
                             "Defines the state name which must be used for state reading.");
 
-    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<StateType> STATE_TYPE_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, STATE_TYPE))
-                    .enumType(StateType.class)
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Defines the state type which must be used for state reading, including %s, %s and %s. "
-                                                    + "When it's not provided then it tries to be inferred from the SQL type (ARRAY=list, MAP=map, all others=value).",
-                                            code(StateType.VALUE.toString()),
-                                            code(StateType.LIST.toString()),
-                                            code(StateType.MAP.toString()))
-                                    .build());
-
-    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<String> KEY_CLASS_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, KEY_CLASS))
-                    .stringType()
-                    .noDefaultValue()
-                    .withDeprecatedKeys(String.format("%s.#.%s", FIELDS, DEPRECATED_MAP_KEY_FORMAT))
-                    .withDescription(
-                            "Defines the format class scheme for decoding map key data. "
-                                    + "When it's not provided then it tries to be inferred from the SQL type (only primitive types supported).");
-
-    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<String> KEY_TYPE_INFO_FACTORY_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, KEY_TYPE_FACTORY))
+    /**
+     * Explicitly identifies the single LIST/MAP/UNION/BROADCAST state exposed by a table whose
+     * value column(s) no longer carry the state's name themselves — either because the value is
+     * flattened directly into top-level columns (one column per field for a structured value, or a
+     * single value column named {@code list_value}/{@code map_value} for a scalar one, used by
+     * {@link #STATE_READER_MODE} {@code KEYED_FLAT}, {@code WINDOWED_FLAT}, {@code LIST}, and
+     * {@code UNION}), or because the value column has a fixed name ({@code map_value}, used by
+     * {@code BROADCAST}). Naming the value column after the state itself risked colliding with a
+     * table's other (reserved) column names, e.g. a state literally named {@code map_key}. Set
+     * automatically by {@code StateCatalog}; not intended for manual use.
+     */
+    public static final ConfigOption<String> FLATTENED_STATE_NAME =
+            ConfigOptions.key(STATE_NAME)
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Defines the type information factory for decoding map key data. "
-                                                    + "Either %s or %s can be specified. "
-                                                    + "When none of them are provided then the format class scheme tries to be inferred from the SQL type (only primitive types supported).",
-                                            code(KEY_CLASS), code(KEY_TYPE_FACTORY))
-                                    .build());
-
-    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<String> VALUE_CLASS_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VALUE_CLASS))
-                    .stringType()
-                    .noDefaultValue()
-                    .withDeprecatedKeys(String.format("%s.#.%s", FIELDS, DEPRECATED_VALUE_FORMAT))
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Defines the format class scheme for decoding value data. "
-                                                    + "Either %s or %s can be specified. "
-                                                    + "When none of them are provided then format class scheme tries to be inferred from the SQL type (only primitive types supported).",
-                                            code(VALUE_CLASS), code(VALUE_TYPE_FACTORY))
-                                    .build());
-
-    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<String> VALUE_TYPE_INFO_FACTORY_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VALUE_TYPE_FACTORY))
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Defines the type information factory for decoding value data. "
-                                                    + "Either %s or %s can be specified. "
-                                                    + "When none of them are provided then the format class scheme tries to be inferred from the SQL type (only primitive types supported).",
-                                            code(VALUE_CLASS), code(VALUE_TYPE_FACTORY))
-                                    .build());
+                            "Defines the name of the single LIST/MAP/UNION/BROADCAST state exposed by this table.");
 
     private SavepointConnectorOptions() {}
 }

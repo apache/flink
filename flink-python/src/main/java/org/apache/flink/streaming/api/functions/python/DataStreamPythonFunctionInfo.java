@@ -20,13 +20,14 @@ package org.apache.flink.streaming.api.functions.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 
 /** {@link DataStreamPythonFunctionInfo} holds a PythonFunction and its function type. */
 @Internal
 public class DataStreamPythonFunctionInfo extends PythonFunctionInfo {
     private static final long serialVersionUID = 2L;
 
-    private static final Object[] EMPTY = new Object[0];
+    private static final PythonFunctionInput[] EMPTY = new PythonFunctionInput[0];
 
     private final int functionType;
 

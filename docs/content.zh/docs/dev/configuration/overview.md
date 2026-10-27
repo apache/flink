@@ -101,7 +101,7 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{< version >}}'
     scalaBinaryVersion = '{{< scala_version >}}'
-    slf4jVersion = '1.7.36'
+    slf4jVersion = '2.0.20'
     log4jVersion = '2.26.1'
 }
 sourceCompatibility = javaVersion
@@ -123,7 +123,7 @@ repositories {
 }
 // NOTE: We cannot use "compileOnly" or "shadow" configurations since then we could not run code
 // in the IDE or with "gradle run". We also cannot exclude transitive dependencies from the
-// shadowJar yet (see https://github.com/johnrengelman/shadow/issues/159).
+// shadowJar yet (see https://github.com/GradleUp/shadow/issues/159).
 // -> Explicitly define the // libraries we want to be included in the "flinkShadowJar" configuration!
 configurations {
     flinkShadowJar // dependencies which go into the shadowJar
@@ -146,7 +146,7 @@ dependencies {
     // connectors. These must be in the flinkShadowJar configuration!
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka:${flinkVersion}"
-    runtimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
+    runtimeOnly "org.apache.logging.log4j:log4j-slf4j2-impl:${log4jVersion}"
     runtimeOnly "org.apache.logging.log4j:log4j-api:${log4jVersion}"
     runtimeOnly "org.apache.logging.log4j:log4j-core:${log4jVersion}"
     // Add test dependencies here.

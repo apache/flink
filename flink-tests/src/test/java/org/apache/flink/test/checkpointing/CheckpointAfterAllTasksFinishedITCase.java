@@ -80,12 +80,18 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
         IntegerStreamSource.latch = new CountDownLatch(1);
     }
 
+    private void disablePeriodicCheckpointing() {
+        env.enableCheckpointing(
+                Duration.ofNanos(Long.MAX_VALUE) /* max duration allowed by FLINK */.toMillis());
+        // Since FLINK-38939, a large checkpointing interval has to be combined with a large
+        // min-pause to effectively disable periodic checkpoints.
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(Duration.ofDays(365).toMillis());
+    }
+
     @Test
     void testImmediateCheckpointing() throws Exception {
         RestartStrategyUtils.configureNoRestartStrategy(env);
-        // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
-        env.enableCheckpointing(
-                Duration.ofNanos(Long.MAX_VALUE) /* max duration allowed by FLINK */.toMillis());
+        disablePeriodicCheckpointing();
         StreamGraph streamGraph = getStreamGraph(env, false, false);
         env.execute(streamGraph);
         assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
@@ -112,7 +118,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
                     miniCluster,
                     jobGraph.getJobID(),
                     findVertexByName(jobGraph, "passA -> Sink: sinkA").getID(),
-                    false);
+                    true);
 
             String savepointPath =
                     miniCluster
@@ -124,10 +130,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
                             .get();
             bigResult.get().clear();
 
-            // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
-            env.enableCheckpointing(
-                    Duration.ofNanos(Long.MAX_VALUE) /* max duration allowed by FLINK */
-                            .toMillis());
+            disablePeriodicCheckpointing();
             JobGraph restoredJobGraph = getStreamGraph(env, true, false).getJobGraph();
             restoredJobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(savepointPath, false));

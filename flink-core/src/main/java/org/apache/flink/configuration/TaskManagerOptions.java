@@ -23,7 +23,6 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -138,7 +137,7 @@ public class TaskManagerOptions {
     public static final ConfigOption<Duration> REGISTRATION_TIMEOUT =
             key("taskmanager.registration.timeout")
                     .durationType()
-                    .defaultValue(TimeUtils.parseDuration("5 min"))
+                    .defaultValue(Duration.ofMinutes(5L))
                     .withDeprecatedKeys("taskmanager.maxRegistrationDuration")
                     .withDescription(
                             "Defines the timeout for the TaskManager registration. If the duration is"

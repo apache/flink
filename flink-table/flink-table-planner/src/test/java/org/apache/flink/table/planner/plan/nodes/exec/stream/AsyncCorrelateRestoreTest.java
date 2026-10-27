@@ -28,7 +28,7 @@ import java.util.List;
 public class AsyncCorrelateRestoreTest extends RestoreTestBase {
 
     public AsyncCorrelateRestoreTest() {
-        super(StreamExecCorrelate.class);
+        super(StreamExecAsyncCorrelate.class);
     }
 
     @Override

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-rpc</artifactId>
-		<version>2.4-SNAPSHOT</version>
+		<version>2.5-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-rpc-akka</artifactId>
@@ -37,7 +37,7 @@ under the License.
 	</description>
 
 	<properties>
-		<pekko.version>1.6.0</pekko.version>
+		<pekko.version>1.7.1</pekko.version>
 	</properties>
 
 	<dependencies>

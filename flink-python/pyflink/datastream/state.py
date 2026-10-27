@@ -834,7 +834,7 @@ class StateTtlConfig(object):
                 StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER] = \
                 StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
                     query_time_after_num_entries,
-                    periodic_compaction_time if periodic_compaction_time else Duration.of_days(30))
+                    periodic_compaction_time)
             return self
 
         def disable_cleanup_in_background(self) -> 'StateTtlConfig.Builder':
@@ -928,13 +928,15 @@ class StateTtlConfig(object):
                          query_time_after_num_entries: int,
                          periodic_compaction_time=None):
                 self._query_time_after_num_entries = query_time_after_num_entries
-                self._periodic_compaction_time = periodic_compaction_time \
-                    if periodic_compaction_time else Duration.of_days(30)
+                # Creating the default Duration here would start a Py4J gateway in embedded workers.
+                self._periodic_compaction_time = periodic_compaction_time or None
 
             def get_query_time_after_num_entries(self) -> int:
                 return self._query_time_after_num_entries
 
             def get_periodic_compaction_time(self) -> Duration:
+                if self._periodic_compaction_time is None:
+                    return Duration.of_days(30)
                 return self._periodic_compaction_time
 
         EMPTY_STRATEGY = EmptyCleanupStrategy()

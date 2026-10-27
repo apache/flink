@@ -35,6 +35,8 @@ Expressions
     and_
     or_
     not_
+    is_nan
+    is_not_nan
     current_database
     current_date
     current_time
@@ -120,6 +122,8 @@ arithmetic functions
     Expression.if_null
     Expression.is_null
     Expression.is_not_null
+    Expression.is_nan
+    Expression.is_not_nan
     Expression.is_true
     Expression.is_false
     Expression.is_not_true
@@ -256,7 +260,9 @@ advanced type helper functions
     Expression.array_min
     Expression.array_sort
     Expression.array_union
+    Expression.map_contains_key
     Expression.map_entries
+    Expression.map_from_entries
     Expression.map_keys
     Expression.map_union
     Expression.map_values
@@ -326,6 +332,8 @@ JSON functions
     Expression.json_query
     Expression.json_quote
     Expression.json_unquote
+    Expression.json_length
+    Expression.json_type
 
 value modification functions
 ----------------------------

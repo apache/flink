@@ -269,7 +269,7 @@ object FlinkStreamRuleSets {
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
 
     // reorder sort and projection
-    CoreRules.SORT_PROJECT_TRANSPOSE,
+    FlinkSortProjectTransposeRule.INSTANCE,
     // remove unnecessary sort rule
     CoreRules.SORT_REMOVE,
 
@@ -391,6 +391,7 @@ object FlinkStreamRuleSets {
     CalcPythonCorrelateTransposeRule.INSTANCE,
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
+    PythonCorrelateSplitFunctionKindRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // remove output of rank number when it is not used by successor calc
@@ -409,22 +410,32 @@ object FlinkStreamRuleSets {
     // Rejects SNAPSHOT scans that survived the rewrite above, i.e. SNAPSHOT calls used outside a
     // LATERAL context. Must run after LogicalJoinToLateralSnapshotJoinRule.
     ForbidSnapshotOutsideLateralRule.INSTANCE,
+    // Extract after calc merging to preserve shared results, but before Python calc normalization.
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_SCALAR,
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
+    PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // Avoids accessing a field from the result (condition).
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from the result (projection).
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     // Avoids dealing with a python call in the condition.
     PythonCalcSplitRule.SPLIT_CONDITION,
+    // Deduplicates Python UDF calls shared between condition and projection.
+    PythonCalcSplitRule.CONDITION_PROJECTION_CSE,
     // Avoids dealing with Java calls in the same Calc as python calls.
     PythonCalcSplitRule.SPLIT_PROJECT,
     // Splits calcs which contain both general Python functions and pandas Python functions
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    // Splits calcs which contain Python functions with different concurrency values
+    PythonCalcSplitRule.SPLIT_CONCURRENCY_IN_PROJECT,
     // Avoid accessing a field as input to an async call with a single calc.
     PythonCalcSplitRule.EXPAND_PROJECT,
     // Avoid having any condition in a python calc by pushing it first.
     PythonCalcSplitRule.PUSH_CONDITION,
     // Orders the projections so that input references are first, followed by python calls.
     PythonCalcSplitRule.REWRITE_PROJECT,
+    // Deduplicates identical deterministic python calls within the projection.
+    PythonCalcSplitRule.PROJECTION_CSE,
     // Renames the field names of the Flatten calc which is right after a calc representing a
     // Python Map operation to the output names of the map function
     PythonMapRenameRule.INSTANCE,
@@ -433,10 +444,6 @@ object FlinkStreamRuleSets {
     PythonMapMergeRule.INSTANCE,
     // Similar to the python rules above, the goal is to limit complexity of calcs which
     // have async calls so that the implementation can be simplified to handle a single async call.
-    // Split async scalar calls from other types of calls in correlates
-    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_SCALAR,
-    // Split async table calls from other types of calls in correlates
-    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
     // Avoids accessing a field from an asynchronous result (condition).
     AsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from an asynchronous result (projection).

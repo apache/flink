@@ -28,14 +28,18 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +51,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RawFormatLineDelimiterTest {
 
     private static final VarCharType STRING_TYPE = VarCharType.STRING_TYPE;
+
+    private static final VariantType VARIANT_TYPE = new VariantType();
 
     // -----------------------------------------------------------------------
     // Deserialization tests
@@ -239,9 +245,44 @@ class RawFormatLineDelimiterTest {
         assertThat(rows.get(0).getString(0)).hasToString("hello");
     }
 
+    @Test
+    void testRoundTripNewlineDelimitedJsonAsVariant() throws Exception {
+        RawFormatSerializationSchema ser =
+                new RawFormatSerializationSchema(
+                        VARIANT_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
+        openSer(ser);
+
+        RawFormatDeserializationSchema deser =
+                new RawFormatDeserializationSchema(
+                        VARIANT_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n");
+        openDeser(deser);
+
+        byte[] stream =
+                concat(
+                        ser.serialize(buildVariantRow("{\"id\":1}")),
+                        ser.serialize(buildVariantRow("{\"id\":2}")));
+        assertThat(new String(stream, StandardCharsets.UTF_8))
+                .isEqualTo("{\"id\":1}\n{\"id\":2}\n");
+
+        List<RowData> rows = collectRows(deser, stream);
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0).getVariant(0).getField("id").getByte()).isEqualTo((byte) 1);
+        assertThat(rows.get(1).getVariant(0).getField("id").getByte()).isEqualTo((byte) 2);
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    private static byte[] concat(byte[] first, byte[] second) {
+        byte[] result = Arrays.copyOf(first, first.length + second.length);
+        System.arraycopy(second, 0, result, first.length, second.length);
+        return result;
+    }
 
     private void openDeser(RawFormatDeserializationSchema schema) throws Exception {
         schema.open(
@@ -293,6 +334,12 @@ class RawFormatLineDelimiterTest {
     private RowData buildStringRow(String value) {
         GenericRowData row = new GenericRowData(1);
         row.setField(0, StringData.fromString(value));
+        return row;
+    }
+
+    private RowData buildVariantRow(String json) throws IOException {
+        GenericRowData row = new GenericRowData(1);
+        row.setField(0, BinaryVariantInternalBuilder.parseJson(json, false));
         return row;
     }
 }

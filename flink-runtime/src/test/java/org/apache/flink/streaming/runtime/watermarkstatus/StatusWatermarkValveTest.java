@@ -337,6 +337,53 @@ class StatusWatermarkValveTest {
     }
 
     /**
+     * Tests that the max watermark across all channels is flushed once all inputs become idle, even
+     * when the last channel to become idle is unaligned, i.e. it went idle, resumed being active,
+     * and only partially caught up to the last output watermark. The eventual watermark advancement
+     * result must be independent of the order in which the inputs become idle (FLINK-7728).
+     */
+    @Test
+    void testMultipleInputFlushMaxWatermarkOnceAllInputsBecomeIdleWithUnalignedLastChannel()
+            throws Exception {
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+
+        valve.inputWatermark(new Watermark(100), 0, valveOutput);
+        valve.inputWatermark(new Watermark(50), 1, valveOutput);
+        valve.inputWatermark(new Watermark(70), 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(50));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 becomes idle; the new min watermark is computed from channels 0 and 2
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(70));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 resumes being active, but stays unaligned since its watermark (50) has not
+        // caught up to the last output watermark (70)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 1, valveOutput);
+        assertThat(valve.getSubpartitionStatus(1).isWatermarkAligned).isFalse();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 partially catches up; its watermark is recorded but it remains unaligned
+        valve.inputWatermark(new Watermark(60), 1, valveOutput);
+        assertThat(valve.getSubpartitionStatus(1).watermark).isEqualTo(60);
+        assertThat(valve.getSubpartitionStatus(1).isWatermarkAligned).isFalse();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // the unaligned channel 1 is the last channel to become idle; the max watermark across
+        // all channels must still be flushed
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(100));
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
      * Tests that when idle channels become active again, they need to "catch up" with the latest
      * watermark before they are considered for min watermark computation again.
      */
@@ -428,6 +475,96 @@ class StatusWatermarkValveTest {
 
         // make channel 0 idle again
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Tests that when a channel reactivates and realigns while no other aligned channels remain
+     * (all remaining channels are idle or unaligned), the min watermark across aligned channels is
+     * re-derived and emitted; otherwise the realigned channel's watermark would be stalled until an
+     * even higher watermark arrives on it.
+     */
+    @Test
+    void testWatermarkAdvancesWhenReactivatedChannelBecomesOnlyAlignedChannel() throws Exception {
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+
+        valve.inputWatermark(new Watermark(10), 0, valveOutput);
+        valve.inputWatermark(new Watermark(7), 1, valveOutput);
+
+        // channel 2 becomes idle; the new min watermark is computed from channels 0 and 1
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(7));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 2 resumes being active but is unaligned (its watermark has never advanced)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channels 0 and 1 become idle; channel 2 is the only active channel but it is unaligned,
+        // so no watermark can be emitted
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 0 resumes being active; its watermark (10) has already caught up to the last
+        // output watermark (7), so it realigns and the min watermark must advance to 10
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
+        assertThat(valve.getSubpartitionStatus(0).isWatermarkAligned).isTrue();
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(10));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // the unaligned channel 2 becoming idle again must not change anything
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Tests that when a channel reactivates and realigns with a watermark larger than the last
+     * output watermark, the min watermark across aligned channels is re-derived and emitted, and
+     * that the flush once all inputs become idle afterwards does not emit a duplicate watermark.
+     */
+    @Test
+    void testRealignmentAfterResumeActiveEmitsNewMinWatermark() throws Exception {
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+
+        valve.inputWatermark(new Watermark(10), 0, valveOutput);
+        valve.inputWatermark(new Watermark(20), 1, valveOutput);
+        valve.inputWatermark(new Watermark(30), 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(10));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 2 becomes idle; its watermark (30) is above the min, so nothing changes
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 0 becomes idle; the new min watermark is computed from channel 1
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(20));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 0 resumes being active, but stays unaligned (10 < 20)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
+        assertThat(valve.getSubpartitionStatus(0).isWatermarkAligned).isFalse();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 becomes idle; no aligned channels remain, so nothing can be emitted
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 2 resumes being active; its watermark (30) is above the last output watermark
+        // (20), so it realigns and the min watermark must advance to 30
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 2, valveOutput);
+        assertThat(valve.getSubpartitionStatus(2).isWatermarkAligned).isTrue();
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(30));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // all channels become idle; the flush must not emit another watermark, since the max
+        // watermark across all channels (30) has already been emitted
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 

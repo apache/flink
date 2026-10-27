@@ -64,9 +64,6 @@ import static org.apache.flink.util.concurrent.Executors.newDirectExecutorServic
 public class ForStStateDataTransfer implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(ForStStateDataTransfer.class);
 
-    // TODO: Add ConfigOption replace this field after ForSt checkpoint implementation stable
-    public static final int DEFAULT_THREAD_NUM = 4;
-
     protected final ExecutorService executorService;
 
     @Nullable private final ForStFlinkFileSystem forStFs;

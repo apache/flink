@@ -19,28 +19,20 @@
 package org.apache.flink.state.api.input.operator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.MultiStateKeyIterator;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * A {@link StateReaderOperator} for executing a {@link KeyedStateReaderFunction}.
@@ -54,7 +46,7 @@ public class KeyedStateReaderOperator<KEY, OUT>
 
     private static final String USER_TIMERS_NAME = "user-timers";
 
-    private transient Context<KEY> context;
+    private transient Context context;
 
     public KeyedStateReaderOperator(
             KeyedStateReaderFunction<KEY, OUT> function, TypeInformation<KEY> keyType) {
@@ -65,9 +57,12 @@ public class KeyedStateReaderOperator<KEY, OUT>
     public void open() throws Exception {
         super.open();
 
-        InternalTimerService<VoidNamespace> timerService =
-                getInternalTimerService(USER_TIMERS_NAME);
-        context = new Context<>(getKeyedStateBackend(), timerService);
+        TimerRegistration timerRegistration =
+                registerTimers(
+                        getInternalTimerService(USER_TIMERS_NAME),
+                        USER_TIMERS_NAME,
+                        VoidNamespace.INSTANCE::equals);
+        context = new Context(timerRegistration);
     }
 
     @Override
@@ -77,7 +72,7 @@ public class KeyedStateReaderOperator<KEY, OUT>
     }
 
     @Override
-    public CloseableIterator<Tuple2<KEY, VoidNamespace>> getKeysAndNamespaces(
+    public CloseableIterator<Tuple3<KEY, VoidNamespace, Integer>> getKeysAndNamespaces(
             SavepointRuntimeContext ctx) throws Exception {
         ctx.disableStateRegistration();
         List<StateDescriptor<?, ?>> stateDescriptors = ctx.getStateDescriptors();
@@ -86,74 +81,31 @@ public class KeyedStateReaderOperator<KEY, OUT>
         return new NamespaceDecorator<>(keys);
     }
 
-    private static class Context<K> implements KeyedStateReaderFunction.Context {
+    private static class Context implements KeyedStateReaderFunction.Context {
 
-        private static final String EVENT_TIMER_STATE = "event-time-timers";
+        private final TimerRegistration timerRegistration;
 
-        private static final String PROC_TIMER_STATE = "proc-time-timers";
-
-        ListState<Long> eventTimers;
-
-        ListState<Long> procTimers;
-
-        private Context(
-                KeyedStateBackend<K> keyedStateBackend,
-                InternalTimerService<VoidNamespace> timerService)
-                throws Exception {
-            eventTimers =
-                    keyedStateBackend.getPartitionedState(
-                            USER_TIMERS_NAME,
-                            StringSerializer.INSTANCE,
-                            new ListStateDescriptor<>(EVENT_TIMER_STATE, Types.LONG));
-
-            timerService.forEachEventTimeTimer(
-                    (namespace, timer) -> {
-                        if (namespace.equals(VoidNamespace.INSTANCE)) {
-                            eventTimers.add(timer);
-                        }
-                    });
-
-            procTimers =
-                    keyedStateBackend.getPartitionedState(
-                            USER_TIMERS_NAME,
-                            StringSerializer.INSTANCE,
-                            new ListStateDescriptor<>(PROC_TIMER_STATE, Types.LONG));
-
-            timerService.forEachProcessingTimeTimer(
-                    (namespace, timer) -> {
-                        if (namespace.equals(VoidNamespace.INSTANCE)) {
-                            procTimers.add(timer);
-                        }
-                    });
+        private Context(TimerRegistration timerRegistration) {
+            this.timerRegistration = timerRegistration;
         }
 
         @Override
         public Set<Long> registeredEventTimeTimers() throws Exception {
-            Iterable<Long> timers = eventTimers.get();
-            if (timers == null) {
-                return Collections.emptySet();
-            }
-
-            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+            return timerRegistration.registeredEventTimeTimers();
         }
 
         @Override
         public Set<Long> registeredProcessingTimeTimers() throws Exception {
-            Iterable<Long> timers = procTimers.get();
-            if (timers == null) {
-                return Collections.emptySet();
-            }
-
-            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+            return timerRegistration.registeredProcessingTimeTimers();
         }
     }
 
     private static class NamespaceDecorator<KEY>
-            implements CloseableIterator<Tuple2<KEY, VoidNamespace>> {
+            implements CloseableIterator<Tuple3<KEY, VoidNamespace, Integer>> {
 
-        private final CloseableIterator<KEY> keys;
+        private final CloseableIterator<Tuple2<KEY, Integer>> keys;
 
-        private NamespaceDecorator(CloseableIterator<KEY> keys) {
+        private NamespaceDecorator(CloseableIterator<Tuple2<KEY, Integer>> keys) {
             this.keys = keys;
         }
 
@@ -163,9 +115,9 @@ public class KeyedStateReaderOperator<KEY, OUT>
         }
 
         @Override
-        public Tuple2<KEY, VoidNamespace> next() {
-            KEY key = keys.next();
-            return Tuple2.of(key, VoidNamespace.INSTANCE);
+        public Tuple3<KEY, VoidNamespace, Integer> next() {
+            Tuple2<KEY, Integer> keyAndKeyGroup = keys.next();
+            return Tuple3.of(keyAndKeyGroup.f0, VoidNamespace.INSTANCE, keyAndKeyGroup.f1);
         }
 
         @Override

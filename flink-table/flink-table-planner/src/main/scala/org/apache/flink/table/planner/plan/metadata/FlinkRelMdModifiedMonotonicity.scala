@@ -188,19 +188,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
   def getRelModifiedMonotonicity(rel: Rank, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     rel match {
-      // Only ranks that can be converted to a Deduplicate operator are handled here, mirroring the
-      // pre-FLINK-34702 behavior when a dedicated StreamPhysicalDeduplicate node carried these
-      // invariants. This is the same condition as RankUtil.canConvertToDeduplicate(FlinkLogicalRank):
-      // a Top-1 ROW_NUMBER without rank number output, sorted on a single time attribute. We inline
-      // it rather than calling canConvertToDeduplicate(StreamPhysicalRank) because the latter reads
-      // the ModifyKindSetTrait, which is still undefined at the time this metadata is computed.
-      // Any other rank (multi-column or non-time-attribute ORDER BY, i.e. a real Top-1 Rank that
-      // retracts and re-emits the kept row) falls through to the generic logic below.
-      case physicalRank: StreamPhysicalRank
-          if RankUtil.isDeduplication(rel) &&
-            RankUtil.sortOnTimeAttributeOnly(
-              physicalRank.orderKey,
-              physicalRank.getInput.getRowType) =>
+      // Only Ranks that can be converted to a Deduplicate operator are handled here
+      case physicalRank: StreamPhysicalRank if RankUtil.isDeduplicationOnTimeAttribute(rel) =>
         getPhysicalRankModifiedMonotonicity(physicalRank, mq)
 
       case _ =>

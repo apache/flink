@@ -33,10 +33,10 @@ The docs directory has its own `pyproject.toml` with all Sphinx dependencies. Yo
 
 ```bash
 cd flink-python/docs
-uv sync
+UV_PYTHON=3.13 uv sync
 ```
 
-That's it. The Makefile auto-detects uv and will use `uv run` to invoke Sphinx.
+That's it. The Makefile auto-detects uv and will use `uv run` to invoke Sphinx, on Python 3.13 unless `UV_PYTHON` is set.
 
 ### Using pip
 
@@ -67,9 +67,11 @@ make html-zh
 
 This builds English into `_build/html/` and Chinese into `_build/html/zh/`. A language toggle in the navbar allows switching between them.
 
+CI runs this build with `-W` from the locked environment through `flink-python/dev/lint-python.sh -i sphinx`. Run that to reproduce a CI failure. Like `make zh`, it updates the Chinese `.po` files when the English text changed, see [Syncing after English content changes](#syncing-after-english-content-changes).
+
 ### Chinese only
 
-If the English docs are already built (e.g., in CI where `lint-python.sh` builds them first):
+If the English docs are already built:
 
 ```bash
 make zh

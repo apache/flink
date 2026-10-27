@@ -376,10 +376,6 @@ public class Execution
         return this.stateEndTimestamps[state.ordinal()];
     }
 
-    public boolean isFinished() {
-        return state.isTerminal();
-    }
-
     @Nullable
     public JobManagerTaskRestore getTaskRestore() {
         return taskRestore;
@@ -565,7 +561,10 @@ public class Execution
             IntermediateResultPartition partition,
             ShuffleDescriptor shuffleDescriptor) {
         return new ResultPartitionDeploymentDescriptor(
-                partitionDescriptor, shuffleDescriptor, getPartitionMaxParallelism(partition));
+                partitionDescriptor,
+                shuffleDescriptor,
+                getPartitionMaxParallelism(partition),
+                partition.getIntermediateResult().getConsumersParallelism());
     }
 
     /**

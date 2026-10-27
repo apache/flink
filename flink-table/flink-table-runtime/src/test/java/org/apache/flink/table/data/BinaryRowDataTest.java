@@ -37,6 +37,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.util.DataFormatTestUtil;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
@@ -81,6 +82,8 @@ import java.util.Set;
 import static org.apache.flink.table.data.StringData.fromBytes;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.nonCompactBoundaryDecimals;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.toSegments;
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -452,6 +455,39 @@ class BinaryRowDataTest {
             assertThat(row.isNullAt(1)).isTrue();
             row.setDecimal(0, decimal2, precision);
             assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("6.55000");
+        }
+
+        // 3.not compact, values around the 8-byte boundary
+        {
+            int precision = 38;
+            int scale = 2;
+            for (DecimalData decimal : nonCompactBoundaryDecimals(precision, scale)) {
+                BinaryRowData row = new BinaryRowData(1);
+                BinaryRowWriter writer = new BinaryRowWriter(row);
+                writer.writeDecimal(0, decimal, precision);
+                writer.complete();
+
+                assertThat(row.getDecimal(0, precision, scale).toBigDecimal())
+                        .isEqualTo(decimal.toBigDecimal());
+                assertThat(row.getDecimal(0, precision, scale).longBacked)
+                        .isEqualTo(decimal.toUnscaledBytes().length <= 8);
+                row.setDecimal(0, row.getDecimal(0, precision, scale), precision);
+                assertThat(row.getDecimal(0, precision, scale).toBigDecimal())
+                        .isEqualTo(decimal.toBigDecimal());
+
+                // split the row so that the decimal bytes cross a segment boundary
+                int fixedSize = row.getFixedLengthPartSize();
+                byte[] bytes =
+                        BinarySegmentUtils.copyToBytes(row.getSegments(), 0, row.getSizeInBytes());
+                for (int split = 1; split < 8; split++) {
+                    BinaryRowData splitRow = new BinaryRowData(1);
+                    splitRow.pointTo(
+                            toSegments(bytes, 0, fixedSize + split), 0, row.getSizeInBytes());
+
+                    assertThat(splitRow.getDecimal(0, precision, scale).toBigDecimal())
+                            .isEqualTo(decimal.toBigDecimal());
+                }
+            }
         }
     }
 

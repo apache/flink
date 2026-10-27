@@ -43,6 +43,7 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
@@ -149,15 +150,18 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
                                 recordLabel(3000L, null),
                                 firedLabel(null, 1000L, 5000L),
                                 mailLabel(null, 1000L),
+                                firedLabel(NAMED_TIMER, 1000L, 5000L),
+                                watermarkLabel(999L),
+                                mailLabel(NAMED_TIMER, 1000L),
                                 firedLabel(null, 2000L, 5000L),
                                 mailLabel(null, 2000L),
                                 firedLabel(null, 3000L, 5000L),
+                                watermarkLabel(2999L),
                                 mailLabel(null, 3000L),
-                                firedLabel(NAMED_TIMER, 1000L, 5000L),
-                                mailLabel(NAMED_TIMER, 1000L),
                                 watermarkLabel(5000L),
                                 recordLabel(6000L, 5000L),
                                 firedLabel(null, 6000L, 7000L),
+                                watermarkLabel(5999L),
                                 mailLabel(null, 6000L),
                                 watermarkLabel(7000L));
             } else {
@@ -246,6 +250,8 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
                 RuntimeChangelogMode.serialize(ChangelogMode.insertOnly()),
                 /* passColumnsThrough */ false,
                 /* hasSetSemantics */ true,
+                /* hasBroadcastSemantics */ false,
+                /* notifiesStatefulSets */ false,
                 /* timeColumn */ 1,
                 /* upsertKeyColumns */ List.of());
     }

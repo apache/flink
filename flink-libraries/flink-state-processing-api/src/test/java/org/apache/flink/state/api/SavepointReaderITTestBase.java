@@ -30,7 +30,7 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -43,7 +43,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.SingleSplitEnumerator;
 import org.apache.flink.test.util.source.TestSourceReader;
@@ -51,23 +52,24 @@ import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.state.api.utils.SavepointTestBase.waitForAllRunningOrSomeTerminal;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** IT case for reading state. */
-public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
+abstract class SavepointReaderITTestBase extends AbstractTestBase {
     static final String UID = "stateful-operator";
 
     static final String LIST_NAME = "list";
@@ -82,6 +84,13 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
 
     private final MapStateDescriptor<Integer, String> broadcast;
 
+    private RestClusterClient<?> clusterClient;
+
+    @BeforeEach
+    void setClusterClient(@InjectClusterClient RestClusterClient<?> clusterClient) {
+        this.clusterClient = clusterClient;
+    }
+
     SavepointReaderITTestBase(
             ListStateDescriptor<Integer> list,
             ListStateDescriptor<Integer> union,
@@ -93,7 +102,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testOperatorStateInputFormat() throws Exception {
+    void testOperatorStateInputFormat() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -131,23 +140,19 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
     private void verifyListState(String path, StreamExecutionEnvironment env) throws Exception {
         SavepointReader savepoint = SavepointReader.read(env, path, new HashMapStateBackend());
         List<Integer> listResult = JobResultRetriever.collect(readListState(savepoint));
-        listResult.sort(Comparator.naturalOrder());
 
-        Assert.assertEquals(
-                "Unexpected elements read from list state",
-                SavepointSource.getElements(),
-                listResult);
+        assertThat(listResult)
+                .as("Unexpected elements read from list state")
+                .containsExactlyInAnyOrderElementsOf(SavepointSource.getElements());
     }
 
     private void verifyUnionState(String path, StreamExecutionEnvironment env) throws Exception {
         SavepointReader savepoint = SavepointReader.read(env, path, new HashMapStateBackend());
         List<Integer> unionResult = JobResultRetriever.collect(readUnionState(savepoint));
-        unionResult.sort(Comparator.naturalOrder());
 
-        Assert.assertEquals(
-                "Unexpected elements read from union state",
-                SavepointSource.getElements(),
-                unionResult);
+        assertThat(unionResult)
+                .as("Unexpected elements read from union state")
+                .containsExactlyInAnyOrderElementsOf(SavepointSource.getElements());
     }
 
     private void verifyBroadcastState(String path, StreamExecutionEnvironment env)
@@ -156,36 +161,25 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
         List<Tuple2<Integer, String>> broadcastResult =
                 JobResultRetriever.collect(readBroadcastState(savepoint));
 
-        List<Integer> broadcastStateKeys =
-                broadcastResult.stream()
-                        .map(entry -> entry.f0)
-                        .sorted(Comparator.naturalOrder())
-                        .collect(Collectors.toList());
-
-        List<String> broadcastStateValues =
-                broadcastResult.stream()
-                        .map(entry -> entry.f1)
-                        .sorted(Comparator.naturalOrder())
-                        .collect(Collectors.toList());
-
-        Assert.assertEquals(
-                "Unexpected element in broadcast state keys",
-                SavepointSource.getElements(),
-                broadcastStateKeys);
-
-        Assert.assertEquals(
-                "Unexpected element in broadcast state values",
+        List<String> expectedValues =
                 SavepointSource.getElements().stream()
                         .map(Object::toString)
-                        .sorted()
-                        .collect(Collectors.toList()),
-                broadcastStateValues);
+                        .collect(Collectors.toList());
+
+        assertThat(broadcastResult)
+                .extracting(entry -> entry.f0)
+                .as("Unexpected element in broadcast state keys")
+                .containsExactlyInAnyOrderElementsOf(SavepointSource.getElements());
+
+        assertThat(broadcastResult)
+                .extracting(entry -> entry.f1)
+                .as("Unexpected element in broadcast state values")
+                .containsExactlyInAnyOrderElementsOf(expectedValues);
     }
 
     private String takeSavepoint(JobGraph jobGraph) throws Exception {
         SavepointSource.initializeForTest();
 
-        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         JobID jobId = jobGraph.getJobID();
 
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
@@ -193,9 +187,9 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
         String dirPath = getTempDirPath(new AbstractID().toHexString());
 
         try {
-            JobID jobID = client.submitJob(jobGraph).get();
+            JobID jobID = clusterClient.submitJob(jobGraph).get();
 
-            waitForAllRunningOrSomeTerminal(jobID, MINI_CLUSTER_RESOURCE);
+            waitForAllRunningOrSomeTerminal(jobID, clusterClient);
             boolean finished = false;
             while (deadline.hasTimeLeft()) {
                 if (SavepointSource.isFinished()) {
@@ -212,14 +206,14 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBaseJUnit4 {
             }
 
             if (!finished) {
-                Assert.fail("Failed to initialize state within deadline");
+                fail("Failed to initialize state within deadline");
             }
 
             CompletableFuture<String> path =
-                    client.triggerSavepoint(jobID, dirPath, SavepointFormatType.CANONICAL);
+                    clusterClient.triggerSavepoint(jobID, dirPath, SavepointFormatType.CANONICAL);
             return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
         } finally {
-            client.cancel(jobId).get();
+            clusterClient.cancel(jobId).get();
         }
     }
 

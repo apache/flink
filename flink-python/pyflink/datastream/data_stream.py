@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import hashlib
 import typing
 import uuid
 from enum import Enum
@@ -64,6 +65,19 @@ __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams',
            'DataStreamSink', 'CloseableIterator', 'BroadcastStream', 'BroadcastConnectedStream']
 
 WINDOW_STATE_NAME = 'window-contents'
+
+# Appended to the uid of an assign_timestamps_and_watermarks() stream, to build one for each of
+# the operators it hides. They are part of the uid, so they must stay as they are.
+UID_SUFFIX_EXTRACT_TIMESTAMP = 'extract-timestamp'
+UID_SUFFIX_TIMESTAMPS_AND_WATERMARKS = 'timestamps-and-watermarks'
+
+
+def _derive_uid_hash(uid_hash: str, suffix: str) -> str:
+    """
+    Derives the hash of an operator the user cannot reach from the hash of one they can. A hash
+    must be 32 hex digits, so the suffix cannot be appended to it as it is to a uid.
+    """
+    return hashlib.sha256(("%s-%s" % (uid_hash, suffix)).encode('utf-8')).hexdigest()[:32]
 
 
 class DataStream(object):
@@ -704,8 +718,13 @@ class DataStream(object):
             # step 3: remove the timestamp field which is added in step 1
             JRemoveTimestampMapFunction = gateway.jvm.org.apache.flink.streaming.api.functions \
                 .python.eventtime.RemoveTimestampMapFunction
-            result = DataStream(j_watermarked_data_stream.map(
-                JRemoveTimestampMapFunction(), self._j_data_stream.getType()))
+            result = _TimestampsAndWatermarksDataStream(
+                j_watermarked_data_stream.map(
+                    JRemoveTimestampMapFunction(), self._j_data_stream.getType()),
+                [(UID_SUFFIX_EXTRACT_TIMESTAMP,
+                  timestamped_data_stream._j_data_stream.getTransformation()),
+                 (UID_SUFFIX_TIMESTAMPS_AND_WATERMARKS,
+                  j_watermarked_data_stream.getTransformation())])
             result.name("Remove-Timestamp")
             return result
         else:
@@ -961,6 +980,51 @@ class DataStream(object):
             return transformed_data_stream
         else:
             return self
+
+
+class _TimestampsAndWatermarksDataStream(DataStream):
+    """
+    The stream which :func:`DataStream.assign_timestamps_and_watermarks` returns for a Python
+    TimestampAssigner.
+
+    Such an assigner needs three operators: one extracts the timestamp, one assigns the
+    timestamps and the watermarks, and one removes the extracted timestamp again. Only the last
+    one is represented by the returned stream, so a uid or a uid hash set on it would leave the
+    two others without one. They then make the job impossible to submit if auto generated uids
+    are disabled, see :func:`~pyflink.common.ExecutionConfig.disable_auto_generated_uids`. This
+    stream gives them one too, derived from the one it receives.
+    """
+
+    def __init__(self, j_data_stream, hidden_j_transformations):
+        super(_TimestampsAndWatermarksDataStream, self).__init__(j_data_stream)
+        # The (uid suffix, transformation) pairs of the two operators the assigner hides.
+        self._hidden_j_transformations = hidden_j_transformations
+
+    def uid(self, uid: str) -> 'DataStream':
+        """
+        Sets an ID for this operator, and one derived from it for each of the operators the
+        timestamp assigner hides.
+
+        :param uid: The unique user-specified ID of this transformation.
+        :return: The operator with the specified ID.
+        """
+        super(_TimestampsAndWatermarksDataStream, self).uid(uid)
+        for uid_suffix, j_transformation in self._hidden_j_transformations:
+            j_transformation.setUid("%s-%s" % (uid, uid_suffix))
+        return self
+
+    def set_uid_hash(self, uid_hash: str) -> 'DataStream':
+        """
+        Sets an user provided hash for this operator, and one derived from it for each of the
+        operators the timestamp assigner hides.
+
+        :param uid_hash: The user provided hash for this operator.
+        :return: The operator with the user provided hash.
+        """
+        super(_TimestampsAndWatermarksDataStream, self).set_uid_hash(uid_hash)
+        for uid_suffix, j_transformation in self._hidden_j_transformations:
+            j_transformation.setUidHash(_derive_uid_hash(uid_hash, uid_suffix))
+        return self
 
 
 class DataStreamSink(object):

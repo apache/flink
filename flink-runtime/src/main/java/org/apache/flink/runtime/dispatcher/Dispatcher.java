@@ -33,7 +33,9 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -119,6 +121,7 @@ import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.JobMdcRegistry;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.MdcUtils.MdcCloseable;
 import org.apache.flink.util.Preconditions;
@@ -572,6 +575,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         initJobClientExpiredTime(recoveredJob);
 
         final JobID jobId = recoveredJob.getJobID();
+        JobMdcRegistry.registerOrClear(jobId, recoveredJob.getJobConfiguration());
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             if (wrapIntoApplication) {
                 internalSubmitApplication(new SingleJobApplication(recoveredJob, true)).get();
@@ -581,6 +585,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     ExecutionType.RECOVERY,
                     recoveredJob.getApplicationId().orElse(null));
         } catch (Throwable throwable) {
+            JobMdcRegistry.unregister(recoveredJob.getJobID());
             onFatalError(
                     new DispatcherException(
                             String.format("Could not start recovered job %s.", jobId), throwable));
@@ -834,7 +839,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<Acknowledge> submitJob(ExecutionPlan executionPlan, Duration timeout) {
         final JobID jobID = executionPlan.getJobID();
-        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
+        try (MdcCloseable ignored =
+                MdcUtils.withContext(
+                        MdcUtils.asContextData(jobID, executionPlan.getJobConfiguration()))) {
             log.info("Received job submission '{}' ({}).", executionPlan.getName(), jobID);
         }
         return isInGloballyTerminalState(jobID)
@@ -1276,6 +1283,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         final String jobName = executionPlan.getName();
         final ApplicationID applicationId = executionPlan.getApplicationId().orElse(null);
 
+        JobMdcRegistry.registerOrClear(jobId, executionPlan.getJobConfiguration());
         log.info(
                 "Submitting job '{}' ({}) with associated application ({}).",
                 jobName,
@@ -1321,6 +1329,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                         ExceptionUtils.stripCompletionException(
                                                 terminationThrowable);
                                 log.error("Failed to submit job {}.", jobId, strippedThrowable);
+                                JobMdcRegistry.unregister(jobId);
                                 throw new CompletionException(
                                         new JobSubmissionException(
                                                 jobId, "Failed to submit job.", strippedThrowable));
@@ -1437,6 +1446,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 jobTerminationFuture,
                 (thread, throwable) -> fatalErrorHandler.onFatalError(throwable));
         registerJobManagerRunnerTerminationFuture(jobId, jobTerminationFuture);
+        jobTerminationFuture.whenComplete(
+                (ignored, ignoredThrowable) -> JobMdcRegistry.unregister(jobId));
     }
 
     @Nullable
@@ -1584,15 +1595,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         resourceManagerGateway ->
                                 resourceManagerGateway.requestResourceOverview(timeout));
 
-        final List<CompletableFuture<Optional<JobStatus>>> optionalJobInformation =
-                queryJobMastersForInformation(
-                        jobManagerRunner -> jobManagerRunner.requestJobStatus(timeout));
-
-        CompletableFuture<Collection<Optional<JobStatus>>> allOptionalJobsFuture =
-                FutureUtils.combineAll(optionalJobInformation);
-
         CompletableFuture<Collection<JobStatus>> allJobsFuture =
-                allOptionalJobsFuture.thenApply(this::flattenOptionalCollection);
+                FutureUtils.combineAll(
+                        queryJobMastersForInformation(
+                                jobManagerRunner -> jobManagerRunner.requestJobStatus(timeout)));
 
         final JobsOverview completedJobsOverview = getCompletedJobsOverview();
 
@@ -1617,15 +1623,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Duration timeout) {
-        List<CompletableFuture<Optional<JobDetails>>> individualOptionalJobDetails =
-                queryJobMastersForInformation(
-                        jobManagerRunner -> jobManagerRunner.requestJobDetails(timeout));
-
-        CompletableFuture<Collection<Optional<JobDetails>>> optionalCombinedJobDetails =
-                FutureUtils.combineAll(individualOptionalJobDetails);
-
         CompletableFuture<Collection<JobDetails>> combinedJobDetails =
-                optionalCombinedJobDetails.thenApply(this::flattenOptionalCollection);
+                FutureUtils.combineAll(
+                        queryJobMastersForInformation(
+                                jobManagerRunner -> jobManagerRunner.requestJobDetails(timeout)));
 
         final Collection<JobDetails> completedJobDetails = getCompletedJobDetails();
 
@@ -1855,9 +1856,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Duration timeout) {
-        int stackTraceMaxDepth = configuration.get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
-        return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stackTraceMaxDepth));
+    public CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, Duration timeout) {
+        final int stackTraceMaxDepth =
+                configuration.get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
+        final ThreadDumpMode resolvedMode =
+                mode != null ? mode : configuration.get(ClusterOptions.THREAD_DUMP_DEFAULT_MODE);
+        return CompletableFuture.supplyAsync(
+                () -> ThreadDumpInfo.dumpAndCreate(stackTraceMaxDepth, resolvedMode), ioExecutor);
     }
 
     @Override
@@ -2300,7 +2306,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         // do not create an archive for suspended jobs, as this would eventually lead to
         // multiple archive attempts which we currently do not support
         CompletableFuture<Acknowledge> archiveFuture =
-                archiveExecutionGraphToHistoryServer(executionGraphInfo);
+                shouldArchiveToHistoryServer(terminalJobStatus)
+                        ? archiveExecutionGraphToHistoryServer(executionGraphInfo)
+                        : CompletableFuture.completedFuture(Acknowledge.get());
 
         return archiveFuture.thenCompose(
                 ignored -> registerGloballyTerminatedJobInJobResultStore(executionGraphInfo));
@@ -2398,6 +2406,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         partialExecutionGraphInfoStore.put(executionGraphInfo.getJobId(), executionGraphInfo);
     }
 
+    /**
+     * Checks whether a job that reached the given globally terminal state should be archived to the
+     * history server, honoring {@link JobManagerOptions#ARCHIVE_ON_FAILED_JOBS_ONLY}.
+     */
+    private boolean shouldArchiveToHistoryServer(JobStatus terminalJobStatus) {
+        return terminalJobStatus == JobStatus.FAILED
+                || !configuration.get(JobManagerOptions.ARCHIVE_ON_FAILED_JOBS_ONLY);
+    }
+
     private CompletableFuture<Acknowledge> archiveExecutionGraphToHistoryServer(
             ExecutionGraphInfo executionGraphInfo) {
 
@@ -2464,28 +2481,30 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 .thenCompose(Function.identity());
     }
 
-    private <T> List<T> flattenOptionalCollection(Collection<Optional<T>> optionalCollection) {
-        return optionalCollection.stream()
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
-    }
-
     @Nonnull
-    private <T> List<CompletableFuture<Optional<T>>> queryJobMastersForInformation(
+    private <T> List<CompletableFuture<T>> queryJobMastersForInformation(
             Function<JobManagerRunner, CompletableFuture<T>> queryFunction) {
 
-        List<CompletableFuture<Optional<T>>> optionalJobInformation =
+        List<CompletableFuture<T>> jobInformation =
                 new ArrayList<>(jobManagerRunnerRegistry.size());
 
         for (JobManagerRunner job : jobManagerRunnerRegistry.getJobManagerRunners()) {
-            final CompletableFuture<Optional<T>> queryResult =
+            final CompletableFuture<T> queryResult =
                     queryFunction
                             .apply(job)
-                            .handle((T value, Throwable t) -> Optional.ofNullable(value));
-            optionalJobInformation.add(queryResult);
+                            .exceptionally(
+                                    throwable -> {
+                                        throw new CompletionException(
+                                                new FlinkException(
+                                                        String.format(
+                                                                "Could not retrieve information about job %s from its JobMaster.",
+                                                                job.getJobID()),
+                                                        ExceptionUtils.stripCompletionException(
+                                                                throwable)));
+                                    });
+            jobInformation.add(queryResult);
         }
-        return optionalJobInformation;
+        return jobInformation;
     }
 
     private CompletableFuture<Void> waitForTerminatingJob(

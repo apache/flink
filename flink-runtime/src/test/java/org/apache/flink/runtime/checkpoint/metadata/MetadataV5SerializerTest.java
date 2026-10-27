@@ -59,7 +59,7 @@ class MetadataV5SerializerTest {
     void testSerializeOperatorUidAndName() throws IOException {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
                 DataOutputStream dos = new DataOutputStream(out)) {
-            INSTANCE.serialize(metadata, dos);
+            INSTANCE.serialize(metadata, dos, null);
 
             try (DataInputStream dis =
                     new DataInputStream(new ByteArrayInputStream(out.toByteArray()))) {
@@ -94,7 +94,7 @@ class MetadataV5SerializerTest {
             final IllegalArgumentException exception =
                     assertThrows(
                             IllegalArgumentException.class,
-                            () -> INSTANCE.serialize(metadata, dos));
+                            () -> INSTANCE.serialize(metadata, dos, null));
             assertThat(exception.getMessage()).contains(exceptionMessage);
         }
     }

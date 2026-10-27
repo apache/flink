@@ -34,11 +34,17 @@ function test_all_modules() {
     # test datastream module
     test_module "datastream"
 
+    # test dataframe module
+    test_module "dataframe"
+
     # test fn_execution module
     test_module "fn_execution"
 
     # test table module
     test_module "table"
+
+    # test util module
+    test_module "util"
 }
 
 # CURRENT_DIR is "flink/flink-python/dev/"

@@ -18,13 +18,12 @@
 package org.apache.flink.table.data.binary;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.util.SegmentsUtil;
-import org.apache.flink.table.runtime.util.StringUtf8Utils;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -35,6 +34,7 @@ import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -155,7 +155,7 @@ public class BinaryStringDataUtil {
     }
 
     /** Parse a {@link StringData} to boolean. */
-    public static boolean toBoolean(BinaryStringData str) throws TableException {
+    public static boolean toBoolean(BinaryStringData str) {
         BinaryStringData lowerCase = str.toLowerCase();
         if (TRUE_STRINGS.contains(lowerCase)) {
             return true;
@@ -163,7 +163,7 @@ public class BinaryStringDataUtil {
         if (FALSE_STRINGS.contains(lowerCase)) {
             return false;
         }
-        throw new TableException("Cannot parse '" + str + "' as BOOLEAN.");
+        throw new TableRuntimeException("Cannot cast '" + str + "' as BOOLEAN.");
     }
 
     /** Calculate the hash value of the given bytes use {@link MessageDigest}. */
@@ -574,11 +574,50 @@ public class BinaryStringDataUtil {
     }
 
     public static double toDouble(BinaryStringData str) throws NumberFormatException {
-        return Double.parseDouble(str.toString());
+        final String s = str.toString();
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            final Double special = specialFloatingPointOrNull(s);
+            if (special == null) {
+                throw e;
+            }
+            return special;
+        }
     }
 
     public static float toFloat(BinaryStringData str) throws NumberFormatException {
-        return Float.parseFloat(str.toString());
+        final String s = str.toString();
+        try {
+            return Float.parseFloat(s);
+        } catch (NumberFormatException e) {
+            final Double special = specialFloatingPointOrNull(s);
+            if (special == null) {
+                throw e;
+            }
+            return special.floatValue();
+        }
+    }
+
+    /**
+     * Returns the value for a case-insensitive {@code nan}/{@code inf}/{@code infinity} spelling
+     * (optional sign on infinity), or {@code null} if the string is not one of those.
+     */
+    private static Double specialFloatingPointOrNull(String str) {
+        switch (str.trim().toLowerCase(Locale.ROOT)) {
+            case "inf":
+            case "+inf":
+            case "infinity":
+            case "+infinity":
+                return Double.POSITIVE_INFINITY;
+            case "-inf":
+            case "-infinity":
+                return Double.NEGATIVE_INFINITY;
+            case "nan":
+                return Double.NaN;
+            default:
+                return null;
+        }
     }
 
     private static NumberFormatException numberFormatExceptionFor(StringData input, String reason) {

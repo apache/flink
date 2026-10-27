@@ -19,10 +19,10 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.JsonValueOnEmptyOrError
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{isPrimitiveNullable, primitiveDefaultValue, primitiveTypeTermForType, qualifyEnum, qualifyMethod, BINARY_STRING}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType, LogicalTypeRoot}
 
 import org.apache.calcite.sql.SqlJsonEmptyOrError
 
@@ -41,14 +41,22 @@ import org.apache.calcite.sql.SqlJsonEmptyOrError
  * }}}
  * generates code similar to:
  * {{{
- * // member variable (declared once)
+ * // members (declared once)
  * SqlJsonUtils.JsonValueContext jsonParsed$0;
+ * BinaryStringData jsonParsedInput$1;
  *
- * // in processElement (parse emitted only by the first function)
- * jsonParsed$0 = SqlJsonUtils.jsonParse(field$0.toString());
- * Object rawResult$1 = SqlJsonUtils.jsonValue(jsonParsed$0, "$.type", ...);
- * // second call reuses jsonParsed$0 without re-parsing
- * Object rawResult$2 = SqlJsonUtils.jsonValue(jsonParsed$0, "$.age", ...);
+ * // parses once per input value and reuses the result for the same input
+ * private SqlJsonUtils.JsonValueContext parseJson$2(BinaryStringData in) {
+ *   if (in != jsonParsedInput$1) {
+ *     jsonParsedInput$1 = in;
+ *     jsonParsed$0 = SqlJsonUtils.jsonParse(in.toString());
+ *   }
+ *   return jsonParsed$0;
+ * }
+ *
+ * // whichever call runs first parses, the other ones reuse the result
+ * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.type", ...);
+ * Object rawResult$4 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.age", ...);
  * }}}
  */
 class JsonValueCallGen extends CallGenerator {
@@ -57,61 +65,83 @@ class JsonValueCallGen extends CallGenerator {
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
-      argTerms =>
-        {
-          val emptyBehavior = getBehavior(operands, SqlJsonEmptyOrError.EMPTY)
-          val errorBehavior = getBehavior(operands, SqlJsonEmptyOrError.ERROR)
-          val inputTerm = s"${argTerms.head}.toString()"
+    val parsed = JsonParseReuse.parseSharedInput(ctx, operands)
 
-          val (varName, parseCode) =
-            ctx.getReusableInputUnboxingExprs(inputTerm, Int.MinValue) match {
-              case Some(expr) => (expr.resultTerm, "")
-              case None =>
-                val newVarName = CodeGenUtils.newName(ctx, "jsonParsed")
-                val typeName = classOf[SqlJsonUtils.JsonValueContext].getName
-                ctx.addReusableMember(s"$typeName $newVarName;")
-                ctx.addReusableInputUnboxingExprs(
-                  inputTerm,
-                  Int.MinValue,
-                  GeneratedExpression(newVarName, "false", "", null))
-                val assign =
-                  s"$newVarName = ${qualifyMethod(BuiltInMethods.JSON_PARSE)}($inputTerm);"
-                (newVarName, assign)
-            }
+    val generated =
+      generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
+        argTerms =>
+          {
+            val emptyBehavior = getBehavior(operands, SqlJsonEmptyOrError.EMPTY)
+            val errorBehavior = getBehavior(operands, SqlJsonEmptyOrError.ERROR)
 
-          val terms = Seq(
-            varName,
-            s"${argTerms(1)}.toString()",
-            qualifyEnum(emptyBehavior._1),
-            emptyBehavior._2,
-            qualifyEnum(errorBehavior._1),
-            errorBehavior._2
-          )
+            val terms = Seq(
+              parsed.resultTerm,
+              s"${argTerms(1)}.toString()",
+              qualifyEnum(emptyBehavior._1),
+              emptyBehavior._2,
+              qualifyEnum(errorBehavior._1),
+              errorBehavior._2
+            )
 
-          val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
-          val call = s"""
-                        |$parseCode
-                        |Object $rawResultTerm =
-                        |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
-                         .mkString(", ")});
+            val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
+            val baseCall = s"""
+                              |Object $rawResultTerm =
+                              |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
+                               .mkString(", ")});
            """.stripMargin
 
-          val convertedResult = returnType.getTypeRoot match {
-            case LogicalTypeRoot.VARCHAR =>
-              s"$BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm))"
-            case LogicalTypeRoot.BOOLEAN => s"(java.lang.Boolean) $rawResultTerm"
-            case LogicalTypeRoot.INTEGER => s"(java.lang.Integer) $rawResultTerm"
-            case LogicalTypeRoot.DOUBLE => s"((java.math.BigDecimal) $rawResultTerm).doubleValue()"
-            case _ =>
-              throw new CodeGenException(
-                s"Unsupported type '$returnType' "
-                  + "for RETURNING in JSON_VALUE().")
-          }
+            returnType.getTypeRoot match {
+              case LogicalTypeRoot.VARCHAR =>
+                val result =
+                  s"($rawResultTerm == null) ? null : " +
+                    s"($BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm)))"
+                (baseCall, result)
+              case typeRoot if !SqlJsonUtils.isSupportedJsonReturningType(typeRoot) =>
+                throw new CodeGenException(
+                  s"Unsupported type '$returnType' for RETURNING in JSON_VALUE().")
+              case _ =>
+                val jsonUtils =
+                  classOf[SqlJsonUtils].getName
+                val typeRootEnum =
+                  s"${classOf[LogicalTypeRoot].getName}.${returnType.getTypeRoot.name()}"
+                val (precisionStr, scaleStr) = returnType.getTypeRoot match {
+                  case LogicalTypeRoot.DECIMAL =>
+                    val dt = returnType.asInstanceOf[DecimalType]
+                    (dt.getPrecision.toString, dt.getScale.toString)
+                  case _ => ("0", "0")
+                }
+                val errorBehaviorEnum =
+                  qualifyEnum(errorBehavior._1.asInstanceOf[JsonValueOnEmptyOrError])
+                val defaultExpr =
+                  if (errorBehavior._2 != null) errorBehavior._2 else "null"
 
-          val result = s"($rawResultTerm == null) ? null : ($convertedResult)"
-          (call, result)
-        }
+                val boxedType = CodeGenUtils.boxedTypeTermForType(returnType)
+                val convertedTerm = CodeGenUtils.newName(ctx, "converted")
+                val call = baseCall +
+                  s"""
+                     |$boxedType $convertedTerm = ($boxedType) $jsonUtils.convertJsonScalar(
+                     |    $rawResultTerm, $typeRootEnum,
+                     |    $precisionStr, $scaleStr,
+                     |    $errorBehaviorEnum, $defaultExpr);
+                 """.stripMargin
+                (call, s"$convertedTerm")
+            }
+          }
+      }
+
+    if (isPrimitiveNullable(returnType)) {
+      generated
+    } else {
+      val unboxedTerm =
+        ctx.addReusableLocalVariable(primitiveTypeTermForType(returnType), "jsonValueUnboxed")
+      val unboxedCode =
+        s"""
+           |${generated.code}
+           |$unboxedTerm = ${generated.nullTerm}
+           |    ? ${primitiveDefaultValue(returnType)}
+           |    : ${generated.resultTerm};
+           |""".stripMargin
+      generated.copy(resultTerm = unboxedTerm, code = unboxedCode)
     }
   }
 

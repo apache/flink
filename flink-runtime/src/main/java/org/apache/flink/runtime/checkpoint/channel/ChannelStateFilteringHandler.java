@@ -30,12 +30,14 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilter;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import org.apache.flink.streaming.runtime.io.recovery.VirtualChannel;
 import org.apache.flink.streaming.runtime.io.recovery.VirtualChannelRecordFilterFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Filters recovered channel state buffers during the channel-state-unspilling phase, removing
@@ -101,26 +104,21 @@ public class ChannelStateFilteringHandler implements Closeable {
     }
 
     /**
-     * Filters a recovered buffer from the specified virtual channel, returning new buffers
-     * containing only the records that belong to the current subtask.
-     *
-     * <p>One source buffer may produce 0 to N result buffers: 0 if all records are filtered out,
-     * and potentially more than 1 when a spanning record completes in this buffer. The deserializer
-     * caches partial record data from previous buffers, so the output may contain data that was not
-     * in the current source buffer, causing the total output size to exceed one buffer capacity.
-     * This can happen with any spanning record regardless of its size.
-     *
-     * @return filtered buffers, possibly empty if all records were filtered out.
+     * Filters {@code sourceBuffer} through the virtual channel identified by {@code gateIndex} /
+     * {@code oldChannelIndex}, appending each surviving record (length-prefixed) into {@code
+     * outputSerializer}. One call may emit 0..N records depending on the filter result and whether
+     * records spanning previous buffers complete here. The caller owns the segment boundary.
      */
-    public List<Buffer> filterAndRewrite(
+    public void filterAndRewrite(
             int gateIndex,
             int oldSubtaskIndex,
             int oldChannelIndex,
             Buffer sourceBuffer,
-            BufferSupplier bufferSupplier)
-            throws IOException, InterruptedException {
+            DataOutputSerializer outputSerializer)
+            throws IOException {
 
         if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
+            sourceBuffer.recycleBuffer();
             throw new IllegalStateException(
                     "Invalid gateIndex: "
                             + gateIndex
@@ -130,13 +128,14 @@ public class ChannelStateFilteringHandler implements Closeable {
 
         GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
         if (gateHandler == null) {
+            sourceBuffer.recycleBuffer();
             throw new IllegalStateException(
                     "No handler for gateIndex "
                             + gateIndex
                             + ". This gate is not a network input and should not have recovered buffers.");
         }
-        return gateHandler.filterAndRewrite(
-                oldSubtaskIndex, oldChannelIndex, sourceBuffer, bufferSupplier);
+        gateHandler.filterAndRewrite(
+                oldSubtaskIndex, oldChannelIndex, sourceBuffer, outputSerializer);
     }
 
     /** Returns {@code true} if any virtual channel has a partial (spanning) record pending. */
@@ -215,7 +214,8 @@ public class ChannelStateFilteringHandler implements Closeable {
                                 : VirtualChannelRecordFilterFactory.createPassThroughFilter();
 
                 RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
-                        createDeserializer(filterContext.getTmpDirectories());
+                        new SpillingAdaptiveSpanningRecordDeserializer<>(
+                                filterContext.getTmpDirectories());
 
                 VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
                 gateVirtualChannels.put(key, vc);
@@ -226,7 +226,47 @@ public class ChannelStateFilteringHandler implements Closeable {
             return null;
         }
 
-        return new GateFilterHandler<>(gateVirtualChannels, elementSerializer);
+        return new GateFilterHandler<>(gateVirtualChannels, elementSerializer, channelMapping);
+    }
+
+    /**
+     * Maps each old-channel key to the virtual channels that fold into its new channel, so
+     * watermarks/statuses can be aggregated across old channels merged on a fan-in rescale. Without
+     * a rescale each group is a singleton and aggregation is verbatim pass-through.
+     */
+    private static <T>
+            Map<SubtaskConnectionDescriptor, List<VirtualChannel<T>>> buildWatermarkMergeGroups(
+                    Map<SubtaskConnectionDescriptor, VirtualChannel<T>> gateVirtualChannels,
+                    RescaleMappings channelMapping) {
+        RescaleMappings oldToNewMapping = channelMapping.invert();
+        Map<Integer, List<VirtualChannel<T>>> byNewChannel = new HashMap<>();
+        Map<SubtaskConnectionDescriptor, List<VirtualChannel<T>>> mergeGroups = new HashMap<>();
+        gateVirtualChannels.forEach(
+                (key, vc) -> {
+                    List<VirtualChannel<T>> group =
+                            byNewChannel.computeIfAbsent(
+                                    newChannelIndexOf(key, oldToNewMapping),
+                                    idx -> new ArrayList<>());
+                    group.add(vc);
+                    mergeGroups.put(key, group);
+                });
+        return mergeGroups;
+    }
+
+    /**
+     * Resolves the new channel index the given old-channel descriptor is routed to. Its {@code
+     * outputSubtaskIndex} field carries the old channel index.
+     */
+    private static int newChannelIndexOf(
+            SubtaskConnectionDescriptor oldChannelKey, RescaleMappings oldToNewMapping) {
+        int oldChannelIndex = oldChannelKey.getOutputSubtaskIndex();
+        int[] mapped = oldToNewMapping.getMappedIndexes(oldChannelIndex);
+        checkState(
+                mapped.length == 1,
+                "One old channel is expected to fold into exactly one new channel, but %s mapped to %s new channels.",
+                oldChannelKey,
+                mapped.length);
+        return mapped[0];
     }
 
     /**
@@ -246,25 +286,9 @@ public class ChannelStateFilteringHandler implements Closeable {
         return oldIndexes.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    private static RecordDeserializer<DeserializationDelegate<StreamElement>> createDeserializer(
-            String[] tmpDirectories) {
-        if (tmpDirectories != null && tmpDirectories.length > 0) {
-            return new SpillingAdaptiveSpanningRecordDeserializer<>(tmpDirectories);
-        } else {
-            String[] defaultDirs = new String[] {System.getProperty("java.io.tmpdir")};
-            return new SpillingAdaptiveSpanningRecordDeserializer<>(defaultDirs);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------
     // Inner classes
     // -------------------------------------------------------------------------------------------
-
-    /** Provides buffers for re-serializing filtered records. Implementations may block. */
-    @FunctionalInterface
-    public interface BufferSupplier {
-        Buffer requestBufferBlocking() throws IOException, InterruptedException;
-    }
 
     /**
      * Handles record filtering for a single input gate. Each gate has its own serializer and set of
@@ -273,34 +297,40 @@ public class ChannelStateFilteringHandler implements Closeable {
     static class GateFilterHandler<T> {
 
         private final Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels;
+
+        /**
+         * For each old-channel key, the virtual channels folding into the same new channel, used to
+         * aggregate watermarks/statuses across old channels merged on a fan-in rescale.
+         */
+        private final Map<SubtaskConnectionDescriptor, List<VirtualChannel<T>>>
+                watermarkMergeGroups;
+
         private final StreamElementSerializer<T> serializer;
         private final DeserializationDelegate<StreamElement> deserializationDelegate;
-        private final DataOutputSerializer outputSerializer;
-        private final byte[] lengthBuffer = new byte[4];
 
         GateFilterHandler(
                 Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels,
-                StreamElementSerializer<T> serializer) {
+                StreamElementSerializer<T> serializer,
+                RescaleMappings channelMapping) {
             this.virtualChannels = checkNotNull(virtualChannels);
             this.serializer = checkNotNull(serializer);
+            this.watermarkMergeGroups = buildWatermarkMergeGroups(virtualChannels, channelMapping);
             this.deserializationDelegate = new NonReusingDeserializationDelegate<>(serializer);
-            this.outputSerializer = new DataOutputSerializer(128);
         }
 
         /**
          * Deserializes records from {@code sourceBuffer}, applies the virtual channel's record
-         * filter, and immediately re-serializes each surviving record into output buffers.
+         * filter, and re-serializes each surviving record into {@code outputSerializer}. No
+         * intermediate network buffer is used; the caller owns the segment boundary.
          */
-        List<Buffer> filterAndRewrite(
+        void filterAndRewrite(
                 int oldSubtaskIndex,
                 int oldChannelIndex,
                 Buffer sourceBuffer,
-                BufferSupplier bufferSupplier)
-                throws IOException, InterruptedException {
+                DataOutputSerializer outputSerializer)
+                throws IOException {
 
             boolean sourceBufferOwnershipTransferred = false;
-            List<Buffer> resultBuffers = new ArrayList<>();
-            Buffer currentBuffer = null;
             try {
                 SubtaskConnectionDescriptor key =
                         new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
@@ -313,138 +343,88 @@ public class ChannelStateFilteringHandler implements Closeable {
                                     + virtualChannels.keySet());
                 }
 
+                List<VirtualChannel<T>> mergeGroup = watermarkMergeGroups.get(key);
+                checkNotNull(mergeGroup, "No watermark merge group for key: %s", key);
+
                 vc.setNextBuffer(sourceBuffer);
                 sourceBufferOwnershipTransferred = true;
 
                 while (true) {
                     DeserializationResult result = vc.getNextRecord(deserializationDelegate);
                     if (result.isFullRecord()) {
-                        if (currentBuffer == null) {
-                            currentBuffer = bufferSupplier.requestBufferBlocking();
-                        }
-                        currentBuffer =
-                                serializeElement(
-                                        deserializationDelegate.getInstance(),
-                                        currentBuffer,
-                                        resultBuffers,
-                                        bufferSupplier);
+                        // vc.getNextRecord has already updated the source channel's lastWatermark /
+                        // watermarkStatus, so aggregation below reads the up-to-date group state.
+                        emitAggregated(
+                                deserializationDelegate.getInstance(),
+                                mergeGroup,
+                                outputSerializer);
                     }
                     if (result.isBufferConsumed()) {
                         break;
                     }
                 }
-
-                if (currentBuffer != null) {
-                    if (currentBuffer.readableBytes() > 0) {
-                        resultBuffers.add(currentBuffer);
-                    } else {
-                        currentBuffer.recycleBuffer();
-                    }
-                    currentBuffer = null;
-                }
-
-                return resultBuffers;
             } catch (Throwable t) {
                 if (!sourceBufferOwnershipTransferred) {
                     sourceBuffer.recycleBuffer();
                 }
-                // Avoid double-recycle: currentBuffer may already be the last element in
-                // resultBuffers if serializeElement added it before the exception.
-                if (currentBuffer != null
-                        && (resultBuffers.isEmpty()
-                                || resultBuffers.get(resultBuffers.size() - 1) != currentBuffer)) {
-                    currentBuffer.recycleBuffer();
-                }
-                for (Buffer buf : resultBuffers) {
-                    buf.recycleBuffer();
-                }
-                resultBuffers.clear();
                 throw t;
             }
         }
 
         /**
-         * Serializes a single stream element into the current buffer using the length-prefixed
-         * format (4-byte big-endian length + record bytes) expected by Flink's record
-         * deserializers. Spills into new buffers from {@code bufferSupplier} when needed.
-         *
-         * @return the buffer to continue writing into (may differ from the input buffer).
+         * Writes one element, aggregating non-records across the {@code mergeGroup}: emit the group
+         * min watermark (suppressed until every merged channel has one), and {@code ACTIVE} status
+         * while any merged channel is active. Records and latency markers pass through verbatim.
          */
-        private Buffer serializeElement(
+        private void emitAggregated(
                 StreamElement element,
-                Buffer currentBuffer,
-                List<Buffer> resultBuffers,
-                BufferSupplier bufferSupplier)
-                throws IOException, InterruptedException {
-            outputSerializer.clear();
-            serializer.serialize(element, outputSerializer);
-            int recordLength = outputSerializer.length();
-
-            writeLengthToBuffer(recordLength);
-            currentBuffer =
-                    writeDataToBuffer(
-                            lengthBuffer, 0, 4, currentBuffer, resultBuffers, bufferSupplier);
-
-            byte[] serializedData = outputSerializer.getSharedBuffer();
-            currentBuffer =
-                    writeDataToBuffer(
-                            serializedData,
-                            0,
-                            recordLength,
-                            currentBuffer,
-                            resultBuffers,
-                            bufferSupplier);
-            return currentBuffer;
-        }
-
-        private void writeLengthToBuffer(int length) {
-            lengthBuffer[0] = (byte) (length >> 24);
-            lengthBuffer[1] = (byte) (length >> 16);
-            lengthBuffer[2] = (byte) (length >> 8);
-            lengthBuffer[3] = (byte) length;
+                List<VirtualChannel<T>> mergeGroup,
+                DataOutputSerializer outputSerializer)
+                throws IOException {
+            if (element.isWatermark()) {
+                Watermark minWatermark = null;
+                for (VirtualChannel<T> channel : mergeGroup) {
+                    Watermark candidate = channel.getLastWatermark();
+                    if (minWatermark == null
+                            || candidate.getTimestamp() < minWatermark.getTimestamp()) {
+                        minWatermark = candidate;
+                    }
+                }
+                checkState(minWatermark != null, "Should always have a watermark");
+                // min == UNINITIALIZED only when some merged old channel has no watermark yet;
+                // hold the group's watermark back until every one of them has produced one.
+                if (!minWatermark.equals(Watermark.UNINITIALIZED)) {
+                    serializeElement(minWatermark, outputSerializer);
+                }
+            } else if (element.isWatermarkStatus()) {
+                boolean anyActive = false;
+                for (VirtualChannel<T> channel : mergeGroup) {
+                    if (channel.getWatermarkStatus().isActive()) {
+                        anyActive = true;
+                        break;
+                    }
+                }
+                serializeElement(
+                        anyActive ? WatermarkStatus.ACTIVE : element.asWatermarkStatus(),
+                        outputSerializer);
+            } else {
+                serializeElement(element, outputSerializer);
+            }
         }
 
         /**
-         * Writes data to the current buffer, spilling into new buffers from {@code bufferSupplier}
-         * when the current one is full.
-         *
-         * @return the buffer to continue writing into (may differ from the input buffer).
+         * Appends one stream element as a length-prefixed record. Reserves the 4B prefix,
+         * serializes the element, then backfills the length, because {@code outputSerializer}
+         * already holds the segment header and earlier records, so the prefix cannot be written
+         * from a fixed offset.
          */
-        private Buffer writeDataToBuffer(
-                byte[] data,
-                int dataOffset,
-                int dataLength,
-                Buffer currentBuffer,
-                List<Buffer> resultBuffers,
-                BufferSupplier bufferSupplier)
-                throws IOException, InterruptedException {
-            int offset = dataOffset;
-            int remaining = dataLength;
-
-            while (remaining > 0) {
-                int writableBytes = currentBuffer.getMaxCapacity() - currentBuffer.getSize();
-
-                if (writableBytes == 0) {
-                    // Buffer is full, transfer ownership to resultBuffers
-                    resultBuffers.add(currentBuffer);
-                    currentBuffer = bufferSupplier.requestBufferBlocking();
-                    writableBytes = currentBuffer.getMaxCapacity();
-                }
-
-                int bytesToWrite = Math.min(remaining, writableBytes);
-                currentBuffer
-                        .getMemorySegment()
-                        .put(
-                                currentBuffer.getMemorySegmentOffset() + currentBuffer.getSize(),
-                                data,
-                                offset,
-                                bytesToWrite);
-                currentBuffer.setSize(currentBuffer.getSize() + bytesToWrite);
-
-                offset += bytesToWrite;
-                remaining -= bytesToWrite;
-            }
-            return currentBuffer;
+        private void serializeElement(StreamElement element, DataOutputSerializer outputSerializer)
+                throws IOException {
+            int startPos = outputSerializer.length();
+            outputSerializer.writeInt(0); // length placeholder
+            serializer.serialize(element, outputSerializer);
+            int recordLength = outputSerializer.length() - startPos - Integer.BYTES;
+            outputSerializer.writeIntUnsafe(recordLength, startPos);
         }
 
         boolean hasPartialData() {

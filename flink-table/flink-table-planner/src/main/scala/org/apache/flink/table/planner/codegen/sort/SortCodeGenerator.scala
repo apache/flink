@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.sort.SortUtil
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
-import org.apache.flink.table.types.logical.{DecimalType, LogicalType, RowType, TimestampType}
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType, RowType, TimestampType, UuidType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
 import scala.collection.mutable
@@ -425,7 +425,8 @@ class SortCodeGenerator(
     case DOUBLE => "Double"
     case BOOLEAN => "Boolean"
     case VARCHAR | CHAR => "String"
-    case VARBINARY | BINARY => "Binary"
+    // UUID is backed by its 16-byte big-endian encoding, so it reuses the binary accessors.
+    case VARBINARY | BINARY | UUID => "Binary"
     case DECIMAL => "Decimal"
     case DATE => "Int"
     case TIME_WITHOUT_TIME_ZONE => "Int"
@@ -448,7 +449,7 @@ class SortCodeGenerator(
   def supportNormalizedKey(t: LogicalType): Boolean = {
     t.getTypeRoot match {
       case _ if PlannerTypeUtils.isPrimitive(t) => true
-      case VARCHAR | CHAR | VARBINARY | BINARY | DATE | TIME_WITHOUT_TIME_ZONE => true
+      case VARCHAR | CHAR | VARBINARY | BINARY | UUID | DATE | TIME_WITHOUT_TIME_ZONE => true
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         // TODO: support normalize key for non-compact timestamp
         TimestampData.isCompact(t.asInstanceOf[TimestampType].getPrecision)
@@ -474,6 +475,7 @@ class SortCodeGenerator(
       case DATE => 4
       case TIME_WITHOUT_TIME_ZONE => 4
       case DECIMAL if DecimalData.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
+      case UUID => UuidType.BYTE_LENGTH
       case VARCHAR | CHAR | VARBINARY | BINARY => Int.MaxValue
     }
   }

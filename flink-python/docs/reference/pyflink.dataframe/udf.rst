@@ -1,0 +1,78 @@
+.. ################################################################################
+     Licensed to the Apache Software Foundation (ASF) under one
+     or more contributor license agreements.  See the NOTICE file
+     distributed with this work for additional information
+     regarding copyright ownership.  The ASF licenses this file
+     to you under the Apache License, Version 2.0 (the
+     "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+    limitations under the License.
+   ################################################################################
+
+======================
+User-Defined Functions
+======================
+
+Scalar Functions
+================
+
+Use :func:`pyflink.dataframe.udf` to apply Python code to one or more DataFrame
+columns. A scalar UDF produces one logical output column and can be used in
+:meth:`~pyflink.dataframe.DataFrame.with_column`,
+:meth:`~pyflink.dataframe.DataFrame.with_columns`, and
+:meth:`~pyflink.dataframe.DataFrame.select`.
+
+DataFrame scalar UDFs support general synchronous and asynchronous callables,
+and synchronous pandas or Arrow vectorized callables. See :func:`pyflink.dataframe.udf`
+for declaration forms, type inference, execution modes, and examples.
+
+Use the ``concurrency`` argument to set the parallelism of the Python operator
+that executes a scalar UDF. UDFs with different explicit concurrency values are
+placed in separate operators. Explicit concurrency is supported only for
+insert-only streaming inputs. Batch mode and streaming inputs that can emit
+updates or deletes reject explicit concurrency.
+
+For pandas and Arrow scalar UDFs, ``batch_size`` sets the maximum Arrow batch size
+in both batch and streaming mode. If compatible vectorized UDFs share an operator,
+the smallest explicit batch size is used; otherwise the configured default applies.
+
+Table Functions
+===============
+
+Use :func:`pyflink.dataframe.udtf` to declare a Python function that emits zero or
+more rows per invocation. A table UDF can be used with
+:meth:`~pyflink.dataframe.DataFrame.flat_map`, which returns only the emitted columns.
+
+DataFrame table UDFs support synchronous functions, callable classes and instances, and
+``TableFunction`` instances or classes. See :func:`pyflink.dataframe.udtf` for
+declaration forms, type inference, lifecycle, and examples, and
+:meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.
+
+Aggregate Functions
+===================
+
+Use :func:`pyflink.dataframe.udaf` to declare an aggregate for
+:meth:`~pyflink.dataframe.DataFrame.agg`,
+:meth:`~pyflink.dataframe.GroupedDataFrame.agg`, or :func:`pyflink.dataframe.sql`.
+General UDAFs use the Table API's ``AggregateFunction`` accumulator protocol.
+Pandas UDAFs also accept ordinary functions and callable classes or instances.
+See :func:`pyflink.dataframe.udaf` for type declarations, execution modes, and examples.
+
+API Reference
+=============
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    udf
+    udtf
+    udaf

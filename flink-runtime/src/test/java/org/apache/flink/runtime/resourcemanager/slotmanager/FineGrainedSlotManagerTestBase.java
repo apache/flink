@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -49,6 +49,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -201,14 +202,9 @@ abstract class FineGrainedSlotManagerTestBase {
             mainThreadExecutor.execute(runnable);
         }
 
-        void runInMainThreadAndWait(Runnable runnable) throws InterruptedException {
-            final OneShotLatch latch = new OneShotLatch();
-            mainThreadExecutor.execute(
-                    () -> {
-                        runnable.run();
-                        latch.trigger();
-                    });
-            latch.await();
+        void runInMainThreadAndWait(RunnableWithException runnable)
+                throws InterruptedException, ExecutionException {
+            FutureUtils.runAsync(runnable, mainThreadExecutor).get();
         }
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
@@ -234,19 +230,22 @@ abstract class FineGrainedSlotManagerTestBase {
                                     resourceEventListenerBuilder.build(),
                                     blockedTaskManagerChecker));
 
-            testMethod.run();
-
-            CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-            runInMainThread(
-                    () -> {
-                        try {
-                            slotManager.close();
-                        } catch (Exception e) {
-                            closeFuture.completeExceptionally(e);
-                        }
-                        closeFuture.complete(null);
-                    });
-            FutureUtils.assertNoException(closeFuture);
+            Throwable failure = null;
+            try {
+                testMethod.run();
+            } catch (Throwable t) {
+                failure = t;
+            }
+            // Wait for close(), so afterAll cannot shut the executor down under a running
+            // requirements check. A failing close() does not hide the test's own failure.
+            try {
+                runInMainThreadAndWait(slotManager::close);
+            } catch (Throwable t) {
+                failure = ExceptionUtils.firstOrSuppressed(t, failure);
+            }
+            if (failure != null) {
+                ExceptionUtils.rethrowException(failure);
+            }
         }
     }
 }

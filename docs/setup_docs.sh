@@ -55,7 +55,7 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   integrate_connector_docs aws v6.0
   integrate_connector_docs cassandra v3.2
   integrate_connector_docs pulsar v4.1
-  integrate_connector_docs jdbc v4.0
+  integrate_connector_docs jdbc v4.1.0
   integrate_connector_docs rabbitmq v3.0
   integrate_connector_docs gcp-pubsub v3.1
   integrate_connector_docs mongodb v2.0
@@ -64,6 +64,7 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   integrate_connector_docs hbase v4.0
   integrate_connector_docs prometheus v1.0
   integrate_connector_docs hive v3.0
+  integrate_connector_docs http v1.0
 
   cd ..
   rm -rf tmp

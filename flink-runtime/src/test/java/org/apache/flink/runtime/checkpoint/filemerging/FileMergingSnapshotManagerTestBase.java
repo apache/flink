@@ -27,7 +27,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SpaceStat;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -37,10 +40,14 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.MergedInputChannelStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
@@ -51,6 +58,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -539,8 +547,8 @@ public abstract class FileMergingSnapshotManagerTestBase {
             assertThat(stateFiles.size()).isEqualTo(1);
             Set<LogicalFile> restoreFileSet = stateFiles.get(checkpointId);
             assertThat(restoreFileSet).isNotNull();
-            // 2 operators * (2 keyed state + 2 operator state)
-            assertThat(restoreFileSet.size()).isEqualTo(8);
+            // 2 operators * (2 keyed state + 2 operator state + 3 channel state delegates)
+            assertThat(restoreFileSet.size()).isEqualTo(14);
             assertThat(fmsm.spaceStat).isEqualTo(oldSpaceStat);
             for (LogicalFile file : restoreFileSet) {
                 assertThat(fmsm.getLogicalFile(file.getFileId())).isEqualTo(file);
@@ -741,11 +749,66 @@ public abstract class FileMergingSnapshotManagerTestBase {
                                 CheckpointedStateScope.EXCLUSIVE,
                                 closeableRegistry));
 
+        SegmentFileStateHandle inputChannelStateHandle =
+                buildOneSegmentFileHandle(
+                        checkpointId, fmsm, CheckpointedStateScope.EXCLUSIVE, closeableRegistry);
+        InputChannelStateHandle inputChannel1 =
+                new InputChannelStateHandle(
+                        0,
+                        new InputChannelInfo(0, 0),
+                        inputChannelStateHandle,
+                        Collections.singletonList(0L),
+                        16L);
+        InputChannelStateHandle inputChannel2 =
+                new InputChannelStateHandle(
+                        0,
+                        new InputChannelInfo(0, 1),
+                        inputChannelStateHandle,
+                        Collections.singletonList(16L),
+                        16L);
+
+        SegmentFileStateHandle upstreamOutputBufferStateHandle =
+                buildOneSegmentFileHandle(
+                        checkpointId, fmsm, CheckpointedStateScope.EXCLUSIVE, closeableRegistry);
+        InputChannelStateHandle upstreamOutputBuffer =
+                new InputChannelStateHandle(
+                        0,
+                        new InputChannelInfo(1, 0),
+                        upstreamOutputBufferStateHandle,
+                        Collections.singletonList(0L),
+                        upstreamOutputBufferStateHandle.getStateSize());
+
+        SegmentFileStateHandle resultSubpartitionStateHandle =
+                buildOneSegmentFileHandle(
+                        checkpointId, fmsm, CheckpointedStateScope.EXCLUSIVE, closeableRegistry);
+        ResultSubpartitionStateHandle resultSubpartition1 =
+                new ResultSubpartitionStateHandle(
+                        0,
+                        new ResultSubpartitionInfo(0, 0),
+                        resultSubpartitionStateHandle,
+                        Collections.singletonList(0L),
+                        16L);
+        ResultSubpartitionStateHandle resultSubpartition2 =
+                new ResultSubpartitionStateHandle(
+                        0,
+                        new ResultSubpartitionInfo(0, 1),
+                        resultSubpartitionStateHandle,
+                        Collections.singletonList(16L),
+                        16L);
+
         return OperatorSubtaskState.builder()
                 .setManagedKeyedState(keyedStateHandle1)
                 .setRawKeyedState(keyedStateHandle2)
                 .setManagedOperatorState(operatorStateHandle1)
                 .setRawOperatorState(operatorStateHandle2)
+                .setInputChannelState(
+                        StateObjectCollection.singleton(
+                                MergedInputChannelStateHandle.fromChannelHandles(
+                                        Arrays.asList(inputChannel1, inputChannel2))))
+                .setUpstreamOutputBufferState(StateObjectCollection.singleton(upstreamOutputBuffer))
+                .setResultSubpartitionState(
+                        new StateObjectCollection<OutputStateHandle>(
+                                Arrays.asList(resultSubpartition1, resultSubpartition2)))
                 .build();
     }
 

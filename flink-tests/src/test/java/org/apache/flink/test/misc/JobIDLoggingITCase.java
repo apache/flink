@@ -105,7 +105,7 @@ class JobIDLoggingITCase {
                             .setNumberSlotsPerTaskManager(1)
                             .build());
 
-    private static Configuration getConfiguration() {
+    static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         return configuration;
@@ -229,6 +229,10 @@ class JobIDLoggingITCase {
     }
 
     private static JobID runJob(ClusterClient<?> clusterClient) throws Exception {
+        return runJob(clusterClient, new Configuration());
+    }
+
+    static JobID runJob(ClusterClient<?> clusterClient, Configuration jobConfig) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.fromSource(
@@ -239,7 +243,9 @@ class JobIDLoggingITCase {
                                 .withTimestampAssigner((r, t) -> (long) r),
                         "Source-42441337")
                 .addSink(new DiscardingSink<>());
-        JobID jobId = clusterClient.submitJob(env.getStreamGraph().getJobGraph()).get();
+        var jobGraph = env.getStreamGraph().getJobGraph();
+        jobGraph.getJobConfiguration().addAll(jobConfig);
+        JobID jobId = clusterClient.submitJob(jobGraph).get();
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
         while (deadline.hasTimeLeft()
                 && clusterClient.listJobs().get().stream()

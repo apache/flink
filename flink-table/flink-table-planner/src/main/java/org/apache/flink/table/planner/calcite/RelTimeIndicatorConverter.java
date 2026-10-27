@@ -401,6 +401,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 newRight,
                 newCondition,
                 join.getJoinType(),
+                join.getRightTimeAttributeIndex(),
                 join.getLoadCompletedCondition(),
                 join.getLoadCompletedTime(),
                 join.getLoadCompletedIdleTimeoutMs(),

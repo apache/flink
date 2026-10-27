@@ -56,6 +56,8 @@ public class BatchExecutionInternalTimeServiceManager<K>
     // should perform correctly when the timer fires.
     private final boolean asyncStateProcessingMode;
 
+    private long reachedWatermark = Long.MIN_VALUE;
+
     public BatchExecutionInternalTimeServiceManager(
             ProcessingTimeService processingTimeService, boolean asyncStateProcessingMode) {
         this.processingTimeService = checkNotNull(processingTimeService);
@@ -89,6 +91,7 @@ public class BatchExecutionInternalTimeServiceManager<K>
         if (watermark.getTimestamp() == Long.MAX_VALUE) {
             keySelected(null);
         }
+        reachedWatermark = watermark.getTimestamp();
     }
 
     @Override
@@ -96,6 +99,11 @@ public class BatchExecutionInternalTimeServiceManager<K>
             Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) {
         advanceWatermark(watermark);
         return true;
+    }
+
+    @Override
+    public long getReachedWatermark() {
+        return reachedWatermark;
     }
 
     @Override

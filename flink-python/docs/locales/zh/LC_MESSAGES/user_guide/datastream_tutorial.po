@@ -98,7 +98,7 @@ msgid "Java 11"
 msgstr ""
 
 #: ../../user_guide/datastream_tutorial.rst:60
-msgid "Python 3.9, 3.10, 3.11 or 3.12"
+msgid "Python 3.9, 3.10, 3.11, 3.12 or 3.13"
 msgstr ""
 
 #: ../../user_guide/datastream_tutorial.rst:62

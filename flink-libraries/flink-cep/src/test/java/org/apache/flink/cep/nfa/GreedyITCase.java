@@ -22,11 +22,10 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,10 +35,10 @@ import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 
 /** IT tests covering {@link Pattern#greedy()}. */
-public class GreedyITCase extends TestLogger {
+class GreedyITCase {
 
     @Test
-    public void testGreedyZeroOrMore() throws Exception {
+    void testGreedyZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -76,7 +75,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyZeroOrMoreInBetween() throws Exception {
+    void testGreedyZeroOrMoreInBetween() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -116,7 +115,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyZeroOrMoreWithDummyEventsAfterQuantifier() throws Exception {
+    void testGreedyZeroOrMoreWithDummyEventsAfterQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -152,7 +151,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyZeroOrMoreWithDummyEventsBeforeQuantifier() throws Exception {
+    void testGreedyZeroOrMoreWithDummyEventsBeforeQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -183,7 +182,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyUntilZeroOrMoreWithDummyEventsAfterQuantifier() throws Exception {
+    void testGreedyUntilZeroOrMoreWithDummyEventsAfterQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -222,7 +221,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyUntilWithDummyEventsBeforeQuantifier() throws Exception {
+    void testGreedyUntilWithDummyEventsBeforeQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -260,7 +259,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyOneOrMore() throws Exception {
+    void testGreedyOneOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -296,7 +295,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyOneOrMoreInBetween() throws Exception {
+    void testGreedyOneOrMoreInBetween() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -335,7 +334,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyOneOrMoreWithDummyEventsAfterQuantifier() throws Exception {
+    void testGreedyOneOrMoreWithDummyEventsAfterQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -370,7 +369,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyOneOrMoreWithDummyEventsBeforeQuantifier() throws Exception {
+    void testGreedyOneOrMoreWithDummyEventsBeforeQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -399,7 +398,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyUntilOneOrMoreWithDummyEventsAfterQuantifier() throws Exception {
+    void testGreedyUntilOneOrMoreWithDummyEventsAfterQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -437,7 +436,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyUntilOneOrMoreWithDummyEventsBeforeQuantifier() throws Exception {
+    void testGreedyUntilOneOrMoreWithDummyEventsBeforeQuantifier() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -473,7 +472,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyZeroOrMoreBeforeGroupPattern() throws Exception {
+    void testGreedyZeroOrMoreBeforeGroupPattern() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -530,7 +529,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWithZeroOrMoreGreedy() throws Exception {
+    void testEndWithZeroOrMoreGreedy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -568,7 +567,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWithZeroOrMoreConsecutiveGreedy() throws Exception {
+    void testEndWithZeroOrMoreConsecutiveGreedy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -606,7 +605,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWithGreedyTimesRange() throws Exception {
+    void testEndWithGreedyTimesRange() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);
@@ -644,7 +643,7 @@ public class GreedyITCase extends TestLogger {
     }
 
     @Test
-    public void testGreedyTimesRange() throws Exception {
+    void testGreedyTimesRange() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event c = new Event(40, "c", 1.0);

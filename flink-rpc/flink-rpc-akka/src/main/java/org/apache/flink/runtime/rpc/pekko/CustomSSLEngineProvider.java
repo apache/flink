@@ -24,6 +24,8 @@ import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.remote.RemoteTransportException;
 import org.apache.pekko.remote.transport.netty.ConfigSSLEngineProvider;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
@@ -36,7 +38,16 @@ import java.security.KeyStore;
 import java.util.List;
 
 /**
- * Extension of the {@link ConfigSSLEngineProvider} to use a {@link FingerprintTrustManagerFactory}.
+ * Extension of the {@link ConfigSSLEngineProvider} to use a {@link FingerprintTrustManagerFactory}
+ * and to support a comma-separated protocol list in {@code security.protocol}.
+ *
+ * <p>{@link ConfigSSLEngineProvider}'s own engine creation reads {@code security.protocol} as a
+ * single string and passes it unsplit to both {@code SSLContext.getInstance(String)} and {@code
+ * SSLEngine#setEnabledProtocols(String[])}, so a comma-separated value breaks it. Its {@code
+ * sslContext} and {@code createSSLEngine} members are {@code private} and cannot be overridden, so
+ * {@link #createServerSSLEngine()} and {@link #createClientSSLEngine()} are reimplemented here
+ * instead, splitting the protocol list the same way {@code SSLUtils} does for the data-plane and
+ * REST SSL contexts.
  */
 @SuppressWarnings("deprecation")
 public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
@@ -45,6 +56,11 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     private final List<String> sslCertFingerprints;
     private final String sslKeyStoreType;
     private final String sslTrustStoreType;
+    private final String[] sslProtocols;
+    private final String[] sslEnabledAlgorithms;
+    private final boolean sslRequireMutualAuthentication;
+
+    private SSLContext sslContext;
 
     public CustomSSLEngineProvider(ActorSystem system) {
         super(system);
@@ -55,6 +71,49 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
         sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");
         sslKeyStoreType = securityConfig.getString("key-store-type");
         sslTrustStoreType = securityConfig.getString("trust-store-type");
+        sslProtocols = securityConfig.getString("protocol").split(",");
+        sslEnabledAlgorithms =
+                securityConfig.getStringList("enabled-algorithms").toArray(new String[0]);
+        sslRequireMutualAuthentication = securityConfig.getBoolean("require-mutual-authentication");
+    }
+
+    @Override
+    public SSLEngine createServerSSLEngine() {
+        SSLEngine engine = newEngine();
+        engine.setUseClientMode(false);
+        if (sslRequireMutualAuthentication) {
+            engine.setNeedClientAuth(true);
+        }
+        return engine;
+    }
+
+    @Override
+    public SSLEngine createClientSSLEngine() {
+        SSLEngine engine = newEngine();
+        engine.setUseClientMode(true);
+        return engine;
+    }
+
+    private SSLEngine newEngine() {
+        SSLEngine engine = getSslContext().createSSLEngine();
+        engine.setEnabledCipherSuites(sslEnabledAlgorithms);
+        engine.setEnabledProtocols(sslProtocols);
+        return engine;
+    }
+
+    private synchronized SSLContext getSslContext() {
+        if (sslContext == null) {
+            try {
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(keyManagers(), trustManagers(), createSecureRandom());
+                sslContext = context;
+            } catch (GeneralSecurityException e) {
+                throw new RemoteTransportException(
+                        "Server SSL connection could not be established because SSL context could not be constructed",
+                        e);
+            }
+        }
+        return sslContext;
     }
 
     @Override

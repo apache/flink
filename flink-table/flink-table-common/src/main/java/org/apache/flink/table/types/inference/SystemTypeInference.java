@@ -112,6 +112,9 @@ public class SystemTypeInference {
                         systemArgs,
                         origin.getInputTypeStrategy(),
                         origin.disableSystemArguments()));
+        if (functionKind == FunctionKind.PROCESS_TABLE) {
+            checkBroadcastTraits(systemArgs, origin.getStateTypeStrategies());
+        }
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
                 deriveSystemOutputStrategy(
@@ -139,17 +142,25 @@ public class SystemTypeInference {
     public static void checkNoSystemArguments(
             boolean sysArgsDisabled,
             Collection<String> suppliedArgumentNames,
+            Collection<String> declaredArgumentNames,
             String functionName) {
         if (!sysArgsDisabled) {
             return;
         }
         for (StaticArgument systemArg : PROCESS_TABLE_FUNCTION_SYSTEM_ARGS) {
-            if (suppliedArgumentNames.contains(systemArg.getName())) {
+            final String systemArgName = systemArg.getName();
+            // A function that disabled the automatic system arguments may still declare an argument
+            // with a reserved name. A supplied argument that matches such a declared name is
+            // handled as an ordinary argument, not a system argument.
+            if (declaredArgumentNames.contains(systemArgName)) {
+                continue;
+            }
+            if (suppliedArgumentNames.contains(systemArgName)) {
                 throw new ValidationException(
                         String.format(
                                 "Invalid function call. The '%s' argument is not supported "
                                         + "because function '%s' does not use system arguments.",
-                                systemArg.getName(), functionName));
+                                systemArgName, functionName));
             }
         }
     }
@@ -184,7 +195,9 @@ public class SystemTypeInference {
                     "Function requires a static signature that is not overloaded and doesn't contain varargs.");
         }
 
-        checkReservedArgs(declaredArgs);
+        if (!disableSystemArgs) {
+            checkReservedArgs(declaredArgs);
+        }
         checkMultipleTableArgs(declaredArgs);
         checkPassThroughColumns(declaredArgs);
 
@@ -241,13 +254,72 @@ public class SystemTypeInference {
                 staticArgs.stream()
                         .filter(arg -> arg.is(StaticArgumentTrait.TABLE))
                         .collect(Collectors.toList());
-        if (tableArgs.size() <= 1) {
+        if (tableArgs.isEmpty()) {
             return;
         }
-        if (tableArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+        // Broadcast tables are side inputs and are excluded from the rules below
+        final List<StaticArgument> mainTableArgs =
+                tableArgs.stream()
+                        .filter(arg -> !arg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE))
+                        .collect(Collectors.toList());
+        if (mainTableArgs.isEmpty()) {
             throw new ValidationException(
-                    "All table arguments must use set semantics if multiple table arguments are declared.");
+                    "Table arguments with broadcast semantics require at least one table argument "
+                            + "with row or set semantics.");
         }
+        if (mainTableArgs.size() == 1) {
+            return;
+        }
+        if (mainTableArgs.stream()
+                .anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+            throw new ValidationException(
+                    "All main table arguments must use set semantics if multiple table arguments are declared.");
+        }
+    }
+
+    private static void checkBroadcastTraits(
+            List<StaticArgument> staticArgs, Map<String, StateTypeStrategy> stateTypeStrategies) {
+        checkBroadcastState(staticArgs, stateTypeStrategies);
+        checkNotifyStatefulSets(staticArgs);
+    }
+
+    private static void checkBroadcastState(
+            List<StaticArgument> staticArgs, Map<String, StateTypeStrategy> stateTypeStrategies) {
+        final boolean hasBroadcastTables =
+                staticArgs.stream()
+                        .anyMatch(arg -> arg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE));
+        if (hasBroadcastTables) {
+            return;
+        }
+        stateTypeStrategies.entrySet().stream()
+                .filter(e -> e.getValue().isBroadcast())
+                .findFirst()
+                .ifPresent(
+                        e -> {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Broadcast state entry '%s' requires at least one table "
+                                                    + "argument with broadcast semantics.",
+                                            e.getKey()));
+                        });
+    }
+
+    private static void checkNotifyStatefulSets(List<StaticArgument> staticArgs) {
+        if (staticArgs.stream().anyMatch(arg -> arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+            return;
+        }
+        staticArgs.stream()
+                .filter(arg -> arg.is(StaticArgumentTrait.NOTIFY_STATEFUL_SETS))
+                .findFirst()
+                .ifPresent(
+                        arg -> {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Table argument '%s' notifies stateful sets which "
+                                                    + "requires at least one table argument with "
+                                                    + "set semantics.",
+                                            arg.getName()));
+                        });
     }
 
     private static void checkPassThroughColumns(List<StaticArgument> staticArgs) {
@@ -393,16 +465,15 @@ public class SystemTypeInference {
         }
 
         private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
-            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
-            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
-
-            if (fieldTypes.isEmpty()) {
-                // Before the system type inference was introduced, SQL and
-                // Table API chose a different default field name.
-                // EXPR$0 is chosen for best-effort backwards compatibility for
-                // SQL users.
+            final boolean isScalarOutput =
+                    !LogicalTypeChecks.isCompositeType(functionDataType.getLogicalType());
+            if (isScalarOutput) {
+                // Scalar output has no field name of its own; EXPR$0 is kept for
+                // backwards compatibility with the pre-system-type-inference default.
                 return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
             }
+            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
+            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())
                     .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
                     .collect(Collectors.toList());
@@ -684,7 +755,12 @@ public class SystemTypeInference {
                                 }
                                 checkRowSemantics(staticArg, semantics);
                                 checkSetSemantics(staticArg, semantics);
-                                tableSemantics.add(semantics);
+                                checkBroadcastSemantics(staticArg, semantics);
+                                // Broadcast tables are side inputs without a key context and are
+                                // therefore excluded from co-partitioning.
+                                if (!staticArg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
+                                    tableSemantics.add(semantics);
+                                }
                             });
             checkCoPartitioning(tableSemantics);
         }
@@ -734,6 +810,18 @@ public class SystemTypeInference {
                     || semantics.orderByColumns().length > 0) {
                 throw new ValidationException(
                         "PARTITION BY or ORDER BY are not supported for table arguments with row semantics.");
+            }
+        }
+
+        private static void checkBroadcastSemantics(
+                StaticArgument staticArg, TableSemantics semantics) {
+            if (!staticArg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
+                return;
+            }
+            if (semantics.partitionByColumns().length > 0
+                    || semantics.orderByColumns().length > 0) {
+                throw new ValidationException(
+                        "PARTITION BY or ORDER BY are not supported for table arguments with broadcast semantics.");
             }
         }
 
@@ -804,7 +892,11 @@ public class SystemTypeInference {
         }
     }
 
-    private static boolean isUnsupportedOnTimeColumn(LogicalType type) {
+    /**
+     * Checks whether a column referenced by an {@code on_time} argument has an unsupported data
+     * type. A supported column is a TIMESTAMP or TIMESTAMP_LTZ column up to precision 3.
+     */
+    public static boolean isUnsupportedOnTimeColumn(LogicalType type) {
         return !LogicalTypeChecks.canBeTimeAttributeType(type)
                 || LogicalTypeChecks.getPrecision(type) > 3;
     }

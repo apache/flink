@@ -56,8 +56,10 @@ import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountFor
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -613,6 +615,85 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         // this will wait forever if the second hook gets registered
         releaseHookLatch.await();
+    }
+
+    /**
+     * A {@link PermanentBlobKey} carries a random component on top of the content hash, so
+     * re-uploading an unchanged JAR - as happens when a JobManager fails over and resubmits the job
+     * - yields a key that is unequal to the one the cached class loader was resolved with. Such a
+     * key must resolve to the cached class loader, while a key referring to different content must
+     * still be rejected (FLINK-32212).
+     */
+    @Test
+    public void libraryBlobsAreComparedByContentNotByBlobKey() throws Exception {
+        final JobID jobId = new JobID();
+        final byte[] content = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
+        final byte[] otherContent = new byte[] {8, 7, 6, 5, 4, 3, 2, 1};
+
+        BlobServer server = null;
+        PermanentBlobCache cache = null;
+        BlobLibraryCacheManager libCache = null;
+
+        try {
+            Configuration config = new Configuration();
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
+
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server.start();
+            InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
+
+            final PermanentBlobKey key = server.putPermanent(jobId, content);
+            final PermanentBlobKey reuploadedKey = server.putPermanent(jobId, content);
+            final PermanentBlobKey otherKey = server.putPermanent(jobId, otherContent);
+
+            assertNotEquals(key, reuploadedKey);
+            assertArrayEquals(key.getHash(), reuploadedKey.getHash());
+
+            libCache = createBlobLibraryCacheManager(cache);
+            cache.registerJob(jobId, applicationId);
+
+            final LibraryCacheManager.ClassLoaderLease lease =
+                    libCache.registerClassLoaderLease(jobId, applicationId);
+            final UserCodeClassLoader classLoader =
+                    lease.getOrResolveClassLoader(
+                            Collections.singletonList(key), Collections.emptyList());
+
+            assertThat(
+                    lease.getOrResolveClassLoader(
+                            Collections.singletonList(reuploadedKey), Collections.emptyList()),
+                    sameInstance(classLoader));
+
+            // a duplicate does not add content, so the required set is still the same
+            assertThat(
+                    lease.getOrResolveClassLoader(Arrays.asList(key, key), Collections.emptyList()),
+                    sameInstance(classLoader));
+
+            try {
+                lease.getOrResolveClassLoader(
+                        Collections.singletonList(otherKey), Collections.emptyList());
+                fail("Should fail with an IllegalStateException");
+            } catch (IllegalStateException e) {
+                // that's what we want
+            }
+
+            lease.release();
+        } finally {
+            if (libCache != null) {
+                libCache.shutdown();
+            }
+            if (cache != null) {
+                cache.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+        }
     }
 
     private BlobLibraryCacheManager createSimpleBlobLibraryCacheManager() throws IOException {

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
@@ -29,7 +30,7 @@ import java.util.Optional;
 
 /** Interface for stream element queues for the {@link AsyncWaitOperator}. */
 @Internal
-public interface StreamElementQueue<OUT> {
+public interface StreamElementQueue<OUT> extends AvailabilityProvider {
 
     /**
      * Tries to put the given element in the queue. This operation succeeds if the queue has

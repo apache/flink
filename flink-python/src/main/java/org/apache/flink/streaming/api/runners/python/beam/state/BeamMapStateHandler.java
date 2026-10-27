@@ -25,15 +25,20 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.PythonOptions;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** BeamMapStateHandler handles operations on a {@link MapState}. */
 public class BeamMapStateHandler
@@ -46,6 +51,7 @@ public class BeamMapStateHandler
 
     private static final byte ITERATE_FLAG = 1;
     private static final byte CHECK_EMPTY_FLAG = 2;
+    static final byte CHECK_EMPTY_EXCLUDING_KEYS_FLAG = 3;
 
     /** Map state GET response flags. */
     private static final byte EXIST_FLAG = 0;
@@ -118,6 +124,8 @@ public class BeamMapStateHandler
         // [flag (1 byte)][serialized map key]
         // The continuation token structure of CHECK_EMPTY request is:
         // [flag (1 byte)]
+        // The continuation token structure of CHECK_EMPTY_EXCLUDING_KEYS request is:
+        // [flag (1 byte)][key count (int32)][key length (int32)][serialized key]...
         // The continuation token structure of ITERATE request is:
         // [flag (1 byte)][iterate type (1 byte)][iterator token length (int32)][iterator token]
         byte[] getRequest = request.getGet().getContinuationToken().toByteArray();
@@ -132,6 +140,22 @@ public class BeamMapStateHandler
                 break;
             case CHECK_EMPTY_FLAG:
                 response = handleCheckEmpty(mapState);
+                break;
+            case CHECK_EMPTY_EXCLUDING_KEYS_FLAG:
+                bais.setBuffer(getRequest, 1, getRequest.length - 1);
+                final int keyCount = baisWrapper.readInt();
+                checkArgument(keyCount >= 0, "The excluded key count must not be negative.");
+                final Set<ByteArrayWrapper> excludedKeys = new HashSet<>();
+                for (int i = 0; i < keyCount; i++) {
+                    final int keyLength = baisWrapper.readInt();
+                    checkArgument(
+                            keyLength >= 0 && keyLength <= bais.available(),
+                            "Invalid excluded key length.");
+                    final byte[] key = new byte[keyLength];
+                    baisWrapper.readFully(key);
+                    excludedKeys.add(new ByteArrayWrapper(key));
+                }
+                response = handleCheckEmptyExcludingKeys(mapState, excludedKeys);
                 break;
             case ITERATE_FLAG:
                 bais.setBuffer(getRequest, 1, getRequest.length - 1);
@@ -243,6 +267,26 @@ public class BeamMapStateHandler
         } else {
             return NOT_EMPTY_RESPONSE;
         }
+    }
+
+    private BeamFnApi.StateGetResponse.Builder handleCheckEmptyExcludingKeys(
+            MapState<ByteArrayWrapper, byte[]> mapState, Set<ByteArrayWrapper> excludedKeys)
+            throws Exception {
+        if (mapState instanceof InternalMapState<?, ?, ?, ?>) {
+            return ((InternalMapState<?, ?, ?, ?>) mapState).isEmptyExcluding(excludedKeys)
+                    ? IS_EMPTY_RESPONSE
+                    : NOT_EMPTY_RESPONSE;
+        }
+        // Operator map state has no TTL decorator.
+        final Iterable<ByteArrayWrapper> keys = mapState.keys();
+        if (keys != null) {
+            for (ByteArrayWrapper key : keys) {
+                if (!excludedKeys.contains(key)) {
+                    return NOT_EMPTY_RESPONSE;
+                }
+            }
+        }
+        return IS_EMPTY_RESPONSE;
     }
 
     private BeamFnApi.StateGetResponse.Builder handleIterate(

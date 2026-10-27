@@ -357,12 +357,70 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
   }
 
   @TestTemplate
+  def testUnnestArrayWithNullRow(): Unit = {
+    assertUnnest(
+      testData = List(1),
+      typeInfo = createTypeInformation[Int],
+      sqlQuery = """
+                   |SELECT *
+                   |FROM UNNEST(ARRAY[
+                   |  CAST(NULL AS ROW<n INT, s STRING>),
+                   |  CAST(NULL AS ROW<n INT, s STRING>),
+                   |  CAST(ROW(1, 'a') AS ROW<n INT, s STRING>),
+                   |  CAST(ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) AS ROW<n INT, s STRING>)])
+                   |""".stripMargin,
+      expectedResults = List("null,null", "null,null", "1,a", "null,null"),
+      isRetract = false,
+      fieldNames = 'dummy
+    )
+  }
+
+  @TestTemplate
+  def testLeftUnnestArrayWithNullRow(): Unit = {
+    assertUnnest(
+      testData = List(1),
+      typeInfo = createTypeInformation[Int],
+      sqlQuery = """
+                   |SELECT id, n, s
+                   |FROM (VALUES (1, ARRAY[
+                   |  CAST(NULL AS ROW<n INT, s STRING>),
+                   |  CAST(NULL AS ROW<n INT, s STRING>),
+                   |  CAST(ROW(1, 'a') AS ROW<n INT, s STRING>)])) AS V(id, items)
+                   |LEFT JOIN UNNEST(V.items) AS U(n, s) ON TRUE
+                   |""".stripMargin,
+      expectedResults = List("1,null,null", "1,null,null", "1,1,a"),
+      isRetract = false,
+      fieldNames = 'dummy
+    )
+  }
+
+  @TestTemplate
   def testUnnestWithOrdinalityWithValuesStream(): Unit = {
     assertUnnest(
       testData = List(1),
       typeInfo = createTypeInformation[Int],
       sqlQuery = "SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3]) WITH ORDINALITY",
       expectedResults = List("a,1,1", "a,2,2", "a,3,3"),
+      isRetract = false,
+      fieldNames = 'dummy
+    )
+  }
+
+  @TestTemplate
+  def testUnnestArrayWithNullRowAndOrdinality(): Unit = {
+    assertUnnest(
+      testData = List(1),
+      typeInfo = createTypeInformation[Int],
+      sqlQuery = """
+                   |SELECT *
+                   |FROM UNNEST(ARRAY[
+                   |  CAST(NULL AS ROW<n INT, s STRING>),
+                   |  CAST(NULL AS ROW<n INT, s STRING>),
+                   |  CAST(ROW(1, 'a') AS ROW<n INT, s STRING>),
+                   |  CAST(ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) AS ROW<n INT, s STRING>)])
+                   |WITH ORDINALITY
+                   |""".stripMargin,
+      expectedResults = List("null,null,1", "null,null,2", "1,a,3", "null,null,4"),
       isRetract = false,
       fieldNames = 'dummy
     )

@@ -29,8 +29,10 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.util.MdcUtils;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -250,6 +252,46 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
         assertThat(expectedError.get()).isInstanceOf(InterruptedException.class);
         assertThat(operatorCoordinatorContext.isJobFailed()).isFalse();
+    }
+
+    @Test
+    void testCallAsyncCallableRunsWithJobIdInMdc() throws Exception {
+        final JobID jobId = new JobID();
+        final AtomicReference<String> mdcJobIdInCallable = new AtomicReference<>();
+
+        ManuallyTriggeredScheduledExecutorService manualWorkerExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        ManuallyTriggeredScheduledExecutorService manualCoordinatorExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        SourceCoordinatorContext<MockSourceSplit> testingContext =
+                new SourceCoordinatorContext<>(
+                        jobId,
+                        manualCoordinatorExecutor,
+                        manualWorkerExecutor,
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                TEST_OPERATOR_ID.toHexString(), operatorCoordinatorContext),
+                        operatorCoordinatorContext,
+                        new MockSourceSplitSerializer(),
+                        splitSplitAssignmentTracker,
+                        false);
+
+        try {
+            // The callable runs on the worker executor, which must be job-scoped.
+            testingContext.callAsync(
+                    () -> {
+                        mdcJobIdInCallable.set(MDC.get(MdcUtils.JOB_ID));
+                        return null;
+                    },
+                    (ignored, e) -> {});
+
+            // triggerAll() runs the queued callable synchronously on this thread.
+            manualWorkerExecutor.triggerAll();
+
+            assertThat(mdcJobIdInCallable.get()).isEqualTo(jobId.toHexString());
+        } finally {
+            testingContext.close();
+        }
     }
 
     @Test

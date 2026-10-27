@@ -31,16 +31,36 @@ import {
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
 import { editor } from 'monaco-editor';
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+
+/**
+ * Thread-dump mode controlling how much lock information is collected. Mirrors the server-side
+ * {@code ThreadDumpMode} enum. {@code undefined} defers to the cluster default
+ * (cluster.thread-dump.default-mode).
+ */
+type ThreadDumpMode = 'lite' | 'full' | undefined;
 
 @Component({
   selector: 'flink-task-manager-thread-dump',
   templateUrl: './task-manager-thread-dump.component.html',
   styleUrls: ['./task-manager-thread-dump.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
+  imports: [
+    NzCodeEditorModule,
+    AutoResizeDirective,
+    FormsModule,
+    AddonCompactComponent,
+    NzButtonModule,
+    NzIconModule,
+    NzSpaceModule,
+    NzTooltipModule
+  ]
 })
 export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;
@@ -51,6 +71,12 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
   public taskManagerId: string;
   public downloadUrl = '';
   public downloadName = '';
+  /**
+   * Currently selected mode. Starts as undefined so the FIRST request honors the
+   * cluster default (cluster.thread-dump.default-mode); subsequent user interactions
+   * always set it to 'lite' or 'full'.
+   */
+  public mode: ThreadDumpMode = undefined;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -66,8 +92,8 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     this.taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
-    this.downloadUrl = `${this.configService.BASE_URL}/taskmanagers/${this.taskManagerId}/thread-dump`;
     this.downloadName = `taskmanager_${this.taskManagerId}_thread_dump`;
+    this.updateDownloadUrl();
     this.activatedRoute.queryParams.subscribe(params => {
       this.vertexName = decodeURIComponent(params.vertexName);
     });
@@ -98,11 +124,26 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
     this.reload();
   }
 
+  /**
+   * Switch dump mode. Intentionally does NOT auto-reload: the user must press the
+   * refresh button to actually request a new dump (especially important for 'full',
+   * which can be expensive). The download link is updated immediately so a download
+   * always matches the user's current selection.
+   */
+  public selectMode(mode: 'lite' | 'full'): void {
+    if (this.mode === mode) {
+      return;
+    }
+    this.mode = mode;
+    this.updateDownloadUrl();
+    this.cdr.markForCheck();
+  }
+
   public reload(): void {
     this.loading = true;
     this.cdr.markForCheck();
     this.taskManagerService
-      .loadThreadDump(this.taskManagerId)
+      .loadThreadDump(this.taskManagerId, this.mode)
       .pipe(
         catchError(() => of('')),
         takeUntil(this.destroy$)
@@ -112,5 +153,10 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
         this.dump = data;
         this.cdr.markForCheck();
       });
+  }
+
+  private updateDownloadUrl(): void {
+    const base = `${this.configService.BASE_URL}/taskmanagers/${this.taskManagerId}/thread-dump`;
+    this.downloadUrl = this.mode ? `${base}?mode=${this.mode}` : base;
   }
 }

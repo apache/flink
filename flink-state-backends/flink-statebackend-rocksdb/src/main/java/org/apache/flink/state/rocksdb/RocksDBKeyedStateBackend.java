@@ -95,6 +95,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -406,9 +407,45 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return targetStream.onClose(iteratorWrapper::close);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        final RocksMultiStateKeysIterator<K> iteratorWrapper =
+                openMultiStateKeysIterator(states, namespace);
+        Stream<K> targetStream =
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED),
+                        false);
+        return targetStream.onClose(iteratorWrapper::close);
+    }
+
+    @Override
+    public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(List<String> states, N namespace) {
+        final RocksMultiStateKeysIterator<K> iteratorWrapper =
+                openMultiStateKeysIterator(states, namespace);
+        Iterator<Tuple2<K, Integer>> keyAndKeyGroupIterator =
+                new Iterator<Tuple2<K, Integer>>() {
+                    @Override
+                    public boolean hasNext() {
+                        return iteratorWrapper.hasNext();
+                    }
+
+                    @Override
+                    public Tuple2<K, Integer> next() {
+                        K key = iteratorWrapper.next();
+                        return Tuple2.of(key, iteratorWrapper.getKeyGroup());
+                    }
+                };
+        Stream<Tuple2<K, Integer>> targetStream =
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(
+                                keyAndKeyGroupIterator, Spliterator.ORDERED),
+                        false);
+        return targetStream.onClose(iteratorWrapper::close);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <N> RocksMultiStateKeysIterator<K> openMultiStateKeysIterator(
+            List<String> states, N namespace) {
         final List<Boolean> ambiguousKeyPossibles = new ArrayList<>();
         final List<RocksIteratorWrapper> iterators = new ArrayList<>();
         byte[] namespaceBytes = null;
@@ -457,20 +494,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         }
 
         Preconditions.checkNotNull(namespaceBytes, "Namespace must exist");
-        final RocksMultiStateKeysIterator<K> iteratorWrapper =
-                new RocksMultiStateKeysIterator<>(
-                        iterators,
-                        states,
-                        getKeySerializer(),
-                        keyGroupPrefixBytes,
-                        ambiguousKeyPossibles,
-                        namespaceBytes);
-
-        Stream<K> targetStream =
-                StreamSupport.stream(
-                        Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED),
-                        false);
-        return targetStream.onClose(iteratorWrapper::close);
+        return new RocksMultiStateKeysIterator<>(
+                iterators,
+                states,
+                getKeySerializer(),
+                keyGroupPrefixBytes,
+                ambiguousKeyPossibles,
+                namespaceBytes);
     }
 
     @Override
@@ -520,6 +550,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @Override
     public void setCurrentKey(K newKey) {
         super.setCurrentKey(newKey);
+        sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
+    }
+
+    @Override
+    public void setCurrentKeyForStateAccess(K newKey) {
+        super.setCurrentKeyForStateAccess(newKey);
         sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
     }
 
@@ -886,9 +922,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo)
             throws Exception {
 
+        // The snapshot the state was written with. Preferred over one re-derived from the previous
+        // serializer, which is itself restored from this snapshot and does not always round trip.
+        TypeSerializerSnapshot<SV> previousSerializerSnapshot =
+                stateMetaInfo.f1.getPreviousStateSerializerSnapshot();
+
         if (stateDesc.getType() == StateDescriptor.Type.MAP) {
-            TypeSerializerSnapshot<SV> previousSerializerSnapshot =
-                    stateMetaInfo.f1.getPreviousStateSerializerSnapshot();
             checkState(
                     previousSerializerSnapshot != null,
                     "the previous serializer snapshot should exist.");
@@ -973,6 +1012,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         serializedValueInput,
                         migratedSerializedValueOutput,
                         previousTtlAwareSerializer,
+                        previousSerializerSnapshot,
                         currentTtlAwareSerializer,
                         this.ttlTimeProvider);
 

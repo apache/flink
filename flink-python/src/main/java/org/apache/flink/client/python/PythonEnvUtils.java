@@ -383,7 +383,8 @@ final class PythonEnvUtils {
                         .collect(Collectors.joining(", ")),
                 String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
-        if (!process.isAlive()) {
+        // Only a non-zero exit is a start failure; a fast process may already have finished.
+        if (!process.isAlive() && process.exitValue() != 0) {
             throw new RuntimeException("Failed to start Python process. ");
         }
 

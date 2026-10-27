@@ -31,6 +31,7 @@ public class StateValueColumnConfiguration implements Serializable {
     private final int columnIndex;
     private final String stateName;
     private final SavepointConnectorOptions.StateType stateType;
+    private final StateDescriptor.Type actualStateKind;
     @Nullable private final TypeSerializer mapKeyTypeSerializer;
     @Nullable private final TypeSerializer valueTypeSerializer;
     @Nullable private StateDescriptor stateDescriptor;
@@ -39,11 +40,13 @@ public class StateValueColumnConfiguration implements Serializable {
             int columnIndex,
             final String stateName,
             final SavepointConnectorOptions.StateType stateType,
+            final StateDescriptor.Type actualStateKind,
             @Nullable final TypeSerializer mapKeyTypeSerializer,
             final TypeSerializer valueTypeSerializer) {
         this.columnIndex = columnIndex;
         this.stateName = stateName;
         this.stateType = stateType;
+        this.actualStateKind = actualStateKind;
         this.mapKeyTypeSerializer = mapKeyTypeSerializer;
         this.valueTypeSerializer = valueTypeSerializer;
     }
@@ -58,6 +61,16 @@ public class StateValueColumnConfiguration implements Serializable {
 
     public SavepointConnectorOptions.StateType getStateType() {
         return stateType;
+    }
+
+    /**
+     * The precise {@link StateDescriptor.Type} the state was originally registered under (e.g.
+     * {@code REDUCING}/{@code AGGREGATING} for a {@code .reduce()}/{@code .aggregate()} window
+     * function's window-contents state), as opposed to {@link #getStateType()} which only
+     * distinguishes the coarse VALUE/LIST/MAP shape used for the SQL schema.
+     */
+    public StateDescriptor.Type getActualStateKind() {
+        return actualStateKind;
     }
 
     @Nullable
@@ -76,5 +89,18 @@ public class StateValueColumnConfiguration implements Serializable {
     @Nullable
     public StateDescriptor getStateDescriptor() {
         return stateDescriptor;
+    }
+
+    public StateValueColumnConfiguration withColumnIndex(int newColumnIndex) {
+        StateValueColumnConfiguration copy =
+                new StateValueColumnConfiguration(
+                        newColumnIndex,
+                        stateName,
+                        stateType,
+                        actualStateKind,
+                        mapKeyTypeSerializer,
+                        valueTypeSerializer);
+        copy.stateDescriptor = this.stateDescriptor;
+        return copy;
     }
 }

@@ -30,7 +30,7 @@ Prerequisites
 
 Before you begin, make sure you have:
 
-- Python 3.9, 3.10, 3.11, or 3.12 installed
+- Python 3.9, 3.10, 3.11, 3.12 or 3.13 installed
 - PyFlink installed (see :doc:`installation`)
 
 Your First PyFlink Application

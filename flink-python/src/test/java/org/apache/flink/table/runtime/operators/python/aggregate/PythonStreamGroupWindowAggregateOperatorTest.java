@@ -28,7 +28,9 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
@@ -298,7 +300,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
                 new PythonAggregateFunctionInfo[] {
                     new PythonAggregateFunctionInfo(
                             PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-                            new Integer[] {2},
+                            new PythonFunctionInput[] {new InputRef(2)},
                             -1,
                             false)
                 },

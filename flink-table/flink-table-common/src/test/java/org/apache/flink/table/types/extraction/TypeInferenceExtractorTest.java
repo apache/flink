@@ -26,8 +26,12 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.annotation.StateKind;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AsyncScalarFunction;
@@ -50,6 +54,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -442,6 +447,10 @@ class TypeInferenceExtractorTest {
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
                         .expectState("myAcc", TypeStrategies.explicit(MyState.TYPE))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forAggregateFunction(BroadcastStateHintAggregateFunction.class)
+                        .expectErrorMessage(
+                                "Broadcast state is only supported for process table functions."),
                 // ---
                 // accumulator with state hint in function hint
                 TestSpec.forAggregateFunction(StateHintInFunctionHintAggregateFunction.class)
@@ -854,6 +863,54 @@ class TypeInferenceExtractorTest {
                 TestSpec.forProcessTableFunction(MultiEvalProcessTableFunction.class)
                         .expectErrorMessage(
                                 "Process table functions require a non-overloaded, non-vararg, and static signature."),
+                // ---
+                TestSpec.forProcessTableFunction(BroadcastStateProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "data",
+                                        Row.class,
+                                        false,
+                                        EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE)))
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "rules",
+                                        Row.class,
+                                        false,
+                                        EnumSet.of(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)))
+                        .expectState("count", TypeStrategies.explicit(MyFirstState.TYPE))
+                        .expectBroadcastState(
+                                "mapRules",
+                                TypeStrategies.explicit(
+                                        MapView.newMapViewDataType(
+                                                DataTypes.STRING(), DataTypes.INT())))
+                        .expectBroadcastState(
+                                "valueRule",
+                                TypeStrategies.explicit(
+                                        ValueView.newValueViewDataType(DataTypes.STRING())))
+                        .expectBroadcastState(
+                                "eagerRule", TypeStrategies.explicit(MySecondState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(ListViewBroadcastStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Broadcast state entries must not be a ListView. "
+                                        + "Use a MapView, ValueView, or an eager value state instead."),
+                // ---
+                TestSpec.forProcessTableFunction(TtlBroadcastStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Broadcast state entries must not declare a time-to-live (TTL)."),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                PassThroughBroadcastTableProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid argument traits for argument 'rules'. "
+                                        + "Trait BROADCAST_SEMANTIC_TABLE is incompatible with PASS_COLUMNS_THROUGH."),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                NotifyStatefulSetsWithoutBroadcastProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid argument traits for argument 'data'. "
+                                        + "Trait NOTIFY_STATEFUL_SETS requires BROADCAST_SEMANTIC_TABLE."),
                 TestSpec.forScalarFunction("Bitmap in scalar function", BitmapTypeFunction.class)
                         .expectStaticArgument(
                                 StaticArgument.scalar("bm", DataTypes.BITMAP(), false))
@@ -882,14 +939,24 @@ class TypeInferenceExtractorTest {
                                 StaticArgument.scalar("bitmap", DataTypes.BITMAP(), false))
                         .expectAccumulator(TypeStrategies.explicit(DataTypes.BITMAP()))
                         .expectOutput(TypeStrategies.explicit(DataTypes.BITMAP())),
-                TestSpec.forScalarFunction(
-                                "Bitmap bridged to custom Bitmap",
-                                InvalidCustomBitmapTypeFunction1.class)
-                        .expectErrorMessage(
-                                "Logical type 'BITMAP' does not support a conversion from or to class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$CustomBitmap'."),
-                TestSpec.forScalarFunction("Custom Bitmap", InvalidCustomBitmapTypeFunction2.class)
-                        .expectErrorMessage(
-                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."));
+                // ---
+                TestSpec.forScalarFunction("Variant in scalar function", VariantTypeFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "array", DataTypes.ARRAY(DataTypes.VARIANT()), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "map",
+                                        DataTypes.MAP(DataTypes.INT(), DataTypes.VARIANT()),
+                                        false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "row",
+                                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.VARIANT())),
+                                        false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -1446,6 +1513,11 @@ class TypeInferenceExtractorTest {
             return this;
         }
 
+        TestSpec expectBroadcastState(String name, TypeStrategy typeStrategy) {
+            this.expectedStateStrategies.put(name, StateTypeStrategy.of(typeStrategy, null, true));
+            return this;
+        }
+
         TestSpec expectOutputMapping(InputTypeStrategy validator, TypeStrategy outputStrategy) {
             this.expectedOutputStrategies.put(validator, outputStrategy);
             return this;
@@ -1671,6 +1743,21 @@ class TypeInferenceExtractorTest {
         @Override
         public Row createAccumulator() {
             return null;
+        }
+    }
+
+    private static class BroadcastStateHintAggregateFunction
+            extends AggregateFunction<Integer, MyState> {
+        public void accumulate(@StateHint(StateKind.BROADCAST) MyState acc, Integer i) {}
+
+        @Override
+        public Integer getValue(MyState accumulator) {
+            return null;
+        }
+
+        @Override
+        public MyState createAccumulator() {
+            return new MyState();
         }
     }
 
@@ -2656,6 +2743,52 @@ class TypeInferenceExtractorTest {
         public void eval(String i) {}
     }
 
+    private static class BroadcastStateProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint MyFirstState count,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> mapRules,
+                @StateHint(StateKind.BROADCAST) ValueView<String> valueRule,
+                @StateHint(StateKind.BROADCAST) MySecondState eagerRule,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data,
+                @ArgumentHint(ArgumentTrait.BROADCAST_SEMANTIC_TABLE) Row rules) {}
+    }
+
+    private static class ListViewBroadcastStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint(StateKind.BROADCAST) ListView<String> rules,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data) {}
+    }
+
+    private static class TtlBroadcastStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint(value = StateKind.BROADCAST, ttl = "1 day") MyFirstState rule,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data) {}
+    }
+
+    private static class NotifyStatefulSetsWithoutBroadcastProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint MyFirstState count,
+                @ArgumentHint({
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.NOTIFY_STATEFUL_SETS
+                        })
+                        Row data) {}
+    }
+
+    private static class PassThroughBroadcastTableProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row data,
+                @ArgumentHint({
+                            ArgumentTrait.BROADCAST_SEMANTIC_TABLE,
+                            ArgumentTrait.PASS_COLUMNS_THROUGH
+                        })
+                        Row rules) {}
+    }
+
     private static class MissingDefaultConstructorStateProcessTableFunction
             extends ProcessTableFunction<Integer> {
 
@@ -2723,76 +2856,14 @@ class TypeInferenceExtractorTest {
         }
     }
 
-    @FunctionHint(input = @DataTypeHint(value = "BITMAP", bridgedTo = CustomBitmap.class))
-    private static class InvalidCustomBitmapTypeFunction1 extends ScalarFunction {
-        public Bitmap eval(Bitmap bitmap) {
+    @FunctionHint(output = @DataTypeHint("VARIANT"))
+    private static class VariantTypeFunction extends ScalarFunction {
+        public Variant eval(
+                Variant v,
+                Variant[] array,
+                Map<Integer, Variant> map,
+                @DataTypeHint("ROW<a VARIANT>") Row row) {
             return null;
         }
-    }
-
-    private static class InvalidCustomBitmapTypeFunction2 extends ScalarFunction {
-        public Bitmap eval(CustomBitmap bitmap) {
-            return null;
-        }
-    }
-
-    public static class CustomBitmap implements Bitmap {
-
-        @Override
-        public void add(int value) {}
-
-        @Override
-        public void add(long rangeStart, long rangeEnd) {}
-
-        @Override
-        public void addN(int[] values, int offset, int n) {}
-
-        @Override
-        public void and(@Nullable Bitmap other) {}
-
-        @Override
-        public void andNot(@Nullable Bitmap other) {}
-
-        @Override
-        public void clear() {}
-
-        @Override
-        public boolean contains(int value) {
-            return false;
-        }
-
-        @Override
-        public int getCardinality() {
-            return 0;
-        }
-
-        @Override
-        public long getLongCardinality() {
-            return 0;
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return false;
-        }
-
-        @Override
-        public void or(@Nullable Bitmap other) {}
-
-        @Override
-        public void remove(int value) {}
-
-        @Override
-        public int[] toArray() {
-            return new int[0];
-        }
-
-        @Override
-        public byte[] toBytes() {
-            return new byte[0];
-        }
-
-        @Override
-        public void xor(@Nullable Bitmap other) {}
     }
 }

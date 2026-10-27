@@ -290,7 +290,8 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
     private RocksBytesIterator orderedBytesIterator() {
         flushWriteBatch();
         return new RocksBytesIterator(
-                new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions)));
+                RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                        db, columnFamilyHandle, readOptions, groupPrefixBytes));
     }
 
     /** Ensures that recent writes are flushed and reflect in the RocksDB instance. */

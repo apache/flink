@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Ordered {@link StreamElementQueue} implementation. The ordered stream element queue provides
@@ -52,11 +53,14 @@ public final class OrderedStreamElementQueue<OUT> implements StreamElementQueue<
     /** Queue for the inserted StreamElementQueueEntries. */
     private final Queue<StreamElementQueueEntry<OUT>> queue;
 
+    private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+
     public OrderedStreamElementQueue(int capacity) {
         Preconditions.checkArgument(capacity > 0, "The capacity must be larger than 0.");
 
         this.capacity = capacity;
         this.queue = new ArrayDeque<>(capacity);
+        this.availabilityHelper.resetAvailable();
     }
 
     @Override
@@ -67,8 +71,12 @@ public final class OrderedStreamElementQueue<OUT> implements StreamElementQueue<
     @Override
     public void emitCompletedElement(TimestampedCollector<OUT> output) {
         if (hasCompletedElements()) {
+            boolean isFullBefore = isFull();
             final StreamElementQueueEntry<OUT> head = queue.poll();
             head.emitResult(output);
+            if (isFullBefore && !isFull()) {
+                availabilityHelper.getUnavailableToResetAvailable().complete(null);
+            }
         }
     }
 
@@ -93,7 +101,7 @@ public final class OrderedStreamElementQueue<OUT> implements StreamElementQueue<
 
     @Override
     public Optional<ResultFuture<OUT>> tryPut(StreamElement streamElement) {
-        if (queue.size() < capacity) {
+        if (!isFull()) {
             StreamElementQueueEntry<OUT> queueEntry = createEntry(streamElement);
 
             queue.add(queueEntry);
@@ -103,6 +111,10 @@ public final class OrderedStreamElementQueue<OUT> implements StreamElementQueue<
                             + "({}/{}).",
                     queue.size(),
                     capacity);
+
+            if (isFull()) {
+                availabilityHelper.resetUnavailable();
+            }
 
             return Optional.of(queueEntry);
         } else {
@@ -114,6 +126,15 @@ public final class OrderedStreamElementQueue<OUT> implements StreamElementQueue<
 
             return Optional.empty();
         }
+    }
+
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return availabilityHelper.getAvailableFuture();
+    }
+
+    private boolean isFull() {
+        return queue.size() >= capacity;
     }
 
     private StreamElementQueueEntry<OUT> createEntry(StreamElement streamElement) {

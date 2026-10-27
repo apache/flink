@@ -32,16 +32,13 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.input.operator.window.WindowContents;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -49,13 +46,10 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * A {@link StateReaderOperator} for reading {@code WindowOperator} state.
@@ -163,7 +157,12 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
     public void open() throws Exception {
         super.open();
 
-        ctx = new Context(getKeyedStateBackend(), getInternalTimerService(WINDOW_TIMER_NAME));
+        ctx =
+                new Context(
+                        registerTimers(
+                                getInternalTimerService(WINDOW_TIMER_NAME),
+                                WINDOW_TIMER_NAME,
+                                namespace -> true));
     }
 
     @Override
@@ -176,19 +175,18 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
     }
 
     @Override
-    public CloseableIterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx)
-            throws Exception {
-        Stream<Tuple2<KEY, W>> keysAndWindows =
-                getKeyedStateBackend().getKeysAndNamespaces(descriptor.getName());
+    public CloseableIterator<Tuple3<KEY, W, Integer>> getKeysAndNamespaces(
+            SavepointRuntimeContext ctx) throws Exception {
+        // getKeysAndNamespaces(String) does not expose the physically stored key-group.
+        Stream<Tuple3<KEY, W, Integer>> keysAndWindows =
+                getKeyedStateBackend()
+                        .<W>getKeysAndNamespaces(descriptor.getName())
+                        .map(t -> Tuple3.<KEY, W, Integer>of(t.f0, t.f1, UNKNOWN_KEY_GROUP));
 
         return new IteratorWithRemove<>(keysAndWindows);
     }
 
     private class Context implements WindowReaderFunction.Context<W> {
-
-        private static final String EVENT_TIMER_STATE = "event-time-timers";
-
-        private static final String PROC_TIMER_STATE = "proc-time-timers";
 
         W window;
 
@@ -196,37 +194,13 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 
         final DefaultKeyedStateStore keyedStateStore;
 
-        ListState<Long> eventTimers;
+        final TimerRegistration timerRegistration;
 
-        ListState<Long> procTimers;
-
-        private Context(
-                KeyedStateBackend<KEY> keyedStateBackend, InternalTimerService<W> timerService)
-                throws Exception {
+        private Context(TimerRegistration timerRegistration) {
+            KeyedStateBackend<KEY> keyedStateBackend = getKeyedStateBackend();
             keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getSerializerFactory());
             perWindowKeyedStateStore = new PerWindowKeyedStateStore(keyedStateBackend);
-
-            eventTimers =
-                    keyedStateBackend.getPartitionedState(
-                            WINDOW_TIMER_NAME,
-                            StringSerializer.INSTANCE,
-                            new ListStateDescriptor<>(EVENT_TIMER_STATE, Types.LONG));
-
-            timerService.forEachEventTimeTimer(
-                    (namespace, timer) -> {
-                        eventTimers.add(timer);
-                    });
-
-            procTimers =
-                    keyedStateBackend.getPartitionedState(
-                            WINDOW_TIMER_NAME,
-                            StringSerializer.INSTANCE,
-                            new ListStateDescriptor<>(PROC_TIMER_STATE, Types.LONG));
-
-            timerService.forEachProcessingTimeTimer(
-                    (namespace, timer) -> {
-                        procTimers.add(timer);
-                    });
+            this.timerRegistration = timerRegistration;
         }
 
         @Override
@@ -257,22 +231,12 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 
         @Override
         public Set<Long> registeredEventTimeTimers() throws Exception {
-            Iterable<Long> timers = eventTimers.get();
-            if (timers == null) {
-                return Collections.emptySet();
-            }
-
-            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+            return timerRegistration.registeredEventTimeTimers();
         }
 
         @Override
         public Set<Long> registeredProcessingTimeTimers() throws Exception {
-            Iterable<Long> timers = procTimers.get();
-            if (timers == null) {
-                return Collections.emptySet();
-            }
-
-            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+            return timerRegistration.registeredProcessingTimeTimers();
         }
     }
 

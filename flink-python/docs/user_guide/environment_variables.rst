@@ -35,11 +35,11 @@ These environment variables will affect the behavior of PyFlink:
     * - **PYFLINK_CLIENT_EXECUTABLE**
       - The path of the Python interpreter used to launch the Python process when submitting the Python jobs via
         "flink run" or compiling the Java/Scala jobs containing Python UDFs.
-        Equivalent to the configuration option ``python.client.executable``. The priority is as following:
+        Equivalent to the configuration option :confval:`python.client.executable`. The priority is as following:
 
-        1. The configuration ``python.client.executable`` defined in the source code;
+        1. The configuration :confval:`python.client.executable` defined in the source code;
         2. The environment variable ``PYFLINK_CLIENT_EXECUTABLE``;
-        3. The configuration ``python.client.executable`` defined in the
+        3. The configuration :confval:`python.client.executable` defined in the
            :flinkdoc:`Flink configuration file <docs/deployment/config/#flink-configuration-file>`.
 
         If none of above is set, the default Python interpreter ``python`` will be used.

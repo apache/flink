@@ -96,6 +96,9 @@ public final class CatalogPropertiesUtil {
             final Optional<TableDistribution> distribution = resolvedTable.getDistribution();
             distribution.ifPresent(d -> serializeTableDistribution(properties, d));
 
+            final Optional<UnresolvedIdentifier> connection = resolvedTable.getConnection();
+            connection.ifPresent(c -> serializeConnection(properties, c));
+
             properties.putAll(resolvedTable.getOptions());
 
             properties.remove(IS_GENERIC); // reserved option
@@ -251,6 +254,8 @@ public final class CatalogPropertiesUtil {
             final @Nullable TableDistribution distribution =
                     deserializeTableDistribution(properties);
 
+            final @Nullable UnresolvedIdentifier connection = deserializeConnection(properties);
+
             return CatalogTable.newBuilder()
                     .schema(schema)
                     .comment(comment)
@@ -258,6 +263,7 @@ public final class CatalogPropertiesUtil {
                     .distribution(distribution)
                     .options(options)
                     .snapshot(snapshot)
+                    .connection(connection)
                     .build();
         } catch (Exception e) {
             throw new CatalogException("Error in deserializing catalog table.", e);
@@ -445,12 +451,17 @@ public final class CatalogPropertiesUtil {
 
     private static final String DISTRIBUTION_KEYS = compoundKey(DISTRIBUTION, KEYS);
 
+    private static final String CONNECTION = "connection";
+
+    private static final String CONNECTION_IDENTIFIER = compoundKey(CONNECTION, "identifier");
+
     private static Map<String, String> deserializeOptions(Map<String, String> map) {
         return map.entrySet().stream()
                 .filter(
                         e -> {
                             final String key = e.getKey();
                             return !key.startsWith(DISTRIBUTION + SEPARATOR)
+                                    && !key.startsWith(CONNECTION + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
                                     && !key.startsWith(SCHEMA)
                                     && !key.equals(COMMENT)
@@ -650,6 +661,34 @@ public final class CatalogPropertiesUtil {
                 distribution.getBucketKeys().stream()
                         .map(Collections::singletonList)
                         .collect(Collectors.toList()));
+    }
+
+    private static void serializeConnection(
+            Map<String, String> map, UnresolvedIdentifier connection) {
+        final List<String> parts = new ArrayList<>();
+        connection.getCatalogName().ifPresent(parts::add);
+        connection.getDatabaseName().ifPresent(parts::add);
+        parts.add(connection.getObjectName());
+
+        putIndexedProperties(
+                map,
+                CONNECTION_IDENTIFIER,
+                Collections.singletonList(NAME),
+                parts.stream().map(Collections::singletonList).collect(Collectors.toList()));
+    }
+
+    private static UnresolvedIdentifier deserializeConnection(Map<String, String> map) {
+        final List<String> parts = new ArrayList<>();
+        int i = 0;
+        String partKey = compoundKey(CONNECTION_IDENTIFIER, i, NAME);
+        while (map.containsKey(partKey)) {
+            parts.add(getValue(map, partKey));
+            partKey = compoundKey(CONNECTION_IDENTIFIER, ++i, NAME);
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+        return UnresolvedIdentifier.of(parts);
     }
 
     private static void serializeResolvedModelSchema(

@@ -35,6 +35,9 @@ import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStat
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.metrics.SimpleGauge;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -65,6 +68,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                 parameter.rightInputSideSpec,
                 parameter.leftIsOuter,
                 parameter.rightIsOuter,
+                parameter.leftInputChangelogMode,
+                parameter.rightInputChangelogMode,
+                parameter.hasNonEquiCondition,
                 parameter.filterNullKeys,
                 parameter.leftStateRetentionTime,
                 parameter.rightStateRetentionTime);
@@ -199,10 +205,14 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                     pre = next;
                 }
                 processElement(
-                        current, inputSideStateView, otherSideStateView, inputIsLeft, isSuppress);
+                        current,
+                        inputSideStateView,
+                        otherSideStateView,
+                        inputIsLeft,
+                        isSuppress ? next : null);
                 if (isSuppress) {
                     processElement(
-                            next, inputSideStateView, otherSideStateView, inputIsLeft, isSuppress);
+                            next, inputSideStateView, otherSideStateView, inputIsLeft, current);
                 }
             } else {
                 // 1. current is accumulateMsg 2. current is retractMsg and no next row
@@ -211,11 +221,19 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                         isSuppress = true;
                     }
                     processElement(
-                            pre, inputSideStateView, otherSideStateView, inputIsLeft, isSuppress);
-                    pre = null;
+                            pre,
+                            inputSideStateView,
+                            otherSideStateView,
+                            inputIsLeft,
+                            isSuppress ? current : null);
                 }
                 processElement(
-                        current, inputSideStateView, otherSideStateView, inputIsLeft, isSuppress);
+                        current,
+                        inputSideStateView,
+                        otherSideStateView,
+                        inputIsLeft,
+                        isSuppress ? pre : null);
+                pre = null;
             }
         }
     }
@@ -238,7 +256,7 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                 setCurrentKey(entry.getKey());
                 for (RowData rowData : entry.getValue()) {
                     processElement(
-                            rowData, inputSideStateView, otherSideStateView, inputIsLeft, false);
+                            rowData, inputSideStateView, otherSideStateView, inputIsLeft, null);
                 }
             }
         } else if (inputBuffer instanceof JoinKeyContainsUniqueKeyBundle) {
@@ -272,6 +290,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
             JoinInputSideSpec rightInputSideSpec,
             boolean leftIsOuter,
             boolean rightIsOuter,
+            @Nullable RuntimeChangelogMode leftInputChangelogMode,
+            @Nullable RuntimeChangelogMode rightInputChangelogMode,
+            boolean hasNonEquiCondition,
             boolean[] filterNullKeys,
             long leftStateRetentionTime,
             long rightStateRetentionTime,
@@ -285,6 +306,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                         rightInputSideSpec,
                         leftIsOuter,
                         rightIsOuter,
+                        leftInputChangelogMode,
+                        rightInputChangelogMode,
+                        hasNonEquiCondition,
                         filterNullKeys,
                         leftStateRetentionTime,
                         rightStateRetentionTime,
@@ -311,6 +335,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
         JoinInputSideSpec rightInputSideSpec;
         boolean leftIsOuter;
         boolean rightIsOuter;
+        @Nullable RuntimeChangelogMode leftInputChangelogMode;
+        @Nullable RuntimeChangelogMode rightInputChangelogMode;
+        boolean hasNonEquiCondition;
         boolean[] filterNullKeys;
         long leftStateRetentionTime;
         long rightStateRetentionTime;
@@ -325,6 +352,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                 JoinInputSideSpec rightInputSideSpec,
                 boolean leftIsOuter,
                 boolean rightIsOuter,
+                @Nullable RuntimeChangelogMode leftInputChangelogMode,
+                @Nullable RuntimeChangelogMode rightInputChangelogMode,
+                boolean hasNonEquiCondition,
                 boolean[] filterNullKeys,
                 long leftStateRetentionTime,
                 long rightStateRetentionTime,
@@ -336,6 +366,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
             this.rightInputSideSpec = rightInputSideSpec;
             this.leftIsOuter = leftIsOuter;
             this.rightIsOuter = rightIsOuter;
+            this.leftInputChangelogMode = leftInputChangelogMode;
+            this.rightInputChangelogMode = rightInputChangelogMode;
+            this.hasNonEquiCondition = hasNonEquiCondition;
             this.filterNullKeys = filterNullKeys;
             this.leftStateRetentionTime = leftStateRetentionTime;
             this.rightStateRetentionTime = rightStateRetentionTime;

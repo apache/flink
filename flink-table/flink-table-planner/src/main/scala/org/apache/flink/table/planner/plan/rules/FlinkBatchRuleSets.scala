@@ -385,17 +385,20 @@ object FlinkBatchRuleSets {
     CalcPythonCorrelateTransposeRule.INSTANCE,
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
+    PythonCorrelateSplitFunctionKindRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
+    PythonCalcSplitRule.CONDITION_PROJECTION_CSE,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonCalcSplitRule.PROJECTION_CSE,
     PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE,
     AsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,

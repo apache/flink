@@ -1255,6 +1255,98 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "thread")
 
+    def test_gateway_access_is_rejected(self):
+        self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
+        self.env.set_parallelism(1)
+
+        class GatewayAccessFunction(MapFunction):
+            def open(self, runtime_context: RuntimeContext):
+                from pemja import findClass
+
+                self.j_integer = findClass('java.lang.Integer')
+
+            def map(self, value):
+                from unittest import TestCase
+                from unittest.mock import patch
+
+                from pyflink.java_gateway import get_gateway, launch_gateway
+
+                with patch('pyflink.java_gateway.launch_gateway_server_process',
+                           side_effect=AssertionError('Gateway subprocess launched')):
+                    for gateway_function in [get_gateway, launch_gateway]:
+                        with TestCase().assertRaisesRegex(RuntimeError, r'pemja\.findClass'):
+                            gateway_function()
+
+                return self.j_integer.parseInt(value)
+
+        (self.env.from_collection(['1', '2'], type_info=Types.STRING())
+         .map(GatewayAccessFunction(), output_type=Types.INT())
+         .add_sink(self.test_sink))
+        self.env.execute('test_gateway_access_is_rejected')
+        self.assert_equals_sorted(['1', '2'], self.test_sink.get_results())
+
+    def test_state_ttl_without_gateway(self):
+        self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
+        self.env.set_parallelism(1)
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        if config.containsKey("state.backend.type"):
+            self.addCleanup(config.setString, "state.backend.type",
+                            config.getString("state.backend.type", None))
+        else:
+            self.addCleanup(config.removeKey, "state.backend.type")
+        config.setString("state.backend.type", "rocksdb")
+
+        class TtlStateFunction(KeyedProcessFunction):
+            def open(self, runtime_context: RuntimeContext):
+                from unittest.mock import patch
+
+                from pyflink.fn_execution.embedded.java_utils import to_java_state_ttl_config
+
+                self.states = []
+                cases = [('default', None, True),
+                         ('explicit_default', 17, True),
+                         ('disabled', None, False),
+                         ('explicit_disabled', 23, False)]
+                # Guard the actual embedded worker, after the client gateway already exists.
+                with patch('pyflink.common.time.get_gateway', side_effect=AssertionError(
+                        'TTL state initialization must not request a Py4J gateway')):
+                    for name, queries, background in cases:
+                        builder = StateTtlConfig.new_builder(Time.days(1))
+                        if queries is not None:
+                            builder.cleanup_in_rocksdb_compact_filter(queries)
+                        if not background:
+                            builder.disable_cleanup_in_background()
+                        ttl_config = builder.build()
+                        descriptor = ValueStateDescriptor('ttl_' + name, Types.INT())
+                        descriptor.enable_time_to_live(ttl_config)
+                        self.states.append(runtime_context.get_state(descriptor))
+
+                        j_ttl_config = to_java_state_ttl_config(ttl_config)
+                        assert j_ttl_config.getTimeToLive().toMillis() == 86400000
+                        cleanup = j_ttl_config.getCleanupStrategies()
+                        assert cleanup.isCleanupInBackground() == background
+                        rocksdb_cleanup = cleanup.getRocksdbCompactFilterCleanupStrategy()
+                        if background or queries is not None:
+                            assert rocksdb_cleanup.getQueryTimeAfterNumEntries() == (
+                                1000 if queries is None else queries)
+                            assert rocksdb_cleanup.getPeriodicCompactionTime().toMillis() == (
+                                30 * 24 * 60 * 60 * 1000)
+                        else:
+                            assert rocksdb_cleanup is None
+
+            def process_element(self, value, ctx):
+                for index, state in enumerate(self.states):
+                    state.update((state.value() or 0) + value)
+                    yield index, state.value()
+
+        (self.env.from_collection([1, 2], type_info=Types.INT())
+         .key_by(lambda value: 0)
+         .process(TtlStateFunction(), output_type=Types.TUPLE([Types.INT(), Types.INT()]))
+         .add_sink(self.test_sink))
+        self.env.execute('test_state_ttl_without_gateway')
+        expected = ['(%s,%s)' % (index, total) for index in range(4) for total in [1, 3]]
+        self.assert_equals_sorted(expected, self.test_sink.get_results())
+
     def test_metrics(self):
         ds = self.env.from_collection(
             [('ab', 'a', decimal.Decimal(1)),
@@ -1444,6 +1536,66 @@ class CommonDataStreamTests(PyFlinkTestCase):
         shuffle_node = exec_plan['nodes'][1]
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
+
+    def _assign_timestamps(self):
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return int(value[0])
+
+        self.env.get_config().disable_auto_generated_uids()
+
+        ds = self.env.from_collection([(1603708211000, 'hi'), (1603708224000, 'hello')],
+                                      type_info=Types.TUPLE([Types.LONG(), Types.STRING()]))
+        return ds.uid('source') \
+            .assign_timestamps_and_watermarks(
+                WatermarkStrategy.for_monotonous_timestamps()
+                .with_timestamp_assigner(MyTimestampAssigner()))
+
+    def _uids_and_hashes(self, name):
+        """The uid and the uid hash of each operator with the given name, in creation order."""
+        j_transformations = {}
+        for j_sink in self.env._j_stream_execution_environment.getTransformations():
+            for j_transformation in j_sink.getTransitivePredecessors():
+                j_transformations[j_transformation.getId()] = j_transformation
+        return [(j_transformation.getUid(), j_transformation.getUserProvidedNodeHash())
+                for _, j_transformation in sorted(j_transformations.items())
+                if j_transformation.getName() == name]
+
+    def test_timestamp_assigner_uid(self):
+        """A uid on the stream must cover the operators the timestamp assigner hides."""
+        self._assign_timestamps().uid('watermarks').add_sink(self.test_sink).uid('sink')
+
+        # Without a uid on every operator, this raises an IllegalStateException.
+        self.env.get_execution_plan()
+
+        # The uids identify the operators in a savepoint, so they must not change.
+        self.assertEqual(self._uids_and_hashes('Extract-Timestamp'),
+                         [('watermarks-extract-timestamp', None)])
+        self.assertEqual(self._uids_and_hashes('Timestamps/Watermarks'),
+                         [('watermarks-timestamps-and-watermarks', None)])
+        self.assertEqual(self._uids_and_hashes('Remove-Timestamp'), [('watermarks', None)])
+
+    def test_timestamp_assigner_uid_hash(self):
+        self._assign_timestamps().set_uid_hash('0123456789abcdef0123456789abcdef') \
+            .add_sink(self.test_sink).uid('sink')
+
+        self.env.get_execution_plan()
+
+        self.assertEqual(self._uids_and_hashes('Extract-Timestamp'),
+                         [(None, '2230997a8b7cde93ec413c77bd3b152a')])
+        self.assertEqual(self._uids_and_hashes('Timestamps/Watermarks'),
+                         [(None, 'f20476c038a8d6395d90768849f9d94b')])
+
+    def test_timestamp_assigner_uid_with_python_operators(self):
+        self._assign_timestamps().uid('watermarks') \
+            .map(lambda x: x, output_type=Types.TUPLE([Types.LONG(), Types.STRING()])) \
+            .uid('map') \
+            .key_by(lambda x: x[1], key_type=Types.STRING()) \
+            .reduce(lambda a, b: (a[0] + b[0], a[1])).uid('reduce') \
+            .add_sink(self.test_sink).uid('sink')
+
+        self.env.get_execution_plan()
 
     def test_keyed_stream_partitioning(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])

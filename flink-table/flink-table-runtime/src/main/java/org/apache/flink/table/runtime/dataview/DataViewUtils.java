@@ -25,6 +25,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.data.binary.LazyBinaryFormat;
 import org.apache.flink.table.dataview.NullSerializer;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
@@ -123,6 +124,13 @@ public final class DataViewUtils {
      */
     public static DataType adjustDataViews(
             DataType accumulatorDataType, boolean hasStateBackedDataViews) {
+        // ValueView is only supported as a top-level state entry of a ProcessTableFunction.
+        // This check catches it at any position (whole accumulator, field, or nested).
+        if (hasNested(accumulatorDataType.getLogicalType(), t -> isDataView(t, ValueView.class))) {
+            throw new ValidationException(
+                    "ValueView is not supported in accumulators of aggregating functions. "
+                            + "Use it as a top-level state entry of a ProcessTableFunction instead.");
+        }
         final Function<DataType, TypeSerializer<?>> serializer;
         if (hasStateBackedDataViews) {
             serializer = dataType -> NullSerializer.INSTANCE;

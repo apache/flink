@@ -43,6 +43,8 @@ interface ChannelStateSerializer {
 
     void writeData(DataOutputStream stream, Buffer... flinkBuffers) throws IOException;
 
+    void writeData(DataOutputStream stream, InputStream input, int length) throws IOException;
+
     void readHeader(InputStream stream) throws IOException;
 
     int readLength(InputStream stream) throws IOException;
@@ -162,6 +164,18 @@ class ChannelStateSerializerImpl implements ChannelStateSerializer {
         for (Buffer buffer : flinkBuffers) {
             ByteBuf nettyByteBuf = buffer.asByteBuf();
             nettyByteBuf.getBytes(nettyByteBuf.readerIndex(), stream, nettyByteBuf.readableBytes());
+        }
+    }
+
+    @Override
+    public void writeData(DataOutputStream stream, InputStream input, int length)
+            throws IOException {
+        Preconditions.checkArgument(length >= 0, "negative state size");
+        stream.writeInt(length);
+        long copied = input.transferTo(stream);
+        if (copied != length) {
+            throw new java.io.EOFException(
+                    "Unexpected EOF: expected " + length + " bytes of segment body, got " + copied);
         }
     }
 

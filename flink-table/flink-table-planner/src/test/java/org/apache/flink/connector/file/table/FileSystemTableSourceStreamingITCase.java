@@ -29,8 +29,10 @@ import org.apache.flink.util.CloseableIterator;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -76,10 +78,7 @@ class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
             }
 
             // Write second csv file out
-            Files.write(
-                    Paths.get(testPath.getPath(), "input_1.csv"),
-                    Arrays.asList("4", "5", "6"),
-                    StandardOpenOption.CREATE);
+            writeAtomically(testPath, "input_1.csv", Arrays.asList("4", "5", "6"));
 
             // Iterate over the next 3 rows
             for (int i = 0; i < 3; i++) {
@@ -138,10 +137,7 @@ class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
             }
 
             // Write second csv file out
-            Files.write(
-                    Paths.get(testPath0.getPath(), "input_1.csv"),
-                    Arrays.asList("7", "8", "9"),
-                    StandardOpenOption.CREATE);
+            writeAtomically(testPath0, "input_1.csv", Arrays.asList("7", "8", "9"));
 
             // Iterate over the next 3 rows
             for (int i = 0; i < 3; i++) {
@@ -150,5 +146,15 @@ class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
         }
 
         assertThat(actual).containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9);
+    }
+
+    /**
+     * Writes lines into dir/name atomically so the monitor never sees a partial file (FLINK-35756).
+     */
+    private static void writeAtomically(File dir, String name, List<String> lines)
+            throws IOException {
+        File tmp = File.createTempFile(".tmp", ".tmp", dir);
+        Files.write(tmp.toPath(), lines);
+        Files.move(tmp.toPath(), Paths.get(dir.getPath(), name), StandardCopyOption.ATOMIC_MOVE);
     }
 }

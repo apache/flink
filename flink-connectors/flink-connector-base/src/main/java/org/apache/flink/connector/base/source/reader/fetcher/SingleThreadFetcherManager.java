@@ -19,11 +19,15 @@
 package org.apache.flink.connector.base.source.reader.fetcher;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -78,6 +82,25 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
         super(splitReaderSupplier, configuration, splitFinishedHook);
     }
 
+    /**
+     * Creates a new SplitFetcherManager with a single I/O thread.
+     *
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     * @param configuration The configuration to create the fetcher manager.
+     * @param splitFinishedHook Hook for handling finished splits in split fetchers
+     * @param jobInfo The job this fetcher manager belongs to, or {@code null} if unknown. See
+     *     {@link SplitFetcherManager#SplitFetcherManager(Supplier, Configuration, Consumer,
+     *     JobInfo)}.
+     */
+    public SingleThreadFetcherManager(
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration configuration,
+            Consumer<Collection<String>> splitFinishedHook,
+            @Nullable JobInfo jobInfo) {
+        super(splitReaderSupplier, configuration, splitFinishedHook, jobInfo);
+    }
+
     @Override
     public void addSplits(List<SplitT> splitsToAdd) {
         SplitFetcher<E, SplitT> fetcher = getRunningFetcher();
@@ -100,6 +123,7 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
     }
 
     protected SplitFetcher<E, SplitT> getRunningFetcher() {
-        return fetchers.isEmpty() ? null : fetchers.values().iterator().next();
+        Iterator<SplitFetcher<E, SplitT>> iter = fetchers.values().iterator();
+        return iter.hasNext() ? iter.next() : null;
     }
 }

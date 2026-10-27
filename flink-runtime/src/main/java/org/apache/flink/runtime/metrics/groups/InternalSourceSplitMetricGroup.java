@@ -47,6 +47,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     private static final String WATERMARK = "watermark";
     private static final long SPLIT_NOT_STARTED = -1L;
     private long splitStartTime = SPLIT_NOT_STARTED;
+    private final MetricGroup splitMetricGroup;
     private final MetricGroup splitWatermarkMetricGroup;
     private final String splitId;
 
@@ -58,7 +59,8 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
         super(parentMetricGroup);
         this.clock = clock;
         this.splitId = splitId;
-        splitWatermarkMetricGroup = parentMetricGroup.addGroup(SPLIT, splitId).addGroup(WATERMARK);
+        splitMetricGroup = parentMetricGroup.addGroup(SPLIT, splitId);
+        splitWatermarkMetricGroup = splitMetricGroup.addGroup(WATERMARK);
         pausedTimePerSecond =
                 splitWatermarkMetricGroup.gauge(
                         MetricNames.SPLIT_PAUSED_TIME, new TimerGauge(clock));
@@ -187,15 +189,20 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     }
 
     public void onSplitFinished() {
-        if (splitWatermarkMetricGroup instanceof AbstractMetricGroup) {
-            ((AbstractMetricGroup) splitWatermarkMetricGroup).close();
+        if (splitMetricGroup instanceof AbstractMetricGroup) {
+            ((AbstractMetricGroup<?>) splitMetricGroup).close();
         } else {
-            if (splitWatermarkMetricGroup != null) {
+            if (splitMetricGroup != null) {
                 LOG.warn(
-                        "Split watermark metric group can not be closed, expecting an instance of AbstractMetricGroup but got: ",
-                        splitWatermarkMetricGroup.getClass().getName());
+                        "Split metric group can not be closed, expecting an instance of AbstractMetricGroup but got: {}",
+                        splitMetricGroup.getClass().getName());
             }
         }
+    }
+
+    @VisibleForTesting
+    public MetricGroup getSplitMetricGroup() {
+        return splitMetricGroup;
     }
 
     @VisibleForTesting

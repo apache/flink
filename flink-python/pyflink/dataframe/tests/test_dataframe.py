@@ -1,0 +1,4907 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+import array
+import decimal
+import inspect
+import math
+import os
+import pandas as pd
+import pyarrow as pa
+import unittest
+from datetime import date, datetime, time, timedelta, timezone
+from py4j.protocol import Py4JJavaError
+from typing import NamedTuple
+from unittest.mock import Mock, patch
+
+import pyflink.dataframe as pf
+from pyflink.common import Row
+from pyflink.dataframe.dataframe import (
+    _resolve_window_time_column,
+    _to_interval_expression,
+)
+from pyflink.dataframe.datatype import DataType
+from pyflink.java_gateway import get_gateway
+from pyflink.table import (
+    DataTypes as TableDataTypes,
+    EnvironmentSettings,
+    Table,
+    TableEnvironment,
+    TableSchema,
+)
+from pyflink.table.expression import Expression
+from pyflink.table.expressions import is_nan, is_not_nan
+from pyflink.table.types import LocalZonedTimestampType, TimestampType
+from pyflink.testing.test_case_utils import (
+    PyFlinkDataFrameUTTestCase,
+    PyFlinkITTestCase,
+    PyFlinkStreamDataFrameTestCase,
+)
+from pyflink.util.exceptions import TableException
+
+
+class _Point(NamedTuple):
+    x: int
+    y: str
+
+
+class _CloseableIterator:
+    def __init__(self, values=None, error=None):
+        self._values = iter(values or [])
+        self._error = error
+        self.closed = False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._error is not None:
+            raise self._error
+        return next(self._values)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.closed = True
+
+
+class _TableResult:
+    def __init__(self, iterator):
+        self._iterator = iterator
+
+    def collect(self):
+        return self._iterator
+
+
+class _Table:
+    def __init__(self, iterator):
+        self._iterator = iterator
+
+    def execute(self):
+        return _TableResult(self._iterator)
+
+
+class _PandasTable:
+    def __init__(self, result=None, error=None):
+        self._result = result
+        self._error = error
+
+    def to_pandas(self):
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+
+class DataFrameCollectTests(unittest.TestCase):
+    def test_collect_returns_all_rows_and_closes_iterator(self):
+        iterator = _CloseableIterator([Row(1, "Alice")])
+        dataframe = pf.DataFrame(_Table(iterator))
+
+        self.assertEqual(dataframe.collect(), [Row(1, "Alice")])
+        self.assertTrue(iterator.closed)
+
+    def test_collect_closes_iterator_when_iteration_fails(self):
+        iterator = _CloseableIterator(error=RuntimeError("iteration failed"))
+        dataframe = pf.DataFrame(_Table(iterator))
+
+        with self.assertRaisesRegex(RuntimeError, "iteration failed"):
+            dataframe.collect()
+
+        self.assertTrue(iterator.closed)
+
+
+class DataFrameConversionTests(unittest.TestCase):
+    def test_to_table_returns_underlying_table(self):
+        table = _PandasTable()
+
+        self.assertIs(pf.DataFrame(table).to_table(), table)
+
+    def test_to_pandas_delegates_to_underlying_table(self):
+        expected = pd.DataFrame({"id": [1]})
+
+        self.assertIs(pf.DataFrame(_PandasTable(expected)).to_pandas(), expected)
+
+    def test_to_pandas_propagates_errors(self):
+        with self.assertRaisesRegex(RuntimeError, "conversion failed"):
+            pf.DataFrame(
+                _PandasTable(error=RuntimeError("conversion failed"))
+            ).to_pandas()
+
+
+class DataFrameCompositionTests(unittest.TestCase):
+    def test_pipe_forwards_dataframe_arguments_and_return_value(self):
+        dataframe = pf.DataFrame(object())
+        expected = object()
+
+        def transform(current, value, *, label):
+            self.assertIs(current, dataframe)
+            self.assertEqual(value, 42)
+            self.assertEqual(label, "answer")
+            return expected
+
+        self.assertIs(dataframe.pipe(transform, 42, label="answer"), expected)
+
+    def test_aliases_reference_the_original_methods(self):
+        self.assertIs(pf.DataFrame.where, pf.DataFrame.filter)
+        self.assertIs(pf.DataFrame.drop, pf.DataFrame.drop_columns)
+        self.assertIs(pf.DataFrame.rename, pf.DataFrame.rename_columns)
+
+
+class DataFrameSlicingTests(unittest.TestCase):
+    def setUp(self):
+        self.table = Mock()
+        self.dataframe = pf.DataFrame(self.table)
+
+    def test_limit_is_lazy_and_returns_new_dataframe(self):
+        limited_table = Mock()
+        self.table.fetch.return_value = limited_table
+
+        result = self.dataframe.limit(3)
+
+        self.assertIsInstance(result, pf.DataFrame)
+        self.assertIs(result.to_table(), limited_table)
+        self.assertIs(self.dataframe.to_table(), self.table)
+        self.table.fetch.assert_called_once_with(3)
+        self.table.execute.assert_not_called()
+
+    def test_offset_is_lazy_and_returns_new_dataframe(self):
+        offset_table = Mock()
+        self.table.offset.return_value = offset_table
+
+        result = self.dataframe.offset(2)
+
+        self.assertIsInstance(result, pf.DataFrame)
+        self.assertIs(result.to_table(), offset_table)
+        self.assertIs(self.dataframe.to_table(), self.table)
+        self.table.offset.assert_called_once_with(2)
+        self.table.execute.assert_not_called()
+
+    def test_offset_and_limit_compose(self):
+        offset_table = Mock()
+        limited_table = Mock()
+        self.table.offset.return_value = offset_table
+        offset_table.fetch.return_value = limited_table
+
+        result = self.dataframe.offset(2).limit(3)
+
+        self.assertIs(result.to_table(), limited_table)
+        self.table.offset.assert_called_once_with(2)
+        offset_table.fetch.assert_called_once_with(3)
+        self.table.execute.assert_not_called()
+
+    def test_head_delegates_to_limit(self):
+        expected = pf.DataFrame(Mock())
+
+        with patch.object(pf.DataFrame, "limit", autospec=True) as limit:
+            limit.return_value = expected
+
+            result = self.dataframe.head(3)
+
+        self.assertIs(result, expected)
+        limit.assert_called_once_with(self.dataframe, 3)
+        self.table.execute.assert_not_called()
+
+    def test_zero_is_supported(self):
+        limited_table = Mock()
+        offset_table = Mock()
+        self.table.fetch.return_value = limited_table
+        self.table.offset.return_value = offset_table
+
+        self.assertIs(self.dataframe.limit(0).to_table(), limited_table)
+        self.assertIs(self.dataframe.head(0).to_table(), limited_table)
+        self.assertIs(self.dataframe.offset(0).to_table(), offset_table)
+
+        self.assertEqual(self.table.fetch.call_count, 2)
+        self.table.fetch.assert_called_with(0)
+        self.table.offset.assert_called_once_with(0)
+        self.table.execute.assert_not_called()
+
+    def test_rejects_negative_values(self):
+        for method_name in ("limit", "offset", "head"):
+            with self.subTest(method=method_name):
+                with self.assertRaisesRegex(ValueError, "n must be at least 0"):
+                    getattr(self.dataframe, method_name)(-1)
+
+        self.table.fetch.assert_not_called()
+        self.table.offset.assert_not_called()
+        self.table.execute.assert_not_called()
+
+    def test_rejects_unsupported_types(self):
+        for method_name in ("limit", "offset", "head"):
+            for value in (True, 1.5, "1", None):
+                with self.subTest(method=method_name, value=value):
+                    with self.assertRaisesRegex(TypeError, "n must be an integer"):
+                        getattr(self.dataframe, method_name)(value)
+
+        self.table.fetch.assert_not_called()
+        self.table.offset.assert_not_called()
+        self.table.execute.assert_not_called()
+
+
+class DataFrameSetOperationTests(PyFlinkDataFrameUTTestCase):
+    METHODS = ("union", "union_all", "intersect", "intersect_all", "minus", "minus_all")
+
+    def setUp(self):
+        super().setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        pf.set_table_environment(self.t_env)
+
+    def test_set_operations_are_lazy_and_preserve_inputs(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+        right = pf.from_table(self.t_env.sql_query("SELECT 2 AS id"))
+        left_table, right_table = left.to_table(), right.to_table()
+
+        with patch.object(type(left_table), "execute") as execute:
+            for method in self.METHODS:
+                with self.subTest(method=method):
+                    result = getattr(left, method)(right)
+                    self.assertIsInstance(result, pf.DataFrame)
+                    self.assertIsNot(result, left)
+                    self.assertIsNot(result, right)
+                    self.assertIs(result.to_table()._t_env, self.t_env)
+                    self.assertIs(left.to_table(), left_table)
+                    self.assertIs(right.to_table(), right_table)
+            execute.assert_not_called()
+
+    def test_set_operations_match_columns_by_position(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id, 'a' AS name"))
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT 2 AS other_id, 'b' AS other_name")
+        )
+
+        for method in self.METHODS:
+            with self.subTest(method=method):
+                result = getattr(left, method)(right)
+                self.assert_dataframe_schema(
+                    result, ["id", "name"],
+                    [TableDataTypes.INT().not_null(), TableDataTypes.CHAR(1).not_null()],
+                )
+
+    def test_set_operations_reject_non_dataframe_arguments(self):
+        dataframe = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+
+        for method in self.METHODS:
+            for other in (None, 1, "id", [], dataframe.to_table()):
+                with self.subTest(method=method, other=other):
+                    with self.assertRaisesRegex(TypeError, "other must be a DataFrame"):
+                        getattr(dataframe, method)(other)
+
+    def test_set_operations_reject_incompatible_schemas(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+        others = [
+            pf.from_table(self.t_env.sql_query("SELECT 1 AS id, 2 AS extra")),
+            pf.from_table(self.t_env.sql_query("SELECT ROW(1) AS id")),
+        ]
+
+        for method in self.METHODS:
+            for other in others:
+                with self.subTest(method=method, columns=other.columns):
+                    with self.assertRaisesRegex(Py4JJavaError, "ValidationException"):
+                        getattr(left, method)(other)
+
+    def test_set_operations_reject_different_table_environments(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        right = pf.from_table(other_environment.sql_query("SELECT 2 AS id"))
+
+        for method in self.METHODS:
+            with self.subTest(method=method):
+                with self.assertRaisesRegex(Py4JJavaError, "same TableEnvironment"):
+                    getattr(left, method)(right)
+
+    def test_set_operations_preserve_streaming_restrictions(self):
+        streaming_environment = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        left = pf.from_table(streaming_environment.sql_query("SELECT 1 AS id"))
+        right = pf.from_table(streaming_environment.sql_query("SELECT 2 AS id"))
+
+        self.assert_dataframe_schema(left.union_all(right), ["id"])
+        for method in ("union", "intersect", "intersect_all", "minus", "minus_all"):
+            with self.subTest(method=method):
+                with self.assertRaisesRegex(Py4JJavaError, "currently not supported"):
+                    getattr(left, method)(right)
+
+
+class DataFrameExplodeTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.df = pf.from_table(self.t_env.sql_query(
+            "SELECT 1 AS id, ARRAY[1, 2] AS items, 'A' AS label"))
+
+    def test_explode_is_lazy_and_preserves_input(self):
+        table = self.df.to_table()
+        with patch.object(Table, "execute") as execute:
+            result = self.df.explode("items")
+            execute.assert_not_called()
+        self.assertIsNot(result, self.df)
+        self.assertIs(result.to_table()._t_env, self.t_env)
+        self.assertIs(self.df.to_table(), table)
+        self.assert_dataframe_schema(self.df, ["id", "items", "label"])
+        self.assert_dataframe_schema(result, ["id", "items", "label"], [
+            TableDataTypes.INT().not_null(), TableDataTypes.INT(),
+            TableDataTypes.CHAR(1).not_null(),
+        ])
+
+    def test_explode_supports_column_expressions_and_aliases(self):
+        for column, output, expected in [
+            ("items", None, "items"),
+            (pf.col("items"), None, "items"),
+            (self.df["items"], "item", "item"),
+            (pf.col("items").alias("renamed"), None, "renamed"),
+            ("items", ["item"], "item"),
+        ]:
+            with self.subTest(column=str(column), output=output):
+                self.assert_dataframe_schema(
+                    self.df.explode(column, output_column=output), ["id", expected, "label"])
+
+    def test_explode_supports_computed_collection_expressions(self):
+        from pyflink.table.expressions import array
+
+        result = self.df.explode(
+            array(pf.col("id"), pf.lit(2)), output_column="value")
+        self.assert_dataframe_schema(result, ["id", "items", "label", "value"])
+
+    def test_explode_quotes_identifiers(self):
+        df = pf.from_table(self.t_env.sql_query(
+            "SELECT 1 AS `select`, ARRAY[2] AS `a``b`, 3 AS `value`"))
+
+        result = df.explode(pf.col("a`b"), output_column="value` name")
+
+        self.assert_dataframe_schema(result, ["select", "value` name", "value"])
+
+    def test_explode_resolves_collection_output_types(self):
+        item_type = TableDataTypes.ROW([
+            TableDataTypes.FIELD("number", TableDataTypes.INT()),
+            TableDataTypes.FIELD("text", TableDataTypes.STRING()),
+        ]).not_null()
+        single_field_item_type = TableDataTypes.ROW([
+            TableDataTypes.FIELD("number", TableDataTypes.INT()),
+        ]).not_null()
+        for sql, output, ignore, names, types in [
+            ("SELECT 1 AS id, MAP['a', 1] AS items, 'x' AS label",
+             ["key", "value"], False, ["id", "key", "value", "label"],
+             [TableDataTypes.INT().not_null(), TableDataTypes.CHAR(1),
+              TableDataTypes.INT(), TableDataTypes.CHAR(1).not_null()]),
+            ("SELECT ARRAY[CAST(ROW(1, 'a') AS ROW<number INT, text STRING>)] AS items",
+             "item", True, ["item"], [item_type]),
+            ("SELECT ARRAY[CAST(ROW(1) AS ROW<number INT>)] AS items",
+             None, True, ["items"], [single_field_item_type]),
+            ("SELECT MULTISET[1, 1, 2] AS items", None, False, ["items"],
+             [TableDataTypes.INT()]),
+        ]:
+            with self.subTest(sql=sql):
+                df = pf.from_table(self.t_env.sql_query(sql))
+                self.assert_dataframe_schema(
+                    df.explode(
+                        "items",
+                        output_column=output,
+                        ignore_empty_and_null=ignore,
+                    ),
+                    names,
+                    types,
+                )
+
+    def test_explode_rejects_invalid_arguments(self):
+        for column in [None, 1, ["items", 1]]:
+            with self.subTest(column=column):
+                with self.assertRaisesRegex(TypeError, "column"):
+                    self.df.explode(column)
+        for flag in [None, 1, "true"]:
+            with self.subTest(flag=flag):
+                with self.assertRaisesRegex(TypeError, "ignore_empty_and_null"):
+                    self.df.explode("items", ignore_empty_and_null=flag)
+        for output in [1, ("item",), [1]]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(TypeError, "output_column"):
+                    self.df.explode("items", output_column=output)
+        with self.assertRaisesRegex(TypeError, "positional argument"):
+            self.df.explode("items", "item")
+
+    def test_explode_rejects_missing_and_non_collection_columns(self):
+        for column in ["missing", pf.col("missing")]:
+            with self.subTest(column=str(column)):
+                with self.assertRaisesRegex(Py4JJavaError, "missing"):
+                    self.df.explode(column)
+        with self.assertRaisesRegex(TypeError, "ARRAY, MAP, or MULTISET"):
+            self.df.explode("id")
+        with self.assertRaisesRegex(ValueError, "single column"):
+            self.df.explode(pf.col("*"))
+
+    def test_explode_rejects_aggregate_expressions(self):
+        df = pf.from_table(self.t_env.sql_query("SELECT ARRAY[9] AS items, 1 AS id"))
+        with self.assertRaisesRegex(ValueError, "row-wise"):
+            df.explode(pf.col("id").collect, output_column="value")
+
+    def test_explode_rejects_invalid_output_names(self):
+        for output in [[], ["a", "b"], "", [""]]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(ValueError, "output_column"):
+                    self.df.explode("items", output_column=output)
+        with self.assertRaisesRegex(ValueError, "conflict"):
+            self.df.explode("items", output_column="id")
+        df = pf.from_table(self.t_env.sql_query("SELECT MAP['a', 1] AS items"))
+        for output in [None, "item", ["item"], ["item", "item"]]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(ValueError, "output_column"):
+                    df.explode("items", output_column=output)
+        df = pf.from_table(self.t_env.sql_query(
+            "SELECT ARRAY[CAST(ROW(1, 'a') AS ROW<number INT, text STRING>)] AS items"))
+        with self.assertRaisesRegex(ValueError, "output_column"):
+            df.explode("items", output_column=["number", "text"])
+
+
+class DataFrameMultiColumnExplodeTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.df = pf.from_table(self.t_env.sql_query(
+            "SELECT 1 AS id, ARRAY[1, 2] AS items, 'x' AS label, ARRAY['a', 'b'] AS tags"))
+
+    def test_explode_is_lazy_and_replaces_columns_in_place(self):
+        table = self.df.to_table()
+        with patch.object(Table, "execute") as execute:
+            result = self.df.explode(
+                [pf.col("tags").alias("renamed"), "items"],
+                output_column=["tag", "item"])
+            execute.assert_not_called()
+        self.assertIs(self.df.to_table(), table)
+        self.assertIs(result.to_table()._t_env, self.t_env)
+        self.assert_dataframe_schema(result, ["id", "item", "label", "tag"])
+
+    def test_explode_defaults_and_computed_expression(self):
+        from pyflink.table.expressions import array
+
+        self.assert_dataframe_schema(
+            self.df.explode(["items", "tags"]), ["id", "items", "label", "tags"])
+        self.assert_dataframe_schema(
+            self.df.explode([array(pf.col("id"), pf.lit(3)).alias("pair"), "tags"]),
+            ["id", "items", "label", "tags", "pair"])
+        self.assert_dataframe_schema(self.df.explode(["items"]), self.df.columns)
+        mapping = pf.from_table(self.t_env.sql_query("SELECT MAP['a', 1] AS items"))
+        self.assert_dataframe_schema(
+            mapping.explode(["items"], output_column=["key", "value"]), ["key", "value"])
+
+    def test_explode_quotes_names_and_preserves_row_type(self):
+        df = pf.from_table(self.t_env.sql_query(
+            "SELECT ARRAY[CAST(NULL AS ROW<n INT, s STRING>)] AS `a``b`, "
+            "ARRAY[1] AS __pf_explode_ordinality"))
+        result = df.explode(
+            ["a`b", "__pf_explode_ordinality"], output_column=["select", "new` name"])
+        self.assert_dataframe_schema(result, ["select", "new` name"], [
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("n", TableDataTypes.INT()),
+                TableDataTypes.FIELD("s", TableDataTypes.STRING()),
+            ]), TableDataTypes.INT(),
+        ])
+
+    def test_explode_rejects_invalid_inputs(self):
+        for columns, error, message in [
+            ([], ValueError, "empty"),
+            (["items", "id"], TypeError, "ARRAY"),
+            (["items", "items"], ValueError, "duplicate"),
+            (["items", pf.col("items").alias("other")], ValueError, "duplicate"),
+            (["items", pf.col("*")], ValueError, "single column"),
+            (["items", pf.col("id").collect], ValueError, "row-wise"),
+        ]:
+            with self.subTest(columns=str(columns)):
+                with self.assertRaisesRegex(error, message):
+                    self.df.explode(columns)
+        for collection in ["MAP['a', 1]", "MULTISET[1, 2]"]:
+            df = pf.from_table(self.t_env.sql_query(
+                "SELECT ARRAY[1] AS a, %s AS b" % collection))
+            with self.assertRaisesRegex(TypeError, "ARRAY"):
+                df.explode(["a", "b"])
+
+    def test_explode_rejects_invalid_names_and_flags(self):
+        for output, error in [
+            ([], ValueError), (["item"], ValueError), ("item", ValueError),
+            (["item", "item"], ValueError), (["item", ""], ValueError),
+            (["item", "id"], ValueError), (["item", 1], TypeError),
+        ]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(error, "output_column"):
+                    self.df.explode(["items", "tags"], output_column=output)
+        with self.assertRaisesRegex(TypeError, "ignore_empty_and_null"):
+            self.df.explode(["items", "tags"], ignore_empty_and_null=1)
+
+
+class DataFrameSortingTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(2, "b"), (1, "a")],
+            schema=["id", "name"],
+        )
+
+    def test_sort_is_lazy_and_returns_new_dataframe(self):
+        result = self.dataframe.sort("id")
+
+        self.assertIsInstance(result, pf.DataFrame)
+        self.assertIsNot(result, self.dataframe)
+        self.assertIsNot(result.to_table(), self.dataframe.to_table())
+        self.assertEqual(
+            result.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[asc(id)]",
+        )
+
+    def test_sort_supports_descending_and_multiple_keys(self):
+        result = self.dataframe.sort(["id", "name"], descending=[True, False])
+        all_descending = self.dataframe.sort(["id", "name"], descending=True)
+
+        self.assertEqual(
+            result.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(id), asc(name)]",
+        )
+        self.assertEqual(
+            all_descending.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(id), desc(name)]",
+        )
+
+    def test_sort_supports_expression_keys(self):
+        result = self.dataframe.sort(pf.col("id") + 1, descending=True)
+
+        self.assertEqual(
+            result.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(plus(id, 1))]",
+        )
+
+    def test_sort_with_null_ordering_preserves_temporal_sort(self):
+        self.t_env.execute_sql(
+            """
+            CREATE TEMPORARY TABLE sort_source (
+                id INT,
+                ts TIMESTAMP(3),
+                WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+            ) WITH ('connector' = 'datagen', 'number-of-rows' = '1')
+            """
+        )
+        dataframe = pf.from_table(self.t_env.from_path("sort_source"))
+
+        plan = dataframe.sort("ts", nulls_first=True).to_table().explain()
+
+        self.assertIn("LogicalSort(sort0=[$1], dir0=[ASC-nulls-first])", plan)
+        self.assertIn("TemporalSort(orderBy=[ts ASC])", plan)
+
+    def test_sort_rejects_ordered_expressions(self):
+        for expression in (
+            pf.col("id").asc,
+            pf.col("id").desc,
+            pf.col("id").asc + 1,
+        ):
+            with self.subTest(expression=str(expression)):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "expressions must not specify asc or desc",
+                ):
+                    self.dataframe.sort(expression)
+
+    def test_sort_rejects_invalid_keys_and_options(self):
+        with self.assertRaisesRegex(ValueError, "by must not be empty"):
+            self.dataframe.sort([])
+        with self.assertRaisesRegex(ValueError, "by column 'missing' does not exist"):
+            self.dataframe.sort("missing")
+        with self.assertRaisesRegex(TypeError, "by must be a string, an expression"):
+            self.dataframe.sort(1)
+        with self.assertRaisesRegex(TypeError, "by must be a string, an expression"):
+            self.dataframe.sort(None)
+
+        with self.assertRaisesRegex(TypeError, "descending must be a boolean"):
+            self.dataframe.sort("id", descending=1)
+        with self.assertRaisesRegex(TypeError, "descending must be a boolean"):
+            self.dataframe.sort(["id", "name"], descending=[True, 1])
+        with self.assertRaisesRegex(
+            ValueError, "descending must have the same length as the sort keys"
+        ):
+            self.dataframe.sort(["id", "name"], descending=[True])
+        with self.assertRaisesRegex(TypeError, "nulls_first must be a boolean"):
+            self.dataframe.sort("id", nulls_first=1)
+        with self.assertRaisesRegex(TypeError, "nulls_first must be a boolean"):
+            self.dataframe.sort(["id", "name"], nulls_first=[True, 1])
+        with self.assertRaisesRegex(
+            ValueError, "nulls_first must have the same length as the sort keys"
+        ):
+            self.dataframe.sort(["id", "name"], nulls_first=[True])
+
+
+class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
+    def test_from_dict_uses_insertion_order_without_schema(self):
+        dataframe = pf.from_dict({"name": ["Alice"], "id": [1]})
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["name", "id"],
+            [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
+        )
+
+    def test_from_dict_respects_explicit_schema_order_and_subset(self):
+        dataframe = pf.from_dict(
+            {
+                "name": ["Alice"],
+                "ignored": ["x"],
+                "id": [1],
+            },
+            schema=["id", "name"],
+        )
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_records_accepts_list_records(self):
+        dataframe = pf.from_records(
+            [[1, "Alice"], [2, "Bob"]],
+            schema=["id", "name"],
+        )
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_records_accepts_general_sequence_records(self):
+        dataframe = pf.from_records(
+            [range(2), range(2, 4)],
+            schema=["left", "right"],
+        )
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["left", "right"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT()],
+        )
+
+    def test_from_records_infers_mapping_schema(self):
+        dataframe = pf.from_records(
+            [{"name": "Alice", "id": 1}, {"name": "Bob", "id": 2}]
+        )
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["name", "id"],
+            [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
+        )
+
+    def test_from_records_selects_mapping_fields_with_explicit_schema(self):
+        dataframe = pf.from_records(
+            [
+                {"name": "Alice", "id": 1, "ignored": "x"},
+                {"name": "Bob", "id": 2, "ignored": "y"},
+            ],
+            schema=["id", "name"],
+        )
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_records_infers_named_tuple_schema(self):
+        dataframe = pf.from_records([_Point(1, "a"), _Point(2, "b")])
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["x", "y"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_records_selects_named_tuple_fields_with_explicit_schema(self):
+        dataframe = pf.from_records(
+            [_Point(1, "a"), _Point(2, "b")],
+            schema=["y", "x"],
+        )
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["y", "x"],
+            [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
+        )
+
+    def test_from_pandas_and_arrow_rename_columns_positionally(self):
+        inputs = [
+            pd.DataFrame(
+                {"original_id": [1], "original_ts": [datetime(2026, 1, 1)]}
+            ),
+            pa.table(
+                {
+                    "original_id": pa.array([1], type=pa.int64()),
+                    "original_ts": pa.array(
+                        [datetime(2026, 1, 1)], type=pa.timestamp("us")
+                    ),
+                }
+            ),
+        ]
+        for creator, data in zip((pf.from_pandas, pf.from_arrow), inputs):
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data, schema=["id", "ts"])
+                self.assert_dataframe_schema(dataframe, ["id", "ts"])
+
+        duplicate_pdf = pd.DataFrame(
+            [[1, "Alice"], [2, "Bob"]], columns=["value", "value"]
+        )
+        dataframe = pf.from_pandas(duplicate_pdf, schema=["id", "name"])
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_pandas_normalizes_inferred_column_names(self):
+        dataframe = pf.from_pandas(pd.DataFrame([[1, 2]]))
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["0", "1"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT()],
+        )
+
+    def test_empty_pandas_and_arrow_inputs_preserve_inferred_types(self):
+        inputs = [
+            (
+                pf.from_pandas,
+                pd.DataFrame({"id": pd.Series([], dtype="int64")}),
+            ),
+            (
+                pf.from_arrow,
+                pa.table({"id": pa.array([], type=pa.int64())}),
+            ),
+        ]
+        for creator, data in inputs:
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data)
+                self.assert_dataframe_schema(
+                    dataframe,
+                    ["id"],
+                    [TableDataTypes.BIGINT()],
+                )
+
+    def test_from_pandas_schema_inference(self):
+        pdf = pd.DataFrame(
+            {
+                "original_id": [1.0, None],
+                "original_name": ["Alice", None],
+                "original_ts": pd.Series(
+                    pd.to_datetime(
+                        ["2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"]
+                    )
+                ),
+            }
+        )
+        names = ["id", "name", "ts"]
+
+        dataframe_schema = (
+            pf.from_pandas(pdf, schema=names).to_table().get_resolved_schema()
+        )
+        table_schema = self.t_env.from_pandas(
+            pdf, schema=names
+        ).get_resolved_schema()
+
+        self.assertEqual(
+            table_schema.get_column_names(), dataframe_schema.get_column_names()
+        )
+        self.assertEqual(
+            table_schema.get_column_data_types(),
+            dataframe_schema.get_column_data_types(),
+        )
+
+        empty_pdf = pd.DataFrame(
+            {
+                "original_id": pd.Series([], dtype="float64"),
+                "original_name": pd.Series([], dtype="string"),
+                "original_ts": pd.Series([], dtype="datetime64[ns, UTC]"),
+            }
+        )
+        empty_schema = pf.from_pandas(
+            empty_pdf, schema=names
+        ).to_table().get_resolved_schema()
+        self.assertEqual(
+            dataframe_schema.get_column_names(), empty_schema.get_column_names()
+        )
+        self.assertEqual(
+            dataframe_schema.get_column_data_types(),
+            empty_schema.get_column_data_types(),
+        )
+
+    def test_timezone_aware_creation_supports_java_timezone_ids(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("SystemV/PST8PDT")
+        try:
+            dataframe = pf.from_arrow(
+                pa.table({
+                    "ts": pa.array([0], type=pa.timestamp("ms", tz="UTC")),
+                })
+            )
+            self.assert_dataframe_schema(
+                dataframe,
+                ["ts"],
+                [TableDataTypes.TIMESTAMP(3)],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_creators_attach_and_normalize_watermarks(self):
+        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
+        creators = [
+            (
+                lambda: pf.from_dict(
+                    {"ts": [timestamp]},
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_records(
+                    [{"ts": timestamp}],
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_pandas(
+                    pd.DataFrame(
+                        {
+                            "ts": pd.Series(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                dtype="datetime64[us, UTC]",
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table(
+                        {
+                            "ts": pa.array(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                type=pa.timestamp("us", tz="UTC"),
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+        ]
+        for creator, expected_type in creators:
+            with self.subTest(creator=creator):
+                resolved_schema = creator().to_table().get_resolved_schema()
+                timestamp_type = resolved_schema.get_column_data_types()[0]
+                self.assertIsInstance(timestamp_type, expected_type)
+                self.assertEqual(timestamp_type.precision, 3)
+                watermark_specs = resolved_schema.get_watermark_specs()
+                self.assertEqual(len(watermark_specs), 1)
+                self.assertEqual(watermark_specs[0].get_rowtime_attribute(), "ts")
+
+    def test_watermark_requires_existing_timestamp_column(self):
+        invalid_watermarks = [
+            (("missing", "ts"), "watermark column 'missing' is not present"),
+            (("id", "id"), "watermark column 'id' must have a timestamp type"),
+        ]
+        for watermark, message in invalid_watermarks:
+            with self.subTest(watermark=watermark):
+                with self.assertRaisesRegex(ValueError, message):
+                    pf.from_records(
+                        [{"id": 1, "ts": datetime(2026, 1, 1)}],
+                        watermark=watermark,
+                    )
+
+    def test_from_table_and_to_table_preserve_identity(self):
+        table = self.t_env.from_elements([(1,)], ["id"])
+
+        self.assertIs(pf.from_table(table).to_table(), table)
+
+
+class DataFrameSelectTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice"), (2, "Bob")],
+            schema=["id", "name"],
+        )
+
+    def test_select_accepts_names_expressions_lists_and_named_projections(self):
+        result = self.dataframe.select(
+            ["name"],
+            pf.col("id"),
+            doubled=pf.col("id") * 2,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            ["name", "id", "doubled"],
+            [
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+            ],
+        )
+
+    def test_select_accepts_tuple_column_group(self):
+        result = self.dataframe.select(("name", "id"))
+
+        self.assert_dataframe_schema(
+            result,
+            ["name", "id"],
+            [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
+        )
+
+    def test_select_rejects_non_string_column(self):
+        with self.assertRaisesRegex(TypeError, "columns must be strings"):
+            self.dataframe.select(42)
+
+    def test_select_rejects_non_expression_projection(self):
+        with self.assertRaisesRegex(TypeError, "projections must be expressions"):
+            self.dataframe.select(answer=42)
+
+
+class DataFrameWithColumnTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice", 30)],
+            schema=["id", "name", "age"],
+        )
+
+    def test_with_column_adds_callable_result(self):
+        result = self.dataframe.with_column(
+            "age_next_year",
+            lambda current: current["age"] + 1,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            ["id", "name", "age", "age_next_year"],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+            ],
+        )
+
+    def test_with_column_replaces_existing_column(self):
+        result = self.dataframe.with_column("age", pf.col("age") + 1)
+
+        self.assert_dataframe_schema(
+            result,
+            ["id", "name", "age"],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+            ],
+        )
+
+    def test_with_column_rejects_non_expression(self):
+        with self.assertRaisesRegex(TypeError, "expr must be an Expression"):
+            self.dataframe.with_column("answer", 42)
+
+    def test_with_column_rejects_callable_returning_non_expression(self):
+        with self.assertRaisesRegex(TypeError, "expr must be an Expression"):
+            self.dataframe.with_column("answer", lambda df: 42)
+
+    def test_with_column_rejects_expression_class(self):
+        with self.assertRaisesRegex(TypeError, "expr must be an Expression"):
+            self.dataframe.with_column("answer", Expression)
+
+    def test_with_column_rejects_non_string_name(self):
+        with self.assertRaisesRegex(TypeError, "name must be a string"):
+            self.dataframe.with_column(42, object())
+
+    def test_with_columns_adds_and_replaces_positional_and_named_columns(self):
+        result = self.dataframe.with_columns(
+            (pf.col("id") + 1).alias("id"),
+            (pf.col("age") + 2).alias("age_in_two_years"),
+            age_next_year=pf.col("age") + 1,
+            doubled_age=pf.col("age") * 2,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            [
+                "id",
+                "name",
+                "age",
+                "age_in_two_years",
+                "age_next_year",
+                "doubled_age",
+            ],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+            ],
+        )
+
+    def test_with_columns_rejects_non_expressions(self):
+        invalid_calls = [
+            ("positional", lambda: self.dataframe.with_columns(42), "exprs"),
+            (
+                "named",
+                lambda: self.dataframe.with_columns(answer=42),
+                "named_exprs",
+            ),
+        ]
+        for name, invalid_call, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(TypeError, message):
+                    invalid_call()
+
+
+class DataFrameDropColumnsTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice", 30)],
+            schema=["id", "name", "age"],
+        )
+
+    def test_drop_alias_accepts_names_and_expressions(self):
+        result = self.dataframe.drop("name", pf.col("age"))
+
+        self.assert_dataframe_schema(
+            result,
+            ["id"],
+            [TableDataTypes.BIGINT()],
+        )
+
+    def test_drop_columns_handles_missing_names_and_no_op(self):
+        with self.assertRaisesRegex(ValueError, "Column 'missing' not found"):
+            self.dataframe.drop_columns("missing")
+
+        self.assertIs(
+            self.dataframe.drop_columns("missing", strict=False),
+            self.dataframe,
+        )
+        self.assertIs(self.dataframe.drop_columns(), self.dataframe)
+
+    def test_drop_columns_rejects_invalid_arguments(self):
+        invalid_calls = [
+            (
+                "column",
+                lambda: self.dataframe.drop_columns(42),
+                "columns must be strings or expressions",
+            ),
+            (
+                "strict",
+                lambda: self.dataframe.drop_columns("id", strict="yes"),
+                "strict must be a boolean",
+            ),
+        ]
+        for name, invalid_call, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(TypeError, message):
+                    invalid_call()
+
+
+class DataFrameRenameColumnsTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice", 30)],
+            schema=["id", "name", "age"],
+        )
+
+    def test_rename_columns_supports_all_input_forms(self):
+        cases = [
+            (
+                "mapping_alias",
+                lambda: self.dataframe.rename(
+                    {"id": "identifier", "missing": "ignored"}
+                ),
+                ["identifier", "name", "age"],
+            ),
+            (
+                "mapping_keyword",
+                lambda: self.dataframe.rename_columns(
+                    mapping={"name": "customer"}
+                ),
+                ["id", "customer", "age"],
+            ),
+            (
+                "callable",
+                lambda: self.dataframe.rename_columns(str.upper),
+                ["ID", "NAME", "AGE"],
+            ),
+            (
+                "pairs",
+                lambda: self.dataframe.rename_columns(
+                    "id", "identifier", "age", "years"
+                ),
+                ["identifier", "name", "years"],
+            ),
+        ]
+        for name, rename, expected_columns in cases:
+            with self.subTest(name=name):
+                self.assert_dataframe_schema(rename(), expected_columns)
+
+    def test_rename_columns_returns_self_when_nothing_changes(self):
+        self.assertIs(
+            self.dataframe.rename_columns({"missing": "ignored"}),
+            self.dataframe,
+        )
+
+    def test_rename_columns_rejects_invalid_arguments(self):
+        invalid_calls = [
+            (
+                "missing_mapping",
+                lambda: self.dataframe.rename_columns(),
+                TypeError,
+                "mapping must be a dictionary or callable",
+            ),
+            (
+                "odd_pairs",
+                lambda: self.dataframe.rename_columns("id", "identifier", "age"),
+                ValueError,
+                "must be old/new name pairs",
+            ),
+            (
+                "non_string_pair",
+                lambda: self.dataframe.rename_columns("id", 42),
+                TypeError,
+                "column names must be strings",
+            ),
+            (
+                "non_string_mapping",
+                lambda: self.dataframe.rename_columns({"id": 42}),
+                TypeError,
+                "mapping keys and values must be strings",
+            ),
+            (
+                "invalid_callable_result",
+                lambda: self.dataframe.rename_columns(lambda name: 42),
+                TypeError,
+                "callable must return a string",
+            ),
+            (
+                "ambiguous_mapping",
+                lambda: self.dataframe.rename_columns(
+                    {"id": "identifier"}, mapping={"name": "customer"}
+                ),
+                ValueError,
+                "either positional arguments or mapping",
+            ),
+        ]
+        for name, invalid_call, error, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(error, message):
+                    invalid_call()
+
+
+class DataFrameAsOfJoinTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.t_env.execute_sql(
+            "CREATE TABLE orders (id INT, amount INT, pt AS PROCTIME(), "
+            "ts TIMESTAMP(3), WATERMARK FOR ts AS ts) "
+            "WITH ('connector' = 'COLLECTION')"
+        )
+        self.t_env.execute_sql(
+            "CREATE TABLE rates (id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt, PRIMARY KEY (id) NOT ENFORCED) "
+            "WITH ('connector' = 'COLLECTION')"
+        )
+        self.left = pf.from_table(self.t_env.from_path("orders"))
+        self.versions = pf.from_table(self.t_env.from_path("rates"))
+        self.t_env.execute_sql(
+            "CREATE TABLE dimension (id INT, rate INT, rt TIMESTAMP(3)) "
+            "WITH ('connector' = 'COLLECTION')"
+        )
+        self.right = pf.from_table(self.t_env.from_path("dimension"))
+
+    def test_time_attributes_and_lazy_construction(self):
+        original = self.left.to_table()
+        for on, operator in (
+            ("pt", "LookupJoin"), (pf.col("pt"), "LookupJoin"),
+            (pf.proctime(), "LookupJoin"), ("ts", "TemporalJoin"),
+        ):
+            with self.subTest(on=str(on)):
+                with patch.object(Table, "execute") as execute:
+                    with patch.object(Table, "explain") as explain:
+                        right = self.versions if operator == "TemporalJoin" else self.right
+                        result = self.left.join_asof(right, on=on, by="id", how="left")
+                execute.assert_not_called()
+                explain.assert_not_called()
+                self.assert_dataframe_schema(result, ["id", "amount", "pt", "ts", "rate", "rt"])
+                self.assertIs(self.left.to_table(), original)
+                plan = result.to_table().explain()
+                self.assertIn(operator, plan)
+
+    def test_key_forms_and_inline_functions(self):
+        right = self.right.rename_columns({"id": "d_id"})
+        identity = pf.udf(lambda value: value, return_dtype=int)
+        for keys in (
+            {"by": pf.col("id") == pf.col("d_id")},
+            {"by": [pf.col("id") == pf.col("d_id"), pf.col("amount") > pf.col("rate")]},
+            {"left_by": "id", "right_by": "d_id"},
+            {"left_by": [pf.col("id") + 1], "right_by": [pf.col("d_id")]},
+            {"by": (pf.col("id") == pf.col("d_id")) & (identity(pf.col("amount")) > 0)},
+        ):
+            with self.subTest(keys=str(keys)):
+                before = set(self.t_env.list_user_defined_functions())
+                result = self.left.join_asof(right, on="pt", **keys)
+                self.assertEqual(result.columns, self.left.columns + right.columns)
+                self.assertEqual(set(self.t_env.list_user_defined_functions()), before)
+                self.assertIn("LookupJoin", result.to_table().explain())
+
+        result = self.left.join_asof(
+            self.right, on="pt", by=["id", pf.col("amount") > pf.col("rate")])
+        self.assertIn("LookupJoin", result.to_table().explain())
+        result = self.left.join_asof(
+            self.right.rename_columns({"rate": "amount"}), on="pt", by=["id", "amount"])
+        self.assertEqual(result.columns, self.left.columns + ["rt"])
+        self.assertIn("LookupJoin", result.to_table().explain())
+
+    def test_invalid_arguments(self):
+        for kwargs, error, message in (
+            ({"on": None, "by": "id"}, ValueError, "on"),
+            ({"on": 1, "by": "id"}, TypeError, "on"),
+            ({"on": "pt", "by": "id", "how": "full"}, ValueError, "how"),
+            ({"on": "pt", "by": "id", "how": 1}, TypeError, "how"),
+            ({"on": "pt"}, ValueError, "by"),
+            ({"on": "pt", "by": []}, ValueError, "empty"),
+            ({"on": "pt", "by": [1]}, TypeError, "by"),
+            ({"on": "pt", "by": ["id", "id"]}, ValueError, "duplicate"),
+            ({"on": "pt", "by": "id", "left_by": "id"}, ValueError, "combined"),
+            ({"on": "pt", "left_by": "id"}, ValueError, "together"),
+            ({"on": "pt", "left_by": ["id", "amount"], "right_by": "id"},
+             ValueError, "same number"),
+            ({"on": "amount", "by": "id"}, ValueError, "time attribute"),
+            ({"on": "pt", "left_by": pf.col("*"), "right_by": "id"},
+             ValueError, "single column"),
+            ({"on": "pt", "left_by": pf.col("id").sum, "right_by": "id"},
+             ValueError, "row-wise"),
+            ({"on": "pt", "left_by": "id", "right_by": pf.col("id").sum},
+             ValueError, "row-wise"),
+        ):
+            with self.subTest(kwargs=str(kwargs)):
+                with self.assertRaisesRegex(error, message):
+                    self.left.join_asof(self.right, **kwargs)
+        with self.assertRaisesRegex(TypeError, "other"):
+            self.left.join_asof(object(), on="pt", by="id")
+        other_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        with self.assertRaisesRegex(ValueError, "same TableEnvironment"):
+            self.left.join_asof(pf.from_table(other_env.from_elements([(1,)], ["id"])),
+                                on="pt", by="id")
+
+    def test_predicate_requires_cross_input_equality_and_no_or(self):
+        right = self.right.rename_columns({"id": "d_id"})
+        for predicate in (
+            pf.col("id") > pf.col("d_id"),
+            pf.col("id") == pf.col("amount"),
+            (pf.col("id") == pf.col("d_id")) | (pf.col("amount") > 1),
+            (pf.col("id") == pf.col("d_id")) &
+            ((pf.col("amount") > 1) | (pf.col("rate") < 10)),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                with self.assertRaises(ValueError):
+                    self.left.join_asof(right, on="ts", by=predicate)
+
+    def test_time_attribute_in_equality_keys(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for keys in (
+            {"by": (pf.col("id") == pf.col("d_id")) & (pf.col("ts") == pf.col("rt"))},
+            {"by": call_sql("id = d_id AND ts = rt")},
+            {"left_by": ["id", "ts"], "right_by": ["d_id", "rt"]},
+            {"left_by": ["id", pf.col("ts").alias("time_key")],
+             "right_by": ["d_id", pf.col("rt").alias("dim_time_key")]},
+            {"left_by": ["id", call_sql("ts")], "right_by": ["d_id", call_sql("rt")]},
+            {"left_by": ["id", pf.col("ts").cast(TableDataTypes.STRING())],
+             "right_by": ["d_id", pf.col("rt").cast(TableDataTypes.STRING())]},
+        ):
+            with self.subTest(keys=str(keys)):
+                result = self.left.join_asof(right, on="ts", **keys)
+                self.assertEqual(result.columns, self.left.columns + right.columns)
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+        shared = self.versions.rename_columns({"rt": "ts"})
+        result = self.left.join_asof(shared, on="ts", by=["id", "ts"])
+        self.assertEqual(result.columns, self.left.columns + ["rate"])
+        self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_quoted_keys_and_internal_name_conflicts(self):
+        left = self.left.rename_columns({"id": "order`id"}).with_column("__pf_asof_time", pf.lit(1))
+        right = self.right.rename_columns({"id": "order`id"})
+        result = left.join_asof(right, on=pf.proctime(), by="order`id")
+        self.assertEqual(result.columns, left.columns + ["rate", "rt"])
+        self.assertIn("LookupJoin", result.to_table().explain())
+
+    def test_planner_validates_dimension_requirements(self):
+        with self.assertRaisesRegex(ValueError, "time attribute"):
+            self.left.join_asof(self.right, on=pf.col("ts").cast(TableDataTypes.STRING()), by="id")
+        self.t_env.execute_sql(
+            "CREATE TABLE no_primary_key (id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt) WITH ('connector' = 'COLLECTION')")
+        right = pf.from_table(self.t_env.from_path("no_primary_key"))
+        with self.assertRaisesRegex(Exception, "primary key"):
+            self.left.join_asof(right, on="ts", by="id").to_table().explain()
+        with self.assertRaisesRegex(Exception, "primary key|Processing-time temporal join"):
+            self.left.join_asof(pf.from_records([(1,)], schema=["id"]),
+                                on="pt", by="id").to_table().explain()
+
+    def test_event_time_expression_keys_preserve_primary_key(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for left_key, right_key in (
+            (pf.col("id"), pf.col("d_id")),
+            ([pf.col("id").alias("key")], [pf.col("d_id").alias("dim_key")]),
+            ("id", pf.col("d_id").cast(TableDataTypes.INT())),
+            ("id", pf.col("d_id").cast(TableDataTypes.INT()).alias("dim_key")),
+            ("id", call_sql("CAST(d_id AS INT)")),
+        ):
+            with self.subTest(right_key=str(right_key)):
+                result = self.left.join_asof(right, on="ts", left_by=left_key, right_by=right_key)
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_time_attribute_in_residual_predicates(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for predicate in (
+            (pf.col("id") == pf.col("d_id")) & (pf.col("ts") > pf.col("rt")),
+            call_sql("id = d_id AND ts > rt"),
+            (pf.col("id") == pf.col("d_id")) & ~(pf.col("ts") == pf.col("rt")),
+            call_sql("id = d_id AND CASE WHEN ts = rt THEN FALSE ELSE TRUE END"),
+            (pf.col("id") == pf.col("d_id")) &
+            (pf.col("ts").cast(TableDataTypes.STRING()) == "2024-01-01 00:00:02"),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                result = self.left.join_asof(right, on="ts", by=predicate, how="left")
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_type_changing_key_cast_is_preserved(self):
+        from pyflink.dataframe.dataframe import _asof_field_index
+        from pyflink.table.expressions import call_sql
+
+        for key in (
+            pf.col("id").cast(TableDataTypes.BIGINT()), call_sql("CAST(id AS BIGINT)"),
+            pf.col("rt").cast(TableDataTypes.TIMESTAMP(3)), call_sql("CAST(rt AS TIMESTAMP(3))"),
+        ):
+            with self.subTest(key=str(key)):
+                selected = self.versions.to_table().select(key)
+                resolved = selected._j_table.getQueryOperation().getProjectList().get(0)
+                self.assertIsNone(_asof_field_index(resolved))
+
+    def test_sql_expressions_follow_the_same_validation(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        result = self.left.join_asof(right, on=call_sql("ts"), by=call_sql("id = d_id"))
+        self.assertIn("TemporalJoin", result.to_table().explain())
+        result = self.left.join_asof(
+            right, on="ts", left_by=call_sql("id"), right_by=call_sql("d_id"))
+        self.assertIn("TemporalJoin", result.to_table().explain())
+        for predicate in (
+            call_sql("id > d_id"),
+            call_sql("id = d_id OR amount > rate"),
+            (pf.col("id") == pf.col("d_id")) & call_sql("amount > rate OR amount = 0"),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                with self.assertRaises(ValueError):
+                    self.left.join_asof(right, on=call_sql("ts"), by=predicate)
+        time_first = self.left.select("pt", "id", "ts")
+        for on in (pf.col("ts").max, call_sql("MAX(ts)")):
+            with self.subTest(on=str(on)):
+                with self.assertRaisesRegex(ValueError, "row-wise"):
+                    time_first.join_asof(self.right, on=on, by="id")
+        for keys in (
+            {"left_by": call_sql("SUM(id) + 1"), "right_by": "d_id"},
+            {"left_by": "id", "right_by": call_sql("SUM(d_id)")},
+        ):
+            with self.subTest(keys=str(keys)):
+                with self.assertRaisesRegex(ValueError, "row-wise"):
+                    self.left.join_asof(right, on="ts", **keys)
+
+
+class DataFrameJoinTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.left = pf.from_records(
+            [(1, "left")],
+            schema=["id", "left_value"],
+        )
+        self.right = pf.from_records(
+            [(1, "right")],
+            schema=["id", "right_value"],
+        )
+
+    def test_join_on_shared_key_keeps_key_once(self):
+        result = self.left.join(self.right, on="id")
+
+        self.assert_dataframe_schema(
+            result,
+            ["id", "left_value", "right_value"],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.STRING(),
+            ],
+        )
+
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS BIGINT))) AS T(id)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS INT))) AS T(id)"
+            )
+        )
+        self.assert_dataframe_schema(
+            left.join(right, on="id", how="right"),
+            ["id"],
+            [TableDataTypes.INT().not_null()],
+        )
+
+    def test_join_supports_multiple_shared_keys(self):
+        left = pf.from_records(
+            [(1, "A", "left")],
+            schema=["id", "category", "left_value"],
+        )
+        right = pf.from_records(
+            [(1, "A", "right")],
+            schema=["id", "category", "right_value"],
+        )
+
+        result = left.join(right, on=["id", "category"])
+
+        self.assertEqual(
+            result.columns,
+            ["id", "category", "left_value", "right_value"],
+        )
+        self.assertEqual(
+            left.join(right, on=["id", "category"], how="semi").columns,
+            ["id", "category", "left_value"],
+        )
+
+    def test_join_supports_different_and_computed_keys(self):
+        right = self.right.rename_columns({"id": "right_id"})
+
+        named_result = self.left.join(
+            right,
+            left_on="id",
+            right_on="right_id",
+            how="left",
+        )
+        computed_result = self.left.join(
+            right,
+            left_on=pf.col("id") + 1,
+            right_on=pf.col("right_id"),
+        )
+
+        for result in (named_result, computed_result):
+            self.assertEqual(
+                result.columns,
+                ["id", "left_value", "right_id", "right_value"],
+            )
+            self.assertFalse(any(name.startswith("__pf_join") for name in result.columns))
+
+    def test_join_supports_expression_predicate(self):
+        right = pf.from_records(
+            [(1, 0, 2, "right")],
+            schema=["right_id", "min_id", "max_id", "right_value"],
+        )
+
+        result = self.left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & (pf.col("id") >= pf.col("min_id"))
+            & (pf.col("id") < pf.col("max_id")),
+        )
+
+        self.assertEqual(
+            result.columns,
+            ["id", "left_value", "right_id", "min_id", "max_id", "right_value"],
+        )
+
+    def test_join_supports_non_equi_only_predicate(self):
+        for settings in (
+            EnvironmentSettings.in_batch_mode(),
+            EnvironmentSettings.in_streaming_mode(),
+        ):
+            with self.subTest(streaming=settings.is_streaming_mode()):
+                t_env = TableEnvironment.create(settings)
+                left = pf.from_table(t_env.from_elements([(1,), (2,)], ["id"]))
+                right = pf.from_table(t_env.from_elements([(2,), (3,)], ["right_id"]))
+
+                result = left.join(right, on=pf.col("id") < pf.col("right_id"))
+
+                self.assertEqual(result.columns, ["id", "right_id"])
+                plan = result.to_table().explain()
+                self.assertIn("joinType=[InnerJoin]", plan)
+                if settings.is_streaming_mode():
+                    self.assertIn("distribution=[single]", plan)
+
+    def test_anti_join_uses_native_anti_join(self):
+        for settings in (
+            EnvironmentSettings.in_batch_mode(),
+            EnvironmentSettings.in_streaming_mode(),
+        ):
+            with self.subTest(streaming=settings.is_streaming_mode()):
+                t_env = TableEnvironment.create(settings)
+                left = pf.from_table(t_env.from_elements([(1, "A")], ["id", "left_value"]))
+                right = pf.from_table(t_env.from_elements([(1, "X")], ["id", "right_value"]))
+
+                with patch("pyflink.table.table.Table.execute") as execute:
+                    with patch("pyflink.table.table.Table.explain") as explain:
+                        result = left.join(right, on="id", how="anti")
+                execute.assert_not_called()
+                explain.assert_not_called()
+                plan = result.to_table().explain()
+
+                self.assertEqual(result.columns, left.columns)
+                self.assertIn("joinType=[LeftAntiJoin]", plan)
+                self.assertNotIn("joinType=[LeftOuterJoin]", plan)
+
+    def test_anti_join_uses_native_anti_join_for_values(self):
+        for settings in (
+            EnvironmentSettings.in_batch_mode(),
+            EnvironmentSettings.in_streaming_mode(),
+        ):
+            with self.subTest(streaming=settings.is_streaming_mode()):
+                t_env = TableEnvironment.create(settings)
+                left = pf.from_table(t_env.sql_query("SELECT * FROM (VALUES (1), (2)) T(id)"))
+                right = pf.from_table(t_env.sql_query("SELECT * FROM (VALUES (1), (2)) T(id)"))
+
+                with patch.object(t_env, "sql_query", wraps=t_env.sql_query) as sql_query:
+                    result = left.join(right, on="id", how="anti")
+
+                sql_query.assert_called_once()
+                self.assertIn("WHERE NOT EXISTS", sql_query.call_args[0][0])
+                self.assertEqual(result.columns, left.columns)
+                plan = result.to_table().explain()
+                self.assertIn("joinType=[LeftAntiJoin]", plan)
+                self.assertNotIn("joinType=[LeftOuterJoin]", plan)
+
+    def test_anti_join_propagates_query_errors_and_cleans_up_udfs(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        is_allowed = pf.udf(lambda value: value == "right", return_dtype=bool)
+        predicate = (pf.col("id") == pf.col("right_id")) & is_allowed(pf.col("right_value"))
+        functions_before = set(self.t_env.list_user_defined_functions())
+        errors = (
+            TableException("injected query failure"),
+            RuntimeError("injected unexpected failure"),
+        )
+
+        for error in errors:
+            with self.subTest(error=str(error)):
+                with patch.object(self.t_env, "sql_query", side_effect=error) as sql_query:
+                    with self.assertRaises(type(error)) as raised:
+                        self.left.join(right, on=predicate, how="anti")
+
+                self.assertIs(raised.exception, error)
+                sql_query.assert_called_once()
+                self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+
+    def test_join_with_nested_inline_udfs_preserves_registered_functions(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        normalize = pf.udf(lambda value: value.lower(), return_dtype=str)
+        same_value = pf.udf(lambda left, right: left == right, return_dtype=bool)
+        self.t_env.create_temporary_system_function(
+            "__pf_join_udf", normalize._table_udf_wrapper
+        )
+        functions_before = set(self.t_env.list_user_defined_functions())
+        functions_during_query = []
+        original_sql_query = self.t_env.sql_query
+
+        def capture_functions(query):
+            functions_during_query.append(set(self.t_env.list_user_defined_functions()))
+            return original_sql_query(query)
+
+        match = same_value(normalize(pf.col("left_value")), normalize(pf.col("right_value")))
+        with patch.object(self.t_env, "sql_query", side_effect=capture_functions):
+            result = self.left.join(
+                right, on=(pf.col("id") == pf.col("right_id")) & match & match
+            )
+
+        self.assertEqual(result.columns, ["id", "left_value", "right_id", "right_value"])
+        self.assertEqual(len(functions_during_query), 1)
+        self.assertEqual(len(functions_during_query[0] - functions_before), 2)
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        registered_result = self.t_env.sql_query("SELECT __pf_join_udf('HELLO')")
+        self.assertEqual(len(registered_result.get_resolved_schema().get_column_names()), 1)
+
+    def test_join_cleans_up_inline_udfs_after_invalid_sql(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        identity = pf.udf(lambda value: value, return_dtype=int)
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        with patch.object(self.t_env, "sql_query", wraps=self.t_env.sql_query) as sql_query:
+            with self.assertRaises(Py4JJavaError):
+                self.left.join(right, on=identity(pf.col("id")))
+
+        sql_query.assert_called_once()
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+
+    def test_join_cleans_up_partially_registered_inline_udfs(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        normalize = pf.udf(lambda value: value.lower(), return_dtype=str)
+        same_value = pf.udf(lambda left, right: left == right, return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+        original_register = self.t_env._j_tenv.createTemporarySystemFunction
+        registration_attempts = []
+
+        def fail_second_registration(name, definition):
+            registration_attempts.append(name)
+            if len(registration_attempts) == 2:
+                raise RuntimeError("injected UDF registration failure")
+            return original_register(name, definition)
+
+        with patch.object(
+            self.t_env._j_tenv,
+            "createTemporarySystemFunction",
+            side_effect=fail_second_registration,
+        ):
+            with self.assertRaisesRegex(Py4JJavaError, "injected UDF registration failure"):
+                self.left.join(
+                    right,
+                    on=(pf.col("id") == pf.col("right_id"))
+                    & same_value(normalize(pf.col("left_value")), pf.col("right_value")),
+                )
+
+        self.assertEqual(len(registration_attempts), 2)
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+
+    def test_join_supports_semi_anti_and_cross(self):
+        for how in ("semi", "anti"):
+            with self.subTest(how=how):
+                self.assertEqual(
+                    self.left.join(self.right, on="id", how=how).columns,
+                    ["id", "left_value"],
+                )
+
+        right = self.right.rename_columns({"id": "right_id"})
+        semi = self.left.join(
+            right,
+            on=pf.col("id") < pf.col("right_id"),
+            how="semi",
+        )
+        self.assertEqual(semi.columns, ["id", "left_value"])
+        self.assertIn("joinType=[LeftSemiJoin]", semi.to_table().explain())
+
+        is_right = pf.udf(lambda value: value == "right", return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+        semi_with_udf = self.left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & is_right(pf.col("right_value")),
+            how="semi",
+        )
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertIn("joinType=[LeftSemiJoin]", semi_with_udf.to_table().explain())
+
+        self.assertEqual(
+            self.left.join(right, how="cross").columns,
+            ["id", "left_value", "right_id", "right_value"],
+        )
+
+    def test_join_outer_alias_matches_full_schema(self):
+        full = self.left.join(self.right, on="id", how="full")
+        outer = self.left.join(self.right, on="id", how="outer")
+
+        self.assertEqual(full.columns, outer.columns)
+        self.assertEqual(
+            full._table.get_resolved_schema(),
+            outer._table.get_resolved_schema(),
+        )
+
+    def test_join_rejects_invalid_argument_combinations(self):
+        invalid_calls = [
+            (
+                "other",
+                lambda: self.left.join(object(), on="id"),
+                TypeError,
+                "other must be",
+            ),
+            (
+                "how_type",
+                lambda: self.left.join(self.right, on="id", how=1),
+                TypeError,
+                "how must be a string",
+            ),
+            (
+                "how_value",
+                lambda: self.left.join(self.right, on="id", how="sideways"),
+                ValueError,
+                "how must be one of",
+            ),
+            (
+                "missing_keys",
+                lambda: self.left.join(self.right),
+                ValueError,
+                "requires on or both",
+            ),
+            (
+                "mixed_keys",
+                lambda: self.left.join(
+                    self.right,
+                    on="id",
+                    left_on="id",
+                    right_on="id",
+                ),
+                ValueError,
+                "on cannot be combined",
+            ),
+            (
+                "missing_right_on",
+                lambda: self.left.join(self.right, left_on="id"),
+                ValueError,
+                "must be provided together",
+            ),
+            (
+                "different_key_counts",
+                lambda: self.left.join(
+                    self.right,
+                    left_on=["id", "left_value"],
+                    right_on=["id"],
+                ),
+                ValueError,
+                "same number of keys",
+            ),
+            (
+                "empty_keys",
+                lambda: self.left.join(self.right, on=[]),
+                ValueError,
+                "on must not be empty",
+            ),
+            (
+                "invalid_key_type",
+                lambda: self.left.join(self.right, on=1),
+                TypeError,
+                "on must be a string",
+            ),
+            (
+                "missing_column",
+                lambda: self.left.join(self.right, on="missing"),
+                ValueError,
+                "on column 'missing' does not exist",
+            ),
+            (
+                "cross_keys",
+                lambda: self.left.join(self.right, on="id", how="cross"),
+                ValueError,
+                "cross join does not accept",
+            ),
+        ]
+        for name, invalid_call, error, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(error, message):
+                    invalid_call()
+
+    def test_join_rejects_duplicate_non_key_columns(self):
+        right = pf.from_records(
+            [(1, "duplicate")],
+            schema=["right_id", "left_value"],
+        )
+
+        with self.assertRaisesRegex(ValueError, "duplicate non-key columns.*rename_columns"):
+            self.left.join(right, left_on="id", right_on="right_id")
+
+        for how in ("semi", "anti"):
+            with self.subTest(how=how):
+                self.assertEqual(
+                    self.left.join(
+                        right,
+                        left_on="id",
+                        right_on="right_id",
+                        how=how,
+                    ).columns,
+                    ["id", "left_value"],
+                )
+
+    def test_join_rejects_different_table_environments(self):
+        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        other = pf.from_table(
+            other_environment.sql_query("SELECT 1 AS id, 'right' AS right_value")
+        )
+
+        with self.assertRaisesRegex(ValueError, "same TableEnvironment"):
+            self.left.join(other, on="id")
+
+
+class DataFramePropertyTests(PyFlinkDataFrameUTTestCase):
+    def test_schema_exposes_ordered_metadata(self):
+        dataframe = pf.from_records(
+            [(1, "Alice")],
+            schema=["id", "name"],
+        )
+
+        self.assertIsInstance(dataframe.schema, TableSchema)
+        self.assertEqual(dataframe.schema.get_field_names(), ["id", "name"])
+
+    def test_columns_returns_defensive_ordered_list(self):
+        dataframe = pf.from_records(
+            [(1, "Alice")],
+            schema=["id", "name"],
+        )
+
+        columns = dataframe.columns
+        self.assertEqual(columns, ["id", "name"])
+        columns.append("mutated")
+        self.assertEqual(dataframe.columns, ["id", "name"])
+
+
+class DataFrameFilterTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, 0.9, "NYC", None), (2, 0.95, "SF", "Paris")],
+            schema=["id", "score", "city", "destination"],
+        )
+
+    def assert_filter_schema(self, dataframe):
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "score", "city", "destination"],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.DOUBLE(),
+                TableDataTypes.STRING(),
+                TableDataTypes.STRING(),
+            ],
+        )
+
+    def test_filter_accepts_expression(self):
+        self.assert_filter_schema(self.dataframe.filter(pf.col("id") > 0))
+
+    def test_filter_accepts_multiple_predicates_and_constraints(self):
+        result = self.dataframe.filter(
+            pf.col("id") > 0,
+            pf.col("score") >= 0.8,
+            city="NYC",
+        )
+
+        self.assert_filter_schema(result)
+
+    def test_filter_accepts_none_constraint(self):
+        self.assert_filter_schema(self.dataframe.filter(destination=None))
+
+    def test_filter_accepts_sql_string_predicate(self):
+        self.assert_filter_schema(self.dataframe.filter("id > 0"))
+
+    def test_filter_accepts_callable_predicate(self):
+        self.assert_filter_schema(
+            self.dataframe.filter(lambda current: current["id"] > 0)
+        )
+
+    def test_filter_rejects_non_expression(self):
+        with self.assertRaisesRegex(TypeError, "predicate must be an Expression"):
+            self.dataframe.filter(True)
+
+    def test_filter_requires_a_condition(self):
+        with self.assertRaisesRegex(ValueError, "requires at least one predicate"):
+            self.dataframe.filter()
+
+    def test_filter_rejects_callable_returning_non_expression(self):
+        with self.assertRaisesRegex(
+            TypeError, "callable predicates must return an Expression"
+        ):
+            self.dataframe.filter(lambda df: True)
+
+    def test_filter_rejects_expression_class(self):
+        with self.assertRaisesRegex(TypeError, "predicate must be an Expression"):
+            self.dataframe.filter(Expression)
+
+
+class DataFrameGetItemTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice"), (2, "Bob")],
+            schema=["id", "name"],
+        )
+
+    def test_getitem_returns_expression_for_column_name(self):
+        self.assertIsInstance(self.dataframe["id"], Expression)
+
+    def test_getitem_selects_list_projection(self):
+        result = self.dataframe[["name", "id"]]
+
+        self.assert_dataframe_schema(
+            result,
+            ["name", "id"],
+            [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
+        )
+
+    def test_getitem_selects_tuple_projection(self):
+        result = self.dataframe[("name", "id")]
+
+        self.assert_dataframe_schema(
+            result,
+            ["name", "id"],
+            [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
+        )
+
+    def test_getitem_filters_with_expression(self):
+        result = self.dataframe[self.dataframe["id"] > 0]
+
+        self.assert_dataframe_schema(
+            result,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_getitem_rejects_unsupported_key(self):
+        with self.assertRaisesRegex(TypeError, "key must be a string, list"):
+            self.dataframe[42]
+
+
+class DataFrameGetAttrTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice"), (2, "Bob")], schema=["id", "name"]
+        )
+
+    def test_getattr_returns_column_expression(self):
+        self.assertIsInstance(self.dataframe.name, Expression)
+        self.assertEqual(str(self.dataframe.name), str(self.dataframe["name"]))
+        self.assert_dataframe_schema(
+            self.dataframe.select(self.dataframe.name), ["name"]
+        )
+
+    def test_getattr_composes_with_filter_and_select(self):
+        result = self.dataframe.filter(lambda df: df.id > 1).select(
+            self.dataframe.name, (self.dataframe.id + 1).alias("next_id")
+        )
+        self.assert_dataframe_schema(result, ["name", "next_id"])
+
+    def test_missing_column_raises_attribute_error(self):
+        with self.assertRaisesRegex(AttributeError, "missing"):
+            self.dataframe.missing
+        self.assertFalse(hasattr(self.dataframe, "missing"))
+        default = object()
+        self.assertIs(getattr(self.dataframe, "missing", default), default)
+        self.assertTrue(hasattr(self.dataframe, "name"))
+
+    def test_existing_attributes_take_precedence_over_columns(self):
+        names = ["select", "filter", "columns", "schema", "_table", "__class__"]
+        dataframe = pf.from_records([tuple(range(len(names)))], schema=names)
+        self.assertIs(dataframe.select.__func__, pf.DataFrame.select)
+        self.assertIs(dataframe.filter.__func__, pf.DataFrame.filter)
+        self.assertEqual(dataframe.columns, names)
+        self.assertIsInstance(dataframe.schema, TableSchema)
+        self.assertIs(dataframe._table, dataframe.to_table())
+        self.assertIs(dataframe.__class__, pf.DataFrame)
+        for name in names:
+            with self.subTest(name=name):
+                self.assert_dataframe_schema(dataframe.select(dataframe[name]), [name])
+
+    def test_instance_attributes_take_precedence_over_columns(self):
+        marker = object()
+        self.dataframe.name = marker
+        self.assertIs(self.dataframe.name, marker)
+        self.assertIsInstance(self.dataframe["name"], Expression)
+
+    def test_invalid_identifiers_and_keywords_are_not_attributes(self):
+        for name in ("first name", "first-name", "1name", "class", "None"):
+            with self.subTest(name=name):
+                dataframe = pf.from_records([(1,)], schema=[name])
+                with self.assertRaises(AttributeError):
+                    getattr(dataframe, name)
+                self.assertIsInstance(dataframe[name], Expression)
+
+    def test_valid_identifiers_include_unicode_and_digits(self):
+        for name in ("name_2", "\u540d\u5b57", "match"):
+            with self.subTest(name=name):
+                dataframe = pf.from_records([(1,)], schema=[name])
+                self.assert_dataframe_schema(dataframe.select(getattr(dataframe, name)), [name])
+
+    def test_private_names_require_bracket_access(self):
+        names = ["_name", "__dataframe__", "__deepcopy__", "_repr_html_"]
+        dataframe = pf.from_records([tuple(range(len(names)))], schema=names)
+
+        for name in names:
+            with self.subTest(name=name):
+                with self.assertRaises(AttributeError):
+                    getattr(dataframe, name)
+                self.assertFalse(hasattr(dataframe, name))
+                self.assert_dataframe_schema(dataframe.select(dataframe[name]), [name])
+
+    def test_getattr_uses_the_transformed_schema(self):
+        renamed = self.dataframe.rename_columns({"name": "label"})
+        self.assertIsInstance(renamed.label, Expression)
+        self.assertFalse(hasattr(renamed, "name"))
+        projected = self.dataframe.select("id")
+        self.assertFalse(hasattr(projected, "name"))
+        self.assertIsInstance(self.dataframe.name, Expression)
+
+
+class DataFrameGetAttrValidationTests(unittest.TestCase):
+    def test_invalid_names_do_not_resolve_schema(self):
+        table = Mock()
+        for name in (
+            "",
+            "first name",
+            "class",
+            "_name",
+            "__dataframe__",
+            "__deepcopy__",
+            "_repr_html_",
+        ):
+            with self.subTest(name=name):
+                with self.assertRaises(AttributeError):
+                    getattr(pf.DataFrame(table), name)
+        table.get_resolved_schema.assert_not_called()
+
+    def test_failing_class_descriptor_does_not_fall_back_to_column(self):
+        class DerivedDataFrame(pf.DataFrame):
+            @property
+            def name(self):
+                raise AttributeError("descriptor unavailable")
+
+        table = Mock()
+        table.get_resolved_schema.return_value.get_column_names.return_value = ["name"]
+
+        with self.assertRaises(AttributeError):
+            DerivedDataFrame(table).name
+        table.get_resolved_schema.assert_not_called()
+
+    def test_uninitialized_dataframe_does_not_recurse(self):
+        dataframe = object.__new__(pf.DataFrame)
+        for name in ("_table", "name", "__setstate__"):
+            with self.subTest(name=name):
+                with self.assertRaises(AttributeError):
+                    getattr(dataframe, name)
+
+    def test_column_access_does_not_execute_a_job(self):
+        table = Mock()
+        table.get_resolved_schema.return_value.get_column_names.return_value = ["name"]
+        expression = object()
+        with patch("pyflink.dataframe.dataframe.table_col", return_value=expression) as col:
+            self.assertIs(pf.DataFrame(table).name, expression)
+            col.assert_called_once_with("name")
+        table.execute.assert_not_called()
+
+    def test_schema_errors_are_not_hidden(self):
+        table = Mock()
+        table.get_resolved_schema.side_effect = RuntimeError("schema unavailable")
+        with self.assertRaisesRegex(RuntimeError, "schema unavailable"):
+            pf.DataFrame(table).name
+
+
+class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records([(1,)], schema=["id"])
+
+    def test_lit_infers_supported_python_types(self):
+        literal_values = {
+            "inferred_bool": True,
+            "inferred_int": 2,
+            "inferred_bigint": 1 << 40,
+            "inferred_float": 1.25,
+            "inferred_string": "x",
+            "inferred_bytes": b"x",
+            "inferred_bytearray": bytearray(b"x"),
+            "inferred_decimal": decimal.Decimal("1.25"),
+            "inferred_date": date(2026, 8, 3),
+            "inferred_time": time(1, 2, 3),
+            "inferred_timestamp": datetime(2026, 8, 3, 1, 2, 3),
+            "inferred_aware_timestamp": datetime(
+                2026, 8, 3, 1, 2, 3, tzinfo=timezone.utc
+            ),
+            "inferred_timedelta": timedelta(days=1, seconds=2, microseconds=3000),
+            "inferred_list": ["abc"],
+            "inferred_nested_list": [[date(2026, 8, 3)]],
+            "inferred_tuple": (1, 2),
+            "inferred_array": array.array("h", [1, 2]),
+        }
+        result = self.dataframe.select(
+            **{name: pf.lit(value) for name, value in literal_values.items()}
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            list(literal_values),
+            [
+                TableDataTypes.BOOLEAN().not_null(),
+                TableDataTypes.INT().not_null(),
+                TableDataTypes.BIGINT().not_null(),
+                TableDataTypes.DOUBLE().not_null(),
+                TableDataTypes.CHAR(1).not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.DECIMAL(3, 2).not_null(),
+                TableDataTypes.DATE().not_null(),
+                TableDataTypes.TIME().not_null(),
+                TableDataTypes.TIMESTAMP(0).not_null(),
+                TableDataTypes.TIMESTAMP(0).not_null(),
+                TableDataTypes.INTERVAL(
+                    TableDataTypes.DAY(1), TableDataTypes.SECOND(3)
+                ),
+                TableDataTypes.ARRAY(TableDataTypes.CHAR(3)).not_null(),
+                TableDataTypes.ARRAY(
+                    TableDataTypes.ARRAY(TableDataTypes.DATE())
+                ).not_null(),
+                TableDataTypes.ARRAY(TableDataTypes.INT()).not_null(),
+                TableDataTypes.ARRAY(TableDataTypes.SMALLINT()).not_null(),
+            ],
+        )
+
+    def test_lit_supports_explicit_types(self):
+        list_type = pf.DataType.list(pf.DataType.int16())
+        map_type = pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+        struct_type = pf.DataType.struct(
+            {
+                "small_value": pf.DataType.int16(),
+                "float_value": pf.DataType.float32(),
+            }
+        )
+        result = self.dataframe.select(
+            explicit_int8=pf.lit(3, pf.DataType.int8()),
+            explicit_int16=pf.lit(3, pf.DataType.int16()),
+            explicit_int32=pf.lit(3, pf.DataType.int32()),
+            explicit_int64=pf.lit(3, pf.DataType.int64()),
+            explicit_float32=pf.lit(1.25, pf.DataType.float32()),
+            explicit_float64=pf.lit(1.25, pf.DataType.float64()),
+            explicit_decimal=pf.lit(decimal.Decimal("1.25"), pf.DataType.decimal(3, 2)),
+            explicit_bool=pf.lit(True, pf.DataType.bool()),
+            explicit_string=pf.lit("y", pf.DataType.string()),
+            explicit_fixed_string=pf.lit("y", pf.DataType.fixed_size_string(1)),
+            explicit_binary=pf.lit(b"y", pf.DataType.binary()),
+            explicit_fixed_binary=pf.lit(b"y", pf.DataType.fixed_size_binary(1)),
+            explicit_date=pf.lit(date(2026, 8, 3), pf.DataType.date()),
+            explicit_time=pf.lit(time(1, 2, 3, 4000), pf.DataType.time(6)),
+            explicit_timestamp=pf.lit(
+                datetime(2026, 8, 3, 1, 2, 3, 4000),
+                pf.DataType.timestamp(6),
+            ),
+            explicit_timestamp_ltz=pf.lit(
+                datetime(
+                    2026, 8, 3, 1, 2, 3, 4000, tzinfo=timezone.utc
+                ),
+                pf.DataType.timestamp_ltz(6),
+            ),
+            explicit_list=pf.lit([1, 2], list_type),
+            explicit_map=pf.lit({1: 1.25}, map_type),
+            explicit_struct=pf.lit((1, 1.25), struct_type),
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            [
+                "explicit_int8",
+                "explicit_int16",
+                "explicit_int32",
+                "explicit_int64",
+                "explicit_float32",
+                "explicit_float64",
+                "explicit_decimal",
+                "explicit_bool",
+                "explicit_string",
+                "explicit_fixed_string",
+                "explicit_binary",
+                "explicit_fixed_binary",
+                "explicit_date",
+                "explicit_time",
+                "explicit_timestamp",
+                "explicit_timestamp_ltz",
+                "explicit_list",
+                "explicit_map",
+                "explicit_struct",
+            ],
+            [
+                TableDataTypes.TINYINT().not_null(),
+                TableDataTypes.SMALLINT().not_null(),
+                TableDataTypes.INT().not_null(),
+                TableDataTypes.BIGINT().not_null(),
+                TableDataTypes.FLOAT().not_null(),
+                TableDataTypes.DOUBLE().not_null(),
+                TableDataTypes.DECIMAL(3, 2).not_null(),
+                TableDataTypes.BOOLEAN().not_null(),
+                TableDataTypes.STRING().not_null(),
+                TableDataTypes.CHAR(1).not_null(),
+                TableDataTypes.BYTES().not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.DATE().not_null(),
+                TableDataTypes.TIME(6).not_null(),
+                TableDataTypes.TIMESTAMP(6).not_null(),
+                TableDataTypes.TIMESTAMP_LTZ(6).not_null(),
+                list_type._to_table_data_type().not_null(),
+                map_type._to_table_data_type().not_null(),
+                struct_type._to_table_data_type().not_null(),
+            ],
+        )
+
+    def test_lit_supports_explicitly_typed_nulls(self):
+        result = self.dataframe.select(
+            null_int=pf.lit(None, pf.DataType.int64()),
+            null_string=pf.lit(None, pf.DataType.string()),
+            null_list=pf.lit(None, pf.DataType.list(pf.DataType.int16())),
+            null_map=pf.lit(
+                None, pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+            ),
+            null_struct=pf.lit(
+                None, pf.DataType.struct({"value": pf.DataType.int16()})
+            ),
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            [
+                "null_int",
+                "null_string",
+                "null_list",
+                "null_map",
+                "null_struct",
+            ],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.ARRAY(TableDataTypes.SMALLINT()),
+                TableDataTypes.MAP(TableDataTypes.SMALLINT(), TableDataTypes.FLOAT()),
+                TableDataTypes.ROW(
+                    [TableDataTypes.FIELD("value", TableDataTypes.SMALLINT())]
+                ),
+            ],
+        )
+
+    def test_lit_supports_small_int_for_non_nullable_bigint(self):
+        non_nullable_bigint = pf.DataType(TableDataTypes.BIGINT().not_null())
+        result = self.dataframe.select(value=pf.lit(3, non_nullable_bigint))
+
+        self.assert_dataframe_schema(
+            result,
+            ["value"],
+            [TableDataTypes.BIGINT().not_null()],
+        )
+
+    def test_lit_rejects_values_incompatible_with_explicit_type(self):
+        incompatible_values = [
+            (3.14, pf.DataType.int64()),
+            ("abc", pf.DataType.int64()),
+            (42, pf.DataType.string()),
+            ([1.25], pf.DataType.list(pf.DataType.int16())),
+        ]
+        for value, data_type in incompatible_values:
+            with self.subTest(value=value, data_type=data_type):
+                with self.assertRaises(Py4JJavaError):
+                    pf.lit(value, data_type)
+
+    def test_lit_rejects_non_dataframe_data_type(self):
+        with self.assertRaisesRegex(
+            TypeError, "data_type must be a pyflink.dataframe.DataType"
+        ):
+            pf.lit(1, object())
+
+
+class DataFrameAggregationTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                ("engineering", "east", 10),
+                ("engineering", "west", 20),
+                ("sales", "east", 5),
+            ],
+            schema=["department", "region", "amount"],
+        )
+
+    def test_global_aggregation_preserves_positional_and_named_order(self):
+        result = self.dataframe.agg(
+            pf.col("amount").sum.alias("total_amount"),
+            row_count=pf.col("amount").count,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            ["total_amount", "row_count"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT().not_null()],
+        )
+
+    def test_grouped_aggregation_emits_string_and_expression_keys_first(self):
+        grouped = self.dataframe.group_by("department", pf.col("region"))
+
+        self.assertIsInstance(grouped, pf.GroupedDataFrame)
+        result = grouped.agg(
+            pf.col("amount").sum.alias("total_amount"),
+            row_count=pf.col("amount").count,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            ["department", "region", "total_amount", "row_count"],
+            [
+                TableDataTypes.STRING(),
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT().not_null(),
+            ],
+        )
+
+    def test_group_by_requires_grouping_key(self):
+        with self.assertRaisesRegex(ValueError, "requires at least one grouping key"):
+            self.dataframe.group_by()
+
+    def test_group_by_rejects_unsupported_key_type(self):
+        with self.assertRaisesRegex(
+            TypeError, "grouping keys must be strings or expressions"
+        ):
+            self.dataframe.group_by(42)
+
+    def test_global_aggregation_requires_aggregation(self):
+        with self.assertRaisesRegex(ValueError, "requires at least one aggregation"):
+            self.dataframe.agg()
+
+    def test_global_aggregation_rejects_unsupported_positional_type(self):
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            self.dataframe.agg(42)
+
+    def test_global_aggregation_rejects_unsupported_named_type(self):
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            self.dataframe.agg(total=42)
+
+    def test_grouped_aggregation_requires_aggregation(self):
+        grouped = self.dataframe.group_by("department")
+        with self.assertRaisesRegex(ValueError, "requires at least one aggregation"):
+            grouped.agg()
+
+    def test_grouped_aggregation_rejects_unsupported_positional_type(self):
+        grouped = self.dataframe.group_by("department")
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            grouped.agg(42)
+
+    def test_grouped_aggregation_rejects_unsupported_named_type(self):
+        grouped = self.dataframe.group_by("department")
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            grouped.agg(total=42)
+
+    def test_global_aggregation_delegates_expression_legality_to_planner(self):
+        with self.assertRaisesRegex(Py4JJavaError, "ValidationException"):
+            self.dataframe.agg(pf.col("amount"))
+
+    def test_grouped_aggregation_delegates_ambiguous_output_to_planner(self):
+        with self.assertRaisesRegex(Py4JJavaError, "ValidationException"):
+            self.dataframe.group_by("department").agg(
+                department=pf.col("amount").sum
+            )
+
+
+class DataFrameDropDuplicatesTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "name": "a", "score": 10},
+                {"id": 1, "name": "b", "score": 20},
+                {"id": 2, "name": "c", "score": 30},
+            ]
+        )
+
+    def test_sql_proctime_default_keep_first(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id"),
+        )
+
+    def test_sql_proctime_default_keep_last(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY PROCTIME() DESC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id", keep="last"),
+        )
+
+    def test_sql_multi_column_subset(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id`, `name` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset=["id", "name"]),
+        )
+
+    def test_sql_order_by_column_name(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `score` DESC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id", order_by="score", keep="last"),
+        )
+
+    def test_sql_nulls_first_per_key(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id`"
+            " ORDER BY `score` ASC NULLS FIRST, `name` ASC NULLS LAST) AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(
+                subset="id", order_by=["score", "name"], nulls_first=[True, False]
+            ),
+        )
+
+    def test_sql_order_by_expression_is_materialized(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `__pf_order_0` ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id", order_by=pf.col("score")),
+        )
+
+    def test_sql_after_select_lists_only_source_columns(self):
+        source = self.dataframe.select("id", "score")
+        self.assert_dataframe_sql(
+            source,
+            "SELECT `id`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: source.drop_duplicates(subset="id"),
+        )
+
+    def test_sql_rank_column_avoids_collision(self):
+        dataframe = pf.from_records([{"__pf_row_number": 1, "value": 2}])
+        self.assert_dataframe_sql(
+            dataframe,
+            "SELECT `__pf_row_number`, `value` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `value` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number_`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number_` = 1",
+            lambda: dataframe.drop_duplicates(subset="value"),
+        )
+
+    def test_whole_row_produces_no_sql(self):
+        # Whole-row deduplication uses distinct(), not a generated query.
+        self.assert_dataframe_sql(
+            self.dataframe, None, lambda: self.dataframe.drop_duplicates()
+        )
+
+    def test_schema_preserved(self):
+        self.assert_dataframe_schema(
+            self.dataframe.drop_duplicates("id", order_by="score", keep="last"),
+            ["id", "name", "score"],
+        )
+
+    def test_whole_row_schema_preserved(self):
+        self.assert_dataframe_schema(
+            self.dataframe.drop_duplicates(), ["id", "name", "score"]
+        )
+
+    def test_rejects_invalid_keep(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates("id", keep="middle")
+        self.assertEqual(str(error.exception), 'keep must be "first" or "last"')
+
+    def test_rejects_empty_subset_list(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates([])
+        self.assertEqual(str(error.exception), "subset must not be empty")
+
+    def test_rejects_non_string_subset(self):
+        with self.assertRaises(TypeError) as error:
+            self.dataframe.drop_duplicates([1])
+        self.assertEqual(
+            str(error.exception), "subset must be a string or a list of strings"
+        )
+
+    def test_rejects_unknown_subset_column(self):
+        # The message embeds the (py4j) column list, so match only the stable prefix.
+        with self.assertRaisesRegex(ValueError, "subset column 'nope' does not exist"):
+            self.dataframe.drop_duplicates("nope")
+
+    def test_rejects_unknown_order_column(self):
+        # The message embeds the (py4j) column list, so match only the stable prefix.
+        with self.assertRaisesRegex(ValueError, "order_by column 'nope' does not exist"):
+            self.dataframe.drop_duplicates("id", order_by="nope")
+
+    def test_rejects_order_by_without_subset(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates(order_by="score")
+        self.assertEqual(
+            str(error.exception),
+            "order_by requires subset; whole-row duplicates cannot be ordered",
+        )
+
+    def test_rejects_nulls_first_without_order_by(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates("id", nulls_first=True)
+        self.assertEqual(str(error.exception), "nulls_first requires order_by")
+
+    def test_rejects_nulls_first_length_mismatch(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates(
+                "id", order_by="score", nulls_first=[True, False]
+            )
+        self.assertEqual(
+            str(error.exception), "nulls_first must have the same length as the sort keys"
+        )
+
+    def test_rejects_nulls_first_wrong_type(self):
+        with self.assertRaises(TypeError) as error:
+            self.dataframe.drop_duplicates("id", order_by="score", nulls_first=["x"])
+        self.assertEqual(
+            str(error.exception), "nulls_first must be a boolean or a list of booleans"
+        )
+
+
+class DataFrameDistinctTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "score": 10}, {"id": 1, "score": 20}]
+        )
+
+    def test_shares_drop_duplicates_signature(self):
+        self.assertEqual(
+            inspect.signature(pf.DataFrame.distinct),
+            inspect.signature(pf.DataFrame.drop_duplicates),
+        )
+
+    def test_produces_the_same_sql_as_drop_duplicates(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `score` ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.distinct(subset="id", order_by="score"),
+        )
+
+
+class DataFrameUniqueTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "score": 10}, {"id": 1, "score": 20}]
+        )
+
+    def test_shares_drop_duplicates_signature(self):
+        self.assertEqual(
+            inspect.signature(pf.DataFrame.unique),
+            inspect.signature(pf.DataFrame.drop_duplicates),
+        )
+
+    def test_produces_the_same_sql_as_drop_duplicates(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `score` ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.unique(subset="id", order_by="score"),
+        )
+
+
+class DataFrameWindowUnitTests(PyFlinkDataFrameUTTestCase):
+    _WINDOW_SCHEMA_COLUMN_NAMES = [
+        "id",
+        "amount",
+        "ts",
+        "window_start",
+        "window_end",
+        "window_time",
+    ]
+
+    def _window_schema_column_data_types(self):
+        source_types = list(
+            self.dataframe._table.get_resolved_schema().get_column_data_types()
+        )
+        time_column_type = source_types[2]
+        return source_types + [
+            TableDataTypes.TIMESTAMP(3).not_null(),
+            TableDataTypes.TIMESTAMP(3).not_null(),
+            time_column_type.not_null(),
+        ]
+
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "amount": 10, "ts": datetime(2020, 1, 1)}],
+            watermark=("ts", "ts - INTERVAL '1' SECOND"),
+        )
+
+    def test_timedelta_becomes_java_value_literal(self):
+        serialized = _to_interval_expression(
+            timedelta(minutes=10)
+        ).asSerializableString()
+
+        self.assertIn("INTERVAL", serialized)
+        self.assertIn("00:10:00", serialized)
+
+    def test_sub_millisecond_precision_is_truncated_not_rounded(self):
+        truncated = _to_interval_expression(
+            timedelta(milliseconds=1, microseconds=500)
+        ).asSerializableString()
+        whole = _to_interval_expression(
+            timedelta(milliseconds=1)
+        ).asSerializableString()
+
+        self.assertEqual(truncated, whole)
+
+    def test_sub_millisecond_timedelta_truncates_to_zero(self):
+        serialized = _to_interval_expression(
+            timedelta(microseconds=500)
+        ).asSerializableString()
+
+        zero = _to_interval_expression(timedelta(0)).asSerializableString()
+
+        self.assertEqual(serialized, zero)
+
+    def test_expression_is_unwrapped_to_j_expr(self):
+        expr = pf.lit(10).minutes
+
+        self.assertIs(_to_interval_expression(expr), expr._j_expr)
+
+    def test_rejects_unsupported_type(self):
+        with self.assertRaisesRegex(TypeError, "must be a datetime.timedelta or Expression"):
+            _to_interval_expression("INTERVAL '10' MINUTE")
+
+    def test_accepts_string_column(self):
+        resolved = _resolve_window_time_column("ts")
+
+        self.assertIsInstance(resolved, Expression)
+        self.assertEqual(str(resolved), "ts")
+
+    def test_accepts_column_expression(self):
+        column = pf.col("ts")
+
+        self.assertIs(_resolve_window_time_column(column), column)
+
+    def test_rejects_wrong_type(self):
+        with self.assertRaisesRegex(TypeError, "on must be a column name or expression"):
+            _resolve_window_time_column(10)
+
+    def test_tumble_appends_window_columns_timedelta(self):
+        self.assert_dataframe_schema(
+            self.dataframe.tumble(on="ts", size=timedelta(minutes=10)),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_tumble_appends_window_columns_expression(self):
+        self.assert_dataframe_schema(
+            self.dataframe.tumble(on="ts", size=pf.lit(10).minutes),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+        )
+
+    def test_hop_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.hop(
+                on="ts",
+                slide=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_cumulate_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.cumulate(
+                on="ts",
+                step=timedelta(minutes=2),
+                size=timedelta(minutes=10),
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_session_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.session(on="ts", gap=timedelta(minutes=10)),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_session_with_partition_by_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.session(
+                on="ts",
+                gap=timedelta(minutes=10),
+                partition_by=["id", pf.col("amount")],
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+        )
+
+    def test_session_partition_by_rejects_unsupported_type(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "^partition_by must be a column name, expression, or a list of them$",
+        ):
+            self.dataframe.session(
+                on="ts", gap=timedelta(minutes=10), partition_by=[10]
+            )
+
+
+class DataFrameTopNTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.df = pf.from_records([{"id": 1, "cat": "a", "amount": 10}])
+
+    def test_output_schema_equals_input(self):
+        self.assert_dataframe_schema(
+            self.df.top_n(3, partition_by="cat", order_by="amount", descending=True),
+            self.df.columns)
+
+    def test_empty_partition_by_is_global(self):
+        self.assert_dataframe_schema(
+            self.df.top_n(2, partition_by=[], order_by="amount"),
+            self.df.columns)
+
+    def test_requires_order_by(self):
+        with self.assertRaisesRegex(TypeError, "top_n requires a non-empty order_by"):
+            self.df.top_n(3, partition_by="cat")
+
+    def test_rejects_empty_order_by(self):
+        with self.assertRaisesRegex(TypeError, "top_n requires a non-empty order_by"):
+            self.df.top_n(3, partition_by="cat", order_by=[])
+
+    def test_rejects_non_positive_n(self):
+        with self.assertRaisesRegex(ValueError, "n must be an integer >= 1"):
+            self.df.top_n(0, order_by="amount")
+
+    def test_unknown_partition_column(self):
+        with self.assertRaisesRegex(ValueError, "partition_by column 'nope' does not exist"):
+            self.df.top_n(2, partition_by="nope", order_by="amount")
+
+    def test_rejects_non_string_partition_by(self):
+        with self.assertRaises(TypeError) as error:
+            self.df.top_n(2, partition_by=[1], order_by="amount")
+        self.assertEqual(
+            str(error.exception), "partition_by must be a string or a list of strings"
+        )
+
+    def test_sql_global_has_no_partition_by(self):
+        df = pf.from_records([{"id": 1, "name": "a", "score": 10}])
+
+        self.assert_dataframe_sql(
+            df,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (ORDER BY `score` ASC) AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` <= 2",
+            lambda: df.top_n(2, order_by="score"),
+        )
+
+
+class DataFrameDropDuplicatesITTests(PyFlinkStreamDataFrameTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
+
+    def test_whole_row_removes_identical_rows(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "a"), (2, "b")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_whole_row_keeps_rows_differing_in_any_column(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "b"), (1, "a")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates()),
+            [(1, "a"), (1, "b")],
+        )
+
+    def test_distinct_alias_removes_identical_rows(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "a"), (2, "b")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.distinct()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_unique_alias_removes_identical_rows(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "a"), (2, "b")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.unique()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_from_dict_input(self):
+        dataframe = pf.from_dict({"id": [1, 1, 2], "name": ["a", "a", "b"]})
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_subset_keep_first_by_order_column(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+                (2, "d", 5),
+                (3, "e", 7),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates("id", order_by="score", keep="first")
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(1, "a", 10), (2, "d", 5), (3, "e", 7)],
+        )
+
+    def test_subset_keep_last_by_order_column(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+                (2, "d", 5),
+                (3, "e", 7),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates("id", order_by="score", keep="last")
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(1, "b", 20), (2, "c", 30), (3, "e", 7)],
+        )
+
+    def test_multi_column_subset_keep_first_by_order_column(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "a", 20),
+                (1, "b", 30),
+                (2, "a", 40),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates(["id", "name"], order_by="score", keep="first")
+
+        self.assertEqual(
+            self._materialize(result, key=["id", "name"]),
+            [(1, "a", 10), (1, "b", 30), (2, "a", 40)],
+        )
+
+    def test_subset_keep_first_by_arrival(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "b"), (2, "c")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates("id"), key=["id"]),
+            [(1, "a"), (2, "c")],
+        )
+
+    def test_subset_keep_last_by_arrival(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "b"), (2, "c")],
+            schema=["id", "name"],
+        )
+
+        result = dataframe.drop_duplicates("id", keep="last")
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(1, "b"), (2, "c")],
+        )
+
+    def test_dedup_after_select_and_filter(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+                (3, "d", 40),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = (
+            dataframe.filter(pf.col("id") > 1)
+            .select("id", "score")
+            .drop_duplicates("id", order_by="score", keep="last")
+        )
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(2, 30), (3, 40)],
+        )
+
+    def test_filter_after_dedup(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates("id", order_by="score", keep="last").filter(
+            pf.col("id") > 1
+        )
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(2, "c", 30)],
+        )
+
+
+class DataFrameTopNITTests(PyFlinkStreamDataFrameTestCase):
+    def test_per_group_top_2(self):
+        df = pf.from_records([{"cat": "a", "v": 3}, {"cat": "a", "v": 1},
+                              {"cat": "a", "v": 2}, {"cat": "b", "v": 5}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(2, partition_by="cat", order_by="v", descending=True)),
+            [("a", 2), ("a", 3), ("b", 5)])
+
+    def test_global_top_1(self):
+        df = pf.from_records([{"v": 3}, {"v": 1}, {"v": 2}])
+
+        self.assertEqual(self._materialize(df.top_n(1, order_by="v", descending=True)), [(3,)])
+
+    def test_nulls_first(self):
+        df = pf.from_records([{"cat": "a", "v": 3}, {"cat": "a", "v": None}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(1, partition_by="cat", order_by="v",
+                                       descending=True, nulls_first=True)),
+            [("a", None)])
+
+    def test_expression_order_key(self):
+        df = pf.from_records([{"cat": "a", "v": -3}, {"cat": "a", "v": 2}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(1, partition_by="cat", order_by=pf.col("v").abs,
+                                       descending=True)),
+            [("a", -3)])
+
+    def test_descending_per_key_list(self):
+        df = pf.from_records([{"a": 2, "b": 1}, {"a": 2, "b": 9},
+                              {"a": 2, "b": 5}, {"a": 1, "b": 100}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(2, order_by=["a", "b"], descending=[True, False])),
+            [(2, 1), (2, 5)])
+
+    def test_nulls_first_per_key_list(self):
+        df = pf.from_records([{"cat": "x", "a": 1, "b": None}, {"cat": "x", "a": 1, "b": 5},
+                              {"cat": "y", "a": 2, "b": 3}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(1, partition_by="cat", order_by=["a", "b"],
+                                       nulls_first=[False, True])),
+            [("x", 1, None), ("y", 2, 3)])
+
+
+class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
+    def test_from_records(self):
+        dataframe = pf.from_records(
+            [(1, "Alice"), (2, "Bob")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            dataframe.collect(),
+            [Row(1, "Alice"), Row(2, "Bob")],
+        )
+
+    def test_watermark_precision_normalization_floors_pre_epoch_timestamps(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("UTC")
+        try:
+            timestamp = datetime(1969, 12, 31, 23, 59, 59, 999999)
+            creators = [
+                (
+                    "from_dict",
+                    lambda: pf.from_dict(
+                        {"ts": [timestamp]},
+                        watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                    ),
+                ),
+                (
+                    "from_records",
+                    lambda: pf.from_records(
+                        [{"ts": timestamp}],
+                        watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                    ),
+                ),
+            ]
+
+            for name, creator in creators:
+                with self.subTest(creator=name):
+                    result = creator().select(
+                        ts=pf.col("ts").cast(TableDataTypes.STRING())
+                    )
+                    self.assertEqual(
+                        result.collect(), [Row("1969-12-31 23:59:59.999")]
+                    )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_pandas_to_pandas_round_trip(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("America/New_York")
+        try:
+            first_fold = pd.Timestamp("2026-11-01T05:30:00.123Z")
+            second_fold = pd.Timestamp("2026-11-01T06:30:00.123Z")
+            pdf = pd.DataFrame(
+                {
+                    "id": [0, 1, 2, 3],
+                    "ts": pd.Series(
+                        [None, first_fold, second_fold, None],
+                        dtype="datetime64[ms, UTC]",
+                    ),
+                }
+            )
+
+            result = (
+                pf.from_pandas(pdf)
+                .filter(pf.col("id") > 0)
+                .with_column("id_plus_one", pf.col("id") + 1)
+                .select("id", "id_plus_one", "ts")
+                .to_pandas()
+                .sort_values("id")
+                .reset_index(drop=True)
+            )
+
+            self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])
+            self.assertEqual(result["id"].tolist(), [1, 2, 3])
+            self.assertEqual(result["id_plus_one"].tolist(), [2, 3, 4])
+            self.assertEqual(result["ts"].isna().tolist(), [False, False, True])
+            local_fold = pd.Timestamp("2026-11-01T01:30:00.123")
+            self.assertEqual(
+                result["ts"].tolist()[:2],
+                [local_fold, local_fold],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_lit_supports_inferred_and_explicit_types(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        map_type = pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+        struct_type = pf.DataType.struct(
+            {
+                "small_value": pf.DataType.int16(),
+                "float_value": pf.DataType.float32(),
+            }
+        )
+
+        result = dataframe.select(
+            inferred_date=pf.lit(date(2026, 8, 3)),
+            inferred_list=pf.lit(["abc"]),
+            explicit_small_int=pf.lit(1, pf.DataType.int16()),
+            explicit_float=pf.lit(1.25, pf.DataType.float32()),
+            explicit_list=pf.lit(
+                [1, 2],
+                pf.DataType.list(pf.DataType.int16()),
+            ),
+            explicit_map=pf.lit({1: 1.25}, map_type),
+            explicit_struct=pf.lit((1, 1.25), struct_type),
+        )
+
+        self.assertEqual(
+            result.collect(),
+            [
+                Row(
+                    date(2026, 8, 3),
+                    ["abc"],
+                    1,
+                    1.25,
+                    [1, 2],
+                    {1: 1.25},
+                    Row(1, 1.25),
+                )
+            ],
+        )
+
+    def test_basic_functionality(self):
+        df = pf.from_dict(
+            {
+                "name": [
+                    "expression",
+                    "Alice",
+                    "sql",
+                    "constraint",
+                    "null_constraint",
+                    "callable",
+                ],
+                "ignored": ["unused"],
+                "id": [0, 1, 2, 3, 4, 6],
+                "age": [20, 30, 40, 50, 60, 70],
+                "score": [0.95, 0.95, 0.7, 0.95, 0.95, 0.95],
+                "city": ["SF", "SF", "SF", "NYC", "SF", "SF"],
+                "destination": [None, None, None, None, "Paris", None],
+            },
+            schema=["id", "name", "age", "score", "city", "destination"],
+        )
+
+        result = (
+            df[df["id"] > 0]
+            .where(
+                "score >= 0.9",
+                lambda current: current["id"] < 6,
+                city="SF",
+                destination=None,
+            )
+            .with_column(
+                "age_next_year",
+                lambda current: current["age"] + 1,
+            )
+            .with_column("age", pf.col("age") + 1)
+            .with_columns(
+                (pf.col("age_next_year") + 1).alias("age_in_two_years"),
+                score_percent=pf.col("score") * 100,
+            )
+            .drop("score", "city", "destination")
+            .rename({"name": "customer_name"})
+            .select(
+                "id",
+                "customer_name",
+                "age",
+                "age_next_year",
+                "age_in_two_years",
+                "score_percent",
+                inferred_int=pf.lit(2),
+                inferred_string=pf.lit("x"),
+                explicit_int=pf.lit(3, pf.DataType.int64()),
+                explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
+                explicit_string=pf.lit("y", pf.DataType.string()),
+                null_int=pf.lit(None, pf.DataType.int64()),
+                null_string=pf.lit(None, pf.DataType.string()),
+                non_nullable_int=pf.lit(
+                    3,
+                    pf.DataType(TableDataTypes.BIGINT().not_null()),
+                ),
+            )[
+                (
+                    "customer_name",
+                    "id",
+                    "age",
+                    "age_next_year",
+                    "age_in_two_years",
+                    "score_percent",
+                    "inferred_int",
+                    "inferred_string",
+                    "explicit_int",
+                    "explicit_large_int",
+                    "explicit_string",
+                    "null_int",
+                    "null_string",
+                    "non_nullable_int",
+                )
+            ]
+        )
+
+        self.assertEqual(
+            result.collect(),
+            [
+                Row(
+                    "Alice",
+                    1,
+                    31,
+                    31,
+                    32,
+                    95.0,
+                    2,
+                    "x",
+                    3,
+                    1 << 40,
+                    "y",
+                    None,
+                    None,
+                    3,
+                )
+            ],
+        )
+
+
+class DataFrameDropNullTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "age": 30},
+                {"id": 2, "name": None, "age": 25},
+                {"id": 3, "name": "Bob", "age": None},
+                {"id": 4, "name": None, "age": None},
+            ],
+            schema=["id", "name", "age"],
+        )
+        self.expected_schema = [
+            TableDataTypes.BIGINT(),
+            TableDataTypes.STRING(),
+            TableDataTypes.BIGINT(),
+        ]
+
+    def test_drop_null_without_subset_checks_all_columns(self):
+        result = self.dataframe.drop_null()
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+
+    def test_drop_null_with_single_column_subset(self):
+        result = self.dataframe.drop_null(subset=["age"])
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+
+    def test_drop_null_with_multiple_column_subset(self):
+        result = self.dataframe.drop_null(subset=["name", "age"])
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+
+    def test_drop_null_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.drop_null(subset=[])
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
+
+    def test_drop_null_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.drop_null(subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_drop_null_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.drop_null(subset="age")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameDropNanTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+        self.expected_schema = [TableDataTypes.BIGINT(), TableDataTypes.DOUBLE()]
+
+    def test_drop_nan_without_subset_checks_all_columns(self):
+        result = self.dataframe.drop_nan()
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_drop_nan_with_subset(self):
+        result = self.dataframe.drop_nan(subset=["score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_drop_nan_with_multiple_column_subset(self):
+        result = self.dataframe.drop_nan(subset=["id", "score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_drop_nan_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.drop_nan(subset=[])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
+
+    def test_drop_nan_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.drop_nan(subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_drop_nan_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.drop_nan(subset="score")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameFillNullTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "quantity": 10},
+                {"id": 2, "name": None, "quantity": None},
+                {"id": 3, "name": "Bob", "quantity": 5},
+            ],
+            schema=["id", "name", "quantity"],
+        )
+        self.expected_schema = [
+            TableDataTypes.BIGINT(),
+            TableDataTypes.STRING(),
+            TableDataTypes.BIGINT(),
+        ]
+
+    def test_fill_null_with_numeric_value(self):
+        result = self.dataframe.fill_null(0, subset=["quantity"])
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+
+    def test_fill_null_with_string_value(self):
+        result = self.dataframe.fill_null("unknown", subset=["name"])
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+
+    def test_fill_null_without_subset_fills_all_columns(self):
+        result = self.dataframe.fill_null(0)
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+
+    def test_fill_null_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.fill_null(0, subset=[])
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
+
+    def test_fill_null_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.fill_null(0, subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_fill_null_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.fill_null(0, subset="quantity")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameFillNanTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+        self.expected_schema = [TableDataTypes.BIGINT(), TableDataTypes.DOUBLE()]
+
+    def test_fill_nan_with_numeric_value(self):
+        result = self.dataframe.fill_nan(0.0, subset=["score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_fill_nan_without_subset_fills_all_columns(self):
+        result = self.dataframe.fill_nan(0.0)
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_fill_nan_with_multiple_column_subset(self):
+        result = self.dataframe.fill_nan(0.0, subset=["id", "score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_fill_nan_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.fill_nan(0.0, subset=[])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
+
+    def test_fill_nan_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.fill_nan(0.0, subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_fill_nan_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.fill_nan(0.0, subset="score")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameBatchITTests(PyFlinkITTestCase):
+    def setUp(self):
+        previous_environment = pf.get_table_environment()
+        self.addCleanup(pf.set_table_environment, previous_environment)
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_attribute_column_access_executes(self):
+        dataframe = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'Alice'), (2, 'Bob')) AS T(id, name)"
+        ))
+        result = dataframe.filter(lambda df: df.id > 1).select(
+            dataframe.name, (dataframe.id + 10).alias("next_id")
+        )
+        self.assertEqual(result.collect(), [Row("Bob", 12)])
+
+    def _ordered_dataframe(self):
+        table = self.t_env.sql_query(
+            "SELECT * FROM (VALUES (3, 'C'), (1, 'A'), (4, 'D'), (2, 'B')) "
+            "AS T(id, name)"
+        )
+        return pf.from_table(table.order_by(table.id))
+
+    def _unsorted_dataframe(self):
+        table = self.t_env.sql_query(
+            "SELECT * FROM (VALUES (3, 'C'), (1, 'A'), (2, 'B')) AS T(id, name)"
+        )
+        return pf.from_table(table)
+
+    def _nullable_dataframe(self):
+        table = self.t_env.sql_query(
+            "SELECT * FROM (VALUES (CAST(NULL AS INT), 'NULL'), (2, 'B'), (1, 'A')) "
+            "AS T(id, name)"
+        )
+        return pf.from_table(table)
+
+    def _join_dataframes(self):
+        left = self.t_env.sql_query(
+            "SELECT * FROM (VALUES "
+            "(CAST(1 AS INT), 'L1'), (2, 'L2'), (CAST(NULL AS INT), 'LN')) "
+            "AS T(id, left_value)"
+        )
+        right = self.t_env.sql_query(
+            "SELECT * FROM (VALUES "
+            "(CAST(2 AS INT), 'R2'), (3, 'R3'), (CAST(NULL AS INT), 'RN')) "
+            "AS T(id, right_value)"
+        )
+        return pf.from_table(left), pf.from_table(right)
+
+    def test_sort_returns_rows_in_ascending_order(self):
+        self.assertEqual(
+            self._unsorted_dataframe().sort("id").collect(),
+            [Row(1, "A"), Row(2, "B"), Row(3, "C")],
+        )
+
+    def test_sort_supports_per_key_descending_order(self):
+        dataframe = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 10, 'A'), (1, 20, 'B'), (2, 5, 'C')) "
+                "AS T(group_id, score, name)"
+            )
+        )
+
+        self.assertEqual(
+            dataframe.sort(["group_id", "score"], descending=[False, True]).collect(),
+            [Row(1, 20, "B"), Row(1, 10, "A"), Row(2, 5, "C")],
+        )
+
+    def test_sort_supports_explicit_null_ordering(self):
+        dataframe = self._nullable_dataframe()
+
+        self.assertEqual(
+            dataframe.sort("id", descending=True, nulls_first=False).collect(),
+            [Row(2, "B"), Row(1, "A"), Row(None, "NULL")],
+        )
+        self.assertEqual(
+            dataframe.sort(pf.col("id") + 1, nulls_first=True).collect(),
+            [Row(None, "NULL"), Row(1, "A"), Row(2, "B")],
+        )
+
+    def test_limit_returns_first_rows(self):
+        self.assertEqual(
+            self._ordered_dataframe().limit(2).collect(),
+            [Row(1, "A"), Row(2, "B")],
+        )
+
+    def test_offset_and_limit_compose_for_pagination(self):
+        self.assertEqual(
+            self._ordered_dataframe().offset(1).limit(2).collect(),
+            [Row(2, "B"), Row(3, "C")],
+        )
+
+    def test_head_and_limit_are_equivalent(self):
+        dataframe = self._ordered_dataframe()
+
+        self.assertEqual(dataframe.head(3).collect(), dataframe.limit(3).collect())
+
+    def test_zero_slicing(self):
+        dataframe = self._ordered_dataframe()
+
+        self.assertEqual(dataframe.limit(0).collect(), [])
+        self.assertEqual(dataframe.head(0).collect(), [])
+        self.assertEqual(
+            dataframe.offset(0).collect(),
+            [Row(1, "A"), Row(2, "B"), Row(3, "C"), Row(4, "D")],
+        )
+
+    def test_from_records_with_batch_table_environment(self):
+        pf.set_table_environment(self.t_env)
+
+        result = pf.from_records(
+            [(1, "Alice"), (2, "Bob")],
+            schema=["id", "name"],
+        ).filter(pf.col("id") > 1)
+
+        self.assertEqual(result.collect(), [Row(2, "Bob")])
+
+    def test_grouped_aggregation_with_batch_table_environment(self):
+        pf.set_table_environment(self.t_env)
+
+        result = pf.from_records(
+            [
+                ("engineering", 10),
+                ("engineering", 20),
+                ("sales", 5),
+            ],
+            schema=["department", "amount"],
+        ).group_by("department").agg(
+            total_amount=pf.col("amount").sum,
+            row_count=pf.col("amount").count,
+        )
+
+        self.assertCountEqual(
+            result.collect(),
+            [Row("engineering", 30, 2), Row("sales", 5, 1)],
+        )
+
+    def test_join_types_and_null_keys(self):
+        expected = {
+            "inner": [Row(2, "L2", "R2")],
+            "left": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(None, "LN", None),
+            ],
+            "right": [
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, None, "RN"),
+            ],
+            "full": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, "LN", None),
+                Row(None, None, "RN"),
+            ],
+            "outer": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, "LN", None),
+                Row(None, None, "RN"),
+            ],
+        }
+
+        for how, expected_rows in expected.items():
+            with self.subTest(how=how):
+                left, right = self._join_dataframes()
+                self.assertCountEqual(
+                    left.join(right, on="id", how=how).collect(),
+                    expected_rows,
+                )
+
+    def test_semi_and_anti_join_preserve_left_multiplicity(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(1 AS INT), 'A'), (1, 'A'), (1, 'B'), (2, 'C'), (2, 'C'), "
+                "(CAST(NULL AS INT), 'N')) AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(1 AS INT), 'X'), (1, 'Y'), (CAST(NULL AS INT), 'Z')) "
+                "AS T(id, right_value)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, on="id", how="semi").collect(),
+            [Row(1, "A"), Row(1, "A"), Row(1, "B")],
+        )
+        self.assertCountEqual(
+            left.join(right, on="id", how="anti").collect(),
+            [Row(2, "C"), Row(2, "C"), Row(None, "N")],
+        )
+
+    def test_anti_join_with_multiple_nullable_keys(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, 'B'), (1, CAST(NULL AS STRING)), "
+                "(CAST(NULL AS INT), 'A'), (CAST(NULL AS INT), CAST(NULL AS STRING)), "
+                "(2, 'A'), (2, 'A')) "
+                "AS T(id, category)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, CAST(NULL AS STRING)), "
+                "(CAST(NULL AS INT), 'A'), (CAST(NULL AS INT), CAST(NULL AS STRING))) "
+                "AS T(id, category)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, on=["id", "category"], how="anti").collect(),
+            [
+                Row(1, "B"),
+                Row(1, None),
+                Row(None, "A"),
+                Row(None, None),
+                Row(2, "A"),
+                Row(2, "A"),
+            ],
+        )
+
+    def test_anti_join_with_empty_inputs(self):
+        left, right = self._join_dataframes()
+        empty_left = left.filter(pf.col("id") < 0)
+        empty_right = right.filter(pf.col("id") < 0)
+
+        self.assertCountEqual(
+            left.join(empty_right, on="id", how="anti").collect(),
+            [Row(1, "L1"), Row(2, "L2"), Row(None, "LN")],
+        )
+        self.assertEqual(empty_left.join(right, on="id", how="anti").collect(), [])
+        self.assertEqual(empty_left.join(empty_right, on="id", how="anti").collect(), [])
+
+    def test_anti_join_with_computed_keys_and_non_equi_predicate(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1), (2), (3), (CAST(NULL AS INT))) AS T(id)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (2), (CAST(NULL AS INT))) AS T(right_id)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(
+                right, left_on=pf.col("id") + 1, right_on="right_id", how="anti"
+            ).collect(),
+            [Row(2), Row(3), Row(None)],
+        )
+        self.assertCountEqual(
+            left.join(right, on=pf.col("id") < pf.col("right_id"), how="anti").collect(),
+            [Row(2), Row(3), Row(None)],
+        )
+
+    def test_join_with_different_names_computed_keys_and_expression(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS INT), 'L1'), (2, 'L2')) "
+                "AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(2 AS INT), 1, 3, 'R2'), (3, 2, 4, 'R3')) "
+                "AS T(right_id, min_id, max_id, right_value)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, left_on=pf.col("id") + 1, right_on="right_id").collect(),
+            [
+                Row(1, "L1", 2, 1, 3, "R2"),
+                Row(2, "L2", 3, 2, 4, "R3"),
+            ],
+        )
+        predicate = (
+            (pf.col("id") + 1 == pf.col("right_id"))
+            & (pf.col("id") >= pf.col("min_id"))
+            & (pf.col("id") < pf.col("max_id"))
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate).collect(),
+            [
+                Row(1, "L1", 2, 1, 3, "R2"),
+                Row(2, "L2", 3, 2, 4, "R3"),
+            ],
+        )
+        self.assertEqual(left.join(right, on=predicate, how="anti").collect(), [])
+        self.assertCountEqual(
+            left.join(
+                right,
+                left_on=pf.col("id") + 1,
+                right_on="right_id",
+                how="semi",
+            ).collect(),
+            [Row(1, "L1"), Row(2, "L2")],
+        )
+
+    def test_join_with_non_equi_only_predicate(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2), (3)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (2), (3)) AS T(right_id)")
+        )
+        predicate = pf.col("id") < pf.col("right_id")
+
+        self.assertCountEqual(
+            left.join(right, on=predicate).collect(),
+            [Row(1, 2), Row(1, 3), Row(2, 3)],
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate, how="left").collect(),
+            [Row(1, 2), Row(1, 3), Row(2, 3), Row(3, None)],
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate, how="semi").collect(),
+            [Row(1), Row(2)],
+        )
+
+    def test_join_with_inline_udf_predicate_after_function_cleanup(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, 'A'), (2, 'B'), "
+                "(3, CAST(NULL AS STRING)), (CAST(NULL AS INT), 'N')) "
+                "AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, 'X'), (2, 'X'), "
+                "(3, CAST(NULL AS STRING)), (CAST(NULL AS INT), 'N')) "
+                "AS T(right_id, right_value)"
+            )
+        )
+        same_value = pf.udf(lambda left, right: left == right, return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        result = left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & same_value(pf.col("left_value"), pf.col("right_value")),
+        )
+
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertCountEqual(
+            result.collect(),
+            [Row(1, "A", 1, "A"), Row(1, "A", 1, "A"), Row(3, None, 3, None)],
+        )
+
+    def test_left_semi_and_anti_join_with_inline_udf_on_right_input(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'no'), (2, 'yes')) AS T(right_id, flag)"
+            )
+        )
+        is_allowed = pf.udf(lambda value: value == "yes", return_dtype=bool)
+        predicate = (pf.col("id") == pf.col("right_id")) & is_allowed(pf.col("flag"))
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        outer = left.join(right, on=predicate, how="left")
+        semi = left.join(right, on=predicate, how="semi")
+        anti = left.join(right, on=predicate, how="anti")
+
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertTrue(outer.to_table().get_resolved_schema().get_column_data_types()[1]._nullable)
+        self.assertCountEqual(outer.collect(), [Row(1, None, None), Row(2, 2, "yes")])
+        self.assertEqual(semi.collect(), [Row(2)])
+        self.assertEqual(anti.collect(), [Row(1)])
+
+    def test_anti_join_on_table_sources(self):
+        left = pf.from_table(self.t_env.from_elements([(1,), (2,), (3,), (None,)], ["id"]))
+        right = pf.from_table(self.t_env.from_elements([(2,), (None,)], ["right_id"]))
+        cases = (
+            ({"left_on": "id", "right_on": "right_id"}, [Row(1), Row(3), Row(None)]),
+            (
+                {"left_on": pf.col("id") + 1, "right_on": "right_id"},
+                [Row(2), Row(3), Row(None)],
+            ),
+            ({"on": pf.col("id") < pf.col("right_id")}, [Row(2), Row(3), Row(None)]),
+        )
+
+        for keys, expected in cases:
+            with self.subTest(keys=keys):
+                result = left.join(right, how="anti", **keys)
+
+                self.assertIn("joinType=[LeftAntiJoin]", result.to_table().explain())
+                self.assertCountEqual(result.collect(), expected)
+
+    def test_anti_join_on_table_sources_with_inline_udf_after_cleanup(self):
+        left = pf.from_table(
+            self.t_env.from_elements(
+                [(1, "A"), (1, "A"), (2, "B"), (3, "C"), (None, "N")],
+                ["id", "left_value"],
+            )
+        )
+        right = pf.from_table(
+            self.t_env.from_elements(
+                [(1, "no"), (2, "yes"), (2, "yes"), (None, "yes")],
+                ["right_id", "flag"],
+            )
+        )
+        is_allowed = pf.udf(lambda value: value == "yes", return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        result = left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id")) & is_allowed(pf.col("flag")),
+            how="anti",
+        )
+
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertIn("joinType=[LeftAntiJoin]", result.to_table().explain())
+        self.assertCountEqual(
+            result.collect(), [Row(1, "A"), Row(1, "A"), Row(3, "C"), Row(None, "N")]
+        )
+
+    def test_cross_join(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES ('S'), ('M')) AS T(size_name)")
+        )
+
+        self.assertCountEqual(
+            left.join(right, how="cross").collect(),
+            [Row(1, "S"), Row(1, "M"), Row(2, "S"), Row(2, "M")],
+        )
+
+
+class DataFrameSetOperationITTests(PyFlinkITTestCase):
+    def setUp(self):
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_set_operations_with_duplicate_and_null_rows(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'a'), (1, 'a'), (1, 'a'), (2, 'b'), "
+            "(3, 'c'), (3, 'c'), (CAST(NULL AS INT), 'n'), "
+            "(CAST(NULL AS INT), 'n'), (1, 'x')) AS T(id, name)"
+        ))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'a'), (1, 'a'), (2, 'b'), (2, 'b'), "
+            "(4, 'd'), (CAST(NULL AS INT), 'n')) AS T(other_id, other_name)"
+        ))
+        expected = {
+            "union": [Row(1, "a"), Row(2, "b"), Row(3, "c"), Row(4, "d"),
+                      Row(None, "n"), Row(1, "x")],
+            "union_all": ([Row(1, "a")] * 5 + [Row(2, "b")] * 3 + [Row(3, "c")] * 2
+                          + [Row(4, "d")] + [Row(None, "n")] * 3 + [Row(1, "x")]),
+            "intersect": [Row(1, "a"), Row(2, "b"), Row(None, "n")],
+            "intersect_all": [Row(1, "a"), Row(1, "a"), Row(2, "b"), Row(None, "n")],
+            "minus": [Row(3, "c"), Row(1, "x")],
+            "minus_all": [Row(1, "a"), Row(3, "c"), Row(3, "c"), Row(None, "n"), Row(1, "x")],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                self.assertCountEqual(getattr(left, method)(right).collect(), rows)
+
+    def test_set_operations_with_empty_inputs(self):
+        dataframe = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1), (1)) AS T(id)"
+        ))
+        empty = dataframe.filter(pf.lit(False))
+        expected = {
+            "union": ([Row(1)], [Row(1)]),
+            "union_all": ([Row(1), Row(1)], [Row(1), Row(1)]),
+            "intersect": ([], []),
+            "intersect_all": ([], []),
+            "minus": ([Row(1)], []),
+            "minus_all": ([Row(1), Row(1)], []),
+        }
+
+        for method, (right_empty, left_empty) in expected.items():
+            with self.subTest(method=method, empty="right"):
+                self.assertCountEqual(getattr(dataframe, method)(empty).collect(), right_empty)
+            with self.subTest(method=method, empty="left"):
+                self.assertCountEqual(getattr(empty, method)(dataframe).collect(), left_empty)
+
+    def test_set_operations_compose_with_other_transformations(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'a'), (2, 'b'), (2, 'b'), (3, 'c')) AS T(id, name)"
+        ))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (2, 'b'), (4, 'd')) AS T(id, name)"
+        ))
+        expected = {
+            "union": [Row("b"), Row("c"), Row("d")],
+            "union_all": [Row("b"), Row("b"), Row("b"), Row("c"), Row("d")],
+            "intersect": [Row("b")],
+            "intersect_all": [Row("b")],
+            "minus": [Row("c")],
+            "minus_all": [Row("b"), Row("c")],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                result = getattr(left, method)(right).filter(pf.col("id") > 1).select("name")
+                self.assertCountEqual(result.collect(), rows)
+
+    def test_union_operations_execute_with_type_coercion(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1), (2), (2), (3)) AS T(id)"
+        ))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (CAST(2 AS BIGINT)), (CAST(2147483648 AS BIGINT))) "
+            "AS T(other_id)"
+        ))
+        expected = {
+            "union": [Row(1), Row(2), Row(3), Row(2147483648)],
+            "union_all": [Row(1), Row(2), Row(2), Row(2), Row(3), Row(2147483648)],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                result = getattr(left, method)(right)
+                self.assertEqual(
+                    result.to_table().get_resolved_schema().get_column_data_types(),
+                    [TableDataTypes.BIGINT().not_null()],
+                )
+                self.assertCountEqual(result.collect(), rows)
+
+    def test_set_operations_execute_after_explicit_cast(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1), (2), (2), (3)) AS T(id)"
+        )).select(id=pf.col("id").cast(TableDataTypes.BIGINT()))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (CAST(2 AS BIGINT)), (CAST(2147483648 AS BIGINT))) "
+            "AS T(other_id)"
+        ))
+        expected = {
+            "union": [Row(1), Row(2), Row(3), Row(2147483648)],
+            "union_all": [Row(1), Row(2), Row(2), Row(2), Row(3), Row(2147483648)],
+            "intersect": [Row(2)],
+            "intersect_all": [Row(2)],
+            "minus": [Row(1), Row(3)],
+            "minus_all": [Row(1), Row(2), Row(3)],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                result = getattr(left, method)(right)
+                self.assertEqual(
+                    result.to_table().get_resolved_schema().get_column_data_types(),
+                    [TableDataTypes.BIGINT().not_null()],
+                )
+                self.assertCountEqual(result.collect(), rows)
+
+
+class DataFrameSetOperationStreamITTests(PyFlinkStreamDataFrameTestCase):
+    def test_union_all_retains_duplicates(self):
+        left = pf.from_records([(1,), (2,), (2,)], schema=["id"])
+        right = pf.from_records([(2,), (3,)], schema=["id"])
+
+        self.assertCountEqual(
+            left.union_all(right).collect(),
+            [Row(1), Row(2), Row(2), Row(2), Row(3)],
+        )
+
+
+class DataFrameExplodeITTests(PyFlinkITTestCase):
+    def setUp(self):
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_explode_direct_column_with_both_empty_collection_modes(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, [2, 2, None], "a"), (2, [], "b"), (3, None, "c")],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.INT())),
+                TableDataTypes.FIELD("label", TableDataTypes.STRING()),
+            ])))
+        for ignore in [False, True]:
+            with self.subTest(ignore=ignore):
+                expected = [Row(1, 2, "a"), Row(1, 2, "a"), Row(1, None, "a")]
+                if not ignore:
+                    expected += [Row(2, None, "b"), Row(3, None, "c")]
+                self.assertCountEqual(
+                    df.explode("items", ignore_empty_and_null=ignore).collect(), expected)
+
+    def test_explode_preserves_row_elements_and_distinguishes_outer_null(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, [Row(2, "a"), Row(3, "b")], "x")],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.ROW([
+                    TableDataTypes.FIELD("number", TableDataTypes.INT()),
+                    TableDataTypes.FIELD("text", TableDataTypes.STRING()),
+                ]))),
+                TableDataTypes.FIELD("label", TableDataTypes.STRING()),
+            ])))
+        exploded = df.explode("items", ignore_empty_and_null=True)
+        self.assertEqual(exploded.columns, ["id", "items", "label"])
+        flattened = exploded.select("id", pf.col("items").flatten, "label")
+        self.assertEqual(
+            flattened.columns, ["id", "items$number", "items$text", "label"])
+        self.assertCountEqual(
+            flattened.collect(),
+            [
+                Row(1, 2, "a", "x"),
+                Row(1, 3, "b", "x"),
+            ],
+        )
+
+        multiset_df = pf.from_table(self.t_env.sql_query(
+            "SELECT id, COLLECT(item) AS items, MAX(label) AS label FROM "
+            "(VALUES "
+            "(1, CAST(ROW(2, 3) AS ROW<number INT, code INT>), 9), "
+            "(1, CAST(ROW(2, 3) AS ROW<number INT, code INT>), 9), "
+            "(1, CAST(ROW(CAST(NULL AS INT), CAST(NULL AS INT)) "
+            "AS ROW<number INT, code INT>), 9)) AS T(id, item, label) GROUP BY id "
+            "UNION ALL SELECT 3, "
+            "CAST(NULL AS ROW<number INT, code INT> MULTISET), 8"))
+        distinguished = multiset_df.explode("items").select(
+            "id",
+            pf.col("items").is_null.alias("item_is_null"),
+            pf.col("items").get("number").alias("number"),
+            pf.col("items").get("code").alias("code"),
+            "label",
+        )
+        self.assertCountEqual(
+            distinguished.collect(),
+            [
+                Row(1, False, 2, 3, 9),
+                Row(1, False, 2, 3, 9),
+                Row(1, False, None, None, 9),
+                Row(3, True, None, None, 8),
+            ],
+        )
+
+    def test_explode_computed_expression_appends_output(self):
+        from pyflink.table.expressions import array
+
+        df = pf.from_table(self.t_env.sql_query("SELECT 1 AS __pf_explode"))
+        result = df.explode(
+            array(pf.col("__pf_explode"), pf.lit(2)).alias("pair"), output_column="value")
+        self.assertEqual(result.columns, ["__pf_explode", "value"])
+        self.assertCountEqual(result.collect(), [Row(1, 1), Row(1, 2)])
+
+    def test_explode_multiple_arrays(self):
+        from pyflink.table.expressions import call_sql
+
+        df = pf.from_table(self.t_env.from_elements(
+            [
+                (1, [Row(2), None, Row(None)], "x", [4, 5, None]),
+                (2, [], "y", []),
+                (3, None, "z", []),
+                (4, [], "n", None),
+                (5, None, "m", None),
+                (6, [Row(2), Row(2)], "d", [4, 4]),
+            ],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.ROW([
+                    TableDataTypes.FIELD("n", TableDataTypes.INT()),
+                ]))),
+                TableDataTypes.FIELD("label", TableDataTypes.STRING()),
+                TableDataTypes.FIELD("tags", TableDataTypes.ARRAY(TableDataTypes.INT())),
+            ])))
+        results = []
+        expected_rows = []
+        for ignore in [False, True]:
+            with self.subTest(ignore=ignore):
+                result = df.explode(
+                    ["tags", pf.col("items").alias("item"),
+                     call_sql("ARRAY_REVERSE(tags)").alias("reversed")],
+                    ignore_empty_and_null=ignore)
+                self.assertEqual(result.columns, ["id", "item", "label", "tags", "reversed"])
+                expected = [
+                    Row(1, False, 2, "x", 4, None),
+                    Row(1, True, None, "x", 5, 5),
+                    Row(1, False, None, "x", None, 4),
+                    Row(6, False, 2, "d", 4, 4),
+                    Row(6, False, 2, "d", 4, 4),
+                ]
+                if not ignore:
+                    expected += [Row(i, True, None, label, None, None)
+                                 for i, label in [(2, "y"), (3, "z"), (4, "n"), (5, "m")]]
+                results.append(result.select(
+                    pf.lit(ignore).alias("ignore"), "id", pf.col("item").is_null,
+                    pf.col("item").get("n"), "label", "tags", "reversed"))
+                expected_rows.extend(Row(ignore, *row) for row in expected)
+        self.assertCountEqual(results[0].union_all(results[1]).collect(), expected_rows)
+
+    def test_explode_multiple_arrays_rejects_mismatches_at_execution(self):
+        for ignore, first, second in [
+            (False, [1], [2, 3]),
+            (True, [], [2]),
+        ]:
+            with self.subTest(ignore=ignore):
+                df = pf.from_table(self.t_env.from_elements(
+                    [(first, second)], TableDataTypes.ROW([
+                        TableDataTypes.FIELD("a", TableDataTypes.ARRAY(TableDataTypes.INT())),
+                        TableDataTypes.FIELD("b", TableDataTypes.ARRAY(TableDataTypes.INT())),
+                    ])))
+                result = df.explode(["a", "b"], ignore_empty_and_null=ignore)
+                with self.assertRaisesRegex(Exception, "same length"):
+                    result.collect()
+
+
+class DataFrameExplodeStreamITTests(PyFlinkStreamDataFrameTestCase):
+    def test_explode_in_streaming_mode(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, [2, 3])],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.INT())),
+            ])))
+        self.assertCountEqual(df.explode("items").collect(), [Row(1, 2), Row(1, 3)])
+
+    def test_explode_multiple_arrays_in_streaming_mode(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, [2, None, 2], [4, 5, 4]), (2, [], None)],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("a", TableDataTypes.ARRAY(TableDataTypes.INT())),
+                TableDataTypes.FIELD("b", TableDataTypes.ARRAY(TableDataTypes.INT())),
+            ])))
+        results = []
+        expected_rows = []
+        for ignore in [False, True]:
+            with self.subTest(ignore=ignore):
+                expected = [Row(1, 2, 4), Row(1, None, 5), Row(1, 2, 4)]
+                if not ignore:
+                    expected.append(Row(2, None, None))
+                results.append(df.explode(
+                    ["a", "b"], ignore_empty_and_null=ignore).select(
+                        pf.lit(ignore).alias("ignore"), "id", "a", "b"))
+                expected_rows.extend(Row(ignore, *row) for row in expected)
+        self.assertCountEqual(results[0].union_all(results[1]).collect(), expected_rows)
+
+
+class DataFrameAsOfJoinITTests(PyFlinkStreamDataFrameTestCase):
+    def test_lookup_join(self):
+        gateway = get_gateway()
+        factory = gateway.jvm.org.apache.flink.table.utils.TestCollectionTableFactory
+        factory.reset()
+        self.addCleanup(factory.reset)
+        rows = gateway.jvm.java.util.ArrayList()
+        for key, rate in [(1, 10), (2, 20)]:
+            row = gateway.jvm.org.apache.flink.types.Row(2)
+            row.setField(0, key)
+            row.setField(1, rate)
+            rows.add(row)
+        factory.initData(gateway.jvm.java.util.ArrayList(), rows, None)
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE lookup_rates (id INT, rate INT) "
+            "WITH ('connector' = 'COLLECTION')")
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT *, PROCTIME() AS pt FROM (VALUES (1, 15), (2, 5), (3, 30)) T(id, amount)"))
+        right = pf.from_table(self.t_env.from_path("lookup_rates"))
+        renamed = right.rename_columns({"id": "d_id"})
+        results = [
+            left.join_asof(right, on=pf.proctime(), by="id"),
+            left.join_asof(renamed, on="pt", left_by="id", right_by="d_id", how="left"),
+            left.join_asof(right, on="pt", by=["id", pf.col("amount") > pf.col("rate")],
+                           how="left"),
+        ]
+        combined = results[0].select(pf.lit(0).alias("variant"), "id", "rate")
+        for index, result in enumerate(results[1:], 1):
+            combined = combined.union_all(result.select(
+                pf.lit(index).alias("variant"), "id", "rate"))
+        self.assertCountEqual(combined.collect(), [
+            Row(0, 1, 10), Row(0, 2, 20),
+            Row(1, 1, 10), Row(1, 2, 20), Row(1, 3, None),
+            Row(2, 1, 10), Row(2, 2, None), Row(2, 3, None),
+        ])
+
+    def test_event_time_join_selects_historical_versions(self):
+        orders_path = os.path.join(self.tempdir, "asof_orders.csv")
+        rates_path = os.path.join(self.tempdir, "asof_rates.csv")
+        with open(orders_path, "w", encoding="utf-8") as output:
+            output.write("1,2024-01-01 00:00:02\n2,2024-01-01 00:00:02\n"
+                         "1,2024-01-01 00:00:06\n3,2024-01-01 00:00:06\n")
+        with open(rates_path, "w", encoding="utf-8") as output:
+            output.write("1,10,2024-01-01 00:00:01\n2,30,2024-01-01 00:00:03\n"
+                         "1,20,2024-01-01 00:00:04\n")
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE asof_orders (id INT, ts TIMESTAMP(3), "
+            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % orders_path)
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE asof_rates (id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt - INTERVAL '1' SECOND, PRIMARY KEY (id) NOT ENFORCED) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % rates_path)
+        left = pf.from_table(self.t_env.from_path("asof_orders"))
+        right = pf.from_table(self.t_env.from_path("asof_rates"))
+        inner = left.join_asof(right, on="ts", by="id").select(
+            pf.lit("inner").alias("kind"), "id", "rate")
+        outer = left.join_asof(
+            right.rename_columns({"id": "d_id"}), on=pf.col("ts"),
+            left_by=pf.col("id"), right_by=pf.col("d_id").cast(TableDataTypes.INT()),
+            how="left").select(
+            pf.lit("left").alias("kind"), "id", "rate")
+        residual = left.join_asof(
+            right.rename_columns({"id": "d_id"}), on="ts", how="left",
+            by=(pf.col("id") == pf.col("d_id")) &
+            (pf.col("ts") > pf.col("rt") + pf.lit(1).seconds)).select(
+            pf.lit("residual").alias("kind"), "id", "rate")
+        self.assertCountEqual(inner.union_all(outer).union_all(residual).collect(), [
+            Row("inner", 1, 10), Row("inner", 1, 20),
+            Row("left", 1, 10), Row("left", 1, 20),
+            Row("left", 2, None), Row("left", 3, None),
+            Row("residual", 1, None), Row("residual", 1, 20),
+            Row("residual", 2, None), Row("residual", 3, None),
+        ])
+
+    def test_event_time_equality_matches_only_exact_versions(self):
+        orders_path = os.path.join(self.tempdir, "time_key_orders.csv")
+        rates_path = os.path.join(self.tempdir, "time_key_rates.csv")
+        with open(orders_path, "w", encoding="utf-8") as output:
+            output.write("1,2024-01-01 00:00:02\n1,2024-01-01 00:00:05\n"
+                         "1,2024-01-01 00:00:06\n2,2024-01-01 00:00:06\n")
+        with open(rates_path, "w", encoding="utf-8") as output:
+            output.write("1,10,2024-01-01 00:00:01\n1,20,2024-01-01 00:00:05\n")
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE time_key_orders (id INT, ts TIMESTAMP(3), "
+            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % orders_path)
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE time_key_rates (d_id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt - INTERVAL '1' SECOND, PRIMARY KEY (d_id) NOT ENFORCED) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % rates_path)
+        left = pf.from_table(self.t_env.from_path("time_key_orders"))
+        right = pf.from_table(self.t_env.from_path("time_key_rates"))
+        inner = left.join_asof(
+            right, on="ts",
+            by=(pf.col("id") == pf.col("d_id")) & (pf.col("ts") == pf.col("rt"))).select(
+            pf.lit("inner").alias("kind"), "id", "ts", "rate")
+        outer = left.join_asof(
+            right, on="ts", left_by=["id", "ts"], right_by=["d_id", "rt"],
+            how="left").select(pf.lit("left").alias("kind"), "id", "ts", "rate")
+        self.assertCountEqual(inner.union_all(outer).collect(), [
+            Row("inner", 1, datetime(2024, 1, 1, 0, 0, 5), 20),
+            Row("left", 1, datetime(2024, 1, 1, 0, 0, 2), None),
+            Row("left", 1, datetime(2024, 1, 1, 0, 0, 5), 20),
+            Row("left", 1, datetime(2024, 1, 1, 0, 0, 6), None),
+            Row("left", 2, datetime(2024, 1, 1, 0, 0, 6), None),
+        ])
+
+
+class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
+
+    def _rowtime_source(self):
+        return self._rowtime_source_from_rows(
+            "events.csv", ["1,10,0", "1,20,60000", "1,40,600000"]
+        )
+
+    def _multi_key_rowtime_source(self):
+        return self._rowtime_source_from_rows(
+            "multi_key_events.csv", ["1,10,0", "2,20,60000", "1,40,600000"]
+        )
+
+    def _rowtime_source_from_rows(self, filename, rows):
+        input_path = os.path.join(self.tempdir, filename)
+        with open(input_path, "w", encoding="utf-8") as events:
+            events.write("\n".join(rows) + "\n")
+        return pf.read_generic(
+            "filesystem",
+            schema={
+                "id": DataType.int64(),
+                "amount": DataType.int64(),
+                "ts_millis": DataType.int64(),
+            },
+            options={"path": input_path, "format": "csv"},
+            computed_columns={"event_time": "TO_TIMESTAMP_LTZ(ts_millis, 3)"},
+            watermark=("event_time", "event_time - INTERVAL '1' SECOND"),
+        )
+
+    def _proctime_source(self):
+        input_path = os.path.join(self.tempdir, "proctime_events.csv")
+        with open(input_path, "w", encoding="utf-8") as events:
+            events.write("1,10\n")
+            events.write("1,20\n")
+            events.write("1,40\n")
+        return pf.read_generic(
+            "filesystem",
+            schema={
+                "id": DataType.int64(),
+                "amount": DataType.int64(),
+            },
+            options={"path": input_path, "format": "csv"},
+            computed_columns={"proc_time": "PROCTIME()"},
+        )
+
+    def test_tumble_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .tumble(on="event_time", size=timedelta(minutes=10))
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 40])
+
+    def test_hop_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .hop(
+                on="event_time",
+                slide=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 30, 40, 40])
+
+    def test_cumulate_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .cumulate(
+                on="event_time",
+                step=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 30, 40, 40])
+
+    def test_session_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .session(on="event_time", gap=timedelta(minutes=5))
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+        rows = self._materialize(windowed, key=["window_start", "window_end", "id"])
+
+        self.assertEqual(sorted(row[-1] for row in rows), [30, 40])
+
+    def test_session_partition_by_computes_per_key_sessions(self):
+        partitioned = (
+            self._multi_key_rowtime_source()
+            .session(
+                on="event_time",
+                gap=timedelta(seconds=90),
+                partition_by="id",
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        partitioned_rows = self._materialize(
+            partitioned, key=["window_start", "window_end", "id"]
+        )
+
+        self.assertEqual(sorted(row[-1] for row in partitioned_rows), [10, 20, 40])
+
+    def test_tumble_processing_time_assigns_aligned_windows(self):
+        rows = (
+            self._proctime_source()
+            .tumble(on="proc_time", size=timedelta(minutes=10))
+            .select("window_start", "window_end")
+            .collect()
+        )
+
+        self.assertEqual(len(rows), 3)
+        for start, end in rows:
+            self.assertEqual(end - start, timedelta(minutes=10))
+            self.assertEqual(
+                (start.minute % 10, start.second, start.microsecond), (0, 0, 0)
+            )
+
+
+class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
+    def test_fill_null_type_compatibility(self):
+        # Create DataFrame with one column per type, each starting null in row 2
+        df = pf.from_records(
+            [
+                {
+                    "id": 1,
+                    "name": "Alice",
+                    "score": 0.95,
+                    "active": True,
+                    "data": bytearray(b"payload"),
+                    "joined": date(2024, 1, 1),
+                    "checkin": time(9, 0),
+                },
+                {
+                    "id": None,
+                    "name": None,
+                    "score": None,
+                    "active": None,
+                    "data": None,
+                    "joined": None,
+                    "checkin": None,
+                },
+            ],
+            schema=["id", "name", "score", "active", "data", "joined", "checkin"],
+        )
+
+        # Each value should only fill the column(s) of a compatible type,
+        # leaving type-mismatched columns null.
+        fill_value_to_expected_columns = [
+            (0, {"id", "score"}),
+            ("unknown", {"name"}),
+            (False, {"active"}),
+            (bytearray(b"default"), {"data"}),
+            (date(2000, 1, 1), {"joined"}),
+            (time(0, 0), {"checkin"}),
+        ]
+
+        for value, filled_columns in fill_value_to_expected_columns:
+            rows = df.fill_null(value).collect()
+            for column in df.columns:
+                expected = value if column in filled_columns else None
+                self.assertEqual(rows[1][df.columns.index(column)], expected)
+
+    def test_fill_null_with_timestamp_column(self):
+        # This is separate from test_fill_null_type_compatibility because a plain
+        # TIMESTAMP column can't be obtained directly from from_records(): it always
+        # infers datetime.datetime values as TIMESTAMP_LTZ, and collect() on a
+        # TIMESTAMP_LTZ column hits an unrelated, pre-existing bug in the Java/Python
+        # bridge (FLINK-38418). So we build the column as TIMESTAMP_LTZ and then cast
+        # it to TIMESTAMP to exercise the TimestampType branch of
+        # _is_type_compatible's type map. Merge back into
+        # test_fill_null_type_compatibility once FLINK-38418 is fixed.
+        # Pin the local timezone so the LTZ -> TIMESTAMP cast doesn't shift the
+        # wall-clock value depending on the machine's system timezone.
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("UTC")
+        try:
+            df = pf.from_records(
+                [
+                    {"id": 1, "last_seen": datetime(2024, 1, 1, 9, 0)},
+                    {"id": 2, "last_seen": None},
+                ],
+                schema=["id", "last_seen"],
+            )
+            df = df.with_column(
+                "last_seen", pf.col("last_seen").cast(TableDataTypes.TIMESTAMP(3))
+            )
+
+            result = df.fill_null(datetime(2000, 1, 1)).collect()
+            self.assertEqual(result[0], Row(1, datetime(2024, 1, 1, 9, 0)))
+            self.assertEqual(result[1], Row(2, datetime(2000, 1, 1)))
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_drop_null_removes_rows_with_null_values(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "age": 30},
+                {"id": 2, "name": None, "age": 25},
+                {"id": 3, "name": "Bob", "age": None},
+                {"id": 4, "name": None, "age": None},
+            ],
+            schema=["id", "name", "age"],
+        )
+
+        result = df.drop_null().collect()
+        self.assertEqual(result, [Row(1, "Alice", 30)])
+
+    def test_drop_null_with_subset_removes_rows_with_null_in_specified_columns(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "age": 30},
+                {"id": 2, "name": None, "age": 25},
+                {"id": 3, "name": "Bob", "age": None},
+            ],
+            schema=["id", "name", "age"],
+        )
+
+        result = df.drop_null(subset=["age"]).collect()
+        self.assertEqual(result, [Row(1, "Alice", 30), Row(2, None, 25)])
+
+    def test_drop_nan_removes_rows_with_nan_values(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.drop_nan().collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 3)
+        self.assertAlmostEqual(result[1][1], 0.85)
+
+    def test_drop_nan_with_subset_removes_rows_with_nan_in_specified_columns(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95, "rating": 4.5},
+                {"id": 2, "score": float('nan'), "rating": 3.0},
+                {"id": 3, "score": 0.85, "rating": float('nan')},
+            ],
+            schema=["id", "score", "rating"],
+        )
+
+        result = df.drop_nan(subset=["score"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 3)
+        self.assertAlmostEqual(result[1][1], 0.85)
+
+    def test_drop_nan_preserves_null_values(self):
+        """Test that drop_nan preserves NULL values (critical bug fix)."""
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": None},  # NULL should be preserved
+                {"id": 3, "score": float('nan')},  # NaN should be dropped
+                {"id": 4, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.drop_nan(subset=["score"]).collect()
+        # Should have 3 rows: id=1, id=2 (NULL preserved), id=4
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 2)
+        self.assertIsNone(result[1][1])  # NULL preserved
+        self.assertEqual(result[2][0], 4)
+        self.assertAlmostEqual(result[2][1], 0.85)
+
+    def test_drop_nan_with_mixed_schema_auto_filters_to_float_columns(self):
+        """Test that drop_nan with subset=None only checks FLOAT/DOUBLE columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95, "rating": 4.5},
+                {"id": 2, "name": "Bob", "score": float('nan'), "rating": 3.0},
+                {"id": 3, "name": "Charlie", "score": 0.85, "rating": float('nan')},
+            ],
+            schema=["id", "name", "score", "rating"],
+        )
+
+        # Should only check score and rating (FLOAT/DOUBLE), not id (INT) or name (STRING)
+        result = df.drop_nan().collect()
+        # Only row with id=1 has no NaN in float columns
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], "Alice")
+        self.assertAlmostEqual(result[0][2], 0.95)
+        self.assertAlmostEqual(result[0][3], 4.5)
+
+    def test_drop_nan_with_no_float_columns_returns_unchanged(self):
+        """Test that drop_nan with no FLOAT/DOUBLE columns returns unchanged DataFrame."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "active": True},
+                {"id": 2, "name": "Bob", "active": False},
+            ],
+            schema=["id", "name", "active"],
+        )
+
+        # No float columns, should return all rows unchanged
+        result = df.drop_nan().collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice", True))
+        self.assertEqual(result[1], Row(2, "Bob", False))
+
+    def test_drop_nan_with_explicit_subset_ignores_non_float_columns(self):
+        """Test that drop_nan with an explicit subset still only checks FLOAT/DOUBLE columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95},
+                {"id": 2, "name": "Bob", "score": float('nan')},
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        # "name" is a STRING column and should be silently ignored, not raise
+        # or attempt to apply is_not_nan to it.
+        result = df.drop_nan(subset=["name", "score"]).collect()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], "Alice")
+        self.assertAlmostEqual(result[0][2], 0.95)
+
+    def test_drop_nan_with_explicit_subset_of_only_non_float_columns_returns_unchanged(self):
+        """Test that drop_nan with an explicit subset of only non-float columns is a no-op."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": float('nan')},
+                {"id": 2, "name": "Bob", "score": 0.85},
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = df.drop_nan(subset=["id", "name"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[1][0], 2)
+
+    def test_fill_nan_with_mixed_schema_auto_filters_to_float_columns(self):
+        """Test that fill_nan with subset=None only fills FLOAT/DOUBLE columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95, "rating": 4.5},
+                {"id": 2, "name": "Bob", "score": float('nan'), "rating": 3.0},
+                {"id": 3, "name": "Charlie", "score": 0.85, "rating": float('nan')},
+            ],
+            schema=["id", "name", "score", "rating"],
+        )
+
+        # Should only fill score and rating (FLOAT/DOUBLE), not id (INT) or name (STRING)
+        result = df.fill_nan(0.0).collect()
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], "Alice")
+        self.assertAlmostEqual(result[0][2], 0.95)
+        self.assertAlmostEqual(result[0][3], 4.5)
+        self.assertEqual(result[1][0], 2)
+        self.assertEqual(result[1][1], "Bob")
+        self.assertAlmostEqual(result[1][2], 0.0)  # NaN filled
+        self.assertAlmostEqual(result[1][3], 3.0)
+        self.assertEqual(result[2][0], 3)
+        self.assertEqual(result[2][1], "Charlie")
+        self.assertAlmostEqual(result[2][2], 0.85)
+        self.assertAlmostEqual(result[2][3], 0.0)  # NaN filled
+
+    def test_fill_nan_with_no_float_columns_returns_unchanged(self):
+        """Test that fill_nan with no FLOAT/DOUBLE columns returns unchanged DataFrame."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "active": True},
+                {"id": 2, "name": "Bob", "active": False},
+            ],
+            schema=["id", "name", "active"],
+        )
+
+        # No float columns, should return all rows unchanged
+        result = df.fill_nan(0.0).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice", True))
+        self.assertEqual(result[1], Row(2, "Bob", False))
+
+    def test_fill_nan_with_explicit_subset_ignores_non_float_columns(self):
+        """Test that fill_nan with an explicit subset still only fills FLOAT/DOUBLE columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95},
+                {"id": 2, "name": "Bob", "score": float('nan')},
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        # "name" is a STRING column and should be silently ignored, not raise
+        # or attempt to apply is_nan to it.
+        result = df.fill_nan(0.0, subset=["name", "score"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice", 0.95))
+        self.assertEqual(result[1][0], 2)
+        self.assertEqual(result[1][1], "Bob")
+        self.assertAlmostEqual(result[1][2], 0.0)
+
+    def test_fill_nan_with_explicit_subset_of_only_non_float_columns_returns_unchanged(self):
+        """Test that fill_nan with an explicit subset of only non-float columns is a no-op."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": float('nan')},
+                {"id": 2, "name": "Bob", "score": 0.85},
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = df.fill_nan(0.0, subset=["id", "name"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertTrue(math.isnan(result[0][2]))
+        self.assertEqual(result[1][0], 2)
+        self.assertAlmostEqual(result[1][2], 0.85)
+
+    def test_fill_null_skips_incompatible_array_column(self):
+        """Test that fill_null with incompatible type (ARRAY) skips the column."""
+        df = pf.from_records(
+            [
+                {"id": 1, "tags": ["python", "flink"]},
+                {"id": 2, "tags": None},
+            ],
+            schema=["id", "tags"],
+        )
+
+        # Should skip ARRAY column when value is INT
+        result = df.fill_null(0).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], ["python", "flink"])
+        self.assertEqual(result[1][0], 2)
+        self.assertIsNone(result[1][1])  # Should remain NULL
+
+    def test_fill_null_skips_incompatible_string_column(self):
+        """Test that fill_null with numeric value skips STRING columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice"},
+                {"id": 2, "name": None},
+            ],
+            schema=["id", "name"],
+        )
+
+        # Numeric value should skip STRING column
+        result = df.fill_null(0, subset=["name"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice"))
+        self.assertIsNone(result[1][1])  # Should remain NULL
+
+    def test_fill_null_replaces_null_with_specified_value(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "quantity": 10},
+                {"id": 2, "name": None, "quantity": None},
+                {"id": 3, "name": "Bob", "quantity": 5},
+            ],
+            schema=["id", "name", "quantity"],
+        )
+
+        result = df.fill_null(0, subset=["quantity"]).collect()
+        self.assertEqual(result, [Row(1, "Alice", 10), Row(2, None, 0), Row(3, "Bob", 5)])
+
+    def test_fill_null_with_decimal_value(self):
+        """Regression test: the type-compatibility map must recognize Decimal values,
+        since literals also support Decimal, binary, and temporal types beyond
+        bool/int/float/str."""
+        df = pf.from_records(
+            [
+                {"id": 1, "amount": decimal.Decimal("1.25")},
+                {"id": 2, "amount": None},
+            ],
+            schema=["id", "amount"],
+        )
+
+        result = df.fill_null(decimal.Decimal("0.00"), subset=["amount"]).collect()
+        self.assertEqual(result[0], Row(1, decimal.Decimal("1.25")))
+        self.assertEqual(result[1], Row(2, decimal.Decimal("0.00")))
+
+    def test_fill_null_with_day_time_interval_value(self):
+        df = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(1, CAST(INTERVAL '1' DAY AS INTERVAL DAY TO SECOND)), "
+                "(2, CAST(NULL AS INTERVAL DAY TO SECOND))) "
+                "AS T(id, duration)"
+            )
+        )
+
+        result = (
+            df.fill_null(timedelta(0), subset=["duration"])
+            .select(
+                "id",
+                is_zero=pf.col("duration") == pf.lit(timedelta(0)),
+            )
+            .collect()
+        )
+        self.assertEqual(
+            result,
+            [Row(1, False), Row(2, True)],
+        )
+
+    def test_fill_null_with_string_value(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice"},
+                {"id": 2, "name": None},
+            ],
+            schema=["id", "name"],
+        )
+
+        result = df.fill_null("unknown", subset=["name"]).collect()
+        self.assertEqual(result, [Row(1, "Alice"), Row(2, "unknown")])
+
+    def test_fill_nan_replaces_nan_with_specified_value(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.fill_nan(0.0, subset=["score"]).collect()
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 2)
+        self.assertAlmostEqual(result[1][1], 0.0)
+        self.assertEqual(result[2][0], 3)
+        self.assertAlmostEqual(result[2][1], 0.85)
+
+    def test_fill_nan_with_none_value_converts_nan_to_null(self):
+        """Regression test: fill_nan(None) must convert NaN to NULL, per the fill_nan
+        docstring, rather than raising or leaving the NaN in place."""
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.fill_nan(None, subset=["score"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 2)
+        self.assertIsNone(result[1][1])
+
+    def test_is_nan_and_is_not_nan_support_decimal_columns(self):
+        """Regression test: IsNanFunction/IsNotNanFunction must dispatch on DecimalData,
+        not BigDecimal, since BuiltInScalarFunction receives internal representations
+        and DECIMAL columns never matched an eval(BigDecimal) overload."""
+        df = pf.from_records(
+            [
+                {"id": 1, "amount": decimal.Decimal("1.25")},
+                {"id": 2, "amount": None},
+            ],
+            schema=["id", "amount"],
+        )
+
+        result = df.select(
+            "id",
+            is_nan_result=is_nan(pf.col("amount")),
+            is_not_nan_result=is_not_nan(pf.col("amount")),
+        ).collect()
+
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], False)
+        self.assertEqual(result[0][2], True)
+        self.assertEqual(result[1][0], 2)
+        self.assertIsNone(result[1][1])
+        self.assertIsNone(result[1][2])
+
+
+if __name__ == "__main__":
+    unittest.main()

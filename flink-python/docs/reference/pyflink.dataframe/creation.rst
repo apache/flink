@@ -1,0 +1,54 @@
+.. ################################################################################
+     Licensed to the Apache Software Foundation (ASF) under one
+     or more contributor license agreements.  See the NOTICE file
+     distributed with this work for additional information
+     regarding copyright ownership.  The ASF licenses this file
+     to you under the Apache License, Version 2.0 (the
+     "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+    limitations under the License.
+   ################################################################################
+
+==================
+DataFrame Creation
+==================
+
+Functions for creating DataFrames from row-oriented or column-oriented Python data.
+
+Example::
+
+    >>> import pyflink.dataframe as pf
+    >>> users = pf.from_records([
+    ...     {"id": 1, "name": "Alice"},
+    ...     {"id": 2, "name": "Bob"},
+    ... ])
+    >>> users = pf.from_dict({"id": [1, 2], "name": ["Alice", "Bob"]})
+    >>> import pandas as pd
+    >>> import pyarrow as pa
+    >>> pandas_users = pf.from_pandas(
+    ...     pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
+    ... )
+    >>> arrow_users = pf.from_arrow(
+    ...     pa.table({"id": [1, 2], "name": ["Alice", "Bob"]})
+    ... )
+    >>> table_users = pf.from_table(users.to_table())
+    >>> identifiers = pf.range(5)
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    from_records
+    from_dict
+    from_pandas
+    from_arrow
+    from_table
+    range

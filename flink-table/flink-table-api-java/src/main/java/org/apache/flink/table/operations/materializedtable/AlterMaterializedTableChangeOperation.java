@@ -120,8 +120,11 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     @VisibleForTesting
     public void validateChanges() {
         final List<TableChange> changes = getTableChanges();
+        // CoA and ALTER ... AS carry the defining query, so the append-only column rules apply even
+        // when the query text is unchanged; metadata-only DDL alters carry no query.
         final boolean isQueryChange =
-                changes.stream().anyMatch(ModifyDefinitionQuery.class::isInstance);
+                asQueryOperation != null
+                        || changes.stream().anyMatch(ModifyDefinitionQuery.class::isInstance);
         final List<Column> oldColumns = oldTable.getResolvedSchema().getColumns();
         final Map<String, Integer> columnIndex =
                 IntStream.range(0, oldColumns.size())

@@ -26,17 +26,23 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.binary.NestedRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.nonCompactBoundaryDecimals;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.splitBytes;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.toSegments;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link NestedRowData}s. */
@@ -127,6 +133,36 @@ class NestedRowDataTest {
         assertThat(5L).isEqualTo(nestedRow.getLong(1));
         assertThat(StringData.fromString("12345678")).isEqualTo(nestedRow.getString(2));
         assertThat(nestedRow.isNullAt(3)).isTrue();
+    }
+
+    @Test
+    void testNonCompactDecimalsWithMultipleSegments() {
+        int precision = 38;
+        int scale = 2;
+        DecimalData[] decimals = nonCompactBoundaryDecimals(precision, scale);
+        LogicalType[] types = new LogicalType[decimals.length];
+        Arrays.fill(types, new DecimalType(precision, scale));
+
+        BinaryRowData row = new BinaryRowData(1);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+        writer.writeRow(0, GenericRowData.of((Object[]) decimals), new RowDataSerializer(types));
+        writer.complete();
+
+        int size = row.getSizeInBytes();
+        byte[] bytes = BinarySegmentUtils.copyToBytes(row.getSegments(), row.getOffset(), size);
+        int baseOffset = 3;
+        // BinaryRowData requires its fixed-length part in the first segment
+        for (int segmentSize = baseOffset + row.getFixedLengthPartSize();
+                segmentSize <= baseOffset + size;
+                segmentSize++) {
+            row.pointTo(toSegments(bytes, baseOffset, segmentSize), baseOffset, size);
+            RowData nestedRow = row.getRow(0, decimals.length);
+            for (int i = 0; i < decimals.length; i++) {
+                DecimalData decimal = nestedRow.getDecimal(i, precision, scale);
+                assertThat(decimal.toBigDecimal()).isEqualTo(decimals[i].toBigDecimal());
+                assertThat(decimal.longBacked).isEqualTo(decimals[i].toUnscaledBytes().length <= 8);
+            }
+        }
     }
 
     private BinaryRowData getBinaryRowData() {

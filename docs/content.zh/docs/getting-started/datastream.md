@@ -68,7 +68,7 @@ Flink 的 [用户邮件列表](https://flink.apache.org/community.html#mailing-l
 {{< /tab >}}
 {{< tab "Python" >}}
 * Java 11、17 或 21
-* Python 3.9、3.10、3.11 或 3.12
+* Python 3.9、3.10、3.11、3.12 或 3.13
 {{< /tab >}}
 {{< /tabs >}}
 

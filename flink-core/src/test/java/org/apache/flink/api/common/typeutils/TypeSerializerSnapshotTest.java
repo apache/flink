@@ -54,6 +54,15 @@ class TypeSerializerSnapshotTest {
                 .isTrue();
     }
 
+    @Test
+    void testMigrateReturnsValueUnchangedByDefault() {
+        TypeSerializerSnapshot<Integer> oldSnapshot = new NotCompletedTypeSerializerSnapshot();
+        TypeSerializerSnapshot<Integer> newSnapshot = new NotCompletedTypeSerializerSnapshot();
+        Integer value = 1000;
+
+        assertThat(newSnapshot.migrate(oldSnapshot, value)).isSameAs(value);
+    }
+
     private static class NotCompletedTypeSerializer extends TypeSerializer<Integer> {
 
         @Override

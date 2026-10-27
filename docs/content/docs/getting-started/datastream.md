@@ -68,7 +68,7 @@ If you want to follow along, you will require a computer with:
 {{< /tab >}}
 {{< tab "Python" >}}
 * Java 11, 17, or 21
-* Python 3.9, 3.10, 3.11, or 3.12
+* Python 3.9, 3.10, 3.11, 3.12 or 3.13
 {{< /tab >}}
 {{< /tabs >}}
 

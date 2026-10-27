@@ -47,8 +47,8 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME} \
     -Djobmanager.memory.process.size=1088m \
-    -Dkubernetes.jobmanager.cpu=0.5 \
-    -Dkubernetes.taskmanager.cpu=0.5 \
+    -Dkubernetes.jobmanager.cpu.amount=0.5 \
+    -Dkubernetes.taskmanager.cpu.amount=0.5 \
     -Dkubernetes.rest-service.exposed.type=NodePort \
     local:///opt/flink/examples/streaming/WordCount.jar
 

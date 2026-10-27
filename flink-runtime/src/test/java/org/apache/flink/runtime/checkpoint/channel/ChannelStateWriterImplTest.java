@@ -30,11 +30,14 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.CloseableIterator.ofElements;
@@ -50,6 +53,8 @@ class ChannelStateWriterImplTest {
     private static final int SUBTASK_INDEX = 0;
 
     private static final CheckpointStorage CHECKPOINT_STORAGE = new JobManagerCheckpointStorage();
+
+    @TempDir private java.nio.file.Path tempDir;
 
     @Test
     void testAddEventBuffer() throws Exception {
@@ -371,9 +376,123 @@ class ChannelStateWriterImplTest {
         writer.finishInput(CHECKPOINT_ID);
         writer.finishOutput(CHECKPOINT_ID);
     }
+
+    @Test
+    void testAddInputDataFromSpillAsyncDemux() throws Exception {
+        SyncChannelStateWriteRequestExecutor worker =
+                new SyncChannelStateWriteRequestExecutor(JOB_ID);
+        try (ChannelStateWriterImpl writer = newWriter(worker)) {
+            worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+            writer.start(CHECKPOINT_ID, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            InputChannelInfo c0 = new InputChannelInfo(0, 0);
+            InputChannelInfo c1 = new InputChannelInfo(0, 1);
+
+            FetchedChannelState state;
+            try (TestSpillWriter spillWriter = new TestSpillWriter(tempDir)) {
+                spillWriter.writeRecord(c0, new byte[] {1, 2, 3}, 3);
+                spillWriter.writeRecord(c1, new byte[] {4, 5}, 2);
+                spillWriter.writeRecord(c0, new byte[] {6}, 1);
+                state = spillWriter.getChannelState();
+            }
+            FetchedChannelStateReader reader = state.reader();
+            // Drop the handoff grant; the reader now holds the only outstanding grant.
+            state.release();
+
+            writer.addInputDataFromSpill(CHECKPOINT_ID, reader);
+            // Request is queued but not yet processed — state must still be alive.
+            assertThat(state.isClosed()).isFalse();
+
+            worker.processAllRequests();
+            // After processing, the reader is closed by the request, releasing the last grant.
+            assertThat(state.isClosed()).isTrue();
+        }
+    }
+
+    @Test
+    void testAddInputDataFromSpillEmptySnapshotStillSubmitted() throws Exception {
+        // Empty readers are no longer short-circuited; they are submitted to the writer thread.
+        QueueCountingExecutor worker = new QueueCountingExecutor();
+        try (ChannelStateWriterImpl writer =
+                new ChannelStateWriterImpl(
+                        JOB_VERTEX_ID,
+                        TASK_NAME,
+                        SUBTASK_INDEX,
+                        new ConcurrentHashMap<>(),
+                        worker,
+                        5)) {
+            worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+            writer.start(CHECKPOINT_ID, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            int submittedBefore = worker.submitCount.get();
+            FetchedChannelState emptyState = new FetchedChannelState(Collections.emptyList());
+            FetchedChannelStateReader emptyReader = emptyState.reader();
+            emptyState.release();
+
+            writer.addInputDataFromSpill(CHECKPOINT_ID, emptyReader);
+
+            assertThat(worker.submitCount.get())
+                    .as("empty reader must still be submitted to the writer thread")
+                    .isGreaterThan(submittedBefore);
+        }
+    }
+
+    @Test
+    void testAddInputDataFromSpillSegmentsClosedOnSuccess() throws Exception {
+        SyncChannelStateWriteRequestExecutor worker =
+                new SyncChannelStateWriteRequestExecutor(JOB_ID);
+        try (ChannelStateWriterImpl writer = newWriter(worker)) {
+            worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+            writer.start(CHECKPOINT_ID, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            FetchedChannelState state;
+            try (TestSpillWriter spillWriter = new TestSpillWriter(tempDir)) {
+                spillWriter.writeRecord(new InputChannelInfo(0, 0), new byte[] {1}, 1);
+                state = spillWriter.getChannelState();
+            }
+            FetchedChannelStateReader reader = state.reader();
+            state.release();
+
+            writer.addInputDataFromSpill(CHECKPOINT_ID, reader);
+            worker.processAllRequests();
+
+            // After processing, the last grant is released and the state is cleaned up.
+            assertThat(state.isClosed()).isTrue();
+        }
+    }
+
+    private ChannelStateWriterImpl newWriter(SyncChannelStateWriteRequestExecutor worker) {
+        return new ChannelStateWriterImpl(
+                JOB_VERTEX_ID, TASK_NAME, SUBTASK_INDEX, new ConcurrentHashMap<>(), worker, 5);
+    }
 }
 
 class TestException extends RuntimeException {}
+
+/** Counts submissions without processing them, for the empty-snapshot submission test. */
+class QueueCountingExecutor implements ChannelStateWriteRequestExecutor {
+
+    final AtomicInteger submitCount = new AtomicInteger(0);
+
+    @Override
+    public void submit(ChannelStateWriteRequest e) {
+        submitCount.incrementAndGet();
+    }
+
+    @Override
+    public void submitPriority(ChannelStateWriteRequest e) {
+        submitCount.incrementAndGet();
+    }
+
+    @Override
+    public void start() throws IllegalStateException {}
+
+    @Override
+    public void registerSubtask(JobVertexID jobVertexID, int subtaskIndex) {}
+
+    @Override
+    public void releaseSubtask(JobVertexID jobVertexID, int subtaskIndex) {}
+}
 
 class SyncChannelStateWriteRequestExecutor implements ChannelStateWriteRequestExecutor {
     private final ChannelStateWriteRequestDispatcher requestProcessor;

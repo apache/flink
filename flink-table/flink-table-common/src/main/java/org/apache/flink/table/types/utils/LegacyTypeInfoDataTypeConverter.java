@@ -73,6 +73,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TY
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.UUID;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -228,6 +229,8 @@ public final class LegacyTypeInfoDataTypeConverter {
             return Types.STRING;
         } else if (logicalType.is(VARIANT)) {
             return Types.VARIANT;
+        } else if (logicalType.is(UUID)) {
+            return Types.UUID;
         }
 
         // relax the precision constraint as Timestamp can store the highest precision

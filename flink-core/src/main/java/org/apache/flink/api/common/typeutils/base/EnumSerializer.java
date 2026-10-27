@@ -20,12 +20,12 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.CustomRestoreSerializerFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -184,6 +184,8 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
         private T[] enums;
         private Class<T> enumClass;
+        private String enumClassName;
+        private String[] enumNames;
 
         @SuppressWarnings("unused")
         public EnumSerializerSnapshot() {
@@ -213,16 +215,23 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
         @Override
         public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
                 throws IOException {
-            enumClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+            final String className = in.readUTF();
+            enumClass =
+                    CustomRestoreSerializerFactory.resolveOrNull(className, userCodeClassLoader);
+            enumClassName = className;
 
             int numEnumConstants = in.readInt();
-
             @SuppressWarnings("unchecked")
-            T[] previousEnums = (T[]) Array.newInstance(enumClass, numEnumConstants);
+            T[] previousEnums =
+                    enumClass != null ? (T[]) Array.newInstance(enumClass, numEnumConstants) : null;
+            String[] names = new String[numEnumConstants];
             for (int i = 0; i < numEnumConstants; i++) {
-                String enumName = in.readUTF();
+                names[i] = in.readUTF();
+                if (previousEnums == null) {
+                    continue;
+                }
                 try {
-                    previousEnums[i] = Enum.valueOf(enumClass, enumName);
+                    previousEnums[i] = Enum.valueOf(enumClass, names[i]);
                 } catch (IllegalArgumentException e) {
                     throw new IllegalStateException(
                             "Could not create a restore serializer for enum "
@@ -230,14 +239,25 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
                                     + ". Probably because an enum value was removed.");
                 }
             }
+            enumNames = names;
 
+            if (enumClass == null) {
+                return;
+            }
             this.enums = previousEnums;
+        }
+
+        /** Returns the enum constant names in this snapshot, ordered by their wire ordinal. */
+        public String[] getEnumNames() {
+            return enumNames;
         }
 
         @Override
         public TypeSerializer<T> restoreSerializer() {
-            checkState(enumClass != null, "Enum class can not be null.");
-
+            if (enumClass == null) {
+                return CustomRestoreSerializerFactory.restoreFallbackSerializer(
+                        this, enumClassName);
+            }
             return new EnumSerializer<>(enumClass, enums);
         }
 

@@ -21,6 +21,8 @@ package org.apache.flink.table.runtime.operators.join.stream.state;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@link JoinRecordStateView} is a view to the join state. It encapsulates the join state and
  * provides some APIs facing the input records. The join state is used to store input records. The
@@ -40,4 +42,11 @@ public interface JoinRecordStateView {
 
     /** Gets all the records under the current context (i.e. join key). */
     Iterable<RowData> getRecords() throws Exception;
+
+    /**
+     * Returns the record with the same unique key as the given record that is stored under the
+     * current join key, or null if there is none. Always null if the input side has no unique key.
+     */
+    @Nullable
+    RowData getRecord(RowData record) throws Exception;
 }

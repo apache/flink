@@ -61,7 +61,6 @@ public class YarnConfigOptions {
             key("yarn.classpath.include-user-jar")
                     .enumType(UserJarInclusion.class)
                     .defaultValue(ORDER)
-                    .withDeprecatedKeys("yarn.per-job-cluster.include-user-jar")
                     .withDescription(
                             "Defines whether user-jars are included in the system class path "
                                     + "as well as their positioning in the path.");
@@ -128,7 +127,6 @@ public class YarnConfigOptions {
             key("yarn.heartbeat.interval")
                     .intType()
                     .defaultValue(5)
-                    .withDeprecatedKeys("yarn.heartbeat-delay")
                     .withDescription(
                             "Time between heartbeats with the ResourceManager in seconds.");
 
@@ -273,7 +271,6 @@ public class YarnConfigOptions {
                     .stringType()
                     .asList()
                     .noDefaultValue()
-                    .withDeprecatedKeys("yarn.ship-directories")
                     .withDescription(
                             "A semicolon-separated list of files and/or directories to be shipped to the YARN "
                                     + "cluster. These files/directories can come from the local path of flink client "

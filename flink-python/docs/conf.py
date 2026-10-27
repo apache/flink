@@ -160,6 +160,7 @@ html_use_index = False
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_css_files = ['pyflink.css']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -245,3 +246,13 @@ epub_copyright = u'2019, Author'
 epub_exclude_files = ['search.html']
 
 # -- Extension configuration -------------------------------------------------
+
+
+def _set_zh_baseurl(app, config):
+    # -D language=zh is applied after this file is read
+    if config.language == 'zh':
+        config.html_baseurl += 'zh/'
+
+
+def setup(app):
+    app.connect('config-inited', _set_zh_baseurl)

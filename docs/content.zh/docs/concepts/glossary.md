@@ -25,15 +25,22 @@ under the License.
 
 # 词汇表
 
+#### Flink Application
+
+一个 Flink 应用程序是一个 Java 应用程序，它从 `main()` 方法（或通过一些其他方式）提交一个或多个 [Flink Jobs](#flink-job)。
+提交 jobs 通常是通过调用 ExecutionEnvironment 的 `execute()` 方法来完成的。
+
+一个应用程序的作业可以提交给一个长期运行的 [Flink Session Cluster](#flink-session-cluster)，或者提交到一个专用的 [Flink Application Cluster](#flink-application-cluster)，或提交到 [Flink Job Cluster](#flink-job-cluster)。
+
 #### Flink Application Cluster
 
 Flink Application 集群是专用的 [Flink Cluster](#flink-cluster)，仅从 [Flink Application](#flink-application) 执行 [Flink Jobs](#flink-job)。
 [Flink Cluster](#flink-cluster) 的寿命与 Flink Application 的寿命有关。
 
-#### Flink Job Cluster
+#### ApplicationResultStore
 
-Flink Job 集群是专用的 [Flink Cluster](#flink-cluster)，仅执行一个 [Flink Job](#flink-job)。
-[Flink Cluster](#flink-cluster) 的寿命与 Flink Job 的寿命有关。
+ApplicationResultStore 是一个 Flink 组件，它将全局终止（已完成的、已取消的或失败的）应用程序的结果保存到文件系统中，从而使结果比已完成的应用程序更长久。
+每个结果包含应用程序的标识符、最终状态、名称等信息。这些结果然后被 Flink 用来确定应用程序是否应该在高可用集群中被恢复。
 
 #### Flink Cluster
 
@@ -51,20 +58,23 @@ Event 是对应用程序建模的域的状态更改的声明。它可以同时�
 
 Function 是由用户实现的，并封装了 Flink 程序的应用程序逻辑。大多数 Function 都由相应的 [Operator](#operator) 封装。
 
+#### History Server
+
+History Server 是一个独立服务，用于提供已完成 Flink 应用程序和作业的详细历史记录，使用 JobManager 生成的归档文件。
+与 [ApplicationResultStore](#applicationresultstore) 和 [JobResultStore](#jobresultstore) 不同，这两个组件存储最小元数据用于高可用集群的内部恢复决策，而 History Server 提供详细的归档，用于集群关闭后通过 Web UI 或 REST API 进行分析。
+
 #### Instance
 
 Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator) 或者 [Function](#function))的一个具体实例。由于 Apache Flink 主要是用 Java 编写的，所以，这与 Java 中的 *Instance* 或 *Object* 的定义相对应。在 Apache Flink 的上下文中，*parallel instance* 也常用于强调同一 [Operator](#operator) 或者 [Function](#function) 的多个 instance 以并行的方式运行。
 
-#### Flink Application
-
-一个 Flink 应用程序是一个 Java 应用程序，它从 `main()` 方法（或通过一些其他方式）提交一个或多个 [Flink Jobs](#flink-job)。
-提交 jobs 通常是通过调用 ExecutionEnvironment 的 `execute()` 方法来完成的。
-
-一个应用程序的作业可以提交给一个长期运行的 [Flink Session Cluster](#flink-session-cluster)，或者提交到一个专用的 [Flink Application Cluster](#flink-application-cluster)，或提交到 [Flink Job Cluster](#flink-job-cluster)。
-
 #### Flink Job
 
 Flink Job 表示为 runtime 的 [logical graph](#logical-graph)（通常也称为数据流图），通过在 [Flink Application](#flink-application) 中调用 `execute()` 方法来创建和提交 。
+
+#### Flink Job Cluster
+
+Flink Job 集群是专用的 [Flink Cluster](#flink-cluster)，仅执行一个 [Flink Job](#flink-job)。
+[Flink Cluster](#flink-cluster) 的寿命与 Flink Job 的寿命有关。
 
 #### JobGraph
 
@@ -83,16 +93,6 @@ JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一�
 
 JobResultStore 是一个 Flink 组件，它将全局终止（已完成的、已取消的或失败的）作业的结果保存到文件系统中，从而使结果比已完成的作业更长久。
 每个结果包含作业的标识符、最终状态、名称、所属应用程序等信息。这些结果然后被 Flink 用来确定作业是否应该在高可用集群中被恢复。
-
-#### ApplicationResultStore
-
-ApplicationResultStore 是一个 Flink 组件，它将全局终止（已完成的、已取消的或失败的）应用程序的结果保存到文件系统中，从而使结果比已完成的应用程序更长久。
-每个结果包含应用程序的标识符、最终状态、名称等信息。这些结果然后被 Flink 用来确定应用程序是否应该在高可用集群中被恢复。
-
-#### History Server
-
-History Server 是一个独立服务，用于提供已完成 Flink 应用程序和作业的详细历史记录，使用 JobManager 生成的归档文件。
-与 [ApplicationResultStore](#applicationresultstore) 和 [JobResultStore](#jobresultstore) 不同，这两个组件存储最小元数据用于高可用集群的内部恢复决策，而 History Server 提供详细的归档，用于集群关闭后通过 Web UI 或 REST API 进行分析。
 
 #### Logical Graph
 

@@ -25,9 +25,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.UUID;
+
+import static org.apache.flink.types.variant.BinaryVariantUtil.microsSinceEpoch;
+import static org.apache.flink.types.variant.BinaryVariantUtil.nanosSinceEpoch;
 
 /** Builder for binary encoded variant. */
 @Internal
@@ -106,7 +110,11 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(Instant instant) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendTimestampLtz(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+        if (instant.getNano() % 1000 == 0) {
+            builder.appendTimestampLtz(microsSinceEpoch(instant));
+        } else {
+            builder.appendTimestampLtzNanos(nanosSinceEpoch(instant));
+        }
         return builder.build();
     }
 
@@ -120,8 +128,26 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(LocalDateTime localDateTime) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendTimestamp(
-                ChronoUnit.MICROS.between(Instant.EPOCH, localDateTime.toInstant(ZoneOffset.UTC)));
+        Instant instant = localDateTime.toInstant(ZoneOffset.UTC);
+        if (localDateTime.getNano() % 1000 == 0) {
+            builder.appendTimestamp(microsSinceEpoch(instant));
+        } else {
+            builder.appendTimestampNanos(nanosSinceEpoch(instant));
+        }
+        return builder.build();
+    }
+
+    @Override
+    public Variant of(LocalTime localTime) {
+        BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendTime(localTime.toNanoOfDay() / 1000);
+        return builder.build();
+    }
+
+    @Override
+    public Variant of(UUID uuid) {
+        BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendUuid(uuid);
         return builder.build();
     }
 
@@ -160,9 +186,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
 
         @Override
         public VariantObjectBuilder add(String key, Variant value) {
-            int id = builder.addKey(key);
-            entries.add(
-                    new BinaryVariantInternalBuilder.FieldEntry(key, id, builder.getWritePos()));
+            builder.addField(entries, 0, key);
             builder.appendVariant((BinaryVariant) value);
             return this;
         }

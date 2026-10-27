@@ -22,11 +22,6 @@ import org.apache.flink.python.FlinkSlf4jLogWriter;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
@@ -56,6 +51,11 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.NoopLock;
+import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -227,7 +227,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                         if (refCount > 0) {
                                             LOG.warn(
                                                     "Expiring environment {} with {} remaining bundle references. Taking note to clean it up during shutdown if the references are not removed by then.",
-                                                    notification.getKey(),
+                                                    notification.getKey().getUrn(),
                                                     refCount);
                                             evictedActiveClients.add(client);
                                         }
@@ -698,7 +698,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 // the next one will be added via Throwable#addSuppressed.
                 closed = true;
             } catch (Exception e) {
-                LOG.warn("Error cleaning up servers {}", environment.getEnvironment(), e);
+                LOG.warn("Error cleaning up servers {}", environment.getEnvironment().getUrn(), e);
             }
             // TODO: Wait for executor shutdown?
         }
@@ -712,7 +712,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             Preconditions.checkState(refCount >= 0, "Reference count must not be negative.");
             if (refCount == 0) {
                 // Close environment after it was removed from cache and all bundles finished.
-                LOG.info("Closing environment {}", environment.getEnvironment());
+                LOG.info("Closing environment {}", environment.getEnvironment().getUrn());
                 close();
             }
             return refCount;

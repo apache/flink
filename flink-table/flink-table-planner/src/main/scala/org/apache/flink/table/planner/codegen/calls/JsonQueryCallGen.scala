@@ -17,15 +17,14 @@
  */
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.api.{JsonQueryOnEmptyOrError, JsonQueryWrapper, JsonValueOnEmptyOrError}
+import org.apache.flink.table.api.{JsonQueryOnEmptyOrError, JsonQueryWrapper}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING, GENERIC_ARRAY}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.functions.SqlJsonUtils.JsonQueryReturnType
-import org.apache.flink.table.types.logical.{ArrayType, LogicalType, LogicalTypeRoot}
-
-import org.apache.calcite.sql.SqlJsonEmptyOrError
+import org.apache.flink.table.types.logical.{ArrayType, DecimalType, LogicalType, LogicalTypeRoot}
 
 /**
  * [[CallGenerator]] for [[BuiltInMethods.JSON_QUERY]].
@@ -41,14 +40,22 @@ import org.apache.calcite.sql.SqlJsonEmptyOrError
  * }}}
  * generates code similar to:
  * {{{
- * // member variable (declared once)
+ * // members (declared once)
  * SqlJsonUtils.JsonValueContext jsonParsed$0;
+ * BinaryStringData jsonParsedInput$1;
  *
- * // in processElement (parse emitted only by the first function)
- * jsonParsed$0 = SqlJsonUtils.jsonParse(field$0.toString());
- * Object rawResult$1 = SqlJsonUtils.jsonValue(jsonParsed$0, "$.type", ...);
- * // second call reuses jsonParsed$123 without re-parsing
- * Object rawResult$2 = SqlJsonUtils.jsonQuery(jsonParsed$0, "$.address", ...);
+ * // parses once per input value and reuses the result for the same input
+ * private SqlJsonUtils.JsonValueContext parseJson$2(BinaryStringData in) {
+ *   if (in != jsonParsedInput$1) {
+ *     jsonParsedInput$1 = in;
+ *     jsonParsed$0 = SqlJsonUtils.jsonParse(in.toString());
+ *   }
+ *   return jsonParsed$0;
+ * }
+ *
+ * // whichever call runs first parses, the other ones reuse the result
+ * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.type", ...);
+ * Object rawResult$4 = SqlJsonUtils.jsonQuery(parseJson$2(field$0), "$.address", ...);
  * }}}
  */
 class JsonQueryCallGen extends CallGenerator {
@@ -57,37 +64,34 @@ class JsonQueryCallGen extends CallGenerator {
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
+    val parsed = JsonParseReuse.parseSharedInput(ctx, operands)
+
     generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
       argTerms =>
         {
           val emptyBehavior = operands(3).literalValue.get.asInstanceOf[JsonQueryOnEmptyOrError]
           val errorBehavior = operands(4).literalValue.get.asInstanceOf[JsonQueryOnEmptyOrError]
           val wrapperBehavior = operands(2).literalValue.get.asInstanceOf[JsonQueryWrapper]
-          val jsonQueryReturnType = if (returnType.getTypeRoot == LogicalTypeRoot.ARRAY) {
-            JsonQueryReturnType.ARRAY
-          } else {
-            JsonQueryReturnType.STRING
-          }
-          val inputTerm = s"${argTerms.head}.toString()"
 
-          val (varName, parseCode) =
-            ctx.getReusableInputUnboxingExprs(inputTerm, Int.MinValue) match {
-              case Some(expr) => (expr.resultTerm, "")
-              case None =>
-                val newVarName = CodeGenUtils.newName(ctx, "jsonParsed")
-                val typeName = classOf[SqlJsonUtils.JsonValueContext].getName
-                ctx.addReusableMember(s"$typeName $newVarName;")
-                ctx.addReusableInputUnboxingExprs(
-                  inputTerm,
-                  Int.MinValue,
-                  GeneratedExpression(newVarName, "false", "", null))
-                val assign =
-                  s"$newVarName = ${qualifyMethod(BuiltInMethods.JSON_PARSE)}($inputTerm);"
-                (newVarName, assign)
-            }
+          // Three return paths:
+          //   VARCHAR         -> STRING    -> serialize to StringData
+          //   ARRAY<VARCHAR>  -> ARRAY     -> GenericArrayData of StringData (existing)
+          //   ARRAY<typed T>  -> RAW_ARRAY -> Object[] post-converted via convertJsonArray
+          val (isTypedArray, elementType) = returnType.getTypeRoot match {
+            case LogicalTypeRoot.ARRAY =>
+              val et = returnType.asInstanceOf[ArrayType].getElementType
+              (et.getTypeRoot != LogicalTypeRoot.VARCHAR, et)
+            case _ => (false, null)
+          }
+
+          val jsonQueryReturnType = returnType.getTypeRoot match {
+            case LogicalTypeRoot.ARRAY if isTypedArray => JsonQueryReturnType.RAW_ARRAY
+            case LogicalTypeRoot.ARRAY => JsonQueryReturnType.ARRAY
+            case _ => JsonQueryReturnType.STRING
+          }
 
           val terms = Seq(
-            varName,
+            parsed.resultTerm,
             s"${argTerms(1)}.toString()",
             qualifyEnum(jsonQueryReturnType),
             qualifyEnum(wrapperBehavior),
@@ -96,30 +100,54 @@ class JsonQueryCallGen extends CallGenerator {
           )
 
           val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
-          val call = s"""
-                        |$parseCode
-                        |Object $rawResultTerm =
-                        |    ${qualifyMethod(BuiltInMethods.JSON_QUERY_PARSED)}(${terms
-                         .mkString(", ")});
+          val baseCall = s"""
+                            |Object $rawResultTerm =
+                            |    ${qualifyMethod(BuiltInMethods.JSON_QUERY_PARSED)}(${terms
+                             .mkString(", ")});
            """.stripMargin
 
-          val convertedResult = returnType.getTypeRoot match {
+          val (additionalCall, convertedResult) = returnType.getTypeRoot match {
             case LogicalTypeRoot.VARCHAR =>
-              s"$BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm))"
-            case LogicalTypeRoot.ARRAY =>
-              val elementType = returnType.asInstanceOf[ArrayType].getElementType
-              if (elementType.getTypeRoot == LogicalTypeRoot.VARCHAR) {
-                s"($GENERIC_ARRAY) $rawResultTerm"
-              } else {
-                throw new CodeGenException(
-                  s"Unsupported array element type '$elementType' for RETURNING ARRAY in JSON_QUERY().")
-              }
-            case _ =>
+              ("", s"$BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm))")
+            case LogicalTypeRoot.ARRAY if !isTypedArray =>
+              ("", s"($GENERIC_ARRAY) $rawResultTerm")
+            case LogicalTypeRoot.ARRAY
+                if !SqlJsonUtils.isSupportedJsonReturningType(elementType.getTypeRoot) =>
               throw new CodeGenException(
+                s"Unsupported element type '${elementType.getTypeRoot}' "
+                  + "for RETURNING ARRAY in JSON_QUERY().")
+            case LogicalTypeRoot.ARRAY =>
+              val jsonUtils =
+                classOf[SqlJsonUtils].getName
+              val typeRootEnum =
+                s"${classOf[LogicalTypeRoot].getName}.${elementType.getTypeRoot.name()}"
+              val (precisionStr, scaleStr) = elementType.getTypeRoot match {
+                case LogicalTypeRoot.DECIMAL =>
+                  val dt = elementType.asInstanceOf[DecimalType]
+                  (dt.getPrecision.toString, dt.getScale.toString)
+                case _ => ("0", "0")
+              }
+              val errorBehaviorEnum = qualifyEnum(errorBehavior)
+
+              val elementNullableStr = elementType.isNullable.toString
+              val convertedTerm = CodeGenUtils.newName(ctx, "convertedArr")
+              val conversionCode =
+                s"""
+                   |$GENERIC_ARRAY $convertedTerm = $jsonUtils.convertJsonArray(
+                   |    $rawResultTerm, $typeRootEnum,
+                   |    $precisionStr, $scaleStr,
+                   |    $elementNullableStr,
+                   |    $errorBehaviorEnum);
+                 """.stripMargin
+
+              (conversionCode, s"$convertedTerm")
+            case _ =>
+              throw new ValidationException(
                 s"Unsupported type '$returnType' "
-                  + "for RETURNING in JSON_VALUE().")
+                  + "for RETURNING in JSON_QUERY().")
           }
 
+          val call = baseCall + additionalCall
           val result = s"($rawResultTerm == null) ? null : ($convertedResult)"
           (call, result)
         }

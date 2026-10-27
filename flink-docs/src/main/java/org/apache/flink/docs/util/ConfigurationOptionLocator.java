@@ -69,6 +69,9 @@ public class ConfigurationOptionLocator {
                         "flink-state-backends/flink-statebackend-rocksdb",
                         "org.apache.flink.state.rocksdb"),
                 new OptionsClassLocation(
+                        "flink-state-backends/flink-statebackend-rocksdb",
+                        "org.apache.flink.state.rocksdb.sstmerge"),
+                new OptionsClassLocation(
                         "flink-state-backends/flink-statebackend-forst",
                         "org.apache.flink.state.forst"),
                 new OptionsClassLocation(
@@ -105,7 +108,8 @@ public class ConfigurationOptionLocator {
                             "org.apache.flink.state.rocksdb.PredefinedOptions",
                             "org.apache.flink.python.PythonConfig",
                             "org.apache.flink.cep.configuration.SharedBufferCacheConfig",
-                            "org.apache.flink.table.api.config.LookupJoinHintOptions"));
+                            "org.apache.flink.table.api.config.LookupJoinHintOptions",
+                            "org.apache.flink.table.api.config.EarlyFireJoinHintOptions"));
 
     private static final String DEFAULT_PATH_PREFIX = "src/main/java";
 
@@ -129,6 +133,11 @@ public class ConfigurationOptionLocator {
     public ConfigurationOptionLocator(OptionsClassLocation[] locations, String pathPrefix) {
         this.locations = locations;
         this.pathPrefix = pathPrefix;
+    }
+
+    @VisibleForTesting
+    static OptionsClassLocation[] getLocations() {
+        return LOCATIONS;
     }
 
     public void discoverOptionsAndApply(

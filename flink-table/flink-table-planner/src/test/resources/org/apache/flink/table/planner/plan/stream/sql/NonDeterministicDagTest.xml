@@ -44,7 +44,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, cnt, v
    +- GroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(*) AS cnt, COUNT_RETRACT(DISTINCT c) FILTER $f2 AS $f2])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, (b > (UNIX_TIMESTAMP() - 180)) IS TRUE AS $f2])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c, b]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -76,7 +76,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, vali
    +- GroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(*) AS cnt, COUNT_RETRACT(DISTINCT c) FILTER $f2 AS $f2])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, (b > (UNIX_TIMESTAMP() - 180)) IS TRUE AS $f2])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c, b]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -175,7 +175,7 @@ Calc(select=[a, c-day, b, d])
 +- Join(joinType=[LeftAntiJoin], where=[(a = a0)], select=[a, b, c-day, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a], where=[(b > 100)])
          +- Reused(reference_id=[1])
@@ -213,7 +213,7 @@ Calc(select=[a, c-day, b, d])
 +- Join(joinType=[LeftAntiJoin], where=[(a = a0)], select=[a, b, c-day, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a], where=[(b > 100)])
          +- Reused(reference_id=[1])
@@ -539,7 +539,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b0 AS b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], joinCondition=[(b > ndFunc(b0))], select=[a, b, a0, b0, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -571,7 +571,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[ndFunc(a0) AS a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -606,7 +606,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ve
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b AS version, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, a, b, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -638,7 +638,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[(ndFunc(b) > 100)], select=[a, b, c, a], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -670,7 +670,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -702,7 +702,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -734,7 +734,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -766,7 +766,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b], upsertMaterialize=[true], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -799,7 +799,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
       +- DropUpdateBefore
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -832,7 +832,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
       +- DropUpdateBefore
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -864,7 +864,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -896,7 +896,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -929,7 +929,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -962,7 +962,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -994,7 +994,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1026,7 +1026,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1061,7 +1061,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
    +- Join(joinType=[InnerJoin], where=[($f4 = $f40)], select=[a, c, $f4, b, $f40], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[$f4]])
       :  +- Calc(select=[a, c, ndFunc(b) AS $f4])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[$f4]])
          +- Calc(select=[b, ndFunc(b) AS $f4])
             +- Reused(reference_id=[1])
@@ -1098,9 +1098,9 @@ Sink(table=[default_catalog.default_database.t_join_sink], fields=[order_id, ord
 +- Calc(select=[CAST(order_id AS INTEGER) AS order_id, order_name, logistics_id, logistics_target, logistics_source, CAST(NOW() AS TIMESTAMP(6)) AS logistics_time])
    +- Join(joinType=[LeftOuterJoin], where=[(order_id = order_id0)], select=[order_id, order_name, logistics_id, logistics_target, logistics_source, order_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
       :- Exchange(distribution=[hash[order_id]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, t_order, project=[order_id, order_name], metadata=[]]], fields=[order_id, order_name])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, t_order, project=[order_id, order_name]]], fields=[order_id, order_name])
       +- Exchange(distribution=[hash[order_id]])
-         +- TableSourceScan(table=[[default_catalog, default_database, t_logistics, project=[logistics_id, logistics_target, logistics_source, order_id], metadata=[]]], fields=[logistics_id, logistics_target, logistics_source, order_id])
+         +- TableSourceScan(table=[[default_catalog, default_database, t_logistics, project=[logistics_id, logistics_target, logistics_source, order_id]]], fields=[logistics_id, logistics_target, logistics_source, order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -1134,7 +1134,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ve
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b0 AS version, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], joinCondition=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, b, a0, b0, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1167,7 +1167,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
       +- DropUpdateBefore
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1200,7 +1200,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
       +- DropUpdateBefore
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1232,7 +1232,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1264,7 +1264,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true], upsertKey=[[0]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1296,7 +1296,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
    +- Join(joinType=[InnerJoin], where=[((b = b0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[b, c, proctime, a, b0, proctime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
       :- Exchange(distribution=[hash[b]])
       :  +- Calc(select=[b, c, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[a, b, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
             +- Reused(reference_id=[1])
@@ -1331,7 +1331,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
    +- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, c, proctime, a0, b, proctime0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, b, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
             +- Reused(reference_id=[1])
@@ -1366,7 +1366,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
    +- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, c, proctime, a0, b, proctime0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, b, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
             +- Reused(reference_id=[1])
@@ -1402,7 +1402,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
       :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
       :        +- DropUpdateBefore
       :           +- Calc(select=[a, b, op_ts])
-      :              +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
             +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
@@ -1441,7 +1441,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
       :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
       :        +- DropUpdateBefore
       :           +- Calc(select=[a, b, op_ts])
-      :              +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
             +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
@@ -1479,7 +1479,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
       :  +- Calc(select=[a, b, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
       :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
       :        +- Calc(select=[a, b, op_ts])
-      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
             +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
@@ -1516,7 +1516,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
       :  +- Calc(select=[a, b, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
       :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
       :        +- Calc(select=[a, b, op_ts])
-      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
             +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
@@ -1717,7 +1717,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(b > (UNIX_TIMESTAMP() - 300))])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc, filter=[], project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1742,7 +1742,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(b > (UNIX_TIMESTAMP() - 300))])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc, filter=[], project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1766,7 +1766,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EX
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, c])
 +- Calc(select=[a, ndFunc(b) AS EXPR$1, c])
    +- DropUpdateBefore
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1790,7 +1790,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EX
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, c])
 +- Calc(select=[a, ndFunc(b) AS EXPR$1, c])
    +- DropUpdateBefore
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1813,7 +1813,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1, c])
 +- Calc(select=[a, ndFunc(b) AS EXPR$1, c])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1928,7 +1928,7 @@ LogicalAggregate(group=[{0}], cnt=[COUNT()], qmt=[SUM($1)])
 GroupAggregate(groupBy=[day], select=[day, COUNT_RETRACT(*) AS cnt, SUM_RETRACT(b) AS qmt])
 +- Exchange(distribution=[hash[day]])
    +- Calc(select=[CONCAT(CAST(a AS VARCHAR(2147483647)), DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS day, b])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -1962,7 +1962,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day]
    +- GroupAggregate(groupBy=[day, a], select=[day, a, COUNT_RETRACT(*) AS cnt])
       +- Exchange(distribution=[hash[day, a]])
          +- Calc(select=[DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, a])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -1993,7 +1993,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, cnt,
    +- GroupAggregate(groupBy=[EXPR$0, c], select=[EXPR$0, c, COUNT_RETRACT(*) AS cnt])
       +- Exchange(distribution=[hash[EXPR$0, c]])
          +- Calc(select=[ndFunc(a) AS EXPR$0, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -2032,7 +2032,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], up
    +- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
       :- Exchange(distribution=[hash[b]])
       :  +- Calc(select=[a, b])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c]]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day])
             +- Reused(reference_id=[1])
@@ -2070,7 +2070,7 @@ Calc(select=[a, a0, c-day, b0 AS b, d])
 +- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
          +- Reused(reference_id=[1])
@@ -2108,7 +2108,7 @@ Calc(select=[a, a0, c-day, b0 AS b, d])
 +- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
          +- Reused(reference_id=[1])
@@ -2146,7 +2146,7 @@ Calc(select=[a, c-day, b0 AS b, d])
 +- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, b0, c-day, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
          +- Reused(reference_id=[1])
@@ -2185,7 +2185,7 @@ Calc(select=[a, c-day, b, d])
    :- Exchange(distribution=[hash[a]])
    :  +- DropUpdateBefore
    :     +- Calc(select=[a])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
          +- DropUpdateBefore
@@ -2225,7 +2225,7 @@ Calc(select=[a, c-day, b, d])
    :- Exchange(distribution=[hash[a]])
    :  +- DropUpdateBefore
    :     +- Calc(select=[a])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
          +- DropUpdateBefore
@@ -2408,9 +2408,9 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c
       <![CDATA[
 Exchange(distribution=[hash[a]])(reuse_id=[1])
 +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
-   +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
+   +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a]]], fields=[a])
 
-TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d], metadata=[]]], fields=[b, c, d])(reuse_id=[2])
+TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d]]], fields=[b, c, d])(reuse_id=[2])
 
 Sink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXPR$3])
 +- GroupAggregate(groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3])
@@ -2857,7 +2857,7 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
       +- Exchange(distribution=[hash[a]])
          +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
             +- Exchange(distribution=[hash[a]])
-               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -2891,7 +2891,7 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
       +- Exchange(distribution=[hash[a]])
          +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
             +- Exchange(distribution=[hash[a]])
-               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -2963,7 +2963,7 @@ Calc(select=[a, c-day, b, d])
 +- Join(joinType=[LeftSemiJoin], where=[(a = a0)], select=[a, b, c-day, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a], where=[(b > 100)])
          +- Reused(reference_id=[1])
@@ -3001,7 +3001,7 @@ Calc(select=[a, c-day, b, d])
 +- Join(joinType=[LeftSemiJoin], where=[(a = a0)], select=[a, b, c-day, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a], where=[(b > 100)])
          +- Reused(reference_id=[1])
@@ -3037,7 +3037,7 @@ LogicalProject(c=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))]
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(c = c0)], select=[a, b, c, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+:  +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d]]], fields=[a, b, c, d])(reuse_id=[1])
 +- Exchange(distribution=[hash[c]])
    +- Calc(select=[CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c], where=[(b > 100)])
       +- Reused(reference_id=[1])
@@ -3063,7 +3063,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, project=[a, b], metadata=[]]], fields=[a, b])(reuse_id=[1])
+TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, project=[a, b]]], fields=[a, b])(reuse_id=[1])
 
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1, day])
 +- Calc(select=[a, EXPR$1, day])
@@ -3101,7 +3101,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day], where=[(b > 100)])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, filter=[], project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -3138,7 +3138,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
    +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, rowtime, currency0, rate, valid, metadata_1, rowtime0])
       :- Exchange(distribution=[hash[currency]])
       :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[currency, rowtime], metadata=[]]], fields=[currency, rowtime])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[currency, rowtime]]], fields=[currency, rowtime])
       +- Exchange(distribution=[hash[currency]])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
             +- Calc(select=[currency, rate, valid, metadata_1, rowtime])
@@ -3179,7 +3179,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
    +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, rowtime, currency0, rate, valid, metadata_1, rowtime0])
       :- Exchange(distribution=[hash[currency]])
       :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[currency, rowtime], metadata=[]]], fields=[currency, rowtime])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[currency, rowtime]]], fields=[currency, rowtime])
       +- Exchange(distribution=[hash[currency]])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
             +- Calc(select=[currency, rate, valid, metadata_1, rowtime])
@@ -3246,7 +3246,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Union(all=[true], union=[a, b, c])
-   :- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+   :- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, b, c]]], fields=[a, b, c])
    +- Calc(select=[CAST(a AS INTEGER) AS a, metadata_3, c])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3])
 ]]>
@@ -3318,7 +3318,7 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
          +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
-                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -3353,7 +3353,7 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
          +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
-                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -3377,7 +3377,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- ChangelogNormalize(key=[a])
    +- Exchange(distribution=[hash[a]])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -3401,7 +3401,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- ChangelogNormalize(key=[a])
    +- Exchange(distribution=[hash[a]])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -3425,7 +3425,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- ChangelogNormalize(key=[a])
    +- Exchange(distribution=[hash[a]])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -3449,7 +3449,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- ChangelogNormalize(key=[a])
    +- Exchange(distribution=[hash[a]])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

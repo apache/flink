@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeInput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeOutput;
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.replayInputDataFromSpill;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.write;
 
 /**
@@ -233,6 +234,12 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
     public void finishOutput(long checkpointId) {
         LOG.debug("{} finishing output data, checkpoint {}", taskName, checkpointId);
         enqueue(completeOutput(jobVertexID, subtaskIndex, checkpointId), false);
+    }
+
+    @Override
+    public void addInputDataFromSpill(long checkpointId, FetchedChannelStateReader reader) {
+        LOG.debug("{} replaying input data from spill, checkpoint {}", taskName, checkpointId);
+        enqueue(replayInputDataFromSpill(jobVertexID, subtaskIndex, checkpointId, reader), false);
     }
 
     @Override

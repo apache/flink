@@ -92,6 +92,24 @@ Example for enabling the RocksDB backend:
 historyserver.archive.storage.type: ROCKSDB
 ```
 
+**Archive Load Mode**
+
+The HistoryServer supports two modes for loading archives, selected via `historyserver.archive.load.mode`:
+
+* `EAGER` (default): Archives are automatically and synchronously downloaded to local storage via periodic background refreshes.
+* `LAZY`: Archives are displayed on the web interface immediately, while the underlying data is fetched asynchronously in the background. If a specific archive is accessed before its background download completes, the system will prioritize and fetch it on demand.
+
+Example for enabling the lazy loading:
+
+```yaml
+historyserver.archive.load.mode: LAZY
+```
+
+In `LAZY` mode, on-demand fetches use two thread pools:
+
+* `historyserver.lazy.fetch.executor.common.pool-size` — The size of the shared thread pool used for routine, background archive fetching.
+* `historyserver.lazy.fetch.executor.individual.pool-size` — The size of the high-priority thread pool dedicated to fetching individual archives on demand (e.g., when a user accesses them).
+
 ## Log Integration
 
 Flink does not provide built-in methods for archiving logs of completed jobs.

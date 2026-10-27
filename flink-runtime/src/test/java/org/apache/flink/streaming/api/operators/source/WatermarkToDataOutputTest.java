@@ -65,4 +65,19 @@ class WatermarkToDataOutputTest {
         assertThat(testingOutput.events)
                 .contains(WatermarkStatus.IDLE, WatermarkStatus.ACTIVE, new Watermark(100L));
     }
+
+    @Test
+    void becomingActiveEmitsStatusOnNonAdvancingWatermark() {
+        final CollectingDataOutput<Object> testingOutput = new CollectingDataOutput<>();
+        final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
+
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(100L));
+        wmOutput.markIdle();
+
+        // the watermark does not advance, but the source is active again
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(100L));
+
+        assertThat(testingOutput.events)
+                .containsExactly(new Watermark(100L), WatermarkStatus.IDLE, WatermarkStatus.ACTIVE);
+    }
 }

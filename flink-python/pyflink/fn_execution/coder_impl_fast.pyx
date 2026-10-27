@@ -21,6 +21,7 @@
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 from libc.stdint cimport int32_t, int64_t
 from libc.stdlib cimport free, malloc
+cimport cython
 
 import datetime
 import decimal
@@ -36,7 +37,8 @@ from pyflink.datastream.window import CountWindow, TimeWindow, GlobalWindow
 from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
     FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
+from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas, validate_arrow_batch, \
+    pandas_table_row_to_arrow
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -431,7 +433,10 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
     A coder for arrow format data.
     """
 
-    def __init__(self, schema, row_type, timezone):
+    def __init__(self, schema, row_type, timezone, batch_format="PANDAS",
+                 returns_table_row=False):
+        self._batch_format = batch_format
+        self._returns_table_row = returns_table_row
         self._schema = schema
         self._field_types = row_type.field_types()
         self._timezone = timezone
@@ -443,16 +448,25 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
 
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
-        batch_writer.write_batch(
-            pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
+        if self._batch_format == "ARROW":
+            batch = validate_arrow_batch(cols, self._schema, self._field_types)
+        elif self._returns_table_row:
+            batch = pandas_table_row_to_arrow(
+                self._schema, self._timezone, self._field_types[0], cols[0])
+        else:
+            batch = pandas_to_arrow(self._schema, self._timezone, self._field_types, cols)
+        batch_writer.write_batch(batch)
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self.decode_one_batch_from_stream(in_stream, size)
 
-    cdef list decode_one_batch_from_stream(self, InputStream in_stream, size_t size):
+    cdef decode_one_batch_from_stream(self, InputStream in_stream, size_t size):
         self._resettable_io.set_input_bytes(in_stream.read(size))
         # there is only one arrow batch in the underlying input stream
-        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
+        batch = next(self._batch_reader)
+        if self._batch_format == "ARROW":
+            return batch
+        return arrow_to_pandas(self._timezone, self._field_types, [batch])
 
     def _load_from_stream(self, stream):
         import pyarrow as pa
@@ -685,7 +699,8 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
     cpdef encode_to_stream(self, value, OutputStream out_stream):
         cdef int32_t microseconds_of_second, nanoseconds
         cdef int64_t timestamp_seconds, timestamp_milliseconds
-        timestamp_seconds = <int64_t> (value.replace(tzinfo=datetime.timezone.utc).timestamp())
+        timestamp_seconds = <int64_t> (
+            value.replace(microsecond=0, tzinfo=datetime.timezone.utc).timestamp())
         microseconds_of_second = value.microsecond
         timestamp_milliseconds = timestamp_seconds * 1000 + microseconds_of_second // 1000
         nanoseconds = microseconds_of_second % 1000 * 1000
@@ -698,6 +713,7 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self._decode_timestamp_data_from_stream(in_stream)
 
+    @cython.cdivision(False)
     cdef _decode_timestamp_data_from_stream(self, InputStream in_stream):
         cdef int64_t milliseconds
         cdef int32_t nanoseconds, seconds, microseconds
@@ -721,7 +737,13 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         self._timezone = timezone
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
-        return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
+        return self._decode_timestamp_data_from_stream(in_stream) \
+            .replace(tzinfo=datetime.timezone.utc).astimezone(self._timezone)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value.tzinfo is not None:
+            value = value.astimezone(datetime.timezone.utc)
+        TimestampCoderImpl.encode_to_stream(self, value, out_stream)
 
 cdef class InstantCoderImpl(FieldCoderImpl):
     """

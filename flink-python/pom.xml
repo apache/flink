@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.4-SNAPSHOT</version>
+		<version>2.5-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-python</artifactId>
@@ -35,6 +35,10 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
+		<!-- Override Beam's optional transitive with a version that fixes CVE-2026-45292. -->
+		<opentelemetry.bundled.version>1.62.0</opentelemetry.bundled.version>
+		
+		<!-- Arrow Java is released from apache/arrow-java and is not version-aligned with pyarrow. -->
 		<arrow.version>19.0.0</arrow.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
@@ -133,11 +137,25 @@ under the License.
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
+		<!-- Declared optional by Beam; required at runtime for PipelineOptionsFactory. -->
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-api</artifactId>
+			<version>${opentelemetry.bundled.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-context</artifactId>
+			<version>${opentelemetry.bundled.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
 		<!-- PemJa dependencies -->
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.5.7</version>
+			<version>0.6.3</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -668,6 +686,7 @@ under the License.
 									<include>net.razorvine:*</include>
 									<include>net.sf.py4j:*</include>
 									<include>org.apache.beam:*</include>
+									<include>io.opentelemetry:*</include>
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>joda-time:*</include>
 									<include>com.google.protobuf:*</include>
@@ -733,6 +752,12 @@ under the License.
 										org.apache.flink.api.python.shaded.com.fasterxml.jackson
 									</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>io.opentelemetry</pattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.io.opentelemetry
+									</shadedPattern>
+								</relocation>
 								<!--
 								Manually relocate multi-release classes to the correct shaded package. This is needed
 								due to a bug in the Maven Shade plugin, which only relocates the content but not
@@ -776,6 +801,11 @@ under the License.
 								<relocation>
 									<pattern>META-INF/versions/(\d+)/io/netty/</pattern>
 									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/io/netty/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/io/opentelemetry/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/io/opentelemetry/</shadedPattern>
 									<rawString>true</rawString>
 								</relocation>
 								<relocation>
@@ -841,21 +871,17 @@ under the License.
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>com.github.os72</groupId>
-				<artifactId>protoc-jar-maven-plugin</artifactId>
-				<version>3.11.4</version>
+				<groupId>io.github.ascopes</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
 				<executions>
 					<execution>
-						<phase>generate-sources</phase>
 						<goals>
-							<goal>run</goal>
+							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<protocArtifact>com.google.protobuf:protoc:${protoc.version}
-							</protocArtifact>
-							<inputDirectories>
-								<include>pyflink/proto</include>
-							</inputDirectories>
+							<sourceDirectories>
+								<sourceDirectory>${project.basedir}/pyflink/proto</sourceDirectory>
+							</sourceDirectories>
 						</configuration>
 					</execution>
 				</executions>

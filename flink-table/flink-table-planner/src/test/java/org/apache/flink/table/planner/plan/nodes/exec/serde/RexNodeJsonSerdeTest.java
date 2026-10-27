@@ -830,6 +830,12 @@ public class RexNodeJsonSerdeTest {
                 rexBuilder.makeCall(
                         FlinkSqlOperatorTable.HASH_CODE,
                         rexBuilder.makeInputRef(FACTORY.createSqlType(SqlTypeName.INTEGER), 1)),
+                rexBuilder.makeInputRef(FACTORY.createSqlType(SqlTypeName.VARIANT), 1),
+                // $1['f'] on a VARIANT, which also makes the call itself VARIANT-typed
+                rexBuilder.makeCall(
+                        FlinkSqlOperatorTable.ITEM,
+                        rexBuilder.makeInputRef(FACTORY.createSqlType(SqlTypeName.VARIANT), 1),
+                        rexBuilder.makeLiteral("f")),
                 rexBuilder.makePatternFieldRef(
                         "test", FACTORY.createSqlType(SqlTypeName.INTEGER), 0),
                 new RexTableArgCall(

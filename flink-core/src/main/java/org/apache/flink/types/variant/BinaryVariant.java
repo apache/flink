@@ -20,37 +20,34 @@ package org.apache.flink.types.variant;
 
 import org.apache.flink.annotation.Internal;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-
-import java.io.CharArrayWriter;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
-import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
-import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION_MASK;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.compareMetadataKey;
+import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
+import static org.apache.flink.types.variant.BinaryVariantUtil.hasCodePointFromE000;
 import static org.apache.flink.types.variant.BinaryVariantUtil.malformedVariant;
+import static org.apache.flink.types.variant.BinaryVariantUtil.metadataKeyEquals;
+import static org.apache.flink.types.variant.BinaryVariantUtil.microsToInstant;
+import static org.apache.flink.types.variant.BinaryVariantUtil.nanosToInstant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.readUnsigned;
-import static org.apache.flink.types.variant.BinaryVariantUtil.unexpectedType;
 import static org.apache.flink.types.variant.BinaryVariantUtil.valueSize;
 import static org.apache.flink.types.variant.BinaryVariantUtil.variantConstructorSizeLimit;
 
@@ -65,6 +62,8 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.variantConstructo
  */
 @Internal
 public final class BinaryVariant implements Variant {
+
+    private static final long serialVersionUID = 1L;
 
     private final byte[] value;
     private final byte[] metadata;
@@ -179,22 +178,51 @@ public final class BinaryVariant implements Variant {
 
     @Override
     public LocalDateTime getDateTime() throws VariantTypeException {
-        checkType(Type.TIMESTAMP, getType());
-        return microsToInstant(BinaryVariantUtil.getLong(value, pos))
-                .atZone(ZoneOffset.UTC)
-                .toLocalDateTime();
+        Type type = getType();
+        Instant instant;
+        if (type == Type.TIMESTAMP) {
+            instant = microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else if (type == Type.TIMESTAMP_NS) {
+            instant = nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else {
+            throw new VariantTypeException(
+                    String.format(
+                            "Expected type %s or %s but got %s",
+                            Type.TIMESTAMP, Type.TIMESTAMP_NS, type));
+        }
+        return instant.atZone(ZoneOffset.UTC).toLocalDateTime();
     }
 
     @Override
     public Instant getInstant() throws VariantTypeException {
-        checkType(Type.TIMESTAMP_LTZ, getType());
-        return microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        Type type = getType();
+        if (type == Type.TIMESTAMP_LTZ) {
+            return microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else if (type == Type.TIMESTAMP_LTZ_NS) {
+            return nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+        }
+        throw new VariantTypeException(
+                String.format(
+                        "Expected type %s or %s but got %s",
+                        Type.TIMESTAMP_LTZ, Type.TIMESTAMP_LTZ_NS, type));
+    }
+
+    @Override
+    public LocalTime getTime() throws VariantTypeException {
+        checkType(Type.TIME, getType());
+        return LocalTime.ofNanoOfDay(BinaryVariantUtil.getLong(value, pos) * 1000);
     }
 
     @Override
     public byte[] getBytes() throws VariantTypeException {
         checkType(Type.BYTES, getType());
         return BinaryVariantUtil.getBinary(value, pos);
+    }
+
+    @Override
+    public UUID getUuid() throws VariantTypeException {
+        checkType(Type.UUID, getType());
+        return BinaryVariantUtil.getUuid(value, pos);
     }
 
     @Override
@@ -222,12 +250,18 @@ public final class BinaryVariant implements Variant {
                 return getString();
             case DATE:
                 return getDate();
+            case TIME:
+                return getTime();
             case TIMESTAMP:
+            case TIMESTAMP_NS:
                 return getDateTime();
             case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
                 return getInstant();
             case BYTES:
                 return getBytes();
+            case UUID:
+                return getUuid();
             default:
                 throw new VariantTypeException(
                         String.format("Expecting a primitive variant but got %s", getType()));
@@ -272,9 +306,7 @@ public final class BinaryVariant implements Variant {
 
     @Override
     public String toJson() {
-        StringBuilder sb = new StringBuilder();
-        toJsonImpl(value, metadata, pos, sb, ZoneOffset.UTC);
-        return sb.toString();
+        return JsonVariantFormatter.STRICT.format(this);
     }
 
     public byte[] getValue() {
@@ -286,117 +318,17 @@ public final class BinaryVariant implements Variant {
         return Arrays.copyOfRange(value, pos, pos + size);
     }
 
+    /** Returns the value buffer without copying. This variant starts at {@link #getPos()}. */
+    byte[] rawValue() {
+        return value;
+    }
+
     public byte[] getMetadata() {
         return metadata;
     }
 
     public int getPos() {
         return pos;
-    }
-
-    private static void toJsonImpl(
-            byte[] value, byte[] metadata, int pos, StringBuilder sb, ZoneId zoneId) {
-        switch (BinaryVariantUtil.getType(value, pos)) {
-            case OBJECT:
-                handleObject(
-                        value,
-                        pos,
-                        (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
-                            sb.append('{');
-                            for (int i = 0; i < size; ++i) {
-                                int id = readUnsigned(value, idStart + idSize * i, idSize);
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * i, offsetSize);
-                                int elementPos = dataStart + offset;
-                                if (i != 0) {
-                                    sb.append(',');
-                                }
-                                sb.append(escapeJson(getMetadataKey(metadata, id)));
-                                sb.append(':');
-                                toJsonImpl(value, metadata, elementPos, sb, zoneId);
-                            }
-                            sb.append('}');
-                            return null;
-                        });
-                break;
-            case ARRAY:
-                handleArray(
-                        value,
-                        pos,
-                        (size, offsetSize, offsetStart, dataStart) -> {
-                            sb.append('[');
-                            for (int i = 0; i < size; ++i) {
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * i, offsetSize);
-                                int elementPos = dataStart + offset;
-                                if (i != 0) {
-                                    sb.append(',');
-                                }
-                                toJsonImpl(value, metadata, elementPos, sb, zoneId);
-                            }
-                            sb.append(']');
-                            return null;
-                        });
-                break;
-            case NULL:
-                sb.append("null");
-                break;
-            case BOOLEAN:
-                sb.append(BinaryVariantUtil.getBoolean(value, pos));
-                break;
-            case TINYINT:
-            case SMALLINT:
-            case INT:
-            case BIGINT:
-                sb.append(BinaryVariantUtil.getLong(value, pos));
-                break;
-            case STRING:
-                sb.append(escapeJson(BinaryVariantUtil.getString(value, pos)));
-                break;
-            case DOUBLE:
-                sb.append(BinaryVariantUtil.getDouble(value, pos));
-                break;
-            case DECIMAL:
-                sb.append(BinaryVariantUtil.getDecimal(value, pos).toPlainString());
-                break;
-            case DATE:
-                appendQuoted(
-                        sb,
-                        LocalDate.ofEpochDay((int) BinaryVariantUtil.getLong(value, pos))
-                                .toString());
-                break;
-            case TIMESTAMP_LTZ:
-                appendQuoted(
-                        sb,
-                        TIMESTAMP_LTZ_FORMATTER.format(
-                                microsToInstant(BinaryVariantUtil.getLong(value, pos))
-                                        .atZone(zoneId)));
-                break;
-            case TIMESTAMP:
-                appendQuoted(
-                        sb,
-                        TIMESTAMP_FORMATTER.format(
-                                microsToInstant(BinaryVariantUtil.getLong(value, pos))
-                                        .atZone(ZoneOffset.UTC)));
-                break;
-            case FLOAT:
-                sb.append(BinaryVariantUtil.getFloat(value, pos));
-                break;
-            case BYTES:
-                appendQuoted(
-                        sb,
-                        Base64.getEncoder()
-                                .encodeToString(BinaryVariantUtil.getBinary(value, pos)));
-                break;
-            default:
-                throw unexpectedType(BinaryVariantUtil.getType(value, pos));
-        }
-    }
-
-    private static Instant microsToInstant(long timestamp) {
-        return Instant.EPOCH.plus(timestamp, ChronoUnit.MICROS);
     }
 
     private void checkType(Type expected, Type actual) {
@@ -409,46 +341,65 @@ public final class BinaryVariant implements Variant {
     // Find the field value whose key is equal to `key`. Return null if the key is not found.
     // It is only legal to call it when `getType()` is `Type.OBJECT`.
     private BinaryVariant getFieldByKey(String key) {
+        byte[] keyBytes = encodeKey(key);
         return handleObject(
                 value,
                 pos,
                 (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
+                    int index;
                     // Use linear search for a short list. Switch to binary search when the length
                     // reaches `BINARY_SEARCH_THRESHOLD`.
                     if (size < BINARY_SEARCH_THRESHOLD) {
-                        for (int i = 0; i < size; ++i) {
-                            int id = readUnsigned(value, idStart + idSize * i, idSize);
-                            if (key.equals(getMetadataKey(metadata, id))) {
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * i, offsetSize);
-                                return new BinaryVariant(value, metadata, dataStart + offset);
-                            }
-                        }
+                        index = findFieldLinear(keyBytes, size, idSize, idStart);
                     } else {
-                        int low = 0;
-                        int high = size - 1;
-                        while (low <= high) {
-                            // Use unsigned right shift to compute the middle of `low` and `high`.
-                            // This is not only a performance optimization, because it can properly
-                            // handle the case where `low + high` overflows int.
-                            int mid = (low + high) >>> 1;
-                            int id = readUnsigned(value, idStart + idSize * mid, idSize);
-                            int cmp = getMetadataKey(metadata, id).compareTo(key);
-                            if (cmp < 0) {
-                                low = mid + 1;
-                            } else if (cmp > 0) {
-                                high = mid - 1;
-                            } else {
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * mid, offsetSize);
-                                return new BinaryVariant(value, metadata, dataStart + offset);
-                            }
+                        index = findFieldBinary(keyBytes, size, idSize, idStart);
+                        // Objects that earlier Flink versions wrote are sorted in UTF-16 order
+                        // instead. Only a miss for a key with a code point from U+E000 up can be
+                        // wrong there, see `hasCodePointFromE000`. Such a miss scans all fields,
+                        // because an object does not record which order it uses.
+                        if (index < 0 && hasCodePointFromE000(keyBytes)) {
+                            index = findFieldLinear(keyBytes, size, idSize, idStart);
                         }
                     }
-                    return null;
+                    if (index < 0) {
+                        return null;
+                    }
+                    int offset = readUnsigned(value, offsetStart + offsetSize * index, offsetSize);
+                    return new BinaryVariant(value, metadata, dataStart + offset);
                 });
+    }
+
+    // Return the index of the field whose key has the UTF-8 bytes `key`, or -1 if there is none.
+    private int findFieldLinear(byte[] key, int size, int idSize, int idStart) {
+        for (int i = 0; i < size; ++i) {
+            int id = readUnsigned(value, idStart + idSize * i, idSize);
+            if (metadataKeyEquals(metadata, id, key)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // Like `findFieldLinear`, for fields sorted by the unsigned UTF-8 bytes of their keys.
+    private int findFieldBinary(byte[] key, int size, int idSize, int idStart) {
+        int low = 0;
+        int high = size - 1;
+        while (low <= high) {
+            // Use unsigned right shift to compute the middle of `low` and `high`. This is not only
+            // a performance optimization, because it can properly handle the case where
+            // `low + high` overflows int.
+            int mid = (low + high) >>> 1;
+            int id = readUnsigned(value, idStart + idSize * mid, idSize);
+            int cmp = compareMetadataKey(metadata, id, key);
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                return mid;
+            }
+        }
+        return -1;
     }
 
     // Get the array element at the `index` slot. Return null if `index` is out of the bound of
@@ -467,29 +418,9 @@ public final class BinaryVariant implements Variant {
                 });
     }
 
-    // Escape a string so that it can be pasted into JSON structure.
-    // For example, if `str` only contains a new-line character, then the result content is "\n"
-    // (4 characters).
-    private static String escapeJson(String str) {
-        try (CharArrayWriter writer = new CharArrayWriter();
-                JsonGenerator gen = new JsonFactory().createGenerator(writer)) {
-            gen.writeString(str);
-            gen.flush();
-            return writer.toString();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void appendQuoted(StringBuilder sb, String str) {
-        sb.append('"');
-        sb.append(str);
-        sb.append('"');
-    }
-
     @Override
     public String toString() {
-        return toJson();
+        return JsonVariantFormatter.LENIENT.format(this);
     }
 
     @Override
