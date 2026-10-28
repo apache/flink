@@ -1,6 +1,7 @@
 ---
 title: SQL & Table API Connectors
 bookCollapseSection: true
+bookSortByTitle: true
 weight: 3
 ---
 <!--

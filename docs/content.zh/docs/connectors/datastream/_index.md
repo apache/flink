@@ -1,6 +1,7 @@
 ---
 title: DataStream Connectors
 bookCollapseSection: true
+bookSortByTitle: true
 weight: 4
 ---
 <!--

@@ -216,7 +216,7 @@ The [Flink Operations Playground]({{< ref "docs/getting-started/flink-operations
 
 - [Stateful Stream Processing]({{< ref "docs/concepts/stateful-stream-processing" >}})
 - [State Backends]({{< ref "docs/ops/state/state_backends" >}})
-- [Fault Tolerance Guarantees of Data Sources and Sinks]({{< ref "docs/connectors/datastream/guarantees" >}})
+- [Fault Tolerance Guarantees of Data Sources and Sinks]({{< ref "docs/connectors/datastream/overview" >}}#fault-tolerance-guarantees)
 - [Enabling and Configuring Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})
 - [Checkpoints]({{< ref "docs/ops/state/checkpoints" >}})
 - [Savepoints]({{< ref "docs/ops/state/savepoints" >}})
