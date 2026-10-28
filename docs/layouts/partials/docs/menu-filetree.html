@@ -29,8 +29,18 @@ under the License.
 {{ end }}
 
 {{ define "book-section-children" }}{{/* (dict "Section" .Section "CurrentPage" .CurrentPage) */}}
+  {{ $pages := where .Section.Pages "Params.bookhidden" "ne" true }}
+  {{/* Connector pages come from separate repositories that each pick their own weight. Sort them by
+       link title so no coordination is needed; weights 1 and 2 (overview, formats) and from 100
+       (downloads) stay pinned. Translated pages set an English linkTitle to keep the same order. */}}
+  {{ if .Section.Params.bookSortByTitle }}
+    {{ $top := where (where $pages "Weight" "ge" 1) "Weight" "le" 2 }}
+    {{ $middle := (where $pages "Weight" "lt" 1) | append (where (where $pages "Weight" "gt" 2) "Weight" "lt" 100) }}
+    {{ $bottom := where $pages "Weight" "ge" 100 }}
+    {{ $pages = $top.ByWeight | append $middle.ByLinkTitle | append $bottom.ByWeight }}
+  {{ end }}
   <ul>
-    {{ range (where .Section.Pages "Params.bookhidden" "ne" true) }}
+    {{ range $pages }}
       {{ if .IsSection }}
         <li {{- if .Params.BookFlatSection }} class="book-section-flat" {{ end -}}>
           {{ template "book-page-link" (dict "Page" . "CurrentPage" $.CurrentPage) }}

@@ -38,22 +38,25 @@ under the License.
 连接器可以和多种多样的第三方系统进行交互。目前支持以下系统。
 Currently these systems are supported as part of the Apache Flink project:
 
- * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
- * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
- * [Amazon DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
- * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
- * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
  * [DataGen]({{< ref "docs/connectors/datastream/datagen" >}}) (source)
+ * [Dynamic Kafka]({{< ref "docs/connectors/datastream/dynamic-kafka" >}}) (source)
+ * [DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
- * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
- * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (sink)
- * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
- * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (source/sink)
+ * [Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [Google Cloud PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [HTTP]({{< ref "docs/connectors/datastream/http" >}}) (sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
- * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
- * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
+ * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (source/sink)
+ * [Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
+ * [Kinesis]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [MongoDB]({{< ref "docs/connectors/datastream/mongodb" >}}) (source/sink)
+ * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
  * [Prometheus]({{< ref "docs/connectors/datastream/prometheus" >}}) (sink)
+ * [Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source/sink)
+ * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
+ * [SQS]({{< ref "docs/connectors/datastream/sqs" >}}) (sink)
 
 请记住，在使用一种连接器时，通常需要额外的第三方组件，比如：数据存储服务器或者消息队列。
 要注意这些列举的连接器是 Flink 工程的一部分，包含在发布的源码中，但是不包含在二进制发行版中。
@@ -66,15 +69,29 @@ Currently these systems are supported as part of the Apache Flink project:
 如果需要在本地环境测试运行，请确保 flink-connector-base 依赖被正确的提供，而且能在 classpath 下找到。
 {{< /hint >}}
 
-## Apache Bahir 中的连接器
+## Flink CDC
 
-Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apache.org/) 发布, 包括:
+[Flink CDC](https://nightlies.apache.org/flink/flink-cdc-docs-stable/) is an Apache Flink sub-project with its own releases. Its source connectors read
+changes directly from databases such as MySQL, PostgreSQL, Oracle, SQL Server, MongoDB and Db2. See
+the [Flink CDC sources](https://nightlies.apache.org/flink/flink-cdc-docs-stable/docs/connectors/flink-sources/overview/) for the supported databases and Flink versions.
 
- * [Apache ActiveMQ](https://bahir.apache.org/docs/flink/current/flink-streaming-activemq/) (source/sink)
- * [Apache Flume](https://bahir.apache.org/docs/flink/current/flink-streaming-flume/) (sink)
- * [Redis](https://bahir.apache.org/docs/flink/current/flink-streaming-redis/) (sink)
- * [Akka](https://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
- * [Netty](https://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
+## Fault Tolerance Guarantees
+
+Flink recovers from failures by restarting from the last [checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}). Checkpointing is
+disabled by default. For exactly-once results, the source must be able to rewind to the position
+stored in the checkpoint, and the sink must take part in checkpointing, either by committing its
+writes transactionally or by writing idempotently. See [Stateful Stream Processing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) for how checkpoints work.
+
+Sinks built on the [Sink API]({{< ref "docs/internals/sinks" >}}) that support more than one
+guarantee take a {{< javadoc file="org/apache/flink/connector/base/DeliveryGuarantee.html" name="DeliveryGuarantee" >}}
+(`NONE`, `AT_LEAST_ONCE` or `EXACTLY_ONCE`) in their builder, for example the
+[Kafka sink]({{< ref "docs/connectors/datastream/kafka" >}}). Each connector's page documents the
+guarantees it provides.
+
+## Integrations Maintained by Other Projects
+
+Some projects maintain their own Flink integration, such as Apache Iceberg and Apache Paimon. See
+[Integrations Maintained by Other Projects]({{< ref "docs/connectors/other-projects/overview" >}}).
 
 ## 连接Flink的其他方法
 
