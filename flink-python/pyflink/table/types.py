@@ -1709,7 +1709,8 @@ def _from_java_data_type(j_data_type):
         elif is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.TimestampType):
-            data_type = DataTypes.TIMESTAMP(precision=3, nullable=logical_type.isNullable())
+            data_type = DataTypes.TIMESTAMP(
+                precision=logical_type.getPrecision(), nullable=logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.TinyIntType):
@@ -1729,7 +1730,8 @@ def _from_java_data_type(j_data_type):
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
         elif is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
-            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
+            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(
+                precision=logical_type.getPrecision(), nullable=logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
                 is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
             data_type = _from_java_interval_type(logical_type)

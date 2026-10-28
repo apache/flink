@@ -871,6 +871,15 @@ class DataTypeConvertTests(PyFlinkTestCase):
 
         self.assertEqual(test_types, converted_python_types)
 
+    def test_timestamp_precision_round_trip(self):
+        for timestamp_type in [DataTypes.TIMESTAMP, DataTypes.TIMESTAMP_LTZ]:
+            for precision in range(10):
+                for nullable in [True, False]:
+                    data_type = timestamp_type(precision, nullable)
+                    with self.subTest(data_type=data_type):
+                        converted = _from_java_data_type(_to_java_data_type(data_type))
+                        self.assertEqual(data_type, converted)
+
     def test_atomic_type_with_data_type_with_parameters(self):
         gateway = get_gateway()
         JDataTypes = gateway.jvm.DataTypes
