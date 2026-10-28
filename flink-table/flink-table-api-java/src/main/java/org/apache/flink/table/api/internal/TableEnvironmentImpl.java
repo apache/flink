@@ -775,6 +775,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public String[] listMaterializedTables(String catalogName, String databaseName) {
+        return catalogManager.listMaterializedTables(catalogName, databaseName).stream()
+                .sorted()
+                .toArray(String[]::new);
+    }
+
+    @Override
     public String[] listTemporaryTables() {
         return catalogManager.listTemporaryTables().stream().sorted().toArray(String[]::new);
     }

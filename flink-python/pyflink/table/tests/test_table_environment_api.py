@@ -460,6 +460,18 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
             Py4JJavaError, "No module with name 'dummy' exists",
             self.t_env.use_modules, 'core', 'dummy')
 
+    def test_list_materialized_tables_in_given_namespace(self):
+        self.t_env.execute_sql(
+            "CREATE CATALOG other_catalog WITH ("
+            "'type' = 'generic_in_memory', 'default-database' = 'other_database')")
+
+        self.assertEqual(
+            [], self.t_env.list_materialized_tables('other_catalog', 'other_database'))
+        self.assertRaisesRegex(
+            Py4JJavaError, "Catalog unknown_catalog does not exist",
+            self.t_env.list_materialized_tables, 'unknown_catalog', 'other_database')
+        self.assertRaises(ValueError, self.t_env.list_materialized_tables, 'other_catalog')
+
     def assert_created_table_from_descriptor(self, schema: Schema):
         catalog = self.t_env.get_current_catalog()
         database = self.t_env.get_current_database()
