@@ -104,9 +104,23 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
         this.executionConfig = executionConfig;
     }
 
+    /**
+     * Only allowed for the current key. Keys are processed one at a time, in sorted order, and may
+     * only advance via {@link #moveToNextKey}: switching to another key here would fire the
+     * outgoing key's timers early and drop its state, or revisit a key whose state is already gone.
+     */
     @Override
     public void setCurrentKey(K newKey) {
-        moveToNextKey(newKey);
+        if (!Objects.equals(newKey, currentKey)) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot switch the current key from %s to %s: BATCH execution processes"
+                                    + " keys one at a time in sorted order, so an operator must not"
+                                    + " change the current key itself (e.g. to flush records it"
+                                    + " buffered for other keys). Keys only advance with the sorted"
+                                    + " input.",
+                            currentKey, newKey));
+        }
     }
 
     @Override
@@ -132,7 +146,8 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
 
     @Override
     public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
-        setCurrentKey(newKey);
+        // Used by the async state context switches, which are not checked for key order yet.
+        moveToNextKey(newKey);
     }
 
     @Override
