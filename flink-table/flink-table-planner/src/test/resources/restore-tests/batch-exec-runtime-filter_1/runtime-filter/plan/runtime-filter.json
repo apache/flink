@@ -1,0 +1,492 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`dim_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "x",
+              "dataType" : "INT"
+            }, {
+              "name" : "y",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ ]
+      } ]
+    },
+    "outputType" : "ROW<`x` INT, `y` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, dim_t, filter=[]]], fields=[x, y])",
+    "dynamicFilteringDataListenerID" : "732a7df2-be6f-450c-ae83-afdb225c7fcc"
+  }, {
+    "id" : 2,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    } ],
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$<$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "BIGINT"
+      }, {
+        "kind" : "LITERAL",
+        "value" : 4,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`x` INT, `y` BIGINT>",
+    "description" : "Calc(select=[x, y], where=[(y < 4)])"
+  }, {
+    "id" : 3,
+    "type" : "batch-exec-hash-aggregate_1",
+    "configuration" : {
+      "table.exec.resource.hash-agg.memory" : "128 mb",
+      "table.exec.sort.max-num-file-handles" : "128",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "grouping" : [ 0 ],
+    "auxGrouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "s",
+      "internalName" : "$SUM$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    } ],
+    "aggInputRowType" : "ROW<`x` INT, `y` BIGINT>",
+    "isMerge" : false,
+    "isFinal" : false,
+    "supportAdaptiveLocalHashAgg" : true,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`x` INT, `sum$0` BIGINT>",
+    "description" : "LocalHashAggregate(groupBy=[x], select=[x, Partial_SUM(y) AS sum$0])"
+  }, {
+    "id" : 4,
+    "type" : "batch-exec-local-runtime-filter-builder_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`actualRowCount` INT, `filter` VARBINARY(1)>",
+    "description" : "LocalRuntimeFilterBuilder(select=[x], estimatedRowCount=[4758129], maxRowCount=[65536000])",
+    "buildIndices" : [ 0 ],
+    "estimatedRowCount" : 4758129,
+    "maxRowCount" : 65536000
+  }, {
+    "id" : 5,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`actualRowCount` INT, `filter` VARBINARY(1)>",
+    "description" : "Exchange(distribution=[single])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 6,
+    "type" : "batch-exec-global-runtime-filter-builder_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`actualRowCount` INT, `filter` VARBINARY(1)>",
+    "description" : "GlobalRuntimeFilterBuilder(select=[x], estimatedRowCount=[4758129], maxRowCount=[65536000])",
+    "maxRowCount" : 65536000
+  }, {
+    "id" : 7,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "BROADCAST"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`actualRowCount` INT, `filter` VARBINARY(1)>",
+    "description" : "Exchange(distribution=[broadcast])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 8,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`fact_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`a` INT, `b` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, fact_t]], fields=[a, b])",
+    "dynamicFilteringDataListenerID" : "bbc85401-eb6f-4adf-8fc9-88a074b1a04c"
+  }, {
+    "id" : 9,
+    "type" : "batch-exec-runtime-filter_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "BROADCAST"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "ANY"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT>",
+    "description" : "RuntimeFilter(select=[a], estimatedFilterRatio=[0.9524187090179798])",
+    "probeIndices" : [ 0 ]
+  }, {
+    "id" : 10,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT>",
+    "description" : "Exchange(distribution=[hash[a]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 11,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`x` INT, `sum$0` BIGINT>",
+    "description" : "Exchange(distribution=[hash[x]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 12,
+    "type" : "batch-exec-hash-aggregate_1",
+    "configuration" : {
+      "table.exec.resource.hash-agg.memory" : "128 mb",
+      "table.exec.sort.max-num-file-handles" : "128",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "grouping" : [ 0 ],
+    "auxGrouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "s",
+      "internalName" : "$SUM$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    } ],
+    "aggInputRowType" : "ROW<`x` INT, `y` BIGINT>",
+    "isMerge" : true,
+    "isFinal" : true,
+    "supportAdaptiveLocalHashAgg" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`x` INT, `s` BIGINT>",
+    "description" : "HashAggregate(isMerge=[true], groupBy=[x], select=[x, Final_SUM(sum$0) AS s])"
+  }, {
+    "id" : 16,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "KEEP_INPUT_AS_IS",
+        "inputDistribution" : {
+          "type" : "HASH",
+          "keys" : [ 0 ]
+        },
+        "isStrict" : false
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`x` INT, `s` BIGINT>",
+    "description" : "Exchange(distribution=[keep_input_as_is[hash[x]]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 13,
+    "type" : "batch-exec-join_1",
+    "configuration" : {
+      "table.exec.resource.external-buffer-memory" : "10 mb",
+      "table.exec.resource.hash-join.memory" : "128 mb",
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "estimatedLeftAvgRowSize" : 12,
+    "estimatedRightAvgRowSize" : 12,
+    "estimatedLeftRowCount" : 4758130,
+    "estimatedRightRowCount" : 4758129,
+    "isBroadcast" : false,
+    "leftIsBuild" : false,
+    "tryDistinctBuildRow" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT, `x` INT, `s` BIGINT>",
+    "description" : "HashJoin(joinType=[InnerJoin], where=[(a = x)], select=[a, b, x, s], build=[right])",
+    "withJobStrategyHint" : false
+  }, {
+    "id" : 14,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "BIGINT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT, `s` BIGINT>",
+    "description" : "Calc(select=[a, b, s])"
+  }, {
+    "id" : 15,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "s",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT, `s` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b, s])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 16,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

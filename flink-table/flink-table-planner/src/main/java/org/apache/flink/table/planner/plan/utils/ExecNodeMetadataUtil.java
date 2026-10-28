@@ -50,6 +50,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter.BatchExecGlobalRuntimeFilterBuilder;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter.BatchExecLocalRuntimeFilterBuilder;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter.BatchExecRuntimeFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
@@ -209,6 +212,9 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecRank.class);
                     add(BatchExecVectorSearchTableFunction.class);
                     add(BatchExecMLPredictTableFunction.class);
+                    add(BatchExecRuntimeFilter.class);
+                    add(BatchExecLocalRuntimeFilterBuilder.class);
+                    add(BatchExecGlobalRuntimeFilterBuilder.class);
                 }
             };
 
