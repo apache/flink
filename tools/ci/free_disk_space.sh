@@ -42,6 +42,9 @@ df -h
 # each background task logs to its own file, printed once all of them are done.
 LOG_DIR="$(mktemp -d)"
 
+# apt-get aborts the whole command on an unknown package name, so only pass names present on this image
+remove_pkgs() { sudo apt-get remove -y $(dpkg-query -W -f='${Package}\n' "$@" 2>/dev/null) || true; }
+
 echo "Removing large packages"
 (
   sudo apt-get remove -y '^dotnet-.*' || true
@@ -52,9 +55,10 @@ echo "Removing large packages"
   sudo apt-get remove -y '^postgresql-.*' || true
   sudo apt-get remove -y '^g\+\+-.*' '^clang-.*' '^libclang-.*' || true
   sudo apt-get remove -y '^gfortran-.*' '^libruby.*' || true
-  sudo apt-get remove -y temurin-8-jdk || true
-  sudo apt-get remove -y '^libllvm.*' '^libclang1.*' snapd python3-botocore podman buildah skopeo mecab-ipadic gh git-lfs || true
-  sudo apt-get remove -y azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri || true
+  remove_pkgs temurin-8-jdk
+  sudo apt-get remove -y '^libllvm.*' '^libclang1.*' || true
+  remove_pkgs snapd python3-botocore podman buildah skopeo mecab-ipadic gh git-lfs
+  remove_pkgs azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri
   sudo apt-get autoremove -y || true
   sudo apt-get clean || true
 ) > "${LOG_DIR}/apt.log" 2>&1 &
@@ -95,3 +99,13 @@ sudo rm -rf /opt/microsoft
 cat "${LOG_DIR}"/*.log
 rm -rf "${LOG_DIR}"
 df -h
+
+# Not disk cleanup, but this script runs on the host before any cache or test step in both CIs:
+# Ubuntu 26.04 mounts /tmp as a ~4 GB tmpfs, too small for cache archives and e2e state.
+if findmnt -n -o FSTYPE /tmp | grep -q tmpfs; then
+  echo "Moving /tmp to disk"
+  sudo mkdir -p /var/tmp/ci-tmp
+  sudo chmod 1777 /var/tmp/ci-tmp
+  sudo mount --bind /var/tmp/ci-tmp /tmp
+fi
+df -h /tmp
