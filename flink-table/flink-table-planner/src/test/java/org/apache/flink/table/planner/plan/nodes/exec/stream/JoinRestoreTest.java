@@ -53,6 +53,7 @@ public class JoinRestoreTest extends RestoreTestBase {
                 JoinTestPrograms.LEFT_JOIN_UPSERT_INPUT_NON_EQUI,
                 JoinTestPrograms.LEFT_JOIN_UPSERT_INPUT_NON_EQUI_PRE_2_4,
                 JoinTestPrograms.INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI,
-                JoinTestPrograms.SEMI_JOIN_UPSERT_INPUTS_NON_EQUI);
+                JoinTestPrograms.SEMI_JOIN_UPSERT_INPUTS_NON_EQUI,
+                JoinTestPrograms.SEMI_JOIN_UPSERT_INPUTS_NON_EQUI_PRE_2_4);
     }
 }

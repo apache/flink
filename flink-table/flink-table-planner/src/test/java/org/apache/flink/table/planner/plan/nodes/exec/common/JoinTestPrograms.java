@@ -46,6 +46,7 @@ public class JoinTestPrograms {
     public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI_PRE_2_4;
     public static final TableTestProgram INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI;
     public static final TableTestProgram SEMI_JOIN_UPSERT_INPUTS_NON_EQUI;
+    public static final TableTestProgram SEMI_JOIN_UPSERT_INPUTS_NON_EQUI_PRE_2_4;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -567,56 +568,65 @@ public class JoinTestPrograms {
                                         + "ON o.order_id = l.order_id AND l.status <> o.excluded_status")
                         .build();
 
-        // the line of order 1 is updated without UPDATE_BEFORE and deleted by key, the full image
-        // of the deleted line is only in the restored state; order 2 stops matching its line
         SEMI_JOIN_UPSERT_INPUTS_NON_EQUI =
-                TableTestProgram.of(
-                                "join-semi-join-upsert-inputs-non-equi",
-                                "semi join with upsert inputs that delete by key and a non-equi condition")
-                        .setupTableSource(
-                                SourceTestStep.newBuilder("orders")
-                                        .addSchema(
-                                                "order_id INT PRIMARY KEY NOT ENFORCED",
-                                                "excluded_status STRING")
-                                        .addOption("changelog-mode", "I,UA,D")
-                                        .addOption("source.produces-delete-by-key", "true")
-                                        .producedBeforeRestore(
-                                                Row.ofKind(RowKind.INSERT, 1, "cancelled"),
-                                                Row.ofKind(RowKind.INSERT, 2, "cancelled"))
-                                        .producedAfterRestore(
-                                                Row.ofKind(RowKind.UPDATE_AFTER, 2, "paid"))
-                                        .build())
-                        .setupTableSource(
-                                SourceTestStep.newBuilder("lines")
-                                        .addSchema(
-                                                "order_id INT PRIMARY KEY NOT ENFORCED",
-                                                "status STRING")
-                                        .addOption("changelog-mode", "I,UA,D")
-                                        .addOption("source.produces-delete-by-key", "true")
-                                        .producedBeforeRestore(
-                                                Row.ofKind(RowKind.INSERT, 1, "new"),
-                                                Row.ofKind(RowKind.INSERT, 2, "paid"))
-                                        .producedAfterRestore(
-                                                Row.ofKind(RowKind.UPDATE_AFTER, 1, "paid"),
-                                                Row.ofKind(RowKind.DELETE, 1, null))
-                                        .build())
-                        .setupTableSink(
-                                SinkTestStep.newBuilder("MySink")
-                                        .addSchema(
-                                                "order_id INT PRIMARY KEY NOT ENFORCED",
-                                                "excluded_status STRING")
-                                        .addOption("changelog-mode", "I,UA,D")
-                                        .addOption("sink.supports-delete-by-key", "true")
-                                        .consumedBeforeRestore(
-                                                "+I[1, cancelled]", "+I[2, cancelled]")
-                                        .consumedAfterRestore(
-                                                "-D[2, cancelled]", "-D[1, cancelled]")
-                                        .build())
-                        .runSql(
-                                "INSERT INTO MySink SELECT * FROM orders o WHERE EXISTS ("
-                                        + "SELECT 1 FROM lines l WHERE l.order_id = o.order_id "
-                                        + "AND l.status <> o.excluded_status)")
-                        .build();
+                semiJoinWithUpsertInputsAndNonEquiCondition(
+                        "join-semi-join-upsert-inputs-non-equi",
+                        "semi join with upsert inputs that delete by key and a non-equi condition");
+
+        // its plan and savepoint are compiled with Flink 2.3, whose plans have no input changelog
+        // modes
+        SEMI_JOIN_UPSERT_INPUTS_NON_EQUI_PRE_2_4 =
+                semiJoinWithUpsertInputsAndNonEquiCondition(
+                        "join-semi-join-upsert-inputs-non-equi-pre-2-4",
+                        "semi join with upsert inputs that delete by key and a non-equi condition restored from a Flink 2.3 plan");
+    }
+
+    /**
+     * The line of order 1 is updated without UPDATE_BEFORE and deleted by key, the replaced version
+     * of the line is only in the restored state; order 2 stops matching its line.
+     */
+    private static TableTestProgram semiJoinWithUpsertInputsAndNonEquiCondition(
+            String id, String description) {
+        return TableTestProgram.of(id, description)
+                .setupTableSource(
+                        SourceTestStep.newBuilder("orders")
+                                .addSchema(
+                                        "order_id INT PRIMARY KEY NOT ENFORCED",
+                                        "excluded_status STRING")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("source.produces-delete-by-key", "true")
+                                .producedBeforeRestore(
+                                        Row.ofKind(RowKind.INSERT, 1, "cancelled"),
+                                        Row.ofKind(RowKind.INSERT, 2, "cancelled"))
+                                .producedAfterRestore(Row.ofKind(RowKind.UPDATE_AFTER, 2, "paid"))
+                                .build())
+                .setupTableSource(
+                        SourceTestStep.newBuilder("lines")
+                                .addSchema("order_id INT PRIMARY KEY NOT ENFORCED", "status STRING")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("source.produces-delete-by-key", "true")
+                                .producedBeforeRestore(
+                                        Row.ofKind(RowKind.INSERT, 1, "new"),
+                                        Row.ofKind(RowKind.INSERT, 2, "paid"))
+                                .producedAfterRestore(
+                                        Row.ofKind(RowKind.UPDATE_AFTER, 1, "paid"),
+                                        Row.ofKind(RowKind.DELETE, 1, null))
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("MySink")
+                                .addSchema(
+                                        "order_id INT PRIMARY KEY NOT ENFORCED",
+                                        "excluded_status STRING")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("sink.supports-delete-by-key", "true")
+                                .consumedBeforeRestore("+I[1, cancelled]", "+I[2, cancelled]")
+                                .consumedAfterRestore("-D[2, cancelled]", "-D[1, cancelled]")
+                                .build())
+                .runSql(
+                        "INSERT INTO MySink SELECT * FROM orders o WHERE EXISTS ("
+                                + "SELECT 1 FROM lines l WHERE l.order_id = o.order_id "
+                                + "AND l.status <> o.excluded_status)")
+                .build();
     }
 
     /**
