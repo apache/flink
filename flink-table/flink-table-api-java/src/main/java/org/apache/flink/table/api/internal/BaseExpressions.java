@@ -239,10 +239,12 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCA
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_XML;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_VARIANT_GET;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_ENCODE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VARIANT_GET;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_END;
@@ -1479,6 +1481,70 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType tryParseXml(InType forceArray) {
         return toApiSpecificExpression(
                 unresolvedCall(TRY_PARSE_XML, toExpr(), objectToExpression(forceArray)));
+    }
+
+    /**
+     * Returns the value of a {@link DataTypes#VARIANT()} at a path as a {@link
+     * DataTypes#VARIANT()}. If the variant or the path is {@code NULL}, or nothing is at the path,
+     * {@code NULL} is returned. A variant null at the path stays a variant null, which is not
+     * {@code NULL}.
+     *
+     * <p>This is a shortcut for {@code variantGet(path, DataTypes.VARIANT())}. See {@link
+     * #variantGet(Object, DataType)}.
+     */
+    public OutType variantGet(InType path) {
+        return toApiSpecificExpression(
+                unresolvedCall(VARIANT_GET, toExpr(), objectToExpression(path)));
+    }
+
+    /**
+     * Returns the value of a {@link DataTypes#VARIANT()} at a path such as {@code $.items[0].qty},
+     * cast to the given type. Array indices start at 0. If the variant or the path is {@code NULL},
+     * or nothing is at the path, {@code NULL} is returned. If the value cannot be cast to the type,
+     * an error is thrown. To return {@code NULL} instead, use {@link #tryVariantGet(Object,
+     * DataType)}.
+     *
+     * <p>The value is cast like {@code CAST}, so a variant null gives {@code NULL} unless the type
+     * is {@link DataTypes#VARIANT()}. See the SQL function {@code VARIANT_GET} for the path syntax.
+     *
+     * @param returnType the type of the result, always nullable.
+     */
+    public OutType variantGet(InType path, DataType returnType) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        VARIANT_GET,
+                        toExpr(),
+                        objectToExpression(path),
+                        valueLiteral(returnType.getLogicalType().asSerializableString())));
+    }
+
+    /**
+     * Returns the value of a {@link DataTypes#VARIANT()} at a path as a {@link
+     * DataTypes#VARIANT()}. If nothing is at the path, or a path that is not a literal is
+     * malformed, {@code NULL} is returned.
+     *
+     * <p>This is a shortcut for {@code tryVariantGet(path, DataTypes.VARIANT())}. See {@link
+     * #tryVariantGet(Object, DataType)}.
+     */
+    public OutType tryVariantGet(InType path) {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_VARIANT_GET, toExpr(), objectToExpression(path)));
+    }
+
+    /**
+     * Returns the value of a {@link DataTypes#VARIANT()} at a path, cast to the given type. Unlike
+     * {@link #variantGet(Object, DataType)}, {@code NULL} is returned instead of an error if the
+     * value cannot be cast to the type or a path that is not a literal is malformed.
+     *
+     * @param returnType the type of the result, always nullable.
+     */
+    public OutType tryVariantGet(InType path, DataType returnType) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        TRY_VARIANT_GET,
+                        toExpr(),
+                        objectToExpression(path),
+                        valueLiteral(returnType.getLogicalType().asSerializableString())));
     }
 
     /** Returns the base string decoded with base64. */

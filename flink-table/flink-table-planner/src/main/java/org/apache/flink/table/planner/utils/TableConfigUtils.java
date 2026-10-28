@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.TableConfigValidation;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
@@ -33,7 +33,6 @@ import java.util.Set;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS;
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY;
-import static org.apache.flink.table.api.internal.TableConfigValidation.validateTimeZone;
 
 /** Utility class for {@link TableConfig} related helper functions. */
 public class TableConfigUtils {
@@ -97,12 +96,7 @@ public class TableConfigUtils {
      * @see TableConfig#getLocalTimeZone()
      */
     public static ZoneId getLocalTimeZone(ReadableConfig tableConfig) {
-        final String zone = tableConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
-        if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
-            return ZoneId.systemDefault();
-        }
-        validateTimeZone(zone);
-        return ZoneId.of(zone);
+        return TableConfigValidation.getLocalTimeZone(tableConfig);
     }
 
     @Deprecated

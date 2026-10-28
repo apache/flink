@@ -335,6 +335,17 @@ JSON functions
     Expression.json_length
     Expression.json_type
 
+variant functions
+-----------------
+
+.. currentmodule:: pyflink.table.expression
+
+.. autosummary::
+    :toctree: api/
+
+    Expression.variant_get
+    Expression.try_variant_get
+
 value modification functions
 ----------------------------
 
