@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.table.api.CompiledPlan;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -35,6 +37,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -140,6 +143,58 @@ class RuntimeFilterITCase extends BatchTestBase {
                                 Row.of(5, 14, 13, "JKL", 2, 5, 10, 3),
                                 Row.of(5, 15, 14, "KLM", 2, 5, 10, 3))),
                 false);
+    }
+
+    @Test
+    void testRuntimeFilterCompiledPlanRoundTrip() throws Exception {
+        // BatchExecMultipleInput and BatchExecAdaptiveJoin are not serializable into a compiled
+        // plan yet
+        tEnv.getConfig().set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false);
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY,
+                        OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE);
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions
+                                .TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY,
+                        OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.NONE);
+        tEnv.executeSql(
+                "CREATE TABLE sink (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c INT,\n"
+                        + "  d VARCHAR,\n"
+                        + "  e BIGINT,\n"
+                        + "  x INT,\n"
+                        + "  y INT,\n"
+                        + "  z BIGINT\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")");
+
+        CompiledPlan compiledPlan =
+                tEnv.compilePlanSql(
+                        "insert into sink select * from fact, dim where x = a and z >= 3");
+        assertThat(compiledPlan.asJsonString())
+                .contains(
+                        "batch-exec-local-runtime-filter-builder_1",
+                        "batch-exec-global-runtime-filter-builder_1",
+                        "batch-exec-runtime-filter_1");
+
+        tEnv.loadPlan(PlanReference.fromJsonString(compiledPlan.asJsonString())).execute().await();
+
+        assertThat(TestValuesTableFactory.getResultsAsStrings("sink"))
+                .containsExactlyInAnyOrder(
+                        "+I[3, 4, 3, Hallo Welt wie gehts?, 2, 3, 4, 3]",
+                        "+I[3, 5, 4, ABC, 2, 3, 4, 3]",
+                        "+I[3, 6, 5, BCD, 3, 3, 4, 3]",
+                        "+I[5, 11, 10, GHI, 1, 5, 10, 3]",
+                        "+I[5, 12, 11, HIJ, 3, 5, 10, 3]",
+                        "+I[5, 13, 12, IJK, 3, 5, 10, 3]",
+                        "+I[5, 14, 13, JKL, 2, 5, 10, 3]",
+                        "+I[5, 15, 14, KLM, 2, 5, 10, 3]");
     }
 
     @ParameterizedTest(name = "mode = {0}, ofcg = {1}")

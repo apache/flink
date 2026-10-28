@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -29,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -36,12 +38,23 @@ import org.apache.flink.table.runtime.operators.runtimefilter.GlobalRuntimeFilte
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /** Batch {@link ExecNode} for global runtime filter builder. */
+@ExecNodeMetadata(
+        name = "batch-exec-global-runtime-filter-builder",
+        version = 1,
+        minPlanVersion = FlinkVersion.v2_5,
+        minStateVersion = FlinkVersion.v2_5)
 public class BatchExecGlobalRuntimeFilterBuilder extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData> {
 
+    public static final String FIELD_NAME_MAX_ROW_COUNT = "maxRowCount";
+
+    @JsonProperty(FIELD_NAME_MAX_ROW_COUNT)
     private final int maxRowCount;
 
     public BatchExecGlobalRuntimeFilterBuilder(
@@ -52,12 +65,25 @@ public class BatchExecGlobalRuntimeFilterBuilder extends ExecNodeBase<RowData>
             int maxRowCount) {
         super(
                 ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(BatchExecLocalRuntimeFilterBuilder.class),
+                ExecNodeContext.newContext(BatchExecGlobalRuntimeFilterBuilder.class),
                 ExecNodeContext.newPersistedConfig(
-                        BatchExecLocalRuntimeFilterBuilder.class, tableConfig),
+                        BatchExecGlobalRuntimeFilterBuilder.class, tableConfig),
                 inputProperties,
                 outputType,
                 description);
+        this.maxRowCount = maxRowCount;
+    }
+
+    @JsonCreator
+    public BatchExecGlobalRuntimeFilterBuilder(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_MAX_ROW_COUNT) int maxRowCount) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.maxRowCount = maxRowCount;
     }
 

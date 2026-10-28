@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
@@ -32,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -40,11 +42,23 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /** Batch {@link ExecNode} for runtime filter. */
+@ExecNodeMetadata(
+        name = "batch-exec-runtime-filter",
+        version = 1,
+        minPlanVersion = FlinkVersion.v2_5,
+        minStateVersion = FlinkVersion.v2_5)
 public class BatchExecRuntimeFilter extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData> {
+
+    public static final String FIELD_NAME_PROBE_INDICES = "probeIndices";
+
+    @JsonProperty(FIELD_NAME_PROBE_INDICES)
     private final int[] probeIndices;
 
     public BatchExecRuntimeFilter(
@@ -60,6 +74,19 @@ public class BatchExecRuntimeFilter extends ExecNodeBase<RowData>
                 inputProperties,
                 outputType,
                 description);
+        this.probeIndices = probeIndices;
+    }
+
+    @JsonCreator
+    public BatchExecRuntimeFilter(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_PROBE_INDICES) int[] probeIndices) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.probeIndices = probeIndices;
     }
 
