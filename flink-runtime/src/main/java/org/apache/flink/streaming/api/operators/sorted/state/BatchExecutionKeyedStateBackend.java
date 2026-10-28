@@ -106,6 +106,11 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
 
     @Override
     public void setCurrentKey(K newKey) {
+        moveToNextKey(newKey);
+    }
+
+    @Override
+    public void moveToNextKey(K newKey) {
         if (!Objects.equals(newKey, currentKey)) {
             notifyKeySelected(newKey);
             for (State value : states.values()) {

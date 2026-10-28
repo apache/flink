@@ -464,6 +464,22 @@ public class StreamOperatorStateHandler {
         }
     }
 
+    /** See {@link KeyedStateBackend#moveToNextKey}. */
+    @SuppressWarnings({"unchecked"})
+    public void moveToNextKey(Object key) {
+        if (keyedStateBackend != null) {
+            try {
+                @SuppressWarnings("rawtypes")
+                CheckpointableKeyedStateBackend rawBackend = keyedStateBackend;
+
+                rawBackend.moveToNextKey(key);
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        "Exception occurred while setting the current key context.", e);
+            }
+        }
+    }
+
     public Object getCurrentKey() {
         if (keyedStateBackend != null) {
             return keyedStateBackend.getCurrentKey();
