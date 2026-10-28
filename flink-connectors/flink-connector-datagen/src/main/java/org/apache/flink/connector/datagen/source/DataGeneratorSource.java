@@ -173,8 +173,8 @@ public class DataGeneratorSource<OUT>
                 sourceReaderFactory,
                 generatorFunction,
                 typeInfo,
-                // a noop source (0 elements) is used in Table tests
-                new NumberSequenceSource(0, count > 0 ? count - 1 : 0));
+                // A count <= 0 generates no data points.
+                new NumberSequenceSource(0, count > 0 ? count - 1 : -1));
     }
 
     DataGeneratorSource(
