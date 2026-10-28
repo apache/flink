@@ -726,30 +726,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case join: StreamPhysicalJoin =>
           val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
-          if (onlyAfterByParent && hasNonUpsertKeyNonEquiCondition(join)) {
+          val children = join.getInputs.zipWithIndex.map {
+            case (child, childOrdinal) =>
+              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+              val supportOnlyAfter = join.inputUniqueKeyContainsJoinKey(childOrdinal)
+              val inputModifyKindSet = getModifyKindSet(physicalChild)
+              if (onlyAfterByParent) {
+                if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
+                  // the parent requires only-after, however, the join doesn't support this
+                  None
+                } else {
+                  this.visit(physicalChild, onlyAfterOrNone(inputModifyKindSet))
+                }
+              } else {
+                this.visit(physicalChild, beforeAfterOrNone(inputModifyKindSet))
+              }
+          }
+          if (children.exists(_.isEmpty)) {
             None
           } else {
-            val children = join.getInputs.zipWithIndex.map {
-              case (child, childOrdinal) =>
-                val physicalChild = child.asInstanceOf[StreamPhysicalRel]
-                val supportOnlyAfter = join.inputUniqueKeyContainsJoinKey(childOrdinal)
-                val inputModifyKindSet = getModifyKindSet(physicalChild)
-                if (onlyAfterByParent) {
-                  if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
-                    // the parent requires only-after, however, the join doesn't support this
-                    None
-                  } else {
-                    this.visit(physicalChild, onlyAfterOrNone(inputModifyKindSet))
-                  }
-                } else {
-                  this.visit(physicalChild, beforeAfterOrNone(inputModifyKindSet))
-                }
-            }
-            if (children.exists(_.isEmpty)) {
-              None
-            } else {
-              createNewNode(join, Some(children.flatten.toList), requiredUpdateTrait)
-            }
+            createNewNode(join, Some(children.flatten.toList), requiredUpdateTrait)
           }
 
         case temporalJoin: StreamPhysicalTemporalJoin =>
