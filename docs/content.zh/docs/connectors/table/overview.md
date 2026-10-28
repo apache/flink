@@ -104,7 +104,7 @@ Flink natively support various connectors. The following tables list all availab
     </tr>
     <tr>
       <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Kafka</a></td>
-      <td>Unbounded Scan</td>
+      <td>Bounded and Unbounded Scan</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
