@@ -2456,12 +2456,46 @@ class Expression(Generic[T]):
         else:
             return _binary_op("tryParseXml")(self, force_array)
 
+    def variant_get(self, path, return_type: DataType = None) -> 'Expression':
+        """
+        Returns the value of a VARIANT at a path, cast to return_type. Without return_type, the
+        value is returned as a VARIANT. If the VARIANT or the path is NULL, or nothing is at the
+        path, NULL is returned. A variant null at the path gives NULL, unless return_type is
+        omitted or DataTypes.VARIANT(), which keeps it as a variant null. If the value cannot be
+        cast to return_type, an error is thrown. To return NULL instead, use
+        :func:`~Expression.try_variant_get`.
+
+        Array indices in a path such as '$.items[0].qty' start at 0. See the SQL function
+        VARIANT_GET for the path syntax.
+
+        Example:
+        ::
+
+            >>> lit('{"a": {"b": 1}}').parse_json().variant_get('$.a.b', DataTypes.INT()) # 1
+            >>> lit('{"a": 1}').parse_json().variant_get('$.b', DataTypes.INT()) # NULL
+        """
+        if return_type is None:
+            return _binary_op("variantGet")(self, path)
+        else:
+            return _ternary_op("variantGet")(self, path, _to_java_data_type(return_type))
+
+    def try_variant_get(self, path, return_type: DataType = None) -> 'Expression':
+        """
+        Returns the value of a VARIANT at a path, cast to return_type. Unlike
+        :func:`~Expression.variant_get`, NULL is returned instead of an error if the value cannot
+        be cast to return_type or a path that is not a literal is malformed.
+        """
+        if return_type is None:
+            return _binary_op("tryVariantGet")(self, path)
+        else:
+            return _ternary_op("tryVariantGet")(self, path, _to_java_data_type(return_type))
+
     def json_length(self, path=None) -> 'Expression':
         """
         Returns the number of elements in a JSON document, or the length of the value at the
         specified path if one is provided.
 
-        The input can be a JSON STRING or a VARIANT. Returns None if the argument is None,
+        The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL,
         the json is invalid, or the path is empty, malformed or does not locate a value.
 
         The path must be a plain path literal such as '$.a.b'. A path carrying a
@@ -2474,15 +2508,15 @@ class Expression(Generic[T]):
         - Objects have a length equal to the number of their key-value pairs.
 
         When provided with a path that uses a wildcard and resolves to 2 or more paths,
-        'json_length' resolves to None.
+        'json_length' resolves to NULL.
 
         json_length also supports input of the VARIANT type; you can pass the output of
-        PARSE_JSON into json_length.
+        parse_json into json_length.
 
-        Because a None result can mean several different things (the input is not valid
+        Because a NULL result can mean several different things (the input is not valid
         JSON, the path does not match anything, or a wildcard path matched 2 or more
         nodes), it is recommended to pair json_length with a helper function so invalid
-        input is handled explicitly rather than silently returning None:
+        input is handled explicitly rather than silently returning NULL:
 
         - Without a path, guard the call with is_json to separate malformed input from a
           real result.
@@ -2491,10 +2525,10 @@ class Expression(Generic[T]):
 
         ::
 
-            # returns the length only for valid JSON, otherwise None means "invalid input"
+            # returns the length only for valid JSON, otherwise NULL means "invalid input"
             >>> lit("[1,2]").is_json().then(lit("[1,2]").json_length(), null_of(DataTypes.INT()))
 
-            # path is present even when json_length is None due to a multi-match wildcard
+            # path is present even when json_length is NULL due to a multi-match wildcard
             >>> lit("{}").json_exists("$.items[*]")
             >>> lit("{}").json_length("$.items[*]")
 
@@ -2509,9 +2543,9 @@ class Expression(Generic[T]):
             >>> lit('{"1": [1,2,3], "2": "bye bye"}').json_length('$.1') # 3
             >>> lit('[1,2,3,4,5]').json_length('$[3]') # 1
 
-            >>> lit('[1,2,3,4,5]').json_length('$[7]') # None
-            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
-            >>> lit('[1,2,3,4,5]').json_length('$.[') # None
+            >>> lit('[1,2,3,4,5]').json_length('$[7]') # NULL
+            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # NULL
+            >>> lit('[1,2,3,4,5]').json_length('$.[') # NULL
         """
         if path is None:
             return _unary_op("jsonLength")(self)

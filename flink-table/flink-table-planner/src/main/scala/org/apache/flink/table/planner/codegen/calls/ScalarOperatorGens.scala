@@ -40,8 +40,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
-import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.ColumnList
+import org.apache.flink.types.variant.{BinaryVariant, VariantFieldGetter}
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
@@ -1747,11 +1747,20 @@ object ScalarOperatorGens {
         tmpValue
       )
     } else if (isCharacterString(keyType)) {
-      val fieldName = key.literalValue.get.toString
+      val fieldAccess = key.literalValue match {
+        case Some(fieldName) if fieldName != null =>
+          val getterTerm =
+            ctx.addReusableObject(new VariantFieldGetter(fieldName.toString), "variantFieldGetter")
+          s"$getterTerm.getField($variantTerm)"
+        // A key that is not a literal, or a NULL literal, whose access code never runs. The
+        // lookup compares the UTF-8 bytes of the StringData key without decoding them.
+        case _ =>
+          s"((${className[BinaryVariant]}) $variantTerm).getFieldByUtf8Key($keyTerm.toBytes())"
+      }
       generateCharacterStringKeyAccess(
         variantTerm,
         variantTypeTerm,
-        fieldName,
+        fieldAccess,
         resultTerm,
         nullTerm,
         tmpValue
@@ -1777,14 +1786,13 @@ object ScalarOperatorGens {
   private def generateCharacterStringKeyAccess(
       variantTerm: String,
       variantTypeTerm: String,
-      fieldName: String,
+      fieldAccess: String,
       resultTerm: String,
       nullTerm: String,
       tmpValue: String): String = {
-    val escapedFieldName = EncodingUtils.escapeJava(fieldName)
     s"""
        |  if ($variantTerm.isObject()){
-       |    $variantTypeTerm $tmpValue = $variantTerm.getField("$escapedFieldName");
+       |    $variantTypeTerm $tmpValue = $fieldAccess;
        |    if ($tmpValue == null) {
        |      $nullTerm = true;
        |    } else {

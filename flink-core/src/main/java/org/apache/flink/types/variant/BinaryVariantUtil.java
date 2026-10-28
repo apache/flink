@@ -86,7 +86,7 @@ public class BinaryVariantUtil {
      * Object value. The content contains a size, a list of field ids, a list of field offsets, and
      * the actual field data. The length of the id list is {@code size}, while the length of the
      * offset list is {@code size + 1}, where the last offset represent the total size of the field
-     * data. The fields in an object must be sorted by the field name in alphabetical order.
+     * data. The fields in an object must be sorted by the unsigned UTF-8 bytes of their names.
      * Duplicate field names in one object are not allowed.
      *
      * <p>We use 5 bits in the type info to specify the integer type of the object header: it should
@@ -788,26 +788,44 @@ public class BinaryVariantUtil {
      * parameters and returns what it returns.
      */
     public static <T> T handleObject(byte[] value, int pos, ObjectHandler<T> handler) {
-        checkIndex(pos, value.length);
-        int basicType = value[pos] & BASIC_TYPE_MASK;
-        int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
-        if (basicType != OBJECT) {
-            throw unexpectedType(Type.OBJECT);
-        }
-        // Refer to the comment of the `OBJECT` constant for the details of the object header
-        // encoding. Suppose `typeInfo` has a bit representation of 0_b4_b3b2_b1b0, the following
-        // line extracts b4 to determine whether the object uses a 1/4-byte size.
-        boolean largeSize = ((typeInfo >> 4) & 0x1) != 0;
-        int sizeBytes = (largeSize ? U32_SIZE : 1);
+        int typeInfo = objectTypeInfo(value, pos);
+        int sizeBytes = objectSizeBytes(typeInfo);
         int size = readUnsigned(value, pos + 1, sizeBytes);
-        // Extracts b3b2 to determine the integer size of the field id list.
-        int idSize = ((typeInfo >> 2) & 0x3) + 1;
-        // Extracts b1b0 to determine the integer size of the offset list.
-        int offsetSize = (typeInfo & 0x3) + 1;
+        int idSize = objectIdSize(typeInfo);
+        int offsetSize = objectOffsetSize(typeInfo);
         int idStart = pos + 1 + sizeBytes;
         int offsetStart = idStart + size * idSize;
         int dataStart = offsetStart + (size + 1) * offsetSize;
         return handler.apply(size, idSize, offsetSize, idStart, offsetStart, dataStart);
+    }
+
+    /**
+     * Returns the type info of the object at {@code pos}. Refer to the comment of the {@code
+     * OBJECT} constant for its encoding, a bit representation of 0_b4_b3b2_b1b0.
+     *
+     * @throws VariantTypeException if the value at {@code pos} is not an object
+     */
+    static int objectTypeInfo(byte[] value, int pos) {
+        checkIndex(pos, value.length);
+        if ((value[pos] & BASIC_TYPE_MASK) != OBJECT) {
+            throw unexpectedType(Type.OBJECT);
+        }
+        return (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
+    }
+
+    /** Extracts b4 of an object type info to determine whether the size takes 1 or 4 bytes. */
+    static int objectSizeBytes(int typeInfo) {
+        return ((typeInfo >> 4) & 0x1) != 0 ? U32_SIZE : 1;
+    }
+
+    /** Extracts b3b2 of an object type info to determine the integer size of the field ids. */
+    static int objectIdSize(int typeInfo) {
+        return ((typeInfo >> 2) & 0x3) + 1;
+    }
+
+    /** Extracts b1b0 of an object type info to determine the integer size of the offsets. */
+    static int objectOffsetSize(int typeInfo) {
+        return (typeInfo & 0x3) + 1;
     }
 
     /** A handler that receives the decoded header fields of a variant array. */
@@ -850,6 +868,58 @@ public class BinaryVariantUtil {
      *     considered a malformed variant because it is read from the corresponding variant value.
      */
     public static String getMetadataKey(byte[] metadata, int id) {
+        long range = metadataKeyRange(metadata, id);
+        return new String(metadata, keyStart(range), keyLength(range), StandardCharsets.UTF_8);
+    }
+
+    /** Encodes an object key the way the variant metadata stores it. */
+    static byte[] encodeKey(String key) {
+        return key.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Whether the key at {@code id} in the variant metadata is the UTF-8 encoded {@code key}. */
+    static boolean metadataKeyEquals(byte[] metadata, int id, byte[] key) {
+        long range = metadataKeyRange(metadata, id);
+        int start = keyStart(range);
+        int length = keyLength(range);
+        return length == key.length
+                && Arrays.equals(metadata, start, start + length, key, 0, length);
+    }
+
+    /**
+     * Compares the key at {@code id} in the variant metadata with the UTF-8 encoded {@code key} by
+     * their unsigned bytes, the order of object fields in the variant spec.
+     */
+    static int compareMetadataKey(byte[] metadata, int id, byte[] key) {
+        long range = metadataKeyRange(metadata, id);
+        int start = keyStart(range);
+        return Arrays.compareUnsigned(
+                metadata, start, start + keyLength(range), key, 0, key.length);
+    }
+
+    /**
+     * Whether the UTF-8 encoded {@code key} has a code point from U+E000 up, which encodes to a
+     * lead byte of 0xEE or above. UTF-16 order differs from UTF-8 byte order only between a code
+     * point from U+E000 to U+FFFF and one from U+10000 up, whose UTF-16 surrogates sort below
+     * U+E000. So a binary search for a key without such a code point finds the same field in either
+     * order, and a miss is final.
+     */
+    static boolean hasCodePointFromE000(byte[] key) {
+        for (byte b : key) {
+            if ((b & 0xFF) >= 0xEE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Locates the key at {@code id} in the variant metadata. The range is packed into a long so
+     * that a lookup allocates nothing.
+     *
+     * @return the start index of the key in the high 32 bits and its length in the low 32 bits
+     */
+    private static long metadataKeyRange(byte[] metadata, int id) {
         checkIndex(0, metadata.length);
         // Extracts the highest 2 bits in the metadata header to determine the integer size of the
         // offset list.
@@ -867,8 +937,15 @@ public class BinaryVariantUtil {
             throw malformedVariant();
         }
         checkIndex(stringStart + nextOffset - 1, metadata.length);
-        return new String(
-                metadata, stringStart + offset, nextOffset - offset, StandardCharsets.UTF_8);
+        return ((long) (stringStart + offset) << 32) | (nextOffset - offset);
+    }
+
+    private static int keyStart(long range) {
+        return (int) (range >>> 32);
+    }
+
+    private static int keyLength(long range) {
+        return (int) range;
     }
 
     /**

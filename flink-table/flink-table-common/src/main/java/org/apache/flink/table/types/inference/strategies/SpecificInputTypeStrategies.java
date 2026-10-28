@@ -66,6 +66,9 @@ public final class SpecificInputTypeStrategies {
     /** See {@link ObjectOfInputTypeStrategy}. */
     public static final InputTypeStrategy OBJECT_OF = new ObjectOfInputTypeStrategy();
 
+    /** See {@link VariantGetInputTypeStrategy}. */
+    public static final InputTypeStrategy VARIANT_GET = new VariantGetInputTypeStrategy();
+
     /** See {@link ObjectUpdateInputTypeStrategy}. */
     public static final InputTypeStrategy OBJECT_UPDATE = new ObjectUpdateInputTypeStrategy();
 

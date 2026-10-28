@@ -75,6 +75,11 @@ public abstract class WindowJoinHelper {
 
     private final WindowJoinProcessor windowJoinProcessor;
 
+    // Whether unmatched records of the left or right input are emitted when the window fires. If
+    // not, a record of that input that can never match is not stored.
+    private final boolean leftUnmatchedIsEmitted;
+    private final boolean rightUnmatchedIsEmitted;
+
     // ------------------------------------------------------------------------
     // Metrics
     // ------------------------------------------------------------------------
@@ -98,6 +103,8 @@ public abstract class WindowJoinHelper {
         this.collector = collector;
 
         this.windowJoinProcessor = getWindowJoinProcessor(joinType);
+        this.leftUnmatchedIsEmitted = joinType.isLeftOuter() || joinType == FlinkJoinType.ANTI;
+        this.rightUnmatchedIsEmitted = joinType.isRightOuter();
     }
 
     public void registerMetric(OperatorMetricGroup metrics) {
@@ -127,6 +134,7 @@ public abstract class WindowJoinHelper {
 
     public void processElement(
             StreamRecord<RowData> element,
+            boolean inputIsLeft,
             int windowEndIndex,
             Meter lateRecordsDroppedRate,
             BiConsumerWithException<Long, RowData, Exception> accStateConsumer)
@@ -139,6 +147,11 @@ public abstract class WindowJoinHelper {
             return;
         }
         if (RowDataUtil.isAccumulateMsg(inputRow)) {
+            final boolean unmatchedIsEmitted =
+                    inputIsLeft ? leftUnmatchedIsEmitted : rightUnmatchedIsEmitted;
+            if (!unmatchedIsEmitted && joinCondition.currentKeyCannotMatch()) {
+                return;
+            }
             accStateConsumer.accept(windowEnd, inputRow);
         } else {
             // Window join could not handle retraction input stream

@@ -48,8 +48,8 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link KeyTypeValidator}. */
-class KeyTypeValidatorTest {
+/** Tests for {@link ComparableTypeValidator}. */
+class ComparableTypeValidatorTest {
 
     private static final String GROUPING_KEY =
             "Column 'v' of type VARIANT cannot be used as a grouping key";
@@ -61,6 +61,11 @@ class KeyTypeValidatorTest {
             "An expression of type VARIANT cannot be used in a comparison with";
 
     private static final String EQUALS = COMPARISON + " '='";
+
+    private static final String ARRAY_ELEMENT =
+            "An array element of type VARIANT cannot be used in";
+
+    private static final String MAP_KEY = "A map key of type VARIANT cannot be used in";
 
     private static Stream<Arguments> rejectedQueries() {
         final Stream<Arguments> bothModes =
@@ -173,6 +178,27 @@ class KeyTypeValidatorTest {
                                 "SELECT CASE v WHEN PARSE_JSON('1') THEN 1 END FROM t", EQUALS),
                         Arguments.of("SELECT NULLIF(v, PARSE_JSON('1')) FROM t", EQUALS),
                         Arguments.of(
+                                "SELECT ARRAY_CONTAINS(a, v) FROM t",
+                                ARRAY_ELEMENT
+                                        + " ARRAY_CONTAINS, because the type has no equality"),
+                        Arguments.of("SELECT ARRAY_DISTINCT(a) FROM t", ARRAY_ELEMENT),
+                        Arguments.of("SELECT ARRAY_POSITION(a, v) FROM t", ARRAY_ELEMENT),
+                        Arguments.of("SELECT ARRAY_REMOVE(a, v) FROM t", ARRAY_ELEMENT),
+                        Arguments.of("SELECT ARRAY_UNION(a, a) FROM t", ARRAY_ELEMENT),
+                        Arguments.of("SELECT ARRAY_EXCEPT(a, a) FROM t", ARRAY_ELEMENT),
+                        Arguments.of("SELECT ARRAY_INTERSECT(a, a) FROM t", ARRAY_ELEMENT),
+                        Arguments.of("SELECT MAP_CONTAINS_KEY(m, v) FROM t", MAP_KEY),
+                        Arguments.of("SELECT MAP_UNION(m, m) FROM t", MAP_KEY),
+                        Arguments.of("SELECT m[v] FROM t", MAP_KEY + " ITEM"),
+                        Arguments.of(
+                                "SELECT COLLECT(v) FROM t",
+                                "Column 'v' of type VARIANT cannot be used as an argument of "
+                                        + "COLLECT"),
+                        Arguments.of(
+                                "SELECT COLLECT(v) OVER (PARTITION BY id ORDER BY ts) FROM t",
+                                "An expression of type VARIANT cannot be used as an argument of "
+                                        + "COLLECT"),
+                        Arguments.of(
                                 "SELECT * FROM t MATCH_RECOGNIZE (PARTITION BY v ORDER BY ts "
                                         + "MEASURES A.id AS aid PATTERN (A) DEFINE A AS A.id > 0)",
                                 "Column 'v' of type VARIANT cannot be used as a PARTITION BY key "
@@ -209,6 +235,8 @@ class KeyTypeValidatorTest {
                 Arguments.of("SELECT v, ts FROM t ORDER BY ts"),
                 Arguments.of("SELECT DISTINCT id, CAST(v AS STRING) FROM t"),
                 Arguments.of("SELECT v FROM t WHERE v IS NOT NULL AND r IS NULL"),
+                Arguments.of("SELECT MAP_CONTAINS_KEY(MAP['k', v], 'k') FROM t"),
+                Arguments.of("SELECT a[1], v['k'] FROM t"),
                 Arguments.of(
                         "SELECT v FROM t WHERE v IS DISTINCT FROM NULL "
                                 + "OR v IS NOT DISTINCT FROM NULL"));
@@ -373,6 +401,7 @@ class KeyTypeValidatorTest {
                                     + "v VARIANT, "
                                     + "r ROW<x VARIANT>, "
                                     + "a ARRAY<VARIANT>, "
+                                    + "m MAP<VARIANT, INT>, "
                                     + "ts TIMESTAMP(3), "
                                     + "WATERMARK FOR ts AS ts"
                                     + ") WITH ('connector' = 'values', 'bounded' = '%s')",

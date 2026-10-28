@@ -1551,7 +1551,10 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
-to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
+to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`. `VARIANT_GET` and
+`TRY_VARIANT_GET` read the value at a
+[path]({{< ref "docs/sql/functions/built-in-functions" >}}#variant-paths) such as `'$.items[0].qty'`
+and cast it by the same rules, returning `NULL` when nothing is at the path.
 
 | Stored kind     | Succeeds for                                        |
 |-----------------|-----------------------------------------------------|
@@ -1695,6 +1698,8 @@ A scalar value can also be cast to a `VARIANT` with `CAST` or `TRY_CAST`. Only a
   stored with microseconds, and above with nanoseconds, even when the value has no digits below a
   microsecond. Nanoseconds only cover 1677-09-21 to 2262-04-11, so for a precision above 6 a value
   outside that range fails the cast, and `TRY_CAST` returns `NULL`.
+- A `TIME` holds the milliseconds of one day. Only a source or a function can produce a value
+  outside that range, but such a value fails the cast, and `TRY_CAST` returns `NULL`.
 - A `NaN` or infinite `FLOAT` or `DOUBLE` is stored as is, although `PARSE_JSON` rejects them. A
   `VARIANT` is not limited to JSON, but JSON has no literal for them. So `JSON_STRING` fails on such
   a variant, and so does writing it to a sink with the `json` or `raw` format, which fails the job.
@@ -1707,7 +1712,7 @@ A scalar value can also be cast to a `VARIANT` with `CAST` or `TRY_CAST`. Only a
   `CAST`.
 - A constructed type casts element by element when its element, field, or value type casts to
   `VARIANT`, for example `ARRAY<INT>` to `ARRAY<VARIANT>`. A `NULL` element stays a SQL `NULL`. A
-  whole `ARRAY`, `MAP`, or `ROW` does not cast into a single `VARIANT` yet.
+  whole constructed value can also become a single `VARIANT`, see below.
 - As a `MAP` key or a `MULTISET` element, two `VARIANT` values match only when their binary
   encodings match. So a `1` cast from `INT` does not match a `1` cast from `BIGINT` or parsed by
   `PARSE_JSON('1')`.
@@ -1720,22 +1725,47 @@ CAST(NULL AS VARIANT)                        -- NULL
 CAST(CAST('NaN' AS DOUBLE) AS VARIANT)       -- NaN, stored as a DOUBLE
 CAST(INTERVAL '2' DAY AS VARIANT)            -- fails at validation
 CAST(ARRAY[1, NULL] AS ARRAY<VARIANT>)       -- [1, NULL], each element a VARIANT, the NULL stays SQL NULL
-CAST(ARRAY[1, 2] AS VARIANT)                 -- fails at validation, not supported yet
+```
+
+A whole `ARRAY`, `MAP`, `ROW`, or `STRUCTURED` value can also be cast into a single `VARIANT`. An
+`ARRAY` becomes a variant array, and a `MAP`, `ROW`, or `STRUCTURED` value a variant object. Each
+leaf is stored by the rules above, so the cast is supported only when every leaf type casts to
+`VARIANT`.
+
+- A `ROW` or `STRUCTURED` value is keyed by its field names.
+- A `MAP` needs a character string key, which becomes the object key. A `NULL` key fails the cast.
+  If a key appears twice, the last value is kept.
+- A variant object sorts its keys by their UTF-8 bytes, so neither the field order of a `ROW` nor
+  the entry order of a `MAP` is kept.
+- A `NULL` element, field, or map value becomes a variant null, so an array keeps its length and an
+  object keeps its keys. A cast element by element differs here: `ARRAY<INT>` to `ARRAY<VARIANT>`
+  keeps a SQL `NULL`, while `ARRAY<INT>` to `VARIANT` turns it into a variant null.
+- A nested `VARIANT` is embedded as is.
+- The whole value must fit into the 16 MiB of a `VARIANT`. Any `ARRAY` or `MAP` can exceed it, and so
+  can a `ROW` with a nested `VARIANT` or with fields whose declared sizes add up to more. The cast
+  then fails, and `TRY_CAST` returns `NULL` for the whole value.
+- Casting the `VARIANT` back to the original type returns the original value, since a cast to `ROW`
+  matches fields by name. There are two exceptions:
+  - A SQL `NULL` in a `VARIANT` field, in an `ARRAY<VARIANT>`, or as a value of a
+    `MAP<STRING, VARIANT>` comes back as a variant null.
+  - A `MAP` that holds a key twice comes back with only the last value for that key.
+
+The following examples use `r` for a column of type `ROW<name STRING, id INT>` that holds
+`('ada', 7)`:
+
+```sql
+CAST(ARRAY[1, NULL] AS VARIANT)              -- [1, null], the NULL becomes a variant null
+CAST(MAP['b', 2, 'a', 1] AS VARIANT)         -- {"a": 1, "b": 2}
+CAST(r AS VARIANT)                           -- {"id": 7, "name": "ada"}
+CAST(MAP[1, 'a'] AS VARIANT)                 -- fails at validation, a MAP key must be a character string
+CAST(ARRAY[INTERVAL '1' DAY] AS VARIANT)     -- fails at validation
 ```
 
 A `VARIANT` has no equality and no order, because one value has many valid binary encodings. The
 objects `{"a": 1, "b": 2}` and `{"b": 2, "a": 1}` hold the same value, and so do a `1` stored as a
 `TINYINT` and a `1` stored as a `BIGINT`. So a query cannot use a `VARIANT`, or a type that contains
-one, where it compares values:
-
-- as a grouping key, including `GROUPING SETS`, window aggregations, and `SELECT DISTINCT`
-- as the argument of a `DISTINCT` aggregate, such as `COUNT(DISTINCT v)`
-- in `UNION`, `INTERSECT`, `INTERSECT ALL`, `EXCEPT`, and `EXCEPT ALL`, while `UNION ALL` is allowed
-- as an `ORDER BY` key
-- as a `PARTITION BY` or `ORDER BY` key of an `OVER` window, of `MATCH_RECOGNIZE`, or of a table
-  argument
-- as an operand of a comparison such as `=`, `<>`, `<`, `IS DISTINCT FROM`, or `IN`, which includes
-  join conditions
+one, where it compares values. Examples are a `GROUP BY`, `ORDER BY`, or join key,
+`SELECT DISTINCT`, a comparison such as `=` or `<`, and the array elements of `ARRAY_CONTAINS`.
 
 Such a query fails before it runs. Cast the value to a concrete type first, or use `TRY_CAST` when
 some values do not fit the type. A `VARIANT` can still be selected, read with field access, checked
@@ -1957,15 +1987,15 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 | `FLOAT`                                |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
 | `DOUBLE`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
 | `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
-| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
 | `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
 | `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     !     |    N     |
 | `INTERVAL`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |    Y⁵     |    Y⁶    |    N    |    N     |   N    |   N    |      N      |        N        |     Y      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
-| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     !⁸    |    N     |
 | `MULTISET`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     !³     |   N   |   N   |      N       |   N   |     N     |    N     |
-| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |     N     |    N     |
-| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
-| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
+| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |     !⁸    |    N     |
+| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     !⁸    |    N     |
+| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     !⁸    |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
 | `VARIANT`                              |                   !                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |   !³    |     N      |  !³   |  !³   |      !³      |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
@@ -1979,6 +2009,7 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 5. 支持转换，当且仅当用使用 `INTERVAL` 做“月”到“年”的转换。
 6. 支持转换，当且仅当用使用 `INTERVAL` 做“天”到“时间”的转换。
 7. 仅支持转换到无界的 `VARBINARY`（`BYTES`），因为裁剪或填充会破坏序列化的位图数据。
+8. Supported iff every leaf type casts to `VARIANT` and every `MAP` key is a character string. Always fallible for `ARRAY` and `MAP`. Fallible for `ROW` and `STRUCTURED` iff a field is fallible, a field is a `VARIANT`, or the declared sizes of the fields can exceed the 16 MiB of a `VARIANT`.
 
 请注意：无论是 `CAST` 还是 `TRY_CAST`，当输入为 `NULL` ，输出也为 `NULL`。
 

@@ -37,51 +37,75 @@ echo "==========================================================================
 echo "Listing 100 largest packages"
 dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
 df -h
+
+# Package removal, directory removal and Docker pruning are independent, so they run in parallel;
+# each background task logs to its own file, printed once all of them are done.
+LOG_DIR="$(mktemp -d)"
+
+# apt-get aborts the whole command on an unknown package name, so only pass names present on this image
+remove_pkgs() { sudo apt-get remove -y $(dpkg-query -W -f='${Package}\n' "$@" 2>/dev/null) || true; }
+
 echo "Removing large packages"
-sudo apt-get remove -y '^dotnet-.*' || true
-sudo apt-get remove -y '^llvm-.*' || true
-sudo apt-get remove -y 'php.*' || true
-sudo apt-get remove -y '^mongodb-.*' || true
-sudo apt-get remove -y '^mysql-.*' || true
-sudo apt-get remove -y '^postgresql-.*' || true
-sudo apt-get remove -y '^g\+\+-.*' '^clang-.*' '^libclang-.*' || true
-sudo apt-get remove -y '^gfortran-.*' '^libruby.*' || true
-sudo apt-get remove -y temurin-8-jdk || true
-sudo apt-get remove -y '^libllvm.*' '^libclang1.*' snapd python3-botocore podman buildah skopeo mecab-ipadic gh git-lfs || true
-sudo apt-get remove -y azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri || true
-sudo apt-get autoremove -y || true
-sudo apt-get clean || true
-df -h
+(
+  sudo apt-get remove -y '^dotnet-.*' || true
+  sudo apt-get remove -y '^llvm-.*' || true
+  sudo apt-get remove -y 'php.*' || true
+  sudo apt-get remove -y '^mongodb-.*' || true
+  sudo apt-get remove -y '^mysql-.*' || true
+  sudo apt-get remove -y '^postgresql-.*' || true
+  sudo apt-get remove -y '^g\+\+-.*' '^clang-.*' '^libclang-.*' || true
+  sudo apt-get remove -y '^gfortran-.*' '^libruby.*' || true
+  remove_pkgs temurin-8-jdk
+  sudo apt-get remove -y '^libllvm.*' '^libclang1.*' || true
+  remove_pkgs snapd python3-botocore podman buildah skopeo mecab-ipadic gh git-lfs
+  remove_pkgs azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri
+  sudo apt-get autoremove -y || true
+  sudo apt-get clean || true
+) > "${LOG_DIR}/apt.log" 2>&1 &
+
 echo "Removing large directories"
-
-sudo rm -rf /usr/share/dotnet/
-sudo rm -rf /usr/local/graalvm/
-sudo rm -rf /usr/local/.ghcup/
-sudo rm -rf /usr/local/share/powershell
-sudo rm -rf /usr/local/share/chromium
-sudo rm -rf /usr/local/lib/android
-sudo rm -rf /usr/local/lib/node_modules
-
-# Remove large hosted tool caches that are unused by a Flink Java/e2e build.
 # Keep /opt/hostedtoolcache/Python: the e2e job's UsePythonVersion task runs
 # after this script and relies on the pre-provisioned Python tool cache.
-sudo rm -rf /opt/hostedtoolcache/CodeQL
-sudo rm -rf /opt/hostedtoolcache/go
-sudo rm -rf /opt/hostedtoolcache/node
-sudo rm -rf /opt/hostedtoolcache/Ruby
-sudo rm -rf /opt/hostedtoolcache/PyPy
-
-# Remove other large language/SDK directories not needed by the build.
-sudo rm -rf /usr/share/swift
-sudo rm -rf /usr/share/miniconda
-sudo rm -rf /opt/microsoft
-sudo rm -rf /opt/ghc
-df -h
+# /opt/microsoft is removed after the package removal, since the powershell package lives there.
+for dir in \
+    /usr/share/dotnet/ \
+    /usr/local/graalvm/ \
+    /usr/local/.ghcup/ \
+    /usr/local/share/powershell \
+    /usr/local/share/chromium \
+    /usr/local/lib/android \
+    /usr/local/lib/node_modules \
+    /opt/hostedtoolcache/CodeQL \
+    /opt/hostedtoolcache/go \
+    /opt/hostedtoolcache/node \
+    /opt/hostedtoolcache/Ruby \
+    /opt/hostedtoolcache/PyPy \
+    /usr/share/swift \
+    /usr/share/miniconda \
+    /opt/ghc; do
+  sudo rm -rf "${dir}" &
+done
 
 echo "Pruning preloaded Docker images"
 # Flink restores its cached testcontainers images later in the pipeline, so the
 # preloaded base images shipped with the runner image can be removed here.
 if command -v docker >/dev/null 2>&1; then
-  sudo docker system prune --all --force || true
+  { sudo docker system prune --all --force || true; } > "${LOG_DIR}/docker.log" 2>&1 &
 fi
+
+wait
+sudo rm -rf /opt/microsoft
+
+cat "${LOG_DIR}"/*.log
+rm -rf "${LOG_DIR}"
 df -h
+
+# Not disk cleanup, but this script runs on the host before any cache or test step in both CIs:
+# Ubuntu 26.04 mounts /tmp as a ~4 GB tmpfs, too small for cache archives and e2e state.
+if findmnt -n -o FSTYPE /tmp | grep -q tmpfs; then
+  echo "Moving /tmp to disk"
+  sudo mkdir -p /var/tmp/ci-tmp
+  sudo chmod 1777 /var/tmp/ci-tmp
+  sudo mount --bind /var/tmp/ci-tmp /tmp
+fi
+df -h /tmp

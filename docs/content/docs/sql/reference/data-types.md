@@ -1559,7 +1559,10 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
-to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
+to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`. `VARIANT_GET` and
+`TRY_VARIANT_GET` read the value at a
+[path]({{< ref "docs/sql/functions/built-in-functions" >}}#variant-paths) such as `'$.items[0].qty'`
+and cast it by the same rules, returning `NULL` when nothing is at the path.
 
 | Stored kind     | Succeeds for                                        |
 |-----------------|-----------------------------------------------------|
@@ -1740,8 +1743,8 @@ leaf is stored by the rules above, so the cast is supported only when every leaf
 - A `ROW` or `STRUCTURED` value is keyed by its field names.
 - A `MAP` needs a character string key, which becomes the object key. A `NULL` key fails the cast.
   If a key appears twice, the last value is kept.
-- A variant object sorts its keys, so neither the field order of a `ROW` nor the entry order of a
-  `MAP` is kept.
+- A variant object sorts its keys by their UTF-8 bytes, so neither the field order of a `ROW` nor
+  the entry order of a `MAP` is kept.
 - A `NULL` element, field, or map value becomes a variant null, so an array keeps its length and an
   object keeps its keys. A cast element by element differs here: `ARRAY<INT>` to `ARRAY<VARIANT>`
   keeps a SQL `NULL`, while `ARRAY<INT>` to `VARIANT` turns it into a variant null.
@@ -1769,16 +1772,8 @@ CAST(ARRAY[INTERVAL '1' DAY] AS VARIANT)     -- fails at validation
 A `VARIANT` has no equality and no order, because one value has many valid binary encodings. The
 objects `{"a": 1, "b": 2}` and `{"b": 2, "a": 1}` hold the same value, and so do a `1` stored as a
 `TINYINT` and a `1` stored as a `BIGINT`. So a query cannot use a `VARIANT`, or a type that contains
-one, where it compares values:
-
-- as a grouping key, including `GROUPING SETS`, window aggregations, and `SELECT DISTINCT`
-- as the argument of a `DISTINCT` aggregate, such as `COUNT(DISTINCT v)`
-- in `UNION`, `INTERSECT`, `INTERSECT ALL`, `EXCEPT`, and `EXCEPT ALL`, while `UNION ALL` is allowed
-- as an `ORDER BY` key
-- as a `PARTITION BY` or `ORDER BY` key of an `OVER` window, of `MATCH_RECOGNIZE`, or of a table
-  argument
-- as an operand of a comparison such as `=`, `<>`, `<`, `IS DISTINCT FROM`, or `IN`, which includes
-  join conditions
+one, where it compares values. Examples are a `GROUP BY`, `ORDER BY`, or join key,
+`SELECT DISTINCT`, a comparison such as `=` or `<`, and the array elements of `ARRAY_CONTAINS`.
 
 Such a query fails before it runs. Cast the value to a concrete type first, or use `TRY_CAST` when
 some values do not fit the type. A `VARIANT` can still be selected, read with field access, checked

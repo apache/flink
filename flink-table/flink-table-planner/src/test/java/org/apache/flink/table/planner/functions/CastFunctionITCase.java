@@ -682,16 +682,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 BYTES()),
                 // a constructed type casts element by element when each child casts to VARIANT
                 TestSetSpec.forExpression("Cast a constructed type to VARIANT elements and back")
-                        .onFieldsWithData(
-                                new Integer[] {1, null},
-                                Row.of(7),
-                                map(entry("a", 1)),
-                                map(entry(1, "a")))
-                        .andDataTypes(
-                                ARRAY(INT()),
-                                ROW(FIELD("a", INT())),
-                                MAP(STRING(), INT()),
-                                MAP(INT(), STRING()))
+                        .onFieldsWithData(new Integer[] {1, null}, Row.of(7), map(entry("a", 1)))
+                        .andDataTypes(ARRAY(INT()), ROW(FIELD("a", INT())), MAP(STRING(), INT()))
                         .testResult(
                                 $("f0").cast(ARRAY(VARIANT())).cast(ARRAY(INT())),
                                 "CAST(CAST(f0 AS ARRAY<VARIANT>) AS ARRAY<INT>)",
@@ -707,19 +699,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 $("f2").cast(MAP(STRING(), VARIANT())).cast(MAP(STRING(), INT())),
                                 "CAST(CAST(f2 AS MAP<STRING, VARIANT>) AS MAP<STRING, INT>)",
                                 map(entry("a", 1)),
-                                MAP(STRING(), INT()))
-                        // a VARIANT key matches by its bytes, so a key cast from INT does not
-                        // match the same number cast from BIGINT
-                        .testResult(
-                                $("f3").cast(MAP(VARIANT(), STRING())).at(lit(1).cast(VARIANT())),
-                                "CAST(f3 AS MAP<VARIANT, STRING>)[CAST(1 AS VARIANT)]",
-                                "a",
-                                STRING())
-                        .testResult(
-                                $("f3").cast(MAP(VARIANT(), STRING())).at(lit(1L).cast(VARIANT())),
-                                "CAST(f3 AS MAP<VARIANT, STRING>)[CAST(CAST(1 AS BIGINT) AS VARIANT)]",
-                                null,
-                                STRING()));
+                                MAP(STRING(), INT())));
     }
 
     private static List<TestSetSpec> constructedToVariantCasts() {

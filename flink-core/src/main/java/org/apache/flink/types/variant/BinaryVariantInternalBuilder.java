@@ -33,7 +33,6 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.UUID;
@@ -74,6 +73,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.fitsVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
@@ -477,7 +477,7 @@ public class BinaryVariantInternalBuilder {
         } else {
             id = dictionaryKeys.size();
             dictionary.put(key, id);
-            dictionaryKeys.add(key.getBytes(StandardCharsets.UTF_8));
+            dictionaryKeys.add(encodeKey(key));
         }
         return id;
     }
@@ -491,7 +491,7 @@ public class BinaryVariantInternalBuilder {
     // Add a field to the object that starts at `start`. Call it right before writing the value,
     // since the field records the current write position as its offset.
     public void addField(ArrayList<FieldEntry> fields, int start, String key) {
-        fields.add(new FieldEntry(key, addKey(key), writePos - start));
+        fields.add(new FieldEntry(addKey(key), writePos - start));
     }
 
     // Finish writing a variant object after all of its fields have already been written. The
@@ -504,20 +504,21 @@ public class BinaryVariantInternalBuilder {
     // record the offset of the field. The offset is computed as `getWritePos() - start`.
     // 3. The caller calls `finishWritingObject` to finish writing a variant object.
     //
-    // This function is responsible to sort the fields by key. If there are duplicate field keys:
+    // This function is responsible to sort the fields by the unsigned UTF-8 bytes of their keys,
+    // as the variant spec requires. Fields whose keys have the same bytes are duplicates:
     // - when `allowDuplicateKeys` is true, the field with the greatest offset value (the last
     // appended one) is kept.
     // - otherwise, throw an exception.
     public void finishWritingObject(int start, ArrayList<FieldEntry> fields) {
         int size = fields.size();
-        Collections.sort(fields);
+        fields.sort(keyOrder);
         int maxId = size == 0 ? 0 : fields.get(0).id;
         if (allowDuplicateKeys) {
             int distinctPos = 0;
             // Maintain a list of distinct keys in-place.
             for (int i = 1; i < size; ++i) {
                 maxId = Math.max(maxId, fields.get(i).id);
-                if (fields.get(i).id == fields.get(i - 1).id) {
+                if (keyOrder.compare(fields.get(i - 1), fields.get(i)) == 0) {
                     // Found a duplicate key. Keep the field with a greater offset.
                     if (fields.get(distinctPos).offset < fields.get(i).offset) {
                         fields.set(
@@ -553,13 +554,12 @@ public class BinaryVariantInternalBuilder {
                 }
                 writePos = start + currentOffset;
                 // Change back to the sort order by field keys to meet the variant spec.
-                Collections.sort(fields);
+                fields.sort(keyOrder);
             }
         } else {
             for (int i = 1; i < size; ++i) {
                 maxId = Math.max(maxId, fields.get(i).id);
-                String key = fields.get(i).key;
-                if (key.equals(fields.get(i - 1).key)) {
+                if (keyOrder.compare(fields.get(i - 1), fields.get(i)) == 0) {
                     throw VARIANT_DUPLICATE_KEY_EXCEPTION;
                 }
             }
@@ -697,24 +697,17 @@ public class BinaryVariantInternalBuilder {
     // Temporarily store the information of a field. We need to collect all fields in an JSON
     // object,
     // sort them by their keys, and build the variant object in sorted order.
-    public static final class FieldEntry implements Comparable<FieldEntry> {
-        final String key;
+    public static final class FieldEntry {
         final int id;
         final int offset;
 
-        public FieldEntry(String key, int id, int offset) {
-            this.key = key;
+        FieldEntry(int id, int offset) {
             this.id = id;
             this.offset = offset;
         }
 
         FieldEntry withNewOffset(int newOffset) {
-            return new FieldEntry(key, id, newOffset);
-        }
-
-        @Override
-        public int compareTo(FieldEntry other) {
-            return key.compareTo(other.key);
+            return new FieldEntry(id, newOffset);
         }
     }
 
@@ -834,5 +827,9 @@ public class BinaryVariantInternalBuilder {
     private final HashMap<String, Integer> dictionary = new HashMap<>();
     // Store all keys in `dictionary` in the order of id.
     private final ArrayList<byte[]> dictionaryKeys = new ArrayList<>();
+    // Order fields by the stored UTF-8 bytes of their keys. Keys that differ as Strings but are
+    // stored as the same bytes, such as an unpaired surrogate and '?', compare as equal.
+    private final Comparator<FieldEntry> keyOrder =
+            (a, b) -> Arrays.compareUnsigned(dictionaryKeys.get(a.id), dictionaryKeys.get(b.id));
     private final boolean allowDuplicateKeys;
 }

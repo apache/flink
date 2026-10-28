@@ -177,6 +177,7 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         helper.processElement(
                 element,
+                true,
                 leftWindowEndIndex,
                 helper.getLeftLateRecordsDroppedRate(),
                 (windowEnd, rowData) -> leftWindowState.asyncAdd(windowEnd, rowData));
@@ -186,6 +187,7 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
     public void processElement2(StreamRecord<RowData> element) throws Exception {
         helper.processElement(
                 element,
+                false,
                 rightWindowEndIndex,
                 helper.getRightLateRecordsDroppedRate(),
                 (windowEnd, rowData) -> rightWindowState.asyncAdd(windowEnd, rowData));

@@ -70,9 +70,9 @@ env:
 jobs:
   compile:
     name: "Compile"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -136,9 +136,9 @@ jobs:
   packaging:
     name: "Test packaging/licensing"
     needs: compile
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -189,9 +189,9 @@ jobs:
   test:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -345,7 +345,7 @@ jobs:
     name: "E2E (group ${{ matrix.group }})"
     needs: compile
     # the end to end tests are not executed in Flink's CI Docker container due to problems when running Docker-in-Docker
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 310
     env:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
@@ -421,6 +421,13 @@ jobs:
           mkdir -p ${{ env.E2E_CACHE_FOLDER }}
           mkdir -p ${{ env.E2E_TARBALL_CACHE }}
           mkdir -p ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
+
+      # e2e runs on the host, so the Maven distribution pre-downloaded in the CI image is not available
+      - name: "Load Maven distribution from Cache"
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ runner.os }}-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
 
       - name: "Load E2E files from Cache"
         uses: actions/cache@v5

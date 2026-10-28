@@ -1451,13 +1451,69 @@ variant:
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |
-      If the VARIANT is an ARRAY value, returns a VARIANT whose value is the element at
-      the specified index. The index starts from 1, If the index is out of range, it returns NULL.
+      If the VARIANT is an array, returns a VARIANT holding the element at the index. The index
+      starts at 1. If the index is out of range, returns NULL. If the VARIANT is not an array, an
+      error is thrown. To return NULL instead, use `VARIANT_GET`.
   - sql: variant '[' STRING ']'
     table: VARIANT.at(STRING)
     description: |
-      If the VARIANT is a MAP value that has an element with this key, a VARIANT holding
-      the associated value is returned. Otherwise, NULL is returned.
+      If the VARIANT is an object that has a field with this key, returns a VARIANT holding the
+      value of the field. If the object has no such field, returns NULL. If the VARIANT is not an
+      object, an error is thrown. To return NULL instead, use `VARIANT_GET`.
+  - sql: VARIANT_GET(variant, path[, returnType])
+    table: VARIANT.variantGet(path[, returnType])
+    description: |
+      Returns the value of a Variant at a path, cast to `returnType`. Without `returnType`, the
+      value is returned as a Variant. If the value cannot be cast to `returnType`, an error is
+      thrown. To return NULL instead of an error, use the `TRY_VARIANT_GET` function. See the
+      "Variant paths" section below the function table for the path syntax.
+
+      Returns NULL if:
+
+      * `variant` or `path` is NULL,
+      * nothing is at the path, or
+      * the value at the path is a variant null and `returnType` is not `'VARIANT'`.
+
+      Without `returnType`, or with `'VARIANT'`, a variant null stays a variant null. It is not SQL
+      NULL, so `IS NULL` is false and `JSON_STRING` returns `'null'`.
+
+      `returnType` is a string literal such as `'INT'` or `'ARRAY<ROW<sku STRING, qty INT>>'`, and
+      must not be NULL. The value is cast the way `CAST(v AS returnType)` casts a Variant. The
+      result is always nullable.
+
+      ```sql
+      -- 17 of type INT
+      VARIANT_GET(PARSE_JSON('{"order_id": 17}'), '$.order_id', 'INT')
+
+      -- 2 of type INT
+      VARIANT_GET(PARSE_JSON('{"items": [{"qty": 2}]}'), '$.items[0].qty', 'INT')
+
+      -- NULL of type STRING, nothing is at the path
+      VARIANT_GET(PARSE_JSON('{"order_id": 17}'), '$.user.name', 'STRING')
+
+      -- NULL of type INT, a variant null cast to INT
+      VARIANT_GET(PARSE_JSON('{"coupon": null}'), '$.coupon', 'INT')
+
+      -- null of type VARIANT, a variant null and not SQL NULL
+      VARIANT_GET(PARSE_JSON('{"coupon": null}'), '$.coupon')
+
+      -- {"name":"ada"} of type VARIANT
+      VARIANT_GET(PARSE_JSON('{"user": {"name": "ada"}}'), '$.user')
+
+      -- fails, a Variant string does not cast to INT
+      VARIANT_GET(PARSE_JSON('{"price": "12.50"}'), '$.price', 'INT')
+      ```
+  - sql: TRY_VARIANT_GET(variant, path[, returnType])
+    table: VARIANT.tryVariantGet(path[, returnType])
+    description: |
+      Returns the value of a Variant at a path like `VARIANT_GET`, but returns NULL instead of an
+      error if the value cannot be cast to `returnType`, or if a path that is not a literal is
+      malformed. A malformed path literal still fails at planning time.
+
+      ```sql
+      -- NULL of type INT, a Variant string does not cast to INT
+      TRY_VARIANT_GET(PARSE_JSON('{"price": "12.50"}'), '$.price', 'INT')
+      ```
 
 valueconstruction:
   - sql: |

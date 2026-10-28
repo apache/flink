@@ -81,7 +81,11 @@ workflow-scheduler:
 ```
 
 <span class="label label-danger">注意</span>
-Catalog 必须支持创建物化表，目前只有 [Paimon Catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table) 支持。
+The Catalog must support creating materialized tables.
+[Apache Paimon]({{< ref "docs/connectors/other-projects/paimon" >}}) supports them, and so does
+[Apache Fluss](https://fluss.apache.org/docs/engine-flink/ddl/#materialized-table) for the continuous
+refresh mode only. The test-filesystem catalog used in the
+[Quickstart]({{< ref "docs/sql/materialized-table/quickstart" >}}) is meant for testing only.
 
 # 操作指南
 

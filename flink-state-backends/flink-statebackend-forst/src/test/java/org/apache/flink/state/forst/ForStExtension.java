@@ -21,6 +21,7 @@ package org.apache.flink.state.forst;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ResourceGuard;
@@ -36,13 +37,13 @@ import org.forstdb.WriteOptions;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,7 +59,7 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
     private final boolean enableStatistics;
 
     /** Temporary folder that provides the working directory for the ForSt instance. */
-    private TemporaryFolder temporaryFolder;
+    private java.nio.file.Path temporaryFolder;
 
     /** The options for the ForSt instance. */
     private DBOptions dbOptions;
@@ -157,10 +158,9 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
     }
 
     public void before() throws Exception {
-        this.temporaryFolder = new TemporaryFolder();
-        this.temporaryFolder.create();
+        this.temporaryFolder = Files.createTempDirectory("forst-extension");
 
-        final File rocksFolder = temporaryFolder.newFolder();
+        final File rocksFolder = TempDirUtils.newFolder(temporaryFolder);
 
         resourceGuard = new ResourceGuard();
         File localWorkingDir = TempDirUtils.newFolder(rocksFolder.toPath(), "local-working-dir");
@@ -216,7 +216,7 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
         IOUtils.closeQuietly(this.db);
         IOUtils.closeQuietly(this.resourceContainer);
         IOUtils.closeQuietly(this.resourceGuard);
-        temporaryFolder.delete();
+        FileUtils.deleteDirectoryQuietly(temporaryFolder.toFile());
     }
 
     @Override

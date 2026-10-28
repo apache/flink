@@ -660,14 +660,7 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 $("f3").mapContainsKey(array(1, 2)),
                                 "MAP_CONTAINS_KEY(f3, ARRAY[1, 2])",
                                 true,
-                                DataTypes.BOOLEAN())
-                        // there is no VARIANT literal, so the key is built with PARSE_JSON
-                        .testResult(
-                                map(call("PARSE_JSON", "1"), lit(1))
-                                        .mapContainsKey(call("PARSE_JSON", "1")),
-                                "MAP_CONTAINS_KEY(MAP[PARSE_JSON('1'), 1], PARSE_JSON('1'))",
-                                true,
-                                DataTypes.BOOLEAN().notNull()),
+                                DataTypes.BOOLEAN()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.MAP_CONTAINS_KEY, "Documented examples")
                         .onFieldsWithData(1)

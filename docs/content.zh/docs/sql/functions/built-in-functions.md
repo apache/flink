@@ -233,6 +233,36 @@ A document fails to parse if it:
 
 In all of these cases, `TRY_PARSE_XML` returns `NULL`.
 
+#### Variant paths
+
+`VARIANT_GET` and `TRY_VARIANT_GET` take a path that names one place in a Variant. A path starts
+with `$`, the whole value, followed by steps: `.name`, `['name']` or `["name"]` for a field, and
+`[n]` for an array element. For example, on
+`PARSE_JSON('{"user": {"name": "ada"}, "items": [{"qty": 2}]}')`:
+
+| Path                | Points at                          |
+|---------------------|------------------------------------|
+| `$`                 | the whole value                    |
+| `$.user.name`       | `"ada"`                            |
+| `$['user']["name"]` | `"ada"`                            |
+| `$.items[0].qty`    | `2`                                |
+| `$.items[1]`        | nothing, the index is past the end |
+| `$.user[0]`         | nothing, `user` is not an array    |
+
+- Array indices start at 0, as in `JSON_VALUE`, while `variant[INT]` starts at 1. So
+  `VARIANT_GET(v, '$.items[0]')` and `v['items'][1]` are the same element.
+- Use brackets with single or double quotes for a name with whitespace or one of the characters
+  `. [ ] ( ) * ' " \`, for example `$['first name']` or `$["first name"]`. Inside the quotes, `\\`,
+  `\'` and `\"` stand for a backslash and a quote.
+- Wildcards, filters, slices, negative indices and the `lax` and `strict` modes are not supported,
+  so a path always names one place.
+- Trailing spaces are ignored.
+- A malformed path literal fails at planning time. Any other malformed path fails when the function
+  runs.
+
+A path points at nothing if a field is missing, an index is past the end, or a step does not match
+the kind of value, such as a field of an array. Each function describes what it does in that case.
+
 ### 值构建函数
 
 {{< sql_functions_zh "valueconstruction" >}}
@@ -289,6 +319,7 @@ Table functions can be used in two ways: as stand-alone inputs, where they are i
 | `FROM_CHANGELOG(input => TABLE t [, ...])` | Converts an append-only table with an explicit operation column into a dynamic table. See Changelog Conversion for the full list of arguments, semantics, and usage.                                                                       |
 | `TO_CHANGELOG(input => TABLE t [, ...])`   | Converts a dynamic table into an append-only table with an explicit operation column. See Changelog Conversion for the full list of arguments, semantics, and usage.                                                                         |
 | `SNAPSHOT(input => TABLE t [, ...])`       | Returns the current state of a dynamic table `t`. `SNAPSHOT` can only be used in a `LATERAL` context and not as a stand-alone table function. See [LATERAL SNAPSHOT join]({{< ref "docs/sql/reference/queries/joins" >}}#lateral-snapshot-join) for the full list of arguments, the join semantics, and usage. |
+| `DEDUPLICATE_KEEP_FIRST(input => TABLE t [, ...])` | Keeps the first record per key as an append-only table (first arrival, or earliest event time with `on_time`). See [Deduplicate Keep First]({{< ref "docs/sql/reference/queries/deduplicate-keep-first" >}}#deduplicate_keep_first) for the full list of arguments, semantics, and usage. |
 
 To implement your own table functions, see [user-defined table functions]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions).
 

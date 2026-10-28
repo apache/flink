@@ -19,8 +19,10 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 
 import java.time.ZoneId;
 
@@ -47,6 +49,21 @@ public class TableConfigValidation {
                             + "offsets are supported using 'GMT-03:00' or 'GMT+03:00'. Or use 'UTC' "
                             + "without time zone and daylight saving time.");
         }
+    }
+
+    /**
+     * Similar to {@link TableConfig#getLocalTimeZone()} but extracting it from a generic {@link
+     * ReadableConfig}.
+     *
+     * @see TableConfig#getLocalTimeZone()
+     */
+    public static ZoneId getLocalTimeZone(ReadableConfig config) {
+        final String zone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
+            return ZoneId.systemDefault();
+        }
+        validateTimeZone(zone);
+        return ZoneId.of(zone);
     }
 
     private TableConfigValidation() {
