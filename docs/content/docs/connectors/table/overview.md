@@ -42,84 +42,141 @@ Flink natively support various connectors. The following tables list all availab
     <thead>
       <tr>
         <th class="text-left">Name</th>
-        <th class="text-center">Version</th>
         <th class="text-center">Source</th>
         <th class="text-center">Sink</th>
       </tr>
     </thead>
     <tbody>
     <tr>
-      <td><a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
-      <td></td>
+      <td><a href="{{< ref "docs/connectors/table/blackhole" >}}">BlackHole</a></td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/datagen" >}}">DataGen</a></td>
       <td>Bounded and Unbounded Scan</td>
+      <td>Not supported</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/dynamic-kafka" >}}">Dynamic Kafka</a></td>
+      <td>Unbounded Scan</td>
+      <td>Not supported</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/dynamodb" >}}">DynamoDB</a></td>
+      <td>Not supported</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
       <td><a href="{{< ref "docs/connectors/table/elasticsearch" >}}">Elasticsearch</a></td>
-      <td>6.x & 7.x</td>
       <td>Not supported</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{< ref "docs/connectors/table/opensearch" >}}">Opensearch</a></td>
-      <td>1.x & 2.x</td>
+      <td><a href="{{< ref "docs/connectors/table/filesystem" >}}">FileSystem</a></td>
+      <td>Bounded and Unbounded Scan</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/firehose" >}}">Firehose</a></td>
       <td>Not supported</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a></td>
-      <td>0.10+</td>
-      <td>Unbounded Scan</td>
-      <td>Streaming Sink, Batch Sink</td>
-    </tr>
-    <tr>
-      <td><a href="{{< ref "docs/connectors/table/dynamodb" >}}">Amazon DynamoDB</a></td>
-      <td></td>
-      <td>Not supported</td>
-      <td>Streaming Sink, Batch Sink</td>
-    </tr>
-    <tr>
-      <td><a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a></td>
-      <td></td>
-      <td>Unbounded Scan</td>
-      <td>Streaming Sink</td>
-    </tr>
-    <tr>
-      <td><a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a></td>
-      <td></td>
-      <td>Not supported</td>
-      <td>Streaming Sink</td>
-    </tr>
-    <tr>
-      <td><a href="{{< ref "docs/connectors/table/jdbc" >}}">JDBC</a></td>
-      <td></td>
+      <td><a href="{{< ref "docs/connectors/table/hbase" >}}">HBase</a></td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{< ref "docs/connectors/table/hbase" >}}">Apache HBase</a></td>
-      <td>1.4.x & 2.2.x</td>
-      <td>Bounded Scan, Lookup</td>
-      <td>Streaming Sink, Batch Sink</td>
-    </tr>
-    <tr>
-      <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}">Apache Hive</a></td>
-      <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions">Supported Versions</a></td>
+      <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}">Hive</a></td>
       <td>Unbounded Scan, Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
-      <td>3.6.x & 4.x & 5.x & 6.x & 7.0.x </td>
+      <td><a href="{{< ref "docs/connectors/table/http" >}}">HTTP</a></td>
+      <td>Lookup</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/jdbc" >}}">JDBC</a></td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Kafka</a></td>
+      <td>Bounded and Unbounded Scan</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/kinesis" >}}">Kinesis</a></td>
+      <td>Unbounded Scan</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
+      <td>Bounded Scan, Lookup</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/opensearch" >}}">Opensearch</a></td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/print" >}}">Print</a></td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a></td>
+      <td>Unbounded Scan</td>
+      <td>Streaming Sink</td>
     </tr>
     </tbody>
 </table>
 
+The following integrations are maintained by other projects, not by the Apache Flink community. See
+[Integrations Maintained by Other Projects]({{< ref "docs/connectors/other-projects/overview" >}}).
+
+ * [Apache Doris]({{< ref "docs/connectors/other-projects/doris" >}})
+ * [Apache Fluss]({{< ref "docs/connectors/other-projects/fluss" >}})
+ * [Apache Hudi]({{< ref "docs/connectors/other-projects/hudi" >}})
+ * [Apache Iceberg]({{< ref "docs/connectors/other-projects/iceberg" >}})
+ * [Apache Paimon]({{< ref "docs/connectors/other-projects/paimon" >}})
+
 {{< top >}}
 
 Please refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section on how to add connectors as a dependency. 
+
+Flink CDC
+------------
+
+[Flink CDC](https://nightlies.apache.org/flink/flink-cdc-docs-stable/) is an Apache Flink sub-project with its own releases. Its source connectors read
+changes directly from databases such as MySQL, PostgreSQL, Oracle, SQL Server, MongoDB and Db2, and
+it can run complete data integration pipelines defined in YAML. See the
+[Flink CDC sources](https://nightlies.apache.org/flink/flink-cdc-docs-stable/docs/connectors/flink-sources/overview/) for the supported databases and Flink versions.
+
+{{< top >}}
+
+Fault Tolerance Guarantees
+------------
+
+Flink recovers from failures by restarting from the last [checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}). Checkpointing is
+disabled by default. For exactly-once results, the source must be able to rewind to the position
+stored in the checkpoint, and the sink must take part in checkpointing, either by committing its
+writes transactionally or by writing idempotently. See
+[Stateful Stream Processing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) for how checkpoints work.
+
+Connectors that support more than one guarantee expose it as the `sink.delivery-guarantee` option,
+for example [Kafka]({{< ref "docs/connectors/table/kafka" >}}). Exactly-once on Kafka uses Kafka
+transactions and also requires `sink.transactional-id-prefix`. Sinks that write by primary key, such
+as [JDBC]({{< ref "docs/connectors/table/jdbc" >}}) with a primary key defined, overwrite the same
+rows when records are replayed after a failure; while the replay runs, readers can briefly see older
+values for those rows.
+
+Each connector's page documents the guarantees it provides.
+
+{{< top >}}
 
 How to use connectors
 --------
