@@ -172,6 +172,11 @@ public final class StateBootstrapWrapperOperator<
     }
 
     @Override
+    public void moveToNextKey(Object key) {
+        operator.moveToNextKey(key);
+    }
+
+    @Override
     public Object getCurrentKey() {
         return operator.getCurrentKey();
     }

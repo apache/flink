@@ -228,6 +228,15 @@ public class ExternalPythonKeyedCoProcessOperator<OUT>
     }
 
     @Override
+    public void moveToNextKey(Object key) {
+        if (inBatchExecutionMode(getKeyedStateBackend())) {
+            super.moveToNextKey(key);
+        }
+
+        keyForTimerService = key;
+    }
+
+    @Override
     public Object getCurrentKey() {
         return keyForTimerService;
     }

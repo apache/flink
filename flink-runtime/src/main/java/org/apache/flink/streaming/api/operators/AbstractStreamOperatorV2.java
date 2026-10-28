@@ -104,6 +104,9 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private final CloseableRegistry cancelables;
     protected final IndexedCombinedWatermarkStatus combinedWatermark;
 
+    /** Whether the keyed inputs are sorted by key, so that their keys only move forward. */
+    private final boolean keyedInputsSorted;
+
     /** Metric group for the operator. */
     protected final InternalOperatorMetricGroup metrics;
 
@@ -144,6 +147,9 @@ public abstract class AbstractStreamOperatorV2<OUT>
         }
         executionConfig = parameters.getContainingTask().getExecutionConfig();
         userCodeClassLoader = parameters.getContainingTask().getUserCodeClassLoader();
+        keyedInputsSorted =
+                Arrays.stream(config.getInputs(userCodeClassLoader))
+                        .anyMatch(StreamConfig::requiresSorting);
         cancelables = parameters.getContainingTask().getCancelables();
         combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(numberOfInputs);
 
@@ -494,7 +500,11 @@ public abstract class AbstractStreamOperatorV2<OUT>
             StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
         if (selector != null) {
             Object key = selector.getKey(record.getValue());
-            setCurrentKey(key);
+            if (keyedInputsSorted) {
+                moveToNextKey(key);
+            } else {
+                setCurrentKey(key);
+            }
         }
     }
 
@@ -504,10 +514,11 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     /**
-     * Sets the key of the next record of a keyed input. Unlike {@link #setCurrentKey}, which an
-     * operator may call to switch to any key, it never goes back to a previous key of a key-sorted
-     * input. Override it, not {@link #setCurrentKey}, to act before the input moves on to the next
-     * key, e.g. to flush records buffered for the current key.
+     * Sets the key of the next record of a key-sorted input, i.e. in BATCH execution with sorted
+     * inputs, where the input path calls it instead of {@link #setCurrentKey}. Unlike {@link
+     * #setCurrentKey}, which an operator may call to switch to any key, it never goes back to a
+     * previous key. Override it to act before a key-sorted input moves on to the next key, e.g. to
+     * flush records buffered for the current key.
      */
     @Override
     public void moveToNextKey(Object key) {
