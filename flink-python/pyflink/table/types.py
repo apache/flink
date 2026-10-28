@@ -1709,7 +1709,8 @@ def _from_java_data_type(j_data_type):
         elif is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.TimestampType):
-            data_type = DataTypes.TIMESTAMP(precision=3, nullable=logical_type.isNullable())
+            data_type = DataTypes.TIMESTAMP(
+                precision=logical_type.getPrecision(), nullable=logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.TinyIntType):
@@ -1729,7 +1730,8 @@ def _from_java_data_type(j_data_type):
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
         elif is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
-            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
+            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(
+                precision=logical_type.getPrecision(), nullable=logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
                 is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
             data_type = _from_java_interval_type(logical_type)
@@ -2195,12 +2197,15 @@ def _create_type_verifier(data_type: DataType, name: str = None):
     return verify
 
 
-def create_arrow_schema(field_names: List[str], field_types: List[DataType]):
+def create_arrow_schema(field_names: List[str], field_types: List[DataType], *, allow_nested=False):
     """
-    Create an Arrow schema with the specified filed names and types.
+    Create an Arrow schema with the specified field names and types.
+
+    Set ``allow_nested`` to include nested rows and timestamps when converting empty tables.
     """
     import pyarrow as pa
-    fields = [pa.field(field_name, to_arrow_type(field_type), field_type._nullable)
+    fields = [pa.field(field_name, to_arrow_type(field_type, allow_nested=allow_nested),
+                       field_type._nullable)
               for field_name, field_type in zip(field_names, field_types)]
     return pa.schema(fields)
 
@@ -2271,7 +2276,7 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
 
 
-def to_arrow_type(data_type: DataType):
+def to_arrow_type(data_type: DataType, *, allow_nested=False):
     """
     Converts the specified Flink data type to pyarrow data type.
     """
@@ -2319,18 +2324,20 @@ def to_arrow_type(data_type: DataType):
         else:
             return pa.timestamp('ns')
     elif isinstance(data_type, MapType):
-        return pa.map_(to_arrow_type(data_type.key_type), to_arrow_type(data_type.value_type))
+        return pa.map_(to_arrow_type(data_type.key_type, allow_nested=allow_nested),
+                       to_arrow_type(data_type.value_type, allow_nested=allow_nested))
     elif isinstance(data_type, ArrayType):
-        if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
+        if not allow_nested and type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
                              data_type.element_type)
-        return pa.list_(to_arrow_type(data_type.element_type))
+        return pa.list_(to_arrow_type(data_type.element_type, allow_nested=allow_nested))
     elif isinstance(data_type, RowType):
         for field in data_type:
-            if type(field.data_type) in [LocalZonedTimestampType, RowType]:
+            if not allow_nested and type(field.data_type) in [LocalZonedTimestampType, RowType]:
                 raise TypeError("%s is not supported to be used as the field type of RowType" %
                                 field.data_type)
-        fields = [pa.field(field.name, to_arrow_type(field.data_type), field.data_type._nullable)
+        fields = [pa.field(field.name, to_arrow_type(field.data_type, allow_nested=allow_nested),
+                           field.data_type._nullable)
                   for field in data_type]
         return pa.struct(fields)
     elif isinstance(data_type, NullType):
