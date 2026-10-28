@@ -79,7 +79,6 @@ public final class OuterJoinRecordAsyncStateViews {
     private static final class JoinKeyContainsUniqueKey implements OuterJoinRecordAsyncStateView {
 
         private final ValueState<Tuple2<RowData, Integer>> recordState;
-        private final List<OuterRecord> reusedList;
 
         private JoinKeyContainsUniqueKey(
                 StreamingRuntimeContext ctx,
@@ -94,8 +93,6 @@ public final class OuterJoinRecordAsyncStateViews {
                 recordStateDesc.enableTimeToLive(ttlConfig);
             }
             this.recordState = ctx.getValueState(recordStateDesc);
-            // the result records always not more than 1
-            this.reusedList = new ArrayList<>(1);
         }
 
         @Override
@@ -116,17 +113,19 @@ public final class OuterJoinRecordAsyncStateViews {
         @Override
         public StateFuture<List<OuterRecord>> findMatchedRecordsAndNumOfAssociations(
                 Function<RowData, Boolean> condition) {
+            // The list must not be shared between lookups: it is read by later callbacks, and
+            // callbacks for other keys may run in between.
             return recordState
                     .asyncValue()
                     .thenCompose(
                             tuple -> {
-                                reusedList.clear();
+                                List<OuterRecord> matchedRecords = new ArrayList<>(1);
                                 if (tuple != null) {
                                     if (condition.apply(tuple.f0)) {
-                                        reusedList.add(new OuterRecord(tuple.f0, tuple.f1));
+                                        matchedRecords.add(new OuterRecord(tuple.f0, tuple.f1));
                                     }
                                 }
-                                return StateFutureUtils.completedFuture(reusedList);
+                                return StateFutureUtils.completedFuture(matchedRecords);
                             });
         }
     }
