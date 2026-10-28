@@ -41,6 +41,7 @@ import org.apache.flink.util.NumberSequenceIterator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -76,10 +77,11 @@ public class NumberSequenceSource
 
     /**
      * Creates a new {@code NumberSequenceSource} that produces parallel sequences covering the
-     * range {@code from} to {@code to} (both boundaries are inclusive).
+     * range {@code from} to {@code to} (both boundaries are inclusive). The sequence is empty if
+     * {@code to} is {@code from - 1}.
      */
     public NumberSequenceSource(long from, long to) {
-        checkArgument(from <= to, "'from' must be <= 'to'");
+        checkArgument(from <= to || to == from - 1, "'to' must be >= 'from' - 1");
         this.from = from;
         this.to = to;
     }
@@ -139,6 +141,9 @@ public class NumberSequenceSource
     }
 
     protected List<NumberSequenceSplit> splitNumberRange(long from, long to, int numSplits) {
+        if (from > to) {
+            return Collections.emptyList();
+        }
         final NumberSequenceIterator[] subSequences =
                 new NumberSequenceIterator(from, to).split(numSplits);
         final ArrayList<NumberSequenceSplit> splits = new ArrayList<>(subSequences.length);

@@ -24,6 +24,8 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
@@ -35,8 +37,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link NumberSequenceSource}. */
@@ -76,6 +81,24 @@ class NumberSequenceSourceTest {
 
         final List<Long> result = out.getEmittedRecords();
         validateSequence(result, from, to);
+    }
+
+    @Test
+    void testEmptySequence() throws Exception {
+        final NumberSequenceSource source = new NumberSequenceSource(5, 4);
+
+        final SplitEnumerator<
+                        NumberSequenceSource.NumberSequenceSplit,
+                        Collection<NumberSequenceSource.NumberSequenceSplit>>
+                enumerator = source.createEnumerator(new MockSplitEnumeratorContext<>(2));
+
+        assertThat(enumerator.snapshotState(1L)).isEmpty();
+    }
+
+    @Test
+    void testToBeforeFromMinusOne() {
+        assertThatThrownBy(() -> new NumberSequenceSource(5, 3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private static void validateSequence(
