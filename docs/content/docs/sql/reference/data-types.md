@@ -1555,7 +1555,9 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 `CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
 
 `PARSE_XML` maps an XML document to an object, see
-[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions" >}}#xml-to-variant).
+[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions" >}}#xml-to-variant), and
+`XML_STRING` maps it back, see
+[VARIANT to XML]({{< ref "docs/sql/functions/built-in-functions" >}}#variant-to-xml).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded

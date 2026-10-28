@@ -34,10 +34,11 @@ import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 
 /**
- * Tests for {@link BuiltInFunctionDefinitions#PARSE_XML} and {@link
- * BuiltInFunctionDefinitions#TRY_PARSE_XML}.
+ * Tests for {@link BuiltInFunctionDefinitions#PARSE_XML}, {@link
+ * BuiltInFunctionDefinitions#TRY_PARSE_XML}, and {@link BuiltInFunctionDefinitions#XML_STRING}.
  *
- * <p>The bulk of the XML mapping is covered by {@code XmlToVariantParserTest}.
+ * <p>The bulk of the XML mapping is covered by {@code XmlToVariantParserTest} and {@code
+ * VariantToXmlWriterTest}.
  */
 class XmlFunctionsITCase extends BuiltInFunctionTestBase {
 
@@ -55,6 +56,11 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
             "{\"book\":{\"#\":{\"price\":[1],\"title\":[0]},"
                     + "\"@pages\":\"320\",\"price\":[12.5],\"title\":[\"Dune\"]}}";
 
+    private static final String BOOK_XML =
+            "<book xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+                    + " xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" pages=\"320\">"
+                    + "<title>Dune</title><price xsi:type=\"xs:decimal\">12.5</price></book>";
+
     private static final String INVALID = "<book>";
 
     // Error messages only show the start of a long document.
@@ -65,7 +71,12 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(parseXmlSpec(), tryParseXmlSpec(), constantFoldingSpec());
+        return Stream.of(
+                parseXmlSpec(),
+                tryParseXmlSpec(),
+                xmlStringSpec(),
+                xmlStringValidationSpec(),
+                constantFoldingSpec());
     }
 
     private static TestSetSpec parseXmlSpec() {
@@ -194,6 +205,53 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                         STRING());
     }
 
+    private static TestSetSpec xmlStringSpec() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.XML_STRING)
+                .onFieldsWithData(BOOK, "[1]", null)
+                .andDataTypes(STRING().notNull(), STRING().notNull(), STRING())
+                .testResult(
+                        $("f0").parseXml().xmlString(),
+                        "XML_STRING(PARSE_XML(f0))",
+                        BOOK_XML,
+                        STRING().notNull())
+                // Parsing the result gives the same variant.
+                .testResult(
+                        jsonString($("f0").parseXml().xmlString().parseXml()),
+                        "JSON_STRING(PARSE_XML(XML_STRING(PARSE_XML(f0))))",
+                        BOOK_JSON,
+                        STRING().notNull())
+                .testResult(
+                        $("f2").parseJson().xmlString(),
+                        "XML_STRING(PARSE_JSON(f2))",
+                        null,
+                        STRING())
+                .testSqlRuntimeError(
+                        "XML_STRING(PARSE_JSON(f1))",
+                        TableRuntimeException.class,
+                        "Failed to convert the variant to an XML string: The variant must be an "
+                                + "object with a single field for the root element, but it is of "
+                                + "type ARRAY.")
+                .testTableApiRuntimeError(
+                        $("f1").parseJson().xmlString(),
+                        IllegalArgumentException.class,
+                        "The variant must be an object with a single field for the root element, "
+                                + "but it is of type ARRAY.");
+    }
+
+    private static TestSetSpec xmlStringValidationSpec() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.XML_STRING, "Validation Error")
+                .onFieldsWithData(BOOK)
+                .andDataTypes(STRING().notNull())
+                .testTableApiValidationError(
+                        $("f0").xmlString(),
+                        "Invalid input arguments. Expected signatures are:\n"
+                                + "XML_STRING(<VARIANT>)")
+                .testSqlValidationError(
+                        "XML_STRING(f0)",
+                        "Invalid input arguments. Expected signatures are:\n"
+                                + "XML_STRING(<VARIANT>)");
+    }
+
     private static TestSetSpec constantFoldingSpec() {
         return TestSetSpec.forFunction(
                         BuiltInFunctionDefinitions.PARSE_XML, "Constant-folded literal input")
@@ -209,6 +267,11 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                         jsonString(lit("<a>").tryParseXml()),
                         "JSON_STRING(TRY_PARSE_XML('<a>'))",
                         null,
-                        STRING());
+                        STRING())
+                .testResult(
+                        lit("<a>x</a>").parseXml().xmlString(),
+                        "XML_STRING(PARSE_XML('<a>x</a>'))",
+                        "<a>x</a>",
+                        STRING().notNull());
     }
 }

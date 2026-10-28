@@ -160,11 +160,24 @@ class XmlToVariantParserTest {
                     arguments("<a xsi:nil=\"true\"><b>x</b></a>", "{\"a\":null}"),
                     arguments("<a xsi:nil=\" true \" xsi:type=\"int\"/>", "{\"a\":null}"),
                     arguments("<a xsi:nil=\"true\" xsi:type=\"Dog\"/>", "{\"a\":null}"),
-                    // The declaration of the xsi prefix is dropped.
+                    // The declarations of the xsi and xs prefixes with the namespaces of XML
+                    // Schema are dropped, and other declarations are kept.
                     arguments(
                             "<root xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">"
                                     + "<a xsi:nil=\"true\"/></root>",
                             "{\"root\":{\"a\":null}}"),
+                    arguments(
+                            "<root xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                                    + "<a xsi:type=\"xs:int\">5</a></root>",
+                            "{\"root\":{\"a\":5}}"),
+                    arguments(
+                            "<root xmlns:xsi=\"urn:custom\" xmlns:xs=\"urn:custom\">"
+                                    + "<a xsi:type=\"xs:int\">5</a></root>",
+                            "{\"root\":{\"@xmlns:xs\":\"urn:custom\","
+                                    + "\"@xmlns:xsi\":\"urn:custom\",\"a\":5}}"),
+                    arguments(
+                            "<root xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"/>",
+                            "{\"root\":{\"@xmlns:xsd\":\"http://www.w3.org/2001/XMLSchema\"}}"),
                     // With other attributes, the text of a nil element is null.
                     arguments(
                             "<a xsi:nil=\"true\" id=\"1\"/>", "{\"a\":{\"$\":null,\"@id\":\"1\"}}"),
@@ -334,6 +347,16 @@ class XmlToVariantParserTest {
                             "2262-04-11T23:47:16.854775807Z",
                             Variant.Type.TIMESTAMP_LTZ_NS,
                             Instant.parse("2262-04-11T23:47:16.854775807Z")),
+                    arguments("base64Binary", "AQID", Variant.Type.BYTES, new byte[] {1, 2, 3}),
+                    arguments("base64Binary", "AQ==", Variant.Type.BYTES, new byte[] {1}),
+                    arguments("base64Binary", "AQI=", Variant.Type.BYTES, new byte[] {1, 2}),
+                    // Whitespace is allowed between the characters, e.g. for line breaks.
+                    arguments(
+                            "base64Binary",
+                            "AQID\nBAUG",
+                            Variant.Type.BYTES,
+                            new byte[] {1, 2, 3, 4, 5, 6}),
+                    arguments("base64Binary", "AQ I D", Variant.Type.BYTES, new byte[] {1, 2, 3}),
                     // Types are matched by their local part.
                     arguments("xs:int", "5", Variant.Type.INT, 5),
                     arguments("xsd:int", "5", Variant.Type.INT, 5));
@@ -373,6 +396,8 @@ class XmlToVariantParserTest {
                     arguments("dateTime", "10000-01-01T00:00:00"),
                     arguments("time", "24:00:00"),
                     arguments("dateTime", "2026-09-23T24:00:00"),
+                    arguments("base64Binary", "AQ="),
+                    arguments("base64Binary", "@@@@"),
                     arguments("anyURI", "urn:x"),
                     arguments("Int", "5"));
         }
@@ -396,7 +421,10 @@ class XmlToVariantParserTest {
                     arguments("dateTime", "2026-09-23T12:30"),
                     arguments("dateTime", "2026-09-23t12:30:00"),
                     arguments("dateTime", "2026-09-23T12:30:00z"),
-                    arguments("dateTime", "2026-09-23T12:30:00+01:00[Europe/Paris]"));
+                    arguments("dateTime", "2026-09-23T12:30:00+01:00[Europe/Paris]"),
+                    // Without padding, and with unused bits that aren't zero.
+                    arguments("base64Binary", "AQI"),
+                    arguments("base64Binary", "AR=="));
         }
 
         // The XML Schema validator of the JDK is the reference for which values are valid. It

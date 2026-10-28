@@ -1546,6 +1546,29 @@ variant:
 
       See `PARSE_XML` for the full documentation.
 
+  - sql: XML_STRING(variant)
+    table: VARIANT.xmlString()
+    description: |
+      Converts a Variant into an XML string. This is the inverse of `PARSE_XML`.
+
+      Fields with an `@` prefix are written as attributes, the `$` field as text, and the other
+      fields as child elements, in the order that the `#` field records. A Variant NULL is written
+      with `xsi:nil="true"`. A value other than a string or a UUID gets an `xsi:type` attribute,
+      e.g. `xsi:type="xs:int"`, so that it reads back as the same type. If the XML string uses the
+      `xsi` or `xs` prefix, the root element declares it.
+
+      If the Variant has no XML representation, an error is thrown.
+
+      ```sql
+      -- '<book pages="320"><title>Dune</title><price>12.50</price></book>'
+      XML_STRING(PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>'))
+
+      -- '<a xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema"><b xsi:type="xs:int">5</b><c xsi:nil="true"/></a>'
+      XML_STRING(PARSE_XML('<a><b xsi:type="int">5</b><c xsi:nil="true"/></a>'))
+      ```
+
+      See the "VARIANT to XML" section below the function table for how a Variant is mapped to XML.
+
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |
