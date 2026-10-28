@@ -84,6 +84,24 @@ class DataGeneratorSourceTest {
     }
 
     @Test
+    @DisplayName("Generates no data points for a count of 0.")
+    void testZeroCount() throws Exception {
+        final DataGeneratorSource<Long> dataGeneratorSource =
+                new DataGeneratorSource<>(index -> index, 0, Types.LONG);
+        final MockSplitEnumeratorContext<NumberSequenceSource.NumberSequenceSplit> context =
+                new MockSplitEnumeratorContext<>(1);
+
+        final SplitEnumerator<
+                        NumberSequenceSource.NumberSequenceSplit,
+                        Collection<NumberSequenceSource.NumberSequenceSplit>>
+                enumerator = dataGeneratorSource.createEnumerator(context);
+        enumerator.start();
+        enumerator.handleSplitRequest(0, "hostname");
+
+        assertThat(context.getSplitsAssignmentSequence()).isEmpty();
+    }
+
+    @Test
     @DisplayName("Uses the underlying NumberSequenceSource correctly for checkpointing.")
     void testReaderCheckpoints() throws Exception {
         final int numCycles = 3;
