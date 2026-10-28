@@ -163,7 +163,7 @@ class BatchExecutionInternalTimeServiceTest {
                         new VoidNamespaceSerializer(),
                         LambdaTrigger.eventTimeTrigger(timer -> timers.add(timer.getTimestamp())));
 
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
 
         // advancing the watermark should not fire timers
@@ -172,7 +172,7 @@ class BatchExecutionInternalTimeServiceTest {
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // changing the current key fires all timers
-        keyedStatedBackend.setCurrentKey(2);
+        keyedStatedBackend.moveToNextKey(2);
 
         assertThat(timers).containsExactly(150L);
     }
@@ -202,9 +202,9 @@ class BatchExecutionInternalTimeServiceTest {
                         new VoidNamespaceSerializer(),
                         LambdaTrigger.eventTimeTrigger(timer -> timers.add(timer.getTimestamp())));
 
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
 
         assertThat(timers).isEmpty();
     }
@@ -239,7 +239,7 @@ class BatchExecutionInternalTimeServiceTest {
         eventTimeTrigger.setTimerService(timerService);
 
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
@@ -248,7 +248,7 @@ class BatchExecutionInternalTimeServiceTest {
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // changing the current key fires all timers
-        keyedStatedBackend.setCurrentKey(2);
+        keyedStatedBackend.moveToNextKey(2);
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 124);
 
@@ -285,13 +285,13 @@ class BatchExecutionInternalTimeServiceTest {
                         LambdaTrigger.processingTimeTrigger(
                                 timer -> timers.add(timer.getTimestamp())));
 
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
         timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // we should never register physical timers
         assertThat(processingTimeService.getNumActiveTimers()).isZero();
         // changing the current key fires all timers
-        keyedStatedBackend.setCurrentKey(2);
+        keyedStatedBackend.moveToNextKey(2);
 
         assertThat(timers).containsExactly(150L);
     }
@@ -327,13 +327,13 @@ class BatchExecutionInternalTimeServiceTest {
                         "test", KEY_SERIALIZER, new VoidNamespaceSerializer(), trigger);
         trigger.setTimerService(timerService);
 
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // we should never register physical timers
         assertThat(processingTimeService.getNumActiveTimers()).isZero();
         // changing the current key fires all timers
-        keyedStatedBackend.setCurrentKey(2);
+        keyedStatedBackend.moveToNextKey(2);
 
         // We check that the timer from the callback is ignored
         assertThat(timers).containsExactly(150L);
@@ -370,13 +370,13 @@ class BatchExecutionInternalTimeServiceTest {
                         "test", KEY_SERIALIZER, new VoidNamespaceSerializer(), trigger);
         trigger.setTimerService(timerService);
 
-        keyedStatedBackend.setCurrentKey(1);
+        keyedStatedBackend.moveToNextKey(1);
         timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, 150);
 
         // we should never register physical timers
         assertThat(processingTimeService.getNumActiveTimers()).isZero();
         // changing the current key fires all timers
-        keyedStatedBackend.setCurrentKey(2);
+        keyedStatedBackend.moveToNextKey(2);
 
         // We check that the timer from the callback is ignored
         assertThat(timers).containsExactly(150L);

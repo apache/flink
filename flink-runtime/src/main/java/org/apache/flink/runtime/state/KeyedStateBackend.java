@@ -61,6 +61,15 @@ public interface KeyedStateBackend<K>
     void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex);
 
     /**
+     * Moves to the next key of a key-sorted input. Unlike {@link #setCurrentKey}, it must never go
+     * back to a key that was current before. Backends that do not depend on the key order treat it
+     * as {@link #setCurrentKey}.
+     */
+    default void moveToNextKey(K newKey) {
+        setCurrentKey(newKey);
+    }
+
+    /**
      * @return Serializer of the key.
      */
     TypeSerializer<K> getKeySerializer();

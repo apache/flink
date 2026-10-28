@@ -91,7 +91,7 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             assertThat(state.get()).isNull();
 
             assertThatThrownBy(() -> state.add(null)).isInstanceOf(NullPointerException.class);
@@ -118,7 +118,7 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             assertThat(state.get()).isNull();
 
             List<Long> adding = new ArrayList<>();
@@ -150,7 +150,7 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             assertThat(state.get()).isNull();
 
             assertThatThrownBy(() -> state.addAll(null)).isInstanceOf(NullPointerException.class);
@@ -177,7 +177,7 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             assertThat(state.get()).isNull();
 
             List<Long> adding = new ArrayList<>();
@@ -209,7 +209,7 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             assertThat(state.get()).isNull();
 
             assertThatThrownBy(() -> state.update(null)).isInstanceOf(NullPointerException.class);
@@ -231,7 +231,7 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isNull();
             assertThat(state.get()).isNull();
             state.addAll(Collections.emptyList());
@@ -271,7 +271,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - abc spreads the values over three namespaces
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.add(33L);
             state.add(55L);
@@ -289,7 +289,7 @@ class BatchExecutionStateBackendTest {
 
             // make sure all lists / maps are cleared
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -315,7 +315,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - def spreads the values over two namespaces (one empty)
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(44L);
@@ -325,14 +325,14 @@ class BatchExecutionStateBackendTest {
             state.add(55L);
             state.add(33L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
             // make sure all lists / maps are cleared
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -358,14 +358,14 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - ghi is empty
 
-            keyedBackend.setCurrentKey("ghi");
+            keyedBackend.moveToNextKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isNull();
 
             // make sure all lists / maps are cleared
 
-            keyedBackend.setCurrentKey("ghi");
+            keyedBackend.moveToNextKey("ghi");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -391,7 +391,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - jkl has all elements already in the target namespace
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(22L);
@@ -399,12 +399,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -430,7 +430,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - mno has all elements already in one source namespace
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace3);
             state.add(11L);
             state.add(22L);
@@ -438,14 +438,14 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
             // make sure all lists / maps are cleared
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -464,28 +464,28 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isNull();
             state.add(17L);
             state.add(11L);
             assertThat(state.get()).isEqualTo(28L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isEqualTo(28L);
             state.clear();
             assertThat(state.get()).isNull();
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isNull();
             state.add(1L);
             state.add(2L);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             state.add(3L);
             state.add(2L);
             state.add(1L);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isEqualTo(9L);
         }
     }
@@ -511,7 +511,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - abc spreads the values over three namespaces
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.add(33L);
             state.add(55L);
@@ -523,12 +523,12 @@ class BatchExecutionStateBackendTest {
             state.setCurrentNamespace(namespace3);
             state.add(44L);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -556,7 +556,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - def spreads the values over two namespaces (one empty)
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(44L);
@@ -566,12 +566,12 @@ class BatchExecutionStateBackendTest {
             state.add(55L);
             state.add(33L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -597,7 +597,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - ghi is empty
 
-            keyedBackend.setCurrentKey("ghi");
+            keyedBackend.moveToNextKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isNull();
@@ -625,7 +625,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - jkl has all elements already in the target namespace
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(22L);
@@ -633,12 +633,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -666,7 +666,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - mno has all elements already in one source namespace
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace3);
             state.add(11L);
             state.add(22L);
@@ -674,12 +674,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -699,31 +699,31 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isNull();
             state.add(17L);
             state.add(11L);
             assertThat(state.get()).isEqualTo(28L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isEqualTo(28L);
             state.clear();
             assertThat(state.get()).isNull();
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isNull();
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isNull();
             state.add(1L);
             state.add(2L);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             state.add(3L);
             state.add(2L);
             state.add(1L);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isEqualTo(9L);
             state.clear();
             assertThat(state.get()).isNull();
@@ -751,7 +751,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - abc spreads the values over three namespaces
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.add(33L);
             state.add(55L);
@@ -763,12 +763,12 @@ class BatchExecutionStateBackendTest {
             state.setCurrentNamespace(namespace3);
             state.add(44L);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -796,7 +796,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - def spreads the values over two namespaces (one empty)
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(44L);
@@ -806,12 +806,12 @@ class BatchExecutionStateBackendTest {
             state.add(55L);
             state.add(33L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -837,7 +837,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - ghi is empty
 
-            keyedBackend.setCurrentKey("ghi");
+            keyedBackend.moveToNextKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isNull();
@@ -865,7 +865,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - jkl has all elements already in the target namespace
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(22L);
@@ -873,12 +873,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -906,7 +906,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - mno has all elements already in one source namespace
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace3);
             state.add(11L);
             state.add(22L);
@@ -914,12 +914,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -939,28 +939,28 @@ class BatchExecutionStateBackendTest {
                     keyedBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isNull();
             state.add(17L);
             state.add(11L);
             assertThat(state.get()).isEqualTo(28L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             assertThat(state.get()).isEqualTo(28L);
             state.clear();
             assertThat(state.get()).isNull();
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isNull();
             state.add(1L);
             state.add(2L);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             state.add(3L);
             state.add(2L);
             state.add(1L);
 
-            keyedBackend.setCurrentKey("g");
+            keyedBackend.moveToNextKey("g");
             assertThat(state.get()).isEqualTo(9L);
             state.clear();
             assertThat(state.get()).isNull();
@@ -988,7 +988,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - abc spreads the values over three namespaces
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.add(33L);
             state.add(55L);
@@ -1000,12 +1000,12 @@ class BatchExecutionStateBackendTest {
             state.setCurrentNamespace(namespace3);
             state.add(44L);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("abc");
+            keyedBackend.moveToNextKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -1033,7 +1033,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - def spreads the values over two namespaces (one empty)
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(44L);
@@ -1043,12 +1043,12 @@ class BatchExecutionStateBackendTest {
             state.add(55L);
             state.add(33L);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("def");
+            keyedBackend.moveToNextKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -1074,7 +1074,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - ghi is empty
 
-            keyedBackend.setCurrentKey("ghi");
+            keyedBackend.moveToNextKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isNull();
@@ -1102,7 +1102,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - jkl has all elements already in the target namespace
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.add(11L);
             state.add(22L);
@@ -1110,12 +1110,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("jkl");
+            keyedBackend.moveToNextKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -1143,7 +1143,7 @@ class BatchExecutionStateBackendTest {
             // populate the different namespaces
             //  - mno has all elements already in one source namespace
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace3);
             state.add(11L);
             state.add(22L);
@@ -1151,12 +1151,12 @@ class BatchExecutionStateBackendTest {
             state.add(44L);
             state.add(55L);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
             assertThat(state.get()).isEqualTo(expectedResult);
 
-            keyedBackend.setCurrentKey("mno");
+            keyedBackend.moveToNextKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
             assertThat(state.get()).isNull();
@@ -1175,7 +1175,7 @@ class BatchExecutionStateBackendTest {
             MapState<Integer, Long> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            backend.setCurrentKey(1);
+            backend.moveToNextKey(1);
             assertThat(state.isEmpty()).isTrue();
 
             int stateSize = 1024;
@@ -1211,7 +1211,7 @@ class BatchExecutionStateBackendTest {
             MapState<Integer, Long> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            backend.setCurrentKey(1);
+            backend.moveToNextKey(1);
             int stateSize = 4096;
             for (int i = 0; i < stateSize; i++) {
                 state.put(i, i * 2L);
@@ -1254,7 +1254,7 @@ class BatchExecutionStateBackendTest {
                 backend.getPartitionedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-        backend.setCurrentKey(1);
+        backend.moveToNextKey(1);
         assertThat(state.value()).isNull();
 
         state.update("Ciao");
@@ -1278,7 +1278,7 @@ class BatchExecutionStateBackendTest {
                 backend.getPartitionedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-        backend.setCurrentKey(1);
+        backend.moveToNextKey(1);
         assertThat(state.value()).isEqualTo("Hello");
 
         state.update("Ciao");
@@ -1303,7 +1303,7 @@ class BatchExecutionStateBackendTest {
                 backend.getPartitionedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-        backend.setCurrentKey(1);
+        backend.moveToNextKey(1);
         assertThat(state.get()).isNull();
 
         state.add("Ciao");
@@ -1327,7 +1327,7 @@ class BatchExecutionStateBackendTest {
                 backend.getPartitionedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-        backend.setCurrentKey(1);
+        backend.moveToNextKey(1);
         assertThat(state.get()).isNull();
 
         state.update(Arrays.asList("Ciao", "Bello"));
@@ -1352,7 +1352,7 @@ class BatchExecutionStateBackendTest {
                 backend.getPartitionedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-        backend.setCurrentKey(1);
+        backend.moveToNextKey(1);
         assertThat(state.entries()).isNotNull();
         assertThat(state.entries().iterator()).isExhausted();
 

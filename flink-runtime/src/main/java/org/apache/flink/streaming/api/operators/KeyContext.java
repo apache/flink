@@ -28,5 +28,14 @@ public interface KeyContext {
 
     void setCurrentKey(Object key);
 
+    /**
+     * Moves to the next key of a key-sorted input, e.g. when the next record of a sorted input in
+     * BATCH execution belongs to a new key. Unlike {@link #setCurrentKey}, it must never go back to
+     * a key that was current before. In BATCH execution keys may only change this way.
+     */
+    default void moveToNextKey(Object key) {
+        setCurrentKey(key);
+    }
+
     Object getCurrentKey();
 }

@@ -503,6 +503,17 @@ public abstract class AbstractStreamOperatorV2<OUT>
         stateHandler.setCurrentKey(key);
     }
 
+    /**
+     * Sets the key of the next record of a keyed input. Unlike {@link #setCurrentKey}, which an
+     * operator may call to switch to any key, it never goes back to a previous key of a key-sorted
+     * input. Override it, not {@link #setCurrentKey}, to act before the input moves on to the next
+     * key, e.g. to flush records buffered for the current key.
+     */
+    @Override
+    public void moveToNextKey(Object key) {
+        stateHandler.moveToNextKey(key);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Object getCurrentKey() {
         return stateHandler.getCurrentKey();
