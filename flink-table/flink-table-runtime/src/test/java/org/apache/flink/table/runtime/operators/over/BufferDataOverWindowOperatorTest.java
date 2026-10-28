@@ -204,6 +204,8 @@ class BufferDataOverWindowOperatorTest {
                         any(ClassLoader.class)))
                 .thenReturn(0.99);
         when(streamConfig.getOperatorID()).thenReturn(new OperatorID());
+        when(streamConfig.getInputs(any(ClassLoader.class)))
+                .thenReturn(new StreamConfig.InputConfig[0]);
         operator =
                 new BufferDataOverWindowOperator(
                         new StreamOperatorParameters<>(

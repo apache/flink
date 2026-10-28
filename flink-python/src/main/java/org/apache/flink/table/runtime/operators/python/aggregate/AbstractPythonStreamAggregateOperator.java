@@ -209,6 +209,11 @@ public abstract class AbstractPythonStreamAggregateOperator
     }
 
     @Override
+    public void moveToNextKey(Object key) {
+        keyForTimerService = key;
+    }
+
+    @Override
     public Object getCurrentKey() {
         return keyForTimerService;
     }
