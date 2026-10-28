@@ -32,6 +32,9 @@ under the License.
 
 [Canal](https://github.com/alibaba/canal/wiki) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL into other systems. Canal provides a unified format schema for changelog and supports to serialize messages using JSON and [protobuf](https://developers.google.com/protocol-buffers) (protobuf is the default format for Canal).
 
+This format reads change events that Canal has already written to a system such as Kafka. To
+read changes directly from a database instead, see [Flink CDC](https://nightlies.apache.org/flink/flink-cdc-docs-stable/docs/connectors/flink-sources/overview/).
+
 Flink supports to interpret Canal JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
  - synchronizing incremental data from databases to other systems
  - auditing logs

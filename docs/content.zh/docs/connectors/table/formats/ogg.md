@@ -32,6 +32,9 @@ label "Format: Deserialization Schema" >}}
 [Oracle GoldenGate](https://www.oracle.com/integration/goldengate/) (a.k.a ogg) 是一个实现异构 IT 环境间数据实时数据集成和复制的综合软件包。
 该产品集支持高可用性解决方案、实时数据集成、事务更改数据捕获、运营和分析企业系统之间的数据复制、转换和验证。Ogg 为变更日志提供了统一的格式结构，并支持使用 JSON 序列化消息。
 
+This format reads change events that Oracle GoldenGate has already written to a system such as Kafka. To
+read changes directly from a database instead, see [Flink CDC](https://nightlies.apache.org/flink/flink-cdc-docs-stable/docs/connectors/flink-sources/overview/).
+
 Flink 支持将 Ogg JSON 消息解析为 INSERT/UPDATE/DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常有用，例如
 
 - 将增量数据从数据库同步到其他系统

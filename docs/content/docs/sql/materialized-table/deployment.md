@@ -82,7 +82,11 @@ Start the SQL Gateway using:
 ```
 
 <span class="label label-danger">Note</span>
-The Catalog must support creating materialized tables, which is currently only supported by [Paimon Catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table).
+The Catalog must support creating materialized tables.
+[Apache Paimon]({{< ref "docs/connectors/other-projects/paimon" >}}) supports them, and so does
+[Apache Fluss](https://fluss.apache.org/docs/engine-flink/ddl/#materialized-table) for the continuous
+refresh mode only. The test-filesystem catalog used in the
+[Quickstart]({{< ref "docs/sql/materialized-table/quickstart" >}}) is meant for testing only.
 
 # Operation Guide
 
