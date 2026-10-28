@@ -109,9 +109,10 @@ By default, checkpointing is disabled. See [Checkpointing]({{< ref "docs/dev/dat
 For this mechanism to realize its full guarantees, the data
 stream source (such as message queue or broker) needs to be able to rewind the
 stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has
-this ability and Flink's connector to Kafka exploits this. See [Fault
-Tolerance Guarantees of Data Sources and Sinks]({{< ref "docs/connectors/datastream/guarantees" >}}) for more information about the guarantees
-provided by Flink's connectors.
+this ability and Flink's connector to Kafka exploits this. See the fault tolerance guarantees for
+[SQL & Table API connectors]({{< ref "docs/connectors/table/overview" >}}#fault-tolerance-guarantees) and
+[DataStream connectors]({{< ref "docs/connectors/datastream/overview" >}}#fault-tolerance-guarantees)
+for more information about the guarantees provided by Flink's connectors.
 {{< /hint >}}
 
 {{< hint info >}} 
