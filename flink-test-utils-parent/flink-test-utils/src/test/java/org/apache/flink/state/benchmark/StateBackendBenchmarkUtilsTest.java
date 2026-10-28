@@ -123,7 +123,7 @@ public class StateBackendBenchmarkUtilsTest {
         KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
         ListState<Long> listState = getListState(backend, listStateDescriptor);
         for (long i = 0; i < 10; i++) {
-            backend.setCurrentKey(i);
+            backend.moveToNextKey(i);
             listState.add(i);
         }
         if (backend instanceof RocksDBKeyedStateBackend) {

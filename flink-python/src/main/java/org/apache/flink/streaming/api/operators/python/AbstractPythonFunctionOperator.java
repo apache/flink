@@ -234,6 +234,9 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             while (!isBundleFinished()) {
                 try {
                     invokeFinishBundle();
+                    // register the timers of the bundle while the current key is still set, as
+                    // they must not switch the key back once it has moved on
+                    drainUnregisteredTimers();
                     fireAllRegisteredTimers(newKey);
                 } catch (Exception e) {
                     throw new WrappingRuntimeException(e);

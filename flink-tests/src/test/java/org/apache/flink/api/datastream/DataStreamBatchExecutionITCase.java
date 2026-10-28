@@ -26,8 +26,10 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -44,8 +46,10 @@ import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -58,15 +62,21 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.CollectionUtil.iteratorToList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration test for {@link RuntimeExecutionMode#BATCH} execution on the DataStream API.
@@ -530,6 +540,60 @@ class DataStreamBatchExecutionITCase {
         }
     }
 
+    /**
+     * An operator that buffers records of several keys and later processes them key by key, via
+     * {@code setCurrentKey}, works in STREAMING. In BATCH execution the keyed state backend keeps
+     * only the current key's state, so going back to a key that the sorted input already left would
+     * silently lose that key's state: the job must fail instead.
+     */
+    @Test
+    void batchOperatorGoingBackToAPreviousKeyFails() throws Exception {
+        assertThat(runBufferingSum(RuntimeExecutionMode.STREAMING, false))
+                .containsExactlyInAnyOrderEntriesOf(EXPECTED_BUFFERING_SUMS);
+        assertThatThrownBy(() -> runBufferingSum(RuntimeExecutionMode.BATCH, false))
+                .hasStackTraceContaining("Cannot switch the current key from b to a");
+    }
+
+    /** The same operator works in BATCH if it flushes its buffer before the next key. */
+    @Test
+    void batchOperatorFlushingBeforeTheNextKey() throws Exception {
+        assertThat(runBufferingSum(RuntimeExecutionMode.STREAMING, true))
+                .containsExactlyInAnyOrderEntriesOf(EXPECTED_BUFFERING_SUMS);
+        assertThat(runBufferingSum(RuntimeExecutionMode.BATCH, true))
+                .containsExactlyInAnyOrderEntriesOf(EXPECTED_BUFFERING_SUMS);
+    }
+
+    private static final Map<String, Integer> EXPECTED_BUFFERING_SUMS = Map.of("a", 3, "b", 1);
+
+    /** Returns the last sum emitted for each key. */
+    private static Map<String, Integer> runBufferingSum(
+            RuntimeExecutionMode mode, boolean flushBeforeNextKey) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(mode);
+        env.setParallelism(1);
+        RestartStrategyUtils.configureNoRestartStrategy(env);
+
+        // With a buffer of two records, a1 and a2 are summed into a's state, a3 stays buffered
+        // when the input moves on to b, and the flush of [a3, b1] goes back to a.
+        DataStream<Tuple2<String, Integer>> sums =
+                env.fromData(
+                                Tuple2.of("a", 1),
+                                Tuple2.of("a", 1),
+                                Tuple2.of("a", 1),
+                                Tuple2.of("b", 1))
+                        .keyBy(in -> in.f0)
+                        .transform(
+                                "buffering-sum",
+                                Types.TUPLE(Types.STRING, Types.INT),
+                                new BufferingSumOperator(2, flushBeforeNextKey));
+
+        Map<String, Integer> lastSums = new HashMap<>();
+        try (CloseableIterator<Tuple2<String, Integer>> result = sums.executeAndCollect()) {
+            result.forEachRemaining(sum -> lastSums.put(sum.f0, sum.f1));
+        }
+        return lastSums;
+    }
+
     private StreamExecutionEnvironment getExecutionEnvironment() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -737,6 +801,71 @@ class DataStreamBatchExecutionITCase {
                             operatorState.add(element.getValue().f0);
                         }
                     });
+        }
+    }
+
+    /**
+     * Buffers up to {@code bufferSize} records of any keys and then sums them per key into keyed
+     * state, switching to each record's key with {@code setCurrentKey}, like operators that batch
+     * records across keys to save state accesses. Emits the updated sum of each processed record.
+     * Optionally flushes the buffer before the input moves on to the next key, which BATCH
+     * execution requires.
+     */
+    private static class BufferingSumOperator
+            extends AbstractStreamOperator<Tuple2<String, Integer>>
+            implements OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>>,
+                    BoundedOneInput {
+
+        private final int bufferSize;
+        private final boolean flushBeforeNextKey;
+        private final List<Tuple2<String, Integer>> buffer = new ArrayList<>();
+        private transient ValueState<Integer> sum;
+
+        BufferingSumOperator(int bufferSize, boolean flushBeforeNextKey) {
+            this.bufferSize = bufferSize;
+            this.flushBeforeNextKey = flushBeforeNextKey;
+        }
+
+        @Override
+        public void moveToNextKey(Object key) {
+            if (flushBeforeNextKey && !Objects.equals(key, getCurrentKey())) {
+                try {
+                    flush();
+                } catch (Exception e) {
+                    throw new FlinkRuntimeException(e);
+                }
+            }
+            super.moveToNextKey(key);
+        }
+
+        @Override
+        public void open() throws Exception {
+            super.open();
+            sum = getRuntimeContext().getState(new ValueStateDescriptor<>("sum", Types.INT));
+        }
+
+        @Override
+        public void processElement(StreamRecord<Tuple2<String, Integer>> element) throws Exception {
+            buffer.add(element.getValue());
+            if (buffer.size() >= bufferSize) {
+                flush();
+            }
+        }
+
+        @Override
+        public void endInput() throws Exception {
+            flush();
+        }
+
+        private void flush() throws Exception {
+            for (Tuple2<String, Integer> record : buffer) {
+                setCurrentKey(record.f0);
+                Integer current = sum.value();
+                int updated = (current == null ? 0 : current) + record.f1;
+                sum.update(updated);
+                output.collect(new StreamRecord<>(Tuple2.of(record.f0, updated)));
+            }
+            buffer.clear();
         }
     }
 }
