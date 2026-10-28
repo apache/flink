@@ -3289,6 +3289,26 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition VARIANT_GET =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("VARIANT_GET")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.VARIANT_GET)
+                    .outputTypeStrategy(SpecificTypeStrategies.VARIANT_GET)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.VariantGetFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition TRY_VARIANT_GET =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TRY_VARIANT_GET")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.VARIANT_GET)
+                    .outputTypeStrategy(SpecificTypeStrategies.VARIANT_GET)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.TryVariantGetFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Bitmap functions
     // --------------------------------------------------------------------------------------------

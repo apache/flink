@@ -280,6 +280,14 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("PARSE_XML(a, b)", str(expr1.parse_xml(expr2)))
         self.assertEqual("TRY_PARSE_XML(a, b)", str(expr1.try_parse_xml(expr2)))
 
+        # variant functions
+        self.assertEqual("VARIANT_GET(a, '$.x')", str(expr1.variant_get('$.x')))
+        self.assertEqual("VARIANT_GET(a, '$.x', 'INT')",
+                         str(expr1.variant_get('$.x', DataTypes.INT())))
+        self.assertEqual("TRY_VARIANT_GET(a, b)", str(expr1.try_variant_get(expr2)))
+        self.assertEqual("TRY_VARIANT_GET(a, '$.x', 'ARRAY<INT>')",
+                         str(expr1.try_variant_get('$.x', DataTypes.ARRAY(DataTypes.INT()))))
+
         # bitmap functions
         self.assertEqual("BITMAP_AND(a, b)", str(expr1.bitmap_and(expr2)))
         self.assertEqual("BITMAP_ANDNOT(a, b)", str(expr1.bitmap_andnot(expr2)))

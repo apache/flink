@@ -1551,7 +1551,10 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
-to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
+to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`. `VARIANT_GET` and
+`TRY_VARIANT_GET` read the value at a
+[path]({{< ref "docs/sql/functions/built-in-functions" >}}#variant-paths) such as `'$.items[0].qty'`
+and cast it by the same rules, returning `NULL` when nothing is at the path.
 
 | Stored kind     | Succeeds for                                        |
 |-----------------|-----------------------------------------------------|

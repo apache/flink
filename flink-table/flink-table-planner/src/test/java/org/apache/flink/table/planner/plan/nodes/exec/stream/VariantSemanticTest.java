@@ -112,6 +112,56 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runSql("INSERT INTO sink_t SELECT TRY_PARSE_JSON(v) FROM t")
                     .build();
 
+    static final String JSON_OBJECT_A_AND_B = "{\"a\": 1, \"b\": 2}";
+
+    static final TableTestProgram TRY_VARIANT_GET_PATH_PER_ROW =
+            TableTestProgram.of(
+                            "try-variant-get-path-per-row",
+                            "validates TRY_VARIANT_GET reads a path that changes from row to row")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v STRING", "p STRING")
+                                    .producedValues(
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.a"),
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.c"),
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.b"),
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.a["),
+                                            // The path before the malformed one again, which a
+                                            // cache that keeps its key on an error gets wrong.
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.b"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("i INT")
+                                    .consumedValues(
+                                            Row.of(1), new Row(1), Row.of(2), new Row(1), Row.of(2))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT TRY_VARIANT_GET(PARSE_JSON(v), p, 'INT') FROM t")
+                    .build();
+
+    static final TableTestProgram VARIANT_GET_FAIL_MALFORMED_PATH =
+            TableTestProgram.of(
+                            "variant-get-fail-malformed-path",
+                            "validates VARIANT_GET throws on a malformed path that is not a literal")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v STRING", "p STRING")
+                                    .producedValues(
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.a"),
+                                            Row.of(JSON_OBJECT_A_AND_B, "$.a["))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("i INT")
+                                    .consumedValues(Row.of(1))
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t SELECT VARIANT_GET(PARSE_JSON(v), p, 'INT') FROM t",
+                            TableRuntimeException.class,
+                            "Invalid path '$.a[': expected an index or a quoted name after '$.a['.")
+                    .build();
+
     static final TableTestProgram VARIANT_OMITTED_FROM_INSERT_COLUMN_LIST =
             TableTestProgram.of(
                             "variant-omitted-from-insert-column-list",
@@ -683,6 +733,8 @@ public class VariantSemanticTest extends SemanticTestBase {
                 PARSE_JSON_OF_NULL,
                 PARSE_JSON_FAIL_MALFORMED_JSON,
                 TRY_PARSE_JSON_HANDLE_MALFORMED_JSON,
+                TRY_VARIANT_GET_PATH_PER_ROW,
+                VARIANT_GET_FAIL_MALFORMED_PATH,
                 BUILTIN_AGG,
                 BUILTIN_AGG_WITH_RETRACTION,
                 VARIANT_AS_UDF_ARG,
