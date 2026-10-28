@@ -2461,7 +2461,7 @@ class Expression(Generic[T]):
         Returns the number of elements in a JSON document, or the length of the value at the
         specified path if one is provided.
 
-        The input can be a JSON STRING or a VARIANT. Returns None if the argument is None,
+        The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL,
         the json is invalid, or the path is empty, malformed or does not locate a value.
 
         The path must be a plain path literal such as '$.a.b'. A path carrying a
@@ -2474,15 +2474,15 @@ class Expression(Generic[T]):
         - Objects have a length equal to the number of their key-value pairs.
 
         When provided with a path that uses a wildcard and resolves to 2 or more paths,
-        'json_length' resolves to None.
+        'json_length' resolves to NULL.
 
         json_length also supports input of the VARIANT type; you can pass the output of
-        PARSE_JSON into json_length.
+        parse_json into json_length.
 
-        Because a None result can mean several different things (the input is not valid
+        Because a NULL result can mean several different things (the input is not valid
         JSON, the path does not match anything, or a wildcard path matched 2 or more
         nodes), it is recommended to pair json_length with a helper function so invalid
-        input is handled explicitly rather than silently returning None:
+        input is handled explicitly rather than silently returning NULL:
 
         - Without a path, guard the call with is_json to separate malformed input from a
           real result.
@@ -2491,10 +2491,10 @@ class Expression(Generic[T]):
 
         ::
 
-            # returns the length only for valid JSON, otherwise None means "invalid input"
+            # returns the length only for valid JSON, otherwise NULL means "invalid input"
             >>> lit("[1,2]").is_json().then(lit("[1,2]").json_length(), null_of(DataTypes.INT()))
 
-            # path is present even when json_length is None due to a multi-match wildcard
+            # path is present even when json_length is NULL due to a multi-match wildcard
             >>> lit("{}").json_exists("$.items[*]")
             >>> lit("{}").json_length("$.items[*]")
 
@@ -2509,9 +2509,9 @@ class Expression(Generic[T]):
             >>> lit('{"1": [1,2,3], "2": "bye bye"}').json_length('$.1') # 3
             >>> lit('[1,2,3,4,5]').json_length('$[3]') # 1
 
-            >>> lit('[1,2,3,4,5]').json_length('$[7]') # None
-            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
-            >>> lit('[1,2,3,4,5]').json_length('$.[') # None
+            >>> lit('[1,2,3,4,5]').json_length('$[7]') # NULL
+            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # NULL
+            >>> lit('[1,2,3,4,5]').json_length('$.[') # NULL
         """
         if path is None:
             return _unary_op("jsonLength")(self)
