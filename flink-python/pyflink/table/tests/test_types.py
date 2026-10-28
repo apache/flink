@@ -35,7 +35,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
                                  _from_java_data_type, ZonedTimestampType,
-                                 LocalZonedTimestampType, _to_java_data_type)
+                                 LocalZonedTimestampType, _to_java_data_type, create_arrow_schema)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -818,6 +818,38 @@ class DataTypeVerificationTests(PyFlinkTestCase):
 
 
 class DataTypeConvertTests(PyFlinkTestCase):
+
+    def test_create_arrow_schema_with_nested_types(self):
+        import pyarrow as pa
+
+        row_type = DataTypes.ROW([DataTypes.FIELD("value", DataTypes.INT().not_null())])
+        arrow_row_type = pa.struct([pa.field("value", pa.int32(), nullable=False)])
+        nested_row_type = DataTypes.ROW([DataTypes.FIELD("nested", row_type)])
+        arrow_nested_row_type = pa.struct([pa.field("nested", arrow_row_type)])
+        test_types = [
+            (DataTypes.ARRAY(row_type), pa.list_(arrow_row_type), ValueError),
+            (nested_row_type, arrow_nested_row_type, TypeError),
+            (DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)),
+             pa.list_(pa.timestamp('ms')), ValueError),
+            (DataTypes.ROW([DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3))]),
+             pa.struct([pa.field("ts", pa.timestamp('ms'))]), TypeError),
+            (DataTypes.ARRAY(DataTypes.ARRAY(row_type)),
+             pa.list_(pa.list_(arrow_row_type)), ValueError),
+            (DataTypes.MAP(DataTypes.STRING(), DataTypes.ARRAY(nested_row_type)),
+             pa.map_(pa.string(), pa.list_(arrow_nested_row_type)), ValueError),
+            (DataTypes.MAP(nested_row_type, DataTypes.STRING()),
+             pa.map_(arrow_nested_row_type, pa.string()), TypeError),
+        ]
+        for data_type, arrow_type, error in test_types:
+            with self.subTest(data_type=data_type):
+                expected = pa.schema([pa.field("payload", arrow_type, nullable=False)])
+                actual = create_arrow_schema(
+                    ["payload"], [data_type.not_null()], allow_nested=True)
+                self.assertEqual(expected, actual)
+                for kwargs in [{}, {'allow_nested': False}]:
+                    with self.subTest(kwargs=kwargs):
+                        with self.assertRaises(error):
+                            create_arrow_schema(["payload"], [data_type], **kwargs)
 
     def test_basic_type(self):
         test_types = [DataTypes.STRING(),
