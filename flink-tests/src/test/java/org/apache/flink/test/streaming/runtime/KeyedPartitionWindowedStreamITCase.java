@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
@@ -303,6 +304,27 @@ class KeyedPartitionWindowedStreamITCase {
                 "7 3 1 0 ",
                 "100 79 1 0 ",
                 "77 66 55 8 ");
+    }
+
+    @Test
+    void testSortPartitionInBatchExecutionMode() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(1);
+        CloseableIterator<String> resultIterator =
+                env.fromData(
+                                Tuple2.of("key1", 7),
+                                Tuple2.of("key2", 100),
+                                Tuple2.of("key1", 0),
+                                Tuple2.of("key2", 1),
+                                Tuple2.of("key1", 3))
+                        .keyBy(value -> value.f0)
+                        .fullWindowPartition()
+                        .sortPartition(1, Order.ASCENDING)
+                        .map(value -> value.f0 + " " + value.f1)
+                        .executeAndCollect();
+        assertThat(Lists.newArrayList(resultIterator))
+                .containsExactly("key1 0", "key1 3", "key1 7", "key2 1", "key2 100");
     }
 
     private CloseableIterator<String> sortPartitionOfTupleElementsInOrder(Order order)

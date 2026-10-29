@@ -19,13 +19,12 @@
 package org.apache.flink.streaming.api.operators.sortpartition;
 
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
@@ -46,10 +45,9 @@ class KeyedSortPartitionOperatorTest {
         KeyedSortPartitionOperator<Tuple2<Integer, String>, String> operator1 =
                 createSortPartitionOperatorWithPositionField();
         OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Tuple2<Integer, String>>
-                testHarness1 = new OneInputStreamOperatorTestHarness<>(operator1);
-        StreamConfig streamConfig1 = testHarness1.getStreamConfig();
-        streamConfig1.setStateKeySerializer(Types.STRING.createSerializer((SerializerConfig) null));
-        streamConfig1.serializeAllConfigs();
+                testHarness1 =
+                        new KeyedOneInputStreamOperatorTestHarness<>(
+                                operator1, value -> value.f1, Types.STRING);
         Queue<Object> expectedOutput1 = new LinkedList<>();
         testHarness1.open();
         testHarness1.processElement(new StreamRecord<>(Tuple2.of(3, "3")));
@@ -66,10 +64,8 @@ class KeyedSortPartitionOperatorTest {
         KeyedSortPartitionOperator<TestPojo, String> operator2 =
                 createSortPartitionOperatorWithStringField();
         OneInputStreamOperatorTestHarness<TestPojo, TestPojo> testHarness2 =
-                new OneInputStreamOperatorTestHarness<>(operator2);
-        StreamConfig streamConfig2 = testHarness2.getStreamConfig();
-        streamConfig2.setStateKeySerializer(Types.STRING.createSerializer((SerializerConfig) null));
-        streamConfig2.serializeAllConfigs();
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator2, TestPojo::getKey, Types.STRING);
         Queue<Object> expectedOutput2 = new LinkedList<>();
         testHarness2.open();
         testHarness2.processElement(new StreamRecord<>(new TestPojo("3", 3)));
@@ -86,10 +82,8 @@ class KeyedSortPartitionOperatorTest {
         KeyedSortPartitionOperator<TestPojo, String> operator3 =
                 createSortPartitionOperatorWithKeySelector();
         OneInputStreamOperatorTestHarness<TestPojo, TestPojo> testHarness3 =
-                new OneInputStreamOperatorTestHarness<>(operator3);
-        StreamConfig streamConfig3 = testHarness3.getStreamConfig();
-        streamConfig3.setStateKeySerializer(Types.STRING.createSerializer((SerializerConfig) null));
-        streamConfig3.serializeAllConfigs();
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator3, TestPojo::getKey, Types.STRING);
         Queue<Object> expectedOutput3 = new LinkedList<>();
         testHarness3.open();
         testHarness3.processElement(new StreamRecord<>(new TestPojo("3", 3)));
@@ -109,10 +103,9 @@ class KeyedSortPartitionOperatorTest {
         KeyedSortPartitionOperator<Tuple2<Integer, String>, String> sortPartitionOperator =
                 createSortPartitionOperatorWithPositionField();
         OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Tuple2<Integer, String>>
-                testHarness = new OneInputStreamOperatorTestHarness<>(sortPartitionOperator);
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setStateKeySerializer(Types.STRING.createSerializer((SerializerConfig) null));
-        streamConfig.serializeAllConfigs();
+                testHarness =
+                        new KeyedOneInputStreamOperatorTestHarness<>(
+                                sortPartitionOperator, value -> value.f1, Types.STRING);
         testHarness.open();
         testHarness.processElement(new StreamRecord<>(Tuple2.of(1, "1")));
         testHarness.endInput();
