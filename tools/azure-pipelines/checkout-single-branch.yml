@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Fetch only the built ref at full depth: no all-branch/tag sync, but HEAD~N diffs still resolve.
+# Fetch only the built ref, blobless: full commit/tree history so HEAD~N diffs still resolve,
+# file contents are fetched only for the checked-out commit.
 steps:
   - checkout: none
   - bash: |
@@ -21,6 +22,6 @@ steps:
       git init .
       git config --global --add safe.directory "$PWD"
       git remote add origin "$(Build.Repository.Uri)"
-      git fetch --no-tags origin "$(Build.SourceBranch)"
+      git fetch --no-tags --filter=blob:none origin "$(Build.SourceBranch)"
       git checkout --force "$(Build.SourceVersion)"
-    displayName: Checkout single branch (full history)
+    displayName: Checkout single branch (blobless)
