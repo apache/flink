@@ -36,6 +36,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.fail;
 
@@ -68,8 +69,7 @@ class UsingRemoteJarITCase extends HdfsITCaseBase {
 
     @Override
     void createHDFS() {
-        super.createHDFS();
-        hdPath = new org.apache.hadoop.fs.Path("/test.jar");
+        hdPath = new org.apache.hadoop.fs.Path("/" + UUID.randomUUID() + "/test.jar");
         try {
             hdfs = hdPath.getFileSystem(hdConf);
 
@@ -83,11 +83,10 @@ class UsingRemoteJarITCase extends HdfsITCaseBase {
     @Override
     void destroyHDFS() {
         try {
-            hdfs.delete(hdPath, false);
+            hdfs.delete(hdPath.getParent(), true);
         } catch (IOException e) {
             fail("Failed to cleanup HDFS path" + e.getMessage(), e);
         }
-        super.destroyHDFS();
     }
 
     @TestTemplate
