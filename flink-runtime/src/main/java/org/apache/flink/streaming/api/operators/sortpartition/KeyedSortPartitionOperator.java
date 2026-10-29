@@ -207,10 +207,19 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
         }
     }
 
+    /**
+     * Does not set the current key. This operator sorts records by key itself, so its input is not
+     * sorted by key, and it uses neither keyed state nor timers. Switching the key of the keyed
+     * state backend for every record would fail in BATCH execution, which expects keys to change
+     * only in sorted order.
+     */
+    @Override
+    public void setKeyContextElement1(StreamRecord record) {}
+
     @Override
     public void processElement(StreamRecord<INPUT> element) throws Exception {
-        KEY currentKey = (KEY) getCurrentKey();
-        recordKeySerializer.serialize(currentKey, dataOutputSerializer);
+        KEY key = ((KeySelector<INPUT, KEY>) stateKeySelector1).getKey(element.getValue());
+        recordKeySerializer.serialize(key, dataOutputSerializer);
         byte[] serializedKey = dataOutputSerializer.getCopyOfBuffer();
         dataOutputSerializer.clear();
         if (sortFieldSelector != null) {
