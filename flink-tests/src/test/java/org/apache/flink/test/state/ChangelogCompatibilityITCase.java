@@ -46,6 +46,7 @@ import java.util.Optional;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
+import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
 import static org.apache.flink.configuration.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
@@ -307,6 +308,11 @@ public class ChangelogCompatibilityITCase {
         Configuration config = new Configuration();
         config.set(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
         config.set(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
+        // The completed checkpoint store reads this from the cluster config, not the job config.
+        // The checkpoint stats are snapshotted when the job is archived, and that snapshot can be
+        // stale (CheckpointStatsTracker#createSnapshot skips the refresh if its lock is busy). The
+        // picked checkpoint may then already be subsumed and deleted with the default of 1.
+        config.set(MAX_RETAINED_CHECKPOINTS, 10);
         FsStateChangelogStorageFactory.configure(
                 config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
