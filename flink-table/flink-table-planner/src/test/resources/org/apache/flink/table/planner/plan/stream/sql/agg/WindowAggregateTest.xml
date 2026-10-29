@@ -2269,6 +2269,104 @@ Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_e
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOnNullSideOfOuterWindowJoin[aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT null_side.window_start, null_side.window_end, COUNT(*) AS cnt
+FROM TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) preserved_side
+LEFT JOIN TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) null_side
+ON preserved_side.window_start = null_side.window_start
+  AND preserved_side.window_end = null_side.window_end
+  AND preserved_side.a = null_side.a
+GROUP BY null_side.window_start, null_side.window_end
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
++- LogicalProject(window_start=[$17], window_end=[$18])
+   +- LogicalJoin(condition=[AND(=($7, $17), =($8, $18), =($0, $10))], joinType=[left])
+      :- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+      :     +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[window_start, window_end], select=[window_start, window_end, COUNT(*) AS cnt])
++- Exchange(distribution=[hash[window_start, window_end]])
+   +- Calc(select=[window_start0 AS window_start, window_end0 AS window_end])
+      +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[LeftOuterJoin], where=[=(a, a0)], select=[a, window_start, window_end, a0, window_start0, window_end0])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, window_start, window_end])
+         :     +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+         :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+         :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, window_start, window_end])
+               +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnPreservedSideOfOuterWindowJoin[aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT preserved_side.window_start, preserved_side.window_end, COUNT(*) AS cnt
+FROM TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) preserved_side
+LEFT JOIN TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) null_side
+ON preserved_side.window_start = null_side.window_start
+  AND preserved_side.window_end = null_side.window_end
+  AND preserved_side.a = null_side.a
+GROUP BY preserved_side.window_start, preserved_side.window_end
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
++- LogicalProject(window_start=[$7], window_end=[$8])
+   +- LogicalJoin(condition=[AND(=($7, $17), =($8, $18), =($0, $10))], joinType=[left])
+      :- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+      :     +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[window_start, window_end, cnt])
++- GlobalWindowAggregate(window=[TUMBLE(win_end=[$window_end], size=[15 min])], select=[COUNT(count1$0) AS cnt, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[single])
+      +- LocalWindowAggregate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[COUNT(*) AS count1$0, slice_end('w$) AS $window_end])
+         +- Calc(select=[window_start, window_end])
+            +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[LeftOuterJoin], where=[=(a, a0)], select=[a, window_start, window_end, a0, window_start0, window_end0])
+               :- Exchange(distribution=[hash[a]])
+               :  +- Calc(select=[a, window_start, window_end])
+               :     +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+               :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+               :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
+               +- Exchange(distribution=[hash[a]])
+                  +- Calc(select=[a, window_start, window_end])
+                     +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProctimeWindowTVFWithCalcOnWindowColumnWhenCantMerge[aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[
