@@ -976,11 +976,33 @@ public class Task
 
             runWithSystemExitMonitoring(finalInvokable::invoke);
         } catch (Throwable throwable) {
-            cleanUpRegistry.registerCloseable(
-                    () -> runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable)));
+            cleanUpRegistry.registerCloseable(() -> cleanUpAfterFailure(finalInvokable, throwable));
             throw throwable;
         }
         runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(null));
+    }
+
+    /**
+     * Cleans up the invokable after it failed with the given {@code failure}. The cleanup runs
+     * after the task switched to its failed state, and the failure was already reported at that
+     * point. A non-fatal exception from the cleanup is therefore logged and added as suppressed to
+     * {@code failure} instead of being propagated, as it would otherwise be treated as a fatal
+     * error of the TaskManager.
+     */
+    private void cleanUpAfterFailure(TaskInvokable invokable, Throwable failure) throws Exception {
+        try {
+            runWithSystemExitMonitoring(() -> invokable.cleanUp(failure));
+        } catch (Throwable cleanUpFailure) {
+            ExceptionUtils.rethrowIfFatalError(cleanUpFailure);
+            LOG.error(
+                    "Error while cleaning up failed task {} ({}).",
+                    taskNameWithSubtask,
+                    executionId,
+                    cleanUpFailure);
+            if (cleanUpFailure != failure) {
+                failure.addSuppressed(cleanUpFailure);
+            }
+        }
     }
 
     /**
