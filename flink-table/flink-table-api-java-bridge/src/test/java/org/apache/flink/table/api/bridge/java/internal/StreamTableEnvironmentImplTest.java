@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExecutorMock;
+import org.apache.flink.table.utils.MaterializedTableExecutorFactoryMock;
 import org.apache.flink.table.utils.PlannerMock;
 import org.apache.flink.types.Row;
 
@@ -94,7 +95,9 @@ class StreamTableEnvironmentImplTest {
                 env,
                 new TestPlanner(elements.getTransformation()),
                 new ExecutorMock(),
-                true);
+                true,
+                new MaterializedTableExecutorFactoryMock(),
+                null);
     }
 
     private static class TestPlanner extends PlannerMock {

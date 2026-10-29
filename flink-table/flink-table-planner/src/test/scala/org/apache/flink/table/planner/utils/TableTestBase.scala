@@ -44,6 +44,7 @@ import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, InputFormatProvider, ScanTableSource}
 import org.apache.flink.table.data.{DecimalDataUtils, RowData}
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableExecutorFactory
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.expressions.Expression
@@ -1714,7 +1715,8 @@ class TestingTableEnvironment private (
     executor: Executor,
     functionCatalog: FunctionCatalog,
     planner: PlannerBase,
-    isStreamingMode: Boolean)
+    isStreamingMode: Boolean,
+    materializedTableExecutorFactory: MaterializedTableExecutorFactory)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
@@ -1723,7 +1725,9 @@ class TestingTableEnvironment private (
     executor,
     functionCatalog,
     planner,
-    isStreamingMode) {
+    isStreamingMode,
+    materializedTableExecutorFactory,
+    null) {
 
   def getResourceManager: ResourceManager = resourceManager
 
@@ -1840,6 +1844,11 @@ object TestingTableEnvironment {
         functionCatalog)
       .asInstanceOf[PlannerBase]
 
+    val materializedTableExecutorFactory = FactoryUtil.discoverFactory(
+      userClassLoader,
+      classOf[MaterializedTableExecutorFactory],
+      MaterializedTableExecutorFactory.DEFAULT_IDENTIFIER)
+
     new TestingTableEnvironment(
       catalogMgr,
       moduleManager,
@@ -1848,7 +1857,8 @@ object TestingTableEnvironment {
       executor,
       functionCatalog,
       planner,
-      settings.isStreamingMode)
+      settings.isStreamingMode,
+      materializedTableExecutorFactory)
   }
 }
 

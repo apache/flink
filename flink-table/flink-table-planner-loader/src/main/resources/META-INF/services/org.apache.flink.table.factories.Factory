@@ -15,3 +15,4 @@
 
 org.apache.flink.table.planner.loader.DelegateExecutorFactory
 org.apache.flink.table.planner.loader.DelegatePlannerFactory
+org.apache.flink.table.planner.loader.DelegateMaterializedTableExecutorFactory

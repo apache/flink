@@ -16,10 +16,45 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.service.materializedtable;
+package org.apache.flink.table.planner.delegation.materializedtable;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableJobSubmitter;
+import org.apache.flink.table.delegation.materializedtable.RefreshJobResult;
+import org.apache.flink.table.delegation.materializedtable.RefreshJobTarget;
+import org.apache.flink.table.delegation.materializedtable.RefreshWorkflowContext;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
+import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.refresh.ContinuousRefreshHandler;
+import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,18 +62,37 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.time.ZoneId;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
-/** Test for {@link MaterializedTableManager}. */
-class MaterializedTableManagerTest {
+/** Test for {@link DefaultMaterializedTableExecutor}. */
+class DefaultMaterializedTableExecutorTest {
+
+    private static final String CATALOG = "mt_cat";
+    private static final String DATABASE = "mt_db";
+    private static final String SAVEPOINT_DIRECTORY = "file:///savepoints";
+
+    private static final String CREATE_MATERIALIZED_TABLE =
+            "CREATE MATERIALIZED TABLE my_mt WITH ('connector' = 'values')"
+                    + "\n FRESHNESS = INTERVAL '30' SECOND"
+                    + "\n REFRESH_MODE = CONTINUOUS"
+                    + "\n AS SELECT k, v FROM datagen_source";
+
+    private final FailingCatalog catalog = new FailingCatalog(CATALOG, DATABASE);
 
     @Test
     void testGetManuallyRefreshStatement() {
@@ -46,7 +100,7 @@ class MaterializedTableManagerTest {
                 ObjectIdentifier.of("catalog", "database", "my_materialized_table");
         String query = "SELECT * FROM my_source_table";
         assertThat(
-                        MaterializedTableManager.getRefreshStatement(
+                        DefaultMaterializedTableExecutor.getRefreshStatement(
                                 tableIdentifier,
                                 query,
                                 Collections.emptyMap(),
@@ -59,7 +113,7 @@ class MaterializedTableManagerTest {
         partitionSpec.put("k1", "v1");
         partitionSpec.put("k2", "v2");
         assertThat(
-                        MaterializedTableManager.getRefreshStatement(
+                        DefaultMaterializedTableExecutor.getRefreshStatement(
                                 tableIdentifier, query, partitionSpec, Collections.emptyMap()))
                 .isEqualTo(
                         "INSERT OVERWRITE `catalog`.`database`.`my_materialized_table`\n"
@@ -69,7 +123,6 @@ class MaterializedTableManagerTest {
 
     @Test
     void testGenerateInsertStatement() {
-        // Test generate insert crate statement
         ObjectIdentifier materializedTableIdentifier =
                 ObjectIdentifier.of("catalog", "database", "table");
         String definitionQuery = "SELECT * FROM source_table";
@@ -77,7 +130,7 @@ class MaterializedTableManagerTest {
                 "INSERT INTO `catalog`.`database`.`table`\n" + "SELECT * FROM source_table";
 
         String actualStatement =
-                MaterializedTableManager.getInsertStatement(
+                DefaultMaterializedTableExecutor.getInsertStatement(
                         materializedTableIdentifier, definitionQuery, Collections.emptyMap());
 
         assertThat(actualStatement).isEqualTo(expectedStatement);
@@ -98,7 +151,7 @@ class MaterializedTableManagerTest {
                         + "SELECT * FROM source_table";
 
         String actualStatement =
-                MaterializedTableManager.getInsertStatement(
+                DefaultMaterializedTableExecutor.getInsertStatement(
                         materializedTableIdentifier, definitionQuery, dynamicOptions);
         assertThat(actualStatement).isEqualTo(expectedStatement);
     }
@@ -110,7 +163,7 @@ class MaterializedTableManagerTest {
 
         if (testSpec.errorMessage == null) {
             Map<String, String> actualRefreshPartition =
-                    MaterializedTableManager.getPeriodRefreshPartition(
+                    DefaultMaterializedTableExecutor.getPeriodRefreshPartition(
                             testSpec.schedulerTime,
                             testSpec.freshness,
                             objectIdentifier,
@@ -121,7 +174,7 @@ class MaterializedTableManagerTest {
         } else {
             assertThatThrownBy(
                             () ->
-                                    MaterializedTableManager.getPeriodRefreshPartition(
+                                    DefaultMaterializedTableExecutor.getPeriodRefreshPartition(
                                             testSpec.schedulerTime,
                                             testSpec.freshness,
                                             objectIdentifier,
@@ -406,6 +459,205 @@ class MaterializedTableManagerTest {
                         .tableOptions("partition.fields.hour.date-formatter", "HH")
                         .errorMessage(
                                 "Failed to parse a valid partition value for the field 'day' in materialized table `catalog`.`database`.`table` using the scheduler time '2024-01-01' based on the date format 'yyyy-MM-dd HH:mm:ss'."));
+    }
+
+    @Test
+    void resumeDoesNotRestartARefreshJobThatIsOnlyLocallySuspended() {
+        final TestingJobClient suspendedJob =
+                new TestingJobClient(new JobID(), JobStatus.SUSPENDED);
+        final ScriptedJobSubmitter jobSubmitter = new ScriptedJobSubmitter(suspendedJob);
+        final TableEnvironment tableEnv = createTableEnvironment(jobSubmitter);
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER MATERIALIZED TABLE my_mt RESUME"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "continuous refresh job has been resumed, jobId is "
+                                + suspendedJob.getJobID());
+        assertThat(jobSubmitter.submissions).isEqualTo(1);
+    }
+
+    @Test
+    void createReportsARefreshJobItCouldNeitherRecordNorCancel() throws Exception {
+        final JobID jobId = new JobID();
+        final TestingJobClient uncancellableJob =
+                new TestingJobClient(jobId, JobStatus.RUNNING)
+                        .withCancelRequest(
+                                () ->
+                                        FutureUtils.completedExceptionally(
+                                                new RuntimeException("injected cancel failure")));
+        final TableEnvironment tableEnv =
+                createTableEnvironment(new ScriptedJobSubmitter(uncancellableJob));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        final Throwable createFailure =
+                catchThrowable(() -> tableEnv.executeSql(CREATE_MATERIALIZED_TABLE));
+
+        assertThat(createFailure)
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to submit continuous refresh job")
+                .hasRootCauseMessage("injected cancel failure");
+        final Throwable unrecordedJobFailure = createFailure.getCause();
+        assertThat(unrecordedJobFailure)
+                .hasMessageContaining(jobId.toHexString())
+                .hasMessageContaining("and cancelling it failed as well")
+                .hasMessageContaining("must be cancelled manually");
+        assertThat(unrecordedJobFailure.getSuppressed())
+                .singleElement()
+                .satisfies(
+                        catalogFailure ->
+                                assertThat(catalogFailure)
+                                        .hasRootCauseMessage("injected alter failure"));
+        assertThat(catalog.tableExists(new ObjectPath(DATABASE, "my_mt"))).isFalse();
+    }
+
+    @Test
+    void createRecordsTheClusterIdOfAKubernetesSessionTarget() throws Exception {
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new TestingJobClient(new JobID(), JobStatus.RUNNING)));
+        tableEnv.getConfig().set("execution.target", "kubernetes-session");
+        tableEnv.getConfig().set("kubernetes.cluster-id", "c1");
+
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+
+        final ContinuousRefreshHandler refreshHandler =
+                getRefreshHandler(catalog, new ObjectPath(DATABASE, "my_mt"));
+        assertThat(refreshHandler.getExecutionTarget()).isEqualTo("kubernetes-session");
+        assertThat(refreshHandler.getClusterId()).isEqualTo("c1");
+    }
+
+    private TableEnvironment createTableEnvironment(ScriptedJobSubmitter jobSubmitter) {
+        final Configuration rootConfiguration = new Configuration();
+        rootConfiguration.set(DeploymentOptions.TARGET, "remote");
+        rootConfiguration.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, SAVEPOINT_DIRECTORY);
+
+        final StreamExecutionEnvironment executionEnvironment =
+                new StreamExecutionEnvironment(rootConfiguration);
+        final ResourceManager resourceManager =
+                ResourceManager.createResourceManager(
+                        new URL[0], getClass().getClassLoader(), rootConfiguration);
+        final ClassLoader userClassLoader = resourceManager.getUserClassLoader();
+        final Executor executor =
+                AbstractStreamTableEnvironmentImpl.lookupExecutor(
+                        userClassLoader, executionEnvironment);
+
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        jobSubmitter.tableConfig = tableConfig;
+
+        final ModuleManager moduleManager = new ModuleManager();
+        final CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .classLoader(userClassLoader)
+                        .config(tableConfig)
+                        .defaultCatalog(CATALOG, catalog)
+                        .executionConfig(executionEnvironment.getConfig())
+                        .build();
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
+        final Planner planner =
+                PlannerFactoryUtil.createPlanner(
+                        executor,
+                        tableConfig,
+                        userClassLoader,
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
+
+        final TableEnvironment tableEnv =
+                new StreamTableEnvironmentImpl(
+                        catalogManager,
+                        moduleManager,
+                        resourceManager,
+                        functionCatalog,
+                        tableConfig,
+                        executionEnvironment,
+                        planner,
+                        executor,
+                        true,
+                        new DefaultMaterializedTableExecutorFactory(),
+                        jobSubmitter);
+        tableEnv.executeSql(
+                "CREATE TABLE datagen_source (k INT, v BIGINT) WITH ('connector' = 'datagen')");
+        return tableEnv;
+    }
+
+    private static ContinuousRefreshHandler getRefreshHandler(Catalog catalog, ObjectPath tablePath)
+            throws Exception {
+        return ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                ((CatalogMaterializedTable) catalog.getTable(tablePath))
+                        .getSerializedRefreshHandler(),
+                DefaultMaterializedTableExecutorTest.class.getClassLoader());
+    }
+
+    private static Predicate<CatalogBaseTable> hasRefreshStatus(RefreshStatus refreshStatus) {
+        return table ->
+                table instanceof CatalogMaterializedTable
+                        && ((CatalogMaterializedTable) table).getRefreshStatus() == refreshStatus;
+    }
+
+    /** Fails a selected table alteration once, so tests can observe a rejected catalog write. */
+    private static final class FailingCatalog extends GenericInMemoryCatalog {
+
+        @Nullable private Predicate<CatalogBaseTable> failingAlterMatcher;
+
+        private FailingCatalog(String name, String defaultDatabase) {
+            super(name, defaultDatabase);
+        }
+
+        /** The next {@code alterTable} whose new table matches fails; the hook then clears. */
+        private void failNextAlterTable(Predicate<CatalogBaseTable> newTableMatches) {
+            this.failingAlterMatcher = newTableMatches;
+        }
+
+        @Override
+        public void alterTable(
+                ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
+                throws TableNotExistException {
+            if (failingAlterMatcher != null && failingAlterMatcher.test(newTable)) {
+                failingAlterMatcher = null;
+                throw new CatalogException("injected alter failure");
+            }
+            super.alterTable(tablePath, newTable, ignoreIfNotExists);
+        }
+    }
+
+    private static final class ScriptedJobSubmitter implements MaterializedTableJobSubmitter {
+
+        private final Deque<JobClient> jobClients;
+        private int submissions;
+        private TableConfig tableConfig;
+
+        private ScriptedJobSubmitter(JobClient... jobClients) {
+            this.jobClients = new ArrayDeque<>(Arrays.asList(jobClients));
+        }
+
+        @Override
+        public RefreshJobResult submitRefreshJob(
+                Configuration executionConfig, String insertStatement) {
+            submissions++;
+            final JobClient jobClient = jobClients.poll();
+            if (jobClient == null) {
+                throw new IllegalStateException(
+                        "Unexpected refresh job submission: " + insertStatement);
+            }
+            return new RefreshJobResult(
+                    RefreshJobTarget.forNewJob(tableConfig),
+                    jobClient.getJobID().toHexString(),
+                    jobClient);
+        }
+
+        @Override
+        public boolean supportsApplicationTargets() {
+            return false;
+        }
+
+        @Override
+        public Optional<RefreshWorkflowContext> getRefreshWorkflowContext() {
+            return Optional.empty();
+        }
     }
 
     private static class TestSpec {
