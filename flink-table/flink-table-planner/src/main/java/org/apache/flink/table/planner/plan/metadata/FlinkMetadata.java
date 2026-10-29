@@ -32,6 +32,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Set;
 
 /** Contains the interfaces for several specified metadata of flink. */
@@ -267,6 +268,32 @@ public abstract class FlinkMetadata {
         /** Handler API. */
         interface Handler extends MetadataHandler<ImmutableColumns> {
             ImmutableBitSet getImmutableColumns(RelNode r, RelMetadataQuery mq);
+        }
+    }
+
+    /** Metadata about which pairs of columns are equated by an equi-join condition. */
+    public interface EquiJoinColumnPairs extends Metadata {
+        Method METHOD = Types.lookupMethod(EquiJoinColumnPairs.class, "getEquiJoinColumnPairs");
+
+        MetadataDef<EquiJoinColumnPairs> DEF =
+                MetadataDef.of(
+                        EquiJoinColumnPairs.class, EquiJoinColumnPairs.Handler.class, METHOD);
+
+        /**
+         * Returns the pairs of output columns that an equi-join condition of the relational
+         * expression or of its inputs equates, e.g. (a1, a2) for {@code ... JOIN ... ON a1 = a2}.
+         * The two columns of a pair are equal or both null in every row, except for a pair from an
+         * outer join's own condition (see {@link EquiJoinColumnPair}). The pairs are undirected,
+         * have no defined order, may repeat and are not transitively closed.
+         *
+         * @return the pairs of equated output columns, empty if there are none or they cannot be
+         *     determined
+         */
+        List<EquiJoinColumnPair> getEquiJoinColumnPairs();
+
+        /** Handler API. */
+        interface Handler extends MetadataHandler<EquiJoinColumnPairs> {
+            List<EquiJoinColumnPair> getEquiJoinColumnPairs(RelNode r, RelMetadataQuery mq);
         }
     }
 }

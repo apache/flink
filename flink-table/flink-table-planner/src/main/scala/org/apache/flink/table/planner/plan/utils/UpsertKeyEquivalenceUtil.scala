@@ -17,17 +17,15 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.metadata.{EquiJoinColumnPair, FlinkRelMetadataQuery}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin
 
-import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Calc, Exchange, Join, JoinRelType, Project}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.util
@@ -36,10 +34,12 @@ import java.util.{List => JList, Map => JMap, Set => JSet}
 import scala.collection.JavaConverters._
 
 /**
- * Finds the upsert keys of a subtree that fall within a target column set, treating equi-join
- * equivalents as interchangeable where the substitution is null-safe (only toward a non-nullable
- * column). The target is fixed, so this stays bounded -- it never materializes equivalent key
- * variants the way eager key enrichment would.
+ * Finds the upsert keys of a subtree that fall within a target column set, treating the columns of
+ * [[FlinkRelMetadataQuery#getEquiJoinColumnPairs]] as interchangeable where the substitution is
+ * null-safe (see `directionalSubstitutions`), also through chains of such pairs. The target is
+ * fixed, so this stays bounded -- it never materializes equivalent key variants the way eager key
+ * enrichment would. For a Calc that forwards deletes by key, [[upsertKeyColumns]] gives the columns
+ * such keys can use, as one column set, so it does not enumerate keys either.
  */
 object UpsertKeyEquivalenceUtil {
 
@@ -62,7 +62,54 @@ object UpsertKeyEquivalenceUtil {
     result
   }
 
-  /** Keys that fit `target` only after an equi-join substitution. */
+  /**
+   * Every output column of `rel` that can be part of one of its upsert keys, reported or recovered
+   * by equi-join substitution, for any target: a superset of the columns of every key
+   * [[upsertKeysWithin]] can return. Recovered columns are pass-through join columns, which every
+   * row a join emits carries: a join accepts deletes by key only from an input whose unique key
+   * contains its join key, and a row an all-inner multi-join emits matched every join condition.
+   */
+  def upsertKeyColumns(rel: RelNode, mq: FlinkRelMetadataQuery): ImmutableBitSet = {
+    val upsertKeys = mq.getUpsertKeys(rel)
+    if (upsertKeys == null) {
+      return ImmutableBitSet.of()
+    }
+    keyColumns(upsertKeys).union(recoverableColumns(rel, mq))
+  }
+
+  /** The columns [[recoverWithin]] can use, over all targets. */
+  private def recoverableColumns(rel: RelNode, mq: FlinkRelMetadataQuery): ImmutableBitSet =
+    rel match {
+      case subset: RelSubset =>
+        recoverableColumns(Util.first(subset.getBest, subset.getOriginal), mq)
+      case vertex: HepRelVertex =>
+        recoverableColumns(vertex.getCurrentRel, mq)
+      case calc: Calc =>
+        projectColumns(upsertKeyColumns(calc.getInput, mq), calcProjects(calc))
+      case project: Project =>
+        projectColumns(upsertKeyColumns(project.getInput, mq), project.getProjects.asScala)
+      case exchange: Exchange =>
+        upsertKeyColumns(exchange.getInput, mq)
+      case join @ (_: Join | _: StreamPhysicalMultiJoin) =>
+        recoverableColumnsAtJoin(join, mq)
+      case _ =>
+        ImmutableBitSet.of()
+    }
+
+  /** [[recoverAtJoin]] over all targets. */
+  private def recoverableColumnsAtJoin(
+      join: RelNode,
+      mq: FlinkRelMetadataQuery): ImmutableBitSet = {
+    val columns = keyPreservingInputs(join, mq).foldLeft(keyColumns(mq.getUpsertKeys(join))) {
+      case (acc, (input, offset)) => acc.union(upsertKeyColumns(input, mq).shift(offset))
+    }
+    withSubstitutes(columns, substitutionsOf(join, mq))
+  }
+
+  /**
+   * Keys that fit `target` only after an equi-join substitution. [[recoverableColumns]] walks the
+   * same nodes, so a node handled here must be handled there too.
+   */
   private def recoverWithin(
       rel: RelNode,
       target: ImmutableBitSet,
@@ -77,9 +124,7 @@ object UpsertKeyEquivalenceUtil {
       recoverThroughProjection(project.getProjects.asScala, project.getInput, target, mq)
     case exchange: Exchange =>
       recoverWithin(exchange.getInput, target, mq)
-    case multiJoin: StreamPhysicalMultiJoin =>
-      recoverAtMultiJoin(multiJoin, target, mq)
-    case join: Join =>
+    case join @ (_: Join | _: StreamPhysicalMultiJoin) =>
       recoverAtJoin(join, target, mq)
     case _ =>
       util.Collections.emptySet()
@@ -116,86 +161,76 @@ object UpsertKeyEquivalenceUtil {
   }
 
   /**
-   * Repairs the join's own keys, then recurses into the side whose keys the join preserves -- which
-   * reaches a deeper join when an intermediate projection dropped the equated column.
+   * Repairs the join's own keys, then recurses into the inputs whose keys the join preserves --
+   * which reaches a deeper join when an intermediate projection dropped the equated column.
    */
   private def recoverAtJoin(
-      join: Join,
+      join: RelNode,
       target: ImmutableBitSet,
       mq: FlinkRelMetadataQuery): JSet[ImmutableBitSet] = {
     val result = new util.LinkedHashSet[ImmutableBitSet]()
-    val substitutes = substitutionsOf(join)
-    val joinType = join.getJoinType
-    val leftFieldCount = join.getLeft.getRowType.getFieldCount
-    val rightFieldCount = join.getRight.getRowType.getFieldCount
-    val expanded = expandToward(target, substitutes)
-
+    val substitutes = substitutionsOf(join, mq)
     addRepaired(mq.getUpsertKeys(join), 0, target, substitutes, result)
 
-    // SEMI/ANTI output the left side only and never duplicate a left row, so left keys survive.
-    if (!joinType.projectsRight) {
-      val leftKeys = upsertKeysWithin(join.getLeft, childTarget(expanded, 0, leftFieldCount), mq)
-      addRepaired(leftKeys, 0, target, substitutes, result)
-      return result
-    }
-
-    // a side's keys survive iff the other side is unique on the join key and this side isn't padded
-    val joinInfo = join.analyzeCondition()
-    if (
-      !joinType.generatesNullsOnLeft &&
-      isSideUnique(mq.getUpsertKeys(join.getRight), ImmutableBitSet.of(joinInfo.rightKeys))
-    ) {
-      val leftKeys = upsertKeysWithin(join.getLeft, childTarget(expanded, 0, leftFieldCount), mq)
-      addRepaired(leftKeys, 0, target, substitutes, result)
-    }
-    if (
-      !joinType.generatesNullsOnRight &&
-      isSideUnique(mq.getUpsertKeys(join.getLeft), ImmutableBitSet.of(joinInfo.leftKeys))
-    ) {
-      val target0 = childTarget(expanded, leftFieldCount, rightFieldCount)
-      addRepaired(
-        upsertKeysWithin(join.getRight, target0, mq),
-        leftFieldCount,
-        target,
-        substitutes,
-        result)
+    val expanded = expandToward(target, substitutes)
+    keyPreservingInputs(join, mq).foreach {
+      case (input, offset) =>
+        val inputTarget = childTarget(expanded, offset, input.getRowType.getFieldCount)
+        addRepaired(upsertKeysWithin(input, inputTarget, mq), offset, target, substitutes, result)
     }
     result
   }
 
-  /** [[recoverAtJoin]] for the fused multi-join; recursion is limited to all-inner (no padding). */
-  private def recoverAtMultiJoin(
-      multiJoin: StreamPhysicalMultiJoin,
-      target: ImmutableBitSet,
-      mq: FlinkRelMetadataQuery): JSet[ImmutableBitSet] = {
-    val result = new util.LinkedHashSet[ImmutableBitSet]()
-    val substitutes = substitutionsOf(multiJoin)
-    addRepaired(mq.getUpsertKeys(multiJoin), 0, target, substitutes, result)
-
-    val inputs = multiJoin.getInputs.asScala
-    if (multiJoin.getJoinTypes.asScala.forall(_ == JoinRelType.INNER)) {
-      val expanded = expandToward(target, substitutes)
-      var offset = 0
-      inputs.indices.foreach {
-        i =>
-          val off = offset
-          val fieldCount = inputs(i).getRowType.getFieldCount
-          offset += fieldCount
-          // input i is preserved when every other input is unique on its join key
-          val othersUnique = inputs.indices.filter(_ != i).forall {
+  /**
+   * The inputs of a join or multi-join whose upsert keys stay unique in its output, each with the
+   * position of its first column there. Shared by [[recoverAtJoin]] and
+   * [[recoverableColumnsAtJoin]] so that [[upsertKeyColumns]] covers every key [[upsertKeysWithin]]
+   * can return.
+   */
+  private def keyPreservingInputs(rel: RelNode, mq: FlinkRelMetadataQuery): Seq[(RelNode, Int)] =
+    rel match {
+      case multiJoin: StreamPhysicalMultiJoin =>
+        // only all-inner (no padding); an input is preserved when every other input is unique on
+        // its join key
+        if (multiJoin.getJoinTypes.asScala.forall(_ == JoinRelType.INNER)) {
+          val inputs = multiJoin.getInputs.asScala
+          val offsets = inputs.scanLeft(0)(_ + _.getRowType.getFieldCount)
+          val unique = inputs.indices.map {
             j =>
               isSideUnique(
                 mq.getUpsertKeys(inputs(j)),
                 ImmutableBitSet.of(multiJoin.getJoinKeyIndices(j): _*))
           }
-          if (othersUnique) {
-            val inputKeys = upsertKeysWithin(inputs(i), childTarget(expanded, off, fieldCount), mq)
-            addRepaired(inputKeys, off, target, substitutes, result)
-          }
-      }
+          inputs.indices
+            .filter(i => inputs.indices.forall(j => j == i || unique(j)))
+            .map(i => (inputs(i), offsets(i)))
+        } else {
+          Seq.empty
+        }
+      case join: Join if !join.getJoinType.projectsRight =>
+        // SEMI/ANTI output the left side only and never duplicate a left row, so left keys survive
+        Seq((join.getLeft, 0))
+      case join: Join =>
+        // a side's keys survive iff the other side is unique on the join key and this side isn't
+        // padded
+        val joinType = join.getJoinType
+        val joinInfo = join.analyzeCondition()
+        val left =
+          if (
+            !joinType.generatesNullsOnLeft &&
+            isSideUnique(mq.getUpsertKeys(join.getRight), ImmutableBitSet.of(joinInfo.rightKeys))
+          ) Seq((join.getLeft, 0))
+          else Seq.empty
+        val right =
+          if (
+            !joinType.generatesNullsOnRight &&
+            isSideUnique(mq.getUpsertKeys(join.getLeft), ImmutableBitSet.of(joinInfo.leftKeys))
+          ) Seq((join.getRight, join.getLeft.getRowType.getFieldCount))
+          else Seq.empty
+        left ++ right
+      case _ =>
+        Seq.empty
     }
-    result
-  }
 
   /**
    * Repairs each key toward `target` (shifting up by `offset` first) and adds the ones that fit.
@@ -225,75 +260,13 @@ object UpsertKeyEquivalenceUtil {
       sideJoinKeys: ImmutableBitSet): Boolean =
     sideKeys != null && sideKeys.asScala.exists(key => sideJoinKeys.contains(key))
 
-  private def substitutionsOf(rel: RelNode): JMap[Integer, JList[Integer]] =
-    directionalSubstitutions(equiPairsOf(rel), rel.getRowType)
-
-  /** Equi-join column pairs of the whole subtree, undirected, in `rel`'s output columns. */
-  private def equiPairsOf(rel: RelNode): Seq[(Int, Int)] = rel match {
-    case subset: RelSubset =>
-      equiPairsOf(Util.first(subset.getBest, subset.getOriginal))
-    case vertex: HepRelVertex =>
-      equiPairsOf(vertex.getCurrentRel)
-    case calc: Calc =>
-      remapPairs(equiPairsOf(calc.getInput), calcProjects(calc))
-    case project: Project =>
-      remapPairs(equiPairsOf(project.getInput), project.getProjects.asScala)
-    case exchange: Exchange =>
-      equiPairsOf(exchange.getInput)
-    case multiJoin: StreamPhysicalMultiJoin =>
-      val pairs = equalsRefPairs(multiJoin.getMultiJoinCondition).toBuffer
-      var offset = 0
-      multiJoin.getInputs.asScala.foreach {
-        input =>
-          val shiftBy = offset
-          pairs ++= equiPairsOf(input).map { case (a, b) => (a + shiftBy, b + shiftBy) }
-          offset += input.getRowType.getFieldCount
-      }
-      pairs.toSeq
-    case join: Join if !join.getJoinType.projectsRight =>
-      // SEMI/ANTI output only the left side, so the cross-side pairs are not in the output.
-      equiPairsOf(join.getLeft)
-    case join: Join =>
-      val leftFieldCount = join.getLeft.getRowType.getFieldCount
-      val ownPairs =
-        join.analyzeCondition().pairs().asScala.map(p => (p.source, p.target + leftFieldCount))
-      ownPairs.toSeq ++ equiPairsOf(join.getLeft) ++
-        equiPairsOf(join.getRight).map { case (a, b) => (a + leftFieldCount, b + leftFieldCount) }
-    case _ =>
-      Seq.empty
-  }
+  private def substitutionsOf(
+      rel: RelNode,
+      mq: FlinkRelMetadataQuery): JMap[Integer, JList[Integer]] =
+    directionalSubstitutions(mq.getEquiJoinColumnPairs(rel), rel.getRowType)
 
   private def calcProjects(calc: Calc): Seq[RexNode] =
     calc.getProgram.getProjectList.asScala.map(calc.getProgram.expandLocalRef)
-
-  /** {{{col = col}}} pairs from a (possibly conjunctive) condition. */
-  private def equalsRefPairs(condition: RexNode): Seq[(Int, Int)] = {
-    if (condition == null) {
-      return Seq.empty
-    }
-    RelOptUtil
-      .conjunctions(condition)
-      .asScala
-      .flatMap {
-        case call: RexCall if call.getKind == SqlKind.EQUALS =>
-          (call.getOperands.get(0), call.getOperands.get(1)) match {
-            case (l: RexInputRef, r: RexInputRef) => Some((l.getIndex, r.getIndex))
-            case _ => None
-          }
-        case _ => None
-      }
-      .toSeq
-  }
-
-  private def remapPairs(pairs: Seq[(Int, Int)], projects: Seq[RexNode]): Seq[(Int, Int)] = {
-    val inputToOutput = inputToOutputMap(projects)
-    pairs.flatMap {
-      case (i, j) =>
-        val outsI = inputToOutput.getOrDefault(i, util.Collections.emptyList[Integer]()).asScala
-        val outsJ = inputToOutput.getOrDefault(j, util.Collections.emptyList[Integer]()).asScala
-        for (oi <- outsI; oj <- outsJ) yield (oi.intValue(), oj.intValue())
-    }
-  }
 
   /** Each input column to the output positions where a projection passes it through as-is. */
   private def inputToOutputMap(projects: Seq[RexNode]): JMap[Integer, JList[Integer]] = {
@@ -306,36 +279,76 @@ object UpsertKeyEquivalenceUtil {
     map
   }
 
-  /** A column may be replaced by a partner only if that partner is non-nullable in `rowType`. */
+  /** The output positions where a projection passes any of `inputColumns` through as-is. */
+  private def projectColumns(
+      inputColumns: ImmutableBitSet,
+      projects: Seq[RexNode]): ImmutableBitSet = {
+    val inputToOutput = inputToOutputMap(projects)
+    val builder = ImmutableBitSet.builder()
+    inputColumns.toArray.foreach {
+      in => Option(inputToOutput.get(in)).foreach(_.asScala.foreach(out => builder.set(out)))
+    }
+    builder.build()
+  }
+
+  private def keyColumns(keys: JSet[ImmutableBitSet]): ImmutableBitSet =
+    if (keys == null) ImmutableBitSet.of() else ImmutableBitSet.union(keys)
+
+  /** `columns` plus every column that one or more substitutions can turn one of them into. */
+  private def withSubstitutes(
+      columns: ImmutableBitSet,
+      substitutes: JMap[Integer, JList[Integer]]): ImmutableBitSet =
+    ImmutableBitSet.of(reachable(columns.toArray, substitutes).asJava)
+
+  /**
+   * The columns each column may be replaced by. The two columns of a pair are equal or both null in
+   * every row, so they may replace each other, unless the pair comes from an outer join's own
+   * condition: then a column may only be replaced by a partner that is non-nullable in `rowType`,
+   * which is never the column on the null-generating side.
+   */
   private def directionalSubstitutions(
-      pairs: Seq[(Int, Int)],
+      pairs: JList[EquiJoinColumnPair],
       rowType: RelDataType): JMap[Integer, JList[Integer]] = {
     val fields = rowType.getFieldList
-    def nonNullable(idx: Int): Boolean = !fields.get(idx).getType.isNullable
+    def mayReplace(pair: EquiJoinColumnPair, replacement: Int): Boolean =
+      !pair.isFromOuterJoin || !fields.get(replacement).getType.isNullable
     val substitutes = new util.HashMap[Integer, JList[Integer]]()
     def allow(from: Int, to: Int): Unit =
       substitutes.computeIfAbsent(from, (_: Integer) => new util.ArrayList[Integer]()).add(to)
-    pairs.foreach {
-      case (i, j) =>
-        if (nonNullable(j)) allow(i, j)
-        if (nonNullable(i)) allow(j, i)
+    pairs.asScala.foreach {
+      pair =>
+        if (mayReplace(pair, pair.getTarget)) allow(pair.getSource, pair.getTarget)
+        if (mayReplace(pair, pair.getSource)) allow(pair.getTarget, pair.getSource)
     }
     substitutes
   }
 
-  /** `target` plus every column that can be substituted into a `target` column. */
+  /** `target` plus every column that one or more substitutions can turn into a `target` column. */
   private def expandToward(
       target: ImmutableBitSet,
       substitutes: JMap[Integer, JList[Integer]]): ImmutableBitSet = {
-    val builder = ImmutableBitSet.builder()
-    target.toArray.foreach(builder.set)
+    val replaces = new util.HashMap[Integer, JList[Integer]]()
     substitutes.asScala.foreach {
       case (column, replacements) =>
-        if (replacements.asScala.exists(r => target.get(r))) {
-          builder.set(column)
-        }
+        replacements.asScala.foreach(
+          replacement =>
+            replaces
+              .computeIfAbsent(replacement, (_: Integer) => new util.ArrayList[Integer]())
+              .add(column))
     }
-    builder.build()
+    ImmutableBitSet.of(reachable(target.toArray, replaces).asJava)
+  }
+
+  /** The columns reachable from `start` along `edges`, breadth first, starting with `start`. */
+  private def reachable(start: Seq[Int], edges: JMap[Integer, JList[Integer]]): Seq[Integer] = {
+    val visited = new util.LinkedHashSet[Integer]()
+    val pending = new util.ArrayDeque[Integer]()
+    start.foreach(column => if (visited.add(column)) pending.add(column))
+    while (!pending.isEmpty) {
+      Option(edges.get(pending.poll()))
+        .foreach(_.asScala.foreach(next => if (visited.add(next)) pending.add(next)))
+    }
+    visited.asScala.toSeq
   }
 
   /**
@@ -355,10 +368,8 @@ object UpsertKeyEquivalenceUtil {
       if (target.get(column)) {
         builder.set(column)
       } else {
-        val candidates = substitutes.get(column)
-        val replacement =
-          if (candidates == null) None else candidates.asScala.find(c => target.get(c))
-        replacement match {
+        // the nearest column within the target that substitutions can turn this column into
+        reachable(Seq(column), substitutes).find(c => target.get(c)) match {
           case Some(c) => builder.set(c)
           case None => repaired = false
         }

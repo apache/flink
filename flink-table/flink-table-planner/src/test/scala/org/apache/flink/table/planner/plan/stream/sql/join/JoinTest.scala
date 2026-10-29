@@ -816,25 +816,34 @@ class JoinTest extends TableTestBase {
       .isInstanceOf[IllegalArgumentException]
   }
 
-  private def createUpsertSource(name: String, columns: String, primaryKey: String): Unit =
+  private def createUpsertSource(
+      name: String,
+      columns: String,
+      primaryKey: String,
+      deleteByKey: Boolean = false): Unit =
     util.tableEnv.executeSql(s"""
                                 |create table $name (
                                 | $columns,
                                 | primary key ($primaryKey) not enforced
                                 |) with (
                                 | 'connector' = 'values',
-                                | 'changelog-mode' = 'I,UA,D'
+                                | 'changelog-mode' = 'I,UA,D',
+                                | 'source.produces-delete-by-key' = '$deleteByKey'
                                 |)
                                 |""".stripMargin)
 
-  private def createUpsertSink(columns: String, primaryKey: String): Unit =
+  private def createUpsertSink(
+      columns: String,
+      primaryKey: String,
+      deleteByKey: Boolean = false): Unit =
     util.tableEnv.executeSql(s"""
                                 |create table sink (
                                 | $columns,
                                 | primary key ($primaryKey) not enforced
                                 |) with (
                                 | 'connector' = 'values',
-                                | 'sink-insert-only' = 'false'
+                                | 'sink-insert-only' = 'false',
+                                | 'sink.supports-delete-by-key' = '$deleteByKey'
                                 |)
                                 |""".stripMargin)
 
@@ -897,6 +906,24 @@ class JoinTest extends TableTestBase {
         |insert into sink
         |select src2.a2, src1.b1, src1.x1
         |from src1 right join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceFullOuterJoinNotSatisfied(): Unit = {
+    // full join pads both sides, so neither a1 nor a2 may replace the other; right-only rows have
+    // a1 = null, so sink pk {a1, b2} is not unique -> upsertMaterialize
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src1.x1
+        |from src1 full join src2 on src1.a1 = src2.a2
+        |on conflict do deduplicate
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )
@@ -1045,6 +1072,127 @@ class JoinTest extends TableTestBase {
         |join src2 on src1.k = src2.k
         |join src3 on src1.k = src3.k
         |on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceMultiJoinLeftJoinNotSatisfied(): Unit = {
+    // c1 = d1 is in a left join's condition, so it doesn't hold for rows padded with nulls, and
+    // sink pk {k, d1} is not covered by the upsert key {k, c1} -> upsertMaterialize
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
+    createUpsertSource("src1", "k varchar, c1 varchar, d1 varchar not null", "k, c1")
+    createUpsertSource("src2", "k varchar, x2 varchar", "k")
+    createUpsertSource("src3", "k varchar, x3 varchar", "k")
+    createUpsertSink("k varchar, d1 varchar, x2 varchar, x3 varchar", "k, d1")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.k, src1.d1, src2.x2, src3.x3
+        |from src1
+        |left join src2 on src1.k = src2.k and src1.c1 = src1.d1
+        |left join src3 on src1.k = src3.k
+        |on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceMultiJoinChainedSubstitution(): Unit = {
+    // star join on src1.k: the upsert key {src3.k, m} reaches sink pk {src2.k, m} only through
+    // src3.k = src1.k = src2.k, two substitutions within one multi-join -> no upsertMaterialize
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
+    createUpsertSource("src1", "k varchar, x1 varchar", "k")
+    createUpsertSource("src2", "k varchar, x2 varchar", "k")
+    createUpsertSource("src3", "k varchar, m varchar, x3 varchar", "k, m")
+    createUpsertSink("k varchar, m varchar, x1 varchar", "k, m")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src2.k, src3.m, src1.x1
+        |from src1
+        |join src2 on src1.k = src2.k
+        |join src3 on src1.k = src3.k
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceNullableJoinColumn(): Unit = {
+    // a2 is a nullable group key, but the inner join makes a1 = a2 in every row, so the upsert key
+    // {a1, c1} reaches sink pk {a2, c1} -> no upsertMaterialize
+    createUpsertSource("src1", "a1 varchar, c1 varchar, x1 varchar", "a1, c1")
+    createUpsertSource("src2", "id2 varchar, a2 varchar, x2 varchar", "id2")
+    createUpsertSink("a2 varchar, c1 varchar, x1 varchar, cnt bigint", "a2, c1")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select t2.a2, src1.c1, src1.x1, t2.cnt
+        |from src1
+        |join (select a2, count(*) as cnt from src2 group by a2) t2 on src1.a1 = t2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceDeleteByKey(): Unit = {
+    // sink pk {a1, b2} equals the upsert key {a2, b2} via a1 = a2, so deletes stay by key end to
+    // end and no ChangelogNormalize is needed
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1", deleteByKey = true)
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2", deleteByKey = true)
+    createUpsertSink("a1 varchar, a2 varchar, b2 varchar, x1 varchar", "a1, b2", deleteByKey = true)
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.a2, src2.b2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceDeleteByKeyEquatedColumnProjectedAway(): Unit = {
+    // a2 is projected away, but the calc still has the upsert key {a1, b2} recovered via a1 = a2,
+    // so deletes stay by key end to end
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1", deleteByKey = true)
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2", deleteByKey = true)
+    createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2", deleteByKey = true)
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceDeleteByKeyPkColumnNotInUpsertKey(): Unit = {
+    // sink pk {a2, c1, b2} equals the upsert key {a2, c2, b2} via c1 = c2; with a1 projected away
+    // c1 is in no reported upsert key, but delete-by-key rows still carry it as a key column
+    createUpsertSource("src1", "a1 varchar, c1 varchar, x1 varchar", "a1, c1", deleteByKey = true)
+    createUpsertSource(
+      "src2",
+      "a2 varchar, c2 varchar, b2 varchar, x2 varchar",
+      "a2, c2, b2",
+      deleteByKey = true)
+    createUpsertSink(
+      "a2 varchar, c1 varchar, c2 varchar, b2 varchar, x1 varchar",
+      "a2, c1, b2",
+      deleteByKey = true)
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src2.a2, src1.c1, src2.c2, src2.b2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2 and src1.c1 = src2.c2
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )
