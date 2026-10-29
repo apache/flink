@@ -102,8 +102,8 @@ public final class ToVariantConverter implements Serializable {
      * Converts a value into a new {@code VARIANT}. A {@code null} value becomes a variant null.
      *
      * @throws TableRuntimeException if the value has a {@code NULL} map key, a time or timestamp
-     *     outside the range of its variant kind, does not fit into the 16 MiB of a {@code VARIANT},
-     *     or is nested too deeply
+     *     outside the range of its variant kind, or does not fit into the 16 MiB of a {@code
+     *     VARIANT}
      * @throws VariantTypeException if a nested {@code VARIANT} is malformed
      */
     public Variant convert(Object value) {
@@ -122,15 +122,6 @@ public final class ToVariantConverter implements Serializable {
                             "Cannot cast a value of type %s to VARIANT. A VARIANT is limited to "
                                     + "16 MiB.",
                             sourceType));
-        } catch (StackOverflowError e) {
-            // The builder copies an embedded VARIANT with one call per nesting level, so a deeply
-            // nested one overflows the stack. A bare StackOverflowError would not say which cast
-            // failed or why.
-            throw new TableRuntimeException(
-                    String.format(
-                            "Cannot cast a value of type %s to VARIANT because it is nested too "
-                                    + "deeply.",
-                            sourceType));
         }
     }
 
@@ -140,10 +131,10 @@ public final class ToVariantConverter implements Serializable {
      *
      * <p>It fails like {@link #convert} for a {@code NULL} map key, a time or timestamp out of
      * range, and a string or binary value that can never fit. The caller builds the result, so it
-     * handles {@link BinaryVariantInternalBuilder#VARIANT_SIZE_LIMIT_EXCEPTION} and a {@link
-     * StackOverflowError} from a deeply nested {@code VARIANT} itself. A repeated {@code MAP} key
-     * keeps the last value if the caller's builder allows duplicate keys, and fails otherwise. The
-     * builder holds partial data after a failure, so the caller must not use it any further.
+     * handles {@link BinaryVariantInternalBuilder#VARIANT_SIZE_LIMIT_EXCEPTION} itself. A repeated
+     * {@code MAP} key keeps the last value if the caller's builder allows duplicate keys, and fails
+     * otherwise. The builder holds partial data after a failure, so the caller must not use it any
+     * further.
      */
     public void writeTo(BinaryVariantInternalBuilder builder, Object value) {
         writer.write(builder, value);

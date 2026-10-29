@@ -63,7 +63,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -334,40 +333,6 @@ class ToVariantConverterTest {
                 .hasMessage(
                         "Cannot cast a value of type ARRAY<STRING> to VARIANT. A VARIANT is "
                                 + "limited to 16 MiB.");
-    }
-
-    @Test
-    void testDeeplyNestedVariantFails() throws InterruptedException {
-        // [[[...[1]...]]], built without recursion
-        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendInt(1);
-        for (int i = 0; i < 10_000; i++) {
-            builder.finishWritingArray(0, new ArrayList<>(List.of(0)));
-        }
-        final ArrayData array = new GenericArrayData(new Object[] {builder.build()});
-
-        // A small stack makes the overflow independent of the JVM's default stack size.
-        final AtomicReference<Throwable> error = new AtomicReference<>();
-        final Thread thread =
-                new Thread(
-                        null,
-                        () -> {
-                            try {
-                                convert(DataTypes.ARRAY(DataTypes.VARIANT()), array);
-                            } catch (Throwable t) {
-                                error.set(t);
-                            }
-                        },
-                        "deeply-nested-variant",
-                        256 * 1024);
-        thread.start();
-        thread.join();
-
-        assertThat(error.get())
-                .isInstanceOf(TableRuntimeException.class)
-                .hasMessage(
-                        "Cannot cast a value of type ARRAY<VARIANT> to VARIANT because it is "
-                                + "nested too deeply.");
     }
 
     @Test
