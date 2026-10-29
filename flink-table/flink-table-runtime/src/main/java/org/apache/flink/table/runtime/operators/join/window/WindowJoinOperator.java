@@ -160,6 +160,7 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         helper.processElement(
                 element,
+                true,
                 leftWindowEndIndex,
                 helper.getLeftLateRecordsDroppedRate(),
                 (windowEnd, rowData) -> leftWindowState.add(windowEnd, rowData));
@@ -169,6 +170,7 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
     public void processElement2(StreamRecord<RowData> element) throws Exception {
         helper.processElement(
                 element,
+                false,
                 rightWindowEndIndex,
                 helper.getRightLateRecordsDroppedRate(),
                 (windowEnd, rowData) -> rightWindowState.add(windowEnd, rowData));

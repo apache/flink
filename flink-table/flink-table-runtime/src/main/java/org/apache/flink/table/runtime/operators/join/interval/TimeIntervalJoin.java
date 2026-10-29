@@ -321,8 +321,10 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 // ordered keys.
             }
         }
-        // Check if we need to cache the current row.
-        if (rightOperatorTime < rightQualifiedUpperBound) {
+        // Check if we need to cache the current row. A row that can never match is only cached to
+        // pad it with nulls once its window has closed.
+        if (rightOperatorTime < rightQualifiedUpperBound
+                && (joinType.isLeftOuter() || !joinFunction.currentKeyCannotMatch())) {
             // Operator time of right stream has not exceeded the upper window bound of the current
             // row. Put it into the left cache, since later coming records from the right stream are
             // expected to be joined with it.
@@ -437,8 +439,10 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 // ordered keys.
             }
         }
-        // Check if we need to cache the current row.
-        if (leftOperatorTime < leftQualifiedUpperBound) {
+        // Check if we need to cache the current row. A row that can never match is only cached to
+        // pad it with nulls once its window has closed.
+        if (leftOperatorTime < leftQualifiedUpperBound
+                && (joinType.isRightOuter() || !joinFunction.currentKeyCannotMatch())) {
             // Operator time of left stream has not exceeded the upper window bound of the current
             // row. Put it into the right cache, since later coming records from the left stream are
             // expected to be joined with it.

@@ -504,8 +504,91 @@ class WindowJoinOperatorTest {
         testHarness.close();
     }
 
+    @TestTemplate
+    void testDoesNotStoreRecordsThatCanNeverMatch() throws Exception {
+        final long time = toUtcTimestampMills(3L, shiftTimeZone);
+        // Only records of an input whose unmatched records are emitted are stored
+        assertNullKeyRecords(FlinkJoinType.INNER, 0);
+        assertNullKeyRecords(FlinkJoinType.SEMI, 0);
+        assertNullKeyRecords(FlinkJoinType.ANTI, 1, insertRecord(time, null));
+        assertNullKeyRecords(FlinkJoinType.LEFT, 1, insertRecord(time, null, null, null));
+        assertNullKeyRecords(FlinkJoinType.RIGHT, 1, insertRecord(null, null, time, null));
+        assertNullKeyRecords(
+                FlinkJoinType.FULL,
+                2,
+                insertRecord(time, null, null, null),
+                insertRecord(null, null, time, null));
+    }
+
+    /**
+     * Processes a record with a null key on each input and checks the number of stored records and
+     * the output when the window fires.
+     */
+    private void assertNullKeyRecords(
+            FlinkJoinType joinType, int expectedStateEntries, Object... expectedRecords)
+            throws Exception {
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinType);
+        testHarness.open();
+        testHarness.processWatermark1(new Watermark(1));
+        testHarness.processWatermark2(new Watermark(1));
+
+        final long time = toUtcTimestampMills(3L, shiftTimeZone);
+        testHarness.processElement1(insertRecord(time, null));
+        testHarness.processElement2(insertRecord(time, null));
+        assertThat(testHarness.numKeyedStateEntries())
+                .as("stored records for %s", joinType)
+                .isEqualTo(expectedStateEntries);
+
+        testHarness.processWatermark1(new Watermark(10));
+        testHarness.processWatermark2(new Watermark(10));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(1));
+        expectedOutput.addAll(Arrays.asList(expectedRecords));
+        expectedOutput.add(new Watermark(10));
+        RowDataHarnessAssertor assertor =
+                joinType == FlinkJoinType.SEMI || joinType == FlinkJoinType.ANTI
+                        ? SEMI_ANTI_JOIN_ASSERTER
+                        : ASSERTER;
+        assertor.assertOutputEqualsSorted(
+                "output wrong for " + joinType, expectedOutput, testHarness.getOutput());
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+        testHarness.close();
+    }
+
+    @TestTemplate
+    void testStoresRecordsWithNullSafeKeys() throws Exception {
+        // A null key can match if it is compared null-safely, as with IS NOT DISTINCT FROM
+        final long time = toUtcTimestampMills(3L, shiftTimeZone);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(FlinkJoinType.INNER, new boolean[] {false});
+        testHarness.open();
+        testHarness.processWatermark1(new Watermark(1));
+        testHarness.processWatermark2(new Watermark(1));
+
+        testHarness.processElement1(insertRecord(time, null));
+        testHarness.processElement2(insertRecord(time, null));
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
+
+        testHarness.processWatermark1(new Watermark(10));
+        testHarness.processWatermark2(new Watermark(10));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(insertRecord(time, null, time, null));
+        expectedOutput.add(new Watermark(10));
+        ASSERTER.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             createTestHarness(FlinkJoinType joinType) throws Exception {
+        return createTestHarness(joinType, new boolean[] {true});
+    }
+
+    private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            createTestHarness(FlinkJoinType joinType, boolean[] filterNullKeys) throws Exception {
         String funcCode =
                 "public class TestWindowJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction "
                         + "implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
@@ -533,7 +616,7 @@ class WindowJoinOperatorTest {
                         .generatedJoinCondition(joinFunction)
                         .leftWindowEndIndex(0)
                         .rightWindowEndIndex(0)
-                        .filterNullKeys(new boolean[] {true})
+                        .filterNullKeys(filterNullKeys)
                         .joinType(joinType)
                         .withShiftTimezone(shiftTimeZone);
         if (enableAsyncState) {
