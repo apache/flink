@@ -205,6 +205,32 @@ class AsyncScalarFunctionTests(PyFlinkStreamTableTestCase):
             "+I[test, prefix_TEST, PREFIX_TEST_suffix]"
         ])
 
+    def test_projection_order(self):
+        @udf(result_type=DataTypes.STRING())
+        def sync_text(value):
+            return f'sync_{value}'
+
+        @udf(result_type=DataTypes.BIGINT())
+        async def async_number(value):
+            return value + 2
+
+        table = self.t_env.from_elements(
+            [(1,)], DataTypes.ROW([DataTypes.FIELD('a', DataTypes.BIGINT())]))
+        cases = [
+            ('mixed_sync_async',
+             table.select(sync_text(table.a), async_number(table.a)),
+             [('sync_1', 3)]),
+            ('nested_async',
+             table.select(async_number(async_number(table.a)),
+                          async_number(table.a + 1)),
+             [(5, 4)]),
+        ]
+        for name, result, expected in cases:
+            with self.subTest(projection=name):
+                with result.execute().collect() as rows:
+                    actual = [tuple(row) for row in rows]
+                self.assertEqual(actual, expected)
+
     def test_async_udf_with_pandas_raises_error(self):
         """Test that using pandas func_type with async function raises an error."""
         from pyflink.table.udf import udf

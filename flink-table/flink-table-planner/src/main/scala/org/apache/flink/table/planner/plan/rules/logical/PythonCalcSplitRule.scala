@@ -70,6 +70,7 @@ object PythonCalcSplitRule {
   val EXPAND_PROJECT: RelOptRule = new RemoteCalcExpandProjectRule(callFinder)
   val PUSH_CONDITION: RelOptRule = new RemoteCalcPushConditionRule(callFinder)
   val REWRITE_PROJECT: RelOptRule = new RemoteCalcRewriteProjectionRule(callFinder)
+  val REORDER_PROJECT: RelOptRule = new RemoteCalcReorderProjectionRule(callFinder)
   val PROJECTION_CSE: RelOptRule =
     RemoteCalcProjectionCseRule.Config.DEFAULT.withRemoteCallFinder(callFinder).toRule()
 }
