@@ -1010,7 +1010,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case multiJoin: StreamPhysicalMultiJoin =>
           val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
-          if (onlyAfterByParent && hasNonUpsertKeyMultiJoinCondition(multiJoin)) {
+          if (
+            onlyAfterByParent && hasNonUpsertKeyMultiJoinCondition(multiJoin, ModifyKind.UPDATE)
+          ) {
             None
           } else {
             val children = multiJoin.getInputs.zipWithIndex.map {
@@ -1473,34 +1475,27 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(process, Some(children), providedDeleteTrait)
 
         case join: StreamPhysicalJoin =>
-          if (
-            requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            hasNonUpsertKeyNonEquiCondition(join)
-          ) {
+          val children = join.getInputs.zipWithIndex.map {
+            case (child, childOrdinal) =>
+              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+              val supportsDeleteByKey = join.inputUniqueKeyContainsJoinKey(childOrdinal)
+              val inputModifyKindSet = getModifyKindSet(physicalChild)
+              if (supportsDeleteByKey && requiredTrait == DELETE_BY_KEY) {
+                this
+                  .visit(physicalChild, deleteOnKeyOrNone(inputModifyKindSet))
+                  .orElse(this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet)))
+              } else {
+                this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet))
+              }
+          }
+          if (children.exists(_.isEmpty)) {
             None
           } else {
-            val children = join.getInputs.zipWithIndex.map {
-              case (child, childOrdinal) =>
-                val physicalChild = child.asInstanceOf[StreamPhysicalRel]
-                val supportsDeleteByKey = join.inputUniqueKeyContainsJoinKey(childOrdinal)
-                val inputModifyKindSet = getModifyKindSet(physicalChild)
-                if (supportsDeleteByKey && requiredTrait == DELETE_BY_KEY) {
-                  this
-                    .visit(physicalChild, deleteOnKeyOrNone(inputModifyKindSet))
-                    .orElse(this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet)))
-                } else {
-                  this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet))
-                }
-            }
-            if (children.exists(_.isEmpty)) {
-              None
+            val childRels = children.flatten.toList
+            if (childRels.exists(r => getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
+              createNewNode(join, Some(childRels), deleteOnKeyOrNone(getModifyKindSet(rel)))
             } else {
-              val childRels = children.flatten.toList
-              if (childRels.exists(r => getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
-                createNewNode(join, Some(childRels), deleteOnKeyOrNone(getModifyKindSet(rel)))
-              } else {
-                createNewNode(join, Some(childRels), fullDeleteOrNone(getModifyKindSet(rel)))
-              }
+              createNewNode(join, Some(childRels), fullDeleteOrNone(getModifyKindSet(rel)))
             }
           }
 
@@ -1643,7 +1638,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case multiJoin: StreamPhysicalMultiJoin =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            hasNonUpsertKeyMultiJoinCondition(multiJoin)
+            hasNonUpsertKeyMultiJoinCondition(multiJoin, ModifyKind.DELETE)
           ) {
             None
           } else {
@@ -1890,24 +1885,25 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     referencesNonUpsertKey(ts, refs)
   }
 
-  private def hasNonUpsertKeyNonEquiCondition(join: StreamPhysicalJoin): Boolean = {
-    val nonEquiCondOpt = join.joinSpec.getNonEquiCondition
-    if (!nonEquiCondOpt.isPresent) return false
-    val inputs = Seq(join.getLeft, join.getRight)
-    !noInputProducesUpdates(inputs) &&
-    anyInputHasNonUpsertKeyRefs(Seq(nonEquiCondOpt.get()), inputs)
-  }
-
-  private def hasNonUpsertKeyMultiJoinCondition(multiJoin: StreamPhysicalMultiJoin): Boolean = {
+  /**
+   * True iff a condition of the multi-join references non-upsert-key columns of an input, and some
+   * input produces `changeKind` (UPDATE for the UPDATE_BEFORE check, DELETE for the delete-by-key
+   * check). Unlike the regular join operator, the multi-join evaluates its conditions on the
+   * incoming row only: it neither retracts the matches that a replaced row loses nor looks up the
+   * full row of a delete by key, so such conditions need UPDATE_BEFORE and full deletes.
+   */
+  private def hasNonUpsertKeyMultiJoinCondition(
+      multiJoin: StreamPhysicalMultiJoin,
+      changeKind: ModifyKind): Boolean = {
     val condition = multiJoin.getMultiJoinCondition
     if (condition == null) return false
     val inputs = multiJoin.getInputs.toSeq
-    if (noInputProducesUpdates(inputs)) return false
+    if (inputs.forall(in => !getModifyKindSet(in).contains(changeKind))) return false
     // The multi-join evaluates every per-input join condition and the post-join filter at runtime
     // (StreamExecMultiJoin#createJoinConditions). Equalities on the COMMON join key are already
     // handled by the join-key trait logic (inputUniqueKeyContainsCommonJoinKey), so they are
     // dropped; every other predicate (non-equi, filters, and non-common equi keys) can silently
-    // flip a row's join/filter membership and therefore requires UPDATE_BEFORE.
+    // flip a row's join/filter membership and therefore requires UPDATE_BEFORE and full deletes.
     val residual = JavaScalaConversionUtil
       .toScala(RelOptUtil.conjunctions(condition))
       .filterNot(isCommonJoinKeyEquality(_, multiJoin, inputs))
