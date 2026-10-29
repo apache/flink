@@ -32,6 +32,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQueryBase;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -52,6 +53,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
     private FlinkMetadata.WindowProperties.Handler windowPropertiesHandler;
     private FlinkMetadata.UpsertKeys.Handler upsertKeysHandler;
     private FlinkMetadata.ImmutableColumns.Handler immutableColumnsHandler;
+    private FlinkMetadata.EquiJoinColumnPairs.Handler equiJoinColumnPairsHandler;
 
     /**
      * Returns an instance of FlinkRelMetadataQuery. It ensures that cycles do not occur while
@@ -96,6 +98,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
         this.windowPropertiesHandler = HANDLERS.windowPropertiesHandler;
         this.upsertKeysHandler = HANDLERS.upsertKeysHandler;
         this.immutableColumnsHandler = HANDLERS.immutableColumnsHandler;
+        this.equiJoinColumnPairsHandler = HANDLERS.equiJoinColumnPairsHandler;
     }
 
     /** Extended handlers. */
@@ -120,6 +123,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
                 initialHandler(FlinkMetadata.UpsertKeys.Handler.class);
         private FlinkMetadata.ImmutableColumns.Handler immutableColumnsHandler =
                 initialHandler(FlinkMetadata.ImmutableColumns.Handler.class);
+        private FlinkMetadata.EquiJoinColumnPairs.Handler equiJoinColumnPairsHandler =
+                initialHandler(FlinkMetadata.EquiJoinColumnPairs.Handler.class);
     }
 
     /**
@@ -335,6 +340,25 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
                 return immutableColumnsHandler.getImmutableColumns(rel, this);
             } catch (JaninoRelMetadataProvider.NoHandler e) {
                 immutableColumnsHandler = revise(e.relClass, FlinkMetadata.ImmutableColumns.DEF);
+            }
+        }
+    }
+
+    /**
+     * Returns the pairs of output columns that an equi-join condition of the given relational
+     * expression or of its inputs equates.
+     *
+     * @param rel the relational expression
+     * @return the pairs of equated output columns, empty if there are none or they cannot be
+     *     determined
+     */
+    public List<EquiJoinColumnPair> getEquiJoinColumnPairs(RelNode rel) {
+        for (; ; ) {
+            try {
+                return equiJoinColumnPairsHandler.getEquiJoinColumnPairs(rel, this);
+            } catch (JaninoRelMetadataProvider.NoHandler e) {
+                equiJoinColumnPairsHandler =
+                        revise(e.relClass, FlinkMetadata.EquiJoinColumnPairs.DEF);
             }
         }
     }

@@ -1146,7 +1146,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           !changeLogUpsertKeys.exists(_.isEmpty)
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
-      // upsert keys within the sink pk, modulo equi-join equivalence; null => fall back to beforeAndAfter
+      // upsert keys within the sink pk, modulo equi-join equivalence;
+      // null => fall back to beforeAndAfter
       val changeLogUpsertKeys =
         UpsertKeyEquivalenceUtil.upsertKeysWithin(sink.getInput, sinkPks, fmq)
       if (changeLogUpsertKeys == null) {
@@ -1693,12 +1694,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       if (sinkDefinedPks.nonEmpty) {
         val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
         val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-        val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+        // upsert keys within the sink pk, modulo equi-join equivalence
+        val changeLogUpsertKeys =
+          UpsertKeyEquivalenceUtil.upsertKeysWithin(sink.getInput, sinkPks, fmq)
         // if input is UA only, primary key != upsert key (upsert key can be null) we should
         // fallback to beforeAndAfter.
         // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
         // this differs from batch job's unique key inference
-        if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(_.equals(sinkPks))) {
+        if (changeLogUpsertKeys == null || !changeLogUpsertKeys.contains(sinkPks)) {
           upsertKeyDifferentFromPk = true
         }
       }
@@ -1707,15 +1710,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   }
 
   /**
-   * Whether this calc's own output still has an upsert key after its projection. A DELETE_BY_KEY
-   * tombstone passed through this calc must still carry a key in its output, otherwise nothing
-   * downstream would know what to delete.
+   * Whether this calc's own output still has an upsert key after its projection, including one
+   * recovered through an equi-join equivalence. A DELETE_BY_KEY tombstone passed through this calc
+   * must still carry a key in its output, otherwise nothing downstream would know what to delete.
    *
    * This method is an extra safety net, in case downstream consumers don't require an upsert key.
    */
   private def hasOutputUpsertKey(calc: StreamPhysicalCalcBase): Boolean = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(calc)
+    val allColumns = ImmutableBitSet.range(calc.getRowType.getFieldCount)
+    val upsertKeys = UpsertKeyEquivalenceUtil.upsertKeysWithin(calc, allColumns, fmq)
     upsertKeys != null && upsertKeys.exists(!_.isEmpty)
   }
 
