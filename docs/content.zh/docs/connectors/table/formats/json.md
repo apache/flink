@@ -247,6 +247,13 @@ Format 参数
 特性
 --------
 
+### 被忽略的解析错误指标
+
+当 `json.ignore-parse-errors` 为 `true` 时，JSON 格式会在连接器提供的反序列化指标组下注册计数器
+`json.numMessagesWithParseErrors`。该指标统计至少有一个解析或字段转换错误被忽略的输入消息数，
+包括仍能输出数据、但部分字段被置为 null 的消息。最外层 JSON Array 按一条消息计数。
+`debezium-json`、`canal-json` 等 CDC 格式不上报该指标。
+
 ### 允许 json array 直接展开成多行数据
 
 通常，我们假设 JSON 的最外层数据是一个 JSON Object。所以一条 JSON 会转换成一行结果。
