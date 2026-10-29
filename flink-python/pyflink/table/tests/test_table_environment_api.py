@@ -467,6 +467,7 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
 
         self.assertEqual(
             [], self.t_env.list_materialized_tables('other_catalog', 'other_database'))
+        self.assertEqual([], self.t_env.list_materialized_tables())
         self.assertRaisesRegex(
             Py4JJavaError, "Catalog unknown_catalog does not exist",
             self.t_env.list_materialized_tables, 'unknown_catalog', 'other_database')
