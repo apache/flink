@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -43,7 +44,6 @@ class CompileAndExecuteRemotePlanITCase extends HdfsITCaseBase {
 
     @Override
     void createHDFS() {
-        super.createHDFS();
         planDir = getRemotePlanDir();
     }
 
@@ -70,8 +70,8 @@ class CompileAndExecuteRemotePlanITCase extends HdfsITCaseBase {
 
     private String getRemotePlanDir() {
         return String.format(
-                "hdfs://%s:%s/foo/bar",
-                hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort());
+                "hdfs://%s:%s/foo/bar-%s",
+                hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort(), UUID.randomUUID());
     }
 
     private void assertPlanExists() throws IOException {
