@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
@@ -29,9 +30,9 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +43,9 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,7 +57,8 @@ class SqlClientITCase {
     private final Path sqlConnectorUpsertTestJar =
             ResourceTestUtils.getResource(".*flink-test-utils.*\\.jar");
 
-    private final FlinkContainers flink =
+    @RegisterExtension
+    private static final FlinkContainers FLINK =
             FlinkContainers.builder()
                     .withFlinkContainersSettings(
                             FlinkContainersSettings.builder()
@@ -71,14 +74,15 @@ class SqlClientITCase {
 
     @TempDir private File tempDir;
 
+    // the cluster is shared across tests, so jobs of previous tests must be ignored
+    private Set<JobID> previousJobs;
+
     @BeforeEach
     void setup() throws Exception {
-        flink.start();
-    }
-
-    @AfterEach
-    void tearDown() {
-        flink.stop();
+        previousJobs =
+                FLINK.getRestClusterClient().listJobs().get().stream()
+                        .map(JobStatusMessage::getJobId)
+                        .collect(Collectors.toSet());
     }
 
     @Test
@@ -172,8 +176,8 @@ class SqlClientITCase {
         File inputFile = new File(tempDir, "test-json.jsonl");
         Files.write(inputFile.toPath(), messages);
         MountableFile mountableFile = MountableFile.forHostPath(inputFile.toPath());
-        flink.getJobManager().copyFileToContainer(mountableFile, inputFilepath);
-        for (GenericContainer<?> taskManager : flink.getTaskManagers()) {
+        FLINK.getJobManager().copyFileToContainer(mountableFile, inputFilepath);
+        for (GenericContainer<?> taskManager : FLINK.getTaskManagers()) {
             taskManager.copyFileToContainer(mountableFile, inputFilepath);
         }
 
@@ -228,13 +232,13 @@ class SqlClientITCase {
 
     private void verifyNumberOfResultRecords(String resultFilePath, int expectedNumberOfRecords)
             throws Exception {
-        RestClusterClient<StandaloneClusterId> clusterClient = flink.getRestClusterClient();
+        RestClusterClient<StandaloneClusterId> clusterClient = FLINK.getRestClusterClient();
         // the sink flushes all records at the latest when the bounded job finishes, so the
         // result file is complete once the job reaches a terminal state
         CommonTestUtils.waitUntilIgnoringExceptions(
                 () -> {
                     try {
-                        Collection<JobStatusMessage> jobs = clusterClient.listJobs().get();
+                        List<JobStatusMessage> jobs = listCurrentJobs(clusterClient);
                         return !jobs.isEmpty()
                                 && jobs.stream()
                                         .allMatch(
@@ -246,20 +250,27 @@ class SqlClientITCase {
                 Duration.ofMinutes(2),
                 Duration.ofMillis(100),
                 "Job did not terminate within 2 minutes");
-        Collection<JobStatusMessage> jobs = clusterClient.listJobs().get();
+        List<JobStatusMessage> jobs = listCurrentJobs(clusterClient);
         assertThat(jobs).hasSize(1);
-        assertThat(jobs.iterator().next().getJobState()).isEqualTo(JobStatus.FINISHED);
+        assertThat(jobs.get(0).getJobState()).isEqualTo(JobStatus.FINISHED);
 
         File tempOutputFile = new File(tempDir, "records.out");
-        flink.getTaskManagers()
+        FLINK.getTaskManagers()
                 .get(0)
                 .copyFileFromContainer(resultFilePath, tempOutputFile.toString());
         assertThat(UpsertTestFileUtil.getNumberOfRecords(tempOutputFile))
                 .isEqualTo(expectedNumberOfRecords);
     }
 
+    private List<JobStatusMessage> listCurrentJobs(
+            RestClusterClient<StandaloneClusterId> clusterClient) throws Exception {
+        return clusterClient.listJobs().get().stream()
+                .filter(job -> !previousJobs.contains(job.getJobId()))
+                .collect(Collectors.toList());
+    }
+
     private void executeSql(List<String> sqlLines) throws Exception {
-        flink.submitSQLJob(
+        FLINK.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
                         .addJars(sqlConnectorUpsertTestJar)
                         .build());
