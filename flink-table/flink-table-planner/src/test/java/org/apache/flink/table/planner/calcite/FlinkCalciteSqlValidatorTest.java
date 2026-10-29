@@ -158,6 +158,60 @@ class FlinkCalciteSqlValidatorTest {
                 .hasMessageContaining("Cannot mix positional and named arguments");
     }
 
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT a, ARRAY_AGG(b ORDER BY b) FROM t2 GROUP BY a",
+                "SELECT a, ARRAY_AGG(DISTINCT b ORDER BY b) FROM t2 GROUP BY a",
+                "SELECT a, ARRAY_AGG(b RESPECT NULLS ORDER BY b) FROM t2 GROUP BY a",
+                "SELECT * FROM (SELECT a, ARRAY_AGG(b ORDER BY b) AS bs FROM t2 GROUP BY a)"
+            })
+    void testArrayAggWithOrderBy(String sql) {
+        assertThatThrownBy(() -> plannerMocks.getParser().parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasRootCauseMessage(
+                        "ARRAY_AGG with ORDER BY is not supported. "
+                                + "Remove the ORDER BY clause from the ARRAY_AGG call.");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT a, ARRAY_AGG(b) FROM t2 GROUP BY a",
+                "SELECT a, ARRAY_AGG(DISTINCT b) FROM t2 GROUP BY a",
+                "SELECT a, ARRAY_AGG(b RESPECT NULLS) FROM t2 GROUP BY a"
+            })
+    void testArrayAggWithoutOrderBy(String sql) {
+        assertDoesNotThrow(() -> plannerMocks.getParser().parse(sql));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT a, JSON_ARRAYAGG(b ORDER BY b) FROM t2 GROUP BY a",
+                "SELECT a, JSON_ARRAYAGG(b ORDER BY b NULL ON NULL) FROM t2 GROUP BY a",
+                "SELECT a, JSON_ARRAYAGG(b) WITHIN GROUP (ORDER BY b) FROM t2 GROUP BY a",
+                "SELECT a, JSON_ARRAYAGG(b ABSENT ON NULL) WITHIN GROUP (ORDER BY b) FROM t2 GROUP BY a",
+                "SELECT * FROM (SELECT a, JSON_ARRAYAGG(b ORDER BY b) AS bs FROM t2 GROUP BY a)"
+            })
+    void testJsonArrayAggWithOrderBy(String sql) {
+        assertThatThrownBy(() -> plannerMocks.getParser().parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasRootCauseMessage(
+                        "JSON_ARRAYAGG with ORDER BY is not supported. "
+                                + "Remove the ORDER BY or WITHIN GROUP clause from the JSON_ARRAYAGG call.");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT a, JSON_ARRAYAGG(b) FROM t2 GROUP BY a",
+                "SELECT a, JSON_ARRAYAGG(b NULL ON NULL) FROM t2 GROUP BY a"
+            })
+    void testJsonArrayAggWithoutOrderBy(String sql) {
+        assertDoesNotThrow(() -> plannerMocks.getParser().parse(sql));
+    }
+
     /** Scalar function with named arguments for the mixed-argument validation test. */
     public static class NamedArgsScalarFunction extends ScalarFunction {
         @FunctionHint(
