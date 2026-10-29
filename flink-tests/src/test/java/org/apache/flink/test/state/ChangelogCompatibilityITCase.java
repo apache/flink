@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -49,6 +50,8 @@ import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_E
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
 import static org.apache.flink.configuration.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
+import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_MAX;
+import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_MIN;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
@@ -313,6 +316,11 @@ public class ChangelogCompatibilityITCase {
         // stale (CheckpointStatsTracker#createSnapshot skips the refresh if its lock is busy). The
         // picked checkpoint may then already be subsumed and deleted with the default of 1.
         config.set(MAX_RETAINED_CHECKPOINTS, 10);
+        // With the default of 64 MiB, the network buffers of the 11 task managers take ~700 MiB of
+        // direct memory, which is only released by GC after the cluster is closed. Together with
+        // the cluster of the next test case, this pushes the JVM to its direct memory limit.
+        config.set(NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(16));
+        config.set(NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(16));
         FsStateChangelogStorageFactory.configure(
                 config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
