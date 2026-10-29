@@ -98,7 +98,7 @@ Catalog 必须支持创建物化表，目前只有 [Paimon Catalog](https://paim
 ### 在 Standalone 集群运行刷新作业
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'remote';
+Flink SQL> SET 'execution.target' = 'remote';
 [INFO] Execute statement succeeded.
 
 FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
@@ -113,7 +113,7 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 **Kubernetes session 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'kubernetes-session';
+Flink SQL> SET 'execution.target' = 'kubernetes-session';
 [INFO] Execute statement succeeded.
 
 Flink SQL> SET 'kubernetes.cluster-id' = 'flink-cluster-mt-session-1';
@@ -124,12 +124,12 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 [INFO] Execute statement succeeded.
 ```
 
-设置 `execution.mode` 为 `kubernetes-session` 并设置参数 `kubernetes.cluster-id` 指向一个已经存在的 Kubernetes session 集群.
+设置 `execution.target` 为 `kubernetes-session` 并设置参数 `kubernetes.cluster-id` 指向一个已经存在的 Kubernetes session 集群.
 
 **YARN session 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'yarn-session';
+Flink SQL> SET 'execution.target' = 'yarn-session';
 [INFO] Execute statement succeeded.
 
 Flink SQL> SET 'yarn.application.id' = 'application-xxxx';
@@ -139,14 +139,14 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
-设置 `execution.mode` 为 `yarn-session` 并设置参数 `yarn.application.id` 指向一个已经存在的 YARN session 集群。
+设置 `execution.target` 为 `yarn-session` 并设置参数 `yarn.application.id` 指向一个已经存在的 YARN session 集群。
 
 ### 在 application 模式下运行刷新作业
 
 **Kubernetes application 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'kubernetes-application';
+Flink SQL> SET 'execution.target' = 'kubernetes-application';
 [INFO] Execute statement succeeded.
 
 Flink SQL> SET 'kubernetes.cluster-id' = 'flink-cluster-mt-application-1';
@@ -156,23 +156,23 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
-设置 `execution.mode` 为 `kubernetes-application` ，`kubernetes.cluster-id` 是一个可选配置，如果未配置，在提交作业时会自动生成。
+设置 `execution.target` 为 `kubernetes-application` ，`kubernetes.cluster-id` 是一个可选配置，如果未配置，在提交作业时会自动生成。
 
 **YARN application 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'yarn-application';
+Flink SQL> SET 'execution.target' = 'yarn-application';
 [INFO] Execute statement succeeded.
 
 FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
-设置 `execution.mode` 为 `yarn-application` ，`yarn.application.id` 无需配置。
+设置 `execution.target` 为 `yarn-application` ，`yarn.application.id` 无需配置。
 
 ## 运维操作
 
-集群信息（如 `execution.mode` 或 `kubernetes.cluster-id`）已持久化在 Catalog 中，暂停或恢复物化表刷新作业时无需重复设置。
+集群信息（如 `execution.target` 或 `kubernetes.cluster-id`）已持久化在 Catalog 中，暂停或恢复物化表刷新作业时无需重复设置。
 
 ### 暂停刷新作业
 ```sql

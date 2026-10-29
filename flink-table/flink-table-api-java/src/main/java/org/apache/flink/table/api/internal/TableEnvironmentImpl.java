@@ -47,6 +47,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.materializedtable.DefaultMaterializedTableJobSubmitter;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDescriptor;
@@ -1336,17 +1337,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private MaterializedTableExecutor getMaterializedTableExecutor() {
         if (materializedTableExecutor == null) {
+            final MaterializedTableJobSubmitter jobSubmitter =
+                    materializedTableJobSubmitter != null
+                            ? materializedTableJobSubmitter
+                            : new DefaultMaterializedTableJobSubmitter(
+                                    operationCtx, planner, execEnv);
             materializedTableExecutor =
-                    materializedTableExecutorFactory.createExecutor(
-                            operationCtx, materializedTableJobSubmitter);
+                    materializedTableExecutorFactory.createExecutor(operationCtx, jobSubmitter);
         }
         return materializedTableExecutor;
     }
 
     @Override
     public TableResultInternal executeInternal(Operation operation) {
-        if (operation instanceof MaterializedTableOperation
-                && materializedTableJobSubmitter != null) {
+        if (operation instanceof MaterializedTableOperation) {
             return getMaterializedTableExecutor().execute((MaterializedTableOperation) operation);
         }
 
