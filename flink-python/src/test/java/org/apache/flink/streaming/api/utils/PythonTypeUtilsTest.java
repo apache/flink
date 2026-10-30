@@ -36,6 +36,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -55,7 +56,9 @@ import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -291,5 +294,61 @@ class PythonTypeUtilsTest {
                                 TypeConversions.fromLogicalToDataType(rowDataType)));
 
         assertThat(dataConverter).isEqualTo(expectedDataConverter);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testDataConverterKeepsContainerElementsSeparate() {
+        Object[] external1 = new Object[] {0L, new Object[] {1L}};
+        Object[] external2 = new Object[] {0L, new Object[] {2L}};
+        Row row1 = Row.of(1);
+        Row row2 = Row.of(2);
+
+        PythonTypeUtils.DataConverter arrayConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                        Types.OBJECT_ARRAY(Types.ROW(Types.INT)));
+        assertThat((Object[]) arrayConverter.toInternal(new Object[] {external1, external2}))
+                .containsExactly(row1, row2);
+        Object[] externalArray = (Object[]) arrayConverter.toExternal(new Row[] {row1, row2});
+        assertThat((Object[]) ((Object[]) externalArray[0])[1]).containsExactly(1L);
+        assertThat((Object[]) ((Object[]) externalArray[1])[1]).containsExactly(2L);
+
+        PythonTypeUtils.DataConverter nestedArrayConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                        Types.OBJECT_ARRAY(Types.ROW(Types.ROW(Types.INT))));
+        assertThat(
+                        (Object[])
+                                nestedArrayConverter.toInternal(
+                                        new Object[] {
+                                            new Object[] {0L, new Object[] {external1}},
+                                            new Object[] {0L, new Object[] {external2}}
+                                        }))
+                .containsExactly(Row.of(row1), Row.of(row2));
+
+        PythonTypeUtils.DataConverter tupleArrayConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                        Types.OBJECT_ARRAY(Types.TUPLE(Types.INT)));
+        assertThat(
+                        (Object[])
+                                tupleArrayConverter.toInternal(
+                                        new Object[] {new Object[] {1L}, new Object[] {2L}}))
+                .containsExactly(Tuple1.of(1), Tuple1.of(2));
+
+        PythonTypeUtils.DataConverter listConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                        Types.LIST(Types.ROW(Types.INT)));
+        assertThat((List<Object>) listConverter.toInternal(Arrays.asList(external1, external2)))
+                .containsExactly(row1, row2);
+
+        PythonTypeUtils.DataConverter mapConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                        Types.MAP(Types.STRING, Types.ROW(Types.INT)));
+        Map<String, Object> externalMap = new HashMap<>();
+        externalMap.put("a", external1);
+        externalMap.put("b", external2);
+        Map<String, Row> expectedMap = new HashMap<>();
+        expectedMap.put("a", row1);
+        expectedMap.put("b", row2);
+        assertThat((Map<String, Row>) mapConverter.toInternal(externalMap)).isEqualTo(expectedMap);
     }
 }
