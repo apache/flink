@@ -28,9 +28,12 @@ import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecor
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
+
+import javax.annotation.Nullable;
 
 import java.util.Iterator;
 
@@ -54,6 +57,9 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
             GeneratedJoinCondition generatedJoinCondition,
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
+            @Nullable RuntimeChangelogMode leftInputChangelogMode,
+            @Nullable RuntimeChangelogMode rightInputChangelogMode,
+            boolean hasNonEquiCondition,
             boolean[] filterNullKeys,
             long leftStateRetentionTime,
             long rightStateRetentionTIme) {
@@ -63,6 +69,9 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 generatedJoinCondition,
                 leftInputSideSpec,
                 rightInputSideSpec,
+                leftInputChangelogMode,
+                rightInputChangelogMode,
+                hasNonEquiCondition,
                 filterNullKeys,
                 leftStateRetentionTime,
                 rightStateRetentionTIme);
