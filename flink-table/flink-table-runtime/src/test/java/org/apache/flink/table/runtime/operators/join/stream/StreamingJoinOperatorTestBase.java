@@ -127,6 +127,30 @@ public abstract class StreamingJoinOperatorTestBase {
         return new GeneratedJoinCondition("KnownValuesNonEquiCondition", code, new Object[0]);
     }
 
+    /**
+     * The unique key (order_id, line_order_id) contains the join key (line_order_id), which the
+     * planner requires for inputs without UPDATE_BEFORE, so a replacing record has the same join
+     * key.
+     */
+    protected JoinInputSideSpec leftHasUniqueKeySpec() {
+        final RowDataKeySelector uniqueKeySelector =
+                HandwrittenSelectorUtil.getRowDataSelector(
+                        new int[] {0, 1},
+                        leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
+        return JoinInputSideSpec.withUniqueKey(
+                uniqueKeySelector.getProducedType(), uniqueKeySelector);
+    }
+
+    /** The unique key (line_order_id, line_order_ship_mode) contains the join key. */
+    protected JoinInputSideSpec rightHasUniqueKeySpec() {
+        final RowDataKeySelector uniqueKeySelector =
+                HandwrittenSelectorUtil.getRowDataSelector(
+                        new int[] {0, 1},
+                        rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
+        return JoinInputSideSpec.withUniqueKey(
+                uniqueKeySelector.getProducedType(), uniqueKeySelector);
+    }
+
     protected RowDataHarnessAssertor assertor;
 
     protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
