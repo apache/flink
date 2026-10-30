@@ -224,6 +224,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         TwoInputStreamOperator<RowData, RowData, RowData> operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
         final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
+        final RuntimeChangelogMode leftRuntimeChangelogMode =
+                toRuntimeChangelogMode(leftInputChangelogMode);
+        final RuntimeChangelogMode rightRuntimeChangelogMode =
+                toRuntimeChangelogMode(rightInputChangelogMode);
+        final boolean hasNonEquiCondition = joinSpec.getNonEquiCondition().isPresent();
         if (joinType == FlinkJoinType.ANTI || joinType == FlinkJoinType.SEMI) {
             operator =
                     new StreamingSemiAntiJoinOperator(
@@ -233,6 +238,9 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                             generatedCondition,
                             leftInputSpec,
                             rightInputSpec,
+                            leftRuntimeChangelogMode,
+                            rightRuntimeChangelogMode,
+                            hasNonEquiCondition,
                             joinSpec.getFilterNulls(),
                             leftStateRetentionTime,
                             rightStateRetentionTime);
@@ -240,11 +248,6 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             boolean leftIsOuter = joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.FULL;
             boolean rightIsOuter =
                     joinType == FlinkJoinType.RIGHT || joinType == FlinkJoinType.FULL;
-            final RuntimeChangelogMode leftRuntimeChangelogMode =
-                    toRuntimeChangelogMode(leftInputChangelogMode);
-            final RuntimeChangelogMode rightRuntimeChangelogMode =
-                    toRuntimeChangelogMode(rightInputChangelogMode);
-            final boolean hasNonEquiCondition = joinSpec.getNonEquiCondition().isPresent();
             if (isMiniBatchEnabled) {
                 operator =
                         MiniBatchStreamingJoinOperator.newMiniBatchStreamJoinOperator(
