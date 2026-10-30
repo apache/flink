@@ -135,15 +135,19 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
     protected @Nullable RowData replacedRecord(
             RowData record, JoinRecordStateView stateView, boolean isLeft, boolean otherIsOuter)
             throws Exception {
+        return needsReplacedRecord(isLeft, otherIsOuter) ? stateView.getRecord(record) : null;
+    }
+
+    /**
+     * Returns whether looking up the record that an input record replaces can change the result.
+     */
+    protected boolean needsReplacedRecord(boolean isLeft, boolean otherIsOuter) {
         final boolean inputIsUpsertOrUnknown =
                 isLeft ? leftIsUpsertOrUnknown : rightIsUpsertOrUnknown;
         // with at most one record per join key, the count of the other side is right without it
         final boolean mayCountTwice = otherIsOuter && !joinKeyContainsUniqueKey(isLeft);
         final boolean mayMatchDifferently = hasNonEquiCondition;
-        if (!inputIsUpsertOrUnknown || !(mayCountTwice || mayMatchDifferently)) {
-            return null;
-        }
-        return stateView.getRecord(record);
+        return inputIsUpsertOrUnknown && (mayCountTwice || mayMatchDifferently);
     }
 
     /**
