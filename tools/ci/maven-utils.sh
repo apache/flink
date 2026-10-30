@@ -76,8 +76,6 @@ MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.connector.basic.threads=16 "
 # fetch POMs in parallel while collecting dependencies (default collector "df" is sequential)
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.dependencyCollector.impl=bf -Daether.dependencyCollector.bf.threads=16 "
-# git-commit-id-plugin: native git is much faster than JGit on the full-history checkout; CI images have git
-MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.gitcommitid.nativegit=true "
 # logging
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
 # suppress snapshot updates
