@@ -31,9 +31,11 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -621,53 +623,116 @@ public class BinaryVariantInternalBuilder {
         appendVariantImpl(v.rawValue(), v.getMetadata(), v.getPos());
     }
 
+    // Uses an explicit stack rather than recursion, so deeply nested input cannot overflow.
     private void appendVariantImpl(byte[] value, byte[] metadata, int pos) {
         checkIndex(pos, value.length);
-        int basicType = value[pos] & BASIC_TYPE_MASK;
-        switch (basicType) {
+        int rootType = value[pos] & BASIC_TYPE_MASK;
+        if (rootType != OBJECT && rootType != ARRAY) {
+            // Scalars are the common case on per-record paths, so skip allocating the stack.
+            shallowAppendVariantImpl(value, pos);
+            return;
+        }
+        final Deque<AppendFrame> stack = new ArrayDeque<>();
+        appendOrPush(value, pos, stack);
+        while (!stack.isEmpty()) {
+            final AppendFrame frame = stack.peek();
+            if (frame.index == frame.size) {
+                stack.pop();
+                if (frame.fields != null) {
+                    finishWritingObject(frame.start, frame.fields);
+                } else {
+                    finishWritingArray(frame.start, frame.offsets);
+                }
+                continue;
+            }
+            int i = frame.index++;
+            int offset =
+                    readUnsigned(value, frame.offsetStart + frame.offsetSize * i, frame.offsetSize);
+            if (frame.fields != null) {
+                int id = readUnsigned(value, frame.idStart + frame.idSize * i, frame.idSize);
+                addField(frame.fields, frame.start, getMetadataKey(metadata, id));
+            } else {
+                frame.offsets.add(writePos - frame.start);
+            }
+            int elementPos = frame.dataStart + offset;
+            checkIndex(elementPos, value.length);
+            appendOrPush(value, elementPos, stack);
+        }
+    }
+
+    // Copies a scalar right away; for an object or array, pushes a frame whose children are
+    // copied by the loop above.
+    private void appendOrPush(byte[] value, int pos, Deque<AppendFrame> stack) {
+        switch (value[pos] & BASIC_TYPE_MASK) {
             case OBJECT:
-                handleObject(
-                        value,
-                        pos,
-                        (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
-                            ArrayList<FieldEntry> fields = new ArrayList<>(size);
-                            int start = writePos;
-                            for (int i = 0; i < size; ++i) {
-                                int id = readUnsigned(value, idStart + idSize * i, idSize);
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * i, offsetSize);
-                                int elementPos = dataStart + offset;
-                                String key = getMetadataKey(metadata, id);
-                                addField(fields, start, key);
-                                appendVariantImpl(value, metadata, elementPos);
-                            }
-                            finishWritingObject(start, fields);
-                            return null;
-                        });
+                stack.push(
+                        handleObject(
+                                value,
+                                pos,
+                                (size, idSize, offsetSize, idStart, offsetStart, dataStart) ->
+                                        new AppendFrame(
+                                                size,
+                                                idSize,
+                                                idStart,
+                                                offsetSize,
+                                                offsetStart,
+                                                dataStart,
+                                                writePos,
+                                                true)));
                 break;
             case ARRAY:
-                handleArray(
-                        value,
-                        pos,
-                        (size, offsetSize, offsetStart, dataStart) -> {
-                            ArrayList<Integer> offsets = new ArrayList<>(size);
-                            int start = writePos;
-                            for (int i = 0; i < size; ++i) {
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * i, offsetSize);
-                                int elementPos = dataStart + offset;
-                                offsets.add(writePos - start);
-                                appendVariantImpl(value, metadata, elementPos);
-                            }
-                            finishWritingArray(start, offsets);
-                            return null;
-                        });
+                stack.push(
+                        handleArray(
+                                value,
+                                pos,
+                                (size, offsetSize, offsetStart, dataStart) ->
+                                        new AppendFrame(
+                                                size,
+                                                0,
+                                                0,
+                                                offsetSize,
+                                                offsetStart,
+                                                dataStart,
+                                                writePos,
+                                                false)));
                 break;
             default:
                 shallowAppendVariantImpl(value, pos);
                 break;
+        }
+    }
+
+    private static final class AppendFrame {
+        private final int size;
+        private final int idSize;
+        private final int idStart;
+        private final int offsetSize;
+        private final int offsetStart;
+        private final int dataStart;
+        private final int start;
+        // Exactly one is non-null: fields for an object, offsets for an array.
+        private final ArrayList<FieldEntry> fields;
+        private final ArrayList<Integer> offsets;
+        private int index;
+
+        private AppendFrame(
+                int size,
+                int idSize,
+                int idStart,
+                int offsetSize,
+                int offsetStart,
+                int dataStart,
+                int start,
+                boolean isObject) {
+            this.size = size;
+            this.idSize = idSize;
+            this.idStart = idStart;
+            this.offsetSize = offsetSize;
+            this.offsetStart = offsetStart;
+            this.dataStart = dataStart;
+            this.start = start;
+            this.fields = isObject ? new ArrayList<>(size) : null;
+            this.offsets = isObject ? null : new ArrayList<>(size);
         }
     }
 
