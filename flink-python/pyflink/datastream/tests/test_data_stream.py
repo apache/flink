@@ -1120,6 +1120,37 @@ class ProcessDataStreamTests(DataStreamTests):
                     "current_value: Row(f0=4, f1='1603708289000')"]
         self.assert_equals_sorted(expected, results)
 
+    def test_map_state_put_all(self):
+        ds = self.env.from_collection([(1, 'a'), (2, 'a')],
+                                      type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def __init__(self):
+                self.int_key_state = None
+                self.str_key_state = None
+
+            def open(self, runtime_context: RuntimeContext):
+                self.int_key_state = runtime_context.get_map_state(
+                    MapStateDescriptor('int_key_state', Types.INT(), Types.STRING()))
+                self.str_key_state = runtime_context.get_map_state(
+                    MapStateDescriptor('str_key_state', Types.STRING(), Types.STRING()))
+
+            def process_element(self, value, ctx):
+                self.int_key_state.put_all({value[0]: value[1]})
+                self.str_key_state.put_all({'ab': 'v%d' % value[0]})
+                yield str(sorted(self.int_key_state.items())) + ' ' + \
+                    str(sorted(self.str_key_state.items()))
+
+        ds.key_by(lambda x: x[1], key_type=Types.STRING()) \
+            .process(MyProcessFunction(), output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_map_state_put_all')
+        results = self.test_sink.get_results()
+        expected = ["[(1, 'a')] [('ab', 'v1')]",
+                    "[(1, 'a'), (2, 'a')] [('ab', 'v2')]"]
+        self.assert_equals_sorted(expected, results)
+
 
 class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStreamTests,
                                       PyFlinkStreamingTestCase):
