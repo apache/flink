@@ -1557,7 +1557,7 @@ public class DateTimeUtils {
     }
 
     public static int timestampWithoutLocalZoneToTime(TimestampData ts, int precision) {
-        final int millisecond = (int) (ts.getMillisecond() % DateTimeUtils.MILLIS_PER_DAY);
+        final int millisecond = (int) Math.floorMod(ts.getMillisecond(), MILLIS_PER_DAY);
         return applyTimePrecisionTruncation(millisecond, precision);
     }
 
@@ -1719,7 +1719,7 @@ public class DateTimeUtils {
 
     private static long zeroLastDigits(long l, int n) {
         long tenToTheN = (long) Math.pow(10, n);
-        return (l / tenToTheN) * tenToTheN;
+        return Math.floorDiv(l, tenToTheN) * tenToTheN;
     }
 
     public static long unixDateCeil(TimeUnitRange range, long date) {
