@@ -23,9 +23,9 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalM
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelDistribution, RelNode}
 import org.apache.calcite.rel.core.{Calc, Exchange, Join, JoinRelType, Project}
-import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.util
@@ -123,11 +123,32 @@ object UpsertKeyEquivalenceUtil {
     case project: Project =>
       recoverThroughProjection(project.getProjects.asScala, project.getInput, target, mq)
     case exchange: Exchange =>
-      recoverWithin(exchange.getInput, target, mq)
+      keysKeptByExchange(exchange, recoverWithin(exchange.getInput, target, mq), mq)
     case join @ (_: Join | _: StreamPhysicalMultiJoin) =>
       recoverAtJoin(join, target, mq)
     case _ =>
       util.Collections.emptySet()
+  }
+
+  /**
+   * The keys that stay upsert keys after `exchange`. A hash shuffle keeps only the keys that
+   * contain its hash keys (modulo immutable columns): any other key may change its hash key in an
+   * update, which then reaches two tasks in no particular order. This is the rule
+   * [[FlinkRelMetadataQuery#getUpsertKeys]] applies to an exchange.
+   */
+  private def keysKeptByExchange(
+      exchange: Exchange,
+      keys: JSet[ImmutableBitSet],
+      mq: FlinkRelMetadataQuery): JSet[ImmutableBitSet] = {
+    if (exchange.getDistribution.getType != RelDistribution.Type.HASH_DISTRIBUTED) {
+      return keys
+    }
+    val hashKeys = ImmutableBitSet.of(exchange.getDistribution.getKeys)
+    val immutableColumns =
+      Option(mq.getImmutableColumns(exchange.getInput)).getOrElse(ImmutableBitSet.of())
+    val kept = new util.LinkedHashSet[ImmutableBitSet]()
+    keys.asScala.foreach(key => if (key.union(immutableColumns).contains(hashKeys)) kept.add(key))
+    kept
   }
 
   /** Maps the target down to the projection input, recovers keys there, and maps them back up. */
@@ -136,7 +157,7 @@ object UpsertKeyEquivalenceUtil {
       input: RelNode,
       target: ImmutableBitSet,
       mq: FlinkRelMetadataQuery): JSet[ImmutableBitSet] = {
-    val inputToOutput = inputToOutputMap(projects)
+    val inputToOutput = FlinkRelMdUtil.inputToOutputPositions(projects.asJava)
     val inputTarget = ImmutableBitSet.builder()
     inputToOutput.asScala.foreach {
       case (in, outs) => if (outs.asScala.exists(target.get(_))) inputTarget.set(in)
@@ -190,19 +211,12 @@ object UpsertKeyEquivalenceUtil {
   private def keyPreservingInputs(rel: RelNode, mq: FlinkRelMetadataQuery): Seq[(RelNode, Int)] =
     rel match {
       case multiJoin: StreamPhysicalMultiJoin =>
-        // only all-inner (no padding); an input is preserved when every other input is unique on
-        // its join key
+        // only all-inner (no padding); see isKeyPreservingMultiJoinInput
         if (multiJoin.getJoinTypes.asScala.forall(_ == JoinRelType.INNER)) {
           val inputs = multiJoin.getInputs.asScala
           val offsets = inputs.scanLeft(0)(_ + _.getRowType.getFieldCount)
-          val unique = inputs.indices.map {
-            j =>
-              isSideUnique(
-                mq.getUpsertKeys(inputs(j)),
-                ImmutableBitSet.of(multiJoin.getJoinKeyIndices(j): _*))
-          }
           inputs.indices
-            .filter(i => inputs.indices.forall(j => j == i || unique(j)))
+            .filter(i => isKeyPreservingMultiJoinInput(multiJoin, i, offsets, mq))
             .map(i => (inputs(i), offsets(i)))
         } else {
           Seq.empty
@@ -231,6 +245,47 @@ object UpsertKeyEquivalenceUtil {
       case _ =>
         Seq.empty
     }
+
+  /**
+   * Whether a row of input `start` of an all-inner multi-join matches at most one row of every
+   * other input, so that the keys of `start` stay unique in the output. Starting from `start`, an
+   * input is reached once it is unique on its columns equated to inputs already reached: those
+   * columns are then fixed by the rows already matched. Columns equated only to inputs not reached
+   * yet don't count, as such an input may still match several rows.
+   */
+  private def isKeyPreservingMultiJoinInput(
+      multiJoin: StreamPhysicalMultiJoin,
+      start: Int,
+      offsets: Seq[Int],
+      mq: FlinkRelMetadataQuery): Boolean = {
+    val inputs = multiJoin.getInputs.asScala
+    def inputOf(column: Int): Int = offsets.lastIndexWhere(_ <= column)
+    // the multi-join's own equalities, between columns of two different inputs
+    val crossPairs = mq
+      .getEquiJoinColumnPairs(multiJoin)
+      .asScala
+      .map(pair => (pair.getSource, pair.getTarget))
+      .filter { case (a, b) => inputOf(a) != inputOf(b) }
+    val reached = new util.BitSet()
+    reached.set(start)
+    var grown = true
+    while (grown) {
+      grown = false
+      for (j <- inputs.indices if !reached.get(j)) {
+        val columns = ImmutableBitSet.builder()
+        crossPairs.foreach {
+          case (a, b) =>
+            if (inputOf(a) == j && reached.get(inputOf(b))) columns.set(a - offsets(j))
+            if (inputOf(b) == j && reached.get(inputOf(a))) columns.set(b - offsets(j))
+        }
+        if (isSideUnique(mq.getUpsertKeys(inputs(j)), columns.build())) {
+          reached.set(j)
+          grown = true
+        }
+      }
+    }
+    reached.cardinality == inputs.size
+  }
 
   /**
    * Repairs each key toward `target` (shifting up by `offset` first) and adds the ones that fit.
@@ -268,22 +323,11 @@ object UpsertKeyEquivalenceUtil {
   private def calcProjects(calc: Calc): Seq[RexNode] =
     calc.getProgram.getProjectList.asScala.map(calc.getProgram.expandLocalRef)
 
-  /** Each input column to the output positions where a projection passes it through as-is. */
-  private def inputToOutputMap(projects: Seq[RexNode]): JMap[Integer, JList[Integer]] = {
-    val map = new util.HashMap[Integer, JList[Integer]]()
-    projects.zipWithIndex.foreach {
-      case (ref: RexInputRef, outIdx) =>
-        map.computeIfAbsent(ref.getIndex, (_: Integer) => new util.ArrayList[Integer]()).add(outIdx)
-      case _ =>
-    }
-    map
-  }
-
   /** The output positions where a projection passes any of `inputColumns` through as-is. */
   private def projectColumns(
       inputColumns: ImmutableBitSet,
       projects: Seq[RexNode]): ImmutableBitSet = {
-    val inputToOutput = inputToOutputMap(projects)
+    val inputToOutput = FlinkRelMdUtil.inputToOutputPositions(projects.asJava)
     val builder = ImmutableBitSet.builder()
     inputColumns.toArray.foreach {
       in => Option(inputToOutput.get(in)).foreach(_.asScala.foreach(out => builder.set(out)))

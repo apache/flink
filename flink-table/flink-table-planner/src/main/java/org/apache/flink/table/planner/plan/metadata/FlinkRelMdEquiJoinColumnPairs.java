@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata;
 
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
+import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -42,7 +43,6 @@ import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.IntPair;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -157,16 +157,7 @@ public class FlinkRelMdEquiJoinColumnPairs
     /** Maps the pairs to every output position where the projection passes both columns through. */
     private static List<EquiJoinColumnPair> projectPairs(
             List<EquiJoinColumnPair> pairs, List<RexNode> projects) {
-        Map<Integer, List<Integer>> mapInToOutPos = new HashMap<>();
-        for (int i = 0; i < projects.size(); i++) {
-            RexNode projExpr = projects.get(i);
-            if (projExpr instanceof RexInputRef) {
-                mapInToOutPos
-                        .computeIfAbsent(
-                                ((RexInputRef) projExpr).getIndex(), k -> new ArrayList<>())
-                        .add(i);
-            }
-        }
+        Map<Integer, List<Integer>> mapInToOutPos = FlinkRelMdUtil.inputToOutputPositions(projects);
         List<EquiJoinColumnPair> result = new ArrayList<>();
         for (EquiJoinColumnPair pair : pairs) {
             for (int source : mapInToOutPos.getOrDefault(pair.getSource(), List.of())) {

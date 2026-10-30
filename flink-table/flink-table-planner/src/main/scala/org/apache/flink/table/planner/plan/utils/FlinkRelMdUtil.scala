@@ -677,6 +677,23 @@ object FlinkRelMdUtil {
     inputRefs
   }
 
+  /**
+   * Maps each input column to the output positions where the projection passes it through as a
+   * plain [[RexInputRef]]. A column projected more than once maps to all its positions.
+   */
+  def inputToOutputPositions(
+      projects: util.List[RexNode]): util.Map[Integer, util.List[Integer]] = {
+    val positions = new util.HashMap[Integer, util.List[Integer]]()
+    projects.asScala.zipWithIndex.foreach {
+      case (ref: RexInputRef, out) =>
+        positions
+          .computeIfAbsent(ref.getIndex, (_: Integer) => new util.ArrayList[Integer]())
+          .add(out)
+      case _ =>
+    }
+    positions
+  }
+
   /** Splits a column set between left and right sets. */
   def splitColumnsIntoLeftAndRight(
       leftCount: Int,

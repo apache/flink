@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -42,15 +43,12 @@ import org.apache.calcite.rel.metadata.MetadataHandler;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -293,16 +291,7 @@ public class FlinkRelMdImmutableColumns implements MetadataHandler<FlinkMetadata
             return inputImmutableColumns;
         }
 
-        Map<Integer, List<Integer>> mapInToOutPos = new HashMap<>();
-        for (int i = 0; i < projects.size(); i++) {
-            RexNode projExpr = projects.get(i);
-            if (projExpr instanceof RexInputRef) {
-                mapInToOutPos
-                        .computeIfAbsent(
-                                ((RexInputRef) projExpr).getIndex(), k -> new ArrayList<>())
-                        .add(i);
-            }
-        }
+        Map<Integer, List<Integer>> mapInToOutPos = FlinkRelMdUtil.inputToOutputPositions(projects);
         return ImmutableBitSet.of(
                 inputImmutableColumns.toList().stream()
                         .flatMap(in -> mapInToOutPos.getOrDefault(in, List.of()).stream())

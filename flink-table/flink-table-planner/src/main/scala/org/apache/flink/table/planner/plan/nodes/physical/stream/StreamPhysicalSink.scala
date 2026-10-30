@@ -107,6 +107,9 @@ class StreamPhysicalSink(
     tableSinkSpec.setTableSink(tableSink)
     // no need to call getUpsertKeysInKeyGroupRange here because there's no exchange before sink,
     // and only add exchange in exec sink node.
+    // the reported keys are the ones to use: only the upsert materializer reads this key, and it is
+    // only added when no upsert key fits the pk, even through equi-join equivalences (see
+    // primaryKeysContainsUpsertKey), or when forced.
     val inputUpsertKeys = FlinkRelMetadataQuery
       .reuseOrCreate(cluster.getMetadataQuery)
       .getUpsertKeys(inputRel)
