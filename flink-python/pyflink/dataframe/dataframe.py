@@ -67,8 +67,8 @@ from pyflink.table.expressions import (
     col as table_col,
     if_then_else,
     is_nan,
-    is_not_nan,
     lit as table_lit,
+    not_,
     or_,
 )
 from pyflink.table.table import Table
@@ -2390,9 +2390,9 @@ class DataFrame:
         if not subset:
             return self
 
-        # Preserve NULL values: (is_not_nan(col) OR col IS NULL)
+        # Preserve NULL values: (NOT is_nan(col) OR col IS NULL)
         conditions = [
-            or_(is_not_nan(table_col(col_name)), table_col(col_name).is_null)
+            or_(not_(is_nan(table_col(col_name))), table_col(col_name).is_null)
             for col_name in subset
         ]
         condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
