@@ -25,13 +25,11 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -1372,20 +1370,6 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 .isEqualTo(hasUniqueKey ? left : null);
         assertThat(operator.rightRecordStateView.getRecord(right))
                 .isEqualTo(hasUniqueKey ? right : null);
-    }
-
-    /**
-     * The unique key (order_id, line_order_id) contains the join key (line_order_id), which the
-     * planner requires for inputs without UPDATE_BEFORE, so a replacing record has the same join
-     * key.
-     */
-    private JoinInputSideSpec leftHasUniqueKeySpec() {
-        final RowDataKeySelector uniqueKeySelector =
-                HandwrittenSelectorUtil.getRowDataSelector(
-                        new int[] {0, 1},
-                        leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-        return JoinInputSideSpec.withUniqueKey(
-                uniqueKeySelector.getProducedType(), uniqueKeySelector);
     }
 
     private static final String ADDRESS = "3 Bellevue Drive, Pottstown, PA 19464";
