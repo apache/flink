@@ -18,12 +18,17 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
@@ -258,6 +263,50 @@ class TableEnvironmentTest {
         assertThat(tEnv.listModels()).containsExactly("M1", "M2");
     }
 
+    @Test
+    void testListMaterializedTablesInGivenNamespace() throws Exception {
+        final String currentCatalog = tEnv.getCurrentCatalog();
+        tEnv.createCatalog(
+                "other_catalog",
+                CatalogDescriptor.of(
+                        "other_catalog",
+                        Configuration.fromMap(
+                                Map.of(
+                                        "type", "generic_in_memory",
+                                        "default-database", "other_database"))));
+        final Catalog otherCatalog =
+                tEnv.getCatalog("other_catalog").orElseThrow(AssertionError::new);
+        otherCatalog.createTable(
+                new ObjectPath("other_database", "mt_b"), createMaterializedTable(), false);
+        otherCatalog.createTable(
+                new ObjectPath("other_database", "mt_a"), createMaterializedTable(), false);
+
+        tEnv.useCatalog("other_catalog");
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+        tEnv.createView("V", tEnv.from("T"));
+        tEnv.createTemporaryTable("TMP", TEST_DESCRIPTOR);
+        tEnv.useCatalog(currentCatalog);
+
+        assertThat(tEnv.listMaterializedTables("other_catalog", "other_database"))
+                .containsExactly("mt_a", "mt_b");
+    }
+
+    @Test
+    void testListMaterializedTablesThrowsForUnknownNamespace() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.listMaterializedTables(
+                                        "unknown_catalog", tEnv.getCurrentDatabase()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Catalog unknown_catalog does not exist");
+        assertThatThrownBy(
+                        () ->
+                                tEnv.listMaterializedTables(
+                                        tEnv.getCurrentCatalog(), "unknown_database"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Database unknown_database does not exist");
+    }
+
     private static void assertCreateTableFromDescriptor(
             TableEnvironmentMock tEnv, Schema schema, boolean ignoreIfExists)
             throws org.apache.flink.table.catalog.exceptions.TableNotExistException {
@@ -351,5 +400,18 @@ class TableEnvironmentTest {
             assertThat(catalogModel.getOptions()).contains(entry);
             assertThat(catalogModel.getOptions()).containsEntry(entry.getKey(), entry.getValue());
         }
+    }
+
+    private static CatalogMaterializedTable createMaterializedTable() {
+        return CatalogMaterializedTable.newBuilder()
+                .schema(TEST_SCHEMA)
+                .options(Map.of())
+                .originalQuery("SELECT 1 AS f0")
+                .expandedQuery("SELECT 1 AS f0")
+                .freshness(IntervalFreshness.ofSecond(30))
+                .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
+                .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
+                .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                .build();
     }
 }

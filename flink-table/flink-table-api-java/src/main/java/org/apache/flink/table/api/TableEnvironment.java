@@ -1285,9 +1285,19 @@ public interface TableEnvironment {
      *
      * @return A list of the names of all registered materialized tables in the current database of
      *     the current catalog.
-     * @see #listTemporaryViews()
+     * @see #listMaterializedTables(String, String)
      */
     String[] listMaterializedTables();
+
+    /**
+     * Gets the names of all materialized tables available in the given namespace (the given
+     * database of the given catalog).
+     *
+     * @return A list of the names of all registered materialized tables in the given database of
+     *     the given catalog.
+     * @see #listMaterializedTables()
+     */
+    String[] listMaterializedTables(String catalogName, String databaseName);
 
     /**
      * Gets the names of all temporary tables and views available in the current namespace (the

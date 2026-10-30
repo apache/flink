@@ -678,17 +678,31 @@ class TableEnvironment(object):
         j_view_name_array = self._j_tenv.listViews()
         return [item for item in j_view_name_array]
 
-    def list_materialized_tables(self) -> List[str]:
+    def list_materialized_tables(self, catalog_name: Optional[str] = None,
+                                 database_name: Optional[str] = None) -> List[str]:
         """
-        Gets the names of all materialized tables available
-        in the current namespace (the current database of the current catalog).
+        Gets the names of all materialized tables available in the given namespace (the given
+        database of the given catalog), or in the current namespace (the current database of
+        the current catalog) if neither is given.
 
-        :return: A list of the names of all registered materialized tables
-        in the current database of the current catalog.
+        :param catalog_name: The name of the catalog. Must be given together with
+                             ``database_name``.
+        :param database_name: The name of the database. Must be given together with
+                              ``catalog_name``.
+        :return: A list of the names of all registered materialized tables in the namespace.
 
         .. versionadded:: 2.2.0
+
+        .. versionchanged:: 2.5.0
+           Added the ``catalog_name`` and ``database_name`` parameters.
         """
-        j_materialized_table_name_array = self._j_tenv.listMaterializedTables()
+        if catalog_name is None and database_name is None:
+            j_materialized_table_name_array = self._j_tenv.listMaterializedTables()
+        elif catalog_name is None or database_name is None:
+            raise ValueError("catalog_name and database_name must be given together.")
+        else:
+            j_materialized_table_name_array = self._j_tenv.listMaterializedTables(
+                catalog_name, database_name)
         return [item for item in j_materialized_table_name_array]
 
     def list_user_defined_functions(self) -> List[str]:
