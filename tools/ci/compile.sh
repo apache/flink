@@ -60,19 +60,37 @@ EXIT_CODE=0
 
 # Maven QA-check args: dependency convergence, the deploy that stages jars for the license check, and the shade DEBUG log the bundled-optional check parses. Default runs full QA; the fast compile job and e2e pass MVN_LICENSE_CHECK_ARGS="" to build only (QA runs in the license_check job). Non-empty also enables the structural QA + license blocks below.
 MVN_LICENSE_CHECK_ARGS="${MVN_LICENSE_CHECK_ARGS-deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG}"
+MVN_COMPILE_THREADS="${MVN_COMPILE_THREADS:-1C}"
+
 if [[ -n "$MVN_LICENSE_CHECK_ARGS" ]]; then
-    BUILD_GOAL_ARGS="$MVN_LICENSE_CHECK_ARGS"
-    MVN_COMPILE_THREADS="${MVN_COMPILE_THREADS:-1}"
+    # Our output parsers (bundled-optional/shade/deploy) need each module's plugin output contiguous.
+    # Log the thread name, then regroup the multi-threaded output per thread (a thread builds one module at a time) and drop the thread name again.
+    MVN_RAW_OUT="/tmp/clean_compile_raw.out"
+    $MVN clean ${MVN_LICENSE_CHECK_ARGS} -Dorg.slf4j.simpleLogger.showThreadName=true \
+        -Dmaven.javadoc.skip=true -U -DskipTests "${@}" -T${MVN_COMPILE_THREADS} | tee $MVN_RAW_OUT
+    EXIT_CODE=${PIPESTATUS[0]}
+    awk '
+        # Unprefixed lines go to a separate group so they cannot split another thread'"'"'s plugin block.
+        { thread = "" }
+        match($0, /^([0-9:.]+ )?\[[^]]*\] \[/) {
+            prefix = substr($0, 1, RLENGTH - 1)
+            thread = substr(prefix, index(prefix, "[") + 1)
+            sub(/\] $/, "", thread)
+            $0 = substr(prefix, 1, index(prefix, "[") - 1) substr($0, RLENGTH)
+        }
+        {
+            if (!(thread in count)) { order[++threads] = thread; count[thread] = 0 }
+            lines[thread, ++count[thread]] = $0
+        }
+        END {
+            for (t = 1; t <= threads; t++)
+                for (i = 1; i <= count[order[t]]; i++) print lines[order[t], i]
+        }' $MVN_RAW_OUT > $MVN_CLEAN_COMPILE_OUT || [ $EXIT_CODE != 0 ] || { echo "Regrouping Maven output failed."; exit 1; }
 else
-    BUILD_GOAL_ARGS="install"
-    MVN_COMPILE_THREADS="${MVN_COMPILE_THREADS:-1C}"
+    $MVN clean install \
+        -Dmaven.javadoc.skip=true -U -DskipTests "${@}" -T${MVN_COMPILE_THREADS} | tee $MVN_CLEAN_COMPILE_OUT
+    EXIT_CODE=${PIPESTATUS[0]}
 fi
-
-# Default -T1 because our output parsers (bundled-optional/shade) don't support multi-threaded builds; the fast compile job sets MVN_COMPILE_THREADS=1C together with MVN_LICENSE_CHECK_ARGS="" so those parsing checks are skipped.
-$MVN clean ${BUILD_GOAL_ARGS} \
-    -Dmaven.javadoc.skip=true -U -DskipTests "${@}" -T${MVN_COMPILE_THREADS} | tee $MVN_CLEAN_COMPILE_OUT
-
-EXIT_CODE=${PIPESTATUS[0]}
 
 if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
