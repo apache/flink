@@ -697,6 +697,74 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
+  /**
+   * user_regions is unique on its join columns (user_id, region), but orders is joined on user_id
+   * only, so an order matches the user's row of every region and its key is not unique in the
+   * output. Deleting one region must keep the order's row for the other region.
+   */
+  @TestTemplate
+  def testMultiJoinKeyNotUniqueWhenJoinedOnFewerColumns(): Unit = {
+    tEnv.getConfig.getConfiguration
+      .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED.key(), "true")
+    val regions = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", "u1", "EU", "Ann"),
+        changelogRow("+I", "u1", "US", "Ann"),
+        changelogRow("-D", "u1", "EU", "Ann")))
+    val orders = TestValuesTableFactory.registerData(Seq(changelogRow("+I", "o1", "u1", "book")))
+    val addresses = TestValuesTableFactory.registerData(
+      Seq(changelogRow("+I", "u1", "EU", "Berlin"), changelogRow("+I", "u1", "US", "NYC")))
+    // the regions source sleeps after each row, so the delete comes after both regions joined
+    tEnv.executeSql(s"""
+                       |CREATE TABLE user_regions (
+                       |  user_id STRING, region STRING, name STRING,
+                       |  PRIMARY KEY (user_id, region) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$regions',
+                       |  'changelog-mode' = 'I,D',
+                       |  'disable-lookup' = 'true',
+                       |  'enable-watermark-push-down' = 'true',
+                       |  'source.sleep-after-elements' = '1',
+                       |  'source.sleep-time' = '500ms'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE orders (
+         |  order_id STRING, user_id STRING, product STRING,
+         |  PRIMARY KEY (order_id, user_id) NOT ENFORCED
+         |) WITH ('connector' = 'values', 'data-id' = '$orders', 'changelog-mode' = 'I,D')
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE region_addresses (
+         |  user_id STRING, region STRING, location STRING,
+         |  PRIMARY KEY (user_id, region) NOT ENFORCED
+         |) WITH ('connector' = 'values', 'data-id' = '$addresses', 'changelog-mode' = 'I,D')
+         |""".stripMargin)
+    tEnv.executeSql("""
+                      |CREATE TABLE order_sink (
+                      |  order_id STRING, user_id STRING, location STRING,
+                      |  PRIMARY KEY (order_id, user_id) NOT ENFORCED
+                      |) WITH ('connector' = 'values', 'sink-insert-only' = 'false')
+                      |""".stripMargin)
+
+    tEnv
+      .executeSql("""
+                    |INSERT INTO order_sink
+                    |SELECT o.order_id, o.user_id, a.location
+                    |FROM user_regions r
+                    |JOIN orders o ON r.user_id = o.user_id
+                    |JOIN region_addresses a ON r.user_id = a.user_id AND r.region = a.region
+                    |ON CONFLICT DO DEDUPLICATE
+                    |""".stripMargin)
+      .await()
+
+    assertThat(TestValuesTableFactory.getResultsAsStrings("order_sink").sorted)
+      .isEqualTo(Seq("+I[o1, u1, NYC]"))
+  }
+
   @TestTemplate
   def testInnerJoinWithPk(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
