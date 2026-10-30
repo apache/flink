@@ -125,6 +125,12 @@ public final class OuterJoinRecordStateViews {
         }
 
         @Override
+        public Tuple2<RowData, Integer> getRecordAndNumOfAssociations(RowData record)
+                throws Exception {
+            return recordState.value();
+        }
+
+        @Override
         public Iterable<RowData> getRecords() throws Exception {
             Tuple2<RowData, Integer> tuple = recordState.value();
             if (tuple == null) {
@@ -205,6 +211,12 @@ public final class OuterJoinRecordStateViews {
         }
 
         @Override
+        public Tuple2<RowData, Integer> getRecordAndNumOfAssociations(RowData record)
+                throws Exception {
+            return recordState.get(uniqueKeySelector.getKey(record));
+        }
+
+        @Override
         public Iterable<RowData> getRecords() throws Exception {
             return new RecordsIterable(getRecordsAndNumOfAssociations());
         }
@@ -282,6 +294,11 @@ public final class OuterJoinRecordStateViews {
         @Override
         public RowData getRecord(RowData record) {
             // without a unique key, an equal record is a second record and not an update
+            return null;
+        }
+
+        @Override
+        public Tuple2<RowData, Integer> getRecordAndNumOfAssociations(RowData record) {
             return null;
         }
 

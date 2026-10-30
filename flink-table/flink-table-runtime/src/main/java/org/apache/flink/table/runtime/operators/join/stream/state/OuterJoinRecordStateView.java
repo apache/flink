@@ -21,6 +21,8 @@ package org.apache.flink.table.runtime.operators.join.stream.state;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.RowData;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@link OuterJoinRecordStateView} is an extension to {@link JoinRecordStateView}. The {@link
  * OuterJoinRecordStateView} is used to store records for the outer input side of the Join, e.g. the
@@ -54,4 +56,11 @@ public interface OuterJoinRecordStateView extends JoinRecordStateView {
      * Gets all the records and number of associations under the current context (i.e. join key).
      */
     Iterable<Tuple2<RowData, Integer>> getRecordsAndNumOfAssociations() throws Exception;
+
+    /**
+     * Returns the record with the same unique key as the given record and its number of
+     * associations, or null if there is none. Always null if the input side has no unique key.
+     */
+    @Nullable
+    Tuple2<RowData, Integer> getRecordAndNumOfAssociations(RowData record) throws Exception;
 }
