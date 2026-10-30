@@ -29,10 +29,6 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import scala.Tuple2;
 
 /**
@@ -95,68 +91,25 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             return;
         }
 
-        boolean supportsPhysicalFilter = canPushdownFilter(tableSourceTable);
-        boolean supportsMetadataFilter = canPushdownMetadataFilter(tableSourceTable);
-        int physicalColumnCount = getPhysicalColumnCount(tableSourceTable);
-
-        List<RexNode> allRemainingRexNodes = new ArrayList<>();
-        TableSourceTable currentTable = tableSourceTable;
-
-        // Unpushable metadata predicates stay as a runtime Calc, not the physical path —
-        // physical routing produces a FilterPushDownSpec that crashes compiled-plan restore
-        // once ProjectPushDownSpec narrows the scan row type.
-        List<RexNode> physicalPredicates = new ArrayList<>();
-        List<RexNode> metadataPredicates = new ArrayList<>();
-        for (RexNode predicate : convertiblePredicates) {
-            if (referencesOnlyMetadataColumns(predicate, physicalColumnCount)) {
-                if (supportsMetadataFilter) {
-                    metadataPredicates.add(predicate);
-                } else {
-                    allRemainingRexNodes.add(predicate);
-                }
-            } else {
-                physicalPredicates.add(predicate);
-            }
-        }
-
-        // Avoid re-firing on shapes we can't transform — saves wasted Hep iterations.
-        boolean nothingToPushPhysically = physicalPredicates.isEmpty() || !supportsPhysicalFilter;
-        if (nothingToPushPhysically && metadataPredicates.isEmpty()) {
+        FilterPushDownResult pushDownResult =
+                classifyAndPushFilters(
+                        convertiblePredicates,
+                        unconvertedPredicates,
+                        tableSourceTable,
+                        scan,
+                        relBuilder);
+        if (pushDownResult == null) {
             return;
         }
 
-        if (!physicalPredicates.isEmpty() && supportsPhysicalFilter) {
-            Tuple2<SupportsFilterPushDown.Result, TableSourceTable> physicalResult =
-                    resolveFiltersAndCreateTableSourceTable(
-                            physicalPredicates.toArray(new RexNode[0]),
-                            currentTable,
-                            scan,
-                            relBuilder);
-            currentTable = physicalResult._2;
-            List<RexNode> physicalRemaining =
-                    convertExpressionToRexNode(physicalResult._1.getRemainingFilters(), relBuilder);
-            allRemainingRexNodes.addAll(physicalRemaining);
-        } else {
-            allRemainingRexNodes.addAll(physicalPredicates);
-        }
-
-        if (!metadataPredicates.isEmpty()) {
-            MetadataPushDownOutcome metadataResult =
-                    resolveMetadataFiltersAndCreateTableSourceTable(
-                            metadataPredicates.toArray(new RexNode[0]), currentTable, scan);
-            currentTable = metadataResult.newTableSourceTable;
-            allRemainingRexNodes.addAll(metadataResult.remainingInputRexNodes);
-        }
-
-        allRemainingRexNodes.addAll(Arrays.asList(unconvertedPredicates));
-
         LogicalTableScan newScan =
-                LogicalTableScan.create(scan.getCluster(), currentTable, scan.getHints());
+                LogicalTableScan.create(
+                        scan.getCluster(), pushDownResult.newTableSourceTable, scan.getHints());
 
-        if (allRemainingRexNodes.isEmpty()) {
+        if (pushDownResult.remainingRexNodes.isEmpty()) {
             call.transformTo(newScan);
         } else {
-            RexNode remainingCondition = relBuilder.and(allRemainingRexNodes);
+            RexNode remainingCondition = relBuilder.and(pushDownResult.remainingRexNodes);
             RexNode simplifiedRemainingCondition =
                     FlinkRexUtil.simplify(
                             relBuilder.getRexBuilder(),
