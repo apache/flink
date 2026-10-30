@@ -120,6 +120,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     private static final LocalDateTime DEFAULT_TIMESTAMP =
             LocalDateTime.parse("2021-09-24T12:34:56.1234567");
     private static final Instant DEFAULT_TIMESTAMP_LTZ = fromLocalTZ("2021-09-24T22:34:56.1234567");
+    private static final LocalDateTime TIMESTAMP_BEFORE_EPOCH =
+            LocalDateTime.parse("1969-12-31T23:59:59.999");
 
     private static final Period DEFAULT_INTERVAL_YEAR = Period.of(10, 4, 0);
     private static final Duration DEFAULT_INTERVAL_DAY = Duration.ofHours(12);
@@ -1797,6 +1799,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         //
                         .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
                         .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
+                        .fromCase(TIMESTAMP(3), TIMESTAMP_BEFORE_EPOCH, LocalDate.of(1969, 12, 31))
 
                         // https://issues.apache.org/jira/browse/FLINK-20869
                         // TIMESTAMP_WITH_TIME_ZONE
@@ -1845,6 +1848,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(TIME(5), DEFAULT_TIME, LocalTime.of(12, 34, 56, 0))
                         .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
                         .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
+                        .fromCase(TIMESTAMP(3), TIMESTAMP_BEFORE_EPOCH, LocalTime.of(23, 59, 59))
 
                         // https://issues.apache.org/jira/browse/FLINK-20869
                         // TIMESTAMP_WITH_TIME_ZONE
@@ -1990,6 +1994,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // MAP
                         // ROW
                         // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(0))
+                        .fromCase(
+                                TIMESTAMP(3),
+                                TIMESTAMP_BEFORE_EPOCH,
+                                LocalDateTime.of(1969, 12, 31, 23, 59, 59))
                         .build(),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
                         .fromCase(TIMESTAMP_LTZ(), null, null)
