@@ -62,7 +62,7 @@ the versioning time attribute.
 ```java
 TemporalTableFunction rates = tEnv
     .from("currency_rates")
-    .createTemporalTableFunction("update_time", "currency");
+    .createTemporalTableFunction($("update_time"), $("currency"));
  
 tEnv.createTemporarySystemFunction("rates", rates);                                                        
 ```
@@ -71,7 +71,7 @@ tEnv.createTemporarySystemFunction("rates", rates);
 ```scala
 val rates = tEnv
     .from("currency_rates")
-    .createTemporalTableFunction("update_time", "currency")
+    .createTemporalTableFunction($"update_time", $"currency")
  
 tEnv.createTemporarySystemFunction("rates", rates)
 ```
@@ -112,23 +112,29 @@ SELECT
   SUM(amount * rate) AS amount
 FROM
   orders,
-  LATERAL rates(order_time)
+  LATERAL rates(order_time) AS rates
 WHERE
   rates.currency = orders.currency
 ```
 {{< /tab >}}
 {{< tab "Java" >}}
 ```java
+Table orders = tEnv.from("orders");
 Table result = orders
-    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
-    .select($("(o_amount").times($("r_rate")).sum().as("amount"));
+    .joinLateral(
+        call("rates", $("order_time")).as("r_update_time", "r_currency", "r_rate"),
+        $("currency").isEqual($("r_currency")))
+    .select($("amount").times($("r_rate")).sum().as("amount"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
+val orders = tEnv.from("orders")
 val result = orders
-    .joinLateral($"rates(order_time)", $"orders.currency = rates.currency")
-    .select($"(o_amount * r_rate).sum as amount"))
+    .joinLateral(
+        call("rates", $"order_time").as("r_update_time", "r_currency", "r_rate"),
+        $"currency" === $"r_currency")
+    .select(($"amount" * $"r_rate").sum as "amount")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
