@@ -52,6 +52,7 @@ public class JoinRestoreTest extends RestoreTestBase {
                 JoinTestPrograms.SEMI_ANTI_JOIN_WITH_LITERAL_AGG,
                 JoinTestPrograms.LEFT_JOIN_UPSERT_INPUT_NON_EQUI,
                 JoinTestPrograms.LEFT_JOIN_UPSERT_INPUT_NON_EQUI_PRE_2_4,
-                JoinTestPrograms.INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI);
+                JoinTestPrograms.INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI,
+                JoinTestPrograms.INNER_JOIN_WITH_TIED_UPSERT_KEYS);
     }
 }

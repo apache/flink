@@ -45,6 +45,7 @@ public class JoinTestPrograms {
     public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI;
     public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI_PRE_2_4;
     public static final TableTestProgram INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI;
+    public static final TableTestProgram INNER_JOIN_WITH_TIED_UPSERT_KEYS;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -564,6 +565,45 @@ public class JoinTestPrograms {
                                 "INSERT INTO MySink SELECT l.order_id, l.line_id, l.status, o.excluded_status "
                                         + "FROM orders o JOIN lines l "
                                         + "ON o.order_id = l.order_id AND l.status <> o.excluded_status")
+                        .build();
+
+        // a JOIN b is 1:1, so the left input of the second join has the upsert keys {a1}, {b1}
+        // and {a1, b1}, none of them in its join key. The join state is keyed by the first of
+        // the shortest keys in the compiled plan, so the restore must pick the same one.
+        INNER_JOIN_WITH_TIED_UPSERT_KEYS =
+                TableTestProgram.of(
+                                "join-inner-join-with-tied-upsert-keys",
+                                "inner join with an input that has several shortest upsert keys outside the join key")
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("a")
+                                        .addSchema(
+                                                "a1 BIGINT PRIMARY KEY NOT ENFORCED", "a2 STRING")
+                                        .addOption("changelog-mode", "I,UA,D")
+                                        .producedBeforeRestore(Row.of(1L, "x"))
+                                        .producedAfterRestore(
+                                                Row.ofKind(RowKind.UPDATE_AFTER, 1L, "y"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("b")
+                                        .addSchema(
+                                                "b1 BIGINT PRIMARY KEY NOT ENFORCED", "b2 STRING")
+                                        .addOption("changelog-mode", "I,UA,D")
+                                        .producedBeforeRestore(Row.of(1L, "p"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("c")
+                                        .addSchema("c1 STRING", "c2 STRING")
+                                        .producedBeforeRestore(Row.of("x", "C1"), Row.of("y", "C2"))
+                                        .build())
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("MySink")
+                                        .addSchema("a1 BIGINT", "b1 BIGINT", "c2 STRING")
+                                        .consumedBeforeRestore("+I[1, 1, C1]")
+                                        .consumedAfterRestore("-U[1, 1, C1]", "+U[1, 1, C2]")
+                                        .build())
+                        .runSql(
+                                "INSERT INTO MySink SELECT a1, b1, c2 FROM "
+                                        + "(SELECT * FROM a JOIN b ON a1 = b1) JOIN c ON a2 = c1")
                         .build();
     }
 
