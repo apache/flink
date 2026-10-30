@@ -174,7 +174,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      * | state.add(record), unless the join key can never match
      * | for each other on the other side
      * | | if record matches other
-     * | | | if the matched num of other == 0
+     * | | | if the matched num of other <= 0
      * | | |   if anti join, send -D[other]
      * | | |   if semi join, send +I/+U[other] (using input RowKind)
      * | | |   otherState.update(other, 1)
@@ -195,6 +195,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      * endif
      *
      * remove the match of other:
+     * if the matched num of other <= 0, skip, as the record was not counted
      * if the matched num of other == 1
      *   if semi join, send -D/-U[other] (using input RowKind)
      *   if anti join, send +I[other]
@@ -222,7 +223,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 final boolean replacedRecordMatches =
                         replacedRecord != null && matches(replacedRecord, other, false);
                 if (matches(input, other, false)) {
-                    if (numOfAssociations == 0) {
+                    if (numOfAssociations <= 0) {
                         // send -D[other] if anti join, +I/+U[other] (using input RowKind) if semi
                         collect(other, isAntiJoin ? RowKind.DELETE : inputRowKind);
                         leftRecordStateView.updateNumOfAssociations(other, 1);
@@ -255,6 +256,11 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      */
     private void removeMatch(RowData other, int numOfAssociations, RowKind retractionKind)
             throws Exception {
+        if (numOfAssociations <= 0) {
+            // the retracted record was not counted, e.g. it had expired when the left record was
+            // stored
+            return;
+        }
         if (numOfAssociations == 1) {
             // send -D/-U[other] if semi join, +I[other] if anti join
             collect(other, isAntiJoin ? RowKind.INSERT : retractionKind);

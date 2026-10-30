@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
@@ -478,6 +480,33 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
     }
 
     /**
+     * A retraction of a right row that the left row did not count, because the right row had
+     * expired when the left row was stored, does not make the count negative.
+     */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testRightRetractionOfExpiredRecord(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(
+                isAntiJoin, leftInputSpec, rightInputSpec, joinCondition, false, 4000L, 1000L);
+        testHarness.setStateTtlProcessingTime(1);
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.setStateTtlProcessingTime(2001);
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmitNothing(testHarness);
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS)));
+    }
+
+    /**
      * Whether the replaced left row was emitted is decided by its stored number of matches, so it
      * is retracted even if its matches expired.
      */
@@ -552,6 +581,33 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", UNKNOWN)));
     }
 
+    /** A negative number of matches, as state written before Flink 2.4 may contain, recovers. */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testRightInsertMatchesLeftRecordWithNegativeCount(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightInputSpec, joinCondition, false);
+        final RowData order = rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS);
+        testHarness.processElement1(new StreamRecord<>(order));
+        setNumOfAssociations(order, -1);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS)));
+
+        testHarness.processElement2(deleteRecord("LineOrd#1", null));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS)));
+    }
+
     private void useSemiAntiJoinOperator(
             boolean isAntiJoin,
             JoinInputSideSpec rightSpec,
@@ -591,6 +647,20 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         rightKeySelector,
                         joinKeyTypeInfo);
         testHarness.open();
+    }
+
+    /** Overwrites the stored number of matches of the left row, e.g. as old state may contain. */
+    private void setNumOfAssociations(RowData record, int numOfAssociations) throws Exception {
+        final StreamingSemiAntiJoinOperator operator =
+                (StreamingSemiAntiJoinOperator) testHarness.getOperator();
+        operator.setCurrentKey(leftKeySelector.getKey(record));
+        OuterJoinRecordStateViews.create(
+                        operator.getRuntimeContext(),
+                        AbstractStreamingJoinOperator.LEFT_RECORDS_STATE_NAME,
+                        leftInputSpec,
+                        leftTypeInfo,
+                        0L)
+                .updateNumOfAssociations(record, numOfAssociations);
     }
 
     /** Returns the row that the semi or the anti join emits, if any. */
