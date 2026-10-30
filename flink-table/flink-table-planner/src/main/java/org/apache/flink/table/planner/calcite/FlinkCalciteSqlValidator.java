@@ -389,6 +389,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         final SqlBasicCall call = (SqlBasicCall) node;
         checkNoNamedAndPositionalMixedArgs(call);
         checkDisabledSystemArgs(call);
+        checkArrayAggOrderBy(call);
 
         // Special case for MODEL
         if (node instanceof SqlExplicitModelCall) {
@@ -459,6 +460,26 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                             + call.getOperator().getName()
                             + "'. Use either all positional arguments or all named arguments "
                             + "(e.g. arg => value).");
+        }
+    }
+
+    /**
+     * Rejects ORDER BY in ARRAY_AGG and JSON_ARRAYAGG, which the runtime functions do not
+     * implement.
+     */
+    private static void checkArrayAggOrderBy(SqlBasicCall call) {
+        if (call.getKind() == SqlKind.ARRAY_AGG
+                && call.getOperandList().stream().anyMatch(SqlNodeList.class::isInstance)) {
+            throw new ValidationException(
+                    "ARRAY_AGG with ORDER BY is not supported. "
+                            + "Remove the ORDER BY clause from the ARRAY_AGG call.");
+        }
+        // JSON_ARRAYAGG(x ORDER BY y) is parsed as JSON_ARRAYAGG(x) WITHIN GROUP (ORDER BY y)
+        if (call.getKind() == SqlKind.WITHIN_GROUP
+                && call.operand(0).getKind() == SqlKind.JSON_ARRAYAGG) {
+            throw new ValidationException(
+                    "JSON_ARRAYAGG with ORDER BY is not supported. "
+                            + "Remove the ORDER BY or WITHIN GROUP clause from the JSON_ARRAYAGG call.");
         }
     }
 
