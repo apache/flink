@@ -72,6 +72,10 @@ set_mirror_config
 export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR="$MAVEN_ARGS "
 # see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
+# download more artifacts in parallel (resolver default is 5)
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.connector.basic.threads=16 "
+# fetch POMs in parallel while collecting dependencies (default collector "df" is sequential)
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.dependencyCollector.impl=bf -Daether.dependencyCollector.bf.threads=16 "
 # logging 
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
 # suppress snapshot updates
