@@ -1965,6 +1965,7 @@ Flink Table API 和 Flink SQL 支持从 `输入` 数据类型 到 `目标` 数�
 CAST('42' AS INT) --- 结果返回数字 42 的 INT 格式（非空）
 CAST(NULL AS VARCHAR) --- 结果返回 VARCHAR 类型的空值
 CAST('non-number' AS INT) --- 抛出异常，并停止作业
+'42'::INT --- 与 CAST('42' AS INT) 相同
 
 TRY_CAST('42' AS INT) --- 结果返回数字 42 的 INT 格式
 TRY_CAST(NULL AS VARCHAR) --- 结果返回 VARCHAR 类型的空值

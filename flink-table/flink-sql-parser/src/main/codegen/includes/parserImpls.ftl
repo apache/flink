@@ -3979,3 +3979,35 @@ SqlLiteral TimestampLiteral() :
             return SqlLiteral.createUnknown("TIMESTAMP WITH LOCAL TIME ZONE", p, s.end(this));
         }
 }
+
+/** Parses the infix cast operator {@code expr::type}. */
+void InfixCast(List<Object> list, ExprContext exprContext, Span s) :
+{
+    final SqlParserPos pos;
+    final SqlNode type;
+}
+{
+    <INFIX_CAST> {
+        checkNonQueryExpression(exprContext);
+        pos = getPos();
+    }
+    (
+        type = DataType()
+    |
+        <INTERVAL> type = IntervalQualifier()
+    )
+    {
+        list.add(new SqlParserUtil.ToTreeListItem(SqlInfixCastOperator.INSTANCE, pos));
+        list.add(type);
+    }
+    // Item access binds tighter than "::", so x::T[i] would apply [i] to the type T.
+    // Rejecting it keeps both readings open: element access on the result, or T[i] as an array type.
+    [
+        LOOKAHEAD(1)
+        <LBRACKET> {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.infixCastFollowedByBracket());
+        }
+    ]
+}
