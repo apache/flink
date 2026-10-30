@@ -1564,18 +1564,18 @@ to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`. `VARIANT_G
 [path]({{< ref "docs/sql/functions/built-in-functions" >}}#variant-paths) such as `'$.items[0].qty'`
 and cast it by the same rules, returning `NULL` when nothing is at the path.
 
-| Stored kind     | Succeeds for                                        |
-|-----------------|-----------------------------------------------------|
-| numeric kinds   | any numeric target that holds the value             |
-| `BOOLEAN`       | `BOOLEAN`                                           |
-| `DATE`          | `DATE`                                              |
-| `TIME`          | `TIME(p)`                                           |
-| `TIMESTAMP`     | `TIMESTAMP(p)`                                      |
-| `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)`                                  |
-| `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string |
-| `UUID`          | `UUID`                                              |
-| any scalar      | `STRING`, `CHAR(n)`, `VARCHAR(n)`                   |
-| `NULL`          | SQL `NULL` for any nullable target                  |
+| Stored kind     | Succeeds for                                          |
+|-----------------|-------------------------------------------------------|
+| numeric kinds   | any numeric target that holds the value               |
+| `BOOLEAN`       | `BOOLEAN`                                             |
+| `DATE`          | `DATE`                                                |
+| `TIME`          | `TIME(p)`                                             |
+| `TIMESTAMP`     | `TIMESTAMP(p)`, `TIMESTAMP_LTZ(p)`, `DATE`, `TIME(p)` |
+| `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)`, `TIMESTAMP(p)`, `DATE`, `TIME(p)` |
+| `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string   |
+| `UUID`          | `UUID`                                                |
+| any scalar      | `STRING`, `CHAR(n)`, `VARCHAR(n)`                     |
+| `NULL`          | SQL `NULL` for any nullable target                    |
 
 The conditions above mean:
 
@@ -1589,6 +1589,12 @@ The conditions above mean:
 - A **length or precision** is adjusted the same way a regular cast into that type would: a value
   longer than the target is trimmed, fractional seconds beyond the target precision are truncated,
   and the fixed width types `CHAR(n)` and `BINARY(n)` pad a shorter value.
+- A **`TIMESTAMP`** or **`TIMESTAMP_LTZ`** value reaches the other datetime types the way a regular
+  cast from its type does, in the session time zone. With `table.local-time-zone` set to
+  `Europe/Berlin`, the instant `2024-01-01 23:30:00.123Z` reaches `TIMESTAMP(3)` as
+  `2024-01-02 00:30:00.123`, `DATE` as `2024-01-02`, and `TIME(3)` as `00:30:00.123`. A `DATE` or
+  `TIME` value reaches only its own type, since any other datetime type needs a time of day or a
+  date that the value does not have.
 - A **`TIME`** value keeps only millisecond precision, the resolution Flink's runtime `TIME` type
   supports, so `TIME(4)` through `TIME(9)` behave like `TIME(3)`.
 

@@ -2316,7 +2316,24 @@ class CastRulesTest {
                                 VARIANT(),
                                 VARIANT_BUILDER.of(LocalDate.of(2020, 1, 1)),
                                 (int) LocalDate.of(2020, 1, 1).toEpochDay())
-                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                        // a timestamp keeps its date, in the session time zone for a TIMESTAMP_LTZ
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                VARIANT_BUILDER.of(Instant.parse("2020-01-01T23:30:00Z")),
+                                (int) LocalDate.of(2020, 1, 2).toEpochDay())
+                        // before 1970, the day is still the one the timestamp falls on
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalDateTime.of(1969, 12, 31, 23, 0)),
+                                (int) LocalDate.of(1969, 12, 31).toEpochDay())
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
+                        // a TIME has no date
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalTime.of(12, 0)),
+                                TableRuntimeException.class,
+                                "Cannot cast a VARIANT TIME value to DATE."),
                 // A variant keeps microseconds for TIME, so fractional seconds beyond the target
                 // precision are truncated, matching a regular cast into a narrower TIME.
                 CastTestSpecBuilder.testCastTo(TIME(3))
@@ -2330,6 +2347,18 @@ class CastRulesTest {
                                 VARIANT(),
                                 Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_456_000)),
                                 DateTimeUtils.toInternal(LocalTime.of(12, 0, 0, 123_000_000)))
+                        // a timestamp keeps its time of day, in the session time zone for a
+                        // TIMESTAMP_LTZ only
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 23, 30)),
+                                DateTimeUtils.toInternal(LocalTime.of(23, 30)))
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                VARIANT_BUILDER.of(Instant.parse("2020-01-01T23:30:00.123456Z")),
+                                DateTimeUtils.toInternal(LocalTime.of(0, 30, 0, 123_000_000)))
                         .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
                 // TIME has no runtime representation finer than milliseconds, so a target
                 // precision above 3 truncates no further than TIME(3) already does.
@@ -2352,12 +2381,20 @@ class CastRulesTest {
                                         .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
+                        // a TIMESTAMP_LTZ is shifted into the session time zone
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                VARIANT_BUILDER.of(Instant.parse("2020-01-01T23:30:00Z")),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 2, 0, 30)))
                         .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
-                        // a TIMESTAMP_LTZ is a different kind and is not read as a TIMESTAMP
+                        // a TIME has no date
                         .fail(
                                 VARIANT(),
-                                VARIANT_BUILDER.of(Instant.ofEpochSecond(1_600_000_000L)),
-                                TableRuntimeException.class),
+                                VARIANT_BUILDER.of(LocalTime.of(12, 0)),
+                                TableRuntimeException.class,
+                                "Cannot cast a VARIANT TIME value to TIMESTAMP(6)."),
                 // A variant keeps microseconds, so fractional seconds beyond the target precision
                 // are truncated, matching a regular cast into a narrower TIMESTAMP.
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(3))
@@ -2384,7 +2421,14 @@ class CastRulesTest {
                                 VARIANT_BUILDER.of(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
                                 TimestampData.fromLocalDateTime(
-                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0))),
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
+                        // before 1970, truncating still moves toward the past
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.of(1969, 12, 31, 23, 59, 58, 500_000_000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(1969, 12, 31, 23, 59, 58))),
                 // A fraction with leading zeros (.000123456) is still truncated to the precision.
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(6))
                         .fromCase(
@@ -2408,23 +2452,31 @@ class CastRulesTest {
                                         .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
-                        // a TIMESTAMP_LTZ_NS is a different kind and is not read as a TIMESTAMP
-                        .fail(
+                        // a TIMESTAMP_LTZ_NS keeps its nanoseconds
+                        .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder()
-                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456789)),
-                                TableRuntimeException.class),
+                                        .of(Instant.parse("2020-01-01T12:00:00.123456789Z")),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
                         .fromCase(
                                 VARIANT(),
                                 VARIANT_BUILDER.of(Instant.ofEpochSecond(1_600_000_000L)),
                                 TimestampData.fromInstant(Instant.ofEpochSecond(1_600_000_000L)))
+                        // a TIMESTAMP is read as a wall-clock time in the session time zone
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TimestampData.fromInstant(Instant.parse("2020-01-01T11:00:00Z")))
                         .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class)
-                        // a TIMESTAMP is not read as a TIMESTAMP_LTZ either
+                        // a DATE has no time of day
                         .fail(
                                 VARIANT(),
-                                VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
-                                TableRuntimeException.class),
+                                VARIANT_BUILDER.of(LocalDate.of(2020, 1, 1)),
+                                TableRuntimeException.class,
+                                "Cannot cast a VARIANT DATE value to TIMESTAMP_LTZ(6)."),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(3))
                         .fromCase(
                                 VARIANT(),
@@ -2448,12 +2500,13 @@ class CastRulesTest {
                                         .of(Instant.ofEpochSecond(1_600_000_000L, 123456000)),
                                 TimestampData.fromInstant(
                                         Instant.ofEpochSecond(1_600_000_000L, 123456000)))
-                        // a TIMESTAMP_NS is a different kind and is not read as a TIMESTAMP_LTZ
-                        .fail(
+                        // a TIMESTAMP_NS keeps its nanoseconds
+                        .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder()
                                         .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
-                                TableRuntimeException.class),
+                                TimestampData.fromInstant(
+                                        Instant.parse("2020-01-01T12:00:00.123456789Z"))),
                 // A binary target pads a shorter value and truncates a longer one, matching a
                 // regular cast into the same type.
                 CastTestSpecBuilder.testCastTo(BINARY(4))
