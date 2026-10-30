@@ -1347,6 +1347,33 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         expected = ['(%s,%s)' % (index, total) for index in range(4) for total in [1, 3]]
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
+    def test_rows_in_containers(self):
+        self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
+        self.env.set_parallelism(1)
+        row_type = Types.ROW([Types.INT()])
+        output_type = Types.ROW([Types.OBJECT_ARRAY(row_type),
+                                 Types.LIST(row_type),
+                                 Types.MAP(Types.STRING(), row_type),
+                                 Types.OBJECT_ARRAY(Types.TUPLE([Types.INT()])),
+                                 Types.OBJECT_ARRAY(row_type)])
+
+        ds = self.env.from_collection([1], type_info=Types.INT()).map(
+            lambda _: Row([Row(1), Row(2)], [Row(3), Row(4)], {'a': Row(5), 'b': Row(6)},
+                          [(7,), (8,)], None),
+            output_type=output_type)
+        # The second consumer keeps the map above from being fused with the map below, so the
+        # rows are converted in both directions.
+        ds.add_sink(self.test_sink)
+        ds.map(lambda r: str(([v[0] for v in r[0]], [v[0] for v in r[1]],
+                              sorted((k, v[0]) for k, v in r[2].items()),
+                              [v[0] for v in r[3]], r[4])),
+               output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_rows_in_containers')
+        expected = ['+I[[+I[1], +I[2]], [+I[3], +I[4]], {a=+I[5], b=+I[6]}, [(7), (8)], null]',
+                    "([1, 2], [3, 4], [('a', 5), ('b', 6)], [7, 8], None)"]
+        self.assert_equals_sorted(expected, self.test_sink.get_results(False))
+
     def test_metrics(self):
         ds = self.env.from_collection(
             [('ab', 'a', decimal.Decimal(1)),
