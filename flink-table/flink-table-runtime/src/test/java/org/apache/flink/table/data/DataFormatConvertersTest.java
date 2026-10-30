@@ -33,6 +33,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
@@ -63,6 +64,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DataFormatConverters}. */
 class DataFormatConvertersTest {
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, GeographyData.POINT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            };
 
     private TypeInformation[] simpleTypes =
             new TypeInformation[] {
@@ -179,6 +185,11 @@ class DataFormatConvertersTest {
         assertThat(converter.toExternal(converter.toInternal(value))).isEqualTo(value);
     }
 
+    private static void assertGeographyBytes(GeographyData actual, byte[] expected) {
+        assertThat(actual).isNotNull();
+        assertThat(actual.toBytes()).isEqualTo(expected);
+    }
+
     @Test
     void testTypes() {
         for (int i = 0; i < simpleTypes.length; i++) {
@@ -236,6 +247,65 @@ class DataFormatConvertersTest {
         for (int i = 0; i < dataTypes.length; i++) {
             testDataType(dataTypes[i], dataValues[i]);
         }
+    }
+
+    @Test
+    void testGeographyConverterLookup() {
+        assertThat(getConverter(DataTypes.GEOGRAPHY()))
+                .isInstanceOf(DataFormatConverters.GeographyConverter.class);
+        assertThat(getConverter(DataTypes.GEOGRAPHY().notNull()))
+                .isInstanceOf(DataFormatConverters.GeographyConverter.class);
+    }
+
+    @Test
+    void testGeographyRoundTripPreservesWkbBytes() {
+        DataFormatConverter converter = getConverter(DataTypes.GEOGRAPHY());
+        GeographyData geography = GeographyData.fromBytes(POINT_WKB);
+
+        Object internal = converter.toInternal(geography);
+        GeographyData external = (GeographyData) converter.toExternal(internal);
+
+        assertThat(internal).isSameAs(geography);
+        assertGeographyBytes(external, POINT_WKB);
+    }
+
+    @Test
+    void testGeographyRowExtractionAndNullHandling() {
+        DataFormatConverter converter = getConverter(DataTypes.GEOGRAPHY());
+        GeographyData geography = GeographyData.fromBytes(POINT_WKB);
+        GenericRowData row = GenericRowData.of(geography, null);
+
+        assertThat(converter.toInternal(null)).isNull();
+        assertThat(converter.toExternal((Object) null)).isNull();
+        assertThat(converter.toExternal(row, 0)).isSameAs(geography);
+        assertThat(converter.toExternal(row, 1)).isNull();
+    }
+
+    @Test
+    void testGeographyBinaryBridgeRoundTrip() {
+        DataFormatConverter converter =
+                getConverter(DataTypes.GEOGRAPHY().bridgedTo(BinaryGeographyData.class));
+        BinaryGeographyData geography = BinaryGeographyData.fromBytes(POINT_WKB);
+
+        Object internal = converter.toInternal(geography);
+        Object external = converter.toExternal(internal);
+
+        assertThat(internal).isSameAs(geography);
+        assertThat(external).isInstanceOf(BinaryGeographyData.class);
+        assertGeographyBytes((GeographyData) external, POINT_WKB);
+    }
+
+    @Test
+    void testNestedGeographyArrayRoundTrip() {
+        DataFormatConverter converter = getConverter(DataTypes.ARRAY(DataTypes.GEOGRAPHY()));
+        GeographyData[] values = new GeographyData[] {GeographyData.fromBytes(POINT_WKB), null};
+
+        Object internal = converter.toInternal(values);
+        GeographyData[] external = (GeographyData[]) converter.toExternal(internal);
+
+        assertThat(external).hasSize(2);
+        assertGeographyBytes(external[0], POINT_WKB);
+        assertThat(external[1]).isNull();
     }
 
     /** Test pojo. */
