@@ -1409,7 +1409,7 @@ public class PythonTypeUtils {
 
                 if (typeInformation instanceof TupleTypeInfo) {
                     DataConverter[] fieldDataConverters =
-                            Arrays.stream(((TupleTypeInfo) typeInformation).getFieldTypes())
+                            Arrays.stream(((TupleTypeInfo<?>) typeInformation).getFieldTypes())
                                     .map(fieldType -> typeInfoDataConverter(fieldType, reuse))
                                     .toArray(DataConverter[]::new);
                     return (DataConverter<IN, OUT>)
