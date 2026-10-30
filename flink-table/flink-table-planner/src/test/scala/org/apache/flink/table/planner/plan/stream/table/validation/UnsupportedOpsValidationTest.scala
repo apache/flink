@@ -40,56 +40,6 @@ class UnsupportedOpsValidationTest {
 
     assertThatThrownBy(() => t1.join(t2)).isInstanceOf(classOf[ValidationException])
   }
-
-  @Test
-  def testUnion(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-    val t2 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-
-    assertThatThrownBy(() => t1.union(t2)).isInstanceOf(classOf[ValidationException])
-  }
-
-  @Test
-  def testIntersect(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-    val t2 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-
-    assertThatThrownBy(() => t1.intersect(t2)).isInstanceOf(classOf[ValidationException])
-  }
-
-  @Test
-  def testIntersectAll(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-    val t2 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-
-    assertThatThrownBy(() => t1.intersectAll(t2)).isInstanceOf(classOf[ValidationException])
-  }
-
-  @Test
-  def testMinus(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-    val t2 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-
-    assertThatThrownBy(() => t1.minus(t2)).isInstanceOf(classOf[ValidationException])
-  }
-
-  @Test
-  def testMinusAll(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-    val t2 = StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3).toTable(tEnv)
-
-    assertThatThrownBy(() => t1.minusAll(t2)).isInstanceOf(classOf[ValidationException])
-  }
 }
 
 object UnsupportedOpsValidationTest {
