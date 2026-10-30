@@ -72,6 +72,11 @@ public final class CastCallContext implements CallContext {
     }
 
     @Override
+    public boolean isArgumentDefault(int pos) {
+        return originalContext.isArgumentDefault(pos);
+    }
+
+    @Override
     public boolean isArgumentLiteral(int pos) {
         if (isCast(pos)) {
             return false;

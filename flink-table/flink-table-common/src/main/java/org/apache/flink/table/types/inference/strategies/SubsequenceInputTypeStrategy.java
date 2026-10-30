@@ -159,6 +159,11 @@ public final class SubsequenceInputTypeStrategy implements InputTypeStrategy {
         }
 
         @Override
+        public boolean isArgumentDefault(int pos) {
+            return originalCallContext.isArgumentDefault(pos + split.startIndex);
+        }
+
+        @Override
         public boolean isArgumentLiteral(int pos) {
             return originalCallContext.isArgumentLiteral(pos + split.startIndex);
         }
