@@ -44,11 +44,25 @@ public class AvroToVariantDataConverters {
     private static final VariantBuilder SHARED_BUILDER = Variant.newBuilder();
 
     public static AvroToVariantDataConverter createVariantConverter(Schema schema) {
-        return createNullableConverter(schema);
+        return createVariantConverter(schema, false);
+    }
+
+    /**
+     * Creates a converter from Avro to Variant.
+     *
+     * @param schema the Avro schema of the values to convert
+     * @param timeAsNumber if true, {@code time-millis} stays the Avro int and {@code time-micros}
+     *     the Avro long, as the logical type does not survive in a Variant anyway. If false, {@code
+     *     time-millis} is converted to microseconds of day and stored as a long.
+     */
+    public static AvroToVariantDataConverter createVariantConverter(
+            Schema schema, boolean timeAsNumber) {
+        return createNullableConverter(schema, timeAsNumber);
     }
 
     /** Creates a converter that directly maps Avro types to Variant types. */
-    private static AvroToVariantDataConverter createAvroToVariantConverter(Schema schema) {
+    private static AvroToVariantDataConverter createAvroToVariantConverter(
+            Schema schema, boolean timeAsNumber) {
         LogicalType logicalType = schema.getLogicalType();
 
         switch (schema.getType()) {
@@ -61,7 +75,7 @@ public class AvroToVariantDataConverters {
                 for (int i = 0; i < fields.size(); i++) {
                     Schema.Field field = fields.get(i);
                     fieldNames[i] = field.name();
-                    fieldConverters[i] = createNullableConverter(field.schema());
+                    fieldConverters[i] = createNullableConverter(field.schema(), timeAsNumber);
                 }
 
                 return (avroObject) -> {
@@ -93,7 +107,7 @@ public class AvroToVariantDataConverters {
                 // particular calendar).
                 // Store it as LONG by converting millis to micros as the logical type millis or
                 // micros is lost.
-                else if (logicalType == LogicalTypes.timeMillis()) {
+                else if (logicalType == LogicalTypes.timeMillis() && !timeAsNumber) {
                     return (avroObject) -> SHARED_BUILDER.of((Integer) avroObject * 1000L);
                 } else {
                     return (avroObject) -> SHARED_BUILDER.of((Integer) avroObject);
@@ -134,12 +148,13 @@ public class AvroToVariantDataConverters {
             case ARRAY:
                 Schema elementSchema = schema.getElementType();
                 AvroToVariantDataConverter elementConverter =
-                        createNullableConverter(elementSchema);
+                        createNullableConverter(elementSchema, timeAsNumber);
                 return createArrayConverter(elementConverter);
 
             case MAP:
                 Schema valueSchema = schema.getValueType();
-                AvroToVariantDataConverter valueConverter = createNullableConverter(valueSchema);
+                AvroToVariantDataConverter valueConverter =
+                        createNullableConverter(valueSchema, timeAsNumber);
                 return createMapConverter(valueConverter);
 
             case UNION:
@@ -150,7 +165,7 @@ public class AvroToVariantDataConverters {
                                 .collect(Collectors.toList());
 
                 if (nonNullUnionType.size() == 1) {
-                    return createNullableConverter(nonNullUnionType.get(0));
+                    return createNullableConverter(nonNullUnionType.get(0), timeAsNumber);
                 } else {
                     throw new UnsupportedOperationException(
                             "Avro Union with NULL type is only supported. Unsupported types: "
@@ -248,8 +263,10 @@ public class AvroToVariantDataConverters {
         }
     }
 
-    private static AvroToVariantDataConverter createNullableConverter(Schema schema) {
-        final AvroToVariantDataConverter converter = createAvroToVariantConverter(schema);
+    private static AvroToVariantDataConverter createNullableConverter(
+            Schema schema, boolean timeAsNumber) {
+        final AvroToVariantDataConverter converter =
+                createAvroToVariantConverter(schema, timeAsNumber);
         return avroObject -> {
             if (avroObject == null) {
                 return SHARED_BUILDER.ofNull();
