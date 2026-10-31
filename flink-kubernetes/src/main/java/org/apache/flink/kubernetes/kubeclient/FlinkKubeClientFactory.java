@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -49,6 +50,8 @@ public class FlinkKubeClientFactory {
 
     @VisibleForTesting
     public NamespacedKubernetesClient createFabric8ioKubernetesClient(Configuration flinkConfig) {
+        KubernetesUtils.checkJdkHttpClientSupport(Runtime.version());
+
         final Config config;
 
         final String kubeContext = flinkConfig.get(KubernetesConfigOptions.CONTEXT);
