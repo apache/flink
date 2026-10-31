@@ -97,6 +97,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CBRT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHR;
@@ -809,6 +810,13 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Calculates the hyperbolic cosine of a given value. */
     public OutType cosh() {
         return toApiSpecificExpression(unresolvedCall(COSH, toExpr()));
+    }
+
+    /**
+     * Returns the cube root as DOUBLE, including for negative values. Returns null for null input.
+     */
+    public OutType cbrt() {
+        return toApiSpecificExpression(unresolvedCall(CBRT, toExpr()));
     }
 
     /** Calculates the square root of a given value. */

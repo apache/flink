@@ -125,6 +125,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('in(a, b, c, d)', str(expr1.in_(expr2, expr3, expr4)))
         self.assertEqual('start(a)', str(expr1.start))
         self.assertEqual('end(a)', str(expr1.end))
+        self.assertEqual('CBRT(a)', str(expr1.bin))
         self.assertEqual('bin(a)', str(expr1.bin))
         self.assertEqual('hex(a)', str(expr1.hex))
         self.assertEqual("UNHEX(a)", str(expr1.unhex))
