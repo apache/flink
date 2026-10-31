@@ -1,0 +1,183 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 99,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "key",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "val",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `name` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[key, val, name])"
+  }, {
+    "id" : 100,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `name` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[key]])"
+  }, {
+    "id" : 101,
+    "type" : "stream-exec-over-aggregate_2",
+    "overSpec" : {
+      "partition" : {
+        "fields" : [ 0 ]
+      },
+      "groups" : [ {
+        "orderBy" : {
+          "fields" : [ {
+            "index" : 1,
+            "isAscending" : true,
+            "nullIsLast" : false
+          } ]
+        },
+        "isRows" : false,
+        "lowerBound" : {
+          "kind" : "UNBOUNDED_PRECEDING"
+        },
+        "upperBound" : {
+          "kind" : "CURRENT_ROW"
+        },
+        "aggCalls" : [ {
+          "name" : "w0$o0",
+          "syntax" : "FUNCTION_STAR",
+          "internalName" : "$COUNT$1",
+          "argList" : [ 2 ],
+          "filterArg" : -1,
+          "distinct" : true,
+          "approximate" : false,
+          "ignoreNulls" : false,
+          "type" : "BIGINT NOT NULL"
+        } ]
+      } ],
+      "constants" : [ ],
+      "originalInputFields" : 3
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `name` VARCHAR(2147483647), `w0$o0` BIGINT NOT NULL>",
+    "description" : "OverAggregate(partitionBy=[key], orderBy=[val ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[key, val, name, COUNT(DISTINCT name) AS w0$o0])",
+    "unboundedOverVersion" : 2
+  }, {
+    "id" : 102,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `$2` BIGINT NOT NULL>",
+    "description" : "Calc(select=[key, val, w0$o0 AS $2])"
+  }, {
+    "id" : 103,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "key",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "val",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "distinct_names",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "upsertMaterializeStrategy" : "ADAPTIVE",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `$2` BIGINT NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[key, val, $2])"
+  } ],
+  "edges" : [ {
+    "source" : 99,
+    "target" : 100,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 100,
+    "target" : 101,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 101,
+    "target" : 102,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 102,
+    "target" : 103,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
