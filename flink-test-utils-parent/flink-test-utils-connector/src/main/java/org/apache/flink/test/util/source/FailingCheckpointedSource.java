@@ -59,13 +59,13 @@ import static org.apache.flink.util.Preconditions.checkState;
  * across recovery.
  *
  * <p>Each subtask invokes the {@link EventGenerator} once per sequence number. Subtask 0 fails
- * after half of its emit calls, like the legacy {@code FailingSource}: a snapshot taken past a
- * quarter of the emit calls arms the failure, emission continues to the failure position, and the
- * reader throws once the armed checkpoint completes. Emission holds just past the arming threshold
- * until a snapshot arms, so recovery always replays the records between the arming and failure
- * positions, independent of emission speed. Checkpointing must be enabled. All records of one
- * {@link EventGenerator#emit} call are emitted in a single {@code pollNext} and cannot be split by
- * a checkpoint. Rescaling is not supported; use a fixed source parallelism.
+ * after half of its emit calls: a snapshot taken past a quarter of the emit calls arms the failure,
+ * emission continues to the failure position, and the reader throws once the armed checkpoint
+ * completes. Emission holds just past the arming threshold until a snapshot arms, so recovery
+ * always replays the records between the arming and failure positions, independent of emission
+ * speed. Checkpointing must be enabled. All records of one {@link EventGenerator#emit} call are
+ * emitted in a single {@code pollNext} and cannot be split by a checkpoint. Rescaling is not
+ * supported; use a fixed source parallelism.
  *
  * <p>{@link #withIdleAfterEmission()} keeps the source idle instead of finishing, for
  * processing-time tests whose job is terminated externally.
