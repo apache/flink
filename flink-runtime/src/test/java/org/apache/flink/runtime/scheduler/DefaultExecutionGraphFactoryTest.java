@@ -94,7 +94,7 @@ class DefaultExecutionGraphFactoryTest {
             TestingUtils.defaultExecutorExtension();
 
     @BeforeEach
-    private void setup() {
+    void setup() {
         temporaryFile = new File(tempDir.getAbsolutePath(), "stateFile");
     }
 
