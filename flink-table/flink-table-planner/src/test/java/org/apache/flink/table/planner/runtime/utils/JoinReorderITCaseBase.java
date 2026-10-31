@@ -377,6 +377,23 @@ public abstract class JoinReorderITCaseBase {
         assertEquals(query, expectedList);
     }
 
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithFilterOnNullGeneratingSideOfLeftOuterJoin(
+            boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // The filter of tab1 must only be applied below the outer LEFT JOIN, so the row of T1
+        // without a match in tab1 is kept.
+        String query =
+                "SELECT T1.b1, tab1.b2, tab1.c3 FROM T1 LEFT JOIN "
+                        + "(SELECT * FROM T2 LEFT JOIN T3 ON T2.a2 = T3.a3 "
+                        + "WHERE COALESCE(T3.b3, T2.b2) > 3) tab1 "
+                        + "ON T1.b1 = tab1.b2 WHERE T1.b1 > 5 AND T1.b1 < 9";
+
+        List<String> expectedList = Arrays.asList("6,null,null", "7,7,null", "8,8,null");
+        assertEquals(query, expectedList);
+    }
+
     private void setIsBushyJoinReorder(boolean isBushyJoinReorder) {
         if (!isBushyJoinReorder) {
             tEnv.getConfig()
