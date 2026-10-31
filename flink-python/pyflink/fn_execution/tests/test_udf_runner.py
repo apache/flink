@@ -45,8 +45,11 @@ class UdfRunnerTests(unittest.TestCase):
         environment = dict(os.environ, python=sys.executable, FLINK_TESTING='0',
                            _PYTHON_WORKING_DIR='', PYTHONPATH=str(self.directory),
                            BOOT_LOG_DIR=str(boot_log_dir or self.directory))
+        # `python -m` inserts the working directory ahead of PYTHONPATH. Tox starts in
+        # flink-python/, where the real package would shadow this fake worker.
         return subprocess.Popen(
             ['bash', str(self.runner), '--id', 'test-worker'],
+            cwd=self.directory,
             env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True)
 
