@@ -434,6 +434,19 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @TestTemplate
+  def testFilterOnNullGeneratingSideOfLeftOuterJoin(): Unit = {
+    // The filter of tab1 must only be applied below the outer LEFT JOIN. Applying it again above
+    // the LEFT JOIN removes the rows of T1 without a match in tab1.
+    val sql =
+      s"""
+         |SELECT * FROM T1 LEFT JOIN
+         |   (SELECT * FROM T2 LEFT JOIN T3 ON a2 = a3 WHERE COALESCE(b3, b2) > 3) tab1
+         |   ON a1 = a2
+         """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testInnerJoinWithBushyTypeJoinCondition(): Unit = {
     // This case is to test whether can build a bushy join tree.
     // If variable isBushyJoinReorder is true, it can be built to
