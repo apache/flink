@@ -47,6 +47,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlSplittableAggFunction;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
@@ -73,7 +74,8 @@ import scala.collection.Seq;
  * This rule is copied from Calcite's {@link
  * org.apache.calcite.rel.rules.AggregateJoinTransposeRule}. Modification: - Do not match temporal
  * join since lookup table source doesn't support aggregate. - Fix type mismatch error - Support
- * aggregate with AUXILIARY_GROUP
+ * aggregate with AUXILIARY_GROUP - Only push an aggregate without grouping keys to a join input if
+ * it returns the correct result for an empty input
  */
 
 /**
@@ -248,6 +250,16 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
             return;
         }
 
+        // An aggregate without grouping keys returns a row even for an empty input. Pushing it to
+        // a join input is only safe for a global aggregate of COUNT/$SUM0 calls: the pushed-down
+        // count of an empty input is 0, so the product of counts is still correct.
+        final boolean canPushAggWithoutKeys =
+                aggregateColumns.isEmpty()
+                        && aggregate.getAggCallList().stream()
+                                .map(aggCall -> aggCall.getAggregation().getKind())
+                                .allMatch(kind -> kind == SqlKind.COUNT || kind == SqlKind.SUM0);
+        boolean pushedAggWithoutKeys = false;
+
         // Push each aggregate function down to each side that contains all of its
         // arguments. Note that COUNT(*), because it has no arguments, can go to
         // both sides.
@@ -337,6 +349,12 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
                 relBuilder.project(projects);
                 side.newInput = relBuilder.build();
             } else {
+                if (belowAggregateKey.isEmpty()) {
+                    if (!canPushAggWithoutKeys) {
+                        return;
+                    }
+                    pushedAggWithoutKeys = true;
+                }
                 side.aggregate = true;
                 List<AggregateCall> belowAggCalls = new ArrayList<>();
                 final SqlSplittableAggFunction.Registry<AggregateCall> belowAggCallRegistry =
@@ -387,6 +405,11 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
             // Both inputs to the join are unique. There is nothing to be gained by
             // this rule. In fact, this aggregate+join may be the result of a previous
             // invocation of this rule; if we continue we might loop forever.
+            return;
+        }
+        if (pushedAggWithoutKeys && uniqueCount > 0) {
+            // The input that is not aggregated may be empty, which would make the new join empty.
+            // The original aggregate, which is turned into a projection below, returns a row.
             return;
         }
 
