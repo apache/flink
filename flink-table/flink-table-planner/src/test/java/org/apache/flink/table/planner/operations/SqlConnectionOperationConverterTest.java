@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.DescribeConnectionOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowConnectionsOperation;
 import org.apache.flink.table.operations.ShowCreateConnectionOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 
@@ -161,6 +162,30 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Could not execute SHOW CREATE CONNECTION. Connection with identifier");
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowConnectionsTest")
+    void testShowConnections(String sql, String expectedDatabaseName, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        ShowConnectionsOperation showConnectionsOperation = (ShowConnectionsOperation) operation;
+        assertThat(showConnectionsOperation.getDatabaseName()).isEqualTo(expectedDatabaseName);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private static Stream<Arguments> inputForShowConnectionsTest() {
+        return Stream.of(
+                Arguments.of("SHOW CONNECTIONS", "default", "SHOW CONNECTIONS"),
+                Arguments.of(
+                        "SHOW CONNECTIONS FROM db1", "db1", "SHOW CONNECTIONS FROM builtin.db1"),
+                Arguments.of("SHOW CONNECTIONS IN cat1.db1", "db1", "SHOW CONNECTIONS IN cat1.db1"),
+                Arguments.of(
+                        "SHOW CONNECTIONS LIKE '%conn%'",
+                        "default", "SHOW CONNECTIONS LIKE '%conn%'"),
+                Arguments.of(
+                        "SHOW CONNECTIONS NOT LIKE 'tmp_%'",
+                        "default", "SHOW CONNECTIONS NOT LIKE 'tmp_%'"));
     }
 
     @ParameterizedTest
