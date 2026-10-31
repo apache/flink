@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
@@ -28,9 +29,12 @@ import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecor
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
+
+import javax.annotation.Nullable;
 
 import java.util.Iterator;
 
@@ -54,6 +58,9 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
             GeneratedJoinCondition generatedJoinCondition,
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
+            @Nullable RuntimeChangelogMode leftInputChangelogMode,
+            @Nullable RuntimeChangelogMode rightInputChangelogMode,
+            boolean hasNonEquiCondition,
             boolean[] filterNullKeys,
             long leftStateRetentionTime,
             long rightStateRetentionTIme) {
@@ -63,6 +70,9 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 generatedJoinCondition,
                 leftInputSideSpec,
                 rightInputSideSpec,
+                leftInputChangelogMode,
+                rightInputChangelogMode,
+                hasNonEquiCondition,
                 filterNullKeys,
                 leftStateRetentionTime,
                 rightStateRetentionTIme);
@@ -97,6 +107,10 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      * <p>Following is the pseudo code to describe the core logic of this method.
      *
      * <pre>
+     * if record is a DELETE that may contain only the unique key and the condition is non-equi
+     *   record = the stored record with the same unique key, if any
+     * if record replaces a stored record (upsert) and the condition is non-equi
+     *   if the replaced record is sent (by its matched num) but the record is not, send -D[replaced]
      * if there is no matched rows on the other side
      *   if anti join, send input record
      * if there are matched rows on the other side
@@ -108,26 +122,37 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData input = element.getValue();
-        Iterator<OuterRecord> associatedRecords =
-                AbstractStreamingJoinOperator.iterator(
-                        input, true, rightRecordStateView, joinCondition);
-        if (!associatedRecords.hasNext()) {
-            if (isAntiJoin) {
-                collector.collect(input);
+        boolean isAccumulateMsg = RowDataUtil.isAccumulateMsg(input);
+        RowKind inputRowKind = input.getRowKind();
+        input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
+
+        if (isAccumulateMsg) {
+            final int numOfAssociations =
+                    Iterators.size(
+                            AbstractStreamingJoinOperator.iterator(
+                                    input, true, rightRecordStateView, joinCondition));
+            if (isSent(numOfAssociations)) {
+                collect(input, inputRowKind);
+            } else if (needsReplacedRecord(true, false)) {
+                final Tuple2<RowData, Integer> replaced =
+                        leftRecordStateView.getRecordAndNumOfAssociations(input);
+                if (replaced != null && isSent(replaced.f1)) {
+                    // send -D[replaced]
+                    collect(replaced.f0, RowKind.DELETE);
+                }
             }
-        } else { // there are matched rows on the other side
-            if (!isAntiJoin) {
-                collector.collect(input);
+            leftRecordStateView.addRecord(input, numOfAssociations);
+        } else {
+            final RowData retractedRecord =
+                    retractedRecord(input, inputRowKind, leftRecordStateView, true);
+            final boolean hasMatches =
+                    AbstractStreamingJoinOperator.iterator(
+                                    retractedRecord, true, rightRecordStateView, joinCondition)
+                            .hasNext();
+            if (isAntiJoin != hasMatches) {
+                collect(retractedRecord, inputRowKind);
             }
-        }
-        if (RowDataUtil.isAccumulateMsg(input)) {
-            // erase RowKind for state updating
-            input.setRowKind(RowKind.INSERT);
-            leftRecordStateView.addRecord(input, Iterators.size(associatedRecords));
-        } else { // input is retract
-            // erase RowKind for state updating
-            input.setRowKind(RowKind.INSERT);
-            leftRecordStateView.retractRecord(input);
+            leftRecordStateView.retractRecord(retractedRecord);
         }
     }
 
@@ -143,27 +168,34 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      * <pre>
      * if input record is accumulate
      * | state.add(record)
-     * | if there is no matched rows on the other side, skip
-     * | if there are matched rows on the other side
-     * | | if the matched num in the matched rows == 0
-     * | |   if anti join, send -D[other]s
-     * | |   if semi join, send +I/+U[other]s (using input RowKind)
-     * | | if the matched num in the matched rows > 0, skip
-     * | | otherState.update(other, old+1)
-     * | endif
+     * | for each other on the other side
+     * | | if record matches other
+     * | | | if the matched num of other <= 0
+     * | | |   if anti join, send -D[other]
+     * | | |   if semi join, send +I/+U[other] (using input RowKind)
+     * | | |   otherState.update(other, 1)
+     * | | | else if the record replaces a stored record (upsert) that did not match other
+     * | | |   otherState.update(other, old+1)
+     * | | else if the record replaces a stored record (upsert) that matched other
+     * | | | remove the match of other
+     * | endfor
      * endif
      * if input record is retract
-     * | state.retract(record)
-     * | if there is no matched rows on the other side, skip
-     * | if there are matched rows on the other side
-     * | | if the matched num in the matched rows == 0, this should never happen!
-     * | | if the matched num in the matched rows == 1
-     * | |   if semi join, send -D/-U[other] (using input RowKind)
-     * | |   if anti join, send +I[other]
-     * | | if the matched num in the matched rows > 1, skip
-     * | | otherState.update(other, old-1)
+     * | if record is a DELETE that may contain only the unique key and the condition is non-equi
+     * | | record = the stored record with the same unique key, if any
      * | endif
+     * | state.retract(record)
+     * | for each other on the other side that record matches
+     * | | remove the match of other
+     * | endfor
      * endif
+     *
+     * remove the match of other:
+     * if the matched num of other <= 0, skip, as the record was not counted
+     * if the matched num of other == 1
+     *   if semi join, send -D/-U[other] (using input RowKind)
+     *   if anti join, send +I[other]
+     * otherState.update(other, old-1)
      * </pre>
      */
     @Override
@@ -173,49 +205,72 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
         RowKind inputRowKind = input.getRowKind();
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
-        Iterator<OuterRecord> associatedRecords =
-                AbstractStreamingJoinOperator.iterator(
-                        input, false, leftRecordStateView, joinCondition);
         if (isAccumulateMsg) { // record is accumulate
+            final RowData replacedRecord = replacedRecord(input, rightRecordStateView, false, true);
             rightRecordStateView.addRecord(input);
-            while (associatedRecords.hasNext()) {
-                OuterRecord outerRecord = associatedRecords.next();
-                RowData other = outerRecord.record;
-                if (outerRecord.numOfAssociations == 0) {
-                    if (isAntiJoin) {
-                        // send -D[other]
-                        other.setRowKind(RowKind.DELETE);
-                    } else {
-                        // send +I/+U[other] (using input RowKind)
-                        other.setRowKind(inputRowKind);
+            // a single pass for the matches that the record gains and the replaced record loses
+            for (Tuple2<RowData, Integer> left :
+                    leftRecordStateView.getRecordsAndNumOfAssociations()) {
+                final RowData other = left.f0;
+                final int numOfAssociations = left.f1;
+                final boolean replacedRecordMatches =
+                        replacedRecord != null && matches(replacedRecord, other, false);
+                if (matches(input, other, false)) {
+                    if (numOfAssociations <= 0) {
+                        // send -D[other] if anti join, +I/+U[other] (using input RowKind) if semi
+                        collect(other, isAntiJoin ? RowKind.DELETE : inputRowKind);
+                        leftRecordStateView.updateNumOfAssociations(other, 1);
+                    } else if (!replacedRecordMatches && !joinKeyContainsUniqueKey(false)) {
+                        // with at most one record per join key, the existing match is the
+                        // replaced record
+                        leftRecordStateView.updateNumOfAssociations(other, numOfAssociations + 1);
                     }
-                    collector.collect(other);
-                    // set header back to INSERT, because we will update the other row to state
-                    other.setRowKind(RowKind.INSERT);
-                } // ignore when number > 0
-                leftRecordStateView.updateNumOfAssociations(
-                        other, outerRecord.numOfAssociations + 1);
+                } else if (replacedRecordMatches) {
+                    removeMatch(other, numOfAssociations, RowKind.DELETE);
+                }
             }
         } else { // retract input
-            rightRecordStateView.retractRecord(input);
+            final RowData retractedRecord =
+                    retractedRecord(input, inputRowKind, rightRecordStateView, false);
+            rightRecordStateView.retractRecord(retractedRecord);
+            Iterator<OuterRecord> associatedRecords =
+                    AbstractStreamingJoinOperator.iterator(
+                            retractedRecord, false, leftRecordStateView, joinCondition);
             while (associatedRecords.hasNext()) {
-                OuterRecord outerRecord = associatedRecords.next();
-                RowData other = outerRecord.record;
-                if (outerRecord.numOfAssociations == 1) {
-                    if (!isAntiJoin) {
-                        // send -D/-U[other] (using input RowKind)
-                        other.setRowKind(inputRowKind);
-                    } else {
-                        // send +I[other]
-                        other.setRowKind(RowKind.INSERT);
-                    }
-                    collector.collect(other);
-                    // set RowKind back, because we will update the other row to state
-                    other.setRowKind(RowKind.INSERT);
-                } // ignore when number > 0
-                leftRecordStateView.updateNumOfAssociations(
-                        other, outerRecord.numOfAssociations - 1);
+                final OuterRecord outerRecord = associatedRecords.next();
+                removeMatch(outerRecord.record, outerRecord.numOfAssociations, inputRowKind);
             }
         }
+    }
+
+    /**
+     * Removes a match of the left record. If it was the last one, a semi join retracts the record
+     * with the given RowKind and an anti join sends it.
+     */
+    private void removeMatch(RowData other, int numOfAssociations, RowKind retractionKind)
+            throws Exception {
+        if (numOfAssociations <= 0) {
+            // the retracted record was not counted, e.g. it had expired when the left record was
+            // stored
+            return;
+        }
+        if (numOfAssociations == 1) {
+            // send -D/-U[other] if semi join, +I[other] if anti join
+            collect(other, isAntiJoin ? RowKind.INSERT : retractionKind);
+        } // ignore when number > 1
+        leftRecordStateView.updateNumOfAssociations(other, numOfAssociations - 1);
+    }
+
+    /** Returns whether a left record with the given number of matches is sent. */
+    private boolean isSent(int numOfAssociations) {
+        return isAntiJoin != (numOfAssociations > 0);
+    }
+
+    /** Sends the left record with the given RowKind. */
+    private void collect(RowData left, RowKind rowKind) {
+        left.setRowKind(rowKind);
+        collector.collect(left);
+        // set RowKind back, because the record may be the one in state
+        left.setRowKind(RowKind.INSERT);
     }
 }
