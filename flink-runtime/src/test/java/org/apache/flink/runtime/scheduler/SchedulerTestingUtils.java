@@ -316,18 +316,6 @@ public class SchedulerTestingUtils {
                 RETRY_ATTEMPTS);
     }
 
-    public static void waitForCheckpointInProgress(final SchedulerNG scheduler) throws Exception {
-        waitUntilCondition(
-                () ->
-                        scheduler
-                                        .requestCheckpointStats()
-                                        .getCounts()
-                                        .getNumberOfInProgressCheckpoints()
-                                > 0,
-                RETRY_INTERVAL_MILLIS,
-                RETRY_ATTEMPTS);
-    }
-
     public static void waitForCompletedCheckpoint(final SchedulerNG scheduler) throws Exception {
         waitUntilCondition(
                 () ->
