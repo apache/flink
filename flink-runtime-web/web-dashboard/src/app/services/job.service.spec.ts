@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, of, throwError, toArray } from 'rxjs';
 
 import { JobDetail, JobOverview } from '@flink-runtime-web/interfaces';
@@ -24,6 +24,7 @@ import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resou
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 import { JobService } from './job.service';
 
 describe('JobService', () => {
@@ -82,7 +83,7 @@ describe('JobService', () => {
 
       const result = await firstValueFrom(service.loadJob('job-1'));
 
-      expect(httpClient.get).toHaveBeenCalledWith('./jobs/job-1');
+      expect(httpClient.get.mock.calls[0][0]).toBe('./jobs/job-1');
       expect(result.plan.nodes.map(n => n.id)).toEqual(['v1', 'v2']);
       expect(result.plan.nodes[0]).toMatchObject({ id: 'v1', job_vertex_id: 'v1', detail: { id: 'v1' } });
       expect(result.plan.links).toEqual([{ id: 'v1-v2', source: 'v1', target: 'v2' }]);
@@ -98,6 +99,22 @@ describe('JobService', () => {
       const emissions = await firstValueFrom(service.loadJob('job-1').pipe(toArray()));
 
       expect(emissions).toEqual([]);
+    });
+
+    it('marks the request so a 404 is not reported as a server error', async () => {
+      httpClient.get.mockReturnValue(of({ plan: { nodes: [] }, vertices: [], 'status-counts': {} }));
+
+      await firstValueFrom(service.loadJob('job-1'));
+
+      const [, options] = httpClient.get.mock.calls[0] as [string, { context: HttpContext }];
+      expect(options.context.get(EXPECTED_NOT_FOUND)).toBe(true);
+    });
+
+    it('propagates a 404 so callers can tell the job is gone', async () => {
+      const notFound = new HttpErrorResponse({ status: 404 });
+      httpClient.get.mockReturnValue(throwError(() => notFound));
+
+      await expect(firstValueFrom(service.loadJob('job-1'))).rejects.toBe(notFound);
     });
   });
 

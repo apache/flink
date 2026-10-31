@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService, StatusService } from '@flink-runtime-web/services';
@@ -70,5 +71,28 @@ describe('JobDetailComponent', () => {
     expect(component.isLoading).toBe(false);
     expect(loadExceptions).toHaveBeenCalledWith('job-1', 10);
     expect(component.errorDetails).toBe('java.lang.RuntimeException: boom');
+  });
+
+  it('stops polling and reports the job as gone once it is no longer found', () => {
+    const refresh$ = new Subject<boolean>();
+    component = new JobDetailComponent(
+      { loadJob, loadExceptions } as unknown as JobService,
+      { setJobDetail } as unknown as JobLocalService,
+      { refresh$ } as unknown as StatusService,
+      activatedRoute,
+      cdr
+    );
+    loadJob.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+    component.ngOnInit();
+    refresh$.next(true);
+    refresh$.next(true);
+    refresh$.next(true);
+
+    expect(loadJob).toHaveBeenCalledTimes(1);
+    expect(component.notFound).toBe(true);
+    expect(component.isError).toBe(false);
+    expect(component.isLoading).toBe(false);
+    expect(loadExceptions).not.toHaveBeenCalled();
   });
 });
