@@ -1974,6 +1974,7 @@ For example:
 CAST('42' AS INT) --- returns 42 of type INT NOT NULL
 CAST(NULL AS VARCHAR) --- returns NULL of type VARCHAR
 CAST('non-number' AS INT) --- throws an exception and fails the job
+'42'::INT --- same as CAST('42' AS INT)
 
 TRY_CAST('42' AS INT) --- returns 42 of type INT
 TRY_CAST(NULL AS VARCHAR) --- returns NULL of type VARCHAR
