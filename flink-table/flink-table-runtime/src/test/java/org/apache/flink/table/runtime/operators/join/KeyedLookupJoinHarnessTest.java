@@ -58,6 +58,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link KeyedLookupJoinWrapper}. */
 class KeyedLookupJoinHarnessTest {
@@ -446,6 +447,31 @@ class KeyedLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    void testNumUnmatchedBuildRetractions() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER, false, 1_000);
+        testHarness.open();
+
+        KeyedLookupJoinWrapper wrapper =
+                (KeyedLookupJoinWrapper)
+                        ((KeyedProcessOperator<RowData, RowData, RowData>)
+                                        testHarness.getOperator())
+                                .getUserFunction();
+
+        // A retraction whose state is absent (e.g. cleared by TTL) finds no matching row.
+        testHarness.setStateTtlProcessingTime(1);
+        testHarness.processElement(deleteRecord(1, "a"));
+        assertThat(wrapper.getNumUnmatchedBuildRetractions().getCount()).isEqualTo(1L);
+
+        // A retraction with matching state is not counted.
+        testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(deleteRecord(2, "b"));
+        assertThat(wrapper.getNumUnmatchedBuildRetractions().getCount()).isEqualTo(1L);
+
         testHarness.close();
     }
 
