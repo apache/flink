@@ -20,11 +20,15 @@ package org.apache.flink.api.common.io;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InputStreamFSInputWrapperTest {
 
@@ -47,5 +51,62 @@ class InputStreamFSInputWrapperTest {
         InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(mockedInputStream);
         wrapper.close();
         assertThat(closeCalled).isTrue();
+    }
+
+    @Test
+    void testSeekBeyondEndOfStreamThrowsEofException() throws Exception {
+        final byte[] bytes = "flink".getBytes(StandardCharsets.UTF_8);
+        final InputStream inputStream =
+                new ByteArrayInputStream(bytes) {
+                    private int zeroProgressCalls;
+
+                    @Override
+                    public synchronized long skip(long n) {
+                        final long skipped = super.skip(n);
+                        if (skipped == 0 && ++zeroProgressCalls > 1) {
+                            throw new AssertionError("seek retried after skip made no progress");
+                        }
+                        return skipped;
+                    }
+                };
+
+        try (InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(inputStream)) {
+            assertThatThrownBy(() -> wrapper.seek(bytes.length + 1L))
+                    .isInstanceOf(EOFException.class)
+                    .hasMessage("Unexpected EOF during forward seek.");
+        }
+    }
+
+    @Test
+    void testSeekBeyondEndOfStreamWhenSkipCanAdvancePastEof() throws Exception {
+        final byte[] bytes = "flink".getBytes(StandardCharsets.UTF_8);
+        final InputStream inputStream =
+                new ByteArrayInputStream(bytes) {
+                    @Override
+                    public synchronized long skip(long n) {
+                        return n;
+                    }
+                };
+
+        try (InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(inputStream)) {
+            assertThatThrownBy(() -> wrapper.seek(bytes.length + 1L))
+                    .isInstanceOf(EOFException.class)
+                    .hasMessage("Unexpected EOF during forward seek.");
+        }
+    }
+
+    @Test
+    void testSeekForward() throws Exception {
+        final byte[] bytes = new byte[10_000];
+        bytes[9_000] = 42;
+
+        try (InputStreamFSInputWrapper wrapper =
+                new InputStreamFSInputWrapper(new ByteArrayInputStream(bytes))) {
+            wrapper.seek(9_000L);
+
+            assertThat(wrapper.getPos()).isEqualTo(9_000L);
+            assertThat(wrapper.read()).isEqualTo(42);
+            assertThat(wrapper.getPos()).isEqualTo(9_001L);
+        }
     }
 }
