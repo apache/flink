@@ -29,6 +29,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.Attribut
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 
 import javax.annotation.Nullable;
 
@@ -50,6 +51,10 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
     private final GeneratedJoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
+    private final int[][] nullFilterFields;
+    // For each input, its changelog mode, or null if the compiled plan doesn't contain it.
+    private final List<RuntimeChangelogMode> inputChangelogModes;
+    private final int[][] conditionFields;
 
     public StreamingMultiJoinOperatorFactory(
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
@@ -59,7 +64,10 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
             final long[] stateRetentionTime,
             final GeneratedJoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor,
-            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
+            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
+            final int[][] nullFilterFields,
+            final List<RuntimeChangelogMode> inputChangelogModes,
+            final int[][] conditionFields) {
         this.inputTypeInfos = inputTypeInfos;
         this.inputSideSpecs = inputSideSpecs;
         this.joinTypes = joinTypes;
@@ -68,6 +76,9 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
         this.joinConditions = joinConditions;
         this.keyExtractor = keyExtractor;
         this.joinAttributeMap = joinAttributeMap;
+        this.nullFilterFields = nullFilterFields;
+        this.inputChangelogModes = inputChangelogModes;
+        this.conditionFields = conditionFields;
     }
 
     @Override
@@ -88,7 +99,10 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
                         stateRetentionTime,
                         joinConditions,
                         keyExtractor,
-                        joinAttributeMap);
+                        joinAttributeMap,
+                        nullFilterFields,
+                        inputChangelogModes,
+                        conditionFields);
 
         @SuppressWarnings("unchecked")
         final T castedOperator = (T) operator;
