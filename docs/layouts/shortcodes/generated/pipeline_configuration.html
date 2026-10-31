@@ -84,7 +84,7 @@
             <td><h5>pipeline.jobvertex-parallelism-overrides</h5></td>
             <td style="word-wrap: break-word;"></td>
             <td>Map</td>
-            <td>A parallelism override map (jobVertexId -&gt; parallelism) which will be used to update the parallelism of the corresponding job vertices of submitted JobGraphs.</td>
+            <td>A parallelism override map (jobVertexId -&gt; parallelism) which will be used to update the parallelism of the corresponding job vertices of a submitted job. The job vertex id is the id of the vertex in the running job (32 hex characters). The map is resolved when the job is submitted, with the entries of the job configuration winning over the entries of the cluster configuration, and is applied when the job vertices are created, so it covers jobs submitted as a StreamGraph as well as a JobGraph. Entries whose key is not a job vertex id or matches no vertex of the job are ignored; a value that is not a positive integer fails the job that contains the vertex. An override does not change job vertex ids, operator ids or operator chaining. With the adaptive batch scheduler an override counts as a configured parallelism: the vertices of a forward group must agree, and an override cannot raise a vertex above the max parallelism its upstream results were sized for (the vertex's max parallelism; if unset, execution.batch.adaptive.auto-parallelism.max-parallelism if set, otherwise the job's default parallelism if set, otherwise the default of that option). A value of -1 resets a vertex to the default parallelism.</td>
         </tr>
         <tr>
             <td><h5>pipeline.max-parallelism</h5></td>

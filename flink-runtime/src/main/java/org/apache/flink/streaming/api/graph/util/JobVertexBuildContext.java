@@ -86,13 +86,18 @@ public class JobVertexBuildContext {
 
     private final SlotSharingGroup defaultSlotSharingGroup;
 
+    // Resolved pipeline.jobvertex-parallelism-overrides of the job, applied when a job vertex is
+    // created.
+    private final Map<JobVertexID, String> parallelismOverrides;
+
     public JobVertexBuildContext(
             JobGraph jobGraph,
             StreamGraph streamGraph,
             AtomicBoolean hasHybridResultPartition,
             Map<Integer, byte[]> hashes,
             List<Map<Integer, byte[]>> legacyHashes,
-            SlotSharingGroup defaultSlotSharingGroup) {
+            SlotSharingGroup defaultSlotSharingGroup,
+            Map<JobVertexID, String> parallelismOverrides) {
         this.jobGraph = jobGraph;
         this.streamGraph = streamGraph;
         this.hashes = hashes;
@@ -104,6 +109,11 @@ public class JobVertexBuildContext {
         this.coordinatorSerializationFuturesPerJobVertex = new HashMap<>();
         this.chainedConfigs = new HashMap<>();
         this.defaultSlotSharingGroup = defaultSlotSharingGroup;
+        this.parallelismOverrides = parallelismOverrides;
+    }
+
+    public Map<JobVertexID, String> getParallelismOverrides() {
+        return parallelismOverrides;
     }
 
     public void addChainInfo(Integer startNodeId, OperatorChainInfo chainInfo) {
