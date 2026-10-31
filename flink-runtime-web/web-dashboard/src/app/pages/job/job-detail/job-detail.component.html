@@ -16,7 +16,15 @@
   ~ limitations under the License.
   -->
 
-<ng-container *ngIf="!isError">
+<nz-alert
+  *ngIf="notFound"
+  nzType="warning"
+  nzShowIcon
+  nzMessage="Job not available"
+  [nzDescription]="notFoundDescription"
+></nz-alert>
+
+<ng-container *ngIf="!isError && !notFound">
   <flink-job-status [isLoading]="isLoading"></flink-job-status>
   <div class="content">
     <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
