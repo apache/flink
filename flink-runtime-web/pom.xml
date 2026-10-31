@@ -42,6 +42,7 @@ under the License.
 			it's a final map, we need to set this to pass tests in jdk17 or higher.
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
 		</surefire.module.config>
+		<skipNodeJSTests>false</skipNodeJSTests>
 	</properties>
 
 	<dependencies>
@@ -146,6 +147,17 @@ under the License.
 			</activation>
 			<properties>
 				<npm.proxy>--registry http://172.17.0.1:8888/repository/npm/</npm.proxy>
+			</properties>
+		</profile>
+		<profile>
+			<id>fast</id>
+			<activation>
+				<property>
+					<name>fast</name>
+				</property>
+			</activation>
+			<properties>
+				<skipNodeJSTests>true</skipNodeJSTests>
 			</properties>
 		</profile>
 	</profiles>
@@ -287,12 +299,32 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
-						<id>npm run ci-check</id>
+						<id>npm run lint</id>
 						<goals>
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>run ci-check</arguments>
+							<arguments>run lint</arguments>
+							<skip>${skipNodeJSTests}</skip>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm run test:ci</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<configuration>
+							<arguments>run test:ci</arguments>
+							<skip>${skipNodeJSTests}</skip>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm run build</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<configuration>
+							<arguments>run build</arguments>
 						</configuration>
 					</execution>
 				</executions>
