@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.webmonitor.handlers.JarHandlers;
 import org.apache.flink.runtime.webmonitor.handlers.JarPlanRequestBody;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunMessageParameters;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 
 import java.net.URL;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -121,6 +123,39 @@ class JarHandlerUtilsTest {
         final JarHandlerUtils.JarHandlerContext jarHandlerContext =
                 JarHandlerUtils.JarHandlerContext.fromRequest(request, tempDir, LOG);
         assertThat(jarHandlerContext.getParallelism()).isEqualTo(parallelism);
+    }
+
+    @Test
+    void testToPackagedProgramAppliesJarsAndClasspathsOfReturnedProgram() throws Exception {
+        // The dummy request refers to the jar id "someJar".
+        JarHandlers.copyWithNestedLibrary(
+                Paths.get(System.getProperty("targetDir")).resolve("test-program.jar"),
+                tempDir.resolve("someJar"),
+                "nested.jar");
+        final String classpath = "file:/tmp/some.jar";
+        final HandlerRequest<JarPlanRequestBody> request =
+                getDummyRequest(
+                        getDummyJarPlanRequestBody(
+                                null,
+                                null,
+                                Collections.singletonMap(
+                                        PipelineOptions.CLASSPATHS.key(), classpath)));
+        final JarHandlerUtils.JarHandlerContext context =
+                JarHandlerUtils.JarHandlerContext.fromRequest(request, tempDir, LOG);
+        final Configuration configuration = new Configuration();
+        context.applyToConfiguration(configuration, request);
+
+        try (PackagedProgram program = context.toPackagedProgram(configuration)) {
+            // The jars must include the libraries extracted by this program, not by another
+            // program that nobody closes.
+            assertThat(configuration.get(PipelineOptions.JARS))
+                    .hasSize(2)
+                    .containsExactlyElementsOf(
+                            program.getJobJarAndDependencies().stream()
+                                    .map(URL::toString)
+                                    .collect(Collectors.toList()));
+            assertThat(configuration.get(PipelineOptions.CLASSPATHS)).containsExactly(classpath);
+        }
     }
 
     @Test
