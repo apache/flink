@@ -103,6 +103,10 @@ public class IntermediateDataSet implements java.io.Serializable {
         consumers.add(edge);
     }
 
+    public void updateDistributionPattern(DistributionPattern distributionPattern) {
+        this.distributionPattern = distributionPattern;
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @Override

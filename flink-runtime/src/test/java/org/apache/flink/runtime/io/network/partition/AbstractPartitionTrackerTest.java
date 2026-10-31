@@ -87,6 +87,7 @@ public class AbstractPartitionTrackerTest {
                                 : Optional.empty();
                     }
                 },
+                1,
                 1);
     }
 
