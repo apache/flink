@@ -30,6 +30,8 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptions.ForwardEdgeParallelismMismatchMode;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -154,6 +156,8 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -1838,8 +1842,10 @@ public class StreamTaskTest {
         }
     }
 
-    @Test
-    void testForwardPartitionerIsConvertedToRebalanceOnParallelismChanges() throws Exception {
+    @ParameterizedTest(name = "producer parallelism {0}, consumer parallelism {1}")
+    @CsvSource({"1, 2", "2, 1"})
+    void testForwardPartitionerIsConvertedToRebalanceOnParallelismChanges(
+            int producerParallelism, int consumerParallelism) throws Exception {
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
@@ -1861,16 +1867,18 @@ public class StreamTaskTest {
                                     .getChannelSelector())
                     .isInstanceOf(ForwardPartitioner.class);
 
-            // Simulate changed downstream task parallelism (1->2)
+            // Simulate changed producer and consumer parallelism
             List<ResultPartitionWriter> newOutputs = new ArrayList<>();
             newOutputs.add(
                     new MockResultPartitionWriter() {
                         @Override
                         public int getNumberOfSubpartitions() {
-                            return 2;
+                            return consumerParallelism;
                         }
                     });
             harness.streamMockEnvironment.setOutputs(newOutputs);
+            harness.streamMockEnvironment.setNumberOfParallelSubtasks(producerParallelism);
+            harness.streamMockEnvironment.setWriterConsumerParallelism(consumerParallelism);
 
             // Re-create outputs
             recordWriterDelegate =
@@ -1884,6 +1892,82 @@ public class StreamTaskTest {
                                                     .getRecordWriter(0))
                                     .getChannelSelector())
                     .isInstanceOf(RebalancePartitioner.class);
+        }
+    }
+
+    @Test
+    void testForwardPartitionerFailsOnParallelismChangeWhenModeIsFail() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addJobConfig(
+                                PipelineOptions.FORWARD_EDGE_PARALLELISM_MISMATCH_MODE,
+                                ForwardEdgeParallelismMismatchMode.FAIL)
+                        .setOutputPartitioner(new ForwardPartitioner<>())
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.build()) {
+            // Simulate changed downstream task parallelism (1->2)
+            List<ResultPartitionWriter> newOutputs = new ArrayList<>();
+            newOutputs.add(
+                    new MockResultPartitionWriter() {
+                        @Override
+                        public int getNumberOfSubpartitions() {
+                            return 2;
+                        }
+                    });
+            harness.streamMockEnvironment.setOutputs(newOutputs);
+            harness.streamMockEnvironment.setWriterConsumerParallelism(2);
+
+            // With FAIL mode the job is rejected instead of silently downgrading the edge.
+            assertThatThrownBy(
+                            () ->
+                                    harness.streamTask.createRecordWriterDelegate(
+                                            harness.streamTask.configuration,
+                                            harness.streamMockEnvironment))
+                    .isInstanceOf(FlinkRuntimeException.class)
+                    .hasMessageContaining("Forward partitioning cannot be preserved");
+        }
+    }
+
+    @Test
+    void testForwardPartitionerIsKeptOnParallelismChangeWhenModeIsKeepForward() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addJobConfig(
+                                PipelineOptions.FORWARD_EDGE_PARALLELISM_MISMATCH_MODE,
+                                ForwardEdgeParallelismMismatchMode.KEEP_FORWARD)
+                        .setOutputPartitioner(new ForwardPartitioner<>())
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.build()) {
+            // Simulate changed downstream task parallelism (1->2)
+            List<ResultPartitionWriter> newOutputs = new ArrayList<>();
+            newOutputs.add(
+                    new MockResultPartitionWriter() {
+                        @Override
+                        public int getNumberOfSubpartitions() {
+                            return 2;
+                        }
+                    });
+            harness.streamMockEnvironment.setOutputs(newOutputs);
+            harness.streamMockEnvironment.setWriterConsumerParallelism(2);
+
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<Object>>> recordWriterDelegate =
+                    harness.streamTask.createRecordWriterDelegate(
+                            harness.streamTask.configuration, harness.streamMockEnvironment);
+            // With KEEP_FORWARD mode the forward partitioner is preserved despite the mismatch.
+            assertThat(
+                            ((ChannelSelectorRecordWriter)
+                                            ((SingleRecordWriter) recordWriterDelegate)
+                                                    .getRecordWriter(0))
+                                    .getChannelSelector())
+                    .isInstanceOf(ForwardPartitioner.class);
         }
     }
 
