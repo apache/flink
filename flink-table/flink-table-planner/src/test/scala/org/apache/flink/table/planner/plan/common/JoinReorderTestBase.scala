@@ -434,6 +434,82 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @TestTemplate
+  def testInnerJoinWithFilterOnThreeTables(): Unit = {
+    // The filter references all three tables, so no join of two of them can apply it.
+    val sql = "SELECT * FROM T1, T2, T3 WHERE a1 + a2 + a3 = 1"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testLeftOuterJoinWithConditionOnPreviousOuterJoin(): Unit = {
+    // The condition of the second LEFT JOIN references T2 of the first LEFT JOIN.
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T3 ON a1 = a3
+         |   LEFT OUTER JOIN T2 ON a1 = a2
+         |   LEFT OUTER JOIN T4 ON a2 = a4
+         """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testLeftOuterJoinWithCrossJoin(): Unit = {
+    // No condition joins T1 and T3, so the reorder of the inner join inputs only picks T3, the
+    // smallest one. The condition of the LEFT JOIN references T1, so T1 has to be joined first.
+    val sql = "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2, T3"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testLeftOuterJoinWithConditionOnLeftSide(): Unit = {
+    // b1 > 10 references only the left side of the LEFT JOIN, but is part of its condition.
+    val sql = "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2 AND b1 > 10"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testRightOuterJoinWithConditionOnLeftSide(): Unit = {
+    // b1 > 10 references only T1, the null generating side of the RIGHT JOIN. It's pushed down
+    // into T1, so the condition of the RIGHT JOIN is true.
+    val sql = "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON b1 > 10"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testFullOuterJoinWithConditionOnLeftSide(): Unit = {
+    // b1 > 10 references only the left side of the FULL JOIN, but is its condition.
+    val sql = "SELECT * FROM T1 FULL OUTER JOIN T2 ON b1 > 10"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testRightOuterJoinWithConditionOnOuterJoinOfRightSide(): Unit = {
+    // b1 > b3 references T3, the null generating side of the LEFT JOIN on the right side, so the
+    // RIGHT JOIN can only be applied after the LEFT JOIN.
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   RIGHT OUTER JOIN (SELECT * FROM T2 LEFT OUTER JOIN T3 ON a2 = a3) t
+         |   ON a1 = a2 AND b1 > b3
+         """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinConditionOnNullGeneratingSide(): Unit = {
+    // b2 > b3 references T2, the null generating side of the LEFT JOIN, so it can only be applied
+    // after the LEFT JOIN.
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   LEFT OUTER JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a1 = a3 AND b2 > b3
+         """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testInnerJoinWithBushyTypeJoinCondition(): Unit = {
     // This case is to test whether can build a bushy join tree.
     // If variable isBushyJoinReorder is true, it can be built to
