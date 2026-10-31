@@ -24,7 +24,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
 import org.apache.flink.formats.avro.AvroToRowDataConverters;
-import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.SchemaCoder;
 import org.apache.flink.formats.avro.SchemaCoder.SchemaCoderProvider;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
@@ -47,7 +46,10 @@ import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.DecoderFactory;
 
 import javax.annotation.Nullable;
 
@@ -114,11 +116,15 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     /** Position of source field in rootRow, -1 if not present. */
     private final int sourceFieldPosition;
 
-    /** Generic Avro deserializer for extracting envelope with writer schema. */
-    private transient RegistryAvroDeserializationSchema<GenericRecord> genericDeserializer;
+    private transient SchemaCoder writerCoder;
 
-    /** Initialization context for the generic deserializer. */
-    private transient InitializationContext initContext;
+    /**
+     * Readers keyed by writer schema; resolving against a fixed reader schema would drop or fail on
+     * fields that differ between schema versions.
+     */
+    private transient Map<Schema, GenericDatumReader<GenericRecord>> writerReaders;
+
+    private transient BinaryDecoder writerDecoder;
 
     /** Cached source MapData for current message. */
     private transient MapData cachedSourceMap;
@@ -227,7 +233,6 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         this.metadataConverters = metadataConverters;
         this.sourceFieldPosition = sourceFieldPosition;
         this.coderProvider = coderProvider;
-        this.genericDeserializer = null;
         this.schemaRegistryUrl = null;
         this.registryConfigs = null;
     }
@@ -235,7 +240,6 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     @Override
     public void open(InitializationContext context) throws Exception {
         avroDeserializer.open(context);
-        this.initContext = context;
 
         if (hasMetadata && this.coderProvider == null) {
             // Set up the coder to dynamically fetch the exact writer schema later,
@@ -245,6 +249,11 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 
             final SchemaCoder coder = new ConfluentSchemaRegistryCoder(null, client);
             this.coderProvider = () -> coder;
+        }
+
+        if (hasMetadata) {
+            this.writerCoder = coderProvider.get();
+            this.writerReaders = new HashMap<>();
         }
     }
 
@@ -262,21 +271,15 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
             return;
         }
         try {
-            // Initialize generic deserializer with the first record's runtime writer schema
-            if (hasMetadata && genericDeserializer == null) {
-                SchemaCoder coder = coderProvider.get();
-                Schema writerSchema = coder.readSchema(new ByteArrayInputStream(message));
-                this.genericDeserializer =
-                        new RegistryAvroDeserializationSchema<>(
-                                GenericRecord.class, writerSchema, coderProvider);
-                this.genericDeserializer.open(this.initContext);
-            }
-
             // Extract source as MapData when metadata is requested
             if (hasMetadata) {
-                GenericRecord envelope = genericDeserializer.deserialize(message);
-                GenericRecord sourceRecord = (GenericRecord) envelope.get("source");
-                this.cachedSourceMap = convertSourceToMap(sourceRecord);
+                final ByteArrayInputStream in = new ByteArrayInputStream(message);
+                final Schema writerSchema = writerCoder.readSchema(in);
+                final GenericDatumReader<GenericRecord> reader =
+                        writerReaders.computeIfAbsent(writerSchema, GenericDatumReader::new);
+                writerDecoder = DecoderFactory.get().binaryDecoder(in, writerDecoder);
+                final GenericRecord envelope = reader.read(null, writerDecoder);
+                this.cachedSourceMap = convertSourceToMap((GenericRecord) envelope.get("source"));
             }
 
             // Deserialize with typed schema

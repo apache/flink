@@ -49,9 +49,15 @@ import org.apache.flink.util.UserCodeClassLoader;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.EncoderFactory;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -87,6 +93,8 @@ class DebeziumAvroSerDeSchemaTest {
 
     private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST =
             new Schema.Parser().parse(new String(readBytesFromFile("debezium-test-schema.json")));
+
+    private static final DataType EVOLVING_PHYSICAL_TYPE = ROW(FIELD("id", BIGINT()));
 
     private final SchemaRegistryClient client = new MockSchemaRegistryClient();
 
@@ -266,6 +274,45 @@ class DebeziumAvroSerDeSchemaTest {
                 });
     }
 
+    @Test
+    void testSourcePropertiesWithLaterSchemaVersion() throws Exception {
+        final DebeziumAvroDeserializationSchema dbzDeserializer =
+                createDeserializer(
+                        EVOLVING_PHYSICAL_TYPE,
+                        Collections.singletonList(ReadableMetadata.SOURCE_PROPERTIES));
+
+        final SimpleCollector collector = new SimpleCollector();
+        dbzDeserializer.deserialize(
+                serializeEnvelope(evolvingEnvelopeSchema(false, false), 1L), collector);
+        dbzDeserializer.deserialize(
+                serializeEnvelope(evolvingEnvelopeSchema(false, true), 2L), collector);
+
+        assertThat(collector.list).hasSize(2);
+        assertThat(collector.list.get(0).getMap(1).size()).isEqualTo(1);
+        final MapData v2Source = collector.list.get(1).getMap(1);
+        assertThat(v2Source.size()).isEqualTo(2);
+        assertThat(getMapValue(v2Source, "lsn")).isEqualTo("1002");
+        assertThat(getMapValue(v2Source, "ts_us")).isEqualTo("1700000000000000");
+    }
+
+    @Test
+    void testDroppedUndeclaredRequiredColumnWithMetadata() throws Exception {
+        final DebeziumAvroDeserializationSchema dbzDeserializer =
+                createDeserializer(
+                        EVOLVING_PHYSICAL_TYPE,
+                        Collections.singletonList(ReadableMetadata.SOURCE_PROPERTIES));
+
+        final SimpleCollector collector = new SimpleCollector();
+        dbzDeserializer.deserialize(
+                serializeEnvelope(evolvingEnvelopeSchema(true, false), 1L), collector);
+        dbzDeserializer.deserialize(
+                serializeEnvelope(evolvingEnvelopeSchema(false, false), 2L), collector);
+
+        assertThat(collector.list).hasSize(2);
+        assertThat(collector.list.get(1).getLong(0)).isEqualTo(2L);
+        assertThat(getMapValue(collector.list.get(1).getMap(1), "lsn")).isEqualTo("1002");
+    }
+
     public List<String> testDeserialization(String dataPath) throws Exception {
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
@@ -295,37 +342,10 @@ class DebeziumAvroSerDeSchemaTest {
             List<ReadableMetadata> requestedMetadata,
             Consumer<RowData> testConsumer)
             throws Exception {
-        final DataType producedDataType =
-                DataTypeUtils.appendRowFields(
-                        fromLogicalToDataType(rowType),
-                        requestedMetadata.stream()
-                                .map(m -> DataTypes.FIELD(m.key, m.dataType))
-                                .collect(Collectors.toList()));
-
-        RowType rowTypeDe =
-                DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
-                        fromLogicalToDataType(rowType), requestedMetadata);
-
         client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 
-        ConfluentSchemaRegistryCoder registryCoder =
-                new ConfluentSchemaRegistryCoder(SUBJECT, client);
-
-        DebeziumAvroDeserializationSchema.MetadataConverter[] metadataConverters =
-                createMetadataConverters(rowTypeDe, requestedMetadata);
-
-        int sourceFieldPosition = rowTypeDe.getFieldNames().indexOf("source");
-
         DebeziumAvroDeserializationSchema dbzDeserializer =
-                new DebeziumAvroDeserializationSchema(
-                        InternalTypeInfo.of(producedDataType.getLogicalType()),
-                        getDeserializationSchema(rowTypeDe),
-                        true,
-                        metadataConverters,
-                        sourceFieldPosition,
-                        () -> registryCoder);
-
-        dbzDeserializer.open(new MockInitializationContext());
+                createDeserializer(fromLogicalToDataType(rowType), requestedMetadata);
 
         SimpleCollector collector = new SimpleCollector();
         dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
@@ -374,6 +394,98 @@ class DebeziumAvroSerDeSchemaTest {
                                     (row, pos) -> m.converter.convert(row, rootPosition);
                         })
                 .toArray(DebeziumAvroDeserializationSchema.MetadataConverter[]::new);
+    }
+
+    private DebeziumAvroDeserializationSchema createDeserializer(
+            DataType physicalDataType, List<ReadableMetadata> requestedMetadata) throws Exception {
+        final DataType producedDataType =
+                DataTypeUtils.appendRowFields(
+                        physicalDataType,
+                        requestedMetadata.stream()
+                                .map(m -> DataTypes.FIELD(m.key, m.dataType))
+                                .collect(Collectors.toList()));
+        final RowType rowTypeDe =
+                DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
+                        physicalDataType, requestedMetadata);
+        final ConfluentSchemaRegistryCoder registryCoder =
+                new ConfluentSchemaRegistryCoder(SUBJECT, client);
+
+        final DebeziumAvroDeserializationSchema dbzDeserializer =
+                new DebeziumAvroDeserializationSchema(
+                        InternalTypeInfo.of(producedDataType.getLogicalType()),
+                        getDeserializationSchema(rowTypeDe),
+                        true,
+                        createMetadataConverters(rowTypeDe, requestedMetadata),
+                        rowTypeDe.getFieldNames().indexOf("source"),
+                        () -> registryCoder);
+        dbzDeserializer.open(new MockInitializationContext());
+        return dbzDeserializer;
+    }
+
+    private static Schema evolvingEnvelopeSchema(boolean withLegacyColumn, boolean withSourceTsUs) {
+        SchemaBuilder.FieldAssembler<Schema> value =
+                SchemaBuilder.record("Value")
+                        .namespace("pg.public.orders")
+                        .fields()
+                        .requiredLong("id");
+        if (withLegacyColumn) {
+            value = value.requiredInt("legacy");
+        }
+        final Schema valueSchema = value.endRecord();
+
+        SchemaBuilder.FieldAssembler<Schema> source =
+                SchemaBuilder.record("Source")
+                        .namespace("io.debezium.connector.postgresql")
+                        .fields()
+                        .optionalLong("lsn");
+        if (withSourceTsUs) {
+            source = source.optionalLong("ts_us");
+        }
+
+        return SchemaBuilder.record("Envelope")
+                .namespace("pg.public.orders")
+                .fields()
+                .name("before")
+                .type()
+                .optional()
+                .type(valueSchema)
+                .name("after")
+                .type()
+                .optional()
+                .type(valueSchema)
+                .name("source")
+                .type(source.endRecord())
+                .noDefault()
+                .requiredString("op")
+                .endRecord();
+    }
+
+    private byte[] serializeEnvelope(Schema envelopeSchema, long id) throws IOException {
+        final Schema valueSchema = envelopeSchema.getField("after").schema().getTypes().get(1);
+        final GenericRecord after = new GenericData.Record(valueSchema);
+        after.put("id", id);
+        if (valueSchema.getField("legacy") != null) {
+            after.put("legacy", 0);
+        }
+
+        final Schema sourceSchema = envelopeSchema.getField("source").schema();
+        final GenericRecord source = new GenericData.Record(sourceSchema);
+        source.put("lsn", 1000L + id);
+        if (sourceSchema.getField("ts_us") != null) {
+            source.put("ts_us", 1700000000000000L);
+        }
+
+        final GenericRecord envelope = new GenericData.Record(envelopeSchema);
+        envelope.put("after", after);
+        envelope.put("source", source);
+        envelope.put("op", "c");
+
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        new ConfluentSchemaRegistryCoder(SUBJECT, client).writeSchema(envelopeSchema, out);
+        final BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+        new GenericDatumWriter<GenericRecord>(envelopeSchema).write(envelope, encoder);
+        encoder.flush();
+        return out.toByteArray();
     }
 
     private static RowData debeziumRow2RowData() {
