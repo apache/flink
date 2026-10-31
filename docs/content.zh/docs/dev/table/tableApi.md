@@ -1124,8 +1124,8 @@ Table ratesHistory = tableEnv.from("RatesHistory");
 
 // 注册带有时间属性和主键的 temporal table function
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
-    "r_proctime",
-    "r_currency");
+    $("r_proctime"),
+    $("r_currency"));
 tableEnv.createTemporarySystemFunction("rates", rates);
 
 // 基于时间属性和键与“Orders”表关联
@@ -1144,7 +1144,7 @@ val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency
 // 基于时间属性和键与“Orders”表关联
 val orders = tableEnv.from("Orders")
 val result = orders
-    .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
+    .joinLateral(rates($"o_proctime"), $"r_currency" === $"o_currency")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
