@@ -17,7 +17,7 @@
 ################################################################################
 from typing import Iterable, Tuple, Dict
 
-from pyflink.common import Configuration
+from pyflink.common import Configuration, Duration
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
@@ -57,7 +57,8 @@ class WindowTests(object):
             ('hi', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
-            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+            .with_timestamp_assigner(SecondColumnTimestampAssigner()) \
+            .with_idleness(Duration.of_seconds(10))
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
             .window(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
