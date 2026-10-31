@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -28,7 +29,7 @@ import java.util.List;
  * SourceLineageVertex} and sink.
  */
 @PublicEvolving
-public interface LineageVertex {
+public interface LineageVertex extends Serializable {
     /* List of input (for source) or output (for sink) datasets interacted with by the connector */
     List<LineageDataset> datasets();
 }

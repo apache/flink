@@ -21,9 +21,11 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
+
 /** Facet interface for dataset. */
 @PublicEvolving
-public interface LineageDatasetFacet {
+public interface LineageDatasetFacet extends Serializable {
     /** Name for the facet which will be used as key in facets of LineageDataset. */
     String name();
 }
