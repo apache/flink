@@ -355,6 +355,17 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         Configuration mergedConfig = Configuration.fromMap(session.getSessionConfig());
         mergedConfig.addAll(executionConfig);
 
+        try {
+            return deployApplicationCluster(mergedConfig, scriptUri, script);
+        } catch (Throwable t) {
+            LOG.error("Failed to deploy script to cluster.", t);
+            throw new SqlGatewayException("Failed to deploy script to cluster.", t);
+        }
+    }
+
+    public static <ClusterID> ClusterID deployApplicationCluster(
+            Configuration mergedConfig, @Nullable URI scriptUri, @Nullable String script)
+            throws Exception {
         List<String> arguments = new ArrayList<>();
         if (scriptUri != null) {
             arguments.add("--" + SqlDriver.OPTION_SQL_FILE.getLongOpt());
@@ -368,13 +379,8 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         ApplicationConfiguration applicationConfiguration =
                 new ApplicationConfiguration(
                         arguments.toArray(new String[0]), SqlDriver.class.getName());
-        try {
-            return new ApplicationClusterDeployer(new DefaultClusterClientServiceLoader())
-                    .run(mergedConfig, applicationConfiguration);
-        } catch (Throwable t) {
-            LOG.error("Failed to deploy script to cluster.", t);
-            throw new SqlGatewayException("Failed to deploy script to cluster.", t);
-        }
+        return new ApplicationClusterDeployer(new DefaultClusterClientServiceLoader())
+                .run(mergedConfig, applicationConfiguration);
     }
 
     @Override
