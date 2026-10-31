@@ -377,6 +377,107 @@ public abstract class JoinReorderITCaseBase {
         assertEquals(query, expectedList);
     }
 
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithFilterOnThreeTables(boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // The filter references all three tables, so no join of two of them can apply it.
+        String query = "SELECT T1.b1, T2.b2, T3.c3 FROM T1, T2, T3 WHERE T1.b1 + T2.b2 + T3.b3 = 4";
+
+        List<String> expectedList =
+                Arrays.asList("1,1,Hello", "1,1,Hello world", "1,2,Hi", "2,1,Hi");
+        assertEquals(query, expectedList);
+    }
+
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithLeftOuterJoinOnPreviousOuterJoin(boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // The condition of the second LEFT JOIN references T2 of the first LEFT JOIN.
+        String query =
+                "SELECT T1.b1, T2.b2, T4.b4 FROM T1 "
+                        + "JOIN T3 ON T1.a1 = T3.a3 "
+                        + "LEFT OUTER JOIN T2 ON T1.a1 = T2.a2 "
+                        + "LEFT OUTER JOIN T4 ON T2.b2 = T4.b4 WHERE T1.b1 <= 2";
+
+        List<String> expectedList = Arrays.asList("1,1,1", "2,2,2", "2,3,3");
+        assertEquals(query, expectedList);
+    }
+
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithLeftOuterJoinConditionOnLeftSide(boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // T1.b1 > 10 references only the left side of the LEFT JOIN, but is part of its condition.
+        String query =
+                "SELECT T1.b1, T2.b2 FROM T1 "
+                        + "LEFT OUTER JOIN T2 ON T1.b1 = T2.b2 AND T1.b1 > 10 "
+                        + "WHERE T1.b1 > 8 AND T1.b1 < 13";
+
+        List<String> expectedList = Arrays.asList("10,null", "11,11", "12,12", "9,null");
+        assertEquals(query, expectedList);
+    }
+
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithRightOuterJoinConditionOnLeftSide(boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // T1.b1 > 100 references only T1, the null generating side of the RIGHT JOIN. No row of T1
+        // matches it.
+        String query =
+                "SELECT T1.b1, T2.b2 FROM T1 "
+                        + "RIGHT OUTER JOIN T2 ON T1.b1 > 100 WHERE T2.b2 <= 2";
+
+        List<String> expectedList = Arrays.asList("null,1", "null,2");
+        assertEquals(query, expectedList);
+    }
+
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithFullOuterJoinConditionOnLeftSide(boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // t1.b1 > 1 references only the left side of the FULL JOIN, but is part of its condition.
+        String query =
+                "SELECT t1.b1, t2.b2 FROM (SELECT * FROM T1 WHERE b1 < 3) t1 "
+                        + "FULL OUTER JOIN (SELECT * FROM T2 WHERE b2 < 3) t2 "
+                        + "ON t1.b1 = t2.b2 AND t1.b1 > 1";
+
+        List<String> expectedList = Arrays.asList("1,null", "2,2", "null,1");
+        assertEquals(query, expectedList);
+    }
+
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithRightOuterJoinConditionOnOuterJoinOfRightSide(
+            boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // T1.b1 > t.b3 references T3, the null generating side of the LEFT JOIN on the right side,
+        // so the RIGHT JOIN can only be applied after the LEFT JOIN.
+        String query =
+                "SELECT T1.b1, t.b2, t.b3 FROM T1 RIGHT OUTER JOIN "
+                        + "(SELECT * FROM T2 LEFT OUTER JOIN T3 ON T2.a2 = T3.a3) t "
+                        + "ON T1.b1 = t.b2 AND T1.b1 > t.b3 WHERE t.b2 <= 4";
+
+        List<String> expectedList = Arrays.asList("3,3,2", "4,4,2", "null,1,1", "null,2,2");
+        assertEquals(query, expectedList);
+    }
+
+    @ParameterizedTest(name = "Is bushy join reorder: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testJoinReorderWithInnerJoinConditionOnNullGeneratingSide(
+            boolean isBushyJoinReorder) {
+        setIsBushyJoinReorder(isBushyJoinReorder);
+        // T2.b2 > T3.b3 references T2, the null generating side of the LEFT JOIN, so it removes the
+        // rows where T2 is null.
+        String query =
+                "SELECT T1.b1, T2.b2, T3.c3 FROM T1 "
+                        + "LEFT OUTER JOIN T2 ON T1.b1 = T2.b2 AND T2.b2 <> 4 "
+                        + "JOIN T3 ON T1.a1 = T3.a3 AND T2.b2 > T3.b3 WHERE T1.b1 <= 4";
+
+        List<String> expectedList = Collections.singletonList("3,3,Hello");
+        assertEquals(query, expectedList);
+    }
+
     private void setIsBushyJoinReorder(boolean isBushyJoinReorder) {
         if (!isBushyJoinReorder) {
             tEnv.getConfig()
