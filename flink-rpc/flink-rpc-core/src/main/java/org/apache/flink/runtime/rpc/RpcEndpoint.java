@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -517,6 +519,9 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
          * The mainScheduledExecutor manages the task and sends it to the gateway after the given
          * delay.
          *
+         * <p>A failure of the task is rethrown in the main thread, as for {@link #execute}, and
+         * also fails the returned future.
+         *
          * @param command the task to execute in the future
          * @param delay the time from now to delay the execution
          * @param unit the time unit of the delay parameter
@@ -531,8 +536,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
                         "The scheduled executor service is shutdown and ignores the command {}",
                         command);
             } else {
-                mainScheduledExecutor.schedule(
-                        () -> gateway.runAsync(ft), delayMillis, TimeUnit.MILLISECONDS);
+                scheduleInMainThread(ft, delayMillis);
             }
             return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
         }
@@ -540,6 +544,9 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
         /**
          * The mainScheduledExecutor manages the given callable and sends it to the gateway after
          * the given delay.
+         *
+         * <p>A failure of the callable is rethrown in the main thread, as for {@link #execute}, and
+         * also fails the returned future.
          *
          * @param callable the callable to execute
          * @param delay the time from now to delay the execution
@@ -556,10 +563,36 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
                         "The scheduled executor service is shutdown and ignores the callable {}",
                         callable);
             } else {
-                mainScheduledExecutor.schedule(
-                        () -> gateway.runAsync(ft), delayMillis, TimeUnit.MILLISECONDS);
+                scheduleInMainThread(ft, delayMillis);
             }
             return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
+        }
+
+        private void scheduleInMainThread(FutureTask<?> task, long delayMillis) {
+            mainScheduledExecutor.schedule(
+                    () -> gateway.runAsync(() -> runAndRethrowFailure(task)),
+                    delayMillis,
+                    TimeUnit.MILLISECONDS);
+        }
+
+        /**
+         * A {@link FutureTask} stores what its task throws instead of throwing it; rethrowing lets
+         * the main thread log it and exit the process on a fatal error, as for {@link #execute}.
+         * The failure stays in the task for the holder of the returned future.
+         */
+        private static void runAndRethrowFailure(FutureTask<?> task) {
+            task.run();
+            if (task.isCancelled()) {
+                return;
+            }
+            try {
+                task.get();
+            } catch (ExecutionException e) {
+                ExceptionUtils.rethrow(e.getCause());
+            } catch (InterruptedException e) {
+                // the task completed in run(), so get() does not block
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override
