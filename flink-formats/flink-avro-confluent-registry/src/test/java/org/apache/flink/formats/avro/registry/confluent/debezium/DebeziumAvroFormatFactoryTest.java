@@ -36,13 +36,13 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link DebeziumAvroFormatFactory}. */
@@ -129,19 +129,20 @@ class DebeziumAvroFormatFactoryTest {
 
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        ROW_TYPE,
+                        SCHEMA.toPhysicalRowDataType(),
+                        Collections.emptyList(),
                         InternalTypeInfo.of(ROW_TYPE),
                         REGISTRY_URL,
                         null,
                         registryConfigs);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         DebeziumAvroSerializationSchema expectedSer =
                 new DebeziumAvroSerializationSchema(
                         ROW_TYPE, REGISTRY_URL, SUBJECT, null, registryConfigs);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -153,7 +154,8 @@ class DebeziumAvroFormatFactoryTest {
 
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        ROW_TYPE,
+                        SCHEMA.toPhysicalRowDataType(),
+                        Collections.emptyList(),
                         InternalTypeInfo.of(ROW_TYPE),
                         REGISTRY_URL,
                         AVRO_SCHEMA,
