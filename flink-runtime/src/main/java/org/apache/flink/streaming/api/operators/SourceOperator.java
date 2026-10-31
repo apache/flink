@@ -31,6 +31,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.SupportsDynamicRateLimit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.io.InputStatus;
@@ -46,9 +47,11 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.DynamicRateLimitEvent;
 import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.ReportedRecordsEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
@@ -187,6 +190,17 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final CompletableFuture<Void> checkpointsStartedFuture;
 
+    private static final long NO_SNAPSHOT_YET = Long.MIN_VALUE;
+
+    /** Records emitted at the last snapshot. */
+    private long recordsAtLastSnapshot;
+
+    /**
+     * Trigger timestamp of the checkpoint of the last snapshot, or {@link #NO_SNAPSHOT_YET}. The
+     * timestamp is taken from the checkpoint coordinator, so it is not mixed with the local clock.
+     */
+    private long lastSnapshotTriggerTimestamp = NO_SNAPSHOT_YET;
+
     private final Map<String, InternalSourceSplitMetricGroup> splitMetricGroups = new HashMap<>();
 
     private enum OperatingMode {
@@ -271,6 +285,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 waitingForCheckpoint
                         ? new CompletableFuture<>()
                         : (CompletableFuture<Void>) AVAILABLE;
+        this.recordsAtLastSnapshot = 0L;
         LOG.info("SourceOperator initialized, wait for 1st checkpoint: {}", waitingForCheckpoint);
     }
 
@@ -667,6 +682,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         long checkpointId = context.getCheckpointId();
         LOG.debug("Taking a snapshot for checkpoint {}", checkpointId);
         readerState.update(sourceReader.snapshotState(checkpointId));
+        if (sourceReader instanceof SupportsDynamicRateLimit) {
+            reportRecordsSinceLastSnapshot(checkpointId, context.getCheckpointTimestamp());
+        }
     }
 
     @Override
@@ -709,6 +727,28 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         sourceReader.notifyCheckpointComplete(checkpointId);
     }
 
+    /**
+     * Reports the number of records this subtask emitted since the last snapshot, and the time from
+     * the trigger of that snapshot's checkpoint to the trigger of this one, to the source
+     * coordinator, which derives the observed throughput from them, so that the next dynamic rate
+     * limit adjustment is based on what was actually produced over the whole checkpoint period
+     * rather than on the last broadcast target rate.
+     */
+    private void reportRecordsSinceLastSnapshot(long checkpointId, long triggerTimestamp) {
+        final long recordsOut = metrics.getIOMetricGroup().getNumRecordsOutCounter().getCount();
+        // The first snapshot has no baseline trigger timestamp, and the local clock cannot be
+        // compared with the checkpoint coordinator's, so it only establishes the baseline.
+        if (lastSnapshotTriggerTimestamp != NO_SNAPSHOT_YET) {
+            operatorEventGateway.sendEventToCoordinator(
+                    new ReportedRecordsEvent(
+                            checkpointId,
+                            recordsOut - recordsAtLastSnapshot,
+                            triggerTimestamp - lastSnapshotTriggerTimestamp));
+        }
+        recordsAtLastSnapshot = recordsOut;
+        lastSnapshotTriggerTimestamp = triggerTimestamp;
+    }
+
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
         super.notifyCheckpointAborted(checkpointId);
@@ -723,6 +763,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             checkSplitWatermarkAlignment();
         } else if (event instanceof AddSplitEvent) {
             handleAddSplitsEvent(((AddSplitEvent<SplitT>) event));
+        } else if (event instanceof DynamicRateLimitEvent) {
+            updateDynamicRateLimit((DynamicRateLimitEvent) event);
         } else if (event instanceof SourceEventWrapper) {
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
@@ -737,6 +779,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             .build());
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
+        }
+    }
+
+    private void updateDynamicRateLimit(DynamicRateLimitEvent event) {
+        if (sourceReader instanceof SupportsDynamicRateLimit) {
+            ((SupportsDynamicRateLimit) sourceReader).updateTargetRate(event.getRecordsPerSecond());
         }
     }
 

@@ -18,13 +18,20 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link DataStreamSource}. */
 class DataStreamSourceTest {
@@ -41,5 +48,49 @@ class DataStreamSourceTest {
 
         assertThat(stream.isParallel()).isTrue();
         assertThat(stream.getParallelism()).isEqualTo(expectParallelism);
+    }
+
+    @Test
+    void testWithDynamicRateLimitParamsOverridesJobWideConfig() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        MockSource mockSource = new MockSource(Boundedness.BOUNDED, 10);
+        DataStreamSource<Integer> stream =
+                env.fromSource(mockSource, WatermarkStrategy.noWatermarks(), "TestingSource");
+
+        DynamicRateLimitParams override =
+                new DynamicRateLimitParams(true, 5, 1000.0, 0.5, 1.5, 0.2, 0.5, 0.8);
+        DataStreamSource<Integer> returned = stream.withDynamicRateLimitParams(override);
+
+        assertThat(returned).isSameAs(stream);
+        SourceTransformation<?, ?, ?> transformation =
+                (SourceTransformation<?, ?, ?>) stream.getTransformation();
+        assertThat(transformation.getDynamicRateLimitParams()).contains(override);
+    }
+
+    @Test
+    void testWithDynamicRateLimitParamsRejectsLegacySources() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        SourceFunction<Integer> sourceFunction =
+                new SourceFunction<Integer>() {
+                    @Override
+                    public void run(SourceContext<Integer> ctx) {}
+
+                    @Override
+                    public void cancel() {}
+                };
+        DataStreamSource<Integer> legacyStream =
+                new DataStreamSource<>(
+                        env,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        new StreamSource<>(sourceFunction),
+                        true,
+                        "LegacyTestingSource");
+        assertThat(legacyStream.getTransformation()).isInstanceOf(LegacySourceTransformation.class);
+
+        assertThatThrownBy(
+                        () ->
+                                legacyStream.withDynamicRateLimitParams(
+                                        DynamicRateLimitParams.DISABLED))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

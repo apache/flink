@@ -73,4 +73,17 @@ public interface RateLimiterStrategy<SplitT extends SourceSplit> extends Seriali
     static RateLimiterStrategy noOp() {
         return parallelism -> new NoOpRateLimiter();
     }
+
+    /**
+     * Creates a {@code RateLimiterStrategy} that limits the number of records per second, and whose
+     * limit can subsequently be updated at runtime, e.g. by a coordinator that broadcasts a new
+     * target rate (see {@link SupportsDynamicRateLimit}).
+     *
+     * @param initialRecordsPerSecond The initial number of records produced per second. As with
+     *     {@link #perSecond(double)}, the actual number of produced records is subject to rounding
+     *     due to dividing the number of produced records among the parallel instances.
+     */
+    static RateLimiterStrategy dynamic(double initialRecordsPerSecond) {
+        return parallelism -> new GuavaDynamicRateLimiter<>(initialRecordsPerSecond / parallelism);
+    }
 }
