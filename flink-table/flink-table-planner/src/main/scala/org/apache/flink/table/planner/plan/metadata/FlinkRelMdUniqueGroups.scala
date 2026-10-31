@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core._
@@ -369,11 +370,28 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
     val joinInfo = join.analyzeCondition()
     val leftJoinKeys = ImmutableBitSet.of(joinInfo.leftKeys)
     val rightJoinKeys = ImmutableBitSet.of(joinInfo.rightKeys)
-    // for INNER and LEFT join, returns leftUniqueGroups if the join keys of RHS are unique
+    // An outer join pads a row of its preserved input with nulls if the non-equi part of the join
+    // condition fails for it. Rows of the preserved input with the same unique group values are
+    // therefore only padded alike if they are the same row, or if that part is deterministic and
+    // only uses requested columns of the preserved input.
+    lazy val remaining = joinInfo.getRemaining(join.getCluster.getRexBuilder)
+    lazy val (remainingLeftColumns, remainingRightColumns) = FlinkRelMdUtil
+      .splitColumnsIntoLeftAndRight(leftFieldCount, RelOptUtil.InputFinder.bits(remaining))
+    lazy val isRemainingDeterministic = RexUtil.isDeterministic(remaining)
+    lazy val isPaddingDeterminedByLeftUniqueGroups =
+      (isRemainingDeterministic && leftColumns.contains(remainingLeftColumns)) ||
+        java.lang.Boolean.TRUE.equals(fmq.areColumnsUnique(join.getLeft, leftUniqueGroups))
+    lazy val isPaddingDeterminedByRightUniqueGroups =
+      (isRemainingDeterministic && rightColumns.contains(remainingRightColumns)) ||
+        java.lang.Boolean.TRUE.equals(fmq.areColumnsUnique(join.getRight, rightUniqueGroups))
+
+    // for INNER join, and for LEFT join if leftUniqueGroups determine the padding, returns
+    // leftUniqueGroups if the join keys of RHS are unique
     if (
       leftJoinKeys.nonEmpty
       && leftUniqueGroups.contains(leftJoinKeys)
       && !joinType.generatesNullsOnLeft()
+      && (!joinType.generatesNullsOnRight() || isPaddingDeterminedByLeftUniqueGroups)
     ) {
       val isRightJoinKeysUnique = fmq.areColumnsUnique(join.getRight, rightJoinKeys)
       if (isRightJoinKeysUnique != null && isRightJoinKeysUnique) {
@@ -383,11 +401,13 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
 
     val outputRightUniqueGroups =
       rightUniqueGroups.asList.map(c => Integer.valueOf(c + leftFieldCount))
-    // for INNER and RIGHT join, returns rightUniqueGroups if the join keys of LHS are unique
+    // for INNER join, and for RIGHT join if rightUniqueGroups determine the padding, returns
+    // rightUniqueGroups if the join keys of LHS are unique
     if (
       rightJoinKeys.nonEmpty
       && rightUniqueGroups.contains(rightJoinKeys)
       && !joinType.generatesNullsOnRight()
+      && (!joinType.generatesNullsOnLeft() || isPaddingDeterminedByRightUniqueGroups)
     ) {
       val isLeftJoinKeysUnique = fmq.areColumnsUnique(join.getLeft, leftJoinKeys)
       if (isLeftJoinKeysUnique != null && isLeftJoinKeysUnique) {
