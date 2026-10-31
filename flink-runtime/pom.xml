@@ -353,6 +353,14 @@ under the License.
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+					<!-- Only the properties used in .flink-runtime.version.properties;
+						skipping the others avoids e.g. the remote fetch -->
+					<includeOnlyProperties>
+						<includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+						<includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+						<includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+						<includeOnlyProperty>^git.build.time$</includeOnlyProperty>
+					</includeOnlyProperties>
 					<gitDescribe>
 						<!-- Don't generate the describe property -->
 						<!-- It is useless due to the way Flink does branches and tags -->
