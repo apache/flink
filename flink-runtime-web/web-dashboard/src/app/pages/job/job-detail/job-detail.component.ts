@@ -20,11 +20,11 @@ import { NgIf } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { ActivatedRoute, RouterOutlet } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
-import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
+import { catchError, mergeMap, takeUntil, takeWhile, tap } from 'rxjs/operators';
 
 import { JobStatusComponent } from '@flink-runtime-web/pages/job/job-detail/status/job-status.component';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
-import { JobService, StatusService } from '@flink-runtime-web/services';
+import { isNotFound, JobService, StatusService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 
@@ -38,6 +38,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 export class JobDetailComponent implements OnInit, OnDestroy {
   isLoading = true;
   isError = false;
+  notFound = false;
   errorDetails: string;
 
   private readonly destroy$ = new Subject<void>();
@@ -53,13 +54,21 @@ export class JobDetailComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
+        // A job that is gone never comes back, so stop polling for it.
+        takeWhile(() => !this.notFound),
         takeUntil(this.destroy$),
         mergeMap(() =>
           this.jobService.loadJob(this.activatedRoute.snapshot.params.jid).pipe(
             tap(job => {
               this.jobLocalService.setJobDetail(job);
             }),
-            catchError(() => {
+            catchError((error: unknown) => {
+              if (isNotFound(error)) {
+                this.notFound = true;
+                this.isLoading = false;
+                this.cdr.markForCheck();
+                return EMPTY;
+              }
               this.jobService.loadExceptions(this.activatedRoute.snapshot.params.jid, 10).subscribe(data => {
                 this.errorDetails = data['root-exception'];
                 this.cdr.markForCheck();
