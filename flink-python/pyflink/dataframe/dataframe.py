@@ -1569,8 +1569,6 @@ class DataFrame:
         """
         Return rows from either DataFrame, removing duplicate rows (SQL ``UNION``).
 
-        This operation is currently supported only in batch mode.
-
         Both DataFrames must belong to the same TableEnvironment and have the same number
         of columns with compatible types at each position. Columns are matched by position,
         not by name; the result uses this DataFrame's column names.
@@ -1617,8 +1615,6 @@ class DataFrame:
         """
         Return rows present in both DataFrames, removing duplicates (SQL ``INTERSECT``).
 
-        This operation is currently supported only in batch mode.
-
         Both DataFrames must belong to the same TableEnvironment and have the same number
         of columns with matching types at each position. Columns are matched by position,
         not by name; the result uses this DataFrame's column names.
@@ -1642,8 +1638,6 @@ class DataFrame:
     def intersect_all(self, other: "DataFrame") -> "DataFrame":
         """
         Return rows present in both DataFrames, retaining duplicates (SQL ``INTERSECT ALL``).
-
-        This operation is currently supported only in batch mode.
 
         A row occurring ``n`` times in this DataFrame and ``m`` times in ``other`` is returned
         ``min(n, m)`` times.
@@ -1672,8 +1666,6 @@ class DataFrame:
         """
         Return rows absent from ``other``, removing duplicate rows (SQL ``EXCEPT``).
 
-        This operation is currently supported only in batch mode.
-
         Both DataFrames must belong to the same TableEnvironment and have the same number
         of columns with matching types at each position. Columns are matched by position,
         not by name; the result uses this DataFrame's column names.
@@ -1697,8 +1689,6 @@ class DataFrame:
     def minus_all(self, other: "DataFrame") -> "DataFrame":
         """
         Subtract the occurrences of rows in ``other`` from this DataFrame (SQL ``EXCEPT ALL``).
-
-        This operation is currently supported only in batch mode.
 
         A row occurring ``n`` times in this DataFrame and ``m`` times in ``other`` is returned
         ``max(n - m, 0)`` times.

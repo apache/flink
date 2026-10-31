@@ -96,11 +96,8 @@ public class SetQueryOperation implements QueryOperation {
     }
 
     private String asSerializableType() {
-        if (all) {
-            return type.toString() + " ALL";
-        } else {
-            return type.toString();
-        }
+        final String keyword = type == SetQueryOperationType.MINUS ? "EXCEPT" : type.toString();
+        return all ? keyword + " ALL" : keyword;
     }
 
     private String typeToString() {

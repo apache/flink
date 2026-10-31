@@ -36,17 +36,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
 
 /** Utility class for creating a valid {@link SetQueryOperation}. */
 @Internal
 final class SetOperationFactory {
-
-    private final boolean isStreamingMode;
-
-    public SetOperationFactory(boolean isStreamingMode) {
-        this.isStreamingMode = isStreamingMode;
-    }
 
     /**
      * Creates a valid algebraic operation.
@@ -59,7 +52,6 @@ final class SetOperationFactory {
      */
     QueryOperation create(
             SetQueryOperationType type, QueryOperation left, QueryOperation right, boolean all) {
-        failIfStreaming(type, all);
         validateSetOperation(type, left, right);
         return new SetQueryOperation(left, right, type, all, createCommonTableSchema(left, right));
     }
@@ -98,17 +90,6 @@ final class SetOperationFactory {
                                                 rightDataTypes.get(idx)));
                             }
                         });
-    }
-
-    private void failIfStreaming(SetQueryOperationType type, boolean all) {
-        boolean shouldFailInCaseOfStreaming = !all || type != UNION;
-
-        if (isStreamingMode && shouldFailInCaseOfStreaming) {
-            throw new ValidationException(
-                    format(
-                            "The %s operation on two unbounded tables is currently not supported.",
-                            type));
-        }
     }
 
     private ResolvedSchema createCommonTableSchema(QueryOperation left, QueryOperation right) {

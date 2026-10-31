@@ -1198,7 +1198,7 @@ Currently not supported in Python Table API.
 
 #### Union
 
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Similar to a SQL `UNION` clause. Unions two tables with duplicate records removed. Both tables must have identical field types.
 
@@ -1228,6 +1228,8 @@ left.union(right)
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< query_state_warning >}}
 
 #### UnionAll
 
@@ -1266,7 +1268,7 @@ left.union_all(right)
 
 #### Intersect 
 
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Similar to a SQL `INTERSECT` clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.
 
@@ -1297,9 +1299,11 @@ left.intersect(right)
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< query_state_warning >}}
+
 #### IntersectAll
 
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Similar to a SQL `INTERSECT ALL` clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.
 
@@ -1330,9 +1334,11 @@ left.intersect_all(right)
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< query_state_warning >}}
+
 #### Minus 
 
-{{< label Batch  >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Similar to a SQL `EXCEPT` clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.
 
@@ -1363,8 +1369,10 @@ left.minus(right)
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< query_state_warning >}}
+
 #### MinusAll
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.
 
@@ -1394,6 +1402,8 @@ left.minus_all(right)
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< query_state_warning >}}
 
 #### In 
 

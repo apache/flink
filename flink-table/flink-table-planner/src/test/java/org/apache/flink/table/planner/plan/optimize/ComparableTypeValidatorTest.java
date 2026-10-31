@@ -280,11 +280,7 @@ class ComparableTypeValidatorTest {
                         tableApi(
                                 "orderBy",
                                 env -> env.from("t").orderBy($("v")),
-                                "Column 'v' of type VARIANT cannot be used as an ORDER BY key"));
-        // the Table API supports INTERSECT and MINUS only on bounded tables
-        final Stream<Arguments> batchOnly =
-                inMode(
-                        BATCH,
+                                "Column 'v' of type VARIANT cannot be used as an ORDER BY key"),
                         tableApi(
                                 "intersect",
                                 env ->
@@ -326,7 +322,7 @@ class ComparableTypeValidatorTest {
                                                                 .as("w"))
                                                 .select($("v").count().distinct().over($("w"))),
                                 "An expression " + DISTINCT_ARGUMENT));
-        return Stream.concat(bothModes, Stream.concat(batchOnly, streamingOnly));
+        return Stream.concat(bothModes, streamingOnly);
     }
 
     @ParameterizedTest(name = "[{index}] {2}: {0}")
