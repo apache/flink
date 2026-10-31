@@ -36,11 +36,18 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.pekko.actor.ActorSystem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
+import java.io.File;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -49,7 +56,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests that {@link CustomSSLEngineProvider} correctly negotiates TLS when {@link
- * SecurityOptions#SSL_PROTOCOL} is configured with a comma-separated protocol list.
+ * SecurityOptions#SSL_PROTOCOL} is configured with a comma-separated protocol list, and when the
+ * store passwords contain characters that must be escaped in the Pekko config.
  *
  * <p>This is a regression test for the fact that {@link
  * org.apache.pekko.remote.transport.netty.ConfigSSLEngineProvider}, which {@link
@@ -93,19 +101,67 @@ class CustomSSLEngineProviderTest {
         assertThat(session.getProtocol()).isEqualTo("TLSv1.2");
     }
 
-    /**
-     * Builds a {@link CustomSSLEngineProvider} from the given protocol list and ciphers, performs a
-     * real, socket-based TLS handshake between a server and a client engine it creates, and returns
-     * the client's negotiated session.
-     */
+    @Test
+    void handshakeWithSpecialCharactersInPasswords(@TempDir Path tempDir) throws Exception {
+        final String password = "pa\"ss\\word";
+        final Path keyStore =
+                copyWithNewPassword(KEY_STORE_PATH, tempDir.resolve("rpc.keystore"), password);
+        final Path trustStore =
+                copyWithNewPassword(TRUST_STORE_PATH, tempDir.resolve("rpc.truststore"), password);
+
+        SSLSession session =
+                handshake(
+                        keyStore.toString(),
+                        trustStore.toString(),
+                        password,
+                        "TLSv1.3",
+                        TLS_13_CIPHER);
+
+        assertThat(session.getProtocol()).isEqualTo("TLSv1.3");
+    }
+
+    private static Path copyWithNewPassword(String source, Path target, String newPassword)
+            throws Exception {
+        final char[] oldPassword = STORE_PASSWORD.toCharArray();
+        final KeyStore keyStore = KeyStore.getInstance(new File(source), oldPassword);
+        for (String alias : Collections.list(keyStore.aliases())) {
+            if (keyStore.isKeyEntry(alias)) {
+                keyStore.setKeyEntry(
+                        alias,
+                        keyStore.getKey(alias, oldPassword),
+                        newPassword.toCharArray(),
+                        keyStore.getCertificateChain(alias));
+            }
+        }
+        try (OutputStream out = Files.newOutputStream(target)) {
+            keyStore.store(out, newPassword.toCharArray());
+        }
+        return target;
+    }
+
     private SSLSession handshake(String protocolList, String ciphers) throws Exception {
+        return handshake(KEY_STORE_PATH, TRUST_STORE_PATH, STORE_PASSWORD, protocolList, ciphers);
+    }
+
+    /**
+     * Builds a {@link CustomSSLEngineProvider} from the given stores, protocol list and ciphers,
+     * performs a real, socket-based TLS handshake between a server and a client engine it creates,
+     * and returns the client's negotiated session.
+     */
+    private SSLSession handshake(
+            String keyStore,
+            String trustStore,
+            String password,
+            String protocolList,
+            String ciphers)
+            throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_PATH);
-        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, STORE_PASSWORD);
-        configuration.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, STORE_PASSWORD);
-        configuration.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_PATH);
-        configuration.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, STORE_PASSWORD);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, keyStore);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, password);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, password);
+        configuration.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, trustStore);
+        configuration.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, password);
         configuration.set(SecurityOptions.SSL_PROTOCOL, protocolList);
         configuration.set(SecurityOptions.SSL_ALGORITHMS, ciphers);
 
