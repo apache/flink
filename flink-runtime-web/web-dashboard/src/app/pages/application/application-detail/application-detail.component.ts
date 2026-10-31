@@ -20,11 +20,11 @@ import { NgIf } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { ActivatedRoute, RouterOutlet } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
-import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
+import { catchError, mergeMap, takeUntil, takeWhile, tap } from 'rxjs/operators';
 
 import { ApplicationStatusComponent } from '@flink-runtime-web/pages/application/application-detail/status/application-status.component';
 import { ApplicationLocalService } from '@flink-runtime-web/pages/application/application-local.service';
-import { ApplicationService, StatusService } from '@flink-runtime-web/services';
+import { ApplicationService, isNotFound, StatusService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 
@@ -38,6 +38,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 export class ApplicationDetailComponent implements OnInit, OnDestroy {
   isLoading = true;
   isError = false;
+  notFound = false;
   errorDetails: string;
 
   private readonly destroy$ = new Subject<void>();
@@ -53,13 +54,21 @@ export class ApplicationDetailComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
+        // An application that is gone never comes back, so stop polling for it.
+        takeWhile(() => !this.notFound),
         takeUntil(this.destroy$),
         mergeMap(() =>
           this.applicationService.loadApplication(this.activatedRoute.snapshot.params['id']).pipe(
             tap(application => {
               this.applicationLocalService.setApplicationDetail(application);
             }),
-            catchError(() => {
+            catchError((error: unknown) => {
+              if (isNotFound(error)) {
+                this.notFound = true;
+                this.isLoading = false;
+                this.cdr.markForCheck();
+                return EMPTY;
+              }
               this.isError = true;
               this.isLoading = false;
               this.cdr.markForCheck();

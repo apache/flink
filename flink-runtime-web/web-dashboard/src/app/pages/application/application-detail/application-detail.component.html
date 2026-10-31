@@ -16,7 +16,12 @@
   ~ limitations under the License.
   -->
 
-<ng-container *ngIf="!isError">
+<nz-alert
+  *ngIf="notFound"
+  nzDescription="This application no longer exists on the JobManager. It may have expired or been lost when the JobManager restarted."
+></nz-alert>
+
+<ng-container *ngIf="!isError && !notFound">
   <flink-application-status [isLoading]="isLoading"></flink-application-status>
   <div class="content">
     <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
