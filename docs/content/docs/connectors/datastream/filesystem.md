@@ -247,6 +247,58 @@ new HiveSource<>(
 {{< /tab >}}
 {{< /tabs >}}
 
+### Opt-in Glob Enumeration
+
+The default enumerators treat input paths literally, including names containing `*`, `?`, or `[`.
+To select paths using glob patterns, install a `GlobFileEnumerator` explicitly:
+
+```java
+FileSource<String> source =
+        FileSource.forRecordStreamFormat(
+                        new TextLineInputFormat(),
+                        new Path("hdfs:///data/partition-*/file-*.txt"))
+                .setFileEnumerator(
+                        () -> new GlobFileEnumerator(new NonSplittingRecursiveEnumerator()))
+                .build();
+```
+
+Choose a delegate appropriate for your format. `NonSplittingRecursiveEnumerator` keeps each file
+in one split; `BlockSplittingRecursiveEnumerator` can split formats that support reading file blocks.
+The glob enumerator discovers and deduplicates concrete files, then calls the delegate once to filter
+and split them. It does not pass directories to the delegate, so the delegate's custom directory filters
+or directory-specific subclass methods do not control traversal. To customize directory traversal,
+use the `GlobFileEnumerator(FileEnumerator, Predicate<Path>)` constructor.
+
+Patterns apply to path segments, not URI schemes or authorities:
+
+- `*` matches zero or more characters within one segment.
+- `?` matches one character within one segment.
+- `[abc]`, `[a-z]`, and `[!a-z]` match a character set, range, or negated range.
+- A whole segment `**` matches zero or more directory levels. For example, `data/**/*.txt`
+  includes both `data/file.txt` and `data/nested/file.txt`.
+- Matching is case-sensitive. Braces are literal, not alternatives.
+- Use `[*]`, `[?]`, `[[]`, and `[]]` for literal special characters. For example,
+  `report[[]2026].txt` selects `report[2026].txt`. Backslash escaping is unavailable because
+  Flink's `Path` normalizes backslashes to directory separators.
+
+A matched directory is read recursively. Thus, if `*.csv` matches a directory named `archive.csv`,
+its descendants are included even when their names do not end in `.csv`; use the delegate's file
+filter if a filename restriction must also apply to those descendants.
+By default, traversal skips directories whose names start with `.` or `_`; the delegate controls
+hidden-file filtering. Directory filtering starts at the fixed search prefix, not its ancestors.
+
+Discovery starts at the longest prefix without glob syntax and descends only through matching
+segments. It uses the configured Flink filesystem's status and listing operations, requiring access
+to the searched directories. On object stores, directory listings correspond to prefix listings.
+Broad patterns, especially `**`, can still be expensive; use a narrow fixed prefix where possible.
+With continuous discovery, this work is repeated each discovery interval.
+
+A glob with no matches, including a missing fixed search prefix, produces no files. A missing
+literal input still fails. Invalid patterns, permission errors, listing failures, and failures
+while creating splits are not treated as empty matches. Files selected through overlapping patterns
+are passed to the delegate only once. This option is for the DataStream `FileSource`; it does not
+change legacy `FileInputFormat` or SQL filesystem path handling.
+
 ### Current Limitations
 
 Watermarking does not work very well for large backlogs of files. This is because watermarks eagerly advance within a file, and the next file might contain data later than the watermark.
@@ -1025,4 +1077,3 @@ being efficient, the `FileSink` also uses the [Multi-part Upload](https://help.a
 feature of OSS(similar with S3).
 
 {{< top >}}
-
