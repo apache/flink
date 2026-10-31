@@ -25,11 +25,12 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -48,14 +49,32 @@ abstract class HdfsITCaseBase extends SqlITCaseBase {
     private static final Path HADOOP_CLASSPATH =
             ResourceTestUtils.getResource(".*hadoop.classpath");
 
-    Configuration hdConf;
-    MiniDFSCluster hdfsCluster;
+    static Configuration hdConf;
+    static MiniDFSCluster hdfsCluster;
+
+    @TempDir private static Path hdfsBaseDir;
 
     @BeforeAll
-    static void verifyOS() {
+    static void startHDFS() {
         assumeThat(OperatingSystem.isWindows())
                 .as("HDFS cluster cannot be started on Windows without extensions.")
                 .isFalse();
+        try {
+            hdConf = new Configuration();
+            hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, hdfsBaseDir.toString());
+            MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+            hdfsCluster = builder.build();
+        } catch (Throwable e) {
+            fail("Failed to create HDFS env" + e.getMessage(), e);
+        }
+    }
+
+    @AfterAll
+    static void stopHDFS() {
+        if (hdfsCluster != null) {
+            hdfsCluster.shutdown();
+            hdfsCluster = null;
+        }
     }
 
     @BeforeEach
@@ -69,24 +88,11 @@ abstract class HdfsITCaseBase extends SqlITCaseBase {
         destroyHDFS();
     }
 
-    void createHDFS() {
-        try {
-            hdConf = new Configuration();
-            File baseDir =
-                    new File(String.format("./target/hdfs/%s", getClass().getSimpleName()))
-                            .getAbsoluteFile();
-            FileUtil.fullyDelete(baseDir);
-            hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
-            MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-            hdfsCluster = builder.build();
-        } catch (Throwable e) {
-            fail("Failed to create HDFS env" + e.getMessage(), e);
-        }
-    }
+    /** Per-test setup on the HDFS cluster shared by the class. */
+    void createHDFS() {}
 
-    void destroyHDFS() {
-        hdfsCluster.shutdown();
-    }
+    /** Per-test cleanup on the HDFS cluster shared by the class. */
+    void destroyHDFS() {}
 
     @Override
     void executeSqlStatements(

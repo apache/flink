@@ -18,14 +18,23 @@
 
 package org.apache.flink.tests.util.flink;
 
+import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-/** JUnit 5 extension that wraps a {@link FlinkResource} and manages its lifecycle. */
-public class FlinkResourceExtension implements BeforeEachCallback, AfterEachCallback {
+/**
+ * JUnit 5 extension that wraps a {@link FlinkResource} and manages its lifecycle. Registered on a
+ * static field, the resource is shared by all tests of the class; otherwise it is per test.
+ */
+public class FlinkResourceExtension
+        implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, AfterEachCallback {
 
     private final FlinkResource delegate;
+
+    private boolean perClass;
+    private boolean anyTestFailed;
 
     public FlinkResourceExtension(FlinkResource delegate) {
         this.delegate = delegate;
@@ -36,13 +45,32 @@ public class FlinkResourceExtension implements BeforeEachCallback, AfterEachCall
     }
 
     @Override
-    public void beforeEach(ExtensionContext context) throws Exception {
+    public void beforeAll(ExtensionContext context) throws Exception {
+        perClass = true;
         delegate.before();
     }
 
     @Override
+    public void afterAll(ExtensionContext context) {
+        if (anyTestFailed || context.getExecutionException().isPresent()) {
+            delegate.afterTestFailure();
+        } else {
+            delegate.afterTestSuccess();
+        }
+    }
+
+    @Override
+    public void beforeEach(ExtensionContext context) throws Exception {
+        if (!perClass) {
+            delegate.before();
+        }
+    }
+
+    @Override
     public void afterEach(ExtensionContext context) {
-        if (context.getExecutionException().isPresent()) {
+        if (perClass) {
+            anyTestFailed |= context.getExecutionException().isPresent();
+        } else if (context.getExecutionException().isPresent()) {
             delegate.afterTestFailure();
         } else {
             delegate.afterTestSuccess();

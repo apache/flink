@@ -41,6 +41,8 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -81,7 +83,7 @@ abstract class SqlITCaseBase {
     }
 
     @RegisterExtension
-    private final FlinkResourceExtension flinkExtension =
+    private static final FlinkResourceExtension flinkExtension =
             new FlinkResourceExtension(
                     new LocalStandaloneFlinkResourceFactory()
                             .create(
@@ -102,6 +104,21 @@ abstract class SqlITCaseBase {
         final Configuration flinkConfig = new Configuration();
         flinkConfig.setString("execution.checkpointing.interval", "5s");
         return flinkConfig;
+    }
+
+    private static ClusterController clusterController;
+
+    @BeforeAll
+    static void startCluster() throws Exception {
+        clusterController = flinkExtension.getFlinkResource().startCluster(1);
+    }
+
+    @AfterAll
+    static void stopCluster() throws Exception {
+        if (clusterController != null) {
+            clusterController.close();
+            clusterController = null;
+        }
     }
 
     @BeforeEach
@@ -136,22 +153,19 @@ abstract class SqlITCaseBase {
             Map<Path, Function<List<String>, List<String>>> formatters,
             List<URI> dependencies)
             throws Exception {
-        try (ClusterController clusterController =
-                flinkExtension.getFlinkResource().startCluster(1)) {
-            List<String> sqlLines = initializeSqlLines(sqlPath);
+        List<String> sqlLines = initializeSqlLines(sqlPath);
 
-            executeSqlStatements(clusterController, sqlLines, dependencies);
+        executeSqlStatements(clusterController, sqlLines, dependencies);
 
-            // Wait until all the results flushed to the json file.
-            LOG.info("Verify the result.");
-            for (Map.Entry<Path, List<String>> entry : resultItems.entrySet()) {
-                checkResultFile(
-                        entry.getKey(),
-                        entry.getValue(),
-                        formatters.getOrDefault(entry.getKey(), this::formatRawResult));
-            }
-            LOG.info("The SQL client test run successfully.");
+        // Wait until all the results flushed to the json file.
+        LOG.info("Verify the result.");
+        for (Map.Entry<Path, List<String>> entry : resultItems.entrySet()) {
+            checkResultFile(
+                    entry.getKey(),
+                    entry.getValue(),
+                    formatters.getOrDefault(entry.getKey(), this::formatRawResult));
         }
+        LOG.info("The SQL client test run successfully.");
     }
 
     Map<String, String> generateReplaceVars() {
