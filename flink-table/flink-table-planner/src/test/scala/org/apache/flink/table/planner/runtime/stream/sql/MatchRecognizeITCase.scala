@@ -35,7 +35,7 @@ import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -909,6 +909,96 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val expected = mutable.ListBuffer("1,PREF:a,8,5", "7,PREF:a,6,9")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @TestTemplate
+  def testAggregationInDefineNotEvaluatedWhenShortCircuited(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+    tEnv.createTemporarySystemFunction("sentinel", classOf[SentinelFunction])
+
+    val data = new mutable.ListBuffer[(Int, Int, Int)]
+    data.+=((1, 10, 1))
+    // B's condition short-circuits on this row (rate <= 0), so the aggregate over
+    // sentinel(price) must not be evaluated despite the sentinel price.
+    data.+=((2, -999, -1))
+    data.+=((3, 5, 1))
+
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'price, 'rate, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.aid, T.bid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    LAST(B.id) AS bid
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (A B)
+         |  DEFINE
+         |    A AS A.price < 100,
+         |    B AS B.rate > 0 AND SUM(sentinel(B.price)) > 0
+         |) AS T
+         |""".stripMargin
+
+    val sink = new TestingAppendSink()
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    result.addSink(sink)
+    env.execute()
+
+    // Match (2, 3): row 2 starts a new match as A; row 3 passes B's full condition. Eager
+    // aggregation would feed row 2's sentinel price into the aggregate and fail the job.
+    val expected = mutable.ListBuffer("2,3")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testAggregationInDefineEvaluatedWhenNotShortCircuited(): Unit = {
+    // Negative control: the leading condition passes, so the aggregate is evaluated and
+    // the sentinel value must fail the job.
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+    tEnv.createTemporarySystemFunction("sentinel", classOf[SentinelFunction])
+
+    val data = new mutable.ListBuffer[(Int, Int, Int)]
+    data.+=((1, 10, 1))
+    data.+=((2, -999, 1))
+
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'price, 'rate, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.aid, T.bid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    LAST(B.id) AS bid
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (A B)
+         |  DEFINE
+         |    A AS A.price < 100,
+         |    B AS B.rate > 0 AND SUM(sentinel(B.price)) > 0
+         |) AS T
+         |""".stripMargin
+
+    val sink = new TestingAppendSink()
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    result.addSink(sink)
+
+    assertThatThrownBy(() => env.execute())
+      .hasStackTraceContaining("SentinelFunction was called")
+  }
 }
 
 @SerialVersionUID(1L)
@@ -961,5 +1051,18 @@ private class RichAggFunc extends AggregateFunction[Long, CountAcc] {
         DataTypes.STRUCTURED(classOf[CountAcc], DataTypes.FIELD("count", DataTypes.BIGINT()))))
       .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
       .build
+  }
+}
+
+/** Throws on the sentinel value (-999); used to detect eager evaluation of DEFINE aggregates. */
+@SerialVersionUID(1L)
+private class SentinelFunction extends ScalarFunction {
+
+  // Integer instead of Int: pattern variable access produces nullable columns.
+  def eval(value: Integer): Integer = {
+    if (value != null && value.intValue() == -999) {
+      throw new RuntimeException("SentinelFunction was called with the sentinel value")
+    }
+    value
   }
 }
