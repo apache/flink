@@ -866,6 +866,57 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testPreservesUpsertKeyThreeWayJoinOnFewerLeftColumnsDoesNot() {
+        // UserRegionsPK is unique on its join columns (user_id, region), but only user_id is joined
+        // to OrdersPK: an order matches the user's row of every region, so the orders key is not
+        // unique in the output and the sink needs upsertMaterialize.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE UserRegionsPK ("
+                                + "  user_id STRING NOT NULL,"
+                                + "  region STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (user_id, region) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE RegionAddressPK ("
+                                + "  user_id STRING NOT NULL,"
+                                + "  region STRING NOT NULL,"
+                                + "  location STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (user_id, region) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_orders ("
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  location STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`, `user_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "\nINSERT INTO sink_orders\n"
+                        + "SELECT\n"
+                        + "    o.order_id,\n"
+                        + "    o.user_id,\n"
+                        + "    r.name,\n"
+                        + "    a.location\n"
+                        + "FROM UserRegionsPK r\n"
+                        + "JOIN OrdersPK o\n"
+                        + "    ON r.user_id = o.user_id\n"
+                        + "JOIN RegionAddressPK a\n"
+                        + "    ON r.user_id = a.user_id AND r.region = a.region\n"
+                        + "ON CONFLICT DO DEDUPLICATE");
+    }
+
+    @Test
     void testPreservesUpsertKeyFourWayComplex() {
         util.tableEnv()
                 .executeSql(
