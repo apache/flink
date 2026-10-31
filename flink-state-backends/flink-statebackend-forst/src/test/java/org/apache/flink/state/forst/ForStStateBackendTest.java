@@ -19,16 +19,21 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.StateBackendTestBase;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -47,7 +52,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
@@ -57,6 +64,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the partitioned state part of {@link ForStStateBackendTest}. */
 @ExtendWith(ParameterizedTestExtension.class)
 class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
+    /** Number of entries a MapState iterator reads from ForSt per cache refill. */
+    private static final int MAP_ITERATOR_CACHE_SIZE = 128;
+
     @TempDir private static java.nio.file.Path tempFolder;
 
     @Parameters
@@ -166,5 +176,51 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
                                         1.0d));
         assertThat(keyedStateBackend2.getOptionsContainer().getPathContainer().getRemoteBasePath())
                 .isNotNull();
+    }
+
+    @TestTemplate
+    void testMapStateIteratorReloadWhenResumeEntryAndLastEntryRemoved() throws Exception {
+        assertMapStateIteratorExhaustedAfterRemoving(
+                MAP_ITERATOR_CACHE_SIZE - 1, MAP_ITERATOR_CACHE_SIZE);
+    }
+
+    @TestTemplate
+    void testMapStateIteratorReloadWhenOnlyLastEntryRemoved() throws Exception {
+        assertMapStateIteratorExhaustedAfterRemoving(MAP_ITERATOR_CACHE_SIZE);
+    }
+
+    /**
+     * Fills a map with one entry more than the iterator cache holds, reads the whole cache and
+     * removes the given keys through {@link MapState#remove}, which leaves the iterator's cached
+     * entry untouched. The iterator then has to reload its cache from a seek that may be past the
+     * last entry.
+     */
+    private void assertMapStateIteratorExhaustedAfterRemoving(int... keysToRemove)
+            throws Exception {
+        final CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            final MapState<Integer, Integer> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            new MapStateDescriptor<>("map", Integer.class, Integer.class));
+            backend.setCurrentKey(0);
+            for (int i = 0; i <= MAP_ITERATOR_CACHE_SIZE; i++) {
+                state.put(i, i);
+            }
+
+            final Iterator<Map.Entry<Integer, Integer>> iterator = state.iterator();
+            for (int i = 0; i < MAP_ITERATOR_CACHE_SIZE; i++) {
+                assertThat(iterator.next().getKey()).isEqualTo(i);
+            }
+            for (int key : keysToRemove) {
+                state.remove(key);
+            }
+
+            assertThat(iterator.hasNext()).isFalse();
+        } finally {
+            backend.dispose();
+        }
     }
 }

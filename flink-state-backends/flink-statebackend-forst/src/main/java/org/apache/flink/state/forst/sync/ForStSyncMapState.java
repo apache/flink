@@ -667,8 +667,12 @@ class ForStSyncMapState<K, N, UK, UV> extends AbstractForStSyncState<K, N, Map<U
                 /*
                  * If the entry pointing to the current position is not removed, it will be the first entry in the
                  * new iterating. Skip it to avoid redundant access in such cases.
+                 *
+                 * Removing the current entry through MapState does not update its cached 'deleted'
+                 * flag, so the seek can also end up past the last entry. An invalid iterator must
+                 * not be advanced.
                  */
-                if (currentEntry != null && !currentEntry.deleted) {
+                if (currentEntry != null && !currentEntry.deleted && iterator.isValid()) {
                     iterator.next();
                 }
 
