@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.types.AbstractDataType
 
@@ -505,5 +506,12 @@ class AggregateTest extends TableTestBase {
                                |)
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src HAVING COUNT(*) > 1")
+  }
+
+  @Test
+  def testGroupByAll(): Unit = {
+    util.tableEnv.getConfig
+      .set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, Boolean.box(true))
+    util.verifyExecPlan("SELECT a, COUNT(*) FROM MyTable GROUP BY ALL")
   }
 }
