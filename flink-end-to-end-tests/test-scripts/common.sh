@@ -899,6 +899,34 @@ function wait_for_restart_to_complete {
     done
 }
 
+###################################
+# Waits until a docker container reports itself as running.
+#
+# Arguments:
+#   $1 - the container id
+#   $2 - timeout in seconds, 60 by default
+# Returns:
+#   0 once the container is running, 1 if it is not running within the timeout
+###################################
+function wait_for_container_running {
+    local container_id=$1
+    local timeout=${2:-60}
+
+    local i
+    for i in $(seq 1 $((timeout * 10))); do
+        # The comparison has to be a string comparison: [[ -ne ]] compares arithmetically, and
+        # there every non-numeric value is 0, so "false" and the empty output of a failed inspect
+        # both compare equal to "true".
+        if [[ "$(docker inspect -f '{{.State.Running}}' "${container_id}" 2>/dev/null)" == "true" ]]; then
+            return 0
+        fi
+        sleep 0.1
+    done
+
+    echo "Container ${container_id} was not running within a timeout of ${timeout} sec"
+    return 1
+}
+
 function find_latest_completed_checkpoint {
     local checkpoint_root_directory=$1
     # a completed checkpoint must contain the _metadata file
