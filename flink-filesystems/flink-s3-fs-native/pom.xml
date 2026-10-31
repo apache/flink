@@ -31,11 +31,11 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.s3.aws.sdk.version>2.44.4</fs.s3.aws.sdk.version>
+		<fs.s3.aws.sdk.version>2.57.2</fs.s3.aws.sdk.version>
 		<!-- aws-crt uses a separate versioning scheme from the AWS SDK; this version was
 		     validated against aws-crt-client ${fs.s3.aws.sdk.version}. Update when bumping
 		     the SDK version (check aws-crt-client-<version>.pom → awscrt.version). -->
-		<fs.s3.aws.crt.version>0.45.1</fs.s3.aws.crt.version>
+		<fs.s3.aws.crt.version>0.48.5</fs.s3.aws.crt.version>
 		<japicmp.skip>true</japicmp.skip>
 		<surefire.module.config>--add-opens=java.base/java.util=ALL-UNNAMED</surefire.module.config>
 	</properties>
@@ -55,11 +55,22 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Since SDK 2.46.0 every service client pulls in apache5-client at runtime, which makes it
+		     the default HTTP client of clients built without an explicit one (e.g. the STS client
+		     of the web identity credentials provider) and bundles org.apache.hc.*, which is not
+		     relocated below. The connector uses apache-client explicitly, so keep the HTTP stack
+		     as it was and exclude apache5-client from every dependency that brings it. -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
 			<version>${fs.s3.aws.sdk.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>apache5-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- S3 Transfer Manager for async/high-throughput transfers -->
@@ -68,6 +79,12 @@ under the License.
 			<artifactId>s3-transfer-manager</artifactId>
 			<version>${fs.s3.aws.sdk.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>apache5-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -75,6 +92,12 @@ under the License.
 			<artifactId>sts</artifactId>
 			<version>${fs.s3.aws.sdk.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>apache5-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Netty async HTTP client (required for Transfer Manager) -->
