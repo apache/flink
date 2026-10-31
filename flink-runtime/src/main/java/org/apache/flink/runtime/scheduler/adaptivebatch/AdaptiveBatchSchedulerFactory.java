@@ -103,6 +103,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             Logger log,
             ExecutionPlan executionPlan,
             Executor ioExecutor,
+            Executor recoveryExecutor,
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
