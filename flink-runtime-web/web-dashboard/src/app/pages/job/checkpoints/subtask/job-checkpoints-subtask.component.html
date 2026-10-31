@@ -144,6 +144,7 @@
     <thead>
       <tr>
         <th><strong>ID</strong></th>
+        <th [nzSortFn]="sortEndpointFn"><strong>Endpoint</strong></th>
         <th [nzSortFn]="sortAckTimestampFn"><strong>Acknowledged</strong></th>
         <th [nzSortFn]="sortEndToEndDurationFn"><strong>End to End Duration</strong></th>
         <th [nzSortFn]="sortCheckpointedSizeFn">
@@ -166,6 +167,7 @@
     <tbody>
       <tr *ngFor="let subTask of table.data">
         <td>{{ subTask['index'] }}</td>
+        <td>{{ mapOfSubtask.get(subTask['index'])?.endpoint || '-' }}</td>
         <ng-container *ngIf="subTask['status'] === 'completed'">
           <td>{{ subTask['ack_timestamp'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
           <td>
