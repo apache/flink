@@ -19,14 +19,7 @@
 
 echo "Copying build artifacts to directory $FLINK_ARTIFACT_DIR"
 
-# reduces the size of the artifact directory to speed up
-# the packing&upload / download&unpacking process
-# by not copying files not required for subsequent stages:
-# - jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-# - .git: keeping it can cause build stability issues, merging the cached version sometimes fails
-# - build-target: AZ Pipelines has a problem with links
-# - target/site: javadocs are not used in later stages
-# - WebUI node directories: unnecessary because the UI is already fully built
+# skip files not required by subsequent stages
 mkdir -p "$FLINK_ARTIFACT_DIR"
 tar --create \
   --exclude='*.jar' \
