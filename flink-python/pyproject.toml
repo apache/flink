@@ -49,6 +49,7 @@ dev = [
   "httplib2>=0.19.0",
   "protobuf~=4.25",
   "pytest~=8.0",
+  "pytest-xdist~=3.6",
   "ruamel.yaml>=0.18.4",
   "typing-extensions>=4.5.0; python_version < '3.12'",
   "typing-extensions>=4.7.0; python_version >= '3.12'",
