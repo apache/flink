@@ -19,31 +19,23 @@
 
 echo "Copying build artifacts to directory $FLINK_ARTIFACT_DIR"
 
-cp -r . "$FLINK_ARTIFACT_DIR"
-
-echo "Minimizing artifact files"
-
 # reduces the size of the artifact directory to speed up
 # the packing&upload / download&unpacking process
-# by removing files not required for subsequent stages
-
-# jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' -exec rm -rf {} \;
-
-# .git directory
-# not deleting this can cause build stability issues
-# merging the cached version sometimes fails
-rm -rf "$FLINK_ARTIFACT_DIR/.git"
-
-# AZ Pipelines has a problem with links.
-rm -f "$FLINK_ARTIFACT_DIR/build-target"
-
-# Remove javadocs because they are not used in later stages
-rm -rf "$FLINK_ARTIFACT_DIR/target/site"
-
-# Remove WebUI node directories; unnecessary because the UI is already fully built
-rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node"
-rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node_modules"
+# by not copying files not required for subsequent stages:
+# - jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
+# - .git: keeping it can cause build stability issues, merging the cached version sometimes fails
+# - build-target: AZ Pipelines has a problem with links
+# - target/site: javadocs are not used in later stages
+# - WebUI node directories: unnecessary because the UI is already fully built
+mkdir -p "$FLINK_ARTIFACT_DIR"
+tar --create \
+  --exclude='*.jar' \
+  --exclude=./.git \
+  --exclude=./build-target \
+  --exclude=./target/site \
+  --exclude=./flink-runtime-web/web-dashboard/node \
+  --exclude=./flink-runtime-web/web-dashboard/node_modules \
+  . | tar --extract -C "$FLINK_ARTIFACT_DIR"
 
 if [ -n "${FLINK_ARTIFACT_FILENAME}" ]; then
   # GitHub Actions doesn't create an archive automatically - packaging the files improves the performance of artifact uploads
