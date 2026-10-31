@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,50 +38,48 @@ import java.util.function.Consumer;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ChangelogListState Test. */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ChangelogListStateTest {
+class ChangelogListStateTest {
 
     @Test
-    public void testValuesIterator() throws Exception {
+    void testValuesIterator() throws Exception {
         testIterator(singletonList("value"), state -> state.get().iterator(), "value");
     }
 
     @Test
-    public void testPutRecorded() throws Exception {
+    void testPutRecorded() throws Exception {
         testRecorded(
                 emptyList(),
                 state -> state.add("x"),
-                logger -> assertTrue(logger.stateElementAdded));
+                logger -> assertThat(logger.stateElementAdded).isTrue());
     }
 
     @Test
-    public void testAddAllRecorded() throws Exception {
+    void testAddAllRecorded() throws Exception {
         List<String> list = Arrays.asList("a", "b", "c");
         testRecorded(
                 emptyList(),
                 state -> state.addAll(list),
-                logger -> assertEquals(list, logger.state));
+                logger -> assertThat(logger.state).isEqualTo(list));
     }
 
     @Test
-    public void testGetNotRecorded() throws Exception {
+    void testGetNotRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 ChangelogListState::get,
-                logger -> assertFalse(logger.anythingChanged()));
+                logger -> assertThat(logger.anythingChanged()).isFalse());
     }
 
     @Test
-    public void testClearRecorded() throws Exception {
+    void testClearRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 ChangelogListState::clear,
-                logger -> assertTrue(logger.stateCleared));
+                logger -> assertThat(logger.stateCleared).isTrue());
     }
 
     private <T> void testIterator(
@@ -94,15 +92,15 @@ public class ChangelogListStateTest {
 
         Iterator iterator = iteratorSupplier.apply(state);
         for (T el : elements) {
-            assertTrue(iterator.hasNext());
-            assertEquals(el, iterator.next());
+            assertThat(iterator.hasNext()).isTrue();
+            assertThat(iterator.next()).isEqualTo(el);
             iterator.remove();
         }
 
-        assertFalse(iterator.hasNext());
-        assertTrue(state.getInternal().isEmpty());
+        assertThat(iterator.hasNext()).isFalse();
+        assertThat(state.getInternal().isEmpty()).isTrue();
         // changes to the rocksdb list iterator are not propagated back - expect the same here
-        assertFalse(logger.stateElementRemoved);
+        assertThat(logger.stateElementRemoved).isFalse();
     }
 
     private void testRecorded(
