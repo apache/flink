@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import scala.Enumeration;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static scala.runtime.BoxedUnit.UNIT;
 
 /** Tests for multi-join plans. */
@@ -1752,5 +1753,44 @@ public class MultiJoinTest extends TableTestBase {
                         + "    ON s.user_id = d.user_id\n"
                         + "CROSS JOIN UNNEST(split(REGEXP_REPLACE(d.data, '^\\[\"|\"\\]$', '') , '\", \"')) AS T(edata)\n"
                         + "WHERE NOT (s.location IS NOT NULL)");
+    }
+
+    @Test
+    void testDeletesByKeyOnNonKeyJoinColumnWithoutUpdatesFails() {
+        // A delete by key has nulls outside the key, so the multi-join can't evaluate
+        // t1.b = t2.b on it. These sources produce no updates, so there is no ChangelogNormalize
+        // that could provide full deletes, and the query is rejected instead.
+        String sourceOptions =
+                " WITH ('connector' = 'values', 'changelog-mode' = 'I,D',"
+                        + " 'source.produces-delete-by-key' = 'true')";
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t1 (k INT PRIMARY KEY NOT ENFORCED, b INT, x STRING)"
+                                + sourceOptions);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t2 (k INT PRIMARY KEY NOT ENFORCED, b INT, y STRING)"
+                                + sourceOptions);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t3 (k INT PRIMARY KEY NOT ENFORCED, z STRING)"
+                                + sourceOptions);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_t (k INT PRIMARY KEY NOT ENFORCED, x STRING, y STRING,"
+                                + " z STRING) WITH ('connector' = 'values',"
+                                + " 'sink-insert-only' = 'false',"
+                                + " 'sink-changelog-mode-enforced' = 'I,UA,D',"
+                                + " 'sink.supports-delete-by-key' = 'true')");
+
+        assertThatThrownBy(
+                        () ->
+                                util.tableEnv()
+                                        .explainSql(
+                                                "INSERT INTO sink_t SELECT t1.k, t1.x, t2.y, t3.z"
+                                                        + " FROM t1"
+                                                        + " JOIN t2 ON t1.k = t2.k AND t1.b = t2.b"
+                                                        + " JOIN t3 ON t1.k = t3.k"))
+                .hasMessageContaining("Can't generate a valid execution plan");
     }
 }
