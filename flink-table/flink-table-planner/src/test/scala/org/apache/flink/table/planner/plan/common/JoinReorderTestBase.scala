@@ -454,6 +454,14 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @TestTemplate
+  def testLeftOuterJoinWithCrossJoin(): Unit = {
+    // No condition joins T1 and T3, so the reorder of the inner join inputs only picks T3, the
+    // smallest one. The condition of the LEFT JOIN references T1, so T1 has to be joined first.
+    val sql = "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2, T3"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testLeftOuterJoinWithConditionOnLeftSide(): Unit = {
     // b1 > 10 references only the left side of the LEFT JOIN, but is part of its condition.
     val sql = "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2 AND b1 > 10"

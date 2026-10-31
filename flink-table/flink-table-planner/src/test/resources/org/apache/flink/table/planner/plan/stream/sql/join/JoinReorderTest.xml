@@ -2274,6 +2274,64 @@ Join(joinType=[LeftOuterJoin], where=[=(a2, a4)], select=[a1, b1, c1, a3, b3, c3
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftOuterJoinWithCrossJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2, T3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
++- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a3, b3, c3, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[hash[a2]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithCrossJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2, T3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
++- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a3, b3, c3, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[hash[a2]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRightOuterJoinInnerJoinRightOuterJoinInnerJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
