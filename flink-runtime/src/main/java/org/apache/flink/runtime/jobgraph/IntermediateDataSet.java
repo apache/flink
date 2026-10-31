@@ -146,6 +146,12 @@ public class IntermediateDataSet implements java.io.Serializable {
         this.isForward = isForward;
     }
 
+    public void updateDistributionPattern(
+            boolean isForward, DistributionPattern distributionPattern) {
+        this.isForward = isForward;
+        this.distributionPattern = distributionPattern;
+    }
+
     public void increaseNumJobEdgesToCreate() {
         this.numJobEdgesToCreate++;
     }

@@ -89,7 +89,7 @@ public class StreamMockEnvironment implements Environment {
 
     private final JobInfo jobInfo;
 
-    private final TaskInfo taskInfo;
+    private TaskInfo taskInfo;
 
     private final MemoryManager memManager;
 
@@ -106,6 +106,9 @@ public class StreamMockEnvironment implements Environment {
     private final List<IndexedInputGate> inputs;
 
     private List<ResultPartitionWriter> outputs;
+
+    /** Consumer parallelism of all outputs, equal to the parallelism of this task by default. */
+    private int writerConsumerParallelism;
 
     private final ExecutionAttemptID executionAttemptID;
 
@@ -190,6 +193,7 @@ public class StreamMockEnvironment implements Environment {
         this.taskConfiguration = taskConfig;
         this.inputs = new LinkedList<>();
         this.outputs = new LinkedList<ResultPartitionWriter>();
+        this.writerConsumerParallelism = taskInfo.getNumberOfParallelSubtasks();
         this.memManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
         this.sharedResources = new SharedResources();
@@ -319,6 +323,27 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public ResultPartitionWriter getWriter(int index) {
         return outputs.get(index);
+    }
+
+    @Override
+    public int getWriterConsumerParallelism(int index) {
+        return writerConsumerParallelism;
+    }
+
+    public void setWriterConsumerParallelism(int writerConsumerParallelism) {
+        this.writerConsumerParallelism = writerConsumerParallelism;
+    }
+
+    public void setNumberOfParallelSubtasks(int numberOfParallelSubtasks) {
+        this.taskInfo =
+                new TaskInfoImpl(
+                        taskInfo.getTaskName(),
+                        Math.max(
+                                taskInfo.getMaxNumberOfParallelSubtasks(),
+                                numberOfParallelSubtasks),
+                        taskInfo.getIndexOfThisSubtask(),
+                        numberOfParallelSubtasks,
+                        taskInfo.getAttemptNumber());
     }
 
     @Override
