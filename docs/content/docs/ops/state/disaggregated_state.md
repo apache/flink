@@ -39,7 +39,7 @@ proportional to the state size, which can be slow for large state sizes.
 In Flink 2.0, we introduced the disaggregated state management. This feature allows users to store 
 the state in external storage systems like S3, HDFS, etc. This is useful when the state size
 is extremely large. It could be used to store the state in a more cost-effective way, or to
-persist or recovery the state in a more lightweight way. The benefits of disaggregated state management are:
+persist or recover the state in a more lightweight way. The benefits of disaggregated state management are:
  * **Unlimited State Size**: The state size is only limited by the external storage system.
  * **Stable Resource Usage**: The state is stored in external storage, thus the checkpoint could be very lightweight.
 And the SST files compaction could be done remotely (TODO).
