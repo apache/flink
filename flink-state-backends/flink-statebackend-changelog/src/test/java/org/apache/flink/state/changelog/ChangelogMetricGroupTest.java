@@ -39,8 +39,10 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.state.common.ChangelogMaterializationMetricGroup;
 import org.apache.flink.state.common.PeriodicMaterializationManager;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.After;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -69,6 +71,7 @@ public class ChangelogMetricGroupTest {
 
     private ChangelogKeyedStateBackend<Integer> changelogKeyedStateBackend;
     private PeriodicMaterializationManager periodicMaterializationManager;
+    private MockEnvironment environment;
     private ValueState<Integer> state;
 
     private Counter startedMaterializationCounter;
@@ -79,6 +82,16 @@ public class ChangelogMetricGroupTest {
     private Gauge<Long> lastIncSizeOfMaterializationGauge;
     private Gauge<Long> lastFullSizeOfNonMaterializationGauge;
     private Gauge<Long> lastIncSizeOfNonMaterializationGauge;
+
+    @After
+    public void tearDown() {
+        IOUtils.closeQuietly(periodicMaterializationManager);
+        if (changelogKeyedStateBackend != null) {
+            IOUtils.closeQuietly(changelogKeyedStateBackend);
+            changelogKeyedStateBackend.dispose();
+        }
+        IOUtils.closeQuietly(environment);
+    }
 
     @Test
     public void testCompletedMaterialization() throws Exception {
@@ -231,12 +244,12 @@ public class ChangelogMetricGroupTest {
     }
 
     private Environment buildEnv() throws IOException {
-        MockEnvironment env =
+        environment =
                 MockEnvironment.builder()
                         .setTaskStateManager(TestTaskStateManager.builder().build())
                         .build();
-        env.setCheckpointStorageAccess(
+        environment.setCheckpointStorageAccess(
                 new JobManagerCheckpointStorage().createCheckpointStorage(new JobID()));
-        return env;
+        return environment;
     }
 }
