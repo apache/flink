@@ -58,6 +58,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
@@ -70,6 +71,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -1447,6 +1449,9 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
                         JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
                         Duration.ofMillis(1L))
                 .set(
+                        JobManagerOptions.SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT,
+                        Duration.ofMillis(1L))
+                .set(
                         JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
                         Duration.ofMillis(1L))
                 .set(
@@ -2298,6 +2303,90 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
     }
 
     @Test
+    void testRescaleResourceStabilizationTimeoutConfigurationIsRespected()
+            throws ConfigurationException {
+        final Duration rescaleResourceStabilizationTimeout = Duration.ofMillis(4242);
+        final Configuration configuration = createConfigurationWithNoTimeouts();
+        configuration.set(
+                JobManagerOptions.SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT,
+                rescaleResourceStabilizationTimeout);
+
+        final AdaptiveScheduler.Settings settings = AdaptiveScheduler.Settings.of(configuration);
+        assertThat(settings.getRescaleResourceStabilizationTimeout())
+                .isEqualTo(rescaleResourceStabilizationTimeout);
+    }
+
+    @Test
+    void testRescaleResourceStabilizationTimeoutDefault() throws ConfigurationException {
+        final AdaptiveScheduler.Settings settings =
+                AdaptiveScheduler.Settings.of(new Configuration());
+
+        assertThat(settings.getRescaleResourceStabilizationTimeout())
+                .isEqualTo(
+                        JobManagerOptions.SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT
+                                .defaultValue());
+    }
+
+    @Test
+    void testRescaleResourceStabilizationTimeoutIsDisabledInReactiveMode()
+            throws ConfigurationException {
+        final AdaptiveScheduler.Settings settings =
+                AdaptiveScheduler.Settings.of(
+                        new Configuration()
+                                .set(
+                                        JobManagerOptions.SCHEDULER_MODE,
+                                        SchedulerExecutionMode.REACTIVE));
+
+        assertThat(settings.getRescaleResourceStabilizationTimeout()).isEqualTo(Duration.ZERO);
+    }
+
+    @Test
+    void testGoToWaitingForResourcesForRestartConfiguresStateTransitionManagerFactory()
+            throws Exception {
+        final TestingStateTransitionManagerFactory factory =
+                new TestingStateTransitionManagerFactory(
+                        ctx -> TestingStateTransitionManager.withNoOp());
+
+        final Duration rescaleResourceStabilizationTimeout = Duration.ofMillis(1234);
+        final Configuration configuration = createConfigurationWithNoTimeouts();
+        configuration.set(
+                JobManagerOptions.SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT,
+                rescaleResourceStabilizationTimeout);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setStateTransitionManagerFactory(factory)
+                        .setJobMasterConfiguration(configuration)
+                        .build();
+
+        final JobVertexID jobVertexId = new JobVertexID();
+        final VertexParallelism restartWithParallelism =
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 2));
+        final ExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
+
+        final OneShotLatch latch = new OneShotLatch();
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.goToWaitingForResources(mockExecutionGraph, restartWithParallelism);
+                    latch.trigger();
+                });
+        latch.await();
+
+        assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
+        assertThat(factory.getCooldownTimeout()).isEqualTo(Duration.ZERO);
+        assertThat(factory.getResourceStabilizationTimeout())
+                .isEqualTo(rescaleResourceStabilizationTimeout);
+        // Same shape as submission: the eager, zero-delay evaluation is a fast path for "target
+        // already reached", not the mechanism enforcing the wait. The wait itself is enforced by
+        // hasDesiredResources() (gated on the restart target) versus hasSufficientResources()
+        // (the plain, restart-agnostic check) inside the stabilization phase machine.
+        assertThat(factory.getMaximumDelayForTrigger()).isEqualTo(Duration.ZERO);
+    }
+
+    @Test
     void testOnCompletedCheckpointIsHandledInMainThread() throws Exception {
         testCheckpointStatsEventBeingExecutedInTheMainThread(
                 CheckpointStatsListener::onCompletedCheckpoint, 1, Integer.MAX_VALUE);
@@ -2481,6 +2570,18 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
             this.maximumDelayForTrigger = maximumDelayForTrigger;
 
             return stateTransitionManagerCreator.apply(context);
+        }
+
+        public Duration getCooldownTimeout() {
+            return cooldownTimeout;
+        }
+
+        public Duration getResourceStabilizationTimeout() {
+            return resourceStabilizationTimeout;
+        }
+
+        public Duration getMaximumDelayForTrigger() {
+            return maximumDelayForTrigger;
         }
     }
 
