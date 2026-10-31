@@ -20,11 +20,11 @@ import { NgIf } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { ActivatedRoute, RouterOutlet } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
-import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
+import { catchError, distinctUntilChanged, map, mergeMap, switchMap, takeUntil, takeWhile, tap } from 'rxjs/operators';
 
 import { JobStatusComponent } from '@flink-runtime-web/pages/job/job-detail/status/job-status.component';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
-import { JobService, StatusService } from '@flink-runtime-web/services';
+import { isNotFound, JobService, StatusService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 
@@ -38,7 +38,13 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 export class JobDetailComponent implements OnInit, OnDestroy {
   isLoading = true;
   isError = false;
+  notFound = false;
   errorDetails: string;
+
+  // The History Server returns 404 for a job it has no archive for, not one that expired.
+  readonly notFoundDescription = this.statusService.configuration.features['web-history']
+    ? 'The History Server has no archive for this job.'
+    : 'This job no longer exists on the JobManager. It may have expired from the job store (jobstore.expiration-time) or been lost when the JobManager restarted.';
 
   private readonly destroy$ = new Subject<void>();
 
@@ -51,27 +57,45 @@ export class JobDetailComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.statusService.refresh$
+    // The component is reused when only the job ID in the URL changes, so poll per job ID.
+    this.activatedRoute.params
       .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(() =>
-          this.jobService.loadJob(this.activatedRoute.snapshot.params.jid).pipe(
-            tap(job => {
-              this.jobLocalService.setJobDetail(job);
-            }),
-            catchError(() => {
-              this.jobService.loadExceptions(this.activatedRoute.snapshot.params.jid, 10).subscribe(data => {
-                this.errorDetails = data['root-exception'];
-                this.cdr.markForCheck();
-              });
+        map(params => params.jid as string),
+        distinctUntilChanged(),
+        switchMap(jid => {
+          this.notFound = false;
+          this.isLoading = true;
+          this.cdr.markForCheck();
+          return this.statusService.refresh$.pipe(
+            // A job that is gone never comes back, so stop polling for it.
+            takeWhile(() => !this.notFound),
+            mergeMap(() =>
+              this.jobService.loadJob(jid).pipe(
+                tap(job => {
+                  this.jobLocalService.setJobDetail(job);
+                }),
+                catchError((error: unknown) => {
+                  if (isNotFound(error)) {
+                    this.notFound = true;
+                    this.isLoading = false;
+                    this.cdr.markForCheck();
+                    return EMPTY;
+                  }
+                  this.jobService.loadExceptions(jid, 10).subscribe(data => {
+                    this.errorDetails = data['root-exception'];
+                    this.cdr.markForCheck();
+                  });
 
-              this.isError = true;
-              this.isLoading = false;
-              this.cdr.markForCheck();
-              return EMPTY;
-            })
-          )
-        )
+                  this.isError = true;
+                  this.isLoading = false;
+                  this.cdr.markForCheck();
+                  return EMPTY;
+                })
+              )
+            )
+          );
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe(() => {
         this.isLoading = false;
