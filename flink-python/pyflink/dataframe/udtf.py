@@ -41,7 +41,6 @@ from pyflink.dataframe.udf import (
     _create_result_normalizer,
     _get_callable_inspection_target,
     _get_callable_return_type_hint,
-    _is_typed_dict,
     _preserves_method_binding,
     _resolve_callable_annotation,
     _resolve_udf,
@@ -51,6 +50,7 @@ from pyflink.dataframe.udf import (
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import col, with_columns
+from pyflink.table.typehints import _is_typed_dict
 from pyflink.table.types import RowType, _to_java_data_type
 from pyflink.table.udf import (
     TableFunction,
@@ -300,7 +300,9 @@ def _resolve_udtf(
 def _infer_udtf_return_dtype(
     context: _UDFDeclarationContext, return_dtype: Optional[_DataTypeLike]
 ) -> Tuple[DataType, bool]:
-    if return_dtype is not None:
+    if return_dtype is not None and get_origin(return_dtype) is tuple:
+        dtype, has_named_fields = _positional_struct(return_dtype), False
+    elif return_dtype is not None:
         dtype = _convert_to_dtype(return_dtype)
         has_named_fields = isinstance(dtype._to_table_data_type(), RowType)
     else:
@@ -315,14 +317,7 @@ def _infer_udtf_return_dtype(
         ):
             raise TypeError("Cannot infer UDTF return type; specify return_dtype explicitly.")
         if get_origin(hint) is tuple:
-            fields = get_args(hint)
-            if not fields or Ellipsis in fields:
-                raise TypeError("UDTF tuple outputs must have a fixed number of fields.")
-            dtype = DataType.struct([
-                (f"f{index}", DataType._from_type_hint(field))
-                for index, field in enumerate(fields)
-            ])
-            has_named_fields = False
+            dtype, has_named_fields = _positional_struct(hint), False
         else:
             dtype = DataType._from_type_hint(hint)
             has_named_fields = isinstance(dtype._to_table_data_type(), RowType)
@@ -330,6 +325,15 @@ def _infer_udtf_return_dtype(
     if isinstance(table_type, RowType) and not table_type.fields:
         raise ValueError("A UDTF must declare at least one output field.")
     return dtype, has_named_fields
+
+
+def _positional_struct(tuple_hint: Any) -> DataType:
+    fields = get_args(tuple_hint)
+    if not fields or Ellipsis in fields:
+        raise TypeError("UDTF tuple outputs must have a fixed number of fields.")
+    return DataType.struct([
+        (f"f{index}", DataType._from_type_hint(field)) for index, field in enumerate(fields)
+    ])
 
 
 def _validate_flat_map_input(declaration: _DataFrameUDTFWrapper) -> None:

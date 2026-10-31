@@ -503,9 +503,18 @@ class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
         def emit(row) -> Iterator[Tuple[int, str]]:
             yield row["x"], "ok"
 
+        def emit_unannotated(row):
+            yield row["x"], "ok"
+
+        self.assertEqual(
+            pf.udtf(emit_unannotated, return_dtype=Tuple[int, str]).return_dtype,
+            pf.udtf(emit).return_dtype,
+        )
         source = pf.from_dict({"x": [1]})
-        with self.assertRaisesRegex(ValueError, "named output fields"):
-            source.flat_map(emit)
+        for func, return_dtype in ((emit, None), (emit_unannotated, Tuple[int, str])):
+            with self.subTest(return_dtype=return_dtype):
+                with self.assertRaisesRegex(ValueError, "named output fields"):
+                    source.flat_map(func, return_dtype=return_dtype)
         named = source.flat_map(emit, return_dtype="ROW<value BIGINT, label STRING>")
         self.assertEqual(named.columns, ["value", "label"])
 
