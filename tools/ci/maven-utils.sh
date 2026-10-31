@@ -76,6 +76,8 @@ MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.connector.basic.threads=16 "
 # fetch POMs in parallel while collecting dependencies (default collector "df" is sequential)
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.dependencyCollector.impl=bf -Daether.dependencyCollector.bf.threads=16 "
+# only query the redhat repository for the groupIds listed in remote-repository-filters/
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Daether.remoteRepositoryFilter.groupId=true -Daether.remoteRepositoryFilter.groupId.basedir=$CI_DIR/remote-repository-filters "
 # logging
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
 # suppress snapshot updates
