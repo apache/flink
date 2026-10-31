@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecTemporalJoin}. */
 public class TemporalJoinTestPrograms {
@@ -117,23 +118,14 @@ public class TemporalJoinTestPrograms {
                     .consumedBeforeRestore("+I[102]", "+I[228]", "+I[348]", "+I[50]")
                     .consumedAfterRestore("+I[103]", "+I[119]")
                     .build();
-    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN =
-            TableTestProgram.of("temporal-join-table-join", "validates temporal join with a table")
-                    .setupTableSource(ORDERS)
-                    .setupTableSource(RATES)
-                    .setupTableSink(AMOUNTS)
-                    .runSql(
-                            "INSERT INTO MySink "
-                                    + "SELECT amount * r.rate "
-                                    + "FROM Orders AS o "
-                                    + "JOIN RatesHistory FOR SYSTEM_TIME AS OF o.rowtime AS r "
-                                    + "ON o.currency = r.currency ")
-                    .build();
+    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN = temporalJoinTableJoin(1);
+    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_V2 = temporalJoinTableJoin(2);
 
     static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_NESTED_KEY =
             TableTestProgram.of(
                             "temporal-join-table-join-nested-key",
                             "validates temporal join with a table when the join keys comes from a nested row")
+                    .setupConfig(TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION, 1)
                     .setupTableSource(ORDERS_WITH_NESTED_ID)
                     .setupTableSource(RATES)
                     .setupTableSink(AMOUNTS)
@@ -149,6 +141,7 @@ public class TemporalJoinTestPrograms {
             TableTestProgram.of(
                             "temporal-join-table-join-key-from-map",
                             "validates temporal join with a table when the join key comes from a map value")
+                    .setupConfig(TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION, 1)
                     .setupTableSource(ORDERS_WITH_NESTED_ID)
                     .setupTableSource(RATES)
                     .setupTableSink(AMOUNTS)
@@ -164,6 +157,7 @@ public class TemporalJoinTestPrograms {
             TableTestProgram.of(
                             "temporal-join-temporal-function",
                             "validates temporal join with a temporal function")
+                    .setupConfig(TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION, 1)
                     .setupTableSource(ORDERS)
                     .setupTableSource(RATES)
                     .setupTemporarySystemTemporalTableFunction(
@@ -176,6 +170,29 @@ public class TemporalJoinTestPrograms {
                                     + "LATERAL TABLE (Rates(o.rowtime)) AS r "
                                     + "WHERE o.currency = r.currency ")
                     .build();
+
+    /**
+     * Version 1 keeps the original program id, whose plan does not persist the version, so that it
+     * keeps covering plans compiled before the version was introduced.
+     */
+    private static TableTestProgram temporalJoinTableJoin(int eventTimeJoinVersion) {
+        return TableTestProgram.of(
+                        eventTimeJoinVersion == 1
+                                ? "temporal-join-table-join"
+                                : "temporal-join-table-join-v" + eventTimeJoinVersion,
+                        "validates temporal join with a table")
+                .setupConfig(TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION, eventTimeJoinVersion)
+                .setupTableSource(ORDERS)
+                .setupTableSource(RATES)
+                .setupTableSink(AMOUNTS)
+                .runSql(
+                        "INSERT INTO MySink "
+                                + "SELECT amount * r.rate "
+                                + "FROM Orders AS o "
+                                + "JOIN RatesHistory FOR SYSTEM_TIME AS OF o.rowtime AS r "
+                                + "ON o.currency = r.currency ")
+                .build();
+    }
 
     private static Map<String, String> mapOf(String key, String value) {
         final HashMap<String, String> map = new HashMap<>();
