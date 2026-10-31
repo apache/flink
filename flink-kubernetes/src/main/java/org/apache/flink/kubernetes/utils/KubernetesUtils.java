@@ -409,6 +409,7 @@ public class KubernetesUtils {
      *
      * @param resourceRequirements resource requirements in pod template
      * @param mem Memory in mb.
+     * @param memoryRequestFactor request factor for the memory, used to set the request resources.
      * @param memoryLimitFactor limit factor for the memory, used to set the limit resources.
      * @param cpu cpu.
      * @param cpuLimitFactor limit factor for the cpu, used to set the limit resources.
@@ -419,6 +420,7 @@ public class KubernetesUtils {
     public static ResourceRequirements getResourceRequirements(
             ResourceRequirements resourceRequirements,
             int mem,
+            double memoryRequestFactor,
             double memoryLimitFactor,
             double cpu,
             double cpuLimitFactor,
@@ -426,13 +428,14 @@ public class KubernetesUtils {
             Map<String, String> externalResourceConfigKeys) {
         final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
         final Quantity cpuLimitQuantity = new Quantity(String.valueOf(cpu * cpuLimitFactor));
-        final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
+        final Quantity memQuantityRequest =
+                new Quantity(((int) (mem * memoryRequestFactor)) + Constants.RESOURCE_UNIT_MB);
         final Quantity memQuantityLimit =
                 new Quantity(((int) (mem * memoryLimitFactor)) + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
                 new ResourceRequirementsBuilder(resourceRequirements)
-                        .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
+                        .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantityRequest)
                         .addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
                         .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantityLimit)
                         .addToLimits(Constants.RESOURCE_NAME_CPU, cpuLimitQuantity);
