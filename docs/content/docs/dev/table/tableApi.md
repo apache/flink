@@ -1123,8 +1123,8 @@ Table ratesHistory = tableEnv.from("RatesHistory");
 
 // register temporal table function with a time attribute and primary key
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
-    "r_proctime",
-    "r_currency");
+    $("r_proctime"),
+    $("r_currency"));
 tableEnv.createTemporarySystemFunction("rates", rates);
 
 // join with "Orders" based on the time attribute and key
@@ -1143,7 +1143,7 @@ val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency
 // join with "Orders" based on the time attribute and key
 val orders = tableEnv.from("Orders")
 val result = orders
-    .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
+    .joinLateral(rates($"o_proctime"), $"r_currency" === $"o_currency")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
