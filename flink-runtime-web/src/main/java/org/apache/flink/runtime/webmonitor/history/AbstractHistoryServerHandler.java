@@ -339,6 +339,7 @@ public abstract class AbstractHistoryServerHandler<Entry>
             String jobId = extractJobId(requestKey);
             if (jobId != null) {
                 if (archiveStorage.exists(requestKey)) {
+                    archiveFetcher.markRecentlyViewed(jobId);
                     return archiveStorage.getEntry(requestKey);
                 }
                 ArchiveMetaInfo jobArchiveMetaInfo = archiveFetcher.getArchiveMetaInfo(jobId);
@@ -346,6 +347,9 @@ public abstract class AbstractHistoryServerHandler<Entry>
                     Path archivePath =
                             jobArchiveMetaInfo == null ? null : jobArchiveMetaInfo.getArchivePath();
                     archiveFetcher.lazyFetchArchiveProactively(jobId, archivePath);
+                }
+                if (archiveFetcher.getArchiveMetaInfo(jobId) != null) {
+                    archiveFetcher.markRecentlyViewed(jobId);
                 }
                 // wait for the job archive to be loaded
                 if (!requestKey.endsWith(jobId + JSON_FILE_ENDING)) {
