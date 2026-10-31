@@ -866,6 +866,19 @@ public class ExecutionConfigOptions {
                                     + "which would prevent migrations in the future.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_TEMPORAL_JOIN_ROWTIME_USE_HEAP =
+            key("table.exec.temporal-join.rowtime.use-heap")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, the event-time temporal join keeps the buffered probe-side (left) rows "
+                                    + "in a min-heap ordered by event time, so that each watermark only touches "
+                                    + "the rows that are ready to be emitted instead of scanning all buffered rows. "
+                                    + "This mainly helps when many rows are buffered ahead of the watermark. "
+                                    + "Note: the state layout differs between the two modes, so changing this "
+                                    + "option is not compatible with existing checkpoints and savepoints.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL =
             key("table.exec.interval-join.min-cleanup-interval")
                     .durationType()
