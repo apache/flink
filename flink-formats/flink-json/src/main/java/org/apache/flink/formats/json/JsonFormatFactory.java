@@ -84,23 +84,29 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
+                final AbstractJsonDeserializationSchema schema;
                 if (jsonParserEnabled) {
-                    return new JsonParserRowDataDeserializationSchema(
-                            rowType,
-                            rowDataTypeInfo,
-                            failOnMissingField,
-                            ignoreParseErrors,
-                            timestampOption,
-                            toProjectedNames(
-                                    (RowType) physicalDataType.getLogicalType(), projections));
+                    schema =
+                            new JsonParserRowDataDeserializationSchema(
+                                    rowType,
+                                    rowDataTypeInfo,
+                                    failOnMissingField,
+                                    ignoreParseErrors,
+                                    timestampOption,
+                                    toProjectedNames(
+                                            (RowType) physicalDataType.getLogicalType(),
+                                            projections));
                 } else {
-                    return new JsonRowDataDeserializationSchema(
-                            rowType,
-                            rowDataTypeInfo,
-                            failOnMissingField,
-                            ignoreParseErrors,
-                            timestampOption);
+                    schema =
+                            new JsonRowDataDeserializationSchema(
+                                    rowType,
+                                    rowDataTypeInfo,
+                                    failOnMissingField,
+                                    ignoreParseErrors,
+                                    timestampOption);
                 }
+                schema.enableParseErrorMetrics();
+                return schema;
             }
 
             @Override
