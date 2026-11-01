@@ -32,7 +32,6 @@ import java.io.Serializable;
  *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
 @Internal
-@Deprecated
 public interface SinkFunction<IN> extends Function, Serializable {
 
     /**
