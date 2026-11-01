@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -41,10 +42,12 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.event.Level;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -60,10 +63,14 @@ import java.util.function.Consumer;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests of {@link FineGrainedSlotManager}. */
 class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
+    @RegisterExtension
+    final LoggerAuditingExtension slotManagerErrors =
+            new LoggerAuditingExtension(FineGrainedSlotManager.class, Level.ERROR);
 
     private static final ResourceProfile LARGE_SLOT_RESOURCE_PROFILE =
             DEFAULT_TOTAL_RESOURCE_PROFILE.multiply(2);
@@ -93,9 +100,292 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
     void testCloseAfterSuspendDoesNotThrowException() throws Exception {
         new Context() {
             {
-                runTest(() -> getSlotManager().suspend());
+                runTest(() -> runInMainThreadAndWait(() -> getSlotManager().suspend()));
             }
         };
+    }
+
+    @Test
+    void testSuspendCancelsScheduledWork() throws Exception {
+        final AtomicInteger requirementChecks = new AtomicInteger();
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                (ignored0, ignored1) -> {
+                    requirementChecks.incrementAndGet();
+                    return ResourceAllocationResult.builder().build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    context.getSlotManager()
+                                            .processResourceRequirements(
+                                                    createResourceRequirementsForSingleSlot()));
+                    assertThat(mainThreadExecutor.getActiveNonPeriodicScheduledTask()).isNotEmpty();
+
+                    context.runInMainThreadAndWait(() -> context.getSlotManager().suspend());
+
+                    assertThat(mainThreadExecutor.getActiveNonPeriodicScheduledTask()).isEmpty();
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(requirementChecks).hasValue(0);
+                });
+    }
+
+    @Test
+    void testSlotAllocationFailureAfterSuspendDoesNotTriggerACheck() throws Exception {
+        final JobID jobId = new JobID();
+        final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
+        final TaskExecutorConnection taskExecutorConnection =
+                createTaskExecutorConnection(
+                        new TestingTaskExecutorGatewayBuilder()
+                                .setRequestSlotFunction(ignored -> requestSlotFuture)
+                                .createTestingTaskExecutorGateway());
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                (ignored0, ignored1) ->
+                        ResourceAllocationResult.builder()
+                                .addAllocationOnRegisteredResource(
+                                        jobId,
+                                        taskExecutorConnection.getInstanceID(),
+                                        DEFAULT_SLOT_RESOURCE_PROFILE)
+                                .build());
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                assertThat(
+                                                context.getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection,
+                                                                new SlotReport(),
+                                                                DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                DEFAULT_SLOT_RESOURCE_PROFILE))
+                                        .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+                                context.getSlotManager()
+                                        .processResourceRequirements(
+                                                createResourceRequirementsForSingleSlot(jobId));
+                            });
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(context.getTaskManagerTracker().getNumberFreeSlots())
+                            .isEqualTo(DEFAULT_NUM_SLOTS_PER_WORKER - 1);
+
+                    // the syncer's callback runs, the slot manager's retry callback stays queued
+                    requestSlotFuture.completeExceptionally(TEST_EXCEPTION);
+                    mainThreadExecutor.trigger();
+                    assertThat(mainThreadExecutor.numQueuedRunnables()).isEqualTo(1);
+
+                    context.getSlotManager().suspend();
+                    mainThreadExecutor.triggerAll();
+
+                    assertThat(mainThreadExecutor.getActiveNonPeriodicScheduledTask()).isEmpty();
+                });
+    }
+
+    @Test
+    void testStartAfterSuspendSchedulesAgain() throws Exception {
+        final AtomicInteger reconciliations = new AtomicInteger();
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryReleaseUnusedResourcesFunction(
+                ignored -> {
+                    reconciliations.incrementAndGet();
+                    return ResourceReconcileResult.builder().build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(reconciliations).hasValue(1);
+
+                    context.runInMainThreadAndWait(() -> context.getSlotManager().suspend());
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    context.getSlotManager()
+                                            .start(
+                                                    context.getResourceManagerId(),
+                                                    mainThreadExecutor,
+                                                    context.resourceAllocatorBuilder.build(),
+                                                    context.resourceEventListenerBuilder.build(),
+                                                    resourceID -> false));
+
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(reconciliations).hasValue(2);
+                });
+    }
+
+    @Test
+    void testSuspendClearsJobState() throws Exception {
+        final JobID jobId = new JobID();
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot(
+                                                                    jobId)));
+                            assertThat(getSlotManager().getApplicationId(jobId)).isPresent();
+
+                            runInMainThreadAndWait(() -> getSlotManager().suspend());
+
+                            assertThat(getSlotManager().getApplicationId(jobId)).isEmpty();
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testClearResourceRequirementsRequiresStartedSlotManager() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            runInMainThreadAndWait(() -> getSlotManager().suspend());
+
+                            assertThatThrownBy(
+                                            () ->
+                                                    runInMainThreadAndWait(
+                                                            () ->
+                                                                    getSlotManager()
+                                                                            .clearResourceRequirements(
+                                                                                    new JobID())))
+                                    .hasCauseInstanceOf(IllegalStateException.class);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testIdleTaskManagerReplyForAnEarlierRegistrationIsIgnored() throws Exception {
+        final CompletableFuture<Boolean> canBeReleasedFuture = new CompletableFuture<>();
+        final TaskExecutorConnection taskExecutorConnection =
+                createTaskExecutorConnection(
+                        new TestingTaskExecutorGatewayBuilder()
+                                .setCanBeReleasedSupplier(() -> canBeReleasedFuture)
+                                .createTestingTaskExecutorGateway());
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryReleaseUnusedResourcesFunction(
+                taskManagers -> {
+                    final ResourceReconcileResult.Builder result =
+                            ResourceReconcileResult.builder();
+                    taskManagers
+                            .getRegisteredTaskManagers()
+                            .forEach(result::addTaskManagerToRelease);
+                    return result.build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    context.runInMainThreadAndWait(
+                            () -> registerTaskManager(context, taskExecutorConnection));
+                    // the reconciliation asks the idle task manager whether it can be released
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(canBeReleasedFuture).isNotDone();
+
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                context.getSlotManager()
+                                        .unregisterTaskManager(
+                                                taskExecutorConnection.getInstanceID(),
+                                                TEST_EXCEPTION);
+                                registerTaskManager(context, taskExecutorConnection);
+                            });
+
+                    canBeReleasedFuture.complete(true);
+                    context.runInMainThreadAndWait(() -> {});
+
+                    assertThat(context.getTaskManagerTracker().getUnWantedTaskManager()).isEmpty();
+                });
+    }
+
+    private static void registerTaskManager(
+            Context context, TaskExecutorConnection taskExecutorConnection) {
+        assertThat(
+                        context.getSlotManager()
+                                .registerTaskManager(
+                                        taskExecutorConnection,
+                                        new SlotReport(),
+                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                        DEFAULT_SLOT_RESOURCE_PROFILE))
+                .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+    }
+
+    @Test
+    void testFailedRequirementsCheckIsLoggedAndTheNextTriggerRetries() throws Exception {
+        final AtomicInteger requirementChecks = new AtomicInteger();
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                (ignored0, ignored1) -> {
+                    if (requirementChecks.incrementAndGet() == 1) {
+                        throw new IllegalStateException("Expected test failure");
+                    }
+                    return ResourceAllocationResult.builder().build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    context.getSlotManager()
+                                            .processResourceRequirements(
+                                                    createResourceRequirementsForSingleSlot()));
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(requirementChecks).hasValue(1);
+                    assertThat(slotManagerErrors.getEvents())
+                            .singleElement()
+                            .satisfies(
+                                    event -> {
+                                        assertThat(event.getMessage().getFormattedMessage())
+                                                .startsWith("Requirements check failed");
+                                        assertThat(event.getThrown())
+                                                .isInstanceOf(IllegalStateException.class);
+                                    });
+
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    context.getSlotManager()
+                                            .processResourceRequirements(
+                                                    createResourceRequirementsForSingleSlot()));
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(requirementChecks).hasValue(2);
+                });
+    }
+
+    @Test
+    void testFailedReconciliationKeepsPeriodicCheckAlive() throws Exception {
+        final AtomicInteger reconciliations = new AtomicInteger();
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryReleaseUnusedResourcesFunction(
+                ignored -> {
+                    if (reconciliations.incrementAndGet() == 1) {
+                        throw new IllegalStateException("Expected test failure");
+                    }
+                    return ResourceReconcileResult.builder().build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(reconciliations).hasValue(1);
+
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(reconciliations).hasValue(2);
+                });
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -680,6 +970,79 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         };
     }
 
+    /**
+     * Tests that a requirements check whose strategy call fails does not prevent later checks from
+     * being scheduled.
+     */
+    @Test
+    void testRequirementsCheckIsScheduledAgainAfterAFailedCheck() throws Exception {
+        final AtomicInteger strategyCalls = new AtomicInteger();
+        final CompletableFuture<Void> firstCheck = new CompletableFuture<>();
+        final CompletableFuture<Void> secondCheck = new CompletableFuture<>();
+        new Context() {
+            {
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        (ignored1, ignored2) -> {
+                            if (strategyCalls.incrementAndGet() == 1) {
+                                firstCheck.complete(null);
+                                throw new IllegalStateException("Expected test failure");
+                            }
+                            secondCheck.complete(null);
+                            return ResourceAllocationResult.builder().build();
+                        });
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot()));
+                            assertFutureCompleteAndReturn(firstCheck);
+
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot()));
+                            assertFutureCompleteAndReturn(secondCheck);
+                        });
+            }
+        };
+    }
+
+    /**
+     * Tests that a resource declaration that fails does not prevent later declarations from being
+     * scheduled.
+     */
+    @Test
+    void testResourceDeclarationIsScheduledAgainAfterAFailedDeclaration() throws Exception {
+        final AtomicInteger declarations = new AtomicInteger();
+        final CompletableFuture<Void> firstDeclaration = new CompletableFuture<>();
+        final CompletableFuture<Void> secondDeclaration = new CompletableFuture<>();
+        new Context() {
+            {
+                resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
+                        ignored -> {
+                            if (declarations.incrementAndGet() == 1) {
+                                firstDeclaration.complete(null);
+                                throw new IllegalStateException("Expected test failure");
+                            }
+                            secondDeclaration.complete(null);
+                        });
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> getSlotManager().clearResourceRequirements(new JobID()));
+                            assertFutureCompleteAndReturn(firstDeclaration);
+
+                            runInMainThread(
+                                    () -> getSlotManager().clearResourceRequirements(new JobID()));
+                            assertFutureCompleteAndReturn(secondDeclaration);
+                        });
+            }
+        };
+    }
+
     @Test
     void testMaxTotalResourceCpuExceeded() throws Exception {
         Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
@@ -1094,9 +1457,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final Context context = new Context();
         context.setSlotManagerMetricGroup(
                 SlotManagerMetricGroup.create(metricRegistry, "localhost"));
-        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-        context.setScheduledExecutor(scheduledExecutor);
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
         final TaskExecutorConnection executorConnection1 = createTaskExecutorConnection();
         final TaskExecutorConnection executorConnection2 = createTaskExecutorConnection();
 
@@ -1137,10 +1499,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                     assertThat(assertFutureCompleteAndReturn(registerTaskManagerFuture2))
                             .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
 
-                    // triggers the metric update task on the main thread and waits for the main
-                    // thread to process queued up callbacks
-                    scheduledExecutor.triggerPeriodicScheduledTasks();
-                    context.runInMainThreadAndWait(() -> {});
+                    triggerScheduledTasksOnce(mainThreadExecutor);
 
                     assertThat(slotsTotalGauge.get().getValue())
                             .isEqualTo(2 * DEFAULT_NUM_SLOTS_PER_WORKER);
@@ -1158,10 +1517,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                             TEST_EXCEPTION)));
                     assertThat(assertFutureCompleteAndReturn(unRegisterTaskManagerFuture)).isTrue();
 
-                    // triggers the metric update task on the main thread and waits for the main
-                    // thread to process queued up callbacks
-                    scheduledExecutor.triggerPeriodicScheduledTasks();
-                    context.runInMainThreadAndWait(() -> {});
+                    triggerScheduledTasksOnce(mainThreadExecutor);
 
                     assertThat(slotsTotalGauge.get().getValue())
                             .isEqualTo(DEFAULT_NUM_SLOTS_PER_WORKER);
