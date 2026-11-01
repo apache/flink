@@ -34,8 +34,8 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cn
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- Calc(select=[name, eat, cnt], where=[(w0$o0 <= 3)])
-   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
++- Calc(select=[name, eat, cnt], where=[(row_num <= 3)])
+   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, row_num])
       +- Exchange(distribution=[forward])
          +- Sort(orderBy=[name ASC, cnt DESC])
             +- Exchange(distribution=[hash[name]])
@@ -63,7 +63,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, rk])
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
@@ -95,8 +95,8 @@ LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, w0$o0 AS rk1, w0$o0 AS rk2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
+Calc(select=[a, b, rk1, rk1 AS rk2])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, rk1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
@@ -126,8 +126,8 @@ LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, w0$o0 AS rk, b, c])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
+Calc(select=[a, rk, b, c])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC])
          +- Exchange(distribution=[hash[a]])
@@ -156,7 +156,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, 2 AS $2])
+Calc(select=[a, b, 2 AS rk])
 +- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC, c ASC])
@@ -186,8 +186,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, w0$o0])
-+- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
+Calc(select=[a, b, rk])
++- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, c ASC, a ASC])
          +- Exchange(distribution=[hash[b, c]])
@@ -216,8 +216,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, w0$o0], where=[(a > 10)])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
+Calc(select=[a, b, rk], where=[(a > 10)])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, rk])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
@@ -255,13 +255,13 @@ LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(w0$o0 AS INTEGER) AS rn2], where=[(w0$o0 <= 200)])
-+- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
+Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(rnb AS INTEGER) AS rn2], where=[(rnb <= 200)])
++- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS rnb ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, rna, rnb])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, b DESC])
          +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
-               +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+            +- Calc(select=[a, b, c, rna], where=[(rna <= 100)])
+               +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS rna ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, rna])
                   +- Exchange(distribution=[forward])
                      +- Sort(orderBy=[a ASC, c ASC, b DESC])
                         +- Exchange(distribution=[hash[a, c]])
@@ -366,7 +366,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, rk])
 +- Sort(orderBy=[a ASC])
    +- Exchange(distribution=[single])
       +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b])
