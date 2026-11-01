@@ -18,19 +18,37 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.common.TableSinkTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.test.program.TableTestProgram;
+
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Restore tests for {@link StreamExecSink}. */
 public class TableSinkRestoreTest extends RestoreTestBase {
 
     public TableSinkRestoreTest() {
         super(StreamExecSink.class);
+    }
+
+    @Test
+    void testExecNodeMetadataContainsRequiredOptions() {
+        assertThat(ExecNodeMetadataUtil.consumedOptions(StreamExecSink.class))
+                .containsExactlyInAnyOrder(
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_ROWTIME_INSERTER.key());
     }
 
     @Override
