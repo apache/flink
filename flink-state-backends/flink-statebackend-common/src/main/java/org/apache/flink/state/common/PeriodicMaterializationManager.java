@@ -205,12 +205,26 @@ public class PeriodicMaterializationManager implements Closeable {
     }
 
     // task thread and task canceler can access this method
-    public synchronized void close() {
+    public void close() {
 
         LOG.info("Shutting down PeriodicMaterializationManager.");
 
-        if (!periodicExecutor.isShutdown()) {
-            periodicExecutor.shutdownNow();
+        synchronized (this) {
+            if (!periodicExecutor.isShutdown()) {
+                periodicExecutor.shutdownNow();
+            }
+        }
+
+        // A running callback may need the manager lock to schedule its next materialization.
+        try {
+            if (!periodicExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                LOG.warn("Periodic materialization scheduler did not terminate within 5 seconds.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warn(
+                    "Interrupted while waiting for the periodic materialization scheduler to stop.",
+                    e);
         }
     }
 
