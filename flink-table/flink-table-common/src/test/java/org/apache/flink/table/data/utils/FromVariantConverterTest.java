@@ -330,6 +330,7 @@ class FromVariantConverterTest {
                 DataTypes.ROW(
                                 FIELD("int", DataTypes.INT()),
                                 FIELD("ltz", DataTypes.STRING()),
+                                FIELD("ts", DataTypes.TIMESTAMP(0)),
                                 FIELD("list", DataTypes.ARRAY(DataTypes.INT().notNull())),
                                 FIELD("map", DataTypes.MAP(DataTypes.CHAR(2), DataTypes.INT())),
                                 FIELD("variant", DataTypes.VARIANT()),
@@ -339,6 +340,7 @@ class FromVariantConverterTest {
                 BUILDER.object()
                         .add("int", BUILDER.of(1))
                         .add("ltz", BUILDER.of(Instant.EPOCH))
+                        .add("ts", BUILDER.of(Instant.EPOCH))
                         .add("list", BUILDER.array().add(BUILDER.of(2)).build())
                         .add("map", BUILDER.object().add("k", BUILDER.ofNull()).build())
                         .add("variant", BUILDER.ofNull())
@@ -357,6 +359,8 @@ class FromVariantConverterTest {
         assertThat(actual).isEqualTo(converter.convert(variant));
         // the session zone survives too
         assertThat(actual.getString(1).toString()).startsWith("1970-01-01 09:00:00");
+        assertThat(actual.getTimestamp(2, 0))
+                .isEqualTo(TimestampData.fromLocalDateTime(LocalDateTime.of(1970, 1, 1, 9, 0)));
     }
 
     @ParameterizedTest(name = "{0}")

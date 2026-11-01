@@ -67,20 +67,20 @@ public final class FromVariantConverter implements Serializable {
     /**
      * Creates a converter for a type that VARIANT casts to.
      *
-     * @param sessionZone renders a {@code TIMESTAMP_LTZ} value read as a string
+     * @param sessionZone the session time zone, for a cast between {@code TIMESTAMP_LTZ} and a type
+     *     without a time zone
      * @throws IllegalArgumentException if VARIANT cannot be cast to the type
      */
     public static FromVariantConverter create(final LogicalType type, final ZoneId sessionZone) {
-        return new FromVariantConverter(
-                createReader(type, TimeZone.getTimeZone(sessionZone), false));
+        return new FromVariantConverter(createReader(type, sessionZone, false));
     }
 
     /**
      * Converts a variant into internal data.
      *
      * @throws TableRuntimeException if a value does not match its type
-     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN}, {@code DATE}
-     *     or binary value has another kind
+     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN} or binary
+     *     value has another kind
      */
     public Object convert(final Variant variant) {
         return reader.read(variant);
@@ -93,7 +93,7 @@ public final class FromVariantConverter implements Serializable {
 
     // With copyVariants, a VARIANT is copied out of its parent rather than returned as a view.
     private static ValueReader createReader(
-            final LogicalType type, final TimeZone sessionZone, final boolean copyVariants) {
+            final LogicalType type, final ZoneId sessionZone, final boolean copyVariants) {
         switch (type.getTypeRoot()) {
             case BOOLEAN:
                 return Variant::getBoolean;
@@ -131,9 +131,9 @@ public final class FromVariantConverter implements Serializable {
                 {
                     final int length = LogicalTypeChecks.getLength(type);
                     final boolean charTarget = type.is(LogicalTypeRoot.CHAR);
+                    final TimeZone timeZone = TimeZone.getTimeZone(sessionZone);
                     return variant ->
-                            VariantCastUtils.toStringValue(
-                                    variant, sessionZone, length, charTarget);
+                            VariantCastUtils.toStringValue(variant, timeZone, length, charTarget);
                 }
             case BINARY:
             case VARBINARY:
@@ -143,21 +143,22 @@ public final class FromVariantConverter implements Serializable {
                     return variant -> VariantCastUtils.toBytes(variant, length, fixedLength);
                 }
             case DATE:
-                return variant -> (int) variant.getDate().toEpochDay();
+                return variant -> VariantCastUtils.toDate(variant, sessionZone);
             case TIME_WITHOUT_TIME_ZONE:
                 {
                     final int precision = LogicalTypeChecks.getPrecision(type);
-                    return variant -> VariantCastUtils.toTime(variant, precision);
+                    return variant -> VariantCastUtils.toTime(variant, precision, sessionZone);
                 }
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 {
                     final int precision = LogicalTypeChecks.getPrecision(type);
-                    return variant -> VariantCastUtils.toTimestamp(variant, precision);
+                    return variant -> VariantCastUtils.toTimestamp(variant, precision, sessionZone);
                 }
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 {
                     final int precision = LogicalTypeChecks.getPrecision(type);
-                    return variant -> VariantCastUtils.toTimestampLtz(variant, precision);
+                    return variant ->
+                            VariantCastUtils.toTimestampLtz(variant, precision, sessionZone);
                 }
             case UUID:
                 return VariantCastUtils::toUuid;
@@ -181,7 +182,7 @@ public final class FromVariantConverter implements Serializable {
     // A nested variant null becomes NULL, or fails for a NOT NULL type. A VARIANT type keeps it.
     private static ValueReader createChildReader(
             final LogicalType type,
-            final TimeZone sessionZone,
+            final ZoneId sessionZone,
             final boolean copyVariants,
             final String notNullMessage) {
         final ValueReader reader = createReader(type, sessionZone, copyVariants);
@@ -200,7 +201,7 @@ public final class FromVariantConverter implements Serializable {
     }
 
     private static ValueReader createArrayReader(
-            final ArrayType type, final TimeZone sessionZone, final boolean copyVariants) {
+            final ArrayType type, final ZoneId sessionZone, final boolean copyVariants) {
         final LogicalType elementType = type.getElementType();
         final ValueReader elementReader =
                 createChildReader(
@@ -222,7 +223,7 @@ public final class FromVariantConverter implements Serializable {
     }
 
     private static ValueReader createMapReader(
-            final MapType type, final TimeZone sessionZone, final boolean copyVariants) {
+            final MapType type, final ZoneId sessionZone, final boolean copyVariants) {
         final LogicalType keyType = type.getKeyType();
         if (!keyType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new IllegalArgumentException(
@@ -250,7 +251,7 @@ public final class FromVariantConverter implements Serializable {
     }
 
     // A ROW copies every VARIANT below it, like a value read back from a binary row.
-    private static ValueReader createRowReader(final LogicalType type, final TimeZone sessionZone) {
+    private static ValueReader createRowReader(final LogicalType type, final ZoneId sessionZone) {
         final List<LogicalType> fieldTypes = LogicalTypeChecks.getFieldTypes(type);
         final String[] fieldNames = LogicalTypeChecks.getFieldNames(type).toArray(new String[0]);
         final int fieldCount = fieldTypes.size();
