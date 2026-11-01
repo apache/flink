@@ -64,6 +64,7 @@ env:
 
   MAVEN_REPO_FOLDER: /root/.m2/repository
   MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository
+  NPM_CONFIG_CACHE: /root/.npm
   # required by tools/ci/cache_docker_images.sh
   DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
 
@@ -93,7 +94,7 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
-          npm_cache_folder: /root/.npm
+          npm_cache_folder: ${{ env.NPM_CONFIG_CACHE }}
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
@@ -138,7 +139,7 @@ jobs:
         if: ${{ !cancelled() && steps.job-init.outputs.npm-cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
-          path: /root/.npm
+          path: ${{ env.NPM_CONFIG_CACHE }}
           key: ${{ steps.job-init.outputs.npm-cache-key }}
 
   packaging:
