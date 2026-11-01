@@ -34,8 +34,31 @@ under the License.
 
 	<properties>
 		<okhttp.version>4.12.0</okhttp.version>
+		<!-- okhttp 4.12.0 asks for 1.8.21 but okio-jvm 3.6.0, which it pulls in, is built
+		     against 1.9.10. Pin both to 1.9.10 so one Kotlin runtime is bundled. -->
+		<triton.kotlin.version>1.9.10</triton.kotlin.version>
 		<test.gson.version>2.11.0</test.gson.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${triton.kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk8</artifactId>
+				<version>${triton.kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk7</artifactId>
+				<version>${triton.kotlin.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<!-- HTTP Client for Triton REST API -->
@@ -154,39 +177,62 @@ under the License.
 								</includes>
 								<excludes>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
+									<!--
+									Contribute no classes to a JVM uber jar: kotlin-stdlib-jdk7 and -jdk8 have been empty
+									since Kotlin 1.8 (their contents moved into kotlin-stdlib), and kotlin-stdlib-common
+									and com.squareup.okio:okio are multiplatform metadata artifacts holding only
+									.kotlin_metadata resources. okio-jvm carries the actual okio code.
+									-->
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk7</exclude>
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk8</exclude>
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-common</exclude>
+									<exclude>com.squareup.okio:okio</exclude>
 								</excludes>
 							</artifactSet>
 							<relocations combine.children="append">
+								<!--
+								Patterns are Java packages, not Maven groupIds, and carry a trailing dot: the shade
+								plugin matches them as a bare prefix against string constants too, so "kotlin"
+								would also rewrite "kotlinx" and ".kotlin_builtins".
+								-->
 								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.model.triton.com.fasterxml.jackson</shadedPattern>
+									<pattern>com.fasterxml.jackson.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.com.fasterxml.jackson.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okhttp3.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.okhttp3.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okio.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.okio.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>kotlin.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.kotlin.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.jetbrains.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.org.jetbrains.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.intellij.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.org.intellij.</shadedPattern>
 								</relocation>
 								<!--
 								Manually relocate multi-release classes to the correct shaded package. This is needed
 								due to a bug in the Maven Shade plugin, which only relocates the content but not
-								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652
+								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652.
+								Only listed for the dependencies that actually ship META-INF/versions entries; the
+								check_shaded_artifacts_model CI check fails if a bump adds another one.
 								-->
 								<relocation>
 									<pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/com/fasterxml/jackson/</shadedPattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/shaded/com/fasterxml/jackson/</shadedPattern>
 									<rawString>true</rawString>
-								</relocation>
-								<!--
-								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
-								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
-								with its relocated base classes. No-op for non-multi-release jars.
-								-->
-								<relocation>
-									<pattern>META-INF/versions/(\d+)/com/squareup/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/com/squareup/</shadedPattern>
-									<rawString>true</rawString>
-								</relocation>
-								<relocation>
-									<pattern>com.squareup</pattern>
-									<shadedPattern>org.apache.flink.model.triton.com.squareup</shadedPattern>
 								</relocation>
 							</relocations>
-							<filters>
+							<filters combine.children="append">
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
