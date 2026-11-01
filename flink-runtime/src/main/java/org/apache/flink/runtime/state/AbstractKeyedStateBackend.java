@@ -20,9 +20,12 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -36,6 +39,7 @@ import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -394,7 +398,10 @@ public abstract class AbstractKeyedStateBackend<K>
         InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
         if (kvState == null) {
             if (!stateDescriptor.isSerializerInitialized()) {
-                stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+                stateDescriptor.initializeSerializerUnlessSet(stateValueSerializerFactory());
+            }
+            if (!supportsObjectLevelValueMigration()) {
+                checkNotArmedForSchemaEvolution(stateDescriptor);
             }
             kvState =
                     MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
@@ -408,6 +415,49 @@ public abstract class AbstractKeyedStateBackend<K>
             publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
         return (S) kvState;
+    }
+
+    /**
+     * The factory a state descriptor registered here uses for its own value serializer. It
+     * reproduces what {@link StateDescriptor#initializeSerializerUnlessSet(ExecutionConfig)}
+     * builds, and arms schema evolution on top of it only when this backend migrates restored
+     * values at the object level.
+     */
+    private SerializerFactory stateValueSerializerFactory() {
+        SerializerFactory factory =
+                new SerializerFactory() {
+                    @Override
+                    public <T> TypeSerializer<T> createSerializer(
+                            TypeInformation<T> typeInformation) {
+                        return typeInformation.createSerializer(
+                                executionConfig == null
+                                        ? null
+                                        : executionConfig.getSerializerConfig());
+                    }
+                };
+        return supportsObjectLevelValueMigration()
+                ? StateSchemaEvolvingSerializer.arming(factory)
+                : factory;
+    }
+
+    /**
+     * A descriptor keeps the serializer it was first initialized with, so one already used on a
+     * backend that migrates restored values may carry a serializer armed for schema evolution. This
+     * backend does not support state schema evolution, so accepting it would let a changed schema
+     * pass the compatibility check while the restored values keep their old layout.
+     */
+    private void checkNotArmedForSchemaEvolution(StateDescriptor<?, ?> stateDescriptor)
+            throws StateMigrationException {
+        if (StateSchemaEvolvingSerializer.isArmed(stateDescriptor.getSerializer())) {
+            throw new StateMigrationException(
+                    "State descriptor '"
+                            + stateDescriptor.getName()
+                            + "' was already used for keyed state with state schema evolution"
+                            + " enabled and cannot be used on this keyed state backend ("
+                            + getBackendTypeIdentifier()
+                            + "), which does not support state schema evolution. Use a separate"
+                            + " descriptor instance.");
+        }
     }
 
     public void publishQueryableStateIfEnabled(

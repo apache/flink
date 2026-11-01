@@ -20,10 +20,14 @@ package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
@@ -34,14 +38,17 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.util.StateMigrationException;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ProcTimeRangeBoundedPrecedingFunction}. */
 class ProcTimeUnboundedPrecedingFunctionTest {
@@ -108,6 +115,47 @@ class ProcTimeUnboundedPrecedingFunctionTest {
         // the result of `sum` restart
         expectedOutput.add(insertRecord("key", 1L, 1L));
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
+    void accumulatorInsertionIsRejectedWithSchemaEvolutionEnabled() throws Exception {
+        OperatorSubtaskState snapshot;
+        try (OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createSchemaEvolvingRocksDBHarness(accTypes)) {
+            testHarness.open();
+            testHarness.processElement(insertRecord("key", 1L));
+            snapshot = testHarness.snapshot(0L, 0L);
+        }
+
+        // A second aggregate call of the same type inserted before the existing one. The positional
+        // accumulator names would read it as appended, leaving the stored sum in the slot that now
+        // belongs to the inserted call.
+        try (OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createSchemaEvolvingRocksDBHarness(
+                        new LogicalType[] {new BigIntType(), new BigIntType()})) {
+            testHarness.initializeState(snapshot);
+
+            assertThatThrownBy(testHarness::open)
+                    .satisfies(
+                            anyCauseMatches(
+                                    StateMigrationException.class, "must not be incompatible"));
+        }
+    }
+
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createSchemaEvolvingRocksDBHarness(
+            LogicalType[] accTypes) throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(
+                        new KeyedProcessOperator<>(
+                                new ProcTimeUnboundedPrecedingFunction<>(
+                                        StateConfigUtil.createTtlConfig(0),
+                                        aggsHandleFunction,
+                                        accTypes)));
+        testHarness.setStateBackend(new EmbeddedRocksDBStateBackend());
+        Configuration configuration = new Configuration();
+        configuration.set(ExecutionConfigOptions.TABLE_EXEC_STATE_SCHEMA_EVOLUTION_ENABLED, true);
+        testHarness.getExecutionConfig().configure(configuration, getClass().getClassLoader());
+        return testHarness;
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
