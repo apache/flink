@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -60,11 +62,18 @@ public class SinkUpsertMaterializerV2 extends TableStreamOperator<RowData>
 
     private static final Logger LOG = LoggerFactory.getLogger(SinkUpsertMaterializerV2.class);
 
+    /** Counter: retractions that don't match any accumulated row. */
+    @VisibleForTesting
+    static final String NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME =
+            "numUnmatchedBuildRetractions";
+
     private final SequencedMultiSetStateContext stateParameters;
 
     // Buffer of emitted insertions on which deletions will be applied first.
     // The row kind might be +I or +U and will be ignored when applying the deletion.
     private transient TimestampedCollector<RowData> collector;
+
+    private transient Counter numUnmatchedBuildRetractions;
 
     private transient SequencedMultiSetState<RowData> orderedMultiSetState;
     private final boolean hasUpsertKey;
@@ -84,6 +93,10 @@ public class SinkUpsertMaterializerV2 extends TableStreamOperator<RowData>
                         getRuntimeContext(),
                         getKeyedStateStore().getBackendTypeIdentifier());
         collector = new TimestampedCollector<>(output);
+        numUnmatchedBuildRetractions =
+                getRuntimeContext()
+                        .getMetricGroup()
+                        .counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
         LOG.info("Opened {} with upsert key: {}", this.getClass().getSimpleName(), hasUpsertKey);
     }
 
@@ -111,6 +124,7 @@ public class SinkUpsertMaterializerV2 extends TableStreamOperator<RowData>
                         // do nothing;
                         break;
                     case REMOVAL_NOT_FOUND:
+                        numUnmatchedBuildRetractions.inc();
                         LOG.warn("Not found record to retract"); // not logging the record due for
                         // security
                         break;
@@ -140,6 +154,11 @@ public class SinkUpsertMaterializerV2 extends TableStreamOperator<RowData>
         row.setRowKind(withKind);
         collector.collect(row);
         row.setRowKind(orig);
+    }
+
+    @VisibleForTesting
+    Counter getNumUnmatchedBuildRetractions() {
+        return numUnmatchedBuildRetractions;
     }
 
     public static SinkUpsertMaterializerV2 create(
