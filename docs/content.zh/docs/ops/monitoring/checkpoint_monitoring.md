@@ -31,7 +31,7 @@ under the License.
 
 ## 概览（Overview）
 
-Flink 的 Web 界面提供了`选项卡/标签（tab）`来监视作业的 checkpoint 信息。作业终止后，这些统计信息仍然可用。有四个不同的选项卡可显示有关 checkpoint 的信息：概览（Overview），历史记录（History），摘要信息（Summary）和配置信息（Configuration）。以下各节将依次介绍这些内容。
+Flink 的 Web 界面提供了`选项卡/标签（tab）`来监视作业的 checkpoint 信息。作业终止后，这些统计信息仍然可用。有五个不同的选项卡可显示有关 checkpoint 的信息：概览（Overview），时间线（Timeline），历史记录（History），摘要信息（Summary）和配置信息（Configuration）。以下各节将依次介绍这些内容。
 
 <a name="monitoring"></a>
 
@@ -55,6 +55,20 @@ Flink 的 Web 界面提供了`选项卡/标签（tab）`来监视作业的 check
 - **Latest Restore**：有两种类型的恢复操作。
 	- Restore from Checkpoint：从 checkpoint 恢复。
 	- Restore from Savepoint：从 savepoint 恢复。
+
+<a name="timeline-tab"></a>
+
+### Timeline Tab
+
+The timeline tab shows where the time of a checkpoint went, subtask by subtask.
+
+- **Recent Checkpoints**: One bar per checkpoint in the [history](#history-size-configuration), colored by status (completed, savepoint, in progress, failed). The bar height is the end to end duration. Hover over a bar for its status, duration and acknowledged subtasks.
+- **Per-subtask timeline**: One row per subtask, in operator then subtask order, plotted against wall-clock time from the moment the checkpoint was triggered. Each row stacks the subtask's phases: start delay, alignment, sync and async (see [History Tab](#history-tab) for what they mean). For unaligned checkpoints the alignment is part of the async phase, so it is not drawn separately. Hover over a bar for the full operator name, the phase durations and the state sizes.
+	- Subtasks that started their snapshot but did not finish it before the checkpoint failed are outlined as *aborted*.
+	- Subtasks that reported no statistics get a hatched bar spanning the checkpoint: *pending* while the checkpoint is in progress, *no ack* once it has failed.
+	- Subtasks whose phases all took 0 ms, for example tasks that have already finished, are marked with a thin line at the trigger time.
+
+By default the per-subtask timeline follows the newest checkpoint. Click a bar in *Recent Checkpoints* to pin that checkpoint instead, and click it again or click *Follow newest* to resume following. While the tab is open, it refreshes on its own at the checkpoint interval, bounded between 1.5 and 15 seconds.
 
 <a name="history-tab"></a>
 
