@@ -109,7 +109,7 @@ jobs:
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         with:
           working_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-          maven-parameters: "-T 1C test-compile -Dflink.markBundledAsOptional=false -Dfast"
+          maven-parameters: "-T 1C test-compile -Dflink.markBundledAsOptional=false -Dfast -Dmaven.source.skip=true"
           env: "${{ inputs.environment }}"
 
       - name: "Collect build artifacts"

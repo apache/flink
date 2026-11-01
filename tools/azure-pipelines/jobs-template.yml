@@ -78,7 +78,7 @@ jobs:
   # Compile
   # Fast multi-threaded build that only produces the test artifact; all QA (structural + convergence + license) runs single-threaded in the license_check job (MVN_LICENSE_CHECK_ARGS="" disables it here).
   - script: |
-      MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} ./tools/ci/compile_ci.sh -Dfast || exit $?
+      MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} ./tools/ci/compile_ci.sh -Dfast -Dmaven.source.skip=true || exit $?
       ./tools/ci/create_build_artifact.sh
     displayName: Compile
 
