@@ -56,6 +56,13 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testDistinctOnCrossJoinWithIsNullFilter(): Unit = {
+    // the DISTINCT must not be pushed to B as an aggregate without grouping keys, which would
+    // return a row even if B is empty
+    util.verifyRelPlan("SELECT * FROM (SELECT DISTINCT a1, b2 FROM A, B) WHERE b2 IS NULL")
+  }
+
+  @Test
   def testInnerJoinWithEqualPk(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
