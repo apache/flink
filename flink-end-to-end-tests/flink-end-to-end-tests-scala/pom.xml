@@ -176,6 +176,10 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
+					<!-- Scala 2.11 does not support -Ybackend-parallelism -->
+					<args combine.self="override">
+						<arg>-nobootcp</arg>
+					</args>
 					<jvmArgs>
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
