@@ -30,10 +30,13 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +60,7 @@ public final class MetadataFilterPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_PREDICATE_ROW_TYPE = "predicateRowType";
 
     @JsonProperty(FIELD_NAME_PREDICATES)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final List<RexNode> predicates;
 
     /**
@@ -68,9 +72,9 @@ public final class MetadataFilterPushDownSpec extends SourceAbilitySpecBase {
 
     @JsonCreator
     public MetadataFilterPushDownSpec(
-            @JsonProperty(FIELD_NAME_PREDICATES) List<RexNode> predicates,
+            @Nullable @JsonProperty(FIELD_NAME_PREDICATES) List<RexNode> predicates,
             @JsonProperty(FIELD_NAME_PREDICATE_ROW_TYPE) RowType predicateRowType) {
-        this.predicates = new ArrayList<>(checkNotNull(predicates));
+        this.predicates = predicates == null ? List.of() : new ArrayList<>(predicates);
         this.predicateRowType = checkNotNull(predicateRowType);
     }
 
