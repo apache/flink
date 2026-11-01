@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -55,6 +56,9 @@ public class RowTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Row
     /** The next watermark to be emitted. */
     private transient long nextWatermark;
 
+    /** The last watermark emitted downstream. */
+    private transient long lastEmittedWatermark;
+
     public RowTimeMiniBatchAssignerOperator(long minibatchInterval) {
         this.minibatchInterval = minibatchInterval;
     }
@@ -64,6 +68,7 @@ public class RowTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Row
         super.open();
 
         currentWatermark = 0;
+        lastEmittedWatermark = currentWatermark;
         nextWatermark =
                 getMiniBatchStart(currentWatermark, minibatchInterval) + minibatchInterval - 1;
     }
@@ -80,6 +85,7 @@ public class RowTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Row
         // to signal the end of input and to not block watermark progress downstream
         if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
             currentWatermark = Long.MAX_VALUE;
+            lastEmittedWatermark = Long.MAX_VALUE;
             output.emitWatermark(mark);
             return;
         }
@@ -90,8 +96,19 @@ public class RowTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Row
         }
     }
 
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        // Emit the buffered watermark before going idle, like on finish(). Otherwise it is held
+        // back for as long as the input stays idle and downstream event time does not reach it.
+        if (watermarkStatus.isIdle() && currentWatermark > lastEmittedWatermark) {
+            advanceWatermark();
+        }
+        super.processWatermarkStatus(watermarkStatus);
+    }
+
     private void advanceWatermark() {
         output.emitWatermark(new Watermark(currentWatermark));
+        lastEmittedWatermark = currentWatermark;
         long start = getMiniBatchStart(currentWatermark, minibatchInterval);
         long end = start + minibatchInterval - 1;
         nextWatermark = end > currentWatermark ? end : end + minibatchInterval;
