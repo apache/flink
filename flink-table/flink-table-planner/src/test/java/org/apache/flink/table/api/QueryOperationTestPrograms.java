@@ -812,6 +812,34 @@ public class QueryOperationTestPrograms {
                                     + "    LATERAL TABLE(`default_catalog`.`default_database`.`udtf`(`b`)) $$T_LAT(`f0`) ON TRUE")
                     .build();
 
+    static final TableTestProgram UNION_QUERY_OPERATION =
+            TableTestProgram.of("union-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(2L, "cde"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
+                                    .build())
+                    .runTableApi(t -> t.from("s").union(t.from("t")), "sink")
+                    .runSql(
+                            "SELECT `a`, `b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + ") UNION (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ")")
+                    .build();
+
     static final TableTestProgram UNION_ALL_QUERY_OPERATION =
             TableTestProgram.of("union-all-query-operation", "verifies sql serialization")
                     .setupTableSource(
@@ -835,6 +863,118 @@ public class QueryOperationTestPrograms {
                                     + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
                                     + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
                                     + ") UNION ALL (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ")")
+                    .build();
+
+    static final TableTestProgram INTERSECT_QUERY_OPERATION =
+            TableTestProgram.of("intersect-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(2L, "cde"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(new Row[0])
+                                    .build())
+                    .runTableApi(t -> t.from("s").intersect(t.from("t")), "sink")
+                    .runSql(
+                            "SELECT `a`, `b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + ") INTERSECT (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ")")
+                    .build();
+
+    static final TableTestProgram INTERSECT_ALL_QUERY_OPERATION =
+            TableTestProgram.of("intersect-all-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(2L, "cde"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(new Row[0])
+                                    .build())
+                    .runTableApi(t -> t.from("s").intersectAll(t.from("t")), "sink")
+                    .runSql(
+                            "SELECT `a`, `b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + ") INTERSECT ALL (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ")")
+                    .build();
+
+    static final TableTestProgram MINUS_QUERY_OPERATION =
+            TableTestProgram.of("minus-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(2L, "cde"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .runTableApi(t -> t.from("s").minus(t.from("t")), "sink")
+                    .runSql(
+                            "SELECT `a`, `b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + ") EXCEPT (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ")")
+                    .build();
+
+    static final TableTestProgram MINUS_ALL_QUERY_OPERATION =
+            TableTestProgram.of("minus-all-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(2L, "cde"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(Row.of(1L, "abc"))
+                                    .build())
+                    .runTableApi(t -> t.from("s").minusAll(t.from("t")), "sink")
+                    .runSql(
+                            "SELECT `a`, `b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + ") EXCEPT ALL (\n"
                                     + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
                                     + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
                                     + ")")
