@@ -34,9 +34,15 @@ public class SerializedThrowableSerializer extends StdSerializer<SerializedThrow
 
     static final String FIELD_NAME_CLASS = "class";
 
+    static final String FIELD_NAME_MESSAGE = "message";
+
     static final String FIELD_NAME_STACK_TRACE = "stack-trace";
 
     public static final String FIELD_NAME_SERIALIZED_THROWABLE = "serialized-throwable";
+
+    static final String FIELD_NAME_CAUSE = "cause";
+
+    static final String FIELD_NAME_SUPPRESSED = "suppressed";
 
     public SerializedThrowableSerializer() {
         super(SerializedThrowable.class);
@@ -48,11 +54,50 @@ public class SerializedThrowableSerializer extends StdSerializer<SerializedThrow
             final JsonGenerator gen,
             final SerializerProvider provider)
             throws IOException {
+        writeThrowable(value, gen);
+    }
+
+    /**
+     * Writes a {@link SerializedThrowable} - and, recursively, its cause and suppressed exceptions
+     * - using only fields that are safe to reconstruct without deserializing {@code
+     * serialized-throwable} (see {@link SerializedThrowableDeserializer}). The binary blob is still
+     * included for backward compatibility with old readers.
+     */
+    private static void writeThrowable(final SerializedThrowable value, final JsonGenerator gen)
+            throws IOException {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_CLASS, value.getOriginalErrorClassName());
+        if (value.getMessage() != null) {
+            gen.writeStringField(FIELD_NAME_MESSAGE, value.getMessage());
+        }
         gen.writeStringField(FIELD_NAME_STACK_TRACE, value.getFullStringifiedStackTrace());
+        // Kept for backward compatibility with old readers: serializes the whole wrapper (not
+        // just value.getSerializedException()), matching InstantiationUtil.deserializeObject()'s
+        // old contract of returning a fully-populated SerializedThrowable.
         gen.writeBinaryField(
                 FIELD_NAME_SERIALIZED_THROWABLE, InstantiationUtil.serializeObject(value));
+
+        final Throwable cause = value.getCause();
+        if (cause != null) {
+            gen.writeFieldName(FIELD_NAME_CAUSE);
+            writeThrowable(asSerializedThrowable(cause), gen);
+        }
+
+        final Throwable[] suppressed = value.getSuppressed();
+        if (suppressed.length > 0) {
+            gen.writeArrayFieldStart(FIELD_NAME_SUPPRESSED);
+            for (Throwable s : suppressed) {
+                writeThrowable(asSerializedThrowable(s), gen);
+            }
+            gen.writeEndArray();
+        }
+
         gen.writeEndObject();
+    }
+
+    private static SerializedThrowable asSerializedThrowable(Throwable t) {
+        return t instanceof SerializedThrowable
+                ? (SerializedThrowable) t
+                : new SerializedThrowable(t);
     }
 }
