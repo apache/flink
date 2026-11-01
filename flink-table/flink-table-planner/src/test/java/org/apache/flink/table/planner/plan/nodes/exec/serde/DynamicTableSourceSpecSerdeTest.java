@@ -89,6 +89,7 @@ import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 import static org.apache.flink.table.factories.TestDynamicTableFactory.PASSWORD;
 import static org.apache.flink.table.factories.TestDynamicTableFactory.TARGET;
 import static org.apache.flink.table.factories.TestFormatFactory.DELIMITER;
+import static org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec.FIELD_NAME_PREDICATES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
@@ -399,6 +400,23 @@ public class DynamicTableSourceSpecSerdeTest {
                 json.replaceFirst(
                         "\\{", "{\"" + MetadataFilterPushDownSpec.FIELD_NAME_PREDICATES + "\":[],");
         assertThat(toObject(serdeCtx, jsonWithEmpty, SourceAbilitySpec.class)).isEqualTo(expected);
+    }
+
+    @Test
+    void testFilterPushDownSpecWithEmptyPredicates() throws IOException {
+        SerdeContext serdeCtx = configuredSerdeContext();
+        FilterPushDownSpec expected = new FilterPushDownSpec(Collections.emptyList());
+
+        String json = toJson(serdeCtx, expected);
+        assertThat(json).doesNotContain(FIELD_NAME_PREDICATES);
+        assertThat(toObject(serdeCtx, json, SourceAbilitySpec.class)).isEqualTo(expected);
+
+        assertThat(
+                        toObject(
+                                serdeCtx,
+                                "{\"type\":\"FilterPushDown\",\"predicates\":[]}",
+                                SourceAbilitySpec.class))
+                .isEqualTo(expected);
     }
 
     @Test

@@ -8,8 +8,7 @@
         "identifier" : "`default_catalog`.`default_database`.`upsert_src3`"
       },
       "abilities" : [ {
-        "type" : "FilterPushDown",
-        "predicates" : [ ]
+        "type" : "FilterPushDown"
       } ]
     },
     "outputType" : "ROW<`a` INT NOT NULL, `b` BIGINT, `c` VARCHAR(2147483647)>",
