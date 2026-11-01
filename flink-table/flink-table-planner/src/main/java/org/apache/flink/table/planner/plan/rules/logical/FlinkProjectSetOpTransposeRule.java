@@ -19,33 +19,33 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.calcite.rel.logical.LogicalUnion;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.SetOp;
+import org.apache.calcite.rel.core.Union;
 import org.apache.calcite.rel.rules.ProjectSetOpTransposeRule;
 
 /**
- * Extends calcite's ProjectSetOpTransposeRule, modification: only matches {@link LogicalUnion}.
+ * Extends calcite's ProjectSetOpTransposeRule, modification: only pushes a projection into the
+ * inputs of EXCEPT ALL and INTERSECT ALL if it is a permutation of all input fields.
  *
- * <p>Calcite's rule matches any set operation and only skips distinct ones. Pushing a projection
- * into the inputs of EXCEPT ALL or INTERSECT ALL changes the result, because rows are matched on
- * all of their fields: dropping a field the projection doesn't need can make rows match that
- * differed before.
+ * <p>EXCEPT ALL and INTERSECT ALL match rows on all of their fields. Pushing a projection that
+ * drops or rewrites a field into both inputs can make rows match that differed before, e.g. a
+ * constant derived from the left input would replace the values of the right input. Stop overriding
+ * once CALCITE-7909 is fixed.
  */
 public class FlinkProjectSetOpTransposeRule extends ProjectSetOpTransposeRule {
 
-    public static final RelOptRule INSTANCE =
-            new FlinkProjectSetOpTransposeRule(
-                    Config.DEFAULT
-                            .withOperandSupplier(
-                                    b0 ->
-                                            b0.operand(LogicalProject.class)
-                                                    .oneInput(
-                                                            b1 ->
-                                                                    b1.operand(LogicalUnion.class)
-                                                                            .anyInputs()))
-                            .as(Config.class));
+    public static final RelOptRule INSTANCE = new FlinkProjectSetOpTransposeRule(Config.DEFAULT);
 
     protected FlinkProjectSetOpTransposeRule(Config config) {
         super(config);
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        final Project project = call.rel(0);
+        final SetOp setOp = call.rel(1);
+        return setOp instanceof Union || project.getPermutation() != null;
     }
 }
