@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.plan.stream.sql;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -97,17 +99,16 @@ public class ExplainTest extends TableTestBase {
 
     @Test
     void testExplainAlterMaterializedTable() {
-        util.getTableEnv()
-                .executeSql(
-                        "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
-                                + " WITH (\n"
-                                + "   'connector' = 'values'\n"
-                                + ") AS\n"
-                                + "  SELECT\n"
-                                + "    `a`,\n"
-                                + "    `b`\n"
-                                + "  FROM\n"
-                                + "    MyTable");
+        createMaterializedTableInCatalogOnly(
+                "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable");
         verifyExplain(
                 "ALTER MATERIALIZED TABLE MyMTTable\n"
                         + "AS\n"
@@ -121,17 +122,16 @@ public class ExplainTest extends TableTestBase {
 
     @Test
     void testExplainFullAlterMaterializedTable() {
-        util.getTableEnv()
-                .executeSql(
-                        "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
-                                + " WITH (\n"
-                                + "   'connector' = 'values'\n"
-                                + ") AS\n"
-                                + "  SELECT\n"
-                                + "    `a`,\n"
-                                + "    `b`\n"
-                                + "  FROM\n"
-                                + "    MyTable");
+        createMaterializedTableInCatalogOnly(
+                "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable");
         verifyExplain(
                 "CREATE OR ALTER MATERIALIZED TABLE MyMTTable(\n"
                         + " `b`,\n"
@@ -248,6 +248,18 @@ public class ExplainTest extends TableTestBase {
                         + "  FROM\n"
                         + "    MyTable",
                 "testExplainCtasWithColumnsInCreateAndQueryParts");
+    }
+
+    private void createMaterializedTableInCatalogOnly(String createStatement) {
+        TableEnvironmentInternal tableEnv = (TableEnvironmentInternal) util.getTableEnv();
+        CreateMaterializedTableOperation operation =
+                (CreateMaterializedTableOperation)
+                        tableEnv.getParser().parse(createStatement).get(0);
+        tableEnv.getCatalogManager()
+                .createTable(
+                        operation.getCatalogMaterializedTable(),
+                        operation.getTableIdentifier(),
+                        false);
     }
 
     private void verifyExplain(final String statement) {

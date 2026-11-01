@@ -27,6 +27,7 @@ import org.apache.flink.core.classloading.SubmoduleClassLoader;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableExecutorFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
@@ -167,6 +168,13 @@ public class PlannerModule {
     public PlannerFactory loadPlannerFactory() {
         return FactoryUtil.discoverFactory(
                 this.submoduleClassLoader, PlannerFactory.class, PlannerFactory.DEFAULT_IDENTIFIER);
+    }
+
+    public MaterializedTableExecutorFactory loadMaterializedTableExecutorFactory() {
+        return FactoryUtil.discoverFactory(
+                this.submoduleClassLoader,
+                MaterializedTableExecutorFactory.class,
+                MaterializedTableExecutorFactory.DEFAULT_IDENTIFIER);
     }
 
     /**

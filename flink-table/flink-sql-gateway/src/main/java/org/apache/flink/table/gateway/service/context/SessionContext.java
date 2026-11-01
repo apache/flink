@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.PlanCacheManager;
 import org.apache.flink.table.catalog.Catalog;
@@ -31,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogStoreHolder;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableExecutorFactory;
 import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -39,7 +41,7 @@ import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
-import org.apache.flink.table.gateway.service.materializedtable.MaterializedTableManager;
+import org.apache.flink.table.gateway.service.materializedtable.MaterializedTableContext;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
@@ -241,7 +243,7 @@ public class SessionContext {
 
     public void open() {
         try {
-            sessionState.materializedTableManager.open();
+            sessionState.materializedTableContext.open();
         } catch (Exception e) {
             LOG.error(
                     String.format(
@@ -281,7 +283,7 @@ public class SessionContext {
                     e);
         }
         try {
-            sessionState.materializedTableManager.close();
+            sessionState.materializedTableContext.close();
         } catch (Exception e) {
             LOG.error(
                     String.format(
@@ -353,14 +355,18 @@ public class SessionContext {
 
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
-        final MaterializedTableManager materializedTableManager =
-                new MaterializedTableManager(configuration, resourceManager.getUserClassLoader());
+        final MaterializedTableContext materializedTableContext =
+                new MaterializedTableContext(configuration, resourceManager.getUserClassLoader());
+        final MaterializedTableExecutorFactory materializedTableExecutorFactory =
+                AbstractStreamTableEnvironmentImpl.lookupMaterializedTableExecutorFactory(
+                        resourceManager.getUserClassLoader());
         return new SessionState(
                 catalogManager,
                 moduleManager,
                 resourceManager,
                 functionCatalog,
-                materializedTableManager);
+                materializedTableContext,
+                materializedTableExecutorFactory);
     }
 
     private static ModuleManager buildModuleManager(
@@ -481,19 +487,22 @@ public class SessionContext {
         public final ResourceManager resourceManager;
         public final FunctionCatalog functionCatalog;
         public final ModuleManager moduleManager;
-        public final MaterializedTableManager materializedTableManager;
+        public final MaterializedTableContext materializedTableContext;
+        public final MaterializedTableExecutorFactory materializedTableExecutorFactory;
 
         public SessionState(
                 CatalogManager catalogManager,
                 ModuleManager moduleManager,
                 ResourceManager resourceManager,
                 FunctionCatalog functionCatalog,
-                MaterializedTableManager materializedTableManager) {
+                MaterializedTableContext materializedTableContext,
+                MaterializedTableExecutorFactory materializedTableExecutorFactory) {
             this.catalogManager = catalogManager;
             this.moduleManager = moduleManager;
             this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
-            this.materializedTableManager = materializedTableManager;
+            this.materializedTableContext = materializedTableContext;
+            this.materializedTableExecutorFactory = materializedTableExecutorFactory;
         }
     }
 }

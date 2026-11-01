@@ -19,6 +19,7 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.ClusterClientFactory;
@@ -27,8 +28,10 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobRetrievalSupportedPipelineExecutor;
 import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -36,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -63,7 +67,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class AbstractSessionClusterExecutor<
                 ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>>
-        implements CacheSupportedPipelineExecutor {
+        implements CacheSupportedPipelineExecutor, JobRetrievalSupportedPipelineExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSessionClusterExecutor.class);
     private final ExecutorService executorService =
             Executors.newFixedThreadPool(
@@ -132,6 +136,28 @@ public class AbstractSessionClusterExecutor<
                                 }
                                 clusterClient.close();
                             });
+        }
+    }
+
+    @Override
+    public CompletableFuture<JobClient> retrieveJobClient(
+            JobID jobId, Configuration configuration, ClassLoader userCodeClassloader) {
+        try {
+            final ClusterID clusterId = clusterClientFactory.getClusterId(configuration);
+            checkState(
+                    clusterId != null,
+                    "No cluster id is configured for execution target '%s'.",
+                    configuration.get(DeploymentOptions.TARGET));
+
+            try (ClusterDescriptor<ClusterID> clusterDescriptor =
+                    clusterClientFactory.createClusterDescriptor(
+                            new Configuration(configuration))) {
+                return CompletableFuture.completedFuture(
+                        new ClusterClientJobClientAdapter<>(
+                                clusterDescriptor.retrieve(clusterId), jobId, userCodeClassloader));
+            }
+        } catch (Exception e) {
+            return FutureUtils.completedExceptionally(e);
         }
     }
 
