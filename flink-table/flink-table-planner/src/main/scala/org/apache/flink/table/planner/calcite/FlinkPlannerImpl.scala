@@ -23,10 +23,11 @@ import org.apache.flink.sql.parser.dml._
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
@@ -39,7 +40,7 @@ import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.sql.{SqlBasicCall, SqlCall, SqlHint, SqlKind, SqlNode, SqlNodeList, SqlOperatorTable, SqlSelect, SqlTableRef}
 import org.apache.calcite.sql.advise.SqlAdvisorValidator
 import org.apache.calcite.sql.util.SqlShuttle
-import org.apache.calcite.sql.validate.SqlValidator
+import org.apache.calcite.sql.validate.{SqlConformance, SqlDelegatingConformance, SqlValidator}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
@@ -106,12 +107,30 @@ class FlinkPlannerImpl(
         .withIdentifierExpansion(true)
         .withDefaultNullCollation(FlinkPlannerImpl.defaultNullCollation)
         .withTypeCoercionEnabled(false)
-        .withConformance(FlinkSqlConformance.DEFAULT),
+        .withConformance(conformance()),
       createToRelContext(),
       cluster,
       config
     ) // Disable implicit type coercion for now.
     validator
+  }
+
+  /**
+   * The conformance the validator runs under. Options that change how SQL is interpreted are read
+   * here, so that the validator is handed a conformance rather than consulting the table config
+   * itself.
+   */
+  private def conformance(): SqlConformance = {
+    val tableConfig = ShortcutUtils.unwrapTableConfig(cluster)
+    if (tableConfig.get(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED)) {
+      // Calcite reads an integer literal in GROUP BY as a position in the SELECT list when the
+      // conformance says so; without this it is a constant, which is Flink's historical behavior.
+      new SqlDelegatingConformance(FlinkSqlConformance.DEFAULT) {
+        override def isGroupByOrdinal: Boolean = true
+      }
+    } else {
+      FlinkSqlConformance.DEFAULT
+    }
   }
 
   def validate(sqlNode: SqlNode): SqlNode = {
