@@ -130,9 +130,6 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("rightStateRetentionTime=1000")
     @TestTemplate
     void testInnerJoinWithDifferentStateRetentionTime() throws Exception {
-        // async state op is not supported to set ttl yet
-        assumeFalse(enableAsyncState);
-
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -288,9 +285,6 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("rightStateRetentionTime=4000")
     @TestTemplate
     void testInnerJoinWithSameStateRetentionTime() throws Exception {
-        // async state op is not supported to set ttl yet
-        assumeFalse(enableAsyncState);
-
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -360,9 +354,6 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("rightStateRetentionTime=1000")
     @TestTemplate
     void testLeftOuterJoinWithDifferentStateRetentionTime() throws Exception {
-        // async state op is not supported to set ttl yet
-        assumeFalse(enableAsyncState);
-
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -605,9 +596,6 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("rightStateRetentionTime=1000")
     @TestTemplate
     void testRightOuterJoinWithDifferentStateRetentionTime() throws Exception {
-        // async state op is not supported to set ttl yet
-        assumeFalse(enableAsyncState);
-
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
