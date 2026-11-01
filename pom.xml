@@ -2349,6 +2349,8 @@ under the License.
 					<configuration>
 						<args>
 							<arg>-nobootcp</arg>
+							<arg>-Ybackend-parallelism</arg>
+							<arg>8</arg>
 						</args>
 						<jvmArgs>
 							<arg>-Xss2m</arg>
