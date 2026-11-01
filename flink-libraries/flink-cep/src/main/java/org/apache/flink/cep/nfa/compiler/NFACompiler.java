@@ -37,11 +37,14 @@ import org.apache.flink.cep.pattern.conditions.RichNotCondition;
 
 import java.io.Serializable;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +80,7 @@ public class NFACompiler {
                     0,
                     Collections.<String, Long>emptyMap(),
                     Collections.<State<T>>emptyList(),
+                    Collections.<String, String>emptyMap(),
                     timeoutHandling);
         } else {
             final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
@@ -85,6 +89,7 @@ public class NFACompiler {
                     nfaFactoryCompiler.getWindowTime(),
                     nfaFactoryCompiler.getWindowTimes(),
                     nfaFactoryCompiler.getStates(),
+                    nfaFactoryCompiler.getTimeoutClosingTargets(),
                     timeoutHandling);
         }
     }
@@ -144,6 +149,30 @@ public class NFACompiler {
         private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
         private final Map<String, State<T>> stopStates = new HashMap<>();
         private final List<State<T>> states = new ArrayList<>();
+
+        /**
+         * PROCEED edges that mean "this stage may end here": the exit of a looping or optional
+         * stage. Time passing with no further event takes them. Identity, because {@link
+         * StateTransition#equals} compares by value.
+         */
+        private final Set<StateTransition<T>> timeoutClosableProceeds =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+
+        /**
+         * The edges of each Pending state that a greedy stage guards, as they were before the
+         * guard, by the Pending state's name, in the order the guards were applied.
+         */
+        private final Map<String, List<StateTransition<T>>> edgesBeforeGreedyGuard =
+                new LinkedHashMap<>();
+
+        /**
+         * The name of the greedy stage that guards each Pending state, by the Pending state's name.
+         */
+        private final Map<String, String> guardingStages = new HashMap<>();
+
+        /** The name of each Pending state that a greedy stage guards to the name of its twin. */
+        private final Map<String, String> unguardedTwins = new HashMap<>();
+
         private final Map<String, Long> windowTimes = new HashMap<>();
 
         private Optional<Long> windowTime;
@@ -179,6 +208,8 @@ public class NFACompiler {
             sinkState = createMiddleStates(sinkState);
             // add the beginning state
             createStartState(sinkState);
+            // add the unguarded twins of the guarded Pending states, after every other state
+            createUnguardedTwins();
 
             // check the window times between events for pattern
             checkPatternWindowTimes();
@@ -207,6 +238,146 @@ public class NFACompiler {
 
         Map<String, Long> getWindowTimes() {
             return windowTimes;
+        }
+
+        /**
+         * For every state from which a Pending state (a trailing notFollowedBy) is reachable
+         * through edges that mean "this stage may end here", the name of the Pending state that a
+         * partial match moves into when it times out in that state.
+         *
+         * <p>When a greedy stage guards that Pending state, a partial match of the greedy stage
+         * itself moves into the unguarded twin instead, see {@link #keepEdgesBeforeGreedyGuard}. A
+         * partial match of an earlier stage moves into the guarded Pending state, as it would if an
+         * event had moved it there: time closed its own stage and went past the greedy stage, which
+         * took no event for it and still could. There it is released if no event arrives before the
+         * end of the window, and dropped by the first event the greedy stage could take. Time then
+         * misses the match that the greedy stage would have extended, but does not emit a shorter
+         * one in its place.
+         */
+        Map<String, String> getTimeoutClosingTargets() {
+            Map<String, String> targets = new HashMap<>();
+            for (State<T> state : states) {
+                if (state.isPending() || state.isStop() || state.isFinal()) {
+                    continue;
+                }
+                State<T> pending = pendingReachableByTimeout(state);
+                if (pending == null) {
+                    continue;
+                }
+                String target = pending.getName();
+                String twin = unguardedTwins.get(target);
+                String stage = NFAStateNameHandler.getOriginalNameFromInternal(state.getName());
+                if (twin != null && stage.equals(guardingStages.get(target))) {
+                    target = twin;
+                }
+                targets.put(state.getName(), target);
+            }
+            return targets;
+        }
+
+        private State<T> pendingReachableByTimeout(State<T> from) {
+            Set<State<T>> visitedStates = Collections.newSetFromMap(new IdentityHashMap<>());
+            ArrayDeque<State<T>> statesToCheck = new ArrayDeque<>();
+            statesToCheck.add(from);
+            visitedStates.add(from);
+            while (!statesToCheck.isEmpty()) {
+                State<T> state = statesToCheck.poll();
+                for (StateTransition<T> transition : state.getStateTransitions()) {
+                    if (transition.getAction() != StateTransitionAction.PROCEED
+                            || !timeoutClosableProceeds.contains(transition)) {
+                        continue;
+                    }
+                    State<T> target = transition.getTargetState();
+                    if (target.isPending()) {
+                        return target;
+                    }
+                    if (visitedStates.add(target)) {
+                        statesToCheck.add(target);
+                    }
+                }
+            }
+            return null;
+        }
+
+        private void addTimeoutClosableProceed(
+                State<T> from, State<T> to, IterativeCondition<T> condition) {
+            from.addProceed(to, condition);
+            timeoutClosableProceeds.add(lastTransition(from));
+        }
+
+        private void markIfClosable(StateTransition<T> original, State<T> copyOfSource) {
+            if (timeoutClosableProceeds.contains(original)) {
+                timeoutClosableProceeds.add(lastTransition(copyOfSource));
+            }
+        }
+
+        private StateTransition<T> lastTransition(State<T> state) {
+            StateTransition<T> last = null;
+            for (StateTransition<T> transition : state.getStateTransitions()) {
+                last = transition;
+            }
+            return last;
+        }
+
+        /**
+         * Keeps the edges of a Pending state (a trailing notFollowedBy) as they are before {@link
+         * #updateWithGreedyCondition} guards them for the greedy stage in front of it, and the name
+         * of that stage, so that {@link #createUnguardedTwins()} can give the Pending state a twin
+         * without the guard. It runs while the greedy stage is compiled. {@link Pattern#greedy()}
+         * refuses a group pattern, so the stage is a single pattern, and its states carry its name.
+         *
+         * <p>The guard makes the greedy stage take every event it can: an event the stage could
+         * take ends a partial match in the guarded Pending state, which gives way to the partial
+         * match that takes the event in the stage. A partial match of the greedy stage that time
+         * moves into the Pending state, and that waits there for the end of the window, was closed
+         * because the window between the stage's events ran out: the stage can take no further
+         * event for it, so it has nothing to give way to, and the guard would drop it, with no
+         * output, at the first event the stage could have taken. In the twin it waits for the
+         * forbidden event or for the end of the window, as it does after a stage that is not
+         * greedy. A partial match of an earlier stage that time moves past the greedy stage keeps
+         * the guard, see {@link #getTimeoutClosingTargets()}.
+         */
+        private void keepEdgesBeforeGreedyGuard(State<T> state) {
+            if (!state.isPending() || edgesBeforeGreedyGuard.containsKey(state.getName())) {
+                return;
+            }
+            List<StateTransition<T>> edges = new ArrayList<>();
+            for (StateTransition<T> transition : state.getStateTransitions()) {
+                edges.add(
+                        new StateTransition<>(
+                                state,
+                                transition.getAction(),
+                                transition.getTargetState(),
+                                transition.getCondition()));
+            }
+            edgesBeforeGreedyGuard.put(state.getName(), edges);
+            guardingStages.put(state.getName(), currentPattern.getName());
+        }
+
+        /**
+         * Creates the unguarded twin of each Pending state whose edges {@link
+         * #keepEdgesBeforeGreedyGuard} kept, with those edges and the Pending state's window. It
+         * runs after every other state is created, so that each twin takes the next free name and
+         * no other state is named differently because of it: a savepoint restores a partial match
+         * by the name of its state.
+         */
+        private void createUnguardedTwins() {
+            for (Map.Entry<String, List<StateTransition<T>>> guarded :
+                    edgesBeforeGreedyGuard.entrySet()) {
+                State<T> twin = createState(guarded.getKey(), State.StateType.Pending);
+                for (StateTransition<T> edge : guarded.getValue()) {
+                    twin.addStateTransition(
+                            edge.getAction(),
+                            edge.getTargetState() == edge.getSourceState()
+                                    ? twin
+                                    : edge.getTargetState(),
+                            edge.getCondition());
+                }
+                if (windowTimes.containsKey(guarded.getKey())) {
+                    windowTimes.put(twin.getName(), windowTimes.get(guarded.getKey()));
+                }
+                unguardedTwins.put(guarded.getKey(), twin.getName());
+            }
         }
 
         /** Check pattern window times between events. */
@@ -522,6 +693,7 @@ public class NFACompiler {
                                 tStateTransition.getAction(),
                                 targetState,
                                 tStateTransition.getCondition());
+                        markIfClosable(tStateTransition, copyOfSink);
                     }
                 } else {
                     copyOfSink.addStateTransition(
@@ -600,6 +772,7 @@ public class NFACompiler {
                     State<T> sinkStateCopy = copy(sinkState);
                     originalStateMap.put(sinkState.getName(), sinkStateCopy);
                 }
+                keepEdgesBeforeGreedyGuard(sinkState);
                 updateWithGreedyCondition(sinkState, takeCondition);
             }
 
@@ -749,7 +922,8 @@ public class NFACompiler {
                                 originalStateMap.get(proceedState.getName()),
                                 new RichAndCondition<>(proceedCondition, untilCondition));
                     }
-                    singletonState.addProceed(
+                    addTimeoutClosableProceed(
+                            singletonState,
                             proceedState,
                             untilCondition != null
                                     ? new RichAndCondition<>(
@@ -757,7 +931,7 @@ public class NFACompiler {
                                             new RichNotCondition<>(untilCondition))
                                     : proceedCondition);
                 } else {
-                    singletonState.addProceed(proceedState, proceedCondition);
+                    addTimeoutClosableProceed(singletonState, proceedState, proceedCondition);
                 }
             }
 
@@ -804,7 +978,7 @@ public class NFACompiler {
             if (isOptional) {
                 // for the first state of a group pattern, its PROCEED edge should point to
                 // the following state of that group pattern
-                lastSink.addProceed(proceedState, proceedCondition);
+                addTimeoutClosableProceed(lastSink, proceedState, proceedCondition);
             }
             currentPattern = oldCurrentPattern;
             followingPattern = oldFollowingPattern;
@@ -833,8 +1007,8 @@ public class NFACompiler {
             currentPattern = groupPattern.getRawPattern();
             lastSink = createMiddleStates(lastSink);
             lastSink = convertPattern(lastSink);
-            lastSink.addProceed(sinkState, proceedCondition);
-            dummyState.addProceed(lastSink, proceedCondition);
+            addTimeoutClosableProceed(lastSink, sinkState, proceedCondition);
+            addTimeoutClosableProceed(dummyState, lastSink, proceedCondition);
             currentPattern = oldCurrentPattern;
             followingPattern = oldFollowingPattern;
             currentGroupPattern = oldGroupPattern;
@@ -876,15 +1050,17 @@ public class NFACompiler {
                             new RichAndCondition<>(proceedCondition, untilCondition));
                     originalStateMap.put(sinkState.getName(), sinkStateCopy);
                 }
-                loopingState.addProceed(
+                addTimeoutClosableProceed(
+                        loopingState,
                         sinkState,
                         untilCondition != null
                                 ? new RichAndCondition<>(
                                         proceedCondition, new RichNotCondition<>(untilCondition))
                                 : proceedCondition);
+                keepEdgesBeforeGreedyGuard(sinkState);
                 updateWithGreedyCondition(sinkState, getTakeCondition(currentPattern));
             } else {
-                loopingState.addProceed(sinkState, proceedCondition);
+                addTimeoutClosableProceed(loopingState, sinkState, proceedCondition);
             }
             loopingState.addTake(takeCondition);
 
@@ -1067,8 +1243,9 @@ public class NFACompiler {
     /**
      * Implementation of the {@link NFAFactory} interface.
      *
-     * <p>The implementation takes the input type serializer, the window time and the set of states
-     * and their transitions to be able to create an NFA from them.
+     * <p>The implementation takes the input type serializer, the window time, the set of states and
+     * their transitions and the Pending states that time closes them into, to be able to create an
+     * NFA from them.
      *
      * @param <T> Type of the input events which are processed by the NFA
      */
@@ -1080,22 +1257,26 @@ public class NFACompiler {
         private final Map<String, Long> windowTimes;
         private final Collection<State<T>> states;
         private final boolean timeoutHandling;
+        private final Map<String, String> timeoutClosingTargets;
 
         private NFAFactoryImpl(
                 long windowTime,
                 Map<String, Long> windowTimes,
                 Collection<State<T>> states,
+                Map<String, String> timeoutClosingTargets,
                 boolean timeoutHandling) {
 
             this.windowTime = windowTime;
             this.windowTimes = windowTimes;
             this.states = states;
+            this.timeoutClosingTargets = timeoutClosingTargets;
             this.timeoutHandling = timeoutHandling;
         }
 
         @Override
         public NFA<T> createNFA() {
-            return new NFA<>(states, windowTimes, windowTime, timeoutHandling);
+            return new NFA<>(
+                    states, windowTimes, windowTime, timeoutClosingTargets, timeoutHandling);
         }
     }
 }
