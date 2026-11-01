@@ -932,7 +932,8 @@ class Table(object):
         """
         Converts the table to a pandas DataFrame. It will collect the content of the table to
         the client side and so please make sure that the content of the table could fit in memory
-        before calling this method.
+        before calling this method. Nested rows are supported, but nested TIMESTAMP_LTZ values
+        are not supported.
 
         Example:
         ::
@@ -955,7 +956,8 @@ class Table(object):
         field_types = schema.get_field_data_types()
         has_rows = batches_iterator.hasNext()
         arrow_schema = create_arrow_schema(
-            schema.get_field_names(), field_types, allow_nested=not has_rows)
+            schema.get_field_names(), field_types, allow_nested=not has_rows,
+            allow_nested_rows=True)
         timezone: Optional[tzinfo] = None
         if any(isinstance(field_type, LocalZonedTimestampType) for field_type in field_types):
             import pytz
