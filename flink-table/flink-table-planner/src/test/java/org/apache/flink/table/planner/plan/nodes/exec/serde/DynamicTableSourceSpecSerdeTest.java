@@ -46,6 +46,7 @@ import org.apache.flink.table.planner.plan.abilities.source.MetadataFilterPushDo
 import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceWatermarkSpec;
 import org.apache.flink.table.planner.plan.abilities.source.WatermarkPushDownSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
@@ -77,6 +78,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -378,6 +380,25 @@ public class DynamicTableSourceSpecSerdeTest {
                                 plannerMocks.getPlannerContext().getFlinkContext(),
                                 serdeCtx.getTypeFactory()))
                 .isNotNull();
+    }
+
+    @Test
+    void testMetadataFilterPushDownSpecWithEmptyPredicates() throws IOException {
+        SerdeContext serdeCtx = configuredSerdeContext();
+        MetadataFilterPushDownSpec expected =
+                new MetadataFilterPushDownSpec(
+                        List.of(),
+                        RowType.of(new LogicalType[] {new BigIntType()}, new String[] {"offset"}));
+
+        String json = toJson(serdeCtx, expected);
+        assertThat(json)
+                .doesNotContain("\"" + MetadataFilterPushDownSpec.FIELD_NAME_PREDICATES + "\"");
+        assertThat(toObject(serdeCtx, json, SourceAbilitySpec.class)).isEqualTo(expected);
+
+        String jsonWithEmpty =
+                json.replaceFirst(
+                        "\\{", "{\"" + MetadataFilterPushDownSpec.FIELD_NAME_PREDICATES + "\":[],");
+        assertThat(toObject(serdeCtx, jsonWithEmpty, SourceAbilitySpec.class)).isEqualTo(expected);
     }
 
     @Test
