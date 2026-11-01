@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.EmitsRecordsOnFinalCheckpoint;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
@@ -65,7 +66,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage<CommT>>
         implements OneInputStreamOperator<CommittableMessage<CommT>, CommittableMessage<CommT>>,
-                BoundedOneInput {
+                BoundedOneInput,
+                EmitsRecordsOnFinalCheckpoint {
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
@@ -149,10 +151,24 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     @Override
     public void endInput() throws Exception {
-        if (!isCheckpointingEnabled || isBatchMode) {
+        if (!hasFinalCheckpoint()) {
             // There will be no final checkpoint, all committables should be committed here
             commitAndEmitCheckpoints(Long.MAX_VALUE);
         }
+    }
+
+    @Override
+    public boolean emitsRecordsOnFinalCheckpoint() {
+        // Committables are forwarded downstream (only when emitDownstream) on the final
+        // checkpoint's
+        // notifyCheckpointComplete, after endInput; see EmitsRecordsOnFinalCheckpoint
+        // (FLINK-38614).
+        return emitDownstream && hasFinalCheckpoint();
+    }
+
+    /** Whether a final checkpoint is taken on shutdown (streaming mode with checkpointing). */
+    private boolean hasFinalCheckpoint() {
+        return isCheckpointingEnabled && !isBatchMode;
     }
 
     @Override
