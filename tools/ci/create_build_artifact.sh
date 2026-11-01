@@ -19,7 +19,19 @@
 
 echo "Copying build artifacts to directory $FLINK_ARTIFACT_DIR"
 
+# Move large dirs not needed in the artifact out of the tree before copying, then put them back
+STASH_DIRS=(.git target/site flink-runtime-web/web-dashboard/node flink-runtime-web/web-dashboard/node_modules)
+STASH=$(mktemp -d -p "$(dirname "$PWD")")
+for d in "${STASH_DIRS[@]}"; do
+  [ -e "$d" ] && mkdir -p "$STASH/$(dirname "$d")" && mv "$d" "$STASH/$d"
+done
+
 cp -r . "$FLINK_ARTIFACT_DIR"
+
+for d in "${STASH_DIRS[@]}"; do
+  [ -e "$STASH/$d" ] && mv "$STASH/$d" "$d"
+done
+rm -rf "$STASH"
 
 echo "Minimizing artifact files"
 

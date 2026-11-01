@@ -63,6 +63,14 @@ jobs:
     # do not use cache on the "Default" queue
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
+  - task: Cache@2
+    inputs:
+      key: $(PIPELINE_START_YEAR) | npm | $(Agent.OS) | flink-runtime-web/pom.xml | flink-runtime-web/web-dashboard/package-lock.json
+      restoreKeys: $(PIPELINE_START_YEAR) | npm | $(Agent.OS)
+      path: $(NPM_CONFIG_CACHE)
+    continueOnError: true
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache npm
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"

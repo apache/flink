@@ -26,6 +26,10 @@ inputs:
     description: "The location of the local Maven repository (not setting this parameter will omit the caching of Maven artifacts)."
     required: false
     default: ""
+  npm_cache_folder:
+    description: "The location of the npm cache (not setting this parameter will omit the caching of npm packages)."
+    required: false
+    default: ""
   source_directory:
     description: "Specifies the directory from which the code should be moved from (needed for containerized runs; not setting this parameter will omit moving the checkout)."
     required: false
@@ -45,6 +49,12 @@ outputs:
   maven-cache-key:
     description: "The cache key computed for the Maven package cache, for use by a caller's own explicit save step (placed after Maven has actually run)."
     value: ${{ steps.maven-cache-key.outputs.key }}
+  npm-cache-hit:
+    description: "Whether the npm cache was restored via an exact key match. Callers should only save a new cache when this is not 'true'."
+    value: ${{ steps.npm-cache-restore.outputs.cache-hit }}
+  npm-cache-key:
+    description: "The cache key computed for the npm cache, for use by a caller's own explicit save step."
+    value: ${{ steps.npm-cache-key.outputs.key }}
 runs:
   using: "composite"
   steps:
@@ -128,6 +138,22 @@ runs:
         restore-keys: |
           ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-
           ${{ runner.os }}-maven-
+
+    - name: "Compute npm cache key"
+      if: ${{ inputs.npm_cache_folder != '' }}
+      id: npm-cache-key
+      shell: bash
+      run: echo "key=${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-npm-${{ hashFiles('flink-runtime-web/pom.xml', 'flink-runtime-web/web-dashboard/package-lock.json') }}" >> "${GITHUB_OUTPUT}"
+
+    - name: "Restore npm cache"
+      if: ${{ inputs.npm_cache_folder != '' }}
+      id: npm-cache-restore
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ inputs.npm_cache_folder }}
+        key: ${{ steps.npm-cache-key.outputs.key }}
+        restore-keys: |
+          ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-npm-
 
     - name: "Moves checkout content from ${{ inputs.source_directory }} to ${{ inputs.target_directory }}."
       if: ${{ inputs.source_directory != '' && inputs.target_directory != '' }}

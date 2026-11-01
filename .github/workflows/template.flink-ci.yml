@@ -93,6 +93,7 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          npm_cache_folder: /root/.npm
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
@@ -132,6 +133,13 @@ jobs:
         with:
           path: ${{ env.MAVEN_REPO_FOLDER }}
           key: ${{ steps.job-init.outputs.maven-cache-key }}
+
+      - name: "Save npm cache"
+        if: ${{ !cancelled() && steps.job-init.outputs.npm-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: /root/.npm
+          key: ${{ steps.job-init.outputs.npm-cache-key }}
 
   packaging:
     name: "Test packaging/licensing"
