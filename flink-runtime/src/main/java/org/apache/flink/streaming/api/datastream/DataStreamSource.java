@@ -24,11 +24,14 @@ import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.util.Preconditions;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -124,6 +127,30 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
     @VisibleForTesting
     boolean isParallel() {
         return isParallel;
+    }
+
+    /**
+     * Overrides the job-wide {@link org.apache.flink.configuration.SourceOptions} for this source
+     * only.
+     *
+     * <p>This only takes effect for the connector if its {@code SourceReader} was built with a
+     * {@link org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy#dynamic
+     * dynamic} {@code RateLimiterStrategy}; otherwise this call has no observable effect.
+     *
+     * @throws IllegalStateException if this {@code DataStreamSource} does not wrap a FLIP-27 {@link
+     *     Source} (e.g. it was created from a legacy {@code SourceFunction}).
+     */
+    public DataStreamSource<T> withDynamicRateLimitParams(
+            DynamicRateLimitParams dynamicRateLimitParams) {
+        Preconditions.checkNotNull(dynamicRateLimitParams);
+        Transformation<T> transformation = getTransformation();
+        Preconditions.checkState(
+                transformation instanceof SourceTransformation,
+                "withDynamicRateLimitParams() is only supported for FLIP-27 sources created "
+                        + "via StreamExecutionEnvironment#fromSource(...).");
+        ((SourceTransformation<T, ?, ?>) transformation)
+                .setDynamicRateLimitParams(dynamicRateLimitParams);
+        return this;
     }
 
     @Override

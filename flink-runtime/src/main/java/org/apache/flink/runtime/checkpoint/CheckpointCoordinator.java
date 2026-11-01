@@ -1995,7 +1995,7 @@ public class CheckpointCoordinator {
      * Gets the checkpoint interval. Its value might vary depending on whether there is processing
      * backlog.
      */
-    private long getCurrentCheckpointInterval() {
+    public long getCurrentCheckpointInterval() {
         return backlogOperators.isEmpty() ? baseInterval : baseIntervalDuringBacklog;
     }
 
