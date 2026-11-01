@@ -177,8 +177,10 @@ class FlinkRelMdWindowPropertiesTest extends FlinkRelMdHandlerTestBase {
       ImmutableBitSet.of(start),
       ImmutableBitSet.of(end),
       if (time >= 0) ImmutableBitSet.of(time) else ImmutableBitSet.of(),
+      ImmutableBitSet.of(),
       spec,
-      timeAttributeType)
+      timeAttributeType
+    )
   }
 
 }

@@ -189,15 +189,16 @@ public class ExpandWindowTableFunctionTransposeRule
         // -------------------------------------------------------------------------
         //  3. Apply WindowTVF on the new Expand node
         // -------------------------------------------------------------------------
+        // the time attribute ref is appended
+        int timeAttributeOnExpand =
+                timeFieldAdded ? newExpand.getRowType().getFieldCount() - 1 : newTimeField;
         RelDataType newOutputType =
                 SqlWindowTableFunction.inferRowType(
                         typeFactory,
                         newExpand.getRowType(),
                         typeFactory.createFieldTypeFromLogicalType(
-                                windowTVF.windowing().getTimeAttributeType()));
-        // the time attribute ref is appended
-        int timeAttributeOnExpand =
-                timeFieldAdded ? newExpand.getRowType().getFieldCount() - 1 : newTimeField;
+                                windowTVF.windowing().getTimeAttributeType()),
+                        timeAttributeOnExpand);
         TimeAttributeWindowingStrategy newWindowing =
                 new TimeAttributeWindowingStrategy(
                         windowTVF.windowing().getWindow(),
