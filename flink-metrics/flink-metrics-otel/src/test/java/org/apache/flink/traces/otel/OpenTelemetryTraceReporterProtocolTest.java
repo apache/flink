@@ -46,7 +46,7 @@ public class OpenTelemetryTraceReporterProtocolTest
     }
 
     @Override
-    protected void setupAndReport(MetricConfig config) {
+    protected void setupReporter(MetricConfig config) {
         reporter.open(config);
         SpanBuilder spanBuilder =
                 Span.builder(this.getClass(), TEST_SPAN_NAME)
