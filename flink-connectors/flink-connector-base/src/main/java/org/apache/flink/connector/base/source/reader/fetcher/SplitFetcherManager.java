@@ -61,6 +61,10 @@ import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOU
  * the {@link #addSplits(List)} method differently. For example, a single thread split fetcher
  * manager would only start a single fetcher and assign all the splits to it. A one-thread-per-split
  * fetcher may spawn a new thread every time a new split is assigned.
+ *
+ * <p>Each fetcher creates its {@link SplitReader} from the supplier on its own fetcher thread when
+ * it starts, so clients built by the reader are created on the thread that uses them. A failure of
+ * the supplier is reported through the fetcher error path, i.e. by {@link #checkErrors()}.
  */
 @PublicEvolving
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
@@ -72,7 +76,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     /** An atomic integer to generate monotonically increasing fetcher ids. */
     private final AtomicInteger fetcherIdGenerator;
 
-    /** A supplier to provide split readers. */
+    /** A supplier to provide split readers, invoked by each fetcher on its own thread. */
     private final Supplier<SplitReader<E, SplitT>> splitReaderFactory;
 
     /** Uncaught exception in the split fetchers. */
@@ -247,16 +251,14 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
         if (closed) {
             throw new IllegalStateException("The split fetcher manager has closed.");
         }
-        // Create SplitReader.
-        SplitReader<E, SplitT> splitReader = splitReaderFactory.get();
-
         int fetcherId = fetcherIdGenerator.getAndIncrement();
         fetchersToShutDown.incrementAndGet();
+        // The fetcher creates its SplitReader on the fetcher thread when it starts.
         SplitFetcher<E, SplitT> splitFetcher =
                 new SplitFetcher<>(
                         fetcherId,
                         elementsQueue,
-                        splitReader,
+                        splitReaderFactory,
                         errorHandler,
                         () -> {
                             fetchers.remove(fetcherId);
