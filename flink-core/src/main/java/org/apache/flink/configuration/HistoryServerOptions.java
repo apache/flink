@@ -178,6 +178,45 @@ public class HistoryServerOptions {
                                     .text(LEGACY_NOTE_MESSAGE)
                                     .build());
 
+    /** The maximum number of job archives kept in the local cache of the HistoryServer. */
+    public static final ConfigOption<Integer> HISTORY_SERVER_CACHED_RETAINED_JOBS =
+            key("historyserver.archive.cached-retained-jobs")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum number of the latest job archives to keep in the local cache. ")
+                                    .text(
+                                            "Older archives are evicted from the local cache only. They stay in the remote directory until %s or %s removes them, and can be fetched on demand when %s is %s. ",
+                                            code(HISTORY_SERVER_RETAINED_JOBS_KEY),
+                                            code(HISTORY_SERVER_RETAINED_TTL_KEY),
+                                            code("historyserver.archive.load.mode"),
+                                            code("LAZY"))
+                                    .text(
+                                            "If not set, every retained job archive is cached locally. ")
+                                    .text(
+                                            "The remote directory is then only bounded by the retention options, so set %s to avoid unbounded growth. ",
+                                            code(HISTORY_SERVER_RETAINED_TTL_KEY))
+                                    .text(
+                                            "This option only applies to job archives, not to application archives.")
+                                    .build());
+
+    /** The maximum number of most recently viewed job archives kept in the local cache. */
+    public static final ConfigOption<Integer> HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS =
+            key("historyserver.archive.num-cached-most-recently-viewed-jobs")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum number of most recently viewed job archives kept in the local cache, in addition to the ones governed by %s. ",
+                                            code(HISTORY_SERVER_CACHED_RETAINED_JOBS.key()))
+                                    .text(
+                                            "It does not limit how many remote archives can be fetched, only how many stay cached locally. ")
+                                    .text("Must be at least 1.")
+                                    .build());
+
     /**
      * If this option is enabled then deleted application archives are also deleted from
      * HistoryServer.
