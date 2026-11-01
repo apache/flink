@@ -160,7 +160,8 @@ public class JoinToMultiJoinForReorderRule extends RelRule<JoinToMultiJoinForReo
                                 origJoin.getCondition(),
                                 joinFieldRefCountsList);
 
-        List<RexNode> newPostJoinFilters = combinePostJoinFilters(origJoin, left, right);
+        List<RexNode> newPostJoinFilters =
+                combinePostJoinFilters(origJoin, left, right, inputNullGenFieldList);
 
         final RexBuilder rexBuilder = origJoin.getCluster().getRexBuilder();
         RelNode multiJoin =
@@ -645,23 +646,42 @@ public class JoinToMultiJoinForReorderRule extends RelRule<JoinToMultiJoinForReo
     }
 
     /**
-     * Combines the post-join filters from the left and right inputs (if they are MultiJoinRels)
-     * into a single AND'd filter.
+     * Combines the post-join filters from the left and right inputs (if they are MultiJoinRels
+     * combined into the new MultiJoin) into a single AND'd filter. A MultiJoin that isn't combined,
+     * e.g. the null generating input of an outer join, stays an input of the new MultiJoin and
+     * keeps its post-join filter, so the filter must not be applied above the new MultiJoin, too.
      *
      * @param joinRel the original LogicalJoin
      * @param left left child of the LogicalJoin
      * @param right right child of the LogicalJoin
      * @return combined post-join filters AND'd together
      */
-    private List<RexNode> combinePostJoinFilters(Join joinRel, RelNode left, RelNode right) {
+    private List<RexNode> combinePostJoinFilters(
+            Join joinRel, RelNode left, RelNode right, List<Boolean> inputNullGenFieldList) {
+        JoinRelType joinType = joinRel.getJoinType();
+        JoinInfo joinInfo = joinRel.analyzeCondition();
         final List<RexNode> filters = new ArrayList<>();
-        if (right instanceof MultiJoin) {
+        if (canCombine(
+                right,
+                joinInfo.rightKeys,
+                joinType,
+                joinType.generatesNullsOnRight(),
+                false,
+                inputNullGenFieldList,
+                left.getRowType().getFieldCount())) {
             final MultiJoin multiRight = (MultiJoin) right;
             filters.add(
                     shiftRightFilter(joinRel, left, multiRight, multiRight.getPostJoinFilter()));
         }
 
-        if (left instanceof MultiJoin) {
+        if (canCombine(
+                left,
+                joinInfo.leftKeys,
+                joinType,
+                joinType.generatesNullsOnLeft(),
+                true,
+                inputNullGenFieldList,
+                0)) {
             filters.add(((MultiJoin) left).getPostJoinFilter());
         }
 
