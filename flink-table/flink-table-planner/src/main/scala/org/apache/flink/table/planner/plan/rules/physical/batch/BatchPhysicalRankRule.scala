@@ -46,8 +46,9 @@ class BatchPhysicalRankRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
-    // Only support rank() now
-    rank.rankType == RankType.RANK && rank.rankRange.isInstanceOf[ConstantRankRange]
+    // Support RANK and ROW_NUMBER with a constant rank range
+    (rank.rankType == RankType.RANK || rank.rankType == RankType.ROW_NUMBER) &&
+    rank.rankRange.isInstanceOf[ConstantRankRange]
   }
 
   def convert(rel: RelNode): RelNode = {
