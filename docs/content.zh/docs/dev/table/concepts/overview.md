@@ -28,7 +28,7 @@ under the License.
 # 流式概念
 
 Flink 的 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 和 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 是流批统一的 API。
-这意味着 Table API & SQL 在无论有限的批式输入还是无限的流式输入下，都具有相同的语义。
+这意味着，无论输入数据是有界的批处理输入还是无界的流处理输入，Table API 与 SQL 查询都具有相同的语义。
 因为传统的关系代数以及 SQL 最开始都是为了批式处理而设计的，
 关系型查询在流式场景下不如在批式场景下容易懂。
 
@@ -58,13 +58,11 @@ Flink 的 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 和 [SQL]({{< ref "
 
 #### 状态算子
 
-包含诸如[连接]({{< ref "docs/dev/table/sql/queries/joins" >}})、[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})或[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) 等操作的语句需要在 Flink 抽象的容错存储内保存中间结果。
+查询中若包含诸如[连接]({{< ref "docs/dev/table/sql/queries/joins" >}})、[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})或[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})等有状态操作，就需要将中间结果存储在具备容错能力的存储系统中 —— 而 Flink 的状态抽象机制，正是用于实现这一需求的核心组件。
 
-例如对两个表进行 join 操作的普通 SQL 需要算子保存两个表的全部输入。基于正确的 SQL 语义，运行时假设两表会在任意时间点进行匹配。
-Flink 提供了 [优化窗口和时段 Join 聚合]({{< ref "docs/dev/table/sql/queries/joins" >}}) 
-以利用 [watermarks]({{< ref "docs/dev/table/concepts/time_attributes" >}}) 概念来让保持较小的状态规模。
+例如，对两张表执行常规 SQL 连接（join）时，算子需要把两侧的输入表完整地保存在状态中。为了保证 SQL 语义的正确性，运行时环境要假定 “两侧数据在任何时间点进行匹配”。而 Flink 提供了 [优化窗口和时段 Join 聚合]({{< ref "docs/dev/table/sql/queries/joins" >}})  —— 它们借助水印 [watermarks]({{< ref "docs/dev/table/concepts/time_attributes" >}})机制，能有效控制状态数据的规模。
 
-另一个计算词频的例子如下
+再举一个例子，比如下面这个计算单词计数（word count）的查询。
 
 ```sql
 CREATE TABLE doc (
