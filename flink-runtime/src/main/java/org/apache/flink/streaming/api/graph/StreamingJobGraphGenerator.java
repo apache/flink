@@ -32,6 +32,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexParallelismOverrides;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
@@ -216,13 +218,19 @@ public class StreamingJobGraphGenerator {
                         new AtomicBoolean(false),
                         hashes,
                         legacyHashes,
-                        new SlotSharingGroup());
+                        new SlotSharingGroup(),
+                        JobVertexParallelismOverrides.byJobVertexId(
+                                streamGraph
+                                        .getJobConfiguration()
+                                        .get(PipelineOptions.PARALLELISM_OVERRIDES)));
     }
 
     private JobGraph createJobGraph() {
         preValidate(streamGraph, userClassloader);
 
         setChaining();
+
+        warnAboutUnknownParallelismOverrides(jobVertexBuildContext);
 
         if (jobGraph.isDynamic()) {
             setVertexParallelismsForDynamicGraphIfNecessary();
@@ -908,6 +916,22 @@ public class StreamingJobGraphGenerator {
                 });
     }
 
+    private static void warnAboutUnknownParallelismOverrides(
+            JobVertexBuildContext jobVertexBuildContext) {
+        final Set<JobVertexID> unknownVertices =
+                new HashSet<>(jobVertexBuildContext.getParallelismOverrides().keySet());
+        for (JobVertex jobVertex : jobVertexBuildContext.getJobGraph().getVertices()) {
+            unknownVertices.remove(jobVertex.getID());
+        }
+        if (!unknownVertices.isEmpty()) {
+            LOG.warn(
+                    "Ignoring {} for job vertices {} which are not part of job {}.",
+                    PipelineOptions.PARALLELISM_OVERRIDES.key(),
+                    unknownVertices,
+                    jobVertexBuildContext.getJobGraph().getJobID());
+        }
+    }
+
     public static JobGraph createAndInitializeJobGraph(
             StreamGraph streamGraph, @Nullable JobID jobId, @Nullable ApplicationID applicationId) {
         JobGraph jobGraph = new JobGraph(jobId, applicationId, streamGraph.getJobName());
@@ -1165,6 +1189,17 @@ public class StreamingJobGraphGenerator {
         }
 
         jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
+
+        if (JobVertexParallelismOverrides.apply(
+                jobVertex, jobVertexBuildContext.getParallelismOverrides())) {
+            parallelism = jobVertex.getParallelism();
+            // The parallelism of the chained nodes decides forward groups and the sizing of
+            // upstream results, so it follows the vertex, and an overridden parallelism counts as
+            // configured like one set on the operator.
+            for (StreamNode chainedNode : chainInfo.getAllChainedNodes()) {
+                chainedNode.setParallelism(parallelism, true);
+            }
+        }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);

@@ -20,12 +20,14 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexParallelismOverrides;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
@@ -38,6 +40,9 @@ import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedParti
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -79,6 +84,8 @@ import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.va
 public class AdaptiveGraphManager
         implements AdaptiveGraphGenerator, StreamGraphContext.StreamGraphUpdateListener {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptiveGraphManager.class);
+
     private final StreamGraph streamGraph;
 
     private final JobGraph jobGraph;
@@ -117,6 +124,12 @@ public class AdaptiveGraphManager
     // When stream edge's partitioner is modified to forward, we need get forward groups by source
     // and target node id.
     private final Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap;
+
+    // Parallelism the user configured per stream node, before forward groups propagated it.
+    private final Map<Integer, Integer> userConfiguredParallelisms;
+
+    // Resolved pipeline.jobvertex-parallelism-overrides of the job, keyed by job vertex id.
+    private final Map<JobVertexID, String> parallelismOverrides;
 
     // Records the chain info that is not ready to create the job vertex, the key is the start node
     // in this chain.
@@ -165,6 +178,12 @@ public class AdaptiveGraphManager
         this.intermediateDataSetIdToProducerMap = new HashMap<>();
         this.intermediateDataSetIdToOutputEdgesMap = new HashMap<>();
         this.steamNodeIdToForwardGroupMap = new HashMap<>();
+        this.userConfiguredParallelisms = new HashMap<>();
+        this.parallelismOverrides =
+                JobVertexParallelismOverrides.byJobVertexId(
+                        streamGraph
+                                .getJobConfiguration()
+                                .get(PipelineOptions.PARALLELISM_OVERRIDES));
 
         this.vertexIndexId = new AtomicInteger(0);
 
@@ -310,11 +329,18 @@ public class AdaptiveGraphManager
                         hasHybridResultPartition,
                         hashes,
                         legacyHashes,
-                        defaultSlotSharingGroup);
+                        defaultSlotSharingGroup,
+                        parallelismOverrides);
 
         createOperatorChainInfos(streamNodes, jobVertexBuildContext);
 
         recordCreatedJobVerticesInfo(jobVertexBuildContext);
+
+        applyParallelismOverridesToForwardGroups(jobVertexBuildContext);
+
+        if (getPendingOperatorsCount() == 0) {
+            warnAboutUnknownParallelismOverrides();
+        }
 
         generateConfigForJobVertices(jobVertexBuildContext);
 
@@ -447,6 +473,88 @@ public class AdaptiveGraphManager
         }
     }
 
+    /**
+     * An overridden parallelism decides the forward group of its vertex like a configured one. A
+     * group that is still undecided takes the value. A group that was decided to another value is
+     * re-decided when the other members only carried that value by propagation; a member that the
+     * user configured to another value or that already runs as a job vertex is a conflict, as a
+     * differently configured member is for the full generator.
+     */
+    private void applyParallelismOverridesToForwardGroups(
+            JobVertexBuildContext jobVertexBuildContext) {
+        for (JobVertex jobVertex : jobVertexBuildContext.getJobVerticesInOrder().values()) {
+            if (!jobVertexBuildContext.getParallelismOverrides().containsKey(jobVertex.getID())) {
+                continue;
+            }
+            // createJobVertex has already applied and validated the override
+            final int overriddenParallelism = jobVertex.getParallelism();
+            final StreamNodeForwardGroup forwardGroup =
+                    getStreamNodeForwardGroupByVertexId(jobVertex.getID());
+            if (forwardGroup == null) {
+                continue;
+            }
+            if (forwardGroup.isMaxParallelismDecided()
+                    && overriddenParallelism > forwardGroup.getMaxParallelism()) {
+                throw new IllegalStateException(
+                        String.format(
+                                "The parallelism override %d for job vertex %s (%s) exceeds the max"
+                                        + " parallelism %d of its forward group.",
+                                overriddenParallelism,
+                                jobVertex.getName(),
+                                jobVertex.getID(),
+                                forwardGroup.getMaxParallelism()));
+            }
+            if (!forwardGroup.isParallelismDecided()) {
+                forwardGroup.setParallelism(overriddenParallelism);
+                continue;
+            }
+            if (forwardGroup.getParallelism() == overriddenParallelism) {
+                continue;
+            }
+            final Set<Integer> chainedNodeIds =
+                    new HashSet<>(jobVertexToChainedStreamNodeIdsMap.get(jobVertex.getID()));
+            final Set<StreamNode> members = new HashSet<>();
+            for (Integer memberId : forwardGroup.getVertexIds()) {
+                members.add(streamGraph.getStreamNode(memberId));
+                if (chainedNodeIds.contains(memberId)) {
+                    continue;
+                }
+                final Integer userConfigured = userConfiguredParallelisms.get(memberId);
+                if (frozenNodeToStartNodeMap.containsKey(memberId)
+                        || (userConfigured != null && userConfigured != overriddenParallelism)) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "The parallelism override %d for job vertex %s (%s) conflicts"
+                                            + " with the parallelism %d of its forward group,"
+                                            + " which stream node %d is configured to or already runs"
+                                            + " with.",
+                                    overriddenParallelism,
+                                    jobVertex.getName(),
+                                    jobVertex.getID(),
+                                    forwardGroup.getParallelism(),
+                                    memberId));
+                }
+            }
+            // re-decide the group: the members that are created later follow the override
+            members.forEach(member -> member.setParallelism(overriddenParallelism, true));
+            final StreamNodeForwardGroup redecidedGroup = new StreamNodeForwardGroup(members);
+            members.forEach(
+                    member -> steamNodeIdToForwardGroupMap.put(member.getId(), redecidedGroup));
+        }
+    }
+
+    private void warnAboutUnknownParallelismOverrides() {
+        final Set<JobVertexID> unknownVertices = new HashSet<>(parallelismOverrides.keySet());
+        unknownVertices.removeAll(jobVertexToStartNodeMap.keySet());
+        if (!unknownVertices.isEmpty()) {
+            LOG.warn(
+                    "Ignoring {} for job vertices {} which are not part of job {}.",
+                    PipelineOptions.PARALLELISM_OVERRIDES.key(),
+                    unknownVertices,
+                    jobGraph.getJobID());
+        }
+    }
+
     private void recordCreatedJobVerticesInfo(JobVertexBuildContext jobVertexBuildContext) {
         Map<Integer, OperatorChainInfo> chainInfos = jobVertexBuildContext.getChainInfosInOrder();
         for (OperatorChainInfo chainInfo : chainInfos.values()) {
@@ -562,6 +670,11 @@ public class AdaptiveGraphManager
                     if (!streamNode.isParallelismConfigured()
                             && streamGraph.isAutoParallelismEnabled()) {
                         streamNode.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT, false);
+                    } else if (streamNode.isParallelismConfigured()) {
+                        // remembered before forward groups copy their parallelism into every
+                        // member, see applyParallelismOverridesToForwardGroups
+                        userConfiguredParallelisms.put(
+                                streamNode.getId(), streamNode.getParallelism());
                     }
                 });
 
