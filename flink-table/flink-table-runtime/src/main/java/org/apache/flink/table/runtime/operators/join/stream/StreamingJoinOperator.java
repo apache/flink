@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
@@ -47,20 +46,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     protected final boolean leftIsOuter;
     // whether right side is outer side, e.g. right is outer but left is not when RIGHT OUTER JOIN
     protected final boolean rightIsOuter;
-    // changelog mode of the left input, null for compiled plans before Flink 2.4
-    @Nullable protected final RuntimeChangelogMode leftInputChangelogMode;
-    // changelog mode of the right input, null for compiled plans before Flink 2.4
-    @Nullable protected final RuntimeChangelogMode rightInputChangelogMode;
-    // whether the input may update a record without retracting it first (upsert), so that the
-    // record it replaces has to be looked up in state
-    private final boolean leftIsUpsertOrUnknown;
-    private final boolean rightIsUpsertOrUnknown;
-    // whether a DELETE of the input may contain only the unique key, so that the full record has
-    // to be looked up in state to evaluate a non-equi condition
-    private final boolean leftHasKeyOnlyDeletesOrUnknown;
-    private final boolean rightHasKeyOnlyDeletesOrUnknown;
-    // whether the join condition has a non-equi part, e.g. A JOIN B ON A.k = B.k AND A.v > B.v
-    protected final boolean hasNonEquiCondition;
 
     private transient JoinedRowData outRow;
     private transient RowData leftNullRow;
@@ -91,18 +76,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 generatedJoinCondition,
                 leftInputSideSpec,
                 rightInputSideSpec,
+                leftInputChangelogMode,
+                rightInputChangelogMode,
+                hasNonEquiCondition,
                 filterNullKeys,
                 leftStateRetentionTime,
                 rightStateRetentionTime);
         this.leftIsOuter = leftIsOuter;
         this.rightIsOuter = rightIsOuter;
-        this.leftInputChangelogMode = leftInputChangelogMode;
-        this.rightInputChangelogMode = rightInputChangelogMode;
-        this.leftIsUpsertOrUnknown = isUpsertOrUnknown(leftInputChangelogMode);
-        this.rightIsUpsertOrUnknown = isUpsertOrUnknown(rightInputChangelogMode);
-        this.leftHasKeyOnlyDeletesOrUnknown = hasKeyOnlyDeletesOrUnknown(leftInputChangelogMode);
-        this.rightHasKeyOnlyDeletesOrUnknown = hasKeyOnlyDeletesOrUnknown(rightInputChangelogMode);
-        this.hasNonEquiCondition = hasNonEquiCondition;
     }
 
     @Override
@@ -260,8 +241,11 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         if (isAccumulateMsg) { // record is accumulate
+            // in a mini-batch pair, the retraction already handled the old version
             final RowData replacedRecord =
-                    replacedRecord(input, inputSideStateView, inputIsLeft, isSuppress);
+                    isSuppress
+                            ? null
+                            : replacedRecord(input, inputSideStateView, inputIsLeft, otherIsOuter);
             boolean replacedRecordHadNoMatches = false;
             if (replacedRecord != null && hasNonEquiCondition) {
                 replacedRecordHadNoMatches =
@@ -352,9 +336,11 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 // skip when there is no matched rows on the other side
             }
         } else { // input record is retract
+            // the retraction of a mini-batch pair is used as it is
             final RowData retractedRecord =
-                    retractedRecord(
-                            input, inputRowKind, inputSideStateView, inputIsLeft, isSuppress);
+                    isSuppress
+                            ? input
+                            : retractedRecord(input, inputRowKind, inputSideStateView, inputIsLeft);
             // state.retract(record)
             if (!isSuppress) {
                 inputSideStateView.retractRecord(retractedRecord);
@@ -401,56 +387,19 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     }
 
     /**
-     * Returns the stored record that the given record replaces, or null if there is none. An upsert
-     * input updates a record by sending only the new version, without retracting the old one.
-     *
-     * <p>The lookup only happens if it can change the result. In a mini-batch pair, the retraction
-     * already handled the old version.
+     * Returns whether the other record gains a match, so that its number of associations increases.
+     * It does not if the replaced record matched it already.
      */
-    private @Nullable RowData replacedRecord(
-            RowData record, JoinRecordStateView stateView, boolean isLeft, boolean isSuppress)
-            throws Exception {
-        final boolean inputIsUpsertOrUnknown =
-                isLeft ? leftIsUpsertOrUnknown : rightIsUpsertOrUnknown;
-        final boolean otherIsOuter = isLeft ? rightIsOuter : leftIsOuter;
-        // with at most one record per join key, the count of the other side is right without it
-        final boolean mayCountTwice = otherIsOuter && !joinKeyContainsUniqueKey(isLeft);
-        final boolean mayMatchDifferently = hasNonEquiCondition;
-        if (isSuppress || !inputIsUpsertOrUnknown || !(mayCountTwice || mayMatchDifferently)) {
-            return null;
+    private boolean isNewMatch(
+            OuterRecord other, @Nullable RowData replacedRecord, boolean inputIsLeft) {
+        if (other.numOfAssociations == 0) {
+            return true;
         }
-        return stateView.getRecord(record);
-    }
-
-    /**
-     * Returns the full record to retract.
-     *
-     * <p>A DELETE may contain only the unique key, e.g. from an upsert source, but a non-equi
-     * condition needs all fields. In that case, the stored record with the same unique key is
-     * returned, or the given retraction if nothing is stored. The retraction of a mini-batch pair
-     * is returned as it is.
-     */
-    private RowData retractedRecord(
-            RowData retraction,
-            RowKind retractionKind,
-            JoinRecordStateView stateView,
-            boolean isLeft,
-            boolean isSuppress)
-            throws Exception {
-        if (isSuppress) {
-            return retraction;
+        // with at most one record per join key, the existing match is the replaced record
+        if (joinKeyContainsUniqueKey(inputIsLeft)) {
+            return false;
         }
-        final boolean inputHasKeyOnlyDeletesOrUnknown =
-                isLeft ? leftHasKeyOnlyDeletesOrUnknown : rightHasKeyOnlyDeletesOrUnknown;
-        final boolean mayBeKeyOnlyDelete =
-                retractionKind == RowKind.DELETE
-                        && inputHasKeyOnlyDeletesOrUnknown
-                        && hasUniqueKey(isLeft);
-        if (!mayBeKeyOnlyDelete || !hasNonEquiCondition) {
-            return retraction;
-        }
-        final RowData storedRecord = stateView.getRecord(retraction);
-        return storedRecord != null ? storedRecord : retraction;
+        return replacedRecord == null || !matches(replacedRecord, other.record, inputIsLeft);
     }
 
     /**
@@ -494,22 +443,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     }
 
     /**
-     * Returns whether the other record gains a match, so that its number of associations increases.
-     * It does not if the replaced record matched it already.
-     */
-    private boolean isNewMatch(
-            OuterRecord other, @Nullable RowData replacedRecord, boolean inputIsLeft) {
-        if (other.numOfAssociations == 0) {
-            return true;
-        }
-        // with at most one record per join key, the existing match is the replaced record
-        if (joinKeyContainsUniqueKey(inputIsLeft)) {
-            return false;
-        }
-        return replacedRecord == null || !matches(replacedRecord, other.record, inputIsLeft);
-    }
-
-    /**
      * Returns whether the paired record of a -U/+U pair cancels out the null padding change of the
      * other record, which is the case if both records of the pair match it.
      */
@@ -517,40 +450,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
             @Nullable RowData pairedRecord, RowData other, boolean inputIsLeft) {
         return pairedRecord != null
                 && (!hasNonEquiCondition || matches(pairedRecord, other, inputIsLeft));
-    }
-
-    /** Returns whether the input may update a record without retracting it first. */
-    private static boolean isUpsertOrUnknown(@Nullable RuntimeChangelogMode inputChangelogMode) {
-        // compiled plans before Flink 2.4 do not contain the changelog mode, and handling
-        // their inputs as upsert is always correct
-        if (inputChangelogMode == null) {
-            return true;
-        }
-        final ChangelogMode changelogMode = inputChangelogMode.deserialize();
-        return changelogMode.contains(RowKind.UPDATE_AFTER)
-                && !changelogMode.contains(RowKind.UPDATE_BEFORE);
-    }
-
-    /** Returns whether a DELETE of the input may contain only the unique key. */
-    private static boolean hasKeyOnlyDeletesOrUnknown(
-            @Nullable RuntimeChangelogMode inputChangelogMode) {
-        // compiled plans before Flink 2.4 do not contain the changelog mode, and handling
-        // their deletes as key-only is always correct
-        return inputChangelogMode == null || inputChangelogMode.deserialize().keyOnlyDeletes();
-    }
-
-    private boolean hasUniqueKey(boolean isLeft) {
-        return (isLeft ? leftInputSideSpec : rightInputSideSpec).hasUniqueKey();
-    }
-
-    private boolean joinKeyContainsUniqueKey(boolean isLeft) {
-        return (isLeft ? leftInputSideSpec : rightInputSideSpec).joinKeyContainsUniqueKey();
-    }
-
-    private boolean matches(RowData inputRecord, RowData otherRecord, boolean inputIsLeft) {
-        return inputIsLeft
-                ? joinCondition.apply(inputRecord, otherRecord)
-                : joinCondition.apply(otherRecord, inputRecord);
     }
 
     // -------------------------------------------------------------------------------------
