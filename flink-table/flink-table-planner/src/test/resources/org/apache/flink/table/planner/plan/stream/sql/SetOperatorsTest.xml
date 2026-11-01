@@ -224,6 +224,35 @@ Calc(select=[c0 AS c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMinusAllWithOuterPermutation">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalMinus(all=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b0 AS b, a0 AS a])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,b,a))], select=[sum_vcol_marker,b,a,b0,a0], rowType=[RecordType(BIGINT sum_vcol_marker, BIGINT b, INTEGER a, BIGINT b0, INTEGER a0)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, b, a], where=[(sum_vcol_marker > 0)])
+      +- GroupAggregate(groupBy=[b, a], select=[b, a, SUM(vcol_marker) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[b, a]])
+            +- Union(all=[true], union=[b, a, vcol_marker])
+               :- Calc(select=[b, a, 1 AS vcol_marker])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+               +- Calc(select=[e AS b, d AS a, -1 AS vcol_marker])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMinusAllWithOuterProject">
     <Resource name="sql">
       <![CDATA[SELECT a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)]]>

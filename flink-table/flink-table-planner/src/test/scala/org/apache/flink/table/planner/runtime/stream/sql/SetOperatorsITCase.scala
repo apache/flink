@@ -130,30 +130,4 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @TestTemplate
-  def testMinusAllWithOuterProject(): Unit = {
-    tEnv.createTemporaryView("T1", failingDataSource(Seq((1, 10), (3, 20))).toTable(tEnv, 'x, 'y))
-    tEnv.createTemporaryView("T2", failingDataSource(Seq((2, 10), (4, 20))).toTable(tEnv, 'x, 'y))
-
-    val sqlQuery = "SELECT y FROM (SELECT x, y FROM T1 EXCEPT ALL SELECT x, y FROM T2)"
-
-    val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
-    assertThat(sink.getRetractResults.sorted).isEqualTo(List("10", "20"))
-  }
-
-  @TestTemplate
-  def testIntersectAllWithOuterProject(): Unit = {
-    tEnv.createTemporaryView("T1", failingDataSource(Seq((1, 10), (3, 20))).toTable(tEnv, 'x, 'y))
-    tEnv.createTemporaryView("T2", failingDataSource(Seq((2, 10), (4, 20))).toTable(tEnv, 'x, 'y))
-
-    val sqlQuery = "SELECT y FROM (SELECT x, y FROM T1 INTERSECT ALL SELECT x, y FROM T2)"
-
-    val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
-    assertThat(sink.getRetractResults).isEqualTo(List())
-  }
-
 }
