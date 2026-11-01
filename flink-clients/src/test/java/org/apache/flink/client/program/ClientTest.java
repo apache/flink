@@ -495,7 +495,6 @@ class ClientTest {
                 @Override
                 public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
                     return (pipeline, config, classLoader) -> {
-                        final int parallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph = streamGraph.getJobGraph();
                         // The job graphs from different cases are generated from the same stream
                         // graph, resulting in the same job ID, which can lead to exceptions.
