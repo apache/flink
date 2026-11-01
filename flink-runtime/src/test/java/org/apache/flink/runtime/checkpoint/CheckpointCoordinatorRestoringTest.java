@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -1120,6 +1121,80 @@ class CheckpointCoordinatorRestoringTest {
                         .getTaskRestore()
                         .getTaskStateSnapshot();
         assertThat(restoredState.isTaskDeployedAsFinished()).isTrue();
+    }
+
+    @Test
+    void testRestoreCoordinatorStateWithoutInFlightData() throws Exception {
+        // given: a checkpoint with coordinator state whose in-flight data should be ignored.
+        final JobVertexID jobVertexID = new JobVertexID();
+        final OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
+        final ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        final byte[] coordinatorState = {1, 2, 3, 4};
+        final OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 1);
+        operatorState.setCoordinatorState(
+                new ByteStreamStateHandle("coordinator-state", coordinatorState));
+        operatorState.putState(
+                0,
+                OperatorSubtaskState.builder()
+                        .setInputChannelState(
+                                StateObjectCollection.singleton(
+                                        createNewInputChannelStateHandle(3, new Random())))
+                        .build());
+
+        final CompletedCheckpointStore completedCheckpointStore =
+                new EmbeddedCompletedCheckpointStore();
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                new CompletedCheckpoint(
+                        graph.getJobID(),
+                        2,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3000,
+                        Collections.singletonMap(operatorID, operatorState),
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation(),
+                        null),
+                new CheckpointsCleaner(),
+                () -> {});
+
+        final CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext
+                coordinatorContext =
+                        new CheckpointCoordinatorTestingUtils
+                                        .MockOperatorCheckpointCoordinatorContextBuilder()
+                                .setOperatorID(operatorID)
+                                .build();
+
+        final CheckpointCoordinator coord =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(
+                                new CheckpointCoordinatorConfigurationBuilder()
+                                        .setCheckpointIdOfIgnoredInFlightData(2)
+                                        .build())
+                        .setCompletedCheckpointStore(completedCheckpointStore)
+                        .setCoordinatorsToCheckpoint(Collections.singleton(coordinatorContext))
+                        .build(graph);
+
+        // when: the checkpoint is restored without in-flight data.
+        final ExecutionJobVertex vertex = graph.getJobVertex(jobVertexID);
+        assertThat(coord.restoreInitialCheckpointIfPresent(Collections.singleton(vertex), false))
+                .isTrue();
+
+        // then: the coordinator state is restored, only the in-flight data is dropped.
+        assertThat(coordinatorContext.getRestoredCheckpointData())
+                .containsExactly(coordinatorState);
+
+        final OperatorSubtaskState restoredSubtaskState =
+                vertex.getTaskVertices()[0]
+                        .getCurrentExecutionAttempt()
+                        .getTaskRestore()
+                        .getTaskStateSnapshot()
+                        .getSubtaskStateByOperatorID(operatorID);
+        assertThat(restoredSubtaskState.getInputChannelState()).isEmpty();
     }
 
     @Test
