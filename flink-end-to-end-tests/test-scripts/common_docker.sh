@@ -32,6 +32,29 @@ function containers_health_check() {
   done
 }
 
+# builds a base image once per job that routes the in-container apt through the same mirror list the host CI step uses
+function prepare_fast_base_image() {
+    local dockerfile="$1"
+    local base_tag="flink-e2e-base:local"
+    local mirror_list="${END_TO_END_DIR}/../tools/ci/ubuntu-mirror-list.txt"
+    [[ -f "$mirror_list" ]] || return 0
+    if ! docker image inspect "$base_tag" >/dev/null 2>&1; then
+        local upstream_from ctx
+        upstream_from=$(awk '/^FROM /{print $2; exit}' "$dockerfile")
+        [[ -z "$upstream_from" ]] && return 0
+        ctx=$(mktemp -d)
+        cp "$mirror_list" "${ctx}/mirrors.txt"
+        cat > "${ctx}/Dockerfile" <<EOF
+FROM ${upstream_from}
+COPY mirrors.txt /etc/apt/mirrors.txt
+RUN sed -i "s|http://archive.ubuntu.com/ubuntu/|mirror+file:/etc/apt/mirrors.txt|g" /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true
+EOF
+        docker build -t "$base_tag" --network=host "$ctx"
+        rm -rf "$ctx"
+    fi
+    sed -i.bak "0,/^FROM /s#^FROM .*#FROM ${base_tag}#" "$dockerfile" && rm -f "${dockerfile}.bak"
+}
+
 function build_image() {
     local image_name=${1:-flink-job}
     local default_file_server_address="localhost"
@@ -65,6 +88,8 @@ function build_image() {
 
     # eclipse-temurin:25+ images don't include wget; add it to the install step
     sed -i 's/apt-get -y install gpg/apt-get -y install gpg wget/' dev/${image_name}-ubuntu/Dockerfile
+
+    prepare_fast_base_image dev/${image_name}-ubuntu/Dockerfile
 
     echo "Building images"
     run_with_timeout 600 docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-ubuntu
