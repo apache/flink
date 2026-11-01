@@ -1110,4 +1110,104 @@ class NotPatternITCase {
 
         comparePatterns(matches, Collections.singletonList(Lists.newArrayList(a1, a2, a3, c1)));
     }
+
+    /**
+     * A forbidden event that arrives while an attempt waits at an optional repeat of a relaxed
+     * {@code times(2, 4)} cancels the attempt, as it does in a relaxed {@code oneOrMore()} loop.
+     *
+     * <p>x4 matches nothing; skipping it moves [a1 a2 a3] and [a2 a3] into the ignore states of the
+     * optional repeats they wait at, where b5 arrives. The ignore state of a {@code oneOrMore()}
+     * loop over a single pattern has a stop edge on the NOT condition, so in the loop b5 cancels
+     * every attempt that started before it, and only [a6 c7] is a match. The ignore states of the
+     * optional repeats are held to the same rule; without the stop edge there, [a1 a2 a3] and [a2
+     * a3] skip b5 as well, take a6 and complete with c7.
+     */
+    @Test
+    void testForbiddenEventInsideAnOptionalRepeatCancelsTheMatch() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a1 = new Event(1, "a", 1.0);
+        Event a2 = new Event(2, "a", 2.0);
+        Event a3 = new Event(3, "a", 3.0);
+        Event x4 = new Event(4, "x", 4.0);
+        Event b5 = new Event(5, "b", 5.0);
+        Event a6 = new Event(6, "a", 6.0);
+        Event c7 = new Event(7, "c", 7.0);
+
+        inputEvents.add(new StreamRecord<>(a1, 1));
+        inputEvents.add(new StreamRecord<>(a2, 2));
+        inputEvents.add(new StreamRecord<>(a3, 3));
+        inputEvents.add(new StreamRecord<>(x4, 4));
+        inputEvents.add(new StreamRecord<>(b5, 5));
+        inputEvents.add(new StreamRecord<>(a6, 6));
+        inputEvents.add(new StreamRecord<>(c7, 7));
+
+        Pattern<Event, ?> loop =
+                Pattern.<Event>begin("start")
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .oneOrMore()
+                        .notFollowedBy("not")
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
+                        .followedBy("end")
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")));
+
+        comparePatterns(
+                NFATestHarness.forPattern(loop).build().feedRecords(inputEvents),
+                Lists.<List<Event>>newArrayList(Lists.newArrayList(a6, c7)));
+
+        Pattern<Event, ?> repeats =
+                Pattern.<Event>begin("start")
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 4)
+                        .notFollowedBy("not")
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
+                        .followedBy("end")
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")));
+
+        comparePatterns(
+                NFATestHarness.forPattern(repeats).build().feedRecords(inputEvents),
+                Lists.<List<Event>>newArrayList());
+    }
+
+    /**
+     * The pattern of {@link #testForbiddenEventInsideAnOptionalRepeatCancelsTheMatch} ending in the
+     * NOT pattern: nothing is released when the window closes.
+     *
+     * <p>b5 arrives while [a1 a2 a3] and [a2 a3] wait in the ignore states of optional repeats, and
+     * the stop edge there cancels both. Without it, [a1 a2 a3] takes a6, which fills the range and
+     * moves it into the Pending state, released as a match when the window closes.
+     */
+    @Test
+    void testForbiddenEventInsideAnOptionalRepeatCancelsBeforeTheTimeout() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a1 = new Event(1, "a", 1.0);
+        Event a2 = new Event(2, "a", 2.0);
+        Event a3 = new Event(3, "a", 3.0);
+        Event x4 = new Event(4, "x", 4.0);
+        Event b5 = new Event(5, "b", 5.0);
+        Event a6 = new Event(6, "a", 6.0);
+        Event clock = new Event(7, "x", 7.0);
+
+        inputEvents.add(new StreamRecord<>(a1, 1));
+        inputEvents.add(new StreamRecord<>(a2, 2));
+        inputEvents.add(new StreamRecord<>(a3, 3));
+        inputEvents.add(new StreamRecord<>(x4, 4));
+        inputEvents.add(new StreamRecord<>(b5, 5));
+        inputEvents.add(new StreamRecord<>(a6, 6));
+        inputEvents.add(new StreamRecord<>(clock, 50));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 4)
+                        .notFollowedBy("not")
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
+                        .within(Duration.ofMillis(10));
+
+        NFATestHarness harness = NFATestHarness.forPattern(pattern).build();
+        final List<List<Event>> matches = harness.feedRecords(inputEvents);
+
+        comparePatterns(matches, Lists.<List<Event>>newArrayList());
+    }
 }

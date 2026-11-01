@@ -608,6 +608,15 @@ public class NFACompiler {
                         createSingletonState(
                                 lastSink, proceedState, takeCondition, innerIgnoreCondition, true);
                 addStopStateToLooping(lastSink);
+                // An attempt that skips an event at an optional repeat waits in the repeat's ignore
+                // state. Without the stop edge there, a forbidden event that arrives while it waits
+                // is ignored like any other event, and the attempt survives it.
+                for (StateTransition<T> transition : lastSink.getStateTransitions()) {
+                    if (transition.getAction() == StateTransitionAction.IGNORE
+                            && transition.getTargetState() != lastSink) {
+                        addStopStateToLooping(transition.getTargetState());
+                    }
+                }
             }
             for (int i = 0; i < times.getFrom() - 1; i++) {
                 lastSink =
