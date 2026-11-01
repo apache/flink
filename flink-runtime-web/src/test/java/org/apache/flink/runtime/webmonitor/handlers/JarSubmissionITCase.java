@@ -31,11 +31,16 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.deleteJar;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.listJars;
@@ -58,13 +63,7 @@ class JarSubmissionITCase {
     @Test
     void testJarSubmission(@TempDir File uploadDir, @TempDir File temporaryFolder)
             throws Exception {
-        final TestingDispatcherGateway restfulGateway =
-                TestingDispatcherGateway.newBuilder()
-                        .setBlobServerPort(
-                                blobServerExtension.getCustomExtension().getBlobServerPort())
-                        .setSubmitApplicationFunction(
-                                application -> CompletableFuture.completedFuture(Acknowledge.get()))
-                        .build();
+        final TestingDispatcherGateway restfulGateway = createGateway();
 
         final JarHandlers handlers =
                 new JarHandlers(
@@ -102,5 +101,49 @@ class JarSubmissionITCase {
 
         final JarListInfo postDeleteListResponse = listJars(listHandler, restfulGateway);
         assertThat(postDeleteListResponse.jarFileList).isEmpty();
+    }
+
+    /** Planning or running a jar must not leave its extracted nested libraries behind. */
+    @Test
+    void testPlanAndRunDeleteExtractedNestedLibraries(
+            @TempDir File uploadDir, @TempDir File temporaryFolder) throws Exception {
+        final TestingDispatcherGateway restfulGateway = createGateway();
+        final JarHandlers handlers =
+                new JarHandlers(
+                        uploadDir.toPath(), restfulGateway, EXECUTOR_EXTENSION.getExecutor());
+
+        // A unique name tells this test's extracted copies apart from those of other tests.
+        final String nestedLibrary = "nested-" + UUID.randomUUID() + ".jar";
+        final Path jar =
+                JarHandlers.copyWithNestedLibrary(
+                        Paths.get(System.getProperty("targetDir")).resolve("test-program.jar"),
+                        temporaryFolder.toPath().resolve("test-program-with-lib.jar"),
+                        nestedLibrary);
+        final String storedJarName =
+                Paths.get(uploadJar(handlers.uploadHandler, jar, restfulGateway))
+                        .getFileName()
+                        .toString();
+
+        showPlan(handlers.planHandler, storedJarName, restfulGateway);
+        assertThat(extractedCopiesOf(nestedLibrary)).isEmpty();
+
+        runJar(handlers.runHandler, storedJarName, restfulGateway);
+        assertThat(extractedCopiesOf(nestedLibrary)).isEmpty();
+    }
+
+    private TestingDispatcherGateway createGateway() {
+        return TestingDispatcherGateway.newBuilder()
+                .setBlobServerPort(blobServerExtension.getCustomExtension().getBlobServerPort())
+                .setSubmitApplicationFunction(
+                        application -> CompletableFuture.completedFuture(Acknowledge.get()))
+                .build();
+    }
+
+    /** Returns the copies of {@code library} that a {@code PackagedProgram} left in tmp. */
+    private static List<Path> extractedCopiesOf(String library) throws IOException {
+        try (Stream<Path> files = Files.list(Paths.get(System.getProperty("java.io.tmpdir")))) {
+            return files.filter(file -> file.getFileName().toString().endsWith("lib_" + library))
+                    .collect(Collectors.toList());
+        }
     }
 }
