@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.utils.EncodingUtils
+import org.apache.flink.table.utils.{DateTimeUtils, EncodingUtils}
 
 import org.apache.calcite.rex.{RexCall, RexNode}
 
@@ -91,6 +91,18 @@ object JsonGenerateUtils {
           case TIMESTAMP_WITHOUT_TIME_ZONE => s"$nodeFactoryTerm.textNode($isoTerm)"
           case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"""$nodeFactoryTerm.textNode($isoTerm + "Z")"""
         }
+
+      case TIME_WITHOUT_TIME_ZONE =>
+        val formatter = s"${typeTerm(classOf[DateTimeFormatter])}.ISO_LOCAL_TIME"
+        val isoTerm =
+          s"${typeTerm(classOf[DateTimeUtils])}.toLocalTime($valueTerm).format($formatter)"
+        s"$nodeFactoryTerm.textNode($isoTerm)"
+
+      case DATE =>
+        val formatter = s"${typeTerm(classOf[DateTimeFormatter])}.ISO_LOCAL_DATE"
+        val isoTerm =
+          s"${typeTerm(classOf[DateTimeUtils])}.toLocalDate($valueTerm).format($formatter)"
+        s"$nodeFactoryTerm.textNode($isoTerm)"
 
       case TIMESTAMP_WITH_TIME_ZONE =>
         throw new CodeGenException(s"'TIMESTAMP WITH TIME ZONE' is not yet supported.")
