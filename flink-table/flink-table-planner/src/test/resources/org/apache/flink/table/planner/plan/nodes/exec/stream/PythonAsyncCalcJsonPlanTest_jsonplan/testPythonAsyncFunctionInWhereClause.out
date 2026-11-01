@@ -29,8 +29,7 @@
         }
       },
       "abilities" : [ {
-        "type" : "FilterPushDown",
-        "predicates" : [ ]
+        "type" : "FilterPushDown"
       }, {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],

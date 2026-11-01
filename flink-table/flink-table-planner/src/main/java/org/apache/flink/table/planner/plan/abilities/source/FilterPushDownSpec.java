@@ -32,11 +32,14 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +61,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_PREDICATES = "predicates";
 
     @JsonProperty(FIELD_NAME_PREDICATES)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final List<RexNode> predicates;
 
     /**
@@ -73,8 +77,9 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     }
 
     @JsonCreator
-    public FilterPushDownSpec(@JsonProperty(FIELD_NAME_PREDICATES) List<RexNode> predicates) {
-        this(predicates, true);
+    public FilterPushDownSpec(
+            @Nullable @JsonProperty(FIELD_NAME_PREDICATES) List<RexNode> predicates) {
+        this(predicates == null ? List.of() : predicates, true);
     }
 
     @JsonIgnore
