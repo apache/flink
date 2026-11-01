@@ -31,7 +31,6 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /** An abstract class represents the service type that flink supported. */
 public abstract class ServiceType {
@@ -64,7 +63,7 @@ public abstract class ServiceType {
                                 .getType())
                 .withSelector(kubernetesJobManagerParameters.getSelectors())
                 .addNewPort()
-                .withName(Constants.REST_PORT_NAME)
+                .withName(kubernetesJobManagerParameters.getRestServicePortName())
                 .withPort(kubernetesJobManagerParameters.getRestPort())
                 .withNewTargetPort(kubernetesJobManagerParameters.getRestBindPort())
                 .endPort()
@@ -109,25 +108,29 @@ public abstract class ServiceType {
      */
     public abstract String getType();
 
-    /** Get rest port from the external Service. */
+    /**
+     * Get rest port from the external Service. The rest Service is built with exactly one port
+     * (whose name is configurable via {@link KubernetesConfigOptions#REST_SERVICE_PORT_NAME}), so
+     * the lookup does not depend on the port name. If the Service has zero or more than one port,
+     * this method throws — the invariant comes from {@link #buildUpExternalRestService}.
+     */
     public int getRestPortFromExternalService(Service externalService) {
-        final List<ServicePort> servicePortCandidates =
-                externalService.getSpec().getPorts().stream()
-                        .filter(x -> x.getName().equals(Constants.REST_PORT_NAME))
-                        .collect(Collectors.toList());
+        final List<ServicePort> ports = externalService.getSpec().getPorts();
+        final String serviceName = externalService.getMetadata().getName();
 
-        if (servicePortCandidates.isEmpty()) {
+        if (ports == null || ports.isEmpty()) {
             throw new RuntimeException(
-                    "Failed to find port \""
-                            + Constants.REST_PORT_NAME
-                            + "\" in Service \""
-                            + externalService.getMetadata().getName()
-                            + "\"");
+                    "Failed to find any port in Service \"" + serviceName + "\"");
+        }
+        if (ports.size() > 1) {
+            throw new RuntimeException(
+                    "Expected exactly one port in Service \""
+                            + serviceName
+                            + "\" but found "
+                            + ports.size());
         }
 
-        final ServicePort externalServicePort = servicePortCandidates.get(0);
-
-        return getRestPort(externalServicePort);
+        return getRestPort(ports.get(0));
     }
 
     // Helper method
