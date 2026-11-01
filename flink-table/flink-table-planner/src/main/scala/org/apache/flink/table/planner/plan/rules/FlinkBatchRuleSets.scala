@@ -228,7 +228,7 @@ object FlinkBatchRuleSets {
     // removes constant keys from an Agg
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
-    FlinkProjectSetOpTransposeRule.INSTANCE,
+    CoreRules.PROJECT_SET_OP_TRANSPOSE,
     // push a projection to the child of a WindowTableFunctionScan
     ProjectWindowTableFunctionTransposeRule.INSTANCE
   )
