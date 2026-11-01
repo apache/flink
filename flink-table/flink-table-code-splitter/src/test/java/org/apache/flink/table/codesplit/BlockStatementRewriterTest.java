@@ -62,6 +62,16 @@ class BlockStatementRewriterTest extends CodeRewriterTestBase<BlockStatementRewr
     }
 
     @Test
+    void testIfStatementRewrite4() {
+        runTest("TestIfStatementRewrite4");
+    }
+
+    @Test
+    void testIfStatementRewrite5() {
+        runTest("TestIfStatementRewrite5");
+    }
+
+    @Test
     void testIfMultipleSingleLineStatementRewrite() {
         runTest("TestIfMultipleSingleLineStatementRewrite");
     }
