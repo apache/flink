@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 import { registerLocaleData } from '@angular/common';
-import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 import en from '@angular/common/locales/en';
 import { enableProdMode, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
@@ -56,7 +56,7 @@ bootstrapApplication(AppComponent, {
     provideNzI18n(en_US),
     provideNzIcons(APP_ICONS),
     provideNzConfig(ngZorroConfig),
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withInterceptorsFromDi(), withXhr()),
     provideAnimationsAsync(),
     provideRouter(APP_ROUTES, withHashLocation())
   ]

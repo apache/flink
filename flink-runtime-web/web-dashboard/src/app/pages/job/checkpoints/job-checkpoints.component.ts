@@ -71,7 +71,7 @@ export class JobCheckpointsComponent implements OnInit, OnDestroy {
   public checkPointConfig?: CheckpointConfig;
   public jobDetail: JobDetailCorrect;
 
-  public moreDetailsPanel = { active: false, disabled: false };
+  public moreDetailsPanel = { active: false };
 
   private refresh$ = new Subject<void>();
   private destroy$ = new Subject<void>();
