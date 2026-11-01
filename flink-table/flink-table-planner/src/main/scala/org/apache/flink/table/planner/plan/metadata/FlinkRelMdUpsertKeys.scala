@@ -329,7 +329,7 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       val joinType = joinTypes.get(i)
       // The columns this join equates on each side. On the left, only the columns that input i's
       // conditions reference count, not every join column of the inputs before it.
-      val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getLeftJoinKeyIndices(i): _*)
+      val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getLeftSideJoinKeyIndices(i): _*)
       val rightJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(i): _*)
 
       // We compute candidate unique keys that qualify as upsert keys if they include

@@ -171,6 +171,15 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
     }
 
     @Override
+    public int[] getLeftSideJoinKeyIndices(final int depth) {
+        final List<KeyExtractor> keyExtractors = this.leftKeyExtractorsMap.get(depth);
+        if (keyExtractors == null) {
+            return new int[0];
+        }
+        return keyExtractors.stream().mapToInt(KeyExtractor::getAbsoluteFieldIndex).toArray();
+    }
+
+    @Override
     public RowType getCommonJoinKeyType() {
         // We return an empty RowType if no common join key is defined.
         return Objects.requireNonNullElseGet(this.commonJoinKeyType, RowType::of);
@@ -911,6 +920,10 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
 
         public int getFieldIndexInSourceRow() {
             return fieldIndexInSourceRow;
+        }
+
+        public int getAbsoluteFieldIndex() {
+            return absoluteFieldIndex;
         }
 
         private void readObject(final java.io.ObjectInputStream in)

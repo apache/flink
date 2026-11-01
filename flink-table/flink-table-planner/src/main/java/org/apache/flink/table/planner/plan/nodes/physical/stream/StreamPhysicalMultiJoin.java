@@ -247,23 +247,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return keyExtractor.getJoinKeyIndices(inputId);
     }
 
-    /**
-     * Returns the columns that the equi-join conditions of the given input reference in the inputs
-     * before it, as indices into the row that joins those inputs. The input's own columns of these
-     * conditions are returned by {@link #getJoinKeyIndices(int)}.
-     */
-    public int[] getLeftJoinKeyIndices(int inputId) {
-        final List<ConditionAttributeRef> attributes = joinAttributeMap.get(inputId);
-        if (inputId == 0 || attributes == null) {
-            return new int[0];
-        }
-        final int[] offsets = new int[inputId];
-        for (int i = 1; i < inputId; i++) {
-            offsets[i] = offsets[i - 1] + inputs.get(i - 1).getRowType().getFieldCount();
-        }
-        return attributes.stream()
-                .mapToInt(attribute -> offsets[attribute.leftInputId] + attribute.leftFieldIndex)
-                .toArray();
+    public int[] getLeftSideJoinKeyIndices(int inputId) {
+        return keyExtractor.getLeftSideJoinKeyIndices(inputId);
     }
 
     private @Nullable Set<ImmutableBitSet> getUniqueKeys(RelNode input) {
