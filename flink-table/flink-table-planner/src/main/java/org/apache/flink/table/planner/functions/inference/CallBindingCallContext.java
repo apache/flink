@@ -116,6 +116,11 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     }
 
     @Override
+    public boolean isArgumentDefault(int pos) {
+        return adaptedArguments.get(pos).getKind() == SqlKind.DEFAULT;
+    }
+
+    @Override
     public boolean isArgumentLiteral(int pos) {
         final SqlNode sqlNode = adaptedArguments.get(pos);
         // Calcite represents DESCRIPTOR and MAP constructors as calls, not literals
@@ -128,9 +133,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     public boolean isArgumentNull(int pos) {
         final SqlNode sqlNode = adaptedArguments.get(pos);
         // Default values are passed as NULL into functions.
-        // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
-        // information is required.
-        return SqlUtil.isNullLiteral(sqlNode, true) || sqlNode.getKind() == SqlKind.DEFAULT;
+        return SqlUtil.isNullLiteral(sqlNode, true) || isArgumentDefault(pos);
     }
 
     @Override
