@@ -1391,6 +1391,79 @@ public class MultiJoinTestPrograms {
                                     + "  ON  o.user_id = p.user_id")
                     .build();
 
+    static final TableTestProgram MULTI_JOIN_THREE_WAY_JOIN_ON_FEWER_COLUMNS_WITH_RESTORE =
+            TableTestProgram.of(
+                            "three-way-join-on-fewer-columns-with-restore",
+                            "three way join on fewer columns with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("UserRegions")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "user_id STRING NOT NULL",
+                                            "region STRING NOT NULL",
+                                            "name STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `region`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "u1", "US", "Ann"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, "u1", "EU", "Ann"),
+                                            Row.ofKind(RowKind.DELETE, "u1", "EU", "Ann"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "order_id STRING NOT NULL",
+                                            "user_id STRING NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`, `user_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "o1", "u1", "book"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, "o2", "u1", "pen"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("RegionAddresses")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "user_id STRING NOT NULL",
+                                            "region STRING NOT NULL",
+                                            "location STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `region`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "u1", "EU", "Berlin"),
+                                            Row.ofKind(RowKind.INSERT, "u1", "US", "NYC"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "`order_id` STRING NOT NULL",
+                                            "`user_id` STRING NOT NULL",
+                                            "name STRING",
+                                            "location STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`, `user_id`) NOT ENFORCED")
+                                    // deleting the EU region must keep the orders' rows for the US
+                                    .consumedBeforeRestore("+I[o1, u1, Ann, NYC]")
+                                    .consumedAfterRestore("+I[o2, u1, Ann, NYC]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO `sink`\n"
+                                    + "SELECT\n"
+                                    + "    o.order_id,\n"
+                                    + "    o.user_id,\n"
+                                    + "    r.name,\n"
+                                    + "    a.location\n"
+                                    + "FROM UserRegions r\n"
+                                    + "JOIN Orders o\n"
+                                    + "  ON  r.user_id = o.user_id\n"
+                                    + "JOIN RegionAddresses a\n"
+                                    + "  ON  r.user_id = a.user_id AND r.region = a.region\n"
+                                    + "ON CONFLICT DO DEDUPLICATE")
+                    .build();
+
     public static final TableTestProgram
             MULTI_JOIN_WITH_TIME_ATTRIBUTES_IN_CONDITIONS_MATERIALIZATION =
                     TableTestProgram.of(

@@ -43,6 +43,7 @@ public class MultiJoinRestoreTest extends RestoreTestBase {
                 MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_COMPLEX_PRESERVES_UPSERT_KEY_WITH_RESTORE,
                 MultiJoinTestPrograms
                         .MULTI_JOIN_TWO_WAY_LEFT_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE,
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE);
+                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE,
+                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_JOIN_ON_FEWER_COLUMNS_WITH_RESTORE);
     }
 }
