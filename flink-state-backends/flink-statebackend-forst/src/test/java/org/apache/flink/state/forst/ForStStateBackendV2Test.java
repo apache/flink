@@ -111,7 +111,8 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
                             + " useIngestDbRestoreMode: {2},"
                             + " useDeleteFileInRange: {3},"
                             + " CheckpointStorage: {4}, "
-                            + " restoreMode: {5}")
+                            + " restoreMode: {5},"
+                            + " remoteOnObjectStore: {6}")
     public static List<Object[]> modes() {
         // ---------- base cases ----------
         // combination of parameters: [hasLocalDir, hasRemoteDir, useIngestDbRestoreMode,
@@ -137,6 +138,27 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
         // ---------- enumerate different cases for restoreMode ----------
         cases = addAllCasesForParameter(cases, RestoreMode.values());
 
+        // ---------- the remote directory on an object-store-like file system ----------
+        // the cases above keep their remote directory on the plain local file system
+        cases = addAllCasesForParameter(cases, new Object[] {false});
+        for (boolean useIngestDbRestoreMode : new boolean[] {true, false}) {
+            for (Object storage :
+                    new Object[] {filesystemCheckpointStorage, dbReusableCheckpointStorage}) {
+                for (RestoreMode restoreMode : RestoreMode.values()) {
+                    cases.add(
+                            new Object[] {
+                                false,
+                                true,
+                                useIngestDbRestoreMode,
+                                true,
+                                storage,
+                                restoreMode,
+                                true
+                            });
+                }
+            }
+        }
+
         return cases;
     }
 
@@ -157,9 +179,20 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
     @Parameter(5)
     public RestoreMode restoreMode;
 
+    @Parameter(6)
+    public boolean remoteOnObjectStore;
+
     @Override
     protected CheckpointStorage getCheckpointStorage() throws Exception {
+        if (remoteOnObjectStore && storageSupplier == dbReusableCheckpointStorage) {
+            // the primary directory is the checkpoint directory, both on the object store
+            return new FileSystemCheckpointStorage(new Path(objectStoreRemoteDir()), 0, -1);
+        }
         return storageSupplier.get();
+    }
+
+    private static String objectStoreRemoteDir() {
+        return ObjectStoreLikeFileSystem.SCHEME + "://" + tempFolderForForstRemote;
     }
 
     @Override
@@ -170,7 +203,11 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
             config.set(LOCAL_DIRECTORIES, tempFolderForForStLocal.toString());
         }
         if (hasRemoteDir) {
-            config.set(PRIMARY_DIRECTORY, tempFolderForForstRemote.toString());
+            config.set(
+                    PRIMARY_DIRECTORY,
+                    remoteOnObjectStore
+                            ? objectStoreRemoteDir()
+                            : tempFolderForForstRemote.toString());
         } else {
             config.set(PRIMARY_DIRECTORY, LOCAL_DIR_AS_PRIMARY_SHORTCUT);
         }
