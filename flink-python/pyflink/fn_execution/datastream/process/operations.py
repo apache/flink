@@ -314,6 +314,10 @@ def extract_stateful_function(
             on_timer_ctx.set_current_key(user_current_key)
             on_timer_ctx.set_time_domain(time_domain)
 
+            # ConnectedStreams.process also routes a plain CoProcessFunction here, and it has
+            # no on_timer.
+            if not hasattr(process_function, "on_timer"):
+                return ()
             return process_function.on_timer(timestamp, on_timer_ctx)
 
         if func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:
