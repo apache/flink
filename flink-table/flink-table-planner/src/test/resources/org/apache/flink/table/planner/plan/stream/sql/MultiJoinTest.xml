@@ -2200,7 +2200,7 @@ LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[INNER], inputUniqueKeys=[noUniqueKey, (payment_id)], joinConditions=[true], select=[user_id,name,order_id,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id)])
+MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[INNER], inputUniqueKeys=[(user_id, order_id), (payment_id)], joinConditions=[true], select=[user_id,name,order_id,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id)])
 :- Exchange(distribution=[single])
 :  +- MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[LEFT], inputUniqueKeys=[(user_id), (order_id)], joinConditions=[true], select=[user_id,name,order_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id)])
 :     :- Exchange(distribution=[single])

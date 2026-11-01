@@ -731,7 +731,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             final int inputIndex,
             final ImmutableBitSet localRequired,
             final int inputFieldCount) {
-        final List<int[]> uniqueKeys = multiJoin.getUniqueKeysForInputs().get(inputIndex);
+        final List<int[]> uniqueKeys = multiJoin.getUpsertKeysForInputs().get(inputIndex);
         final boolean hasUniqueKey = !uniqueKeys.isEmpty();
 
         if (hasUniqueKey) {

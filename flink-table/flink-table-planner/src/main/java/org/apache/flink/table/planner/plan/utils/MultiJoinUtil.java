@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -31,7 +34,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class MultiJoinUtil {
     public static Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
@@ -52,17 +59,134 @@ public class MultiJoinUtil {
         }
 
         for (final RexNode condition : joinConditions) {
-            extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
+            forEachEquality(
+                    condition,
+                    inputOffsets,
+                    inputFieldCounts,
+                    (leftRef, rightRef) -> addAttributeRefs(leftRef, rightRef, joinAttributeMap));
         }
         return joinAttributeMap;
     }
 
-    private static void extractEqualityConditions(
+    /**
+     * Returns, for each input, the indices of the fields in which a NULL means that a row of this
+     * input can never be part of a join result together with a row of another input.
+     *
+     * <p>A field qualifies if it is compared with {@code =} in a conjunct of the condition that
+     * joins input {@code k}, and either the field belongs to input {@code k} or the join of input
+     * {@code k} is an inner join. {@code IS NOT DISTINCT FROM} never qualifies.
+     *
+     * @param inputRowTypes the row types of all inputs
+     * @param joinConditions the join condition of each input, over the fields of all inputs up to
+     *     and including it; the condition of input 0 is not used
+     * @param joinTypes the join type of each input
+     */
+    public static int[][] createNullFilterFields(
+            final List<RowType> inputRowTypes,
+            final List<? extends @Nullable RexNode> joinConditions,
+            final List<FlinkJoinType> joinTypes) {
+        final List<Integer> inputFieldCounts =
+                inputRowTypes.stream().map(RowType::getFieldCount).collect(Collectors.toList());
+        final List<Integer> inputOffsets = inputOffsets(inputFieldCounts);
+
+        final List<Set<Integer>> nullFilterFields = new ArrayList<>();
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            nullFilterFields.add(new TreeSet<>());
+        }
+        for (int k = 1; k < joinConditions.size(); k++) {
+            final RexNode condition = joinConditions.get(k);
+            if (condition == null) {
+                continue;
+            }
+            final int joinedInput = k;
+            final boolean isInnerJoin = joinTypes.get(k) == FlinkJoinType.INNER;
+            forEachEquality(
+                    condition,
+                    inputOffsets,
+                    inputFieldCounts,
+                    (leftRef, rightRef) -> {
+                        for (final InputRef ref : List.of(leftRef, rightRef)) {
+                            if (isInnerJoin || ref.inputIndex == joinedInput) {
+                                nullFilterFields.get(ref.inputIndex).add(ref.attributeIndex);
+                            }
+                        }
+                    });
+        }
+        return nullFilterFields.stream()
+                .map(fields -> fields.stream().mapToInt(Integer::intValue).toArray())
+                .toArray(int[][]::new);
+    }
+
+    /**
+     * Returns, for each input, the indices of the fields that the join conditions read and that are
+     * not part of every key of the input. Two versions of a record have the same key, so only these
+     * fields can make the join conditions match them differently.
+     *
+     * @param inputRowTypes the row types of all inputs
+     * @param joinConditions the join condition of each input, over the fields of all inputs up to
+     *     and including it
+     * @param inputKeys the keys of each input
+     */
+    public static int[][] createConditionFields(
+            final List<RowType> inputRowTypes,
+            final List<? extends @Nullable RexNode> joinConditions,
+            final List<List<int[]>> inputKeys) {
+        final List<Integer> inputFieldCounts =
+                inputRowTypes.stream().map(RowType::getFieldCount).collect(Collectors.toList());
+        final List<Integer> inputOffsets = inputOffsets(inputFieldCounts);
+
+        final List<Set<Integer>> conditionFields = new ArrayList<>();
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            conditionFields.add(new TreeSet<>());
+        }
+        for (final RexNode condition : joinConditions) {
+            if (condition == null) {
+                continue;
+            }
+            for (final int index : RelOptUtil.InputFinder.bits(condition)) {
+                final InputRef ref = findInputRef(index, inputOffsets, inputFieldCounts);
+                if (ref != null) {
+                    conditionFields.get(ref.inputIndex).add(ref.attributeIndex);
+                }
+            }
+        }
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            final List<int[]> keys = inputKeys.get(i);
+            if (keys.isEmpty()) {
+                continue;
+            }
+            final Set<Integer> fieldsOfEveryKey = toSet(keys.get(0));
+            keys.forEach(key -> fieldsOfEveryKey.retainAll(toSet(key)));
+            conditionFields.get(i).removeAll(fieldsOfEveryKey);
+        }
+        return conditionFields.stream()
+                .map(fields -> fields.stream().mapToInt(Integer::intValue).toArray())
+                .toArray(int[][]::new);
+    }
+
+    private static List<Integer> inputOffsets(final List<Integer> inputFieldCounts) {
+        final List<Integer> inputOffsets = new ArrayList<>();
+        int currentOffset = 0;
+        for (final Integer count : inputFieldCounts) {
+            inputOffsets.add(currentOffset);
+            currentOffset += count;
+        }
+        return inputOffsets;
+    }
+
+    private static Set<Integer> toSet(final int[] fields) {
+        return IntStream.of(fields).boxed().collect(Collectors.toSet());
+    }
+
+    /**
+     * Calls {@code consumer} for each {@code =} between two input fields in the conjuncts of {@code
+     * condition}, with the field of the input with the lower index first.
+     */
+    private static void forEachEquality(
             final RexNode condition,
             final List<Integer> inputOffsets,
             final List<Integer> inputFieldCounts,
-            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                    joinAttributeMap) {
+            final BiConsumer<InputRef, InputRef> consumer) {
         if (!(condition instanceof RexCall)) {
             return;
         }
@@ -75,8 +199,7 @@ public class MultiJoinUtil {
             // All other condition types are deferred to the postJoinFilter.
             if (kind == SqlKind.AND) {
                 for (final RexNode operand : call.getOperands()) {
-                    extractEqualityConditions(
-                            operand, inputOffsets, inputFieldCounts, joinAttributeMap);
+                    forEachEquality(operand, inputOffsets, inputFieldCounts, consumer);
                 }
             }
             return;
@@ -102,16 +225,18 @@ public class MultiJoinUtil {
             return;
         }
 
-        final InputRef leftRef;
-        final InputRef rightRef;
         if (inputRef1.inputIndex < inputRef2.inputIndex) {
-            leftRef = inputRef1;
-            rightRef = inputRef2;
+            consumer.accept(inputRef1, inputRef2);
         } else {
-            leftRef = inputRef2;
-            rightRef = inputRef1;
+            consumer.accept(inputRef2, inputRef1);
         }
+    }
 
+    private static void addAttributeRefs(
+            final InputRef leftRef,
+            final InputRef rightRef,
+            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
+                    joinAttributeMap) {
         // Special case for input 0:
         // Since we are building attribute references that do left -> right index,
         // we need a special base case for input 0 which has no input to the left.
