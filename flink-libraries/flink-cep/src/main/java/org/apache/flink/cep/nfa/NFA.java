@@ -100,15 +100,46 @@ public class NFA<T> {
      */
     private final boolean handleTimeout;
 
+    /**
+     * The name of the Pending state that a partial match moves into, instead of timing out, when
+     * time closes the looping or optional stage it waits in, by the name of the state it waits in:
+     * the Pending state of the trailing notFollowedBy or, for a partial match of the greedy stage
+     * in front of it, an unguarded twin of that state, which no edge leads to. Empty unless the
+     * pattern ends in notFollowedBy.
+     */
+    private final Map<String, String> timeoutClosingTargets;
+
+    /**
+     * Creates an NFA in which time never closes a stage: a partial match that times out is dropped,
+     * or returned as a timed out pattern when {@code handleTimeout} is set.
+     */
     public NFA(
             final Collection<State<T>> validStates,
             final Map<String, Long> windowTimes,
             final long windowTime,
             final boolean handleTimeout) {
+        this(validStates, windowTimes, windowTime, Collections.emptyMap(), handleTimeout);
+    }
+
+    /**
+     * Creates an NFA in which time can close a looping or optional stage that a trailing
+     * notFollowedBy follows: a partial match that times out in a state that {@code
+     * timeoutClosingTargets} names moves into the Pending state it names for that state, as the
+     * {@link NFACompiler} computes them from the pattern.
+     */
+    public NFA(
+            final Collection<State<T>> validStates,
+            final Map<String, Long> windowTimes,
+            final long windowTime,
+            final Map<String, String> timeoutClosingTargets,
+            final boolean handleTimeout) {
         this.windowTime = windowTime;
         this.handleTimeout = handleTimeout;
         this.states = loadStates(validStates);
         this.windowTimes = windowTimes;
+        this.timeoutClosingTargets =
+                Preconditions.checkNotNull(
+                        timeoutClosingTargets, "The timeout closing targets cannot be null.");
     }
 
     private Map<String, State<T>> loadStates(final Collection<State<T>> validStates) {
@@ -296,6 +327,36 @@ public class NFA<T> {
                     // save pending states for after-match pruning, where those states will be
                     // released
                     potentialMatches.add(computationState);
+                    continue;
+                }
+
+                // A looping or optional stage that may end here and is followed by a trailing
+                // notFollowedBy only moves into the Pending state while processing a next event.
+                // Time ran out without one, so the stage is closed by time: the partial match
+                // moves into the Pending state with the same events and timestamps.
+                String pendingName = timeoutClosingTargets.get(currentStateName);
+                if (pendingName != null) {
+                    ComputationState closed =
+                            ComputationState.createState(
+                                    pendingName,
+                                    computationState.getPreviousBufferEntry(),
+                                    computationState.getVersion(),
+                                    computationState.getStartTimestamp(),
+                                    computationState.getPreviousTimestamp(),
+                                    computationState.getStartEventID());
+                    boolean pendingTimedOut =
+                            isTimeoutForFirstEvent
+                                    || (windowTimes.containsKey(pendingName)
+                                            && isStateTimedOut(
+                                                    closed,
+                                                    timestamp,
+                                                    closed.getPreviousTimestamp(),
+                                                    windowTimes.get(pendingName)));
+                    if (pendingTimedOut) {
+                        potentialMatches.add(closed);
+                    } else {
+                        newPartialMatches.add(closed);
+                    }
                     continue;
                 }
 

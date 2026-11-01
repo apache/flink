@@ -69,6 +69,7 @@ import java.util.Map;
 import java.util.Queue;
 
 import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
+import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFAFactory;
 import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -353,6 +354,60 @@ class CEPOperatorTest {
             assertThat(((Watermark) watermark2).getTimestamp()).isEqualTo(watermarkTimestamp2);
         } finally {
             harness.close();
+        }
+    }
+
+    /**
+     * A looping pattern before a trailing notFollowedBy, in event time: when the watermark passes
+     * the end of the window and no forbidden event arrived, the loop is a match, emitted at that
+     * watermark, and nothing of it is reported as timed out. See FLINK-31040.
+     *
+     * <p>a1 and a2 are processed at the first watermark, and the loop waits for a further a. No
+     * event arrives before the second watermark, which passes the window, so time closes the loop
+     * and [a1 a2] is the match, skipping past its last event.
+     */
+    @Test
+    void testKeyedLoopingPatternBeforeNotFollowedByIsEmittedOnWatermark() throws Exception {
+        final Event a1 = new Event(42, "a", 1.0);
+        final Event a2 = new Event(42, "a", 2.0);
+
+        final Map<String, List<Event>> expectedMatch = new HashMap<>();
+        expectedMatch.put("a", Lists.newArrayList(a1, a2));
+
+        final Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipPastLastEvent())
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .oneOrMore()
+                        .notFollowedBy("b")
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
+                        .within(Duration.ofMillis(10L));
+
+        final OutputTag<Tuple2<Map<String, List<Event>>, Long>> timedOut =
+                new OutputTag<Tuple2<Map<String, List<Event>>, Long>>("timedOut") {};
+
+        try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+                CepOperatorTestUtilities.getCepTestHarness(
+                        createOperatorForNFAFactory(NFACompiler.compileFactory(pattern, true))
+                                .inEventTime()
+                                .withSkipStrategy(pattern.getAfterMatchSkipStrategy())
+                                .withFunction(new TimedOutProcessFunction(timedOut))
+                                .build())) {
+            harness.open();
+
+            harness.processElement(new StreamRecord<>(a1, 1L));
+            harness.processElement(new StreamRecord<>(a2, 2L));
+            harness.processWatermark(new Watermark(2L));
+
+            verifyWatermark(harness.getOutput().poll(), 2L);
+            assertThat(harness.getOutput()).isEmpty();
+
+            harness.processWatermark(new Watermark(20L));
+
+            assertThat(harness.getOutput().poll())
+                    .isEqualTo(new StreamRecord<>(expectedMatch, 20L));
+            verifyWatermark(harness.getOutput().poll(), 20L);
+            assertThat(harness.getOutput()).isEmpty();
+            assertThat(harness.getSideOutput(timedOut)).isNullOrEmpty();
         }
     }
 
