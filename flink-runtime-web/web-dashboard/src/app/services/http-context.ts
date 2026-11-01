@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import { HttpContextToken } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { EMPTY, Observable, throwError } from 'rxjs';
 
 /**
  * Marks a request for which a 404 is an expected outcome that the caller handles itself, so the
@@ -24,3 +25,15 @@ import { HttpContextToken } from '@angular/common/http';
  * still surfaced as usual.
  */
 export const EXPECTED_NOT_FOUND = new HttpContextToken<boolean>(() => false);
+
+export function isNotFound(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === HttpStatusCode.NotFound;
+}
+
+/**
+ * A catchError handler that re-throws a 404, so the caller can react to a resource that is gone,
+ * and completes silently on any other error.
+ */
+export function rethrowOnlyNotFound(error: unknown): Observable<never> {
+  return isNotFound(error) ? throwError(() => error) : EMPTY;
+}
