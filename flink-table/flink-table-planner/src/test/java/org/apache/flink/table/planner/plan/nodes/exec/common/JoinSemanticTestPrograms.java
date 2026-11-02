@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -304,5 +305,119 @@ public class JoinSemanticTestPrograms {
                                     + "SELECT a.r.id, b.r.id "
                                     + "FROM fj_n_left a FULL JOIN fj_n_right b "
                                     + "ON a.r.id = b.r.id")
+                    .build();
+
+    public static final TableTestProgram JOIN_REORDER_INNER_JOIN_ON_NULL_GENERATING_SIDE =
+            TableTestProgram.of(
+                            "join-reorder-inner-join-on-null-generating-side",
+                            "validates that join reorder applies the condition of an inner join"
+                                    + " on the null generating side of a left join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t1")
+                                    .addSchema("a1 INT")
+                                    .producedValues(Row.of(1), Row.of(2))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t2")
+                                    .addSchema("a2 INT", "b2 INT")
+                                    .producedValues(Row.of(1, 5))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t3")
+                                    .addSchema("a3 INT", "b3 INT")
+                                    .producedValues(Row.of(1, 3), Row.of(2, 7))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a1 INT", "a2 INT", "b2 INT", "a3 INT", "b3 INT")
+                                    .testMaterializedData()
+                                    // b2 is null for the row of t1 with a1 = 2, so b2 > b3 removes
+                                    // it.
+                                    .consumedValues("+I[1, 1, 5, 1, 3]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a1, a2, b2, a3, b3 FROM t1 "
+                                    + "LEFT JOIN t2 ON a1 = a2 JOIN t3 ON b2 > b3")
+                    .build();
+
+    public static final TableTestProgram JOIN_REORDER_RIGHT_JOIN_ON_LEFT_JOIN_OF_CROSS_JOIN =
+            TableTestProgram.of(
+                            "join-reorder-right-join-on-left-join-of-cross-join",
+                            "validates that join reorder applies the conditions of a right join"
+                                    + " and of a left join of a cross join on its right side")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t1")
+                                    .addSchema("a1 INT", "b1 INT")
+                                    .producedValues(Row.of(1, 16), Row.of(2, 1))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t2")
+                                    .addSchema("a2 INT")
+                                    .producedValues(Row.of(1), Row.of(2))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t3")
+                                    .addSchema("a3 INT", "b3 INT")
+                                    .producedValues(Row.of(1, 15), Row.of(2, 5))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t5")
+                                    .addSchema("b5 INT")
+                                    .producedValues(Row.of(10), Row.of(20))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "a1 INT", "b1 INT", "a2 INT", "b5 INT", "a3 INT",
+                                            "b3 INT")
+                                    .testMaterializedData()
+                                    .consumedValues(
+                                            "+I[null, null, 1, 10, null, null]",
+                                            "+I[1, 16, 1, 20, 1, 15]",
+                                            "+I[null, null, 2, 10, 2, 5]",
+                                            "+I[null, null, 2, 20, 2, 5]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a1, b1, a2, b5, a3, b3 FROM t1 "
+                                    + "RIGHT JOIN ("
+                                    + "SELECT * FROM t2 JOIN t5 ON TRUE "
+                                    + "LEFT JOIN t3 ON a2 = a3 AND b5 > b3"
+                                    + ") t ON a1 = a2 AND b1 > b3")
+                    .build();
+
+    public static final TableTestProgram JOIN_REORDER_LEFT_JOIN_ON_TRUE_WITH_CROSS_JOIN =
+            TableTestProgram.of(
+                            "join-reorder-left-join-on-true-with-cross-join",
+                            "validates that join reorder keeps a left join on true that is"
+                                    + " followed by a cross join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t1")
+                                    .addSchema("a1 INT")
+                                    .producedValues(Row.of(1), Row.of(2))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t2")
+                                    .addSchema("a2 INT")
+                                    .producedValues(Row.of(1))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t3")
+                                    .addSchema("a3 INT")
+                                    .producedValues(Row.of(3))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a1 INT", "a2 INT", "a3 INT")
+                                    .testMaterializedData()
+                                    // The filter removes all rows of t2, so the LEFT JOIN returns
+                                    // the rows of t1 with nulls.
+                                    .consumedValues("+I[1, null, 3]", "+I[2, null, 3]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a1, a2, a3 FROM t1 "
+                                    + "LEFT JOIN (SELECT * FROM t2 WHERE a2 > 1) t ON TRUE, t3")
                     .build();
 }

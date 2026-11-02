@@ -462,6 +462,13 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @TestTemplate
+  def testLeftOuterJoinOnTrueWithCrossJoin(): Unit = {
+    // The condition of the LEFT JOIN is true, so T2 is joined with the inputs of the cross join.
+    val sql = "SELECT * FROM T1 LEFT JOIN T2 ON TRUE, T3"
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testLeftOuterJoinWithConditionOnLeftSide(): Unit = {
     // b1 > 10 references only the left side of the LEFT JOIN, but is part of its condition.
     val sql = "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a1 = a2 AND b1 > 10"
@@ -497,6 +504,23 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @TestTemplate
+  def testRightOuterJoinWithConditionOnOuterJoinOfCrossJoin(): Unit = {
+    // b5 > b3 references T5, which only a cross join joins with T2, and b1 > b3 references T3,
+    // the null generating side of the LEFT JOIN on the right side.
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |  RIGHT JOIN (
+         |    SELECT * FROM T2
+         |      JOIN T5 ON TRUE
+         |      LEFT JOIN T3 ON a2 = a3 AND b5 > b3
+         |  ) t
+         |  ON a1 = a2 AND b1 > b3
+         """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testInnerJoinConditionOnNullGeneratingSide(): Unit = {
     // b2 > b3 references T2, the null generating side of the LEFT JOIN, so it can only be applied
     // after the LEFT JOIN.
@@ -506,6 +530,13 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
          |   LEFT OUTER JOIN T2 ON a1 = a2
          |   JOIN T3 ON a1 = a3 AND b2 > b3
          """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinOnlyConditionOnNullGeneratingSide(): Unit = {
+    // b2 > b3 is the only condition of the inner join. No condition joins T1 and T3.
+    val sql = "SELECT * FROM T1 LEFT JOIN T2 ON a1 = a2 JOIN T3 ON b2 > b3"
     util.verifyRelPlan(sql)
   }
 
