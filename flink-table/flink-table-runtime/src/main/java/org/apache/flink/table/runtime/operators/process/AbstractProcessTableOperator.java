@@ -45,6 +45,7 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 import org.apache.flink.table.functions.TableSemantics;
@@ -163,6 +164,19 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
     @Override
     public void onProcessingTime(InternalTimer<RowData, Object> timer) throws Exception {}
+
+    /**
+     * Every key enters the operator through this method. Timers and state compare keys via {@link
+     * Object#equals(Object)}, which is only guaranteed to have value semantics for binary keys.
+     */
+    @Override
+    public void setCurrentKey(Object key) {
+        if (!(key instanceof BinaryRowData)) {
+            throw new IllegalStateException(
+                    "Partition keys must be BinaryRowData but was: " + key.getClass().getName());
+        }
+        super.setCurrentKey(key);
+    }
 
     /** Implementation of {@link ProcessTableFunction.Context}. */
     @Internal
@@ -308,7 +322,10 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
         if (shouldEnableTimers()) {
             internalTimeContext =
                     new WritableInternalTimeContext(
-                            namedTimersMapState, namedTimerService, unnamedTimerService);
+                            getKeyedStateBackend(),
+                            namedTimersMapState,
+                            namedTimerService,
+                            unnamedTimerService);
         } else {
             internalTimeContext = new ReadableInternalTimeContext();
         }

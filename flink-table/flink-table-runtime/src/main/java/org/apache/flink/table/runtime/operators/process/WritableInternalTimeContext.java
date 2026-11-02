@@ -20,8 +20,10 @@ package org.apache.flink.table.runtime.operators.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -37,14 +39,17 @@ import java.util.Map;
 @Internal
 class WritableInternalTimeContext extends ReadableInternalTimeContext {
 
+    private final KeyedStateBackend<RowData> keyedStateBackend;
     private final MapState<StringData, Long> namedTimersMapState;
     private final InternalTimerService<StringData> namedTimerService;
     private final InternalTimerService<VoidNamespace> unnamedTimerService;
 
     WritableInternalTimeContext(
+            KeyedStateBackend<RowData> keyedStateBackend,
             MapState<StringData, Long> namedTimersMapState,
             InternalTimerService<StringData> namedTimerService,
             InternalTimerService<VoidNamespace> unnamedTimerService) {
+        this.keyedStateBackend = keyedStateBackend;
         this.namedTimersMapState = namedTimersMapState;
         this.namedTimerService = namedTimerService;
         this.unnamedTimerService = unnamedTimerService;
@@ -116,11 +121,23 @@ class WritableInternalTimeContext extends ReadableInternalTimeContext {
     }
 
     private void clearUnnamedTimers() {
+        final RowData currentKey = keyedStateBackend.getCurrentKey();
         final List<Long> unnamedTimers = new ArrayList<>();
         try {
-            unnamedTimerService.forEachEventTimeTimer((namespace, time) -> unnamedTimers.add(time));
+            // The timer service iterates the timers of all keys and sets the key context to the
+            // key of each visited timer. Only timers of the current key must be cleared.
+            // The equals is safe: keys are BinaryRowData, which compares the serialized bytes and
+            // not the object identity, so a key deserialized by the timer service still matches.
+            unnamedTimerService.forEachEventTimeTimer(
+                    (namespace, time) -> {
+                        if (currentKey.equals(keyedStateBackend.getCurrentKey())) {
+                            unnamedTimers.add(time);
+                        }
+                    });
         } catch (Exception e) {
             throw new FlinkRuntimeException(e);
+        } finally {
+            keyedStateBackend.setCurrentKey(currentKey);
         }
         unnamedTimers.forEach(
                 time -> unnamedTimerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, time));

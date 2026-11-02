@@ -859,6 +859,30 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Testing function. */
+    public static class ClearAllUnnamedTimersPerKeyFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint Tuple1<Integer> count,
+                @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
+            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            final int newCount = count.f0 == null ? 1 : count.f0 + 1;
+            if (newCount == 1) {
+                // All keys register an unnamed timer for the same time
+                timeCtx.registerOnTime(1000L);
+            } else if (newCount == 2) {
+                ctx.clearAllTimers();
+            }
+            // Written to the state of the current key even after clearing
+            count.f0 = newCount;
+            collect(Row.of("count " + newCount));
+        }
+
+        public void onTimer(OnTimerContext ctx, Tuple1<Integer> count) {
+            collect(Row.of("timeout with count " + count.f0));
+        }
+    }
+
     /**
      * Implements a custom join that acts like kind of an outer join and never produces deletions.
      * Both the score and city can change at any time. The join will output an update if a matching
