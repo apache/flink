@@ -869,7 +869,12 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 true,
-                                BOOLEAN()));
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        // Only the first JSON value is read, content after it is ignored.
+                        .onFieldsWithData("{\"a\":1} xyz")
+                        .andDataTypes(STRING())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN()));
     }
 
     private static List<TestSetSpec> jsonQuerySpec() {

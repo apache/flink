@@ -1384,6 +1384,8 @@ variant:
     description: |
       Parse a JSON string into a Variant. If the JSON string is invalid, an error will be thrown.
       To return NULL instead of an error, use the `TRY_PARSE_JSON` function.
+      Only the first JSON value is read and content after it is ignored, so
+      `PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
 
       If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
       parser will keep the last occurrence of all fields with the same key, otherwise when
@@ -1396,6 +1398,8 @@ variant:
     description: |
       Try to parse a JSON string into a Variant if possible. If the JSON string is invalid, return
       NULL. To throw an error instead of returning NULL, use the `PARSE_JSON` function.
+      Only the first JSON value is read and content after it is ignored, so
+      `TRY_PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
 
       If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
       parser will keep the last occurrence of all fields with the same key, otherwise when
