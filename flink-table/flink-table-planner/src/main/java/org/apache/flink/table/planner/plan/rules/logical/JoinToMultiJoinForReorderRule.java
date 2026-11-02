@@ -654,6 +654,8 @@ public class JoinToMultiJoinForReorderRule extends RelRule<JoinToMultiJoinForReo
      * @param joinRel the original LogicalJoin
      * @param left left child of the LogicalJoin
      * @param right right child of the LogicalJoin
+     * @param inputNullGenFieldList whether each field of the left and right children is null
+     *     generating
      * @return combined post-join filters AND'd together
      */
     private List<RexNode> combinePostJoinFilters(
