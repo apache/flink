@@ -16,19 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.common.JoinReorderSemanticTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.common.JoinSemanticTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchSemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for join reorder in streaming mode. */
-public class JoinReorderSemanticTests extends SemanticTestBase {
+/** Semantic tests for joins in batch mode. */
+public class JoinBatchSemanticTests extends BatchSemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return List.of(JoinReorderSemanticTestPrograms.FILTER_ON_NULL_GENERATING_SIDE_OF_LEFT_JOIN);
+        return List.of(
+                JoinSemanticTestPrograms.JOIN_REORDER_FILTER_ON_NULL_GENERATING_SIDE_OF_LEFT_JOIN);
     }
 }
