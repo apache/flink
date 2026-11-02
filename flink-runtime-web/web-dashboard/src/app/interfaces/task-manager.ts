@@ -94,6 +94,8 @@ interface Metrics {
   mappedCount: number;
   mappedUsed: number;
   mappedMax: number;
+  nettyShuffleMemorySegmentsAvailable: number;
+  nettyShuffleMemorySegmentsTotal: number;
   garbageCollectors: GarbageCollectorsItem[];
 }
 

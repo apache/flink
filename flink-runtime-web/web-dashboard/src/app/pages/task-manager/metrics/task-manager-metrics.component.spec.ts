@@ -21,13 +21,21 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TaskManagerMetricsComponent } from './task-manager-metrics.component';
 
-const mockDetail = {
+const mockDetail: TaskManagerDetail = {
   id: 'tm-1',
+  path: 'pekko.tcp://flink@localhost:6122/user/rpc/taskmanager_0',
+  dataPort: 6121,
+  timeSinceLastHeartbeat: 1_700_000_000_000,
+  slotsNumber: 4,
+  freeSlots: 4,
+  assignedTasks: 0,
+  hardware: { cpuCores: 8, physicalMemory: 17_179_869_184, freeMemory: 536_870_912, managedMemory: 536_870_912 },
   memoryConfiguration: {
     frameworkHeap: 134_217_728,
     frameworkOffHeap: 134_217_728,
@@ -53,8 +61,8 @@ const mockDetail = {
     mappedCount: 0,
     mappedUsed: 0,
     mappedMax: 0,
-    memorySegmentsAvailable: 128,
-    memorySegmentsTotal: 256,
+    nettyShuffleMemorySegmentsAvailable: 1234,
+    nettyShuffleMemorySegmentsTotal: 5678,
     garbageCollectors: []
   },
   freeResource: { cpuCores: 4, taskHeapMemory: 100, taskOffHeapMemory: 0, managedMemory: 200, networkMemory: 50 },
@@ -105,6 +113,16 @@ describe('TaskManagerMetricsComponent', () => {
     const text = element.textContent ?? '';
     expect(text).toContain('Memory');
     expect(text).toContain('Flink Memory Model');
+  });
+
+  it('shows the Netty shuffle buffer counts', () => {
+    fixture.detectChanges();
+
+    const table = Array.from(element.querySelectorAll('nz-table')).find(t =>
+      t.textContent?.includes('Netty Shuffle Buffers')
+    );
+    const cells = Array.from(table?.querySelectorAll('tbody td') ?? []).map(td => td.textContent?.trim());
+    expect(cells).toEqual(['Available', '1,234', 'Total', '5,678']);
   });
 
   it('does not load metrics when the manager cannot be fetched', () => {

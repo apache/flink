@@ -255,11 +255,11 @@
         <tbody>
           <tr>
             <td><strong>Available</strong></td>
-            <td>{{ taskManagerDetail?.metrics.memorySegmentsAvailable | number }}</td>
+            <td>{{ taskManagerDetail?.metrics.nettyShuffleMemorySegmentsAvailable | number }}</td>
           </tr>
           <tr>
             <td><strong>Total</strong></td>
-            <td>{{ taskManagerDetail?.metrics.memorySegmentsTotal | number }}</td>
+            <td>{{ taskManagerDetail?.metrics.nettyShuffleMemorySegmentsTotal | number }}</td>
           </tr>
         </tbody>
       </nz-table>
