@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.optimize.program.FlinkRuleSetProgram;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rex.RexCall;
@@ -38,6 +39,9 @@ import scala.Option;
  * {@link RexCall} out of the remote calc and also establishes this projection order. Subsequent
  * optimizations, such as async calc splitting, can disrupt that order. This rule restores the
  * required order after those optimizations.
+ *
+ * <p>A distinct rule is needed because {@link FlinkRuleSetProgram} de-duplicates equal rules.
+ * Registering the earlier rewrite rule again would not schedule another pass after async splitting.
  */
 public class RemoteCalcReorderProjectionRule extends RemoteCalcSplitProjectionRuleBase<Void> {
 
