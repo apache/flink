@@ -192,5 +192,5 @@ The table below details the SQL types the format supports, including details of 
 </table>
 
 Note: combining `VARIANT` with `raw.line-delimiter` gives you newline-delimited JSON, where each line of a message
-becomes one row.
+becomes one row. Without the delimiter, only the first JSON document of a message is read.
 

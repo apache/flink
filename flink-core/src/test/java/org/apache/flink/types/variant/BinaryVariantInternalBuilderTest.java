@@ -21,6 +21,7 @@ package org.apache.flink.types.variant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -183,6 +184,19 @@ class BinaryVariantInternalBuilderTest {
     void testParseJsonRejectsBytesThatAreNotUtf8Json(final String name, final byte[] bytes) {
         assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(bytes, false))
                 .isInstanceOf(IOException.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            delimiter = '|',
+            quoteCharacter = '`',
+            value = {"{\"a\":1} xyz | {\"a\":1}", "{\"a\":1}{\"a\":2} | {\"a\":1}"})
+    void testParseJsonIgnoresContentAfterTheFirstValue(final String json, final String firstValue)
+            throws IOException {
+        assertThat(BinaryVariantInternalBuilder.parseJson(json, false).toJson())
+                .isEqualTo(firstValue);
+        assertThat(BinaryVariantInternalBuilder.parseJson(json.getBytes(UTF_8), false).toJson())
+                .isEqualTo(firstValue);
     }
 
     @ParameterizedTest

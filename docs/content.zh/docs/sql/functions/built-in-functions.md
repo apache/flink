@@ -75,6 +75,9 @@ Flink Table API & SQL 为用户提供了一组内置的数据转换函数。本�
 JSON 函数使用符合 ISO/IEC TR 19075-6 SQL标准的 JSON 路径表达式。 它们的语法受到 ECMAScript 的启发，并
 采用了 ECMAScript 的许多功能，但不是其子集或超集。
 
+A JSON string is read up to the end of its first JSON value and content after it is ignored, so
+`'{"a":1} xyz' IS JSON` returns `TRUE`.
+
 路径表达式有宽容模式和严格模式两种模式。 当不指定时，默认使用严格模式。
 严格模式旨在从 Schema 的角度检查数据，并且只要数据不符合路径表达式就会抛出错误。 但是像`JSON_VALUE`的函数
 允许定义遇到错误时的后备行为。 另一方面，宽容模式更加宽容，并将错误转换为空序列。

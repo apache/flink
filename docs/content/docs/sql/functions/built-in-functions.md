@@ -75,6 +75,9 @@ JSON functions make use of JSON path expressions as described in ISO/IEC TR 1907
 standard. Their syntax is inspired by and adopts many features of ECMAScript, but is neither a
 subset nor superset thereof.
 
+A JSON string is read up to the end of its first JSON value and content after it is ignored, so
+`'{"a":1} xyz' IS JSON` returns `TRUE`.
+
 Path expressions come in two flavors, lax and strict. When omitted, it defaults to the strict mode.
 Strict mode is intended to examine data from a schema perspective and will throw errors whenever
 data does not adhere to the path expression. However, functions like `JSON_VALUE` allow defining
