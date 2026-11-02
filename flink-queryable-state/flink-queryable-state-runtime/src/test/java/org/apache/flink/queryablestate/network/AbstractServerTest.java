@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageDeserializer;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
@@ -28,10 +29,13 @@ import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
+import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -139,6 +143,47 @@ class AbstractServerTest {
         assertThat(clientStats.getNumRequests()).isEqualTo(2L);
     }
 
+    /**
+     * Tests that shutting down the server closes the server channel and the accepted channels, also
+     * when the event loop is busy at the time of the shutdown.
+     */
+    @Test
+    void testShutdownClosesChannelsWhileEventLoopIsBusy() throws Throwable {
+        AtomicKvStateRequestStats serverStats = new AtomicKvStateRequestStats();
+
+        try (TestServer server =
+                        new TestServer(
+                                "Test Server",
+                                serverStats,
+                                Collections.singletonList(0).iterator());
+                Socket client = new Socket()) {
+            server.start();
+            client.connect(server.getServerAddress());
+
+            Channel acceptedChannel = server.getAcceptedChannel().get();
+            assertThat(serverStats.getNumConnections()).isEqualTo(1L);
+
+            OneShotLatch taskRunning = new OneShotLatch();
+            OneShotLatch releaseTask = new OneShotLatch();
+            acceptedChannel
+                    .eventLoop()
+                    .execute(
+                            () -> {
+                                taskRunning.trigger();
+                                releaseTask.awaitQuietly();
+                            });
+            taskRunning.await();
+
+            CompletableFuture<Void> shutdownFuture = server.shutdownServer();
+            releaseTask.trigger();
+            shutdownFuture.get();
+
+            assertThat(acceptedChannel.isOpen()).isFalse();
+            assertThat(acceptedChannel.parent().isOpen()).isFalse();
+            assertThat(serverStats.getNumConnections()).isEqualTo(0L);
+        }
+    }
+
     private static class TestClient extends Client<TestMessage, TestMessage>
             implements AutoCloseable {
 
@@ -166,6 +211,8 @@ class AbstractServerTest {
 
         private final KvStateRequestStats requestStats;
 
+        private final CompletableFuture<Channel> acceptedChannel = new CompletableFuture<>();
+
         TestServer(String name, KvStateRequestStats stats, Iterator<Integer> bindPort)
                 throws UnknownHostException {
             super(name, InetAddress.getLocalHost().getHostName(), bindPort, 1, 1);
@@ -182,6 +229,12 @@ class AbstractServerTest {
                     requestStats) {
 
                 @Override
+                public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                    super.channelActive(ctx);
+                    acceptedChannel.complete(ctx.channel());
+                }
+
+                @Override
                 public CompletableFuture<TestMessage> handleRequest(
                         long requestId, TestMessage request) {
                     TestMessage response =
@@ -194,6 +247,11 @@ class AbstractServerTest {
                     return CompletableFuture.completedFuture(null);
                 }
             };
+        }
+
+        /** Returns the first channel that this server accepted. */
+        CompletableFuture<Channel> getAcceptedChannel() {
+            return acceptedChannel;
         }
 
         @Override

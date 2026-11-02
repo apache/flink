@@ -32,11 +32,14 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.group.ChannelGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.group.DefaultChannelGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.ImmediateEventExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,6 +95,9 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
     /** Netty's ServerBootstrap. */
     private ServerBootstrap bootstrap;
+
+    /** The server channel and all accepted channels, closed before the event loops shut down. */
+    private ChannelGroup channels;
 
     /** Query executor thread pool. */
     private ExecutorService queryExecutor;
@@ -241,6 +247,9 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
                 new MultiThreadIoEventLoopGroup(
                         numEventLoopThreads, threadFactory, NioIoHandler.newFactory());
 
+        // stayClosed: a channel accepted concurrently with the shutdown is closed once it's added
+        this.channels = new DefaultChannelGroup(serverName, ImmediateEventExecutor.INSTANCE, true);
+
         this.bootstrap =
                 new ServerBootstrap()
                         .localAddress(bindAddress, port)
@@ -248,7 +257,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
                         .channel(NioServerSocketChannel.class)
                         .option(ChannelOption.ALLOCATOR, bufferPool)
                         .childOption(ChannelOption.ALLOCATOR, bufferPool)
-                        .childHandler(new ServerChannelInitializer<>(handler));
+                        .childHandler(new ServerChannelInitializer<>(handler, channels));
 
         final int defaultHighWaterMark = 64 * 1024; // from DefaultChannelConfig (not exposed)
         //noinspection ConstantConditions
@@ -264,6 +273,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
         try {
             final ChannelFuture future = bootstrap.bind().sync();
             if (future.isSuccess()) {
+                channels.add(future.channel());
                 final InetSocketAddress localAddress =
                         (InetSocketAddress) future.channel().localAddress();
                 serverAddress =
@@ -314,15 +324,29 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
             if (bootstrap != null) {
                 EventLoopGroup group = bootstrap.config().group();
                 if (group != null && !group.isShutdown()) {
-                    group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
+                    // Close the channels before shutting down the event loops. With a quiet period
+                    // of 0, Netty 4.2 can terminate an event loop without closing its channels,
+                    // which leaks their sockets (https://github.com/netty/netty/issues/17897).
+                    channels.close()
                             .addListener(
-                                    finished -> {
-                                        if (finished.isSuccess()) {
-                                            groupShutdownFuture.complete(null);
-                                        } else {
-                                            groupShutdownFuture.completeExceptionally(
-                                                    finished.cause());
+                                    closed -> {
+                                        if (!closed.isSuccess()) {
+                                            log.warn(
+                                                    "Failed to close the channels of {}.",
+                                                    serverName,
+                                                    closed.cause());
                                         }
+                                        group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
+                                                .addListener(
+                                                        finished -> {
+                                                            if (finished.isSuccess()) {
+                                                                groupShutdownFuture.complete(null);
+                                                            } else {
+                                                                groupShutdownFuture
+                                                                        .completeExceptionally(
+                                                                                finished.cause());
+                                                            }
+                                                        });
                                     });
                 } else {
                     groupShutdownFuture.complete(null);
@@ -381,18 +405,25 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
         /** The shared request handler. */
         private final AbstractServerHandler<REQ, RESP> sharedRequestHandler;
 
+        /** The group that tracks the accepted channels. */
+        private final ChannelGroup channels;
+
         /**
          * Creates the channel pipeline initializer with the shared request handler.
          *
          * @param sharedRequestHandler Shared request handler.
+         * @param channels The group that tracks the accepted channels.
          */
-        ServerChannelInitializer(AbstractServerHandler<REQ, RESP> sharedRequestHandler) {
+        ServerChannelInitializer(
+                AbstractServerHandler<REQ, RESP> sharedRequestHandler, ChannelGroup channels) {
             this.sharedRequestHandler =
                     Preconditions.checkNotNull(sharedRequestHandler, "MessageBody handler");
+            this.channels = Preconditions.checkNotNull(channels);
         }
 
         @Override
         protected void initChannel(SocketChannel channel) throws Exception {
+            channels.add(channel);
             channel.pipeline()
                     .addLast(new ChunkedWriteHandler())
                     .addLast(new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4))
