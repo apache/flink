@@ -41,26 +41,6 @@ class PythonAsyncCalcProjectionTest extends TableTestBase {
     }
 
     @Test
-    void testStreamingNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction() {
-        verifyNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction(javaStreamTestUtil());
-    }
-
-    @Test
-    void testBatchNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction() {
-        verifyNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction(javaBatchTestUtil());
-    }
-
-    @Test
-    void testStreamingRepeatedNestedPythonFunctionsWithLiteral() {
-        verifyRepeatedNestedPythonFunctionsWithLiteral(javaStreamTestUtil());
-    }
-
-    @Test
-    void testBatchRepeatedNestedPythonFunctionsWithLiteral() {
-        verifyRepeatedNestedPythonFunctionsWithLiteral(javaBatchTestUtil());
-    }
-
-    @Test
     void testStreamingInterleavedInputFieldsAndPythonFunctions() {
         verifyInterleavedInputFieldsAndPythonFunctions(javaStreamTestUtil());
     }
@@ -80,6 +60,31 @@ class PythonAsyncCalcProjectionTest extends TableTestBase {
         verifyInterleavedInputFieldsAndPythonFunctionsWithCondition(javaBatchTestUtil());
     }
 
+    @Test
+    void testStreamingNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction() {
+        verifyNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction(javaStreamTestUtil());
+    }
+
+    @Test
+    void testBatchNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction() {
+        verifyNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction(javaBatchTestUtil());
+    }
+
+    @Test
+    void testStreamingRepeatedNestedPythonFunctionsWithLiteral() {
+        verifyRepeatedNestedPythonFunctionsWithLiteral(javaStreamTestUtil());
+    }
+
+    @Test
+    void testBatchRepeatedNestedPythonFunctionsWithLiteral() {
+        verifyRepeatedNestedPythonFunctionsWithLiteral(javaBatchTestUtil());
+    }
+
+    private void verifySyncPythonFunctionBeforeAsyncPythonFunction(JavaTableTestUtil util) {
+        registerTableAndFunctions(util);
+        util.verifyExecPlan("SELECT pyFunc1(b, c), asyncFunc1(a, b) FROM MyTable");
+    }
+
     private void verifyInterleavedInputFieldsAndPythonFunctions(JavaTableTestUtil util) {
         registerTableAndFunctions(util);
         util.verifyExecPlan("SELECT a, asyncFunc1(a, b), c, pyFunc1(b, c), a FROM MyTable");
@@ -90,11 +95,6 @@ class PythonAsyncCalcProjectionTest extends TableTestBase {
         registerTableAndFunctions(util);
         util.verifyExecPlan(
                 "SELECT a, pyFunc1(b, c), c, asyncFunc1(a, b), a FROM MyTable WHERE b > 0");
-    }
-
-    private void verifySyncPythonFunctionBeforeAsyncPythonFunction(JavaTableTestUtil util) {
-        registerTableAndFunctions(util);
-        util.verifyExecPlan("SELECT pyFunc1(b, c), asyncFunc1(a, b) FROM MyTable");
     }
 
     private void verifyNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction(

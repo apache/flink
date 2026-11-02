@@ -29,8 +29,6 @@ import org.apache.calcite.rex.RexProgram;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import scala.Option;
-
 /**
  * Enforces that {@link RexInputRef} projections precede {@link RexCall} projections in a {@link
  * FlinkLogicalCalc} containing remote calls.
@@ -41,9 +39,10 @@ import scala.Option;
  * required order after those optimizations.
  *
  * <p>A distinct rule is needed because {@link FlinkRuleSetProgram} de-duplicates equal rules.
- * Registering the earlier rewrite rule again would not schedule another pass after async splitting.
+ * Re-registering {@link RemoteCalcRewriteProjectionRule}, already applied before async splitting,
+ * would not schedule another pass.
  */
-public class RemoteCalcReorderProjectionRule extends RemoteCalcSplitProjectionRuleBase<Void> {
+public class RemoteCalcReorderProjectionRule extends RemoteCalcRewriteProjectionRule {
 
     public RemoteCalcReorderProjectionRule(RemoteCallFinder callFinder) {
         super("RemoteCalcReorderProjectionRule", callFinder);
@@ -69,10 +68,5 @@ public class RemoteCalcReorderProjectionRule extends RemoteCalcSplitProjectionRu
             }
         }
         return false;
-    }
-
-    @Override
-    public boolean needConvert(RexProgram program, RexNode node, Option<Void> matchState) {
-        return callFinder().isRemoteCall(node);
     }
 }
