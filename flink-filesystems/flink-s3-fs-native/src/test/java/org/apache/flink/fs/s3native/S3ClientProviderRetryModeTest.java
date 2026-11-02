@@ -101,8 +101,11 @@ class S3ClientProviderRetryModeTest {
 
         assertThatThrownBy(this::getObject)
                 .isInstanceOfSatisfying(
-                        S3Exception.class, e -> assertThat(e.statusCode()).isEqualTo(503))
-                .hasMessageContaining("SDK Attempt Count: 2");
+                        S3Exception.class,
+                        e -> {
+                            assertThat(e.statusCode()).isEqualTo(503);
+                            assertThat(e.numAttempts()).isEqualTo(2);
+                        });
         assertThat(requests).hasValue(2);
     }
 

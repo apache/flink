@@ -325,17 +325,13 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                     .withDescription(
                             "How the AWS SDK retries failed requests. 'standard' (default): every "
                                     + "request retries on its own, with the delays set by the "
-                                    + "s3.retry.* options above. 'adaptive': the same delays, plus a "
-                                    + "client-side rate limiter shared by all requests of the S3 "
-                                    + "client (one per TaskManager): throttling answers (HTTP 429, "
-                                    + "S3 SlowDown) cut its send rate, successful answers let it "
-                                    + "recover, and a request may wait before its first attempt. "
-                                    + "Many parallel writers that meet a request limit of the object "
-                                    + "store settle at the rate it accepts instead of all retrying "
-                                    + "at full speed and adding to the load. It trades latency for "
-                                    + "success rate and assumes that the client talks to one object "
-                                    + "store. The AWS CRT async client (s3.crt.enabled) has retries "
-                                    + "of its own and ignores this option.");
+                                    + "s3.retry.* options. 'adaptive': the same delays, plus a "
+                                    + "client-side rate limiter that slows requests down after "
+                                    + "throttling answers (HTTP 429, S3 SlowDown) and can delay a "
+                                    + "request before its first attempt. It trades latency for "
+                                    + "success rate. The AWS CRT async client (s3.crt.enabled) has "
+                                    + "retries of its own and ignores this option. See "
+                                    + "https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/retry-strategy.html");
 
     public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             ConfigOptions.key("s3.connection.timeout")

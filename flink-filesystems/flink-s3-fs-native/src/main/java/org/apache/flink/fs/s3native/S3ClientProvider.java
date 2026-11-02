@@ -708,6 +708,11 @@ class S3ClientProvider implements AutoCloseableAsync {
                                             retryMaxBackoff,
                                             retryCircuitBreakerEnabled));
 
+            LOG.info(
+                    "S3 retry mode {} (s3.retry.mode) with up to {} retries per request",
+                    retryMode,
+                    maxRetries);
+
             if (useCrt) {
                 LOG.info(
                         "AWS CRT transport enabled (s3.crt.enabled=true) with target throughput {}",

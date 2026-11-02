@@ -28,6 +28,9 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProviderChain;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.retries.AdaptiveRetryStrategy;
+import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.lang.reflect.Field;
@@ -256,6 +259,40 @@ class S3ClientProviderTest {
     }
 
     @Test
+    void testStandardModeBuildsAClientWithTheStandardStrategy() {
+        S3ClientProvider provider =
+                track(
+                        S3ClientProvider.builder()
+                                .endpoint(DUMMY_ENDPOINT)
+                                .region(DUMMY_REGION)
+                                .retryMode(NativeS3FileSystemFactory.RetryMode.STANDARD)
+                                .maxRetries(5)
+                                .build());
+
+        RetryStrategy strategy = retryStrategyOf(provider);
+
+        assertThat(strategy).isInstanceOf(StandardRetryStrategy.class);
+        assertThat(strategy.maxAttempts()).isEqualTo(6);
+    }
+
+    @Test
+    void testAdaptiveModeBuildsAClientWithTheAdaptiveStrategy() {
+        S3ClientProvider provider =
+                track(
+                        S3ClientProvider.builder()
+                                .endpoint(DUMMY_ENDPOINT)
+                                .region(DUMMY_REGION)
+                                .retryMode(NativeS3FileSystemFactory.RetryMode.ADAPTIVE)
+                                .maxRetries(5)
+                                .build());
+
+        RetryStrategy strategy = retryStrategyOf(provider);
+
+        assertThat(strategy).isInstanceOf(AdaptiveRetryStrategy.class);
+        assertThat(strategy.maxAttempts()).isEqualTo(6);
+    }
+
+    @Test
     void testRetryCircuitBreakerEnabledOverride() {
         S3ClientProvider provider =
                 S3ClientProvider.builder()
@@ -395,5 +432,14 @@ class S3ClientProviderTest {
         Field field = AwsCredentialsProviderChain.class.getDeclaredField("credentialsProviders");
         field.setAccessible(true);
         return (List<AwsCredentialsProvider>) field.get(provider);
+    }
+
+    /** The retry strategy the SDK client of the provider was built with. */
+    private static RetryStrategy retryStrategyOf(S3ClientProvider provider) {
+        return provider.getS3Client()
+                .serviceClientConfiguration()
+                .overrideConfiguration()
+                .retryStrategy()
+                .orElseThrow(() -> new AssertionError("The client has no retry strategy"));
     }
 }
