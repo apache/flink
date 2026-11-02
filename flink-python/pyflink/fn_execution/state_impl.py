@@ -1184,6 +1184,9 @@ class RemoteKeyedStateBackend(object):
             if self._state_cache_size > 0:
                 # cache old internal state
                 self.cache_internal_state(encoded_old_key, state_obj)
+            else:
+                # flush pending operations such as clear() before dropping the old internal state
+                self.commit_internal_state(state_obj._internal_state)
             state_obj.namespace = None
             state_obj._internal_state = None
         self._current_key = key
