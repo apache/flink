@@ -55,6 +55,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Harness tests for {@link ProcessSetTableOperator}.
@@ -129,6 +130,18 @@ class ProcessSetTableOperatorTest {
     }
 
     @Test
+    void testNonBinaryKey() throws Exception {
+        try (StreamTaskMailboxTestHarness<RowData> harness =
+                createHarness(new SingleInputOperatorCreator(), new GenericKeySelector())) {
+            assertThatThrownBy(() -> processMainRows(harness, 1L))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage(
+                            "Partition keys must be BinaryRowData but was: "
+                                    + GenericRowData.class.getName());
+        }
+    }
+
+    @Test
     void testNotifyStatefulSetsWithExpiredState() throws Exception {
         try (KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 createTtlBroadcastHarness(new NotifyStatefulSetsOperatorCreator(true, 10))) {
@@ -169,11 +182,19 @@ class ProcessSetTableOperatorTest {
     private static StreamTaskMailboxTestHarness<RowData> createHarness(
             OperatorCreator operatorCreator, InternalTypeInfo<?>... sideInputTypes)
             throws Exception {
+        return createHarness(operatorCreator, KEY_SELECTOR, sideInputTypes);
+    }
+
+    private static StreamTaskMailboxTestHarness<RowData> createHarness(
+            OperatorCreator operatorCreator,
+            RowDataKeySelector keySelector,
+            InternalTypeInfo<?>... sideInputTypes)
+            throws Exception {
         final StreamTaskMailboxTestHarnessBuilder<RowData> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, OUTPUT_TYPE_INFO)
-                        .setKeyType(KEY_SELECTOR.getProducedType())
-                        .addInput(MAIN_TYPE_INFO, 1, KEY_SELECTOR);
+                        .setKeyType(keySelector.getProducedType())
+                        .addInput(MAIN_TYPE_INFO, 1, keySelector);
         for (InternalTypeInfo<?> sideInputType : sideInputTypes) {
             builder.addInput(sideInputType, 1, null);
         }
@@ -257,6 +278,46 @@ class ProcessSetTableOperatorTest {
                 .map(r -> (RowData) ((StreamRecord<?>) r).getValue())
                 .map(r -> r.getLong(0) + ":" + r.getString(1))
                 .collect(Collectors.toList());
+    }
+
+    /** Key selector that violates the requirement of binary keys. */
+    private static class GenericKeySelector implements RowDataKeySelector {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public RowData getKey(RowData value) {
+            return GenericRowData.of(value.getLong(0));
+        }
+
+        @Override
+        public InternalTypeInfo<RowData> getProducedType() {
+            return KEY_SELECTOR.getProducedType();
+        }
+
+        @Override
+        public RowDataKeySelector copy() {
+            return new GenericKeySelector();
+        }
+    }
+
+    /** Operator creator for a single main table that never evaluates rows. */
+    private static class SingleInputOperatorCreator implements OperatorCreator {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public ProcessSetTableOperator create(StreamOperatorParameters<RowData> parameters) {
+            return createOperator(
+                    parameters,
+                    List.of(mainTableSemantics()),
+                    List.of(),
+                    new ProcessTableRunner() {
+                        @Override
+                        public void callEval() {}
+
+                        @Override
+                        public void callOnTimer() {}
+                    });
+        }
     }
 
     private static class TestOperatorFactory extends AbstractStreamOperatorFactory<RowData> {
