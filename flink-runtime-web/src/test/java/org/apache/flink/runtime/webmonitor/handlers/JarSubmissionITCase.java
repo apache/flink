@@ -45,6 +45,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.deleteJar;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.listJars;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.runJar;
+import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.runJarApplication;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.showPlan;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.uploadJar;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -128,6 +129,31 @@ class JarSubmissionITCase {
         assertThat(extractedCopiesOf(nestedLibrary)).isEmpty();
 
         runJar(handlers.runHandler, storedJarName, restfulGateway);
+        assertThat(extractedCopiesOf(nestedLibrary)).isEmpty();
+    }
+
+    /** Submitting a jar as an application must not leave its extracted nested libraries behind. */
+    @Test
+    void testRunApplicationDeletesExtractedNestedLibraries(
+            @TempDir File uploadDir, @TempDir File temporaryFolder) throws Exception {
+        final TestingDispatcherGateway restfulGateway = createGateway();
+        final JarHandlers handlers =
+                new JarHandlers(
+                        uploadDir.toPath(), restfulGateway, EXECUTOR_EXTENSION.getExecutor());
+
+        final String nestedLibrary = "nested-" + UUID.randomUUID() + ".jar";
+        final Path jar =
+                JarHandlers.copyWithNestedLibrary(
+                        Paths.get(System.getProperty("targetDir")).resolve("test-program.jar"),
+                        temporaryFolder.toPath().resolve("test-program-with-lib.jar"),
+                        nestedLibrary);
+        final String storedJarName =
+                Paths.get(uploadJar(handlers.uploadHandler, jar, restfulGateway))
+                        .getFileName()
+                        .toString();
+
+        // The submitted application builds and closes its own program once it is executed.
+        runJarApplication(handlers.runApplicationHandler, storedJarName, restfulGateway);
         assertThat(extractedCopiesOf(nestedLibrary)).isEmpty();
     }
 

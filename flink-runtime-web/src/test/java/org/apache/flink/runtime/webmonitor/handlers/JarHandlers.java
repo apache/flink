@@ -50,6 +50,7 @@ public class JarHandlers {
     final JarListHandler listHandler;
     final JarPlanHandler planHandler;
     final JarRunHandler runHandler;
+    final JarRunApplicationHandler runApplicationHandler;
     final JarDeleteHandler deleteHandler;
 
     JarHandlers(
@@ -101,6 +102,15 @@ public class JarHandlers {
                         new Configuration(),
                         executor,
                         () -> new DetachedApplicationRunner(true));
+
+        runApplicationHandler =
+                new JarRunApplicationHandler(
+                        gatewayRetriever,
+                        timeout,
+                        responseHeaders,
+                        JarRunApplicationHeaders.getInstance(),
+                        jarDir,
+                        new Configuration());
 
         deleteHandler =
                 new JarDeleteHandler(
@@ -157,6 +167,22 @@ public class JarHandlers {
         HandlerRequest<JarRunRequestBody> runRequest =
                 HandlerRequest.resolveParametersAndCreate(
                         new JarRunRequestBody(),
+                        runParameters,
+                        Collections.singletonMap(
+                                runParameters.jarIdPathParameter.getKey(), jarName),
+                        Collections.emptyMap(),
+                        Collections.emptyList());
+        return handler.handleRequest(runRequest, restfulGateway).get();
+    }
+
+    public static JarRunApplicationResponseBody runJarApplication(
+            JarRunApplicationHandler handler, String jarName, DispatcherGateway restfulGateway)
+            throws Exception {
+        final JarRunApplicationMessageParameters runParameters =
+                JarRunApplicationHeaders.getInstance().getUnresolvedMessageParameters();
+        HandlerRequest<JarRunApplicationRequestBody> runRequest =
+                HandlerRequest.resolveParametersAndCreate(
+                        new JarRunApplicationRequestBody(),
                         runParameters,
                         Collections.singletonMap(
                                 runParameters.jarIdPathParameter.getKey(), jarName),
