@@ -28,6 +28,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -84,12 +85,12 @@ public class ProfilingServiceTest extends TestLogger {
     }
 
     @Test
-    void testFailedRequestSinceStillUnderProfiling()
+    void testFailedRequestSinceStillUnderProfiling(TestInfo testInfo)
             throws ExecutionException, InterruptedException {
-        requestSingleProfiling(ProfilingInfo.ProfilingMode.ITIMER, 10L, false);
+        requestSingleProfiling(testInfo, ProfilingInfo.ProfilingMode.ITIMER, 10L, false);
         try {
             // request for another profiling right now, it should fail.
-            requestSingleProfiling(ProfilingInfo.ProfilingMode.ITIMER, 10L, false);
+            requestSingleProfiling(testInfo, ProfilingInfo.ProfilingMode.ITIMER, 10L, false);
             Assertions.fail("Duplicate profiling request should throw with IllegalStateException.");
         } catch (Exception e) {
             Assertions.assertTrue(e.getCause() instanceof IllegalStateException);
@@ -98,23 +99,25 @@ public class ProfilingServiceTest extends TestLogger {
 
     @Test
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
-    public void testAllProfilingMode() throws ExecutionException, InterruptedException {
+    public void testAllProfilingMode(TestInfo testInfo)
+            throws ExecutionException, InterruptedException {
         for (ProfilingInfo.ProfilingMode mode : ProfilingInfo.ProfilingMode.values()) {
-            requestSingleProfiling(mode, DEFAULT_PROFILING_DURATION, true);
+            requestSingleProfiling(testInfo, mode, DEFAULT_PROFILING_DURATION, true);
         }
     }
 
     @Test
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
-    public void testRollingDeletion() throws ExecutionException, InterruptedException {
+    public void testRollingDeletion(TestInfo testInfo)
+            throws ExecutionException, InterruptedException {
         // trigger 3 times ITIMER mode profiling
         for (int i = 0; i < 3; i++) {
             requestSingleProfiling(
-                    ProfilingInfo.ProfilingMode.ITIMER, DEFAULT_PROFILING_DURATION, true);
+                    testInfo, ProfilingInfo.ProfilingMode.ITIMER, DEFAULT_PROFILING_DURATION, true);
         }
         // Due to the configuration of MAX_PROFILING_HISTORY_SIZE=2,
         // the profiling result directory shouldn't contain more than 2 files.
-        verifyRollingDeletionWorks();
+        verifyRollingDeletionWorks(testInfo);
     }
 
     /**
@@ -125,10 +128,18 @@ public class ProfilingServiceTest extends TestLogger {
      * @param waitUntilFinished flag of waiting for profiling finished or not
      */
     private void requestSingleProfiling(
-            ProfilingInfo.ProfilingMode mode, Long duration, Boolean waitUntilFinished)
+            TestInfo testInfo,
+            ProfilingInfo.ProfilingMode mode,
+            Long duration,
+            Boolean waitUntilFinished)
             throws InterruptedException, ExecutionException {
         ProfilingInfo profilingInfo =
-                profilingService.requestProfiling(RESOURCE_ID, duration, mode).get();
+                profilingService
+                        .requestProfiling(
+                                RESOURCE_ID + "_" + testInfo.getTestMethod().get().getName(),
+                                duration,
+                                mode)
+                        .get();
         if (isNoPermissionOrAllocateSymbol(profilingInfo)) {
             log.warn(
                     "Ignoring failed profiling instance in {} mode, which caused by {}.",
@@ -153,16 +164,17 @@ public class ProfilingServiceTest extends TestLogger {
         }
     }
 
-    private void verifyRollingDeletionWorks() {
+    private void verifyRollingDeletionWorks(TestInfo testInfo) {
+        final String resourceId = RESOURCE_ID + "_" + testInfo.getTestMethod().get().getName();
         ArrayDeque<ProfilingInfo> profilingList =
-                profilingService.getProfilingListForTest(RESOURCE_ID);
+                profilingService.getProfilingListForTest(resourceId);
         // Profiling History shouldn't exceed history size limit.
         Assertions.assertTrue(profilingList.size() <= profilingService.getHistorySizeLimit());
         // Profiling History files should be rolling deleted.
         Set<String> resultFileNames = new HashSet<>();
         File configuredDir = new File(profilingService.getProfilingResultDir());
         for (File f : Objects.requireNonNull(configuredDir.listFiles())) {
-            if (f.getName().startsWith(RESOURCE_ID)) {
+            if (f.getName().startsWith(resourceId)) {
                 resultFileNames.add(f.getName());
             }
         }
