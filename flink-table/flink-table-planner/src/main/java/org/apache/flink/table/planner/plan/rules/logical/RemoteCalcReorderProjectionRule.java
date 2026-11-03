@@ -31,7 +31,8 @@ import java.util.stream.Collectors;
 
 /**
  * Enforces that {@link RexInputRef} projections precede {@link RexCall} projections in a {@link
- * FlinkLogicalCalc} containing remote calls.
+ * FlinkLogicalCalc} containing remote calls. This rule assumes that non-remote calls have already
+ * been split into separate calcs.
  *
  * <p>{@link RemoteCalcRewriteProjectionRule} moves expressions other than {@link RexInputRef} and
  * {@link RexCall} out of the remote calc and also establishes this projection order. Subsequent
