@@ -79,7 +79,7 @@ final class PtfChangelogRowRules {
             return row;
         }
 
-        // Upsert input requires the partition columns to equal an upsert key.
+        // Key-only deletes are only accepted when the partition columns equal an upsert key.
         int[] keyIndices = tableArg.partitionColumnIndices();
         Row result = new Row(row.getKind(), row.getArity());
         for (int i : keyIndices) {

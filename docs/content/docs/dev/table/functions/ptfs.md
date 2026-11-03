@@ -3018,7 +3018,7 @@ void testTimerWithState() throws Exception {
 
 #### Testing Updating (Changelog) Tables
 
-A table argument that declares `ArgumentTrait.SUPPORT_UPDATES` receives an updating changelog rather
+A table argument that declares `ArgumentTrait.SUPPORT_UPDATES` may receive an updating changelog rather
 than an insert-only stream. You can configure the changelog mode of a particular table argument
 via `.changelogMode()` on `TableArgument.Builder`. If not configured, it defaults to
 `ChangelogMode.insertOnly()`.

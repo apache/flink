@@ -1111,9 +1111,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
              *
              * <p>Required when using upsert input modes ({@link ChangelogMode#upsert(boolean)})
              * with a {@code SET_SEMANTIC_TABLE} argument: the argument's partition columns must
-             * equal one declared candidate exactly. If the partition columns are only a subset of a
-             * key, the PTF receives a retract changelog, so configure {@link ChangelogMode#all()}
-             * instead.
+             * equal one declared candidate exactly. If they equal none, the PTF receives updates
+             * with UPDATE_BEFORE and full deletes instead, as in {@link ChangelogMode#all()}.
              *
              * @param columnNames the columns forming one candidate upsert key
              */
