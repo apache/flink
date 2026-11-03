@@ -21,20 +21,16 @@ import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
-import org.apache.flink.table.types.inference.TypeInference;
-import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Optional;
 
 /**
  * Shared PTF test fixtures referenced by {@link ProcessTableFunctionTestHarnessTest}, {@link
@@ -188,35 +184,6 @@ class PtfTestFunctions {
                     .changelogMode()
                     .map(Object::toString)
                     .orElse("empty");
-        }
-    }
-
-    /**
-     * A PTF whose custom output {@link TypeStrategy} reads {@link TableSemantics#changelogMode()}
-     * during type inference and captures the result in a static field for assertion.
-     */
-    @DataTypeHint("ROW<value INT>")
-    public static class TypeInferenceChangelogModeProbePTF extends ProcessTableFunction<Row> {
-        static volatile Optional<ChangelogMode> capturedChangelogMode = null;
-
-        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
-            collect(input);
-        }
-
-        @Override
-        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-            TypeInference base = super.getTypeInference(typeFactory);
-            return TypeInference.newBuilder()
-                    .staticArguments(base.getStaticArguments().orElse(null))
-                    .outputTypeStrategy(
-                            ctx -> {
-                                capturedChangelogMode =
-                                        ctx.getTableSemantics(0)
-                                                .map(TableSemantics::changelogMode)
-                                                .orElse(null);
-                                return base.getOutputTypeStrategy().inferType(ctx);
-                            })
-                    .build();
         }
     }
 

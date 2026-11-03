@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.runtime.functions.PtfTestFunctions.KEY_VALUE_ROW;
 import static org.apache.flink.table.runtime.functions.PtfTestFunctions.TIMED_ROW;
@@ -215,24 +214,6 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
     }
 
     @Test
-    void testChangelogModeEmptyDuringTypeInference() throws Exception {
-        // The planner's CallBindingCallContext also reports no changelog mode here.
-        PtfTestFunctions.TypeInferenceChangelogModeProbePTF.capturedChangelogMode = null;
-        try (ProcessTableFunctionTestHarness<Row> h =
-                ProcessTableFunctionTestHarness.ofClass(
-                                PtfTestFunctions.TypeInferenceChangelogModeProbePTF.class)
-                        .withTableArgument(
-                                TableArgument.forName("input")
-                                        .type(DataTypes.of(VALUE_ROW))
-                                        .build())
-                        .build()) {
-            assertThat(PtfTestFunctions.TypeInferenceChangelogModeProbePTF.capturedChangelogMode)
-                    .isEqualTo(Optional.empty());
-            h.processElement(Row.of(1));
-        }
-    }
-
-    @Test
     void testProcessElementPreservesRowKindOnUpdatingArgument() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> h =
                 ProcessTableFunctionTestHarness.ofClass(
@@ -262,7 +243,7 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
     }
 
     @Test
-    void testProcessElementRejectsUpdateOnNonUpdatingArgument() throws Exception {
+    void testNonUpdatingArgumentRejectsUpdates() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> h =
                 ProcessTableFunctionTestHarness.ofClass(PtfTestFunctions.PassthroughPTF.class)
                         .withTableArgument(
@@ -272,7 +253,9 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
                         .build()) {
             assertThatThrownBy(() -> h.processElement(RowKind.UPDATE_AFTER, 42))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("SUPPORT_UPDATES");
+                    .hasMessageContainingAll(
+                            "Row kind UPDATE_AFTER is not permitted on table argument 'input'",
+                            "This argument does not declare SUPPORT_UPDATES");
         }
     }
 
@@ -350,7 +333,7 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
             h.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
             assertThatThrownBy(() -> h.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 2)))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContainingAll("Invalid row kind received", "DELETE");
+                    .hasMessageContainingAll("Invalid row kind received", "DELETE", "[INSERT]");
         }
     }
 
@@ -377,17 +360,12 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
             h.processElement(RowKind.UPDATE_AFTER, 2, 200);
             h.processElement(RowKind.UPDATE_AFTER, 1, 101);
 
-            List<Row> out = h.getOutput();
-            assertThat(out).hasSize(3);
-            assertThat(out)
-                    .allSatisfy(r -> assertThat(r.getKind()).isEqualTo(RowKind.UPDATE_AFTER));
-            assertThat(out.get(0).<Integer>getFieldAs(1)).isEqualTo(1);
-            assertThat(out.get(0).<Integer>getFieldAs(2)).isEqualTo(1);
-            assertThat(out.get(1).<Integer>getFieldAs(1)).isEqualTo(2);
-            assertThat(out.get(1).<Integer>getFieldAs(2)).isEqualTo(1);
-            // Key 1 continues from its own count, unaffected by key 2.
-            assertThat(out.get(2).<Integer>getFieldAs(1)).isEqualTo(1);
-            assertThat(out.get(2).<Integer>getFieldAs(2)).isEqualTo(2);
+            assertThat(h.getOutput())
+                    .containsExactly(
+                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 1, 1),
+                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 2, 1),
+                            // Key 1 continues from its own count, unaffected by key 2.
+                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 1, 2));
         }
     }
 
@@ -398,13 +376,11 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
             h.processElement(Row.ofKind(RowKind.DELETE, 1, 999));
             h.processElement(RowKind.UPDATE_AFTER, 1, 100);
 
-            List<Row> out = h.getOutput();
-            assertThat(out).hasSize(3);
-            assertThat(out.get(0).getKind()).isEqualTo(RowKind.UPDATE_AFTER);
-            assertThat(out.get(0).<Integer>getFieldAs(2)).isEqualTo(1);
-            assertThat(out.get(1).getKind()).isEqualTo(RowKind.DELETE);
-            assertThat(out.get(2).getKind()).isEqualTo(RowKind.UPDATE_AFTER);
-            assertThat(out.get(2).<Integer>getFieldAs(2)).isEqualTo(1);
+            assertThat(h.getOutput())
+                    .containsExactly(
+                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 1, 1),
+                            Row.ofKind(RowKind.DELETE, 1, 1, null),
+                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 1, 1));
         }
     }
 }

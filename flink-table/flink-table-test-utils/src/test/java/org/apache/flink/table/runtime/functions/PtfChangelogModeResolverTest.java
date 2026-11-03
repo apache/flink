@@ -96,20 +96,19 @@ class PtfChangelogModeResolverTest {
         assertThat(resolve(fn)).isEqualTo(ChangelogMode.insertOnly());
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("upsertAnswerCases")
-    void testUpsertAnswerResolvesToItself(String name, ChangelogMode fixedAnswer) {
-        StubChangelogFunction fn = StubChangelogFunction.fixed(fixedAnswer);
+    @Test
+    void testKeyOnlyDeleteUpsertAnswerResolvesToItself() {
+        StubChangelogFunction fn = StubChangelogFunction.fixed(ChangelogMode.upsert(true));
 
-        assertThat(resolve(fn)).isEqualTo(fixedAnswer);
+        assertThat(resolve(fn)).isEqualTo(ChangelogMode.upsert(true));
     }
 
-    private static Stream<Arguments> upsertAnswerCases() {
-        return Stream.of(
-                Arguments.of("key-only deletes preserved", ChangelogMode.upsert(true)),
-                Arguments.of(
-                        "full deletes preserved when key-only hint is ignored",
-                        ChangelogMode.upsert(false)));
+    @Test
+    void testFullDeleteUpsertAnswerResolvesToItself() {
+        // The resolver hints key-only deletes, but a PTF that ignores the hint keeps full deletes.
+        StubChangelogFunction fn = StubChangelogFunction.fixed(ChangelogMode.upsert(false));
+
+        assertThat(resolve(fn)).isEqualTo(ChangelogMode.upsert(false));
     }
 
     @Test
@@ -287,6 +286,7 @@ class PtfChangelogModeResolverTest {
                                         .upsertKey("k")
                                         .build(),
                                 DataTypes.ROW(
+                                        DataTypes.FIELD("a", DataTypes.STRING()),
                                         DataTypes.FIELD("k", DataTypes.STRING()),
                                         DataTypes.FIELD("v", DataTypes.INT())),
                                 EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE),
@@ -304,9 +304,9 @@ class PtfChangelogModeResolverTest {
 
         TableSemantics semantics = observed.get(0);
         assertThat(semantics).isNotNull();
-        assertThat(semantics.partitionByColumns()).containsExactly(0);
+        assertThat(semantics.partitionByColumns()).containsExactly(1);
         assertThat(semantics.upsertKeyColumns()).hasSize(1);
-        assertThat(semantics.upsertKeyColumns().get(0)).containsExactly(0);
+        assertThat(semantics.upsertKeyColumns().get(0)).containsExactly(1);
     }
 
     @ParameterizedTest(name = "{0}")

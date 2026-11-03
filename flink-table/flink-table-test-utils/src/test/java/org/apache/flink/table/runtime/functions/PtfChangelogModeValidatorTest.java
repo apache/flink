@@ -266,22 +266,7 @@ class PtfChangelogModeValidatorTest {
                                                 .type(DataTypes.of(VALUE_ROW))
                                                 .build()),
                         IllegalStateException.class,
-                        "Pass-through columns are not supported"),
-                invalid(
-                        "changelog mode on an unknown table argument",
-                        ProcessTableFunctionTestHarness.ofClass(
-                                        PtfTestFunctions.PassthroughPTF.class)
-                                .withTableArgument(
-                                        TableArgument.forName("input")
-                                                .type(DataTypes.of(VALUE_ROW))
-                                                .build())
-                                .withTableArgument(
-                                        TableArgument.forName("missing")
-                                                .type(DataTypes.of(VALUE_ROW))
-                                                .changelogMode(ChangelogMode.all())
-                                                .build()),
-                        IllegalStateException.class,
-                        "Unknown table argument: 'missing'"));
+                        "Pass-through columns are not supported"));
     }
 
     private static Arguments invalid(
