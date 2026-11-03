@@ -435,6 +435,9 @@ string:
     table: str.regexpSplit(regex)
     description: |
       Splits str by the regular expression regex and returns an array of strings.
+      The regex follows the Java regular expression syntax. Empty strings are kept when a match occurs
+      at the beginning or end of str, or when there are consecutive matches. If regex is empty, str is
+      split into single characters. If no match is found, str is returned as the only element.
 
       E.g., REGEXP_SPLIT('Hello123World456', '[0-9]+') returns ['Hello', 'World', ''].
 

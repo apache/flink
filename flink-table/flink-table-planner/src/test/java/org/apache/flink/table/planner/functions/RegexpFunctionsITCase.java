@@ -533,7 +533,8 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "12345",
                                 ",123,,,123,",
                                 "(",
-                                "\uD801\uDC37a")
+                                "\uD801\uDC37a",
+                                "")
                         .andDataTypes(
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING(),
@@ -543,6 +544,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING(),
                                 DataTypes.STRING(),
+                                DataTypes.STRING().notNull(),
                                 DataTypes.STRING().notNull())
                         // Basic regex split
                         .testResult(
@@ -567,6 +569,23 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f8").regexpSplit(""),
                                 "REGEXP_SPLIT(f8, '')",
                                 new String[] {"\uD801\uDC37", "a"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // Leading, consecutive and trailing matches produce empty strings
+                        .testResult(
+                                $("f6").regexpSplit(","),
+                                "REGEXP_SPLIT(f6, ',')",
+                                new String[] {"", "123", "", "", "123", ""},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // Empty input string returns an array with a single empty string
+                        .testResult(
+                                $("f9").regexpSplit(","),
+                                "REGEXP_SPLIT(f9, ',')",
+                                new String[] {""},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        .testResult(
+                                $("f9").regexpSplit(""),
+                                "REGEXP_SPLIT(f9, '')",
+                                new String[] {""},
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         // null string input
                         .testResult(
@@ -596,6 +615,12 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f5").regexpSplit("[a-z]+"),
                                 "REGEXP_SPLIT(f5, '[a-z]+')",
+                                new String[] {"12345"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // Valid non-literal regex is resolved per record
+                        .testResult(
+                                $("f5").regexpSplit($("f0")),
+                                "REGEXP_SPLIT(f5, f0)",
                                 new String[] {"12345"},
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         // Invalid non-literal regex - return null at runtime

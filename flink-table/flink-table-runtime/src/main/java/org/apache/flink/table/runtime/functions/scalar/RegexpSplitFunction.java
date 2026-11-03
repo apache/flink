@@ -23,7 +23,9 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction;
+import org.apache.flink.table.types.inference.CallContext;
 
 import javax.annotation.Nullable;
 
@@ -48,8 +50,29 @@ import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.splitByC
 @Internal
 public class RegexpSplitFunction extends BuiltInScalarFunction {
 
+    /** The regex if it is a non-null literal, otherwise null. */
+    private final @Nullable String literalRegex;
+
+    private transient @Nullable Pattern literalPattern;
+
     public RegexpSplitFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.REGEXP_SPLIT, context);
+        final CallContext callContext = context.getCallContext();
+        this.literalRegex =
+                callContext.isArgumentLiteral(1)
+                        ? callContext.getArgumentValue(1, String.class).orElse(null)
+                        : null;
+    }
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        super.open(context);
+        // A literal regex is compiled once per call site instead of being looked up in the
+        // shared per-thread cache for every record. Invalid literals are already rejected
+        // during planning.
+        if (literalRegex != null) {
+            literalPattern = Pattern.compile(literalRegex);
+        }
     }
 
     public @Nullable ArrayData eval(@Nullable StringData str, @Nullable StringData regex) {
@@ -57,19 +80,21 @@ public class RegexpSplitFunction extends BuiltInScalarFunction {
             return null;
         }
 
+        String string = str.toString();
         String regexStr = regex.toString();
-        if (regexStr.isEmpty()) {
-            return new GenericArrayData(splitByCodePoints(str.toString()));
+        // An empty input falls through so that it yields [''], consistent with other vendors
+        if (regexStr.isEmpty() && !string.isEmpty()) {
+            return new GenericArrayData(splitByCodePoints(string));
         }
 
-        Pattern pattern = getRegexpPattern(regexStr);
+        Pattern pattern = literalPattern != null ? literalPattern : getRegexpPattern(regexStr);
         if (pattern == null) {
             // Return null for invalid regex pattern (consistent with other REGEXP_* functions)
             return null;
         }
 
         // Use -1 as limit to keep all trailing empty strings
-        String[] splitResult = pattern.split(str.toString(), -1);
+        String[] splitResult = pattern.split(string, -1);
         StringData[] result = new StringData[splitResult.length];
         for (int i = 0; i < splitResult.length; i++) {
             result[i] = StringData.fromString(splitResult[i]);
