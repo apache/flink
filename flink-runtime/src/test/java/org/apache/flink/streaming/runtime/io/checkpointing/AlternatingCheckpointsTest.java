@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.RuntimeEvent;
@@ -31,6 +32,12 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionTest;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -65,6 +72,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedWithT
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.unaligned;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -520,6 +528,77 @@ class AlternatingCheckpointsTest {
         // the barrier should overtake the data buffers
         assertBarrier(gate);
         assertThat(target.getTriggeredCheckpointCounter()).isEqualTo(2);
+    }
+
+    /**
+     * A subpartition is blocked after it sent an aligned barrier. A priority barrier of a newer
+     * checkpoint must wait until the downstream resumes consumption: if it was delivered earlier,
+     * it would reach the channel before the task processed the announcement of the older barrier,
+     * and converting that announcement to a priority event would fail (FLINK-35335).
+     */
+    @Test
+    void testNewerPriorityBarrierDoesNotOvertakeBlockingAlignedBarrier() throws Exception {
+        int numChannels = 2;
+        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+        CheckpointedInputGate gate =
+                new TestCheckpointedInputGateBuilder(
+                                numChannels, getTestBarrierHandlerFactory(target))
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build();
+        long alignedCheckpointTimeout = 100;
+
+        // Checkpoint 1 starts aligned on channel 1 and times out to unaligned.
+        getChannel(gate, 1).onBuffer(withTimeout(1, alignedCheckpointTimeout), 0, 0, 0);
+        assertAnnouncement(gate);
+        assertBarrier(gate);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
+        assertThat(target.triggeredCheckpoints).containsExactly(1L);
+
+        // The upstream of channel 0 sends data and the aligned barrier 1, which blocks it.
+        PipelinedSubpartition upstream = PipelinedSubpartitionTest.createPipelinedSubpartition();
+        upstream.setChannelStateWriter(ChannelStateWriter.NO_OP);
+        ResultSubpartitionView upstreamView =
+                upstream.createReadView(new NoOpBufferAvailablityListener());
+        upstream.add(createFilledFinishedBufferConsumer(100));
+        upstream.add(timeoutableBarrierConsumer(1, alignedCheckpointTimeout));
+        sendAvailable(upstreamView, getChannel(gate, 0));
+
+        // Checkpoint 1 is aborted globally and the barrier of checkpoint 2 times out to unaligned
+        // in the output of the blocked upstream.
+        upstream.add(timeoutableBarrierConsumer(2, alignedCheckpointTimeout));
+        upstream.alignedBarrierTimeout(2);
+        sendAvailable(upstreamView, getChannel(gate, 0));
+
+        // The announcement of checkpoint 1 on channel 0 completes checkpoint 1.
+        assertAnnouncement(gate);
+        assertBarrier(gate);
+        assertThat(target.triggeredCheckpoints).containsExactly(1L);
+
+        // Once the downstream resumes consumption, the barrier of checkpoint 2 is delivered.
+        upstreamView.resumeConsumption();
+        sendAvailable(upstreamView, getChannel(gate, 0));
+        assertBarrier(gate);
+        assertThat(target.triggeredCheckpoints).containsExactly(1L, 2L);
+    }
+
+    private BufferConsumer timeoutableBarrierConsumer(
+            long checkpointId, long alignedCheckpointTimeout) throws IOException {
+        return EventSerializer.toBufferConsumer(
+                new CheckpointBarrier(
+                        checkpointId,
+                        clock.relativeTimeMillis(),
+                        alignedWithTimeout(
+                                CheckpointType.CHECKPOINT, getDefault(), alignedCheckpointTimeout)),
+                false);
+    }
+
+    private static void sendAvailable(ResultSubpartitionView view, RemoteInputChannel channel)
+            throws IOException {
+        ResultSubpartition.BufferAndBacklog next;
+        while ((next = view.getNextBuffer()) != null) {
+            channel.onBuffer(next.buffer(), next.getSequenceNumber(), 0, 0);
+        }
     }
 
     private void performFirstCheckpoint(
