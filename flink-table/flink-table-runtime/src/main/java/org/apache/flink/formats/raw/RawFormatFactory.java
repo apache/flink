@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.raw.RawFormatOptions.VariantEncoding;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -76,6 +77,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
         options.add(RawFormatOptions.ENDIANNESS);
         options.add(RawFormatOptions.CHARSET);
         options.add(RawFormatOptions.LINE_DELIMITER);
+        options.add(RawFormatOptions.VARIANT_ENCODING);
         return options;
     }
 
@@ -87,6 +89,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
         final boolean isBigEndian = isBigEndian(formatOptions);
         final Optional<String> lineDelimiter =
                 formatOptions.getOptional(RawFormatOptions.LINE_DELIMITER);
+        final VariantEncoding variantEncoding =
+                formatOptions.get(RawFormatOptions.VARIANT_ENCODING);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -95,7 +99,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                 final RowType physicalRowType = (RowType) producedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
                 checkLineDelimiter(fieldType, lineDelimiter);
-                checkVariantCharset(fieldType, charsetName);
+                checkVariantOptions(fieldType, charsetName, variantEncoding);
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new RawFormatDeserializationSchema(
@@ -103,7 +107,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                         producedTypeInfo,
                         charsetName,
                         isBigEndian,
-                        lineDelimiter.orElse(null));
+                        lineDelimiter.orElse(null),
+                        variantEncoding);
             }
 
             @Override
@@ -121,6 +126,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
         final boolean isBigEndian = isBigEndian(formatOptions);
         final Optional<String> lineDelimiter =
                 formatOptions.getOptional(RawFormatOptions.LINE_DELIMITER);
+        final VariantEncoding variantEncoding =
+                formatOptions.get(RawFormatOptions.VARIANT_ENCODING);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -129,9 +136,13 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                 final RowType physicalRowType = (RowType) consumedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
                 checkLineDelimiter(fieldType, lineDelimiter);
-                checkVariantCharset(fieldType, charsetName);
+                checkVariantOptions(fieldType, charsetName, variantEncoding);
                 return new RawFormatSerializationSchema(
-                        fieldType, charsetName, isBigEndian, lineDelimiter.orElse(null));
+                        fieldType,
+                        charsetName,
+                        isBigEndian,
+                        lineDelimiter.orElse(null),
+                        variantEncoding);
             }
 
             @Override
@@ -186,12 +197,25 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
     }
 
     /**
+     * Checks the options of a VARIANT column. The binary encoding is not text, so the charset does
+     * not apply to it.
+     */
+    private static void checkVariantOptions(
+            LogicalType fieldType, String charsetName, VariantEncoding variantEncoding) {
+        if (!fieldType.is(LogicalTypeRoot.VARIANT)) {
+            return;
+        }
+        if (variantEncoding == VariantEncoding.JSON) {
+            checkVariantCharset(charsetName);
+        }
+    }
+
+    /**
      * Checks that a VARIANT column uses UTF-8, which RFC 8259 requires for JSON exchanged between
      * systems and which {@code PARSE_JSON} reads.
      */
-    private static void checkVariantCharset(LogicalType fieldType, String charsetName) {
-        if (fieldType.is(LogicalTypeRoot.VARIANT)
-                && !StandardCharsets.UTF_8.equals(Charset.forName(charsetName))) {
+    private static void checkVariantCharset(String charsetName) {
+        if (!StandardCharsets.UTF_8.equals(Charset.forName(charsetName))) {
             throw new ValidationException(
                     String.format(
                             "The 'raw' format requires '%s.%s' to be UTF-8 for a VARIANT column, "

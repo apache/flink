@@ -19,6 +19,7 @@
 package org.apache.flink.types.variant;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -633,6 +635,30 @@ class BinaryVariantTest {
         assertThatThrownBy(() -> new BinaryVariant(new byte[1], oversize))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("VARIANT_CONSTRUCTOR_SIZE_LIMIT");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1, 1", "300, 2", "70000, 3"})
+    void testMetadataSize(final int keyLength, final int offsetSize) {
+        final BinaryVariant variant =
+                (BinaryVariant)
+                        builder.object().add("k".repeat(keyLength), builder.of((byte) 1)).build();
+        final byte[] metadata = variant.getMetadata();
+        final byte[] value = variant.getValue();
+        final byte[] bytes = Arrays.copyOf(metadata, metadata.length + value.length);
+        System.arraycopy(value, 0, bytes, metadata.length, value.length);
+
+        assertThat(((metadata[0] >> 6) & 0x3) + 1).isEqualTo(offsetSize);
+        assertThat(BinaryVariantUtil.metadataSize(bytes)).isEqualTo(metadata.length);
+    }
+
+    // Empty, version 2, a dictionary of one key without offsets, and a last offset past the end.
+    @ParameterizedTest
+    @ValueSource(strings = {"", "020000", "0101", "010005"})
+    void testMetadataSizeRejectsIncompleteMetadata(final String hex) {
+        assertThatThrownBy(() -> BinaryVariantUtil.metadataSize(StringUtils.hexStringToByte(hex)))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
     }
 
     @Test

@@ -914,6 +914,33 @@ public class BinaryVariantUtil {
     }
 
     /**
+     * Returns the length of the metadata at the start of {@code bytes}. The header, dictionary size
+     * and last offset give the length, so metadata followed by a value can be split without a
+     * separator.
+     *
+     * @throws VariantTypeException if {@code bytes} does not start with complete metadata
+     */
+    public static int metadataSize(byte[] bytes) {
+        checkIndex(0, bytes.length);
+        if ((bytes[0] & VERSION_MASK) != VERSION) {
+            throw malformedVariant();
+        }
+        final int offsetSize = ((bytes[0] >> 6) & 0x3) + 1;
+        final int dictSize = readUnsigned(bytes, 1, offsetSize);
+        // The last of the `dictSize + 1` offsets is the length of the string data.
+        final long lastOffsetPos = 1 + (dictSize + 1L) * offsetSize;
+        if (lastOffsetPos + offsetSize > bytes.length) {
+            throw malformedVariant();
+        }
+        final long size =
+                lastOffsetPos + offsetSize + readUnsigned(bytes, (int) lastOffsetPos, offsetSize);
+        if (size > bytes.length) {
+            throw malformedVariant();
+        }
+        return (int) size;
+    }
+
+    /**
      * Locates the key at {@code id} in the variant metadata. The range is packed into a long so
      * that a lookup allocates nothing.
      *

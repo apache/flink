@@ -24,22 +24,28 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.formats.raw.RawFormatDeserializationSchema;
+import org.apache.flink.formats.raw.RawFormatOptions.VariantEncoding;
 import org.apache.flink.formats.raw.RawFormatSerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.DeserializationException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
+import org.apache.flink.types.variant.VariantTypeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,6 +68,7 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.util.StringUtils.hexStringToByte;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link RawFormatDeserializationSchema} {@link RawFormatSerializationSchema}. */
@@ -69,6 +76,8 @@ class RawFormatSerDeSchemaTest {
 
     private static final String JSON_OBJECT =
             "{\"a\":1,\"b\":\"x\",\"c\":[1,2,3],\"d\":null,\"e\":true}";
+
+    private static final VariantBuilder VARIANT_BUILDER = Variant.newBuilder();
 
     static List<TestSpec> testData() {
         return Arrays.asList(
@@ -164,7 +173,29 @@ class RawFormatSerDeSchemaTest {
                 TestSpec.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
                         .values((Object) null)
                         .binary((byte[]) null),
-                TestSpec.type(VARIANT()).values((Object) null).binary((byte[]) null));
+                TestSpec.type(VARIANT()).values((Object) null).binary((byte[]) null),
+
+                // test variants in the binary encoding, the metadata followed by the value
+                TestSpec.type(VARIANT())
+                        .values(VARIANT_BUILDER.of((byte) 7))
+                        .withVariantEncoding(VariantEncoding.BINARY)
+                        .binary(hexStringToByte("0100000c07")),
+                // {"d": DATE 2026-11-03, "b": BYTES x'04'}, two types JSON cannot represent
+                TestSpec.type(VARIANT())
+                        .values(
+                                VARIANT_BUILDER
+                                        .object()
+                                        .add("d", VARIANT_BUILDER.of(LocalDate.parse("2026-11-03")))
+                                        .add("b", VARIANT_BUILDER.of(new byte[] {4}))
+                                        .build())
+                        .withVariantEncoding(VariantEncoding.BINARY)
+                        .binary(
+                                hexStringToByte(
+                                        "01020001026462" + "0202010005000b2c185100003c0100000004")),
+                TestSpec.type(VARIANT())
+                        .values((Object) null)
+                        .withVariantEncoding(VariantEncoding.BINARY)
+                        .binary((byte[]) null));
     }
 
     @ParameterizedTest
@@ -178,13 +209,17 @@ class RawFormatSerDeSchemaTest {
                                 testSpec.type.getLogicalType(),
                                 TypeInformation.of(RowData.class),
                                 testSpec.charsetName,
-                                testSpec.isBigEndian));
+                                testSpec.isBigEndian,
+                                null,
+                                testSpec.variantEncoding));
         RawFormatSerializationSchema serializationSchema =
                 InstantiationUtil.clone(
                         new RawFormatSerializationSchema(
                                 testSpec.type.getLogicalType(),
                                 testSpec.charsetName,
-                                testSpec.isBigEndian));
+                                testSpec.isBigEndian,
+                                null,
+                                testSpec.variantEncoding));
         deserializationSchema.open(mock(DeserializationSchema.InitializationContext.class));
         serializationSchema.open(mock(SerializationSchema.InitializationContext.class));
 
@@ -219,6 +254,45 @@ class RawFormatSerDeSchemaTest {
         }
     }
 
+    @Test
+    void testDeserializeMalformedVariantBinary() throws Exception {
+        final RawFormatDeserializationSchema schema = createBinaryVariantDeserializationSchema();
+
+        // A dictionary of one key without its offsets.
+        assertThatThrownBy(() -> schema.deserialize(hexStringToByte("0101")))
+                .isInstanceOf(DeserializationException.class)
+                .hasMessage(
+                        "Failed to deserialize VARIANT type. "
+                                + "The received data is not a valid VARIANT binary encoding.")
+                .cause()
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    @Test
+    void testDeserializeVariantBinaryChecksTheValueWhenItIsRead() throws Exception {
+        final RawFormatDeserializationSchema schema = createBinaryVariantDeserializationSchema();
+
+        // Complete metadata without a value is accepted, and fails once the value is read.
+        final Variant variant = schema.deserialize(hexStringToByte("010000")).getVariant(0);
+        assertThatThrownBy(variant::getType)
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    private static RawFormatDeserializationSchema createBinaryVariantDeserializationSchema()
+            throws Exception {
+        final RawFormatDeserializationSchema schema =
+                new RawFormatDeserializationSchema(
+                        VARIANT().getLogicalType(),
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        null,
+                        VariantEncoding.BINARY);
+        schema.open(mock(DeserializationSchema.InitializationContext.class));
+        return schema;
+    }
+
     private static Variant variant(String json) {
         try {
             return BinaryVariantInternalBuilder.parseJson(json, false);
@@ -247,6 +321,7 @@ class RawFormatSerDeSchemaTest {
         private final DataType type;
         private String charsetName = "UTF-8";
         private boolean isBigEndian = true;
+        private VariantEncoding variantEncoding = VariantEncoding.JSON;
 
         private TestSpec(DataType type) {
             this.type = type;
@@ -268,6 +343,11 @@ class RawFormatSerDeSchemaTest {
 
         public TestSpec withCharset(String charsetName) {
             this.charsetName = charsetName;
+            return this;
+        }
+
+        public TestSpec withVariantEncoding(VariantEncoding variantEncoding) {
+            this.variantEncoding = variantEncoding;
             return this;
         }
 
@@ -295,6 +375,8 @@ class RawFormatSerDeSchemaTest {
                     + '\''
                     + ", isBigEndian="
                     + isBigEndian
+                    + ", variantEncoding="
+                    + variantEncoding
                     + '}';
         }
     }

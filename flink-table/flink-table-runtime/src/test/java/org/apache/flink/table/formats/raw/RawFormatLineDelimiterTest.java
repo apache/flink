@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.raw.RawFormatDeserializationSchema;
+import org.apache.flink.formats.raw.RawFormatOptions.VariantEncoding;
 import org.apache.flink.formats.raw.RawFormatSerializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.data.GenericRowData;
@@ -68,7 +69,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        null);
+                        null,
+                        VariantEncoding.JSON);
         openDeser(schema);
 
         List<RowData> rows = collectRows(schema, "hello".getBytes(StandardCharsets.UTF_8));
@@ -86,7 +88,8 @@ class RawFormatLineDelimiterTest {
                                 TypeInformation.of(RowData.class),
                                 StandardCharsets.UTF_8.name(),
                                 true,
-                                "\n"));
+                                "\n",
+                                VariantEncoding.JSON));
         openDeser(schema);
 
         byte[] message = "line1\nline2\nline3".getBytes(StandardCharsets.UTF_8);
@@ -105,7 +108,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "||");
+                        "||",
+                        VariantEncoding.JSON);
         openDeser(schema);
 
         byte[] message = "record1||record2||record3".getBytes(StandardCharsets.UTF_8);
@@ -124,7 +128,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "\n");
+                        "\n",
+                        VariantEncoding.JSON);
         openDeser(schema);
 
         List<RowData> rows = collectRows(schema, null);
@@ -143,7 +148,12 @@ class RawFormatLineDelimiterTest {
         RawFormatDeserializationSchema schema =
                 InstantiationUtil.clone(
                         new RawFormatDeserializationSchema(
-                                STRING_TYPE, TypeInformation.of(RowData.class), "GBK", true, "|"));
+                                STRING_TYPE,
+                                TypeInformation.of(RowData.class),
+                                "GBK",
+                                true,
+                                "|",
+                                VariantEncoding.JSON));
         openDeser(schema);
 
         List<RowData> rows = collectRows(schema, message);
@@ -160,7 +170,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "\n");
+                        "\n",
+                        VariantEncoding.JSON);
         openDeser(schema);
 
         byte[] message = {'a', (byte) 0xFF, '\n', (byte) 0x80};
@@ -177,7 +188,11 @@ class RawFormatLineDelimiterTest {
     void testSerializeWithoutDelimiter_noAppend() throws Exception {
         RawFormatSerializationSchema schema =
                 new RawFormatSerializationSchema(
-                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, null);
+                        STRING_TYPE,
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        null,
+                        VariantEncoding.JSON);
         openSer(schema);
 
         RowData row = buildStringRow("hello");
@@ -189,7 +204,11 @@ class RawFormatLineDelimiterTest {
     void testSerializeWithNewlineDelimiter_appendsDelimiter() throws Exception {
         RawFormatSerializationSchema schema =
                 new RawFormatSerializationSchema(
-                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
+                        STRING_TYPE,
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n",
+                        VariantEncoding.JSON);
         openSer(schema);
 
         RowData row = buildStringRow("hello");
@@ -201,7 +220,11 @@ class RawFormatLineDelimiterTest {
     void testSerializeWithCustomDelimiter_appendsDelimiter() throws Exception {
         RawFormatSerializationSchema schema =
                 new RawFormatSerializationSchema(
-                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "||");
+                        STRING_TYPE,
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "||",
+                        VariantEncoding.JSON);
         openSer(schema);
 
         RowData row = buildStringRow("record1");
@@ -213,7 +236,11 @@ class RawFormatLineDelimiterTest {
     void testSerializeNullRow_returnsNull() throws Exception {
         RawFormatSerializationSchema schema =
                 new RawFormatSerializationSchema(
-                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
+                        STRING_TYPE,
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n",
+                        VariantEncoding.JSON);
         openSer(schema);
 
         GenericRowData nullRow = new GenericRowData(1);
@@ -233,7 +260,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "\n");
+                        "\n",
+                        VariantEncoding.JSON);
         openDeser(schema);
 
         // Message already ends with the delimiter (as produced by the serializer)
@@ -249,7 +277,11 @@ class RawFormatLineDelimiterTest {
         // deserializer when both share the same delimiter configuration.
         RawFormatSerializationSchema ser =
                 new RawFormatSerializationSchema(
-                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
+                        STRING_TYPE,
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n",
+                        VariantEncoding.JSON);
         openSer(ser);
 
         RawFormatDeserializationSchema deser =
@@ -258,7 +290,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "\n");
+                        "\n",
+                        VariantEncoding.JSON);
         openDeser(deser);
 
         // Serialize a single row -> "hello\n"
@@ -278,7 +311,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "é");
+                        "é",
+                        VariantEncoding.JSON);
         openDeser(schema);
 
         // The delimiter é is c3 a9 and the data holds ü, which is c3 bc, so a match on the first
@@ -297,7 +331,8 @@ class RawFormatLineDelimiterTest {
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        null);
+                        null,
+                        VariantEncoding.JSON);
         openDeser(deser);
 
         byte[] message = {'{', '"', 'a', '"', ':', '"', (byte) 0xFF, '"', '}'};
