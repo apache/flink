@@ -625,10 +625,19 @@ function sphinx_check() {
     # the return value of a pipeline is the status of the last command to exit
     # with a non-zero status or zero if no command exited with a non-zero status
     set -o pipefail
+    # generate autosummary stubs once, otherwise the parallel builds below race writing them
+    (PYFLINK_GATEWAY_DISABLED=1 PYTHONPATH="$(realpath ../lib/py4j-*-src.zip):.." \
+        "$DOCS_ENV/bin/sphinx-autogen" -t _templates \
+        $(find reference -name '*.rst' -not -path '*/api/*')) 2>&1 | tee -a $LOG_FILE
+    if [ $? -ne 0 ]; then
+        print_function "STAGE" "sphinx checks... [FAILED]"
+        exit 1;
+    fi
+
     # disable the gateway, because otherwise it tries to find FLINK_HOME to access Java classes.
     # Not exported: the tox check runs after this one and needs the gateway.
     (PYFLINK_GATEWAY_DISABLED=1 SPHINXBUILD="$SPHINX_PATH" SPHINXINTL="$DOCS_ENV/bin/sphinx-intl" \
-        SPHINXOPTS="-a -W" make html-zh) 2>&1 | tee -a $LOG_FILE
+        SPHINXOPTS="-a -W" make -j2 html-zh) 2>&1 | tee -a $LOG_FILE
 
     SPHINXBUILD_STATUS=$?
     if [ $SPHINXBUILD_STATUS -ne 0 ]; then
