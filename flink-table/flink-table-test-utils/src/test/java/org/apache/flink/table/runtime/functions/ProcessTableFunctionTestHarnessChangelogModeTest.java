@@ -319,7 +319,7 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
     }
 
     @Test
-    void testOnTimerRejectsRowKindNotInConfiguredOutputMode() throws Exception {
+    void testOnTimerRejectsRowKindNotInDefaultOutputMode() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> h =
                 ProcessTableFunctionTestHarness.ofClass(
                                 PtfTestFunctions.TimerEmitsInvalidRowKindPTF.class)
