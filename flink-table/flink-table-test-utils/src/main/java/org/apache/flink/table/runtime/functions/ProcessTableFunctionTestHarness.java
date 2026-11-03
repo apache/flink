@@ -1897,12 +1897,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             } else {
                 // For table arguments, check both annotation and builder config
                 Optional<DataType> annotationTypeOpt = staticArg.getDataType();
-                TableArgument config = tableArgs.get(name);
+                TableArgument tableArg = tableArgs.get(name);
 
-                if (annotationTypeOpt.isPresent() && config != null && config.type != null) {
+                if (annotationTypeOpt.isPresent() && tableArg != null && tableArg.type != null) {
                     // Both specified - validate they match
                     DataTypeFactory factory = createDataTypeFactory();
-                    DataType builderType = factory.createDataType(config.type);
+                    DataType builderType = factory.createDataType(tableArg.type);
                     DataType annotationType = annotationTypeOpt.get();
 
                     if (!annotationType.equals(builderType)) {
@@ -1917,9 +1917,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     dataType = annotationType;
                 } else if (annotationTypeOpt.isPresent()) {
                     dataType = annotationTypeOpt.get();
-                } else if (config != null && config.type != null) {
+                } else if (tableArg != null && tableArg.type != null) {
                     DataTypeFactory factory = createDataTypeFactory();
-                    dataType = factory.createDataType(config.type);
+                    dataType = factory.createDataType(tableArg.type);
                 } else {
                     // Try to infer from Java parameter class (for structured types)
                     Optional<Class<?>> conversionClassOpt = staticArg.getConversionClass();
@@ -1950,9 +1950,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return new ScalarArgumentInfo(name, dataType, value);
             } else {
                 // A table argument typed by the PTF's annotation needs no builder configuration.
-                TableArgument config =
+                TableArgument tableArg =
                         tableArgs.getOrDefault(name, TableArgument.forName(name).build());
-                return new TableArgumentInfo(config, dataType, staticArg.getTraits());
+                return new TableArgumentInfo(tableArg, dataType, staticArg.getTraits());
             }
         }
 
@@ -1971,8 +1971,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         private void validatePartitionColumns(
                 String name, DataType dataType, boolean isOptionalPartitionBy) {
-            TableArgument config = tableArgs.get(name);
-            if (config == null || config.partitionColumns == null) {
+            TableArgument tableArg = tableArgs.get(name);
+            if (tableArg == null || tableArg.partitionColumns == null) {
                 if (isOptionalPartitionBy) {
                     return;
                 }
@@ -1986,7 +1986,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             List<String> fieldNames = getFieldNames(dataType);
 
-            for (String columnName : config.partitionColumns) {
+            for (String columnName : tableArg.partitionColumns) {
                 if (!fieldNames.contains(columnName)) {
                     throw new IllegalArgumentException(
                             "Partition column '"
@@ -2265,16 +2265,16 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         final List<String[]> upsertKeys;
 
         TableArgumentInfo(
-                TableArgument config, DataType dataType, Set<StaticArgumentTrait> traits) {
-            super(config.name, dataType);
+                TableArgument tableArg, DataType dataType, Set<StaticArgumentTrait> traits) {
+            super(tableArg.name, dataType);
             this.traits = traits;
             // Only set semantics partition, so a row-semantic argument ignores partitionBy.
             this.partitionColumnNames =
                     traits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)
-                            ? config.partitionColumns
+                            ? tableArg.partitionColumns
                             : null;
-            this.changelogMode = config.changelogMode;
-            this.upsertKeys = config.upsertKeys;
+            this.changelogMode = tableArg.changelogMode;
+            this.upsertKeys = tableArg.upsertKeys;
         }
 
         boolean is(StaticArgumentTrait trait) {
