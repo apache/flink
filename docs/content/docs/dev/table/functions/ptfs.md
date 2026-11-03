@@ -3063,8 +3063,8 @@ void testUpdatingInput() throws Exception {
 
 **Upsert Input**: Upsert changelog modes (`ChangelogMode.upsert(...)`) apply to `SET_SEMANTIC_TABLE`
 arguments only. You can configure the upsert key with `.upsertKey()` on `TableArgument.Builder`.
-Call it more than once to declare additional candidate keys. The partition columns must match one
-of them.
+Call it more than once to declare additional candidate keys. The partition columns must equal one
+of them exactly.
 
 {{< tabs "changelog-upsert" >}}
 {{< tab "Java" >}}

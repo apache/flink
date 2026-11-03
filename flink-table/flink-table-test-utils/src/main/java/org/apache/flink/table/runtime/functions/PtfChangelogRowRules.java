@@ -79,12 +79,8 @@ final class PtfChangelogRowRules {
             return row;
         }
 
-        // A key-only delete carries only the columns the stream is co-partitioned by.
+        // Upsert input requires the partition columns to equal an upsert key.
         int[] keyIndices = tableArg.partitionColumnIndices();
-        if (keyIndices.length == 0) {
-            return row;
-        }
-
         Row result = new Row(row.getKind(), row.getArity());
         for (int i : keyIndices) {
             result.setField(i, row.getField(i));
