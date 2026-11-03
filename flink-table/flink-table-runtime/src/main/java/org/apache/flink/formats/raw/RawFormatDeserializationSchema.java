@@ -23,13 +23,16 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.formats.raw.RawFormatOptions.VariantEncoding;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.DeserializationException;
+import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.BinaryVariantUtil;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
 
@@ -65,6 +68,8 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
 
     @Nullable private final String lineDelimiter;
 
+    private final VariantEncoding variantEncoding;
+
     private final DeserializationRuntimeConverter converter;
 
     private final DataLengthValidator validator;
@@ -73,19 +78,15 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
             LogicalType deserializedType,
             TypeInformation<RowData> producedTypeInfo,
             String charsetName,
-            boolean isBigEndian) {
-        this(deserializedType, producedTypeInfo, charsetName, isBigEndian, null);
-    }
-
-    public RawFormatDeserializationSchema(
-            LogicalType deserializedType,
-            TypeInformation<RowData> producedTypeInfo,
-            String charsetName,
             boolean isBigEndian,
-            @Nullable String lineDelimiter) {
+            @Nullable String lineDelimiter,
+            VariantEncoding variantEncoding) {
         this.deserializedType = checkNotNull(deserializedType);
         this.producedTypeInfo = checkNotNull(producedTypeInfo);
-        this.converter = createConverter(deserializedType, charsetName, isBigEndian, lineDelimiter);
+        this.variantEncoding = checkNotNull(variantEncoding);
+        this.converter =
+                createConverter(
+                        deserializedType, charsetName, isBigEndian, lineDelimiter, variantEncoding);
         this.validator = createDataLengthValidator(deserializedType);
         this.charsetName = charsetName;
         this.isBigEndian = isBigEndian;
@@ -159,13 +160,19 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
                 && deserializedType.equals(that.deserializedType)
                 && charsetName.equals(that.charsetName)
                 && isBigEndian == that.isBigEndian
-                && Objects.equals(lineDelimiter, that.lineDelimiter);
+                && Objects.equals(lineDelimiter, that.lineDelimiter)
+                && variantEncoding == that.variantEncoding;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                producedTypeInfo, deserializedType, charsetName, isBigEndian, lineDelimiter);
+                producedTypeInfo,
+                deserializedType,
+                charsetName,
+                isBigEndian,
+                lineDelimiter,
+                variantEncoding);
     }
 
     // ------------------------------------------------------------------------
@@ -192,7 +199,8 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
             LogicalType type,
             String charsetName,
             boolean isBigEndian,
-            @Nullable String lineDelimiter) {
+            @Nullable String lineDelimiter,
+            VariantEncoding variantEncoding) {
 
         switch (type.getTypeRoot()) {
             case CHAR:
@@ -209,7 +217,9 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
                 return RawValueData::fromBytes;
 
             case VARIANT:
-                return createVariantConverter();
+                return variantEncoding == VariantEncoding.BINARY
+                        ? createBinaryVariantConverter()
+                        : createJsonVariantConverter();
 
             case BOOLEAN:
                 return data -> data[0] != 0;
@@ -357,7 +367,7 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
      * Creates a converter that parses UTF-8 JSON bytes into a {@link Variant} like {@code
      * PARSE_JSON}, so invalid UTF-8 and duplicate object keys are rejected.
      */
-    private static DeserializationRuntimeConverter createVariantConverter() {
+    private static DeserializationRuntimeConverter createJsonVariantConverter() {
         return new DeserializationRuntimeConverter() {
             private static final long serialVersionUID = 1L;
 
@@ -369,6 +379,32 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
                     throw new DeserializationException(
                             "Failed to deserialize VARIANT type. "
                                     + "The received data is not a valid JSON document.",
+                            e);
+                }
+            }
+        };
+    }
+
+    /**
+     * Creates a converter that reads the Variant binary encoding, the metadata followed by the
+     * value. The bytes are only checked as far as needed to split them. A malformed value fails
+     * when it is read.
+     */
+    private static DeserializationRuntimeConverter createBinaryVariantConverter() {
+        return new DeserializationRuntimeConverter() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Object convert(byte[] data) {
+                try {
+                    final int metadataSize = BinaryVariantUtil.metadataSize(data);
+                    return new BinaryVariant(
+                            Arrays.copyOfRange(data, metadataSize, data.length),
+                            Arrays.copyOf(data, metadataSize));
+                } catch (Exception e) {
+                    throw new DeserializationException(
+                            "Failed to deserialize VARIANT type. "
+                                    + "The received data is not a valid VARIANT binary encoding.",
                             e);
                 }
             }

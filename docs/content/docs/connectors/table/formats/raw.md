@@ -122,6 +122,20 @@ Format Options
       deserialization, the two are round-trip compatible: a trailing delimiter appended by the
       serializer is automatically stripped during deserialization.</td>
     </tr>
+    <tr>
+      <td><h5>raw.variant-encoding</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">json</td>
+      <td>Enum</td>
+      <td>Specify how a <code>VARIANT</code> column is encoded. Valid values are 'json' and 'binary'.
+      'json' reads and writes a UTF-8 JSON document. For convenience, and also because JSON is a very
+      popular and human readable format, the stored VARIANT value is assumed to be JSON. However, JSON
+      values are lossy: JSON has no type for dates, times, timestamps, bytes or
+      UUIDs, and it does not keep the width of a number. 'binary' reads and writes the Variant binary
+      encoding, the metadata followed by the value. It keeps every Variant type and skips JSON parsing
+      and rendering, so use it for correctness and performance. 'raw.charset' does not apply to
+      'binary'.</td>
+    </tr>
     </tbody>
 </table>
 
@@ -186,13 +200,22 @@ The table below details the SQL types the format supports, including details of 
     </tr>
     <tr>
       <td><code>VARIANT</code></td>
-      <td>A UTF-8 encoded JSON document.<br>
+      <td>Depends on 'raw.variant-encoding'.<br>
+       <strong>json</strong> (default): a UTF-8 encoded JSON document.
        'raw.charset' must be UTF-8. To read or write JSON in another charset, declare the column as
        <code>STRING</code> and convert it with <code>PARSE_JSON</code> when reading and <code>JSON_STRING</code>
-       when writing.<br>
+       when writing.
        On read, the bytes are parsed like <code>PARSE_JSON</code> with the same checks, so an invalid UTF-8 byte such as
-       <code>0xFF</code>, a duplicate object key or malformed JSON fails the job. On write, the value is rendered by <code>Variant#toJson</code>. The round trip is
-       value-lossless but not byte-lossless: insignificant whitespace is dropped and object keys are ordered.</td>
+       <code>0xFF</code>, a duplicate object key or malformed JSON fails the job. On write, the value is rendered by
+       <code>Variant#toJson</code>.
+       The round trip is lossy, because JSON has fewer types than VARIANT: a <code>DATE</code>, <code>TIME</code>,
+       <code>TIMESTAMP</code>, <code>BYTES</code> or <code>UUID</code> value comes back as a string, a <code>FLOAT</code>
+       or <code>DOUBLE</code> can come back as a <code>DECIMAL</code>, and an integer comes back as the smallest integer
+       type that holds it.
+       Insignificant whitespace is dropped and object keys are ordered.<br>
+       <strong>binary</strong>: the Variant binary encoding, the metadata followed by the value. The round trip keeps
+       every Variant type. The bytes are only checked as far as needed to split them, so a malformed value fails when
+       it is read.</td>
     </tr>
     </tbody>
 </table>
