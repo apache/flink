@@ -200,6 +200,24 @@ class RawFormatFactoryTest {
     }
 
     @Test
+    void testVariantRequiresUtf8Charset() {
+        final ResolvedSchema variantSchema =
+                ResolvedSchema.of(Column.physical("field1", DataTypes.VARIANT()));
+        final Map<String, String> tableOptions =
+                getModifiedOptions(options -> options.put("raw.charset", UTF_16.name()));
+        final String expectedError =
+                "The 'raw' format requires 'raw.charset' to be UTF-8 for a VARIANT column, "
+                        + "but it is 'UTF-16'. To use another charset, declare the column "
+                        + "as STRING and convert it with PARSE_JSON when reading and "
+                        + "JSON_STRING when writing.";
+
+        assertThatThrownBy(() -> createDeserializationSchema(variantSchema, tableOptions))
+                .hasMessage(expectedError);
+        assertThatThrownBy(() -> createSerializationSchema(variantSchema, tableOptions))
+                .hasMessage(expectedError);
+    }
+
+    @Test
     void testLineDelimiterOption() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
