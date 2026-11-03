@@ -29,9 +29,12 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
+import org.apache.flink.types.DeserializationException;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.UserCodeClassLoader;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +46,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link RawFormatDeserializationSchema} and {@link RawFormatSerializationSchema} with
@@ -272,6 +276,31 @@ class RawFormatLineDelimiterTest {
         assertThat(rows).hasSize(2);
         assertThat(rows.get(0).getVariant(0).getField("id").getByte()).isEqualTo((byte) 1);
         assertThat(rows.get(1).getVariant(0).getField("id").getByte()).isEqualTo((byte) 2);
+    }
+
+    @Test
+    void testDeserializeVariantRejectsInvalidUtf8() throws Exception {
+        RawFormatDeserializationSchema deser =
+                new RawFormatDeserializationSchema(
+                        VARIANT_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        null);
+        openDeser(deser);
+
+        byte[] message = {'{', '"', 'a', '"', ':', '"', (byte) 0xFF, '"', '}'};
+        assertThatThrownBy(() -> collectRows(deser, message))
+                .isInstanceOf(DeserializationException.class)
+                .hasMessage(
+                        "Failed to deserialize VARIANT type. "
+                                + "The received data is not a valid JSON document.")
+                .cause()
+                .isInstanceOfSatisfying(
+                        JsonParseException.class,
+                        e ->
+                                assertThat(e.getOriginalMessage())
+                                        .isEqualTo("Invalid UTF-8 start byte 0xff"));
     }
 
     // -----------------------------------------------------------------------

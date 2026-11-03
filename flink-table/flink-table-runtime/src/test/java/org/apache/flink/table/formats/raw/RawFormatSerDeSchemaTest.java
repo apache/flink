@@ -150,10 +150,6 @@ class RawFormatSerDeSchemaTest {
                                 "{\"id\":1}".getBytes(),
                                 "{\"id\":2}".getBytes(),
                                 "{\"id\":3}".getBytes()),
-                TestSpec.type(VARIANT())
-                        .values(variant("{\"greeting\":\"你好世界\"}"))
-                        .withCharset("UTF-16")
-                        .binary("{\"greeting\":\"你好世界\"}".getBytes(StandardCharsets.UTF_16)),
 
                 // test nulls
                 TestSpec.type(TINYINT()).values((Object) null).binary((byte[]) null),

@@ -43,6 +43,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -92,6 +93,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     DynamicTableSource.Context context, DataType producedDataType) {
                 final RowType physicalRowType = (RowType) producedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
+                checkVariantCharset(fieldType, charsetName);
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new RawFormatDeserializationSchema(
@@ -124,6 +126,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType physicalRowType = (RowType) consumedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
+                checkVariantCharset(fieldType, charsetName);
                 return new RawFormatSerializationSchema(
                         fieldType, charsetName, isBigEndian, lineDelimiter.orElse(null));
             }
@@ -160,6 +163,23 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     String.format(
                             "The 'raw' format doesn't supports '%s' as column type.",
                             fieldType.asSummaryString()));
+        }
+    }
+
+    /**
+     * Checks that a VARIANT column uses UTF-8, which RFC 8259 requires for JSON exchanged between
+     * systems and which {@code PARSE_JSON} reads.
+     */
+    private static void checkVariantCharset(LogicalType fieldType, String charsetName) {
+        if (fieldType.is(LogicalTypeRoot.VARIANT)
+                && !StandardCharsets.UTF_8.equals(Charset.forName(charsetName))) {
+            throw new ValidationException(
+                    String.format(
+                            "The 'raw' format requires '%s.%s' to be UTF-8 for a VARIANT column, "
+                                    + "but it is '%s'. To use another charset, declare the column "
+                                    + "as STRING and convert it with PARSE_JSON when reading and "
+                                    + "JSON_STRING when writing.",
+                            IDENTIFIER, RawFormatOptions.CHARSET.key(), charsetName));
         }
     }
 

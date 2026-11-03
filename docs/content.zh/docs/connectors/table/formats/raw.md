@@ -180,10 +180,12 @@ Format 参数
     </tr>
     <tr>
       <td><code>VARIANT</code></td>
-      <td>A UTF-8 (by default) encoded JSON document.<br>
-       The encoding charset can be configured by 'raw.charset'.<br>
-       On read, the decoded text is parsed like <code>PARSE_JSON</code>, so duplicate object keys are rejected and
-       malformed JSON fails the job. On write, the value is rendered by <code>Variant#toJson</code>. The round trip is
+      <td>A UTF-8 encoded JSON document.<br>
+       'raw.charset' must be UTF-8. To read or write JSON in another charset, declare the column as
+       <code>STRING</code> and convert it with <code>PARSE_JSON</code> when reading and <code>JSON_STRING</code>
+       when writing.<br>
+       On read, the bytes are parsed like <code>PARSE_JSON</code> with the same checks, so an invalid UTF-8 byte such as
+       <code>0xFF</code>, a duplicate object key or malformed JSON fails the job. On write, the value is rendered by <code>Variant#toJson</code>. The round trip is
        value-lossless but not byte-lossless: insignificant whitespace is dropped and object keys are ordered.</td>
     </tr>
     </tbody>
