@@ -32,32 +32,10 @@ import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 import { Chart } from '@antv/g2';
 import { JobDetailCorrect, VerticesItemRange } from '@flink-runtime-web/interfaces';
 import { JobService, ColorKey, ConfigService } from '@flink-runtime-web/services';
-import { timeFormat } from 'd3-time-format';
+import { formatTimeAxis, startAlignedTicks } from '@flink-runtime-web/utils';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 
 import { JobLocalService } from '../job-local.service';
-
-// g2 5's string labelFormatter uses d3's numeric formatter, so a time scale needs
-// a function; mirror the previous 'HH:mm:ss.SSS' mask.
-const formatTimeAxis = timeFormat('%H:%M:%S.%L');
-
-const TICK_STEPS_MS = [
-  1, 2, 5, 10, 15, 30, 60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400
-].map(s => s * 1000);
-
-const MAX_TICKS = 7;
-
-// Unlike g2's default "nice" ticks, start at the domain minimum so the axis is anchored to the actual start time.
-// Beyond the largest step, spread the ticks evenly instead so the axis never gets one tick per day.
-export function startAlignedTicks(min: Date, max: Date): Date[] {
-  const range = Number(max) - Number(min);
-  const step = TICK_STEPS_MS.find(s => range / s <= MAX_TICKS) ?? Math.ceil(range / MAX_TICKS);
-  const ticks: Date[] = [];
-  for (let t = Number(min); t <= Number(max) && step > 0; t += step) {
-    ticks.push(new Date(t));
-  }
-  return ticks;
-}
 
 @Component({
   selector: 'flink-job-timeline',

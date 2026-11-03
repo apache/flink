@@ -23,7 +23,7 @@ import type { Chart } from '@antv/g2';
 import { JobService, ConfigService } from '@flink-runtime-web/services';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { JobTimelineComponent, startAlignedTicks } from './job-timeline.component';
+import { JobTimelineComponent } from './job-timeline.component';
 import { JobLocalService } from '../job-local.service';
 
 const mockJobDetail = {
@@ -128,23 +128,5 @@ describe('JobTimelineComponent', () => {
     ]);
     expect(fakeSubInterval.data).toHaveBeenCalledWith(component.listOfSubTaskTimeLine);
     expect(fakeSub.render).toHaveBeenCalled();
-  });
-});
-
-describe('startAlignedTicks', () => {
-  const DAY_MS = 86_400_000;
-
-  it('anchors ticks at the domain minimum', () => {
-    const min = new Date(1_000);
-    const ticks = startAlignedTicks(min, new Date(1_000 + 60_000));
-    expect(ticks[0]).toEqual(min);
-    expect(ticks.length).toBeLessThanOrEqual(8);
-  });
-
-  it('keeps the tick count bounded for ranges beyond the largest step', () => {
-    const min = new Date(0);
-    const ticks = startAlignedTicks(min, new Date(30 * DAY_MS));
-    expect(ticks[0]).toEqual(min);
-    expect(ticks.length).toBeLessThanOrEqual(8);
   });
 });
