@@ -28,7 +28,6 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /** {@link TableSemantics} implementation for {@link ProcessTableFunctionTestHarness}. */
 @Internal
@@ -54,17 +53,10 @@ class TestHarnessTableSemantics implements TableSemantics {
 
     static TestHarnessTableSemantics of(
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg, int timeColumnIndex) {
-        List<int[]> upsertKeyIndices =
-                tableArg.upsertKeys.stream()
-                        .map(
-                                candidate ->
-                                        ProcessTableFunctionTestHarness.resolveColumnNamesToIndices(
-                                                tableArg, candidate, "Upsert key"))
-                        .collect(Collectors.toList());
         return new TestHarnessTableSemantics(
                 tableArg.dataType,
-                ProcessTableFunctionTestHarness.getPartitionColumnIndices(tableArg),
-                upsertKeyIndices,
+                tableArg.partitionColumnIndices(),
+                tableArg.upsertKeyIndices(),
                 timeColumnIndex,
                 tableArg.effectiveChangelogMode());
     }
@@ -77,7 +69,7 @@ class TestHarnessTableSemantics implements TableSemantics {
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg, int timeColumnIndex) {
         return new TestHarnessTableSemantics(
                 tableArg.dataType,
-                ProcessTableFunctionTestHarness.getPartitionColumnIndices(tableArg),
+                tableArg.partitionColumnIndices(),
                 Collections.emptyList(),
                 timeColumnIndex,
                 null);

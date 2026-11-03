@@ -745,36 +745,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
-    static int[] getPartitionColumnIndices(TableArgumentInfo arg) {
-        if (arg.partitionColumnNames == null || arg.partitionColumnNames.length == 0) {
-            return new int[0];
-        }
-        return resolveColumnNamesToIndices(arg, arg.partitionColumnNames, "Partition");
-    }
-
-    static int[] resolveColumnNamesToIndices(
-            TableArgumentInfo arg, String[] columnNames, String kind) {
-        List<String> fieldNames = getFieldNames(arg.dataType);
-        int[] indices = new int[columnNames.length];
-        for (int i = 0; i < columnNames.length; i++) {
-            String colName = columnNames[i];
-            int index = fieldNames.indexOf(colName);
-            if (index < 0) {
-                throw new IllegalStateException(
-                        kind
-                                + " column '"
-                                + colName
-                                + "' not found in table argument '"
-                                + arg.name
-                                + "'. "
-                                + "Available fields: "
-                                + fieldNames);
-            }
-            indices[i] = index;
-        }
-        return indices;
-    }
-
     @Nullable
     private Class<?> resolveRowtimeConversionClass(List<TableArgumentInfo> tableArguments) {
         if (onTimeColumnName == null) {
@@ -2291,6 +2261,32 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         boolean isPartitioned() {
             return isSetSemantic() && partitionColumnNames != null;
+        }
+
+        int[] partitionColumnIndices() {
+            return partitionColumnNames == null ? new int[0] : columnIndices(partitionColumnNames);
+        }
+
+        List<int[]> upsertKeyIndices() {
+            return upsertKeys.stream().map(this::columnIndices).collect(Collectors.toList());
+        }
+
+        private int[] columnIndices(String[] columnNames) {
+            List<String> fieldNames = getFieldNames(dataType);
+            int[] indices = new int[columnNames.length];
+            for (int i = 0; i < columnNames.length; i++) {
+                String colName = columnNames[i];
+                int index = fieldNames.indexOf(colName);
+                if (index < 0) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Column '%s' not found in table argument '%s'. "
+                                            + "Available fields: %s",
+                                    colName, name, fieldNames));
+                }
+                indices[i] = index;
+            }
+            return indices;
         }
 
         OutputPrependStrategy prependStrategy() {

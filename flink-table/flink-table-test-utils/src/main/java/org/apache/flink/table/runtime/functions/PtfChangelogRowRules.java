@@ -80,7 +80,7 @@ final class PtfChangelogRowRules {
         }
 
         // A key-only delete carries only the columns the stream is co-partitioned by.
-        int[] keyIndices = ProcessTableFunctionTestHarness.getPartitionColumnIndices(tableArg);
+        int[] keyIndices = tableArg.partitionColumnIndices();
         if (keyIndices.length == 0) {
             return row;
         }
