@@ -87,17 +87,16 @@ final class PtfChangelogModeValidator {
         requireUpdateBeforeIfDeclared(tableArg, mode);
         requireFullDeleteIfDeclared(tableArg, mode);
         rejectKeyOnlyDeletesInRetractMode(tableArg, mode);
-        if (isUpsertStyleInput(mode)) {
-            validateUpsertStyleInput(tableArg, mode);
+        if (requiresMatchingUpsertKey(mode)) {
+            validateMatchingUpsertKey(tableArg, mode);
         }
     }
 
     private static void requireUpdateBeforeIfDeclared(
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg, ChangelogMode mode) {
-        // Insert-only mode is legal even with REQUIRE_UPDATE_BEFORE since it has no updates to
-        // encode.
+        // A mode without UPDATE_AFTER has no updates to encode, so it needs no UPDATE_BEFORE.
         if (tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
-                && !mode.containsOnly(RowKind.INSERT)
+                && mode.contains(RowKind.UPDATE_AFTER)
                 && !mode.contains(RowKind.UPDATE_BEFORE)) {
             throw new IllegalStateException(
                     String.format(
@@ -131,14 +130,17 @@ final class PtfChangelogModeValidator {
     }
 
     /**
-     * An update without UPDATE_BEFORE is upsert-style, so it needs a co-located key. A retract
-     * carries its own before-image in UPDATE_BEFORE and needs none.
+     * Input that needs the partition columns to equal an upsert key: updates without UPDATE_BEFORE,
+     * or key-only deletes. Inserts with full deletes need no key.
      */
-    private static boolean isUpsertStyleInput(ChangelogMode mode) {
-        return !mode.containsOnly(RowKind.INSERT) && !mode.contains(RowKind.UPDATE_BEFORE);
+    private static boolean requiresMatchingUpsertKey(ChangelogMode mode) {
+        boolean upsertUpdates =
+                mode.contains(RowKind.UPDATE_AFTER) && !mode.contains(RowKind.UPDATE_BEFORE);
+        boolean keyOnlyDeletes = mode.contains(RowKind.DELETE) && mode.keyOnlyDeletes();
+        return upsertUpdates || keyOnlyDeletes;
     }
 
-    private static void validateUpsertStyleInput(
+    private static void validateMatchingUpsertKey(
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg, ChangelogMode mode) {
         if (!tableArg.isPartitioned()) {
             throw new IllegalStateException(
@@ -146,8 +148,8 @@ final class PtfChangelogModeValidator {
                             "Table argument '%s' is configured with upsert mode %s, "
                                     + "but this is only possible for SET_SEMANTIC_TABLE arguments "
                                     + "with non-empty PARTITION BY columns. "
-                                    + "ROW_SEMANTIC_TABLE arguments or arguments with no "
-                                    + "partitioning can only use insertOnly() or all() modes.",
+                                    + "Without partitioning, updates need UPDATE_BEFORE and "
+                                    + "deletes must be full deletes.",
                             tableArg.name, mode));
         }
         List<String[]> candidateKeys = tableArg.upsertKeys;

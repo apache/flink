@@ -80,6 +80,21 @@ class PtfChangelogModeValidatorTest {
                                                 .build()),
                         Row.of(1)),
                 Arguments.of(
+                        // Without updates there is no UPDATE_BEFORE to require.
+                        "REQUIRE_UPDATE_BEFORE with inserts and full deletes",
+                        ProcessTableFunctionTestHarness.ofClass(
+                                        PtfTestFunctions.UpdatingPassthroughPTF.class)
+                                .withTableArgument(
+                                        TableArgument.forName("input")
+                                                .type(DataTypes.of(VALUE_ROW))
+                                                .changelogMode(
+                                                        ChangelogMode.newBuilder()
+                                                                .addContainedKind(RowKind.INSERT)
+                                                                .addContainedKind(RowKind.DELETE)
+                                                                .build())
+                                                .build()),
+                        Row.of(1)),
+                Arguments.of(
                         // upsert(false) has keyOnlyDeletes=false, satisfying REQUIRE_FULL_DELETE.
                         "REQUIRE_FULL_DELETE with upsert(false)",
                         ProcessTableFunctionTestHarness.ofClass(
@@ -90,6 +105,21 @@ class PtfChangelogModeValidatorTest {
                                                 .partitionBy("value")
                                                 .upsertKey("value")
                                                 .changelogMode(ChangelogMode.upsert(false))
+                                                .build()),
+                        Row.of(1)),
+                Arguments.of(
+                        // Without updates or key-only deletes, no matching upsert key is needed.
+                        "inserts and full deletes on a non-partitioned argument",
+                        ProcessTableFunctionTestHarness.ofClass(
+                                        PtfTestFunctions.PlainUpdatingPassthroughPTF.class)
+                                .withTableArgument(
+                                        TableArgument.forName("input")
+                                                .type(DataTypes.of(VALUE_ROW))
+                                                .changelogMode(
+                                                        ChangelogMode.newBuilder()
+                                                                .addContainedKind(RowKind.INSERT)
+                                                                .addContainedKind(RowKind.DELETE)
+                                                                .build())
                                                 .build()),
                         Row.of(1)));
     }
@@ -152,8 +182,8 @@ class PtfChangelogModeValidatorTest {
                         IllegalStateException.class,
                         "only possible for SET_SEMANTIC_TABLE arguments"),
                 invalid(
-                        // {INSERT, DELETE} without UPDATE_BEFORE is still upsert-style.
-                        "upsert-style mode without UPDATE_AFTER on a non-partitioned argument",
+                        // Key-only deletes need a matching upsert key, even without updates.
+                        "key-only deletes on a non-partitioned argument",
                         ProcessTableFunctionTestHarness.ofClass(
                                         PtfTestFunctions.PlainUpdatingPassthroughPTF.class)
                                 .withTableArgument(
