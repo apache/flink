@@ -33,13 +33,17 @@ import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -215,6 +219,28 @@ class RawFormatFactoryTest {
                 .hasMessage(expectedError);
         assertThatThrownBy(() -> createSerializationSchema(variantSchema, tableOptions))
                 .hasMessage(expectedError);
+    }
+
+    @ParameterizedTest
+    @MethodSource("nonStringTypes")
+    void testLineDelimiterRequiresStringColumn(final DataType type) {
+        final ResolvedSchema schema = ResolvedSchema.of(Column.physical("field1", type));
+        final Map<String, String> tableOptions =
+                getModifiedOptions(options -> options.put("raw.line-delimiter", "\n"));
+        final String expectedError =
+                String.format(
+                        "The 'raw' format supports 'raw.line-delimiter' only for a string column, "
+                                + "but the column type is '%s'.",
+                        type.getLogicalType().asSummaryString());
+
+        assertThatThrownBy(() -> createDeserializationSchema(schema, tableOptions))
+                .hasMessage(expectedError);
+        assertThatThrownBy(() -> createSerializationSchema(schema, tableOptions))
+                .hasMessage(expectedError);
+    }
+
+    static Stream<DataType> nonStringTypes() {
+        return Stream.of(DataTypes.VARIANT(), DataTypes.BYTES(), DataTypes.INT());
     }
 
     @Test

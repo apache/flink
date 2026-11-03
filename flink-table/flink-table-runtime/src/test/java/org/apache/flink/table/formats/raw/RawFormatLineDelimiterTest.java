@@ -30,19 +30,17 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.types.DeserializationException;
-import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,13 +78,15 @@ class RawFormatLineDelimiterTest {
 
     @Test
     void testDeserializeWithNewlineDelimiter_multipleRows() throws Exception {
+        // Cloned as Flink ships the schema, which also checks that the UTF-8 splitter serializes.
         RawFormatDeserializationSchema schema =
-                new RawFormatDeserializationSchema(
-                        STRING_TYPE,
-                        TypeInformation.of(RowData.class),
-                        StandardCharsets.UTF_8.name(),
-                        true,
-                        "\n");
+                InstantiationUtil.clone(
+                        new RawFormatDeserializationSchema(
+                                STRING_TYPE,
+                                TypeInformation.of(RowData.class),
+                                StandardCharsets.UTF_8.name(),
+                                true,
+                                "\n"));
         openDeser(schema);
 
         byte[] message = "line1\nline2\nline3".getBytes(StandardCharsets.UTF_8);
@@ -134,18 +134,39 @@ class RawFormatLineDelimiterTest {
     @Test
     void testDeserializeWithGbkCharset() throws Exception {
         Charset gbk = Charset.forName("GBK");
-        String original = "你好\n世界";
+        // The GBK encoding of 亅 is 0x81 0x7C, so its second byte equals the delimiter '|'.
+        String original = "你好亅|世界";
         byte[] message = original.getBytes(gbk);
 
+        // Cloned as Flink ships the schema, which also checks that the decoding splitter
+        // serializes.
         RawFormatDeserializationSchema schema =
-                new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "GBK", true, "\n");
+                InstantiationUtil.clone(
+                        new RawFormatDeserializationSchema(
+                                STRING_TYPE, TypeInformation.of(RowData.class), "GBK", true, "|"));
         openDeser(schema);
 
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(2);
-        assertThat(rows.get(0).getString(0)).hasToString("你好");
+        assertThat(rows.get(0).getString(0)).hasToString("你好亅");
         assertThat(rows.get(1).getString(0)).hasToString("世界");
+    }
+
+    @Test
+    void testDeserializeWithDelimiterKeepsInvalidUtf8() throws Exception {
+        RawFormatDeserializationSchema schema =
+                new RawFormatDeserializationSchema(
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n");
+        openDeser(schema);
+
+        byte[] message = {'a', (byte) 0xFF, '\n', (byte) 0x80};
+        assertThat(collectRows(schema, message))
+                .extracting(row -> row.getString(0).toBytes())
+                .containsExactly(new byte[] {'a', (byte) 0xFF}, new byte[] {(byte) 0x80});
     }
 
     // -----------------------------------------------------------------------
@@ -250,32 +271,22 @@ class RawFormatLineDelimiterTest {
     }
 
     @Test
-    void testRoundTripNewlineDelimitedJsonAsVariant() throws Exception {
-        RawFormatSerializationSchema ser =
-                new RawFormatSerializationSchema(
-                        VARIANT_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
-        openSer(ser);
-
-        RawFormatDeserializationSchema deser =
+    void testDeserializeWithMultiByteDelimiter() throws Exception {
+        RawFormatDeserializationSchema schema =
                 new RawFormatDeserializationSchema(
-                        VARIANT_TYPE,
+                        STRING_TYPE,
                         TypeInformation.of(RowData.class),
                         StandardCharsets.UTF_8.name(),
                         true,
-                        "\n");
-        openDeser(deser);
+                        "é");
+        openDeser(schema);
 
-        byte[] stream =
-                concat(
-                        ser.serialize(buildVariantRow("{\"id\":1}")),
-                        ser.serialize(buildVariantRow("{\"id\":2}")));
-        assertThat(new String(stream, StandardCharsets.UTF_8))
-                .isEqualTo("{\"id\":1}\n{\"id\":2}\n");
-
-        List<RowData> rows = collectRows(deser, stream);
-        assertThat(rows).hasSize(2);
-        assertThat(rows.get(0).getVariant(0).getField("id").getByte()).isEqualTo((byte) 1);
-        assertThat(rows.get(1).getVariant(0).getField("id").getByte()).isEqualTo((byte) 2);
+        // The delimiter é is c3 a9 and the data holds ü, which is c3 bc, so a match on the first
+        // byte alone is not enough.
+        byte[] message = "aüébüé".getBytes(StandardCharsets.UTF_8);
+        assertThat(collectRows(schema, message))
+                .extracting(row -> row.getString(0).toString())
+                .containsExactly("aü", "bü");
     }
 
     @Test
@@ -306,12 +317,6 @@ class RawFormatLineDelimiterTest {
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
-
-    private static byte[] concat(byte[] first, byte[] second) {
-        byte[] result = Arrays.copyOf(first, first.length + second.length);
-        System.arraycopy(second, 0, result, first.length, second.length);
-        return result;
-    }
 
     private void openDeser(RawFormatDeserializationSchema schema) throws Exception {
         schema.open(
@@ -363,12 +368,6 @@ class RawFormatLineDelimiterTest {
     private RowData buildStringRow(String value) {
         GenericRowData row = new GenericRowData(1);
         row.setField(0, StringData.fromString(value));
-        return row;
-    }
-
-    private RowData buildVariantRow(String json) throws IOException {
-        GenericRowData row = new GenericRowData(1);
-        row.setField(0, BinaryVariantInternalBuilder.parseJson(json, false));
         return row;
     }
 }

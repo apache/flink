@@ -110,8 +110,11 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;">(无)</td>
       <td>String</td>
-      <td>指定行分隔符，用于在反序列化时将一条消息拆分为多行。设置后，每条消息将使用
-      'raw.charset' 解码，并按此分隔符切分，每段输出一条数据行。在序列化时，分隔符字节会被
+      <td>指定行分隔符，用于在反序列化时将一条消息拆分为多行。Only supported for a <code>STRING</code>,
+      <code>VARCHAR</code> or <code>CHAR</code> column. When set, each incoming message is split by
+      this delimiter; one row is emitted per segment. If 'raw.charset' is UTF-8, the message is split on
+      the UTF-8 bytes of the delimiter without being decoded, so each segment keeps its original bytes.
+      Otherwise the message is decoded using 'raw.charset' before it is split. 在序列化时，分隔符字节会被
       追加到每条序列化值的末尾。常用值为 '\n'（换行符）或 '||'。
       <br><strong>注意：</strong>当序列化与反序列化使用相同的分隔符配置时，两者具有
       round-trip 兼容性：序列化器追加的末尾分隔符会在反序列化时自动被去除。</td>
@@ -191,6 +194,6 @@ Format 参数
     </tbody>
 </table>
 
-Note: combining `VARIANT` with `raw.line-delimiter` gives you newline-delimited JSON, where each line of a message
-becomes one row. Without the delimiter, only the first JSON document of a message is read.
+Note: a `VARIANT` column holds one JSON document per message. If a message holds more, only the first is read. To read
+newline-delimited JSON, declare the column as `STRING` with `raw.line-delimiter` and convert each row with `PARSE_JSON`.
 
