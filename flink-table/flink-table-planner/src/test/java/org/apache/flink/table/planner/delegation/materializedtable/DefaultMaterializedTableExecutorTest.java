@@ -31,17 +31,13 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
-import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.materializedtable.MaterializedTableJobSubmitter;
@@ -54,7 +50,6 @@ import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -72,12 +67,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.catchThrowable;
 
 /** Test for {@link DefaultMaterializedTableExecutor}. */
 class DefaultMaterializedTableExecutorTest {
@@ -92,7 +85,7 @@ class DefaultMaterializedTableExecutorTest {
                     + "\n REFRESH_MODE = CONTINUOUS"
                     + "\n AS SELECT k, v FROM datagen_source";
 
-    private final FailingCatalog catalog = new FailingCatalog(CATALOG, DATABASE);
+    private final GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(CATALOG, DATABASE);
 
     @Test
     void testGetManuallyRefreshStatement() {
@@ -463,8 +456,7 @@ class DefaultMaterializedTableExecutorTest {
 
     @Test
     void resumeDoesNotRestartARefreshJobThatIsOnlyLocallySuspended() {
-        final TestingJobClient suspendedJob =
-                new TestingJobClient(new JobID(), JobStatus.SUSPENDED);
+        final JobClientMock suspendedJob = new JobClientMock(new JobID(), JobStatus.SUSPENDED);
         final ScriptedJobSubmitter jobSubmitter = new ScriptedJobSubmitter(suspendedJob);
         final TableEnvironment tableEnv = createTableEnvironment(jobSubmitter);
         tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
@@ -478,45 +470,11 @@ class DefaultMaterializedTableExecutorTest {
     }
 
     @Test
-    void createReportsARefreshJobItCouldNeitherRecordNorCancel() throws Exception {
-        final JobID jobId = new JobID();
-        final TestingJobClient uncancellableJob =
-                new TestingJobClient(jobId, JobStatus.RUNNING)
-                        .withCancelRequest(
-                                () ->
-                                        FutureUtils.completedExceptionally(
-                                                new RuntimeException("injected cancel failure")));
-        final TableEnvironment tableEnv =
-                createTableEnvironment(new ScriptedJobSubmitter(uncancellableJob));
-        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
-
-        final Throwable createFailure =
-                catchThrowable(() -> tableEnv.executeSql(CREATE_MATERIALIZED_TABLE));
-
-        assertThat(createFailure)
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining("Failed to submit continuous refresh job")
-                .hasRootCauseMessage("injected cancel failure");
-        final Throwable unrecordedJobFailure = createFailure.getCause();
-        assertThat(unrecordedJobFailure)
-                .hasMessageContaining(jobId.toHexString())
-                .hasMessageContaining("and cancelling it failed as well")
-                .hasMessageContaining("must be cancelled manually");
-        assertThat(unrecordedJobFailure.getSuppressed())
-                .singleElement()
-                .satisfies(
-                        catalogFailure ->
-                                assertThat(catalogFailure)
-                                        .hasRootCauseMessage("injected alter failure"));
-        assertThat(catalog.tableExists(new ObjectPath(DATABASE, "my_mt"))).isFalse();
-    }
-
-    @Test
     void createRecordsTheClusterIdOfAKubernetesSessionTarget() throws Exception {
         final TableEnvironment tableEnv =
                 createTableEnvironment(
                         new ScriptedJobSubmitter(
-                                new TestingJobClient(new JobID(), JobStatus.RUNNING)));
+                                new JobClientMock(new JobID(), JobStatus.RUNNING)));
         tableEnv.getConfig().set("execution.target", "kubernetes-session");
         tableEnv.getConfig().set("kubernetes.cluster-id", "c1");
 
@@ -590,38 +548,6 @@ class DefaultMaterializedTableExecutorTest {
                 ((CatalogMaterializedTable) catalog.getTable(tablePath))
                         .getSerializedRefreshHandler(),
                 DefaultMaterializedTableExecutorTest.class.getClassLoader());
-    }
-
-    private static Predicate<CatalogBaseTable> hasRefreshStatus(RefreshStatus refreshStatus) {
-        return table ->
-                table instanceof CatalogMaterializedTable
-                        && ((CatalogMaterializedTable) table).getRefreshStatus() == refreshStatus;
-    }
-
-    /** Fails a selected table alteration once, so tests can observe a rejected catalog write. */
-    private static final class FailingCatalog extends GenericInMemoryCatalog {
-
-        @Nullable private Predicate<CatalogBaseTable> failingAlterMatcher;
-
-        private FailingCatalog(String name, String defaultDatabase) {
-            super(name, defaultDatabase);
-        }
-
-        /** The next {@code alterTable} whose new table matches fails; the hook then clears. */
-        private void failNextAlterTable(Predicate<CatalogBaseTable> newTableMatches) {
-            this.failingAlterMatcher = newTableMatches;
-        }
-
-        @Override
-        public void alterTable(
-                ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
-                throws TableNotExistException {
-            if (failingAlterMatcher != null && failingAlterMatcher.test(newTable)) {
-                failingAlterMatcher = null;
-                throw new CatalogException("injected alter failure");
-            }
-            super.alterTable(tablePath, newTable, ignoreIfNotExists);
-        }
     }
 
     private static final class ScriptedJobSubmitter implements MaterializedTableJobSubmitter {

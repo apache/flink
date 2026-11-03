@@ -72,11 +72,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.annotation.Nullable;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -87,7 +82,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -213,6 +207,10 @@ class MaterializedTableTableApiITCase {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // CREATE MATERIALIZED TABLE
+    // --------------------------------------------------------------------------------------------
+
     @Test
     void testCreateMaterializedTableInContinuousMode() throws Exception {
         tEnv.executeSql(USERS_SHOPS_DDL);
@@ -299,189 +297,6 @@ class MaterializedTableTableApiITCase {
     }
 
     @Test
-    void testAlterMaterializedTableRefresh() throws Exception {
-        final List<Row> data = new ArrayList<>();
-        data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
-        data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        data.add(Row.of(3L, 3L, 3L, "2024-01-02"));
-        createBoundedValuesSource(data);
-
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops"
-                        + " PARTITIONED BY (ds)\n"
-                        + UPDATING_VALUES_SINK
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " REFRESH_MODE = CONTINUOUS\n"
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  ds,\n"
-                        + "  COUNT(order_id) AS order_cnt\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds)");
-        CommonTestUtils.waitUtil(
-                () -> getUsersShopsResults().size() == data.size(),
-                TIMEOUT,
-                PAUSE,
-                "Failed to verify the data in materialized table.");
-
-        data.remove(2);
-
-        final long currentTime = System.currentTimeMillis();
-        final List<Row> result =
-                CollectionUtil.iteratorToList(
-                        tEnv.executeSql(
-                                        "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds = '2024-01-02')")
-                                .collect());
-        assertThat(result).hasSize(1);
-        final JobID refreshJobId = JobID.fromHexString(result.get(0).getFieldAs(0));
-
-        verifyRefreshJobCreated(refreshJobId, currentTime);
-
-        assertThat(getUsersShopsResults()).containsExactly("+I[2, 2, 2024-01-02, 1]");
-    }
-
-    @Test
-    void testAlterMaterializedTableRefreshWithInvalidPartitionSpec() {
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops"
-                        + " PARTITIONED BY (ds1, ds2)\n"
-                        + UPDATING_VALUES_SINK
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  ds1,\n"
-                        + "  ds2,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
-                        + "  SUM (1) AS pv\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds1, user_id % 10 as ds2, payment_amount_cents FROM datagenSource"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds1, ds2)");
-
-        // CASE 1: check unknown partition keys
-        assertThatThrownBy(
-                        () ->
-                                tEnv.executeSql(
-                                        "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds3 = '2024-01-01')"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "The partition spec contains unknown partition keys:\n"
-                                + "\n"
-                                + "ds3\n"
-                                + "\n"
-                                + "All known partition keys are:\n"
-                                + "\n"
-                                + "ds2\n"
-                                + "ds1");
-
-        // CASE 2: check specific non-string partition keys as partition spec to refresh
-        assertThatThrownBy(
-                        () ->
-                                tEnv.executeSql(
-                                        "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds2 = 5)"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
-                                + "\n"
-                                + "ds2");
-    }
-
-    @Test
-    void testAlterMaterializedTableSuspendAndResumeInContinuousMode(@TempDir Path temporaryPath)
-            throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
-
-        assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
-        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
-
-        setupSavepointDir(temporaryPath);
-
-        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
-
-        assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
-        final ContinuousRefreshHandler suspendRefreshHandler = getRefreshHandler();
-        assertThat(getJobStatus(JobID.fromHexString(suspendRefreshHandler.getJobId())))
-                .isEqualTo(JobStatus.FINISHED);
-        assertThat(suspendRefreshHandler.getRestorePath()).isNotEmpty();
-        final String actualSavepointPath = suspendRefreshHandler.getRestorePath().get();
-
-        tEnv.executeSql(
-                "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('sink.drop-late-event' = 'false')");
-
-        final ResolvedCatalogMaterializedTable resumedMaterializedTable = getUsersShops();
-        assertThat(resumedMaterializedTable.getOptions()).doesNotContainKey("sink.drop-late-event");
-        assertThat(resumedMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
-
-        final JobID resumeJobId = getRefreshJobId();
-        waitUntilAllTasksAreRunning(clusterClient, resumeJobId);
-        assertThat(getJobStatus(resumeJobId)).isEqualTo(JobStatus.RUNNING);
-        assertThat(getJobRestoreSavepointPath(resumeJobId)).hasValue(actualSavepointPath);
-    }
-
-    @Test
-    void testAlterMaterializedTableWithoutSavepointDirConfiguredInContinuousMode()
-            throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
-        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
-
-        assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND"))
-                .rootCause()
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Savepoint directory is not configured, can't stop job with savepoint.");
-    }
-
-    @Test
-    void testAlterMaterializedTableWithRepeatedSuspendAndResumeInContinuousMode(
-            @TempDir Path temporaryPath) throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
-        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
-
-        setupSavepointDir(temporaryPath);
-
-        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
-
-        assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND"))
-                .rootCause()
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining(
-                        String.format(
-                                "Materialized table %s continuous refresh job has been suspended",
-                                USERS_SHOPS));
-
-        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops RESUME");
-
-        assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops RESUME"))
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining(
-                        String.format(
-                                "Materialized table %s continuous refresh job has been resumed",
-                                USERS_SHOPS));
-    }
-
-    @Test
-    void testCreateOrAlterMaterializedTableColumnListReordersSchemaOnCreatePath() {
-        createBoundedValuesSource(List.of());
-
-        tEnv.executeSql(
-                "CREATE OR ALTER MATERIALIZED TABLE users_shops (shop_id, user_id, oca, order_id)"
-                        + UPDATING_VALUES_SINK
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  order_created_at AS oca,\n"
-                        + "  order_id"
-                        + " FROM my_source");
-
-        assertThat(getUsersShops().getResolvedSchema().getColumnNames())
-                .containsExactly("shop_id", "user_id", "oca", "order_id");
-    }
-
-    @Test
     void testCreateMaterializedTableWithDistribution() {
         assertThatThrownBy(
                         () ->
@@ -501,6 +316,32 @@ class MaterializedTableTableApiITCase {
                                         + " but the underlying DynamicTableSink doesn't implement the SupportsBucketing interface.",
                                 USERS_SHOPS.asSummaryString()));
     }
+
+    // --------------------------------------------------------------------------------------------
+    // CREATE OR ALTER MATERIALIZED TABLE
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    void testCreateOrAlterMaterializedTableColumnListReordersSchemaOnCreatePath() {
+        createBoundedValuesSource(List.of());
+
+        tEnv.executeSql(
+                "CREATE OR ALTER MATERIALIZED TABLE users_shops (shop_id, user_id, oca, order_id)"
+                        + UPDATING_VALUES_SINK
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  order_created_at AS oca,\n"
+                        + "  order_id"
+                        + " FROM my_source");
+
+        assertThat(getUsersShops().getResolvedSchema().getColumnNames())
+                .containsExactly("shop_id", "user_id", "oca", "order_id");
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // ALTER MATERIALIZED TABLE AS
+    // --------------------------------------------------------------------------------------------
 
     @Test
     void testAlterMaterializedTableAsQueryInContinuousMode(@TempDir Path temporaryPath)
@@ -618,6 +459,183 @@ class MaterializedTableTableApiITCase {
         assertThat(getRefreshHandler().getRestorePath()).isEmpty();
     }
 
+    // --------------------------------------------------------------------------------------------
+    // ALTER MATERIALIZED TABLE REFRESH
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    void testAlterMaterializedTableRefresh() throws Exception {
+        final List<Row> data = new ArrayList<>();
+        data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
+        data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
+        data.add(Row.of(3L, 3L, 3L, "2024-01-02"));
+        createBoundedValuesSource(data);
+
+        tEnv.executeSql(
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + UPDATING_VALUES_SINK
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " REFRESH_MODE = CONTINUOUS\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  COUNT(order_id) AS order_cnt\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)");
+        CommonTestUtils.waitUtil(
+                () -> getUsersShopsResults().size() == data.size(),
+                TIMEOUT,
+                PAUSE,
+                "Failed to verify the data in materialized table.");
+
+        data.remove(2);
+
+        final long currentTime = System.currentTimeMillis();
+        final List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql(
+                                        "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds = '2024-01-02')")
+                                .collect());
+        assertThat(result).hasSize(1);
+        final JobID refreshJobId = JobID.fromHexString(result.get(0).getFieldAs(0));
+
+        verifyRefreshJobCreated(refreshJobId, currentTime);
+
+        assertThat(getUsersShopsResults()).containsExactly("+I[2, 2, 2024-01-02, 1]");
+    }
+
+    @Test
+    void testAlterMaterializedTableRefreshWithInvalidPartitionSpec() {
+        tEnv.executeSql(
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds1, ds2)\n"
+                        + UPDATING_VALUES_SINK
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds1,\n"
+                        + "  ds2,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds1, user_id % 10 as ds2, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds1, ds2)");
+
+        // CASE 1: check unknown partition keys
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds3 = '2024-01-01')"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "The partition spec contains unknown partition keys:\n"
+                                + "\n"
+                                + "ds3\n"
+                                + "\n"
+                                + "All known partition keys are:\n"
+                                + "\n"
+                                + "ds2\n"
+                                + "ds1");
+
+        // CASE 2: check specific non-string partition keys as partition spec to refresh
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds2 = 5)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
+                                + "\n"
+                                + "ds2");
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // ALTER MATERIALIZED TABLE SUSPEND and RESUME
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    void testAlterMaterializedTableSuspendAndResumeInContinuousMode(@TempDir Path temporaryPath)
+            throws Exception {
+        tEnv.executeSql(USERS_SHOPS_DDL);
+
+        assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
+        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
+
+        setupSavepointDir(temporaryPath);
+
+        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
+
+        assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
+        final ContinuousRefreshHandler suspendRefreshHandler = getRefreshHandler();
+        assertThat(getJobStatus(JobID.fromHexString(suspendRefreshHandler.getJobId())))
+                .isEqualTo(JobStatus.FINISHED);
+        assertThat(suspendRefreshHandler.getRestorePath()).isNotEmpty();
+        final String actualSavepointPath = suspendRefreshHandler.getRestorePath().get();
+
+        tEnv.executeSql(
+                "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('sink.drop-late-event' = 'false')");
+
+        final ResolvedCatalogMaterializedTable resumedMaterializedTable = getUsersShops();
+        assertThat(resumedMaterializedTable.getOptions()).doesNotContainKey("sink.drop-late-event");
+        assertThat(resumedMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
+
+        final JobID resumeJobId = getRefreshJobId();
+        waitUntilAllTasksAreRunning(clusterClient, resumeJobId);
+        assertThat(getJobStatus(resumeJobId)).isEqualTo(JobStatus.RUNNING);
+        assertThat(getJobRestoreSavepointPath(resumeJobId)).hasValue(actualSavepointPath);
+    }
+
+    @Test
+    void testAlterMaterializedTableWithoutSavepointDirConfiguredInContinuousMode()
+            throws Exception {
+        tEnv.executeSql(USERS_SHOPS_DDL);
+        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
+
+        assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND"))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Savepoint directory is not configured, can't stop job with savepoint.");
+    }
+
+    @Test
+    void testAlterMaterializedTableWithRepeatedSuspendAndResumeInContinuousMode(
+            @TempDir Path temporaryPath) throws Exception {
+        tEnv.executeSql(USERS_SHOPS_DDL);
+        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
+
+        setupSavepointDir(temporaryPath);
+
+        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
+
+        assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND"))
+                .rootCause()
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been suspended",
+                                USERS_SHOPS));
+
+        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops RESUME");
+
+        assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops RESUME"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been resumed",
+                                USERS_SHOPS));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // DROP MATERIALIZED TABLE
+    // --------------------------------------------------------------------------------------------
+
     @Test
     void testDropMaterializedTableInContinuousMode() throws Exception {
         tEnv.executeSql(USERS_SHOPS_DDL);
@@ -661,53 +679,23 @@ class MaterializedTableTableApiITCase {
                                         .asSerializableString()));
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("unsupportedTargets")
-    void unsupportedTargetIsRejectedBeforeAnyCatalogChange(
-            String description, @Nullable String tableConfigTarget, String expectedMessage)
-            throws Exception {
-        final TableEnvironment tableEnv;
-        if (tableConfigTarget == null) {
-            tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-            tableEnv.registerCatalog(CATALOG, catalog);
-            tableEnv.useCatalog(CATALOG);
-            tableEnv.useDatabase(DATABASE);
-        } else {
-            tableEnv = tEnv;
-            tableEnv.getConfig().set(DeploymentOptions.TARGET, tableConfigTarget);
-        }
-        final Set<JobID> jobsBefore = listJobIds();
+    // --------------------------------------------------------------------------------------------
+    // Execution target
+    // --------------------------------------------------------------------------------------------
 
-        assertThatThrownBy(() -> tableEnv.executeSql(USERS_SHOPS_DDL))
+    @Test
+    void createWithoutASessionClusterLeavesTheCatalogUnchanged() {
+        final TableEnvironment defaultEnv =
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        defaultEnv.registerCatalog(CATALOG, catalog);
+        defaultEnv.useCatalog(CATALOG);
+        defaultEnv.useDatabase(DATABASE);
+
+        assertThatThrownBy(() -> defaultEnv.executeSql(USERS_SHOPS_DDL))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage(expectedMessage);
+                .hasMessageContaining("Unsupported execution target detected: local");
 
         assertThat(catalog.tableExists(USERS_SHOPS.toObjectPath())).isFalse();
-        assertThat(listJobIds()).isEqualTo(jobsBefore);
-    }
-
-    private static Stream<Arguments> unsupportedTargets() {
-        return Stream.of(
-                Arguments.of(
-                        "default environment",
-                        null,
-                        "Unsupported execution target detected: local. Materialized table"
-                                + " refresh jobs need a session cluster: set 'execution.target'"
-                                + " to 'remote', 'yarn-session' or 'kubernetes-session' (with"
-                                + " 'yarn.application.id' or 'kubernetes.cluster-id')."),
-                Arguments.of(
-                        "kubernetes-application",
-                        "kubernetes-application",
-                        "Application-mode materialized table refresh is not supported in"
-                                + " this environment: execution target 'kubernetes-application'"
-                                + " requires the SQL Gateway. Use a session cluster target such"
-                                + " as 'remote', 'yarn-session' or 'kubernetes-session'."),
-                Arguments.of(
-                        "kubernetes-session without its cluster id",
-                        "kubernetes-session",
-                        "Execution target 'kubernetes-session' requires"
-                                + " 'kubernetes.cluster-id' to be configured to submit or"
-                                + " control a materialized table refresh job."));
     }
 
     @Test
@@ -734,6 +722,10 @@ class MaterializedTableTableApiITCase {
                 .isEqualTo(suspendedTable.getSerializedRefreshHandler());
         assertThat(listJobIds()).isEqualTo(jobsBefore);
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Test helpers
+    // --------------------------------------------------------------------------------------------
 
     private void createBoundedValuesSource(List<Row> data) {
         tEnv.executeSql(

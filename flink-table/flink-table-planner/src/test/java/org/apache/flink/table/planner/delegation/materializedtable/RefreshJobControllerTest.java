@@ -31,8 +31,10 @@ import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,7 +52,7 @@ class RefreshJobControllerTest {
             assertThatThrownBy(
                             () ->
                                     controllerReaching(
-                                                    new TestingJobClient(
+                                                    new JobClientMock(
                                                             jobId, new CompletableFuture<>()))
                                             .getJobStatus(handler()))
                     .isInstanceOf(TableException.class)
@@ -66,7 +68,7 @@ class RefreshJobControllerTest {
         final RuntimeException unreachable =
                 new RuntimeException("Couldn't retrieve standalone cluster");
         final JobClient jobClient =
-                new TestingJobClient(jobId, JobStatus.RUNNING)
+                new JobClientMock(jobId, JobStatus.RUNNING)
                         .withStopRequest(
                                 savepointDirectory -> {
                                     throw unreachable;
@@ -84,9 +86,56 @@ class RefreshJobControllerTest {
     }
 
     @Test
+    void timedOutStopRequestIsReportedAsPending() {
+        tableConfig.set(RefreshJobController.CLIENT_TIMEOUT, Duration.ofMillis(1));
+        final JobClient jobClient =
+                new JobClientMock(jobId, JobStatus.RUNNING)
+                        .withStopRequest(savepointDirectory -> new CompletableFuture<>());
+
+        assertThatThrownBy(
+                        () ->
+                                controllerReaching(jobClient)
+                                        .stopWithSavepoint(handler(), "file:///savepoints/mt"))
+                .isInstanceOf(TableException.class)
+                .hasCauseInstanceOf(TimeoutException.class)
+                .hasMessageContaining("Timed out after 1 ms ('client.timeout')")
+                .hasMessageContaining("may still complete")
+                .hasMessageContaining("'execution.state-recovery.path'");
+    }
+
+    @Test
+    void timedOutCancelRequestIsReportedAsPending() {
+        tableConfig.set(RefreshJobController.CLIENT_TIMEOUT, Duration.ofMillis(1));
+        final JobClient jobClient =
+                new JobClientMock(jobId, JobStatus.RUNNING)
+                        .withCancelRequest(CompletableFuture::new);
+
+        assertThatThrownBy(() -> controllerReaching(jobClient).cancel(handler()))
+                .isInstanceOf(TableException.class)
+                .hasCauseInstanceOf(TimeoutException.class)
+                .hasMessageContaining("Timed out after 1 ms ('client.timeout')")
+                .hasMessageContaining("may still complete")
+                .hasMessageNotContaining("'execution.state-recovery.path'");
+    }
+
+    @Test
+    void timedOutStatusLookUpIsReportedAsFailure() {
+        tableConfig.set(RefreshJobController.CLIENT_TIMEOUT, Duration.ofMillis(1));
+        final JobClient jobClient = new JobClientMock(jobId, new CompletableFuture<>());
+
+        assertThatThrownBy(() -> controllerReaching(jobClient).getJobStatus(handler()))
+                .isInstanceOf(TableException.class)
+                .hasMessage(String.format("Failed to get job %s in the cluster.", jobId))
+                .cause()
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Timed out after 1 ms ('client.timeout')")
+                .hasMessageNotContaining("may still complete");
+    }
+
+    @Test
     void retrievedJobClientIsReusedWithinOneOperationAndClosedAtItsEnd() {
-        final CloseableTestingJobClient jobClient =
-                new CloseableTestingJobClient(jobId, JobStatus.RUNNING);
+        final CloseableJobClientMock jobClient =
+                new CloseableJobClientMock(jobId, JobStatus.RUNNING);
         final CountingRetriever retriever = new CountingRetriever(jobClient);
         final RefreshJobController controller = controller(retriever);
 
@@ -142,12 +191,12 @@ class RefreshJobControllerTest {
         }
     }
 
-    private static final class CloseableTestingJobClient extends TestingJobClient
+    private static final class CloseableJobClientMock extends JobClientMock
             implements AutoCloseable {
 
         private boolean closed;
 
-        private CloseableTestingJobClient(JobID jobId, JobStatus jobStatus) {
+        private CloseableJobClientMock(JobID jobId, JobStatus jobStatus) {
             super(jobId, jobStatus);
         }
 

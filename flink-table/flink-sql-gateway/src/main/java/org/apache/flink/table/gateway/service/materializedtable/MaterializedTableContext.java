@@ -36,7 +36,7 @@ import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFact
  * of the workflow scheduler and is created once per session in {@code SessionContext}.
  */
 @Internal
-public class MaterializedTableContext {
+public class MaterializedTableContext implements AutoCloseable {
 
     private final @Nullable WorkflowScheduler<? extends RefreshHandler> workflowScheduler;
 

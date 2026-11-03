@@ -108,10 +108,6 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
     private static final Logger LOG =
             LoggerFactory.getLogger(DefaultMaterializedTableExecutor.class);
 
-    private static final String LEFT_IN_INITIALIZING_STATUS =
-            " The table was left in INITIALIZING status. No materialized table statement can drop a"
-                    + " table in this status or move it out of it; remove it from the catalog directly.";
-
     private final ExecutableOperation.Context operationCtx;
     private final MaterializedTableJobSubmitter jobSubmitter;
     private final RefreshJobController refreshJobController;
@@ -187,20 +183,16 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                 createMaterializedTableOperation.getCatalogMaterializedTable();
 
         try {
-            executeContinuousRefreshJobOrCancelIt(
-                    catalogMaterializedTable, materializedTableIdentifier);
+            executeContinuousRefreshJob(
+                    catalogMaterializedTable,
+                    materializedTableIdentifier,
+                    Map.of(),
+                    Optional.empty());
         } catch (Exception e) {
             // drop materialized table if submitting the Flink streaming job encounters an
             // exception. Thus, weak atomicity is guaranteed
-            cleanUpAfterFailure(
-                    () ->
-                            new DropMaterializedTableOperation(materializedTableIdentifier, true)
-                                    .execute(operationCtx),
-                    e,
-                    String.format(
-                            "Failed to submit continuous refresh job for materialized table %s, and dropping the table failed as well."
-                                    + LEFT_IN_INITIALIZING_STATUS,
-                            materializedTableIdentifier));
+            new DropMaterializedTableOperation(materializedTableIdentifier, true)
+                    .execute(operationCtx);
             throw new TableException(
                     String.format(
                             "Failed to submit continuous refresh job for materialized table %s.",
@@ -226,15 +218,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             // drop materialized table if creating the refresh workflow encounters an exception, so
             // weak atomicity is guaranteed
-            cleanUpAfterFailure(
-                    () ->
-                            new DropMaterializedTableOperation(materializedTableIdentifier, true)
-                                    .execute(operationCtx),
-                    e,
-                    String.format(
-                            "Failed to create refresh workflow for materialized table %s, and dropping the table failed as well."
-                                    + LEFT_IN_INITIALIZING_STATUS,
-                            materializedTableIdentifier));
+            new DropMaterializedTableOperation(materializedTableIdentifier, true)
+                    .execute(operationCtx);
             throw new TableException(
                     String.format(
                             "Failed to create refresh workflow for materialized table %s.",
@@ -384,10 +369,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
 
     private ResolvedCatalogMaterializedTable suspendContinuousRefreshJob(
             ObjectIdentifier tableIdentifier, ResolvedCatalogMaterializedTable materializedTable) {
-        final ContinuousRefreshHandler refreshHandler;
-        final String savepointPath;
         try {
-            refreshHandler =
+            ContinuousRefreshHandler refreshHandler =
                     deserializeContinuousHandler(materializedTable.getSerializedRefreshHandler());
 
             if (RefreshStatus.SUSPENDED == materializedTable.getRefreshStatus()) {
@@ -397,20 +380,11 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                                 tableIdentifier, refreshHandler.getJobId()));
             }
 
-            final String savepointDirectory = requireSavepointDirectory();
-            savepointPath =
-                    refreshJobController.stopWithSavepoint(refreshHandler, savepointDirectory);
-        } catch (Exception e) {
-            throw new TableException(
-                    String.format(
-                            "Failed to suspend the continuous refresh job for materialized table %s.",
-                            tableIdentifier),
-                    e);
-        }
+            String savepointPath =
+                    refreshJobController.stopWithSavepoint(
+                            refreshHandler, requireSavepointDirectory());
 
-        // The job has stopped, so from here on a failure must name the savepoint.
-        try {
-            final ContinuousRefreshHandler updateRefreshHandler =
+            ContinuousRefreshHandler updateRefreshHandler =
                     new ContinuousRefreshHandler(
                             refreshHandler.getExecutionTarget(),
                             refreshHandler.getClusterId(),
@@ -424,17 +398,10 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                     updateRefreshHandler.asSummaryString(),
                     serializeContinuousHandler(updateRefreshHandler));
         } catch (Exception e) {
-            final String jobId = refreshHandler.getJobId();
-            LOG.error(
-                    "Stopped the continuous refresh job {} of materialized table {} with savepoint {}, but failed to record it in the catalog.",
-                    jobId,
-                    tableIdentifier,
-                    savepointPath,
-                    e);
             throw new TableException(
                     String.format(
-                            "Stopped the continuous refresh job %s of materialized table %s with savepoint %s, but failed to record the savepoint in the catalog, which still reports the table as ACTIVATED. To resume from the savepoint, set 'execution.state-recovery.path' to %s before RESUME, and unset it afterwards (RESET in SQL); otherwise RESUME starts the refresh job without restoring state.",
-                            jobId, tableIdentifier, savepointPath, savepointPath),
+                            "Failed to suspend the continuous refresh job for materialized table %s.",
+                            tableIdentifier),
                     e);
         }
     }
@@ -593,38 +560,6 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             ObjectIdentifier materializedTableIdentifier,
             Map<String, String> dynamicOptions,
             Optional<String> restorePath) {
-        recordContinuousRefreshJob(
-                materializedTableIdentifier,
-                catalogMaterializedTable,
-                submitContinuousRefreshJob(
-                        catalogMaterializedTable,
-                        materializedTableIdentifier,
-                        dynamicOptions,
-                        restorePath));
-    }
-
-    private void executeContinuousRefreshJobOrCancelIt(
-            CatalogMaterializedTable catalogMaterializedTable,
-            ObjectIdentifier materializedTableIdentifier) {
-        final ContinuousRefreshHandler refreshHandler =
-                submitContinuousRefreshJob(
-                        catalogMaterializedTable,
-                        materializedTableIdentifier,
-                        Map.of(),
-                        Optional.empty());
-        try {
-            recordContinuousRefreshJob(
-                    materializedTableIdentifier, catalogMaterializedTable, refreshHandler);
-        } catch (Exception e) {
-            throw cancelUnrecordedRefreshJob(materializedTableIdentifier, refreshHandler, e);
-        }
-    }
-
-    private ContinuousRefreshHandler submitContinuousRefreshJob(
-            CatalogMaterializedTable catalogMaterializedTable,
-            ObjectIdentifier materializedTableIdentifier,
-            Map<String, String> dynamicOptions,
-            Optional<String> restorePath) {
         // Set job name, runtime mode, checkpoint interval
         // TODO: Set minibatch related optimization options.
         Configuration customConfig = new Configuration();
@@ -656,59 +591,18 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         final RefreshJobResult result =
                 jobSubmitter.submitRefreshJob(customConfig, insertStatement);
         refreshJobController.register(result);
-        return new ContinuousRefreshHandler(
-                result.getTarget().getExecutionTarget(),
-                result.getTarget().getClusterId(),
-                result.getJobId());
-    }
+        ContinuousRefreshHandler continuousRefreshHandler =
+                new ContinuousRefreshHandler(
+                        result.getTarget().getExecutionTarget(),
+                        result.getTarget().getClusterId(),
+                        result.getJobId());
 
-    private void recordContinuousRefreshJob(
-            ObjectIdentifier materializedTableIdentifier,
-            CatalogMaterializedTable catalogMaterializedTable,
-            ContinuousRefreshHandler refreshHandler) {
         updateRefreshHandler(
                 materializedTableIdentifier,
                 resolveCatalogMaterializedTable(catalogMaterializedTable),
                 RefreshStatus.ACTIVATED,
-                refreshHandler.asSummaryString(),
-                serializeContinuousHandler(refreshHandler));
-    }
-
-    private TableException cancelUnrecordedRefreshJob(
-            ObjectIdentifier tableIdentifier,
-            ContinuousRefreshHandler refreshHandler,
-            Exception recordFailure) {
-        final String jobId = refreshHandler.getJobId();
-        LOG.error(
-                "Failed to record the continuous refresh job {} of materialized table {} in the catalog; cancelling it.",
-                jobId,
-                tableIdentifier,
-                recordFailure);
-        try {
-            refreshJobController.cancel(refreshHandler);
-        } catch (Exception cancelFailure) {
-            LOG.error(
-                    "Failed to cancel the continuous refresh job {} of materialized table {} (execution.target={}, cluster id={}), which the catalog does not record. It may still be running and must be cancelled manually.",
-                    jobId,
-                    tableIdentifier,
-                    refreshHandler.getExecutionTarget(),
-                    refreshHandler.getClusterId(),
-                    cancelFailure);
-            return withSuppressed(
-                    String.format(
-                            "Failed to record the continuous refresh job %s of materialized table %s in the catalog, and cancelling it failed as well. The job may still be running (execution.target=%s, cluster id=%s) and must be cancelled manually.",
-                            jobId,
-                            tableIdentifier,
-                            refreshHandler.getExecutionTarget(),
-                            refreshHandler.getClusterId()),
-                    cancelFailure,
-                    recordFailure);
-        }
-        return new TableException(
-                String.format(
-                        "Failed to record the continuous refresh job %s of materialized table %s in the catalog. The job was cancelled.",
-                        jobId, tableIdentifier),
-                recordFailure);
+                continuousRefreshHandler.asSummaryString(),
+                serializeContinuousHandler(continuousRefreshHandler));
     }
 
     private TableResultInternal callAlterMaterializedTableRefreshOperation(
@@ -1008,22 +902,6 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                         op.getAsQueryOperation());
 
         alterMaterializedTableChangeOperation.execute(operationCtx);
-    }
-
-    private static TableException withSuppressed(
-            String message, Exception cause, Exception suppressed) {
-        final TableException failure = new TableException(message, cause);
-        failure.addSuppressed(suppressed);
-        return failure;
-    }
-
-    private static void cleanUpAfterFailure(
-            Runnable cleanup, Exception failure, String cleanupFailureMessage) {
-        try {
-            cleanup.run();
-        } catch (Exception cleanupFailure) {
-            throw withSuppressed(cleanupFailureMessage, cleanupFailure, failure);
-        }
     }
 
     private AlterMaterializedTableChangeOperation generateRollbackAlterMaterializedTableOperation(

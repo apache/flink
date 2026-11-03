@@ -173,6 +173,31 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     @Test
+    void testConfigureSessionCreatesMaterializedTableWithoutRefreshJob() throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " WITH('format' = 'debezium-json')\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " REFRESH_MODE = CONTINUOUS\n"
+                        + " AS SELECT user_id, shop_id, payment_amount_cents FROM datagenSource";
+        service.configureSession(sessionHandle, materializedTableDDL, -1);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        String refreshJobName =
+                String.format(
+                        "Materialized_table_%s_continuous_refresh_job",
+                        userShopsIdentifier.asSerializableString());
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
+        service.configureSession(sessionHandle, "DROP MATERIALIZED TABLE users_shops", -1);
+
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.INITIALIZING);
+        assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNullOrEmpty();
+        assertThat(restClusterClient.listJobs().get(10, TimeUnit.SECONDS))
+                .noneMatch(job -> job.getJobName().equals(refreshJobName));
+    }
+
+    @Test
     void testCreateMaterializedTableInFullModeWithoutFreshness() throws Exception {
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"

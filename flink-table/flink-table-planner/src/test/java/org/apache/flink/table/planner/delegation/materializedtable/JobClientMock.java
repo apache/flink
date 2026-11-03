@@ -32,7 +32,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** A {@link JobClient} with a controllable status. */
-class TestingJobClient implements JobClient {
+class JobClientMock implements JobClient {
 
     private final JobID jobId;
     private final Supplier<CompletableFuture<JobStatus>> jobStatusRequest;
@@ -43,21 +43,21 @@ class TestingJobClient implements JobClient {
                     CompletableFuture.completedFuture(savepointDirectory + "/savepoint-1");
     private boolean cancelRequested;
 
-    TestingJobClient(JobID jobId, JobStatus jobStatus) {
+    JobClientMock(JobID jobId, JobStatus jobStatus) {
         this(jobId, CompletableFuture.completedFuture(jobStatus));
     }
 
-    TestingJobClient(JobID jobId, CompletableFuture<JobStatus> jobStatus) {
+    JobClientMock(JobID jobId, CompletableFuture<JobStatus> jobStatus) {
         this.jobId = jobId;
         this.jobStatusRequest = () -> jobStatus;
     }
 
-    TestingJobClient withCancelRequest(Supplier<CompletableFuture<Void>> cancelRequest) {
+    JobClientMock withCancelRequest(Supplier<CompletableFuture<Void>> cancelRequest) {
         this.cancelRequest = cancelRequest;
         return this;
     }
 
-    TestingJobClient withStopRequest(Function<String, CompletableFuture<String>> stopRequest) {
+    JobClientMock withStopRequest(Function<String, CompletableFuture<String>> stopRequest) {
         this.stopRequest = stopRequest;
         return this;
     }

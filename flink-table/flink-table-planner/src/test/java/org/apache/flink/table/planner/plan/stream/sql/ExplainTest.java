@@ -99,7 +99,7 @@ public class ExplainTest extends TableTestBase {
 
     @Test
     void testExplainAlterMaterializedTable() {
-        createMaterializedTableInCatalogOnly(
+        createMaterializedTableInCatalog(
                 "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
                         + " WITH (\n"
                         + "   'connector' = 'values'\n"
@@ -122,7 +122,7 @@ public class ExplainTest extends TableTestBase {
 
     @Test
     void testExplainFullAlterMaterializedTable() {
-        createMaterializedTableInCatalogOnly(
+        createMaterializedTableInCatalog(
                 "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
                         + " WITH (\n"
                         + "   'connector' = 'values'\n"
@@ -250,7 +250,7 @@ public class ExplainTest extends TableTestBase {
                 "testExplainCtasWithColumnsInCreateAndQueryParts");
     }
 
-    private void createMaterializedTableInCatalogOnly(String createStatement) {
+    private void createMaterializedTableInCatalog(String createStatement) {
         TableEnvironmentInternal tableEnv = (TableEnvironmentInternal) util.getTableEnv();
         CreateMaterializedTableOperation operation =
                 (CreateMaterializedTableOperation)

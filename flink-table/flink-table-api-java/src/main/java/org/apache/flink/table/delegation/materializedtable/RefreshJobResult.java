@@ -29,8 +29,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The result of submitting a materialized table refresh job, describing where the job was deployed
- * and how to identify it. It optionally carries the client returned at submission.
+ * The result of submitting a materialized table refresh job. It optionally carries the {@link
+ * JobClient} returned at submission.
  */
 @Internal
 public final class RefreshJobResult {
