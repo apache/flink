@@ -52,12 +52,12 @@ class TestHarnessTableSemantics implements TableSemantics {
     }
 
     static TestHarnessTableSemantics of(
-            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg, int timeColumnIndex) {
+            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
         return new TestHarnessTableSemantics(
                 tableArg.dataType,
                 tableArg.partitionColumnIndices(),
                 tableArg.upsertKeyIndices(),
-                timeColumnIndex,
+                tableArg.timeColumnIndex,
                 tableArg.effectiveChangelogMode());
     }
 
@@ -66,12 +66,12 @@ class TestHarnessTableSemantics implements TableSemantics {
      * so both are withheld, as in the planner's {@code CallBindingCallContext}.
      */
     static TestHarnessTableSemantics forTypeInference(
-            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg, int timeColumnIndex) {
+            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
         return new TestHarnessTableSemantics(
                 tableArg.dataType,
                 tableArg.partitionColumnIndices(),
                 Collections.emptyList(),
-                timeColumnIndex,
+                tableArg.timeColumnIndex,
                 null);
     }
 

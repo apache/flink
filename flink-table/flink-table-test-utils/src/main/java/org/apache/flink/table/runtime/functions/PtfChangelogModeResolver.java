@@ -145,7 +145,7 @@ final class PtfChangelogModeResolver {
             @Override
             public Optional<TableSemantics> getTableSemantics(int pos) {
                 return argumentAt(pos, ProcessTableFunctionTestHarness.TableArgumentInfo.class)
-                        .map(tableArg -> TestHarnessTableSemantics.of(tableArg, -1));
+                        .map(TestHarnessTableSemantics::of);
             }
 
             @Override

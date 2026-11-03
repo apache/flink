@@ -570,12 +570,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                 "Argument '%s' is not a table argument. Available table arguments: %s",
                                 argName, tableArgNames));
             }
-            TableArgumentInfo tableArg = (TableArgumentInfo) argInfo;
-            int timeColumnIndex =
-                    onTimeColumnName != null
-                            ? getFieldNames(tableArg.dataType).indexOf(onTimeColumnName)
-                            : -1;
-            return TestHarnessTableSemantics.of(tableArg, timeColumnIndex);
+            return TestHarnessTableSemantics.of((TableArgumentInfo) argInfo);
         }
 
         @Override
@@ -1761,7 +1756,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             Map<Integer, TableSemantics> tableSemanticsMap = new HashMap<>();
             for (int i = 0; i < tableArgs.size(); i++) {
                 TableArgumentInfo tArg = tableArgs.get(i);
-                tableSemanticsMap.put(i, TestHarnessTableSemantics.forTypeInference(tArg, -1));
+                tableSemanticsMap.put(i, TestHarnessTableSemantics.forTypeInference(tArg));
             }
 
             TestHarnessCallContext callContext = new TestHarnessCallContext();
@@ -1922,7 +1917,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 // A table argument typed by the PTF's annotation needs no builder configuration.
                 TableArgument tableArg =
                         tableArgs.getOrDefault(name, TableArgument.forName(name).build());
-                return new TableArgumentInfo(tableArg, dataType, staticArg.getTraits());
+                return new TableArgumentInfo(
+                        tableArg, dataType, staticArg.getTraits(), onTimeColumnName);
             }
         }
 
@@ -2099,17 +2095,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
                     TableArgumentInfo tableArg = tableArgsByName.get(argName);
                     if (tableArg != null) {
-                        int timeColumnIndex = -1;
-                        if (onTimeColumnName != null) {
-                            int idx = getFieldNames(tableArg.dataType).indexOf(onTimeColumnName);
-                            if (idx >= 0) {
-                                timeColumnIndex = idx;
-                            }
-                        }
                         tableSemanticsMap.put(
-                                i,
-                                TestHarnessTableSemantics.forTypeInference(
-                                        tableArg, timeColumnIndex));
+                                i, TestHarnessTableSemantics.forTypeInference(tableArg));
                     }
                 }
             }
@@ -2233,9 +2220,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         final Set<StaticArgumentTrait> traits;
         @Nullable final ChangelogMode changelogMode;
         final List<String[]> upsertKeys;
+        final int timeColumnIndex;
 
         TableArgumentInfo(
-                TableArgument tableArg, DataType dataType, Set<StaticArgumentTrait> traits) {
+                TableArgument tableArg,
+                DataType dataType,
+                Set<StaticArgumentTrait> traits,
+                @Nullable String onTimeColumnName) {
             super(tableArg.name, dataType);
             this.traits = traits;
             // Only set semantics partition, so a row-semantic argument ignores partitionBy.
@@ -2245,6 +2236,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             : null;
             this.changelogMode = tableArg.changelogMode;
             this.upsertKeys = tableArg.upsertKeys;
+            this.timeColumnIndex =
+                    onTimeColumnName == null
+                            ? -1
+                            : getFieldNames(dataType).indexOf(onTimeColumnName);
         }
 
         boolean is(StaticArgumentTrait trait) {

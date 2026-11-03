@@ -219,13 +219,15 @@ class PtfChangelogModeResolverTest {
                                 DataTypes.ROW(DataTypes.FIELD("v", DataTypes.INT())),
                                 EnumSet.of(
                                         StaticArgumentTrait.ROW_SEMANTIC_TABLE,
-                                        StaticArgumentTrait.SUPPORT_UPDATES)),
+                                        StaticArgumentTrait.SUPPORT_UPDATES),
+                                null),
                         new ProcessTableFunctionTestHarness.ScalarArgumentInfo(
                                 "s", DataTypes.INT(), 1),
                         new ProcessTableFunctionTestHarness.TableArgumentInfo(
                                 TableArgument.forName("t2").build(),
                                 DataTypes.ROW(DataTypes.FIELD("n", DataTypes.STRING())),
-                                EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)));
+                                EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE),
+                                null));
 
         Map<Integer, ChangelogMode> observed = new HashMap<>();
         StubChangelogFunction fn =
@@ -259,7 +261,8 @@ class PtfChangelogModeResolverTest {
                                 DataTypes.ROW(DataTypes.FIELD("v", DataTypes.INT())),
                                 EnumSet.of(
                                         StaticArgumentTrait.ROW_SEMANTIC_TABLE,
-                                        StaticArgumentTrait.SUPPORT_UPDATES)));
+                                        StaticArgumentTrait.SUPPORT_UPDATES),
+                                null));
 
         ChangelogMode[] observed = new ChangelogMode[1];
         StubChangelogFunction fn =
@@ -286,7 +289,8 @@ class PtfChangelogModeResolverTest {
                                 DataTypes.ROW(
                                         DataTypes.FIELD("k", DataTypes.STRING()),
                                         DataTypes.FIELD("v", DataTypes.INT())),
-                                EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE)));
+                                EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE),
+                                null));
 
         Map<Integer, TableSemantics> observed = new HashMap<>();
         StubChangelogFunction fn =
