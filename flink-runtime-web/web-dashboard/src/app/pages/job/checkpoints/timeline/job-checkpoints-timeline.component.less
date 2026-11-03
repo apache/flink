@@ -121,13 +121,40 @@ header {
   font-size: 10px;
 }
 
-.rotated-out-note {
+.timeline-note {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
   // Fixed height so the chart doesn't shift when the note toggles.
   min-height: 18px;
   margin: 0 0 8px;
   color: #8c8c8c;
   font-size: 12px;
   line-height: 18px;
+
+  .timeline-controls {
+    display: inline-flex;
+    gap: 12px;
+    align-items: center;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .slowest-first {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .row-count {
+    padding: 0 2px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    background: #fff;
+    color: #595959;
+    font-size: 12px;
+  }
 }
 
 .timeline-title {
@@ -171,6 +198,15 @@ header {
   &.loading {
     opacity: 0.7;
   }
+}
+
+.timeline-scroll.scrollable {
+  overflow-y: auto;
+}
+
+.timeline-sticky {
+  position: sticky;
+  top: 0;
 }
 
 .timeline-canvas {

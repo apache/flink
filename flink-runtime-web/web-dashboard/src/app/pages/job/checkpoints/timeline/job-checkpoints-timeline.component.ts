@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { DatePipe, NgIf } from '@angular/common';
+import { DatePipe, NgFor, NgIf } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -109,6 +109,13 @@ interface InstantDatum {
   range: [number, number];
 }
 
+interface TimelineRows {
+  rows: TimelineDatum[];
+  unacked: UnackedDatum[];
+  instants: InstantDatum[];
+  rowOrder: string[];
+}
+
 const STRIP_COLOR: Record<StripDatum['status'], string> = {
   COMPLETED: '#52c41a',
   SAVEPOINT: '#722ed1',
@@ -150,6 +157,7 @@ interface TimelineChart {
   styleUrls: ['./job-checkpoints-timeline.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    NgFor,
     NgIf,
     DatePipe,
     HumanizeDurationPipe,
@@ -168,6 +176,8 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
 
   @ViewChild('stripContainer', { static: true }) private readonly stripContainer: ElementRef<HTMLDivElement>;
   @ViewChild('timelineContainer', { static: true }) private readonly timelineContainer: ElementRef<HTMLDivElement>;
+  @ViewChild('timelineScroll', { static: true }) private readonly timelineScroll: ElementRef<HTMLDivElement>;
+  @ViewChild('timelineWrapper', { static: true }) private readonly timelineWrapper: ElementRef<HTMLDivElement>;
 
   public selected?: StripDatum;
   public loadingTimeline = false;
@@ -175,6 +185,12 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   public loadError?: LoadError;
   public failedVertexCount = 0;
   public requestedVertexCount = 0;
+  // Rows of the shown checkpoint, how many of the slowest are shown, and the first one scrolled to.
+  public totalRows = 0;
+  public slowestCount = JobCheckpointsTimelineComponent.SHOWN_ROWS_DEFAULT;
+  public firstRow = 0;
+  public chartHeight = 0;
+  public slowestFirst = false;
 
   // Diverges from @Input once polling starts feeding live updates.
   private currentHistory: CheckpointHistory[] = [];
@@ -184,6 +200,9 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   private timeline?: TimelineChart;
   // Full operator name per row label, for the native tooltip on the truncated labels.
   private rowTitles = new Map<string, string>();
+  // Kept so scrolling can redraw another window of rows without rebuilding them.
+  private timelineRows?: TimelineRows & { datum: StripDatum; slowestOrder: string[] };
+  private scrollFrame?: number;
   private noAckHatch?: HTMLCanvasElement;
   private resizeObserver?: ResizeObserver;
   private readonly destroy$ = new Subject<void>();
@@ -201,7 +220,12 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   private static readonly POLL_MAX_MS = 15000;
   private static readonly STRIP_MAX_BARS = 60;
   private static readonly TIMELINE_ROW_HEIGHT = 22;
-  private static readonly TIMELINE_HEIGHT_BASE = 80;
+  // paddingTop (time axis) + paddingBottom, plus a little slack.
+  private static readonly TIMELINE_HEIGHT_BASE = 56;
+  // Rows shown by default (the slowest) and the most that can be picked; the chart is at most VISIBLE_ROWS tall.
+  private static readonly SHOWN_ROWS_DEFAULT = 25;
+  private static readonly SHOWN_ROWS_MAX = 200;
+  private static readonly VISIBLE_ROWS = 25;
   private static readonly TIMELINE_HEIGHT_MIN = 160;
   private static readonly LABEL_CHAR_WIDTH = 7;
   private static readonly LABEL_PADDING_BUFFER = 24;
@@ -269,6 +293,9 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     this.destroy$.next();
     this.destroy$.complete();
     this.resizeObserver?.disconnect();
+    if (this.scrollFrame !== undefined) {
+      cancelAnimationFrame(this.scrollFrame);
+    }
     this.stripChart?.destroy();
     this.timeline?.chart.destroy();
   }
@@ -557,10 +584,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       });
   }
 
-  private buildTimelineRows(
-    datum: StripDatum,
-    perVertex: Record<string, CheckpointSubTask | null>
-  ): { rows: TimelineDatum[]; unacked: UnackedDatum[]; instants: InstantDatum[]; rowOrder: string[] } {
+  private buildTimelineRows(datum: StripDatum, perVertex: Record<string, CheckpointSubTask | null>): TimelineRows {
     const base = datum.triggered;
     // A completed checkpoint was acked by every running subtask, so missing stats there are not a failure.
     const unackedLabel =
@@ -675,20 +699,43 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   }
 
   private renderTimeline(datum: StripDatum, perVertex: Record<string, CheckpointSubTask | null>): void {
-    const { rows, unacked, instants, rowOrder } = this.buildTimelineRows(datum, perVertex);
-    if (rowOrder.length === 0) {
+    const built = this.buildTimelineRows(datum, perVertex);
+    if (built.rowOrder.length === 0) {
       this.showEmptyTimeline();
       return;
     }
     this.timelineEmpty = false;
-    this.cdr.markForCheck();
+    this.timelineRows = { datum, ...built, slowestOrder: slowestFirstOrder(built) };
+    this.totalRows = built.rowOrder.length;
+    this.rowTitles = new Map();
+    for (const row of [...built.rows, ...built.unacked, ...built.instants]) {
+      if (!this.rowTitles.has(row.row)) {
+        this.rowTitles.set(row.row, `${row.operatorFull} #${row.subtask}`);
+      }
+    }
+    this.drawTimelineWindow();
+  }
 
+  // Draws the rows scrolled to, out of the slowest ones picked. The chart is at most 25 rows tall and stays in place
+  // while the box around it scrolls, so its canvas stays far below the 65,535 px browsers allow, however big the job.
+  private drawTimelineWindow(): void {
+    const data = this.timelineRows;
+    if (!data) {
+      return;
+    }
+    const { datum, rows, unacked, instants, rowOrder } = data;
     const C = JobCheckpointsTimelineComponent;
-    const chartHeight = Math.max(
-      rowOrder.length * C.TIMELINE_ROW_HEIGHT + C.TIMELINE_HEIGHT_BASE,
-      C.TIMELINE_HEIGHT_MIN
-    );
-    // Pad left to the longest label so G2 won't re-clip it.
+    const slowest = data.slowestOrder.slice(0, this.shownRows);
+    const picked = new Set(slowest);
+    const order = this.slowestFirst ? slowest : rowOrder.filter(row => picked.has(row));
+    const visible = this.visibleRows;
+    this.firstRow = Math.max(0, Math.min(this.firstRow, order.length - visible));
+    const windowRows = order.slice(this.firstRow, this.firstRow + visible);
+    const inWindow = new Set(windowRows);
+    const shown = <T extends { row: string }>(items: T[]): T[] => items.filter(d => inWindow.has(d.row));
+    this.chartHeight = Math.max(visible * C.TIMELINE_ROW_HEIGHT + C.TIMELINE_HEIGHT_BASE, C.TIMELINE_HEIGHT_MIN);
+
+    // The label padding and the time scale cover all rows, so scrolling or picking more rows doesn't shift them.
     const longestLabel = rowOrder.reduce((m, s) => Math.max(m, s.length), 0);
     const leftPadding = Math.min(
       C.LABEL_PADDING_MAX,
@@ -699,32 +746,101 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       [...rows, ...unacked].reduce((m, r) => Math.max(m, r.range[1]), scaleMin),
       scaleMin + 1
     );
-    const xScale = { domain: rowOrder };
+    const xScale = { domain: windowRows };
     const yScale = {
       domain: [scaleMin, scaleMax],
       nice: false,
       tickMethod: () => startAlignedTicks(new Date(scaleMin), new Date(scaleMax)).map(Number)
     };
 
-    this.rowTitles = new Map();
-    for (const row of [...rows, ...unacked, ...instants]) {
-      if (!this.rowTitles.has(row.row)) {
-        this.rowTitles.set(row.row, `${row.operatorFull} #${row.subtask}`);
-      }
-    }
-
     const timeline = (this.timeline ??= this.createTimelineChart());
-    timeline.chart.attr('height', chartHeight);
+    timeline.chart.attr('height', this.chartHeight);
     timeline.chart.attr('paddingLeft', leftPadding);
-    timeline.phases.data(rows).scale('x', xScale).scale('y', yScale);
-    timeline.unacked.data(unacked).scale('x', xScale).scale('y', yScale);
-    timeline.instants.data(instants).scale('x', xScale).scale('y', yScale);
+    timeline.phases.data(shown(rows)).scale('x', xScale).scale('y', yScale);
+    timeline.unacked.data(shown(unacked)).scale('x', xScale).scale('y', yScale);
+    timeline.instants.data(shown(instants)).scale('x', xScale).scale('y', yScale);
     void timeline.chart.render();
+    this.cdr.markForCheck();
+  }
+
+  // How many rows are drawn: the slowest ones picked, or all rows if there are fewer.
+  public get shownRows(): number {
+    return Math.min(this.slowestCount, this.totalRows);
+  }
+
+  public get visibleRows(): number {
+    return Math.min(JobCheckpointsTimelineComponent.VISIBLE_ROWS, this.shownRows);
+  }
+
+  public get scrollable(): boolean {
+    return this.shownRows > this.visibleRows;
+  }
+
+  // The scroll box's content: the chart plus one row height for every shown row out of view.
+  public get scrollContentHeight(): number {
+    return this.chartHeight + (this.shownRows - this.visibleRows) * JobCheckpointsTimelineComponent.TIMELINE_ROW_HEIGHT;
+  }
+
+  // 25, 50, ... up to 200 or the number of rows, whichever is smaller; none when every row is already shown.
+  public get slowestCountOptions(): number[] {
+    const C = JobCheckpointsTimelineComponent;
+    const max = Math.min(C.SHOWN_ROWS_MAX, this.totalRows);
+    if (max <= C.SHOWN_ROWS_DEFAULT) {
+      return [];
+    }
+    const options: number[] = [];
+    for (let n = C.SHOWN_ROWS_DEFAULT; n < max; n += C.SHOWN_ROWS_DEFAULT) {
+      options.push(n);
+    }
+    options.push(max);
+    return options;
+  }
+
+  public setSlowestCount(count: number): void {
+    this.slowestCount = count;
+    this.scrollToTop();
+  }
+
+  public setSlowestFirst(slowestFirst: boolean): void {
+    this.slowestFirst = slowestFirst;
+    this.scrollToTop();
+  }
+
+  // Other rows or another order: start again from the top.
+  private scrollToTop(): void {
+    this.firstRow = 0;
+    this.timelineScroll.nativeElement.scrollTop = 0;
+    this.drawTimelineWindow();
+  }
+
+  public onSlowestFirstChange(event: Event): void {
+    this.setSlowestFirst((event.target as HTMLInputElement).checked);
+  }
+
+  public onSlowestCountChange(event: Event): void {
+    this.setSlowestCount(Number((event.target as HTMLSelectElement).value));
+  }
+
+  public onTimelineScroll(): void {
+    const first = Math.round(
+      this.timelineScroll.nativeElement.scrollTop / JobCheckpointsTimelineComponent.TIMELINE_ROW_HEIGHT
+    );
+    if (first === this.firstRow) {
+      return;
+    }
+    this.firstRow = first;
+    // One redraw per frame, however many scroll events arrive.
+    if (this.scrollFrame === undefined) {
+      this.scrollFrame = requestAnimationFrame(() => {
+        this.scrollFrame = undefined;
+        this.drawTimelineWindow();
+      });
+    }
   }
 
   private createTimelineChart(): TimelineChart {
     const container = this.timelineContainer.nativeElement;
-    const chart = new Chart({ container, autoFit: true, paddingTop: 24, paddingRight: 32, paddingBottom: 48 });
+    const chart = new Chart({ container, autoFit: true, paddingTop: 32, paddingRight: 32, paddingBottom: 16 });
     chart.coordinate({ transform: [{ type: 'transpose' }] });
     const phases = chart
       .interval()
@@ -739,7 +855,8 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
         labelFill: '#262626',
         labelOpacity: 1
       })
-      .axis('y', { title: 'time', labelFormatter: (v: number) => formatTimeAxis(new Date(Number(v))) })
+      // On top, so the time axis is in view as soon as the chart is.
+      .axis('y', { title: false, position: 'top', labelFormatter: (v: number) => formatTimeAxis(new Date(Number(v))) })
       .legend(false)
       .animate(false)
       .style('stroke', (d: TimelineDatum) => (d.aborted ? NOT_COMPLETED_STROKE : 'transparent'))
@@ -762,8 +879,11 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
           })
         ]
       })
-      // g2 5 ellipsizes the tooltip title at 360px; let full operator names wrap instead.
       .interaction('tooltip', {
+        // Outside the scroll box, which would clip it on the last visible rows. g2 places a tooltip before measuring
+        // it, so on its first frame it doesn't flip up yet.
+        mount: this.timelineWrapper.nativeElement,
+        // g2 5 ellipsizes the tooltip title at 360px; let full operator names wrap instead.
         css: {
           '.g2-tooltip': { 'max-width': '480px' },
           '.g2-tooltip-title': { 'white-space': 'normal', 'overflow-wrap': 'anywhere' }
@@ -826,6 +946,9 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   private clearTimeline(): void {
     this.timeline?.chart.destroy();
     this.timeline = undefined;
+    this.timelineRows = undefined;
+    this.totalRows = 0;
+    this.firstRow = 0;
     this.timelineContainer.nativeElement.title = '';
     this.loadingTimeline = false;
     this.timelineEmpty = false;
@@ -865,6 +988,23 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     const operators = this.requestedVertexCount === 1 ? 'operator' : 'operators';
     return `${this.failedVertexCount} of ${this.requestedVertexCount} ${operators} failed to load — the timeline below is incomplete.`;
   }
+}
+
+// Rows by when they finished, latest first; ties keep operator then subtask order (the sort is stable). Subtasks that
+// never finished come first: those without an ack, and aborted ones, whose reported phases stop short of where they
+// were when the checkpoint failed (they are why it failed).
+function slowestFirstOrder({ rows, unacked, instants, rowOrder }: TimelineRows): string[] {
+  const end = new Map<string, number>();
+  for (const d of [...rows, ...instants]) {
+    end.set(d.row, d.aborted ? Infinity : Math.max(end.get(d.row) ?? -Infinity, d.range[1]));
+  }
+  for (const d of unacked) {
+    end.set(d.row, Infinity);
+  }
+  return [...rowOrder].sort((a, b) => {
+    const [ea, eb] = [end.get(a) ?? 0, end.get(b) ?? 0];
+    return ea === eb ? 0 : eb > ea ? 1 : -1;
+  });
 }
 
 // Backend tags completed subtasks "completed" (incl. aborted) and others "pending_or_failed".

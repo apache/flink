@@ -111,10 +111,31 @@
     </header>
 
     <!-- Reserve the line while a checkpoint is selected so the chart doesn't shift. -->
-    <div *ngIf="selected" class="rotated-out-note">
+    <div *ngIf="selected" class="timeline-note">
       <span *ngIf="selectedRotatedOut && !timelineEmpty">
         Checkpoint #{{ selected?.id }} is no longer in the recent-checkpoints strip above — showing
         the frozen snapshot from when it was pinned.
+      </span>
+      <span *ngIf="totalRows > 1 && !timelineEmpty" class="timeline-controls">
+        <!-- Text, not whitespace-only nodes, around the select: Angular drops whitespace-only nodes. -->
+        <span *ngIf="slowestCountOptions.length > 0">
+          {{ shownRows < totalRows ? 'Showing the' : 'Showing all' }}
+          <select
+            class="row-count"
+            aria-label="Number of slowest subtasks shown"
+            (change)="onSlowestCountChange($event)"
+          >
+            <option *ngFor="let n of slowestCountOptions" [value]="n" [selected]="n === shownRows">
+              {{ n }}
+            </option>
+          </select>
+          {{ shownRows < totalRows ? 'slowest of ' + totalRows + ' subtasks' : 'subtasks' }}
+          {{ scrollable ? '· rows ' + (firstRow + 1) + '–' + (firstRow + visibleRows) : '' }}
+        </span>
+        <label class="slowest-first">
+          <input type="checkbox" [checked]="slowestFirst" (change)="onSlowestFirstChange($event)" />
+          slowest first
+        </label>
       </span>
     </div>
 
@@ -126,9 +147,23 @@
       [nzMessage]="partialFailureMessage"
     ></nz-alert>
 
-    <div class="timeline-canvas-wrapper" [class.loading]="loadingTimeline">
+    <div class="timeline-canvas-wrapper" [class.loading]="loadingTimeline" #timelineWrapper>
       <nz-spin [nzSpinning]="loadingTimeline">
-        <div class="timeline-canvas" [class.hidden]="timelineEmpty" #timelineContainer></div>
+        <!-- With more rows than are visible, the chart stays in place while this box scrolls. -->
+        <div
+          class="timeline-scroll"
+          [class.scrollable]="scrollable"
+          [style.height.px]="scrollable ? chartHeight : null"
+          (scroll)="onTimelineScroll()"
+          #timelineScroll
+        >
+          <div [style.height.px]="scrollable ? scrollContentHeight : null">
+            <!-- G2 sets an inline position on its container, so the sticky goes on this wrapper. -->
+            <div class="timeline-sticky">
+              <div class="timeline-canvas" [class.hidden]="timelineEmpty" #timelineContainer></div>
+            </div>
+          </div>
+        </div>
         <nz-empty
           *ngIf="timelineEmpty && !loadingTimeline"
           [nzNotFoundContent]="emptyTimelineMessage"

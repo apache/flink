@@ -534,3 +534,139 @@ describe('JobCheckpointsTimelineComponent loading', () => {
     expect(component.selected?.id).toBe(7);
   });
 });
+
+interface Recorder {
+  data: ReturnType<typeof vi.fn>;
+  scale: ReturnType<typeof vi.fn>;
+}
+
+describe('JobCheckpointsTimelineComponent row window', () => {
+  let component: JobCheckpointsTimelineComponent;
+  let phases: Recorder;
+  let internals: {
+    createTimelineChart: () => unknown;
+    renderTimeline: (datum: ReturnType<typeof checkpoint>, perVertex: Record<string, CheckpointSubTask>) => void;
+    timelineScroll: ElementRef<HTMLDivElement>;
+  };
+
+  const recorder = (): Recorder => {
+    const m = { data: vi.fn(), scale: vi.fn() };
+    m.data.mockReturnValue(m);
+    m.scale.mockReturnValue(m);
+    return m;
+  };
+  const render = (subtasks: number): void =>
+    internals.renderTimeline(checkpoint('COMPLETED', 400), {
+      a: details(...Array.from({ length: subtasks }, (_, i) => completed(i, { async: 5 + i })))
+    });
+  const lastScale = (channel: string): { domain: unknown[] } =>
+    phases.scale.mock.calls.filter(([c]) => c === channel).at(-1)?.[1];
+  const shownRows = (): unknown[] => lastScale('x').domain;
+  const scrollTo = (row: number): void => {
+    internals.timelineScroll = new ElementRef({ scrollTop: row * 22 } as HTMLDivElement);
+    component.onTimelineScroll();
+  };
+
+  beforeEach(() => {
+    component = new JobCheckpointsTimelineComponent(
+      {} as JobService,
+      { markForCheck: () => undefined } as unknown as ChangeDetectorRef
+    );
+    internals = component as unknown as typeof internals;
+    phases = recorder();
+    const chart = { attr: vi.fn(), render: vi.fn(), destroy: vi.fn() };
+    internals.createTimelineChart = () => ({ chart, phases, unacked: recorder(), instants: recorder() });
+    component.vertices = [vertex('a', 'Agg')];
+    internals.timelineScroll = new ElementRef({ scrollTop: 0 } as HTMLDivElement);
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  // In render(), a higher subtask index finishes later, so the slowest 25 of 300 are #275–#299.
+  it('shows the 25 slowest subtasks in operator order, and offers up to 200 or the row count', () => {
+    render(300);
+    expect(shownRows()).toEqual(Array.from({ length: 25 }, (_, i) => `Agg #${275 + i}`));
+    expect(new Set((phases.data.mock.calls.at(-1)?.[0] as Array<{ row: string }>).map(r => r.row)).size).toBe(25);
+    expect([component.scrollable, component.chartHeight]).toEqual([false, 25 * 22 + 56]);
+    expect(component.slowestCountOptions).toEqual([25, 50, 75, 100, 125, 150, 175, 200]);
+
+    render(60);
+    expect(component.slowestCountOptions).toEqual([25, 50, 60]);
+
+    render(20);
+    expect([component.shownRows, component.scrollable, component.slowestCountOptions]).toEqual([20, false, []]);
+    expect(component.chartHeight).toBe(20 * 22 + 56);
+  });
+
+  it('scrolls through more of the slowest than fit, without moving the time scale', () => {
+    render(300);
+    const timeDomain = lastScale('y').domain;
+
+    component.setSlowestCount(100);
+    expect([component.scrollable, shownRows()[0], component.chartHeight]).toEqual([true, 'Agg #200', 25 * 22 + 56]);
+    scrollTo(30);
+
+    expect([component.firstRow, shownRows()[0], shownRows().length]).toEqual([30, 'Agg #230', 25]);
+    expect(lastScale('y').domain).toEqual(timeDomain);
+  });
+
+  it('keeps the window within the picked rows, and starts from the top for another count', () => {
+    render(300);
+    component.setSlowestCount(100);
+    scrollTo(90);
+    expect(component.firstRow).toBe(75);
+
+    component.setSlowestCount(50);
+
+    expect([component.firstRow, internals.timelineScroll.nativeElement.scrollTop, shownRows()[0]]).toEqual([
+      0,
+      0,
+      'Agg #250'
+    ]);
+  });
+
+  it('sorts the picked rows by when they finished, latest first, and starts again from the top', () => {
+    render(300);
+    component.setSlowestCount(50);
+    scrollTo(10);
+
+    component.setSlowestFirst(true);
+
+    expect([component.firstRow, internals.timelineScroll.nativeElement.scrollTop]).toEqual([0, 0]);
+    expect(shownRows().slice(0, 3)).toEqual(['Agg #299', 'Agg #298', 'Agg #297']);
+    component.setSlowestFirst(false);
+    expect(shownRows()[0]).toBe('Agg #250');
+  });
+
+  it('puts subtasks without an ack first when sorting, keeping operator order for ties', () => {
+    component.vertices = [vertex('a', 'Agg'), vertex('s', 'Sink')];
+    internals.renderTimeline(checkpoint('FAILED', 50), {
+      a: details(completed(0, { async: 10 }), noStats(1), completed(2, { async: 30 })),
+      s: details(noStats(0), completed(1, { async: 30 }))
+    });
+
+    component.setSlowestFirst(true);
+
+    expect(shownRows()).toEqual(['Agg #1', 'Sink #0', 'Agg #2', 'Sink #1', 'Agg #0']);
+  });
+
+  it('counts aborted subtasks as the slowest, however short their reported phases', () => {
+    // A failed checkpoint: 30 subtasks finished, #30 was aborted after reporting 1ms, #31 never acked.
+    internals.renderTimeline(checkpoint('FAILED', 400), {
+      a: details(
+        ...Array.from({ length: 30 }, (_, i) => completed(i, { async: 5 + i })),
+        completed(30, { async: 1 }, true),
+        noStats(31)
+      )
+    });
+
+    expect(shownRows()).toContain('Agg #30');
+    expect(shownRows()).toContain('Agg #31');
+    component.setSlowestFirst(true);
+    expect(shownRows().slice(0, 3)).toEqual(['Agg #30', 'Agg #31', 'Agg #29']);
+  });
+});
