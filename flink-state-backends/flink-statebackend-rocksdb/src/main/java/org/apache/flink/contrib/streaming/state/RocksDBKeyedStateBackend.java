@@ -1052,7 +1052,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     public boolean isSafeToReuseKVState() {
-        return true;
+        return !(priorityQueueFactory instanceof HeapPriorityQueueSetFactory);
     }
 
     /** Rocks DB specific information about the k/v states. */
