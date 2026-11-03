@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -37,14 +38,18 @@ import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.operators.join.interval.EmitAwareCollector;
 import org.apache.flink.table.runtime.operators.join.interval.IntervalJoinFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,14 +59,14 @@ import java.util.Map;
  * (time-bounded) stream join. It keeps the state and the logic of the synchronous version with two
  * fixes: rows at time zero or earlier are joined and kept like rows after time zero, and cleanup
  * times saturate instead of overflowing. As in the synchronous version, the event-time operator
- * time is never below zero, so a row whose window ends at or before time zero is not cached. Early
- * firing is not supported.
+ * time is never below zero, so a row whose window ends at or before time zero is not cached.
  *
  * <p>State iterators cannot remove entries, so the changes to a scanned cache are written after the
- * scan. Records of several keys are in flight at a time, so what the callbacks of a record need,
- * such as its join key and the operator time, is taken when its processing starts. Unlike the
- * synchronous version, this function does not enable interruptible timers, which the async state
- * operators do not support.
+ * scan. With early fire, the fired bits of a scanned cache are read in one scan before it, so that
+ * the scan of the cache does not wait for a request per bucket. Records of several keys are in
+ * flight at a time, so what the callbacks of a record need, such as its join key and the operator
+ * time, is taken when its processing starts. Unlike the synchronous version, this function does not
+ * enable interruptible timers, which the async state operators do not support.
  */
 abstract class AsyncStateTimeIntervalJoin
         extends KeyedCoProcessFunction<RowData, RowData, RowData, RowData> {
@@ -87,10 +92,32 @@ abstract class AsyncStateTimeIntervalJoin
     private final IntervalJoinFunction joinFunction;
     private transient OuterJoinPaddingUtil paddingUtil;
 
+    // Delay after a row's time at which an unmatched outer row is speculatively padded and emitted.
+    // A negative value disables early firing, in which case the operator behaves as a plain
+    // interval join.
+    private final long earlyFireDelay;
+    // True only for an outer join with a non-negative window span and a non-negative delay.
+    private final boolean earlyFireEnabled;
+    // True when the early-fire timer fires on the wall clock while cleanup stays on event time
+    // (an event-time interval join early-firing in processing-time mode). The two timer kinds then
+    // live in different domains and onTimer discriminates them by timeDomain().
+    private final boolean earlyFireCrossDomain;
+
     // cache to store rows from the left stream
     private transient MapState<Long, List<Tuple2<RowData, Boolean>>> leftCache;
     // cache to store rows from the right stream
     private transient MapState<Long, List<Tuple2<RowData, Boolean>>> rightCache;
+
+    // For each cached outer row, whether its speculative early-fire pad has already been emitted,
+    // positionally aligned with the row-time bucket in leftCache / rightCache, as in the
+    // synchronous version. Only registered with early fire.
+    private transient MapState<Long, List<Boolean>> leftFiredState;
+    private transient MapState<Long, List<Boolean>> rightFiredState;
+
+    // Cross-domain early fire only: maps a firing processing-time to the event-time bucket keys
+    // whose unmatched outer rows are due to be speculatively padded at that wall-clock instant.
+    private transient MapState<Long, List<Long>> leftEarlyFireSchedule;
+    private transient MapState<Long, List<Long>> rightEarlyFireSchedule;
 
     // state to record the timer on the left stream. null means no timer set
     private transient ValueState<Long> leftTimerState;
@@ -111,7 +138,9 @@ abstract class AsyncStateTimeIntervalJoin
             long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
-            IntervalJoinFunction joinFunc) {
+            IntervalJoinFunction joinFunc,
+            long earlyFireDelay,
+            boolean earlyFireCrossDomain) {
         this.joinType = joinType;
         this.leftRelativeSize = -leftLowerBound;
         this.rightRelativeSize = leftUpperBound;
@@ -123,6 +152,12 @@ abstract class AsyncStateTimeIntervalJoin
         this.leftType = leftType;
         this.rightType = rightType;
         this.joinFunction = joinFunc;
+        this.earlyFireDelay = earlyFireDelay;
+        this.earlyFireEnabled =
+                earlyFireDelay >= 0
+                        && joinType.isOuter()
+                        && (leftRelativeSize + rightRelativeSize) >= 0;
+        this.earlyFireCrossDomain = earlyFireCrossDomain;
     }
 
     @Override
@@ -147,6 +182,46 @@ abstract class AsyncStateTimeIntervalJoin
                         BasicTypeInfo.LONG_TYPE_INFO,
                         rightRowListTypeInfo);
         rightCache = getRuntimeContext().getMapState(rightMapStateDescriptor);
+
+        // Early-fire bookkeeping, aligned with the caches above, with the names and types of the
+        // synchronous version.
+        if (earlyFireEnabled) {
+            ListTypeInfo<Boolean> firedListTypeInfo =
+                    new ListTypeInfo<>(BasicTypeInfo.BOOLEAN_TYPE_INFO);
+            leftFiredState =
+                    getRuntimeContext()
+                            .getMapState(
+                                    new MapStateDescriptor<>(
+                                            "IntervalJoinLeftFired",
+                                            BasicTypeInfo.LONG_TYPE_INFO,
+                                            firedListTypeInfo));
+            rightFiredState =
+                    getRuntimeContext()
+                            .getMapState(
+                                    new MapStateDescriptor<>(
+                                            "IntervalJoinRightFired",
+                                            BasicTypeInfo.LONG_TYPE_INFO,
+                                            firedListTypeInfo));
+
+            if (earlyFireCrossDomain) {
+                ListTypeInfo<Long> bucketListTypeInfo =
+                        new ListTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO);
+                leftEarlyFireSchedule =
+                        getRuntimeContext()
+                                .getMapState(
+                                        new MapStateDescriptor<>(
+                                                "IntervalJoinLeftEarlyFireSchedule",
+                                                BasicTypeInfo.LONG_TYPE_INFO,
+                                                bucketListTypeInfo));
+                rightEarlyFireSchedule =
+                        getRuntimeContext()
+                                .getMapState(
+                                        new MapStateDescriptor<>(
+                                                "IntervalJoinRightEarlyFireSchedule",
+                                                BasicTypeInfo.LONG_TYPE_INFO,
+                                                bucketListTypeInfo));
+            }
+        }
 
         // Initialize the timer states.
         ValueStateDescriptor<Long> leftValueStateDescriptor =
@@ -195,8 +270,8 @@ abstract class AsyncStateTimeIntervalJoin
                 rowTime - (isLeft ? rightRelativeSize : leftRelativeSize);
         final long otherQualifiedUpperBound =
                 rowTime + (isLeft ? leftRelativeSize : rightRelativeSize);
-        final boolean thisOuter = isLeft ? joinType.isLeftOuter() : joinType.isRightOuter();
-        final boolean otherOuter = isLeft ? joinType.isRightOuter() : joinType.isLeftOuter();
+        final boolean thisOuter = isOuter(isLeft);
+        final boolean otherOuter = isOuter(!isLeft);
         final boolean[] emitted = {false};
 
         // Check if we need to join the current row against cached rows of the other input.
@@ -216,28 +291,53 @@ abstract class AsyncStateTimeIntervalJoin
                                     calExpirationTime(operatorTime, leftRelativeSize));
             final MapState<Long, List<Tuple2<RowData, Boolean>>> otherCache =
                     isLeft ? rightCache : leftCache;
+            // Fired bits are only kept for the rows of an outer input.
+            final MapState<Long, List<Boolean>> otherFiredState =
+                    earlyFireEnabled && otherOuter
+                            ? (isLeft ? rightFiredState : leftFiredState)
+                            : null;
             // A collector per record, as the callbacks of other records run in between.
             final EmitAwareCollector joinCollector = new EmitAwareCollector();
             joinCollector.setInnerCollector(out);
+            final Map<Long, List<Boolean>> otherFired = new HashMap<>();
             final Map<Long, List<Tuple2<RowData, Boolean>>> updatedEntries = new HashMap<>();
             final Map<Long, List<Tuple2<RowData, Boolean>>> expiredEntries = new HashMap<>();
+            final Map<Long, List<Boolean>> expiredFired = new HashMap<>();
             final ThrowingConsumer<Map.Entry<Long, List<Tuple2<RowData, Boolean>>>, Exception>
                     joinEntry =
                             entry -> {
                                 final long otherTime = entry.getKey();
                                 final List<Tuple2<RowData, Boolean>> otherRows = entry.getValue();
                                 final boolean expired = otherTime <= expirationTime;
+                                final List<Boolean> fired =
+                                        otherFiredState == null
+                                                ? null
+                                                : firedBits(
+                                                        otherFired.get(otherTime),
+                                                        otherRows.size());
                                 if (otherTime >= otherQualifiedLowerBound
                                         && otherTime <= otherQualifiedUpperBound) {
                                     boolean entryUpdated = false;
-                                    for (Tuple2<RowData, Boolean> tuple : otherRows) {
+                                    for (int i = 0; i < otherRows.size(); i++) {
+                                        final Tuple2<RowData, Boolean> tuple = otherRows.get(i);
                                         joinCollector.reset();
+                                        final boolean retract =
+                                                fired != null && !tuple.f1 && fired.get(i);
+                                        if (retract) {
+                                            // The speculative pad for this row was already
+                                            // emitted as an insert; arm the collector so the match
+                                            // becomes -U(pad)/+U(match).
+                                            joinCollector.armRetraction(pad(tuple.f0, !isLeft));
+                                        }
                                         if (isLeft) {
                                             joinFunction.join(
                                                     row, tuple.f0, joinKey, joinCollector);
                                         } else {
                                             joinFunction.join(
                                                     tuple.f0, row, joinKey, joinCollector);
+                                        }
+                                        if (retract && !joinCollector.isEmitted()) {
+                                            joinCollector.disarm();
                                         }
                                         emitted[0] |= joinCollector.isEmitted();
                                         if (otherOuter && !tuple.f1 && joinCollector.isEmitted()) {
@@ -255,17 +355,21 @@ abstract class AsyncStateTimeIntervalJoin
                                 // Clean up the expired rows of the other cache while joining.
                                 if (expired) {
                                     if (otherOuter) {
-                                        padUnmatched(otherRows, !isLeft, out);
+                                        padUnmatched(otherRows, fired, !isLeft, out);
                                     }
                                     expiredEntries.put(otherTime, null);
+                                    if (otherFired.containsKey(otherTime)) {
+                                        expiredFired.put(otherTime, null);
+                                    }
                                 }
                             };
             joined =
-                    otherCache
-                            .asyncEntries()
+                    readAll(otherFiredState, otherFired)
+                            .thenCompose(ignored -> otherCache.asyncEntries())
                             .thenCompose(entries -> entries.onNext(joinEntry))
                             .thenCompose(ignored -> putAll(otherCache, updatedEntries))
-                            .thenCompose(ignored -> putAll(otherCache, expiredEntries));
+                            .thenCompose(ignored -> putAll(otherCache, expiredEntries))
+                            .thenCompose(ignored -> putAll(otherFiredState, expiredFired));
         } else {
             joined = StateFutureUtils.completedVoidFuture();
         }
@@ -284,7 +388,7 @@ abstract class AsyncStateTimeIntervalJoin
                     if (!emitted[0] && thisOuter) {
                         // Emit a null padding result if the row is not cached and successfully
                         // joined.
-                        out.collect(isLeft ? paddingUtil.padLeft(row) : paddingUtil.padRight(row));
+                        collectPad(pad(row, isLeft), out);
                     }
                     return StateFutureUtils.completedVoidFuture();
                 });
@@ -304,6 +408,21 @@ abstract class AsyncStateTimeIntervalJoin
                             rowList.add(Tuple2.of(row, emitted));
                             return cache.asyncPut(rowTime, rowList);
                         })
+                .thenCompose(
+                        ignored -> {
+                            if (!earlyFireEnabled || !isOuter(isLeft)) {
+                                return StateFutureUtils.completedVoidFuture();
+                            }
+                            // The new tuple has not been speculatively padded yet, so its bit
+                            // starts false. Schedule a speculative pad of the row after the delay
+                            // if it is unmatched.
+                            final StateFuture<Void> appended =
+                                    appendFired(isLeft ? leftFiredState : rightFiredState, rowTime);
+                            return emitted
+                                    ? appended
+                                    : appended.thenCompose(
+                                            ignored2 -> scheduleEarlyFire(ctx, rowTime, isLeft));
+                        })
                 .thenCompose(ignored -> timerState.asyncValue())
                 .thenCompose(
                         cleanUpTime ->
@@ -315,11 +434,38 @@ abstract class AsyncStateTimeIntervalJoin
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) {
         final long operatorTime = getOperatorTime(ctx);
+        final StateFuture<Void> earlyFired;
+        if (earlyFireEnabled && earlyFireCrossDomain) {
+            // Cross-domain: early-fire timers are processing-time, cleanup timers are event-time.
+            // timeDomain() is the authoritative discriminator (a processing-time value can
+            // numerically equal an event-time cleanup value, so timestamp arithmetic is unsafe).
+            if (ctx.timeDomain() == TimeDomain.PROCESSING_TIME) {
+                // Cleanup is event-time; there is nothing else to do at a processing-time firing.
+                fireScheduled(timestamp, true, out)
+                        .thenCompose(ignored -> fireScheduled(timestamp, false, out));
+                return;
+            }
+            // EVENT_TIME falls through to the cleanup below; no early fire in this domain.
+            earlyFired = StateFutureUtils.completedVoidFuture();
+        } else if (earlyFireEnabled) {
+            // Natural pairing: the early-fire timer shares its domain with cleanup and fires at
+            // rowTime + delay, so the bucket key is recovered as timestamp - delay. Early fire runs
+            // before cleanup at a shared timestamp so a row that is both due to fire and due to
+            // expire emits its speculative pad here; the cleanup's fired-bit gate then suppresses
+            // a second pad. A cleanup-only timestamp finds no live unfired-unmatched row and is a
+            // cheap no-op.
+            final long rowTime = timestamp - earlyFireDelay;
+            earlyFired =
+                    earlyFire(rowTime, true, out)
+                            .thenCompose(ignored -> earlyFire(rowTime, false, out));
+        } else {
+            earlyFired = StateFutureUtils.completedVoidFuture();
+        }
         // In the future, we should separate the left and right watermarks. Otherwise, the
         // registered timer of the faster stream will be delayed, even if the watermarks have
         // already been emitted by the source.
-        leftTimerState
-                .asyncValue()
+        earlyFired
+                .thenCompose(ignored -> leftTimerState.asyncValue())
                 .thenCompose(
                         leftCleanUpTime -> {
                             if (leftCleanUpTime != null && timestamp == leftCleanUpTime) {
@@ -328,6 +474,7 @@ abstract class AsyncStateTimeIntervalJoin
                                         updateRightExpirationTime(
                                                 calExpirationTime(operatorTime, rightRelativeSize)),
                                         rightCache,
+                                        rightFiredState,
                                         leftTimerState,
                                         ctx,
                                         false);
@@ -343,11 +490,108 @@ abstract class AsyncStateTimeIntervalJoin
                                         updateLeftExpirationTime(
                                                 calExpirationTime(operatorTime, leftRelativeSize)),
                                         leftCache,
+                                        leftFiredState,
                                         rightTimerState,
                                         ctx,
                                         true);
                             }
                             return StateFutureUtils.completedVoidFuture();
+                        });
+    }
+
+    /**
+     * Emit the speculative null-padding result for every cached outer row at the given row time
+     * that is still unmatched and has not yet had its pad emitted, flipping its fired bit so
+     * neither this path nor the later window-close pad emits it again.
+     */
+    private StateFuture<Void> earlyFire(long rowTime, boolean padLeft, Collector<RowData> out) {
+        if (!isOuter(padLeft)) {
+            return StateFutureUtils.completedVoidFuture();
+        }
+        final MapState<Long, List<Boolean>> firedState = padLeft ? leftFiredState : rightFiredState;
+        return (padLeft ? leftCache : rightCache)
+                .asyncGet(rowTime)
+                .thenCompose(
+                        rows -> {
+                            if (rows == null) {
+                                return StateFutureUtils.completedVoidFuture();
+                            }
+                            return firedState
+                                    .asyncGet(rowTime)
+                                    .thenCompose(
+                                            storedFired -> {
+                                                final List<Boolean> fired =
+                                                        firedBits(storedFired, rows.size());
+                                                boolean changed = false;
+                                                for (int i = 0; i < rows.size(); i++) {
+                                                    final Tuple2<RowData, Boolean> tuple =
+                                                            rows.get(i);
+                                                    if (!tuple.f1 && !fired.get(i)) {
+                                                        collectPad(pad(tuple.f0, padLeft), out);
+                                                        fired.set(i, true);
+                                                        changed = true;
+                                                    }
+                                                }
+                                                return changed
+                                                        ? firedState.asyncPut(rowTime, fired)
+                                                        : StateFutureUtils.completedVoidFuture();
+                                            });
+                        });
+    }
+
+    /**
+     * Register the early-fire timer for an unmatched outer row. For the natural pairing the timer
+     * shares the cleanup domain and fires at {@code bucketKey + earlyFireDelay}, recoverable later
+     * as {@code timestamp - earlyFireDelay}. For the cross-domain case the timer is a
+     * processing-time timer at {@code currentProcessingTime() + earlyFireDelay}, and the event-time
+     * bucket key is recorded in the schedule under that firing time so it can be recovered when the
+     * processing-time timer fires.
+     */
+    private StateFuture<Void> scheduleEarlyFire(Context ctx, long bucketKey, boolean isLeft) {
+        if (!earlyFireCrossDomain) {
+            registerTimer(ctx, bucketKey + earlyFireDelay);
+            return StateFutureUtils.completedVoidFuture();
+        }
+        final MapState<Long, List<Long>> schedule =
+                isLeft ? leftEarlyFireSchedule : rightEarlyFireSchedule;
+        final long firingTime = ctx.timerService().currentProcessingTime() + earlyFireDelay;
+        return schedule.asyncGet(firingTime)
+                .thenCompose(
+                        buckets -> {
+                            final List<Long> bucketList =
+                                    buckets == null ? new ArrayList<>(1) : buckets;
+                            bucketList.add(bucketKey);
+                            ctx.timerService().registerProcessingTimeTimer(firingTime);
+                            return schedule.asyncPut(firingTime, bucketList);
+                        });
+    }
+
+    /**
+     * Recover the event-time buckets scheduled to fire at the given processing-time and early-fire
+     * each one, then drop the schedule entry. A missing entry is a no-op; a bucket already cleaned
+     * by event-time expiry resolves to an empty cache lookup inside {@link #earlyFire} and is
+     * likewise a no-op.
+     */
+    private StateFuture<Void> fireScheduled(
+            long firingTime, boolean padLeft, Collector<RowData> out) {
+        if (!isOuter(padLeft)) {
+            return StateFutureUtils.completedVoidFuture();
+        }
+        final MapState<Long, List<Long>> schedule =
+                padLeft ? leftEarlyFireSchedule : rightEarlyFireSchedule;
+        return schedule.asyncGet(firingTime)
+                .thenCompose(
+                        buckets -> {
+                            if (buckets == null) {
+                                return StateFutureUtils.completedVoidFuture();
+                            }
+                            StateFuture<Void> fired = StateFutureUtils.completedVoidFuture();
+                            for (long bucketKey : buckets) {
+                                fired =
+                                        fired.thenCompose(
+                                                ignored -> earlyFire(bucketKey, padLeft, out));
+                            }
+                            return fired.thenCompose(ignored -> schedule.asyncRemove(firingTime));
                         });
     }
 
@@ -425,6 +669,7 @@ abstract class AsyncStateTimeIntervalJoin
      * @param collector the collector to emit results
      * @param expirationTime the expiration time for this cache
      * @param rowCache the row cache
+     * @param firedState the fired bits of the row cache, null without early fire
      * @param timerState timer state for the opposite stream
      * @param ctx the context to register the cleanup timer
      * @param removeLeft whether to remove the left rows
@@ -433,10 +678,16 @@ abstract class AsyncStateTimeIntervalJoin
             Collector<RowData> collector,
             long expirationTime,
             MapState<Long, List<Tuple2<RowData, Boolean>>> rowCache,
+            @Nullable MapState<Long, List<Boolean>> firedState,
             ValueState<Long> timerState,
             OnTimerContext ctx,
             boolean removeLeft) {
+        final boolean removeOuter = isOuter(removeLeft);
+        // Fired bits are only kept for the rows of an outer input.
+        final MapState<Long, List<Boolean>> outerFiredState = removeOuter ? firedState : null;
+        final Map<Long, List<Boolean>> fired = new HashMap<>();
         final Map<Long, List<Tuple2<RowData, Boolean>>> expiredEntries = new HashMap<>();
+        final Map<Long, List<Boolean>> expiredFired = new HashMap<>();
         // Whether rows are left is tracked apart from their time, which may be zero or negative.
         final boolean[] hasValidRows = {false};
         final long[] earliestTimestamp = {0L};
@@ -444,6 +695,9 @@ abstract class AsyncStateTimeIntervalJoin
                 rowTime -> {
                     if (rowTime <= expirationTime) {
                         expiredEntries.put(rowTime, null);
+                        if (fired.containsKey(rowTime)) {
+                            expiredFired.put(rowTime, null);
+                        }
                     } else if (!hasValidRows[0] || rowTime < earliestTimestamp[0]) {
                         // We find the earliest timestamp that is still valid.
                         earliestTimestamp[0] = rowTime;
@@ -455,17 +709,27 @@ abstract class AsyncStateTimeIntervalJoin
         // Hence, we do a full pass over the state. Only the rows of an outer input are read, to
         // pad the unmatched ones.
         final StateFuture<Void> scanned;
-        if (removeLeft ? joinType.isLeftOuter() : joinType.isRightOuter()) {
+        if (removeOuter) {
             final ThrowingConsumer<Map.Entry<Long, List<Tuple2<RowData, Boolean>>>, Exception>
                     padAndClassify =
                             entry -> {
-                                if (entry.getKey() <= expirationTime) {
-                                    padUnmatched(entry.getValue(), removeLeft, collector);
+                                final long rowTime = entry.getKey();
+                                if (rowTime <= expirationTime) {
+                                    final List<Tuple2<RowData, Boolean>> rows = entry.getValue();
+                                    padUnmatched(
+                                            rows,
+                                            outerFiredState == null
+                                                    ? null
+                                                    : firedBits(fired.get(rowTime), rows.size()),
+                                            removeLeft,
+                                            collector);
                                 }
-                                classify.accept(entry.getKey());
+                                classify.accept(rowTime);
                             };
             scanned =
-                    rowCache.asyncEntries().thenCompose(entries -> entries.onNext(padAndClassify));
+                    readAll(outerFiredState, fired)
+                            .thenCompose(ignored -> rowCache.asyncEntries())
+                            .thenCompose(entries -> entries.onNext(padAndClassify));
         } else {
             scanned = rowCache.asyncKeys().thenCompose(keys -> keys.onNext(classify));
         }
@@ -475,40 +739,114 @@ abstract class AsyncStateTimeIntervalJoin
                     if (hasValidRows[0]) {
                         // There are rows left in the cache. Register a timer to expire them later.
                         return putAll(rowCache, expiredEntries)
+                                .thenCompose(ignored2 -> putAll(outerFiredState, expiredFired))
                                 .thenCompose(
                                         ignored2 ->
                                                 registerCleanUpTimer(
                                                         ctx, earliestTimestamp[0], removeLeft));
                     }
-                    // No rows left in the cache. Clear the timer state and the cache.
+                    // No rows left in the cache. Clear the timer state, the cache and its fired
+                    // bits.
+                    fired.replaceAll((rowTime, bits) -> null);
                     return timerState
                             .asyncClear()
-                            .thenCompose(
-                                    ignored2 ->
-                                            expiredEntries.size() > MAX_BULK_DELETE_ON_FULL_EXPIRY
-                                                    ? rowCache.asyncClear()
-                                                    : putAll(rowCache, expiredEntries));
+                            .thenCompose(ignored2 -> removeAll(rowCache, expiredEntries))
+                            .thenCompose(ignored2 -> removeAll(outerFiredState, fired));
                 });
     }
 
-    /** Emits a null padding result for each of the rows that has not been joined. */
+    /**
+     * Emits a null padding result for each of the rows that has not been joined, unless its
+     * speculative pad has already been emitted.
+     */
     private void padUnmatched(
-            List<Tuple2<RowData, Boolean>> rows, boolean padLeft, Collector<RowData> out) {
-        for (Tuple2<RowData, Boolean> tuple : rows) {
-            if (!tuple.f1) {
-                out.collect(
-                        padLeft ? paddingUtil.padLeft(tuple.f0) : paddingUtil.padRight(tuple.f0));
+            List<Tuple2<RowData, Boolean>> rows,
+            @Nullable List<Boolean> fired,
+            boolean padLeft,
+            Collector<RowData> out) {
+        for (int i = 0; i < rows.size(); i++) {
+            final Tuple2<RowData, Boolean> tuple = rows.get(i);
+            if (!tuple.f1 && (fired == null || !fired.get(i))) {
+                collectPad(pad(tuple.f0, padLeft), out);
             }
         }
     }
 
-    /** Puts the entries in one request, if there are any. A null value removes an entry. */
-    private static StateFuture<Void> putAll(
-            MapState<Long, List<Tuple2<RowData, Boolean>>> cache,
-            Map<Long, List<Tuple2<RowData, Boolean>>> entries) {
+    private boolean isOuter(boolean left) {
+        return left ? joinType.isLeftOuter() : joinType.isRightOuter();
+    }
+
+    private RowData pad(RowData row, boolean padLeft) {
+        return padLeft ? paddingUtil.padLeft(row) : paddingUtil.padRight(row);
+    }
+
+    /**
+     * Emit a padded outer-join row as an insert, overriding any leaked row kind on the reused row.
+     */
+    private static void collectPad(RowData paddedRow, Collector<RowData> out) {
+        paddedRow.setRowKind(RowKind.INSERT);
+        out.collect(paddedRow);
+    }
+
+    /**
+     * Return the fired-bit list aligned with a cache bucket of the given size. When the stored list
+     * is absent or its length no longer matches the bucket (e.g. after a restore), a fresh
+     * all-false list is returned so no row is ever treated as already fired.
+     */
+    private static List<Boolean> firedBits(@Nullable List<Boolean> storedFired, int size) {
+        return storedFired != null && storedFired.size() == size
+                ? storedFired
+                : new ArrayList<>(Collections.nCopies(size, Boolean.FALSE));
+    }
+
+    private static StateFuture<Void> appendFired(
+            MapState<Long, List<Boolean>> firedState, long rowTime) {
+        return firedState
+                .asyncGet(rowTime)
+                .thenCompose(
+                        fired -> {
+                            final List<Boolean> firedList =
+                                    fired == null ? new ArrayList<>(1) : fired;
+                            firedList.add(Boolean.FALSE);
+                            return firedState.asyncPut(rowTime, firedList);
+                        });
+    }
+
+    /** Reads all entries of the state, if there is one, into the map. */
+    private static <V> StateFuture<Void> readAll(
+            @Nullable MapState<Long, V> state, Map<Long, V> entries) {
+        if (state == null) {
+            return StateFutureUtils.completedVoidFuture();
+        }
+        return state.asyncEntries()
+                .thenCompose(
+                        iterator ->
+                                iterator.onNext(
+                                        entry -> {
+                                            entries.put(entry.getKey(), entry.getValue());
+                                        }));
+    }
+
+    /**
+     * Puts the entries in one request, if there are any. A null value removes an entry. The state
+     * may only be null if there are no entries.
+     */
+    private static <V> StateFuture<Void> putAll(
+            @Nullable MapState<Long, V> state, Map<Long, V> entries) {
         return entries.isEmpty()
                 ? StateFutureUtils.completedVoidFuture()
-                : cache.asyncPutAll(entries);
+                : state.asyncPutAll(entries);
+    }
+
+    /**
+     * Removes all entries of a fully expired state, given as null values. Up to {@link
+     * #MAX_BULK_DELETE_ON_FULL_EXPIRY} are deleted in one request, more by clearing the state.
+     */
+    private static <V> StateFuture<Void> removeAll(
+            @Nullable MapState<Long, V> state, Map<Long, V> nullEntries) {
+        return nullEntries.size() > MAX_BULK_DELETE_ON_FULL_EXPIRY
+                ? state.asyncClear()
+                : putAll(state, nullEntries);
     }
 
     /**

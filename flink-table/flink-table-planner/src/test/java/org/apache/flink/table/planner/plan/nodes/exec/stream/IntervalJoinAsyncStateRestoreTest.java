@@ -42,6 +42,7 @@ public class IntervalJoinAsyncStateRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 IntervalJoinTestPrograms.INTERVAL_JOIN_EVENT_TIME_ASYNC_STATE,
-                IntervalJoinTestPrograms.INTERVAL_JOIN_PROC_TIME_ASYNC_STATE);
+                IntervalJoinTestPrograms.INTERVAL_JOIN_PROC_TIME_ASYNC_STATE,
+                IntervalJoinTestPrograms.INTERVAL_JOIN_EARLY_FIRE_ASYNC_STATE);
     }
 }

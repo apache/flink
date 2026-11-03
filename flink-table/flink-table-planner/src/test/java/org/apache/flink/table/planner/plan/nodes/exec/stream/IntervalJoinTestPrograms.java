@@ -321,6 +321,17 @@ public class IntervalJoinTestPrograms {
     static final TableTestProgram INTERVAL_JOIN_PROC_TIME_ASYNC_STATE =
             withAsyncState(INTERVAL_JOIN_PROC_TIME);
 
+    /** {@link #INTERVAL_JOIN_EARLY_FIRE} with async state, restoring its synchronous savepoint. */
+    static final TableTestProgram INTERVAL_JOIN_EARLY_FIRE_ASYNC_STATE =
+            withAsyncState(INTERVAL_JOIN_EARLY_FIRE);
+
+    /**
+     * {@link #INTERVAL_JOIN_PROC_TIME_EARLY_FIRE} with async state, restoring its synchronous
+     * savepoint.
+     */
+    static final TableTestProgram INTERVAL_JOIN_PROC_TIME_EARLY_FIRE_ASYNC_STATE =
+            withAsyncState(INTERVAL_JOIN_PROC_TIME_EARLY_FIRE);
+
     private static TableTestProgram withAsyncState(TableTestProgram program) {
         return TableTestProgram.of(program.id, program.description + " with async state")
                 .setupConfig(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED, true)

@@ -72,13 +72,13 @@ class StreamExecIntervalJoinAsyncStateTest {
     }
 
     @Test
-    void testEarlyFireJoinKeepsSyncState() {
+    void testEarlyFireJoin() {
         String sql =
                 "INSERT INTO snk SELECT /*+ EARLY_FIRE('delay'='1s') */ l.a, l.b, r.b"
                         + " FROM l LEFT JOIN r ON l.a = r.a"
                         + " AND l.rt BETWEEN r.rt - INTERVAL '5' SECOND AND r.rt + INTERVAL '5' SECOND";
         assertThat(translate(createTableEnvironment(true), sql))
-                .isExactlyInstanceOf(KeyedCoProcessOperatorWithWatermarkDelay.class);
+                .isExactlyInstanceOf(AsyncKeyedCoProcessOperatorWithWatermarkDelay.class);
     }
 
     @Test

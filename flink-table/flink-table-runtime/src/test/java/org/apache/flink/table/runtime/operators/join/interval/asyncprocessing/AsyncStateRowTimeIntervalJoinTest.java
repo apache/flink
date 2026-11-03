@@ -246,7 +246,18 @@ class AsyncStateRowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
                     throws Exception {
         AsyncStateRowTimeIntervalJoin join =
                 new AsyncStateRowTimeIntervalJoin(
-                        joinType, -5, 9, 0, minCleanUpInterval, rowType, rowType, joinFunc, 0, 0);
+                        joinType,
+                        -5,
+                        9,
+                        0,
+                        minCleanUpInterval,
+                        rowType,
+                        rowType,
+                        joinFunc,
+                        0,
+                        0,
+                        -1L,
+                        false);
         return AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                 new AsyncKeyedCoProcessOperatorWithWatermarkDelay<>(join, join.getMaxOutputDelay()),
                 keySelector,

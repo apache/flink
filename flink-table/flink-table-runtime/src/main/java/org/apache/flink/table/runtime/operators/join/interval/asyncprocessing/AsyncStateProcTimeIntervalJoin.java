@@ -35,7 +35,8 @@ public final class AsyncStateProcTimeIntervalJoin extends AsyncStateTimeInterval
             long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
-            IntervalJoinFunction genJoinFunc) {
+            IntervalJoinFunction genJoinFunc,
+            long earlyFireDelay) {
         super(
                 joinType,
                 leftLowerBound,
@@ -44,7 +45,10 @@ public final class AsyncStateProcTimeIntervalJoin extends AsyncStateTimeInterval
                 minCleanUpInterval,
                 leftType,
                 rightType,
-                genJoinFunc);
+                genJoinFunc,
+                earlyFireDelay,
+                // A proctime join's early fire shares the cleanup domain; never cross-domain.
+                false);
     }
 
     @Override

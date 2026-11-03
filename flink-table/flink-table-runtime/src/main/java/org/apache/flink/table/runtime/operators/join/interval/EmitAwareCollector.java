@@ -59,13 +59,13 @@ public class EmitAwareCollector implements Collector<RowData> {
      * Arms the collector so the next collected matched row is corrected into a {@code -U}/{@code
      * +U} pair against the given padded row.
      */
-    void armRetraction(RowData retractionPad) {
+    public void armRetraction(RowData retractionPad) {
         retractionPad.setRowKind(RowKind.UPDATE_BEFORE);
         this.pendingRetraction = retractionPad;
     }
 
     /** Clears an armed correction that was never consumed (the join condition did not match). */
-    void disarm() {
+    public void disarm() {
         this.pendingRetraction = null;
     }
 

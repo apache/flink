@@ -375,12 +375,6 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         }
     }
 
-    /** Whether to use async state, which early firing does not support yet. */
-    private boolean isAsyncStateEnabled(ExecNodeConfig config) {
-        return config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)
-                && earlyFireDelay == null;
-    }
-
     private TwoInputTransformation<RowData, RowData, RowData> createProcTimeJoin(
             Transformation<RowData> leftInputTransform,
             Transformation<RowData> rightInputTransform,
@@ -395,7 +389,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         InternalTypeInfo<RowData> rightTypeInfo =
                 (InternalTypeInfo<RowData>) rightInputTransform.getOutputType();
         final TwoInputStreamOperator<RowData, RowData, RowData> operator;
-        if (isAsyncStateEnabled(config)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
             operator =
                     new AsyncKeyedCoProcessOperator<>(
                             new AsyncStateProcTimeIntervalJoin(
@@ -405,7 +399,8 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                                     minCleanUpIntervalMillis,
                                     leftTypeInfo,
                                     rightTypeInfo,
-                                    joinFunction));
+                                    joinFunction,
+                                    earlyFireDelay == null ? -1L : earlyFireDelay));
         } else {
             operator =
                     new KeyedCoProcessOperator<>(
@@ -444,7 +439,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         InternalTypeInfo<RowData> rightTypeInfo =
                 (InternalTypeInfo<RowData>) rightInputTransform.getOutputType();
         final TwoInputStreamOperator<RowData, RowData, RowData> operator;
-        if (isAsyncStateEnabled(config)) {
+        // Cross-domain flag: an event-time interval join early-fires on the wall clock while
+        // keeping its event-time cleanup. The operator only acts on it once early-firing is
+        // enabled (earlyFireDelay >= 0).
+        boolean earlyFireCrossDomain =
+                earlyFireTimeMode == EarlyFireJoinHintOptions.TimeMode.PROCTIME;
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
             AsyncStateRowTimeIntervalJoin rowJoinFunc =
                     new AsyncStateRowTimeIntervalJoin(
                             joinSpec.getJoinType(),
@@ -456,7 +456,9 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                             rightTypeInfo,
                             joinFunction,
                             windowBounds.getLeftTimeIdx(),
-                            windowBounds.getRightTimeIdx());
+                            windowBounds.getRightTimeIdx(),
+                            earlyFireDelay == null ? -1L : earlyFireDelay,
+                            earlyFireCrossDomain);
             operator =
                     new AsyncKeyedCoProcessOperatorWithWatermarkDelay<>(
                             rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
@@ -474,10 +476,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                             windowBounds.getLeftTimeIdx(),
                             windowBounds.getRightTimeIdx(),
                             earlyFireDelay == null ? -1L : earlyFireDelay,
-                            // Cross-domain flag: an event-time interval join early-fires on the
-                            // wall clock while keeping its event-time cleanup. The operator only
-                            // acts on it once early-firing is enabled (earlyFireDelay >= 0).
-                            earlyFireTimeMode == EarlyFireJoinHintOptions.TimeMode.PROCTIME);
+                            earlyFireCrossDomain);
             operator =
                     new KeyedCoProcessOperatorWithWatermarkDelay<>(
                             rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
