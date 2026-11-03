@@ -21,8 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperatorWithWatermarkDelay;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -54,6 +57,8 @@ import org.apache.flink.table.runtime.operators.join.interval.PaddingLeftMapFunc
 import org.apache.flink.table.runtime.operators.join.interval.PaddingRightMapFunction;
 import org.apache.flink.table.runtime.operators.join.interval.ProcTimeIntervalJoin;
 import org.apache.flink.table.runtime.operators.join.interval.RowTimeIntervalJoin;
+import org.apache.flink.table.runtime.operators.join.interval.asyncprocessing.AsyncStateProcTimeIntervalJoin;
+import org.apache.flink.table.runtime.operators.join.interval.asyncprocessing.AsyncStateRowTimeIntervalJoin;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -370,6 +375,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         }
     }
 
+    /** Whether to use async state, which early firing does not support yet. */
+    private boolean isAsyncStateEnabled(ExecNodeConfig config) {
+        return config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)
+                && earlyFireDelay == null;
+    }
+
     private TwoInputTransformation<RowData, RowData, RowData> createProcTimeJoin(
             Transformation<RowData> leftInputTransform,
             Transformation<RowData> rightInputTransform,
@@ -383,22 +394,36 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) leftInputTransform.getOutputType();
         InternalTypeInfo<RowData> rightTypeInfo =
                 (InternalTypeInfo<RowData>) rightInputTransform.getOutputType();
-        ProcTimeIntervalJoin procJoinFunc =
-                new ProcTimeIntervalJoin(
-                        joinSpec.getJoinType(),
-                        windowBounds.getLeftLowerBound(),
-                        windowBounds.getLeftUpperBound(),
-                        minCleanUpIntervalMillis,
-                        leftTypeInfo,
-                        rightTypeInfo,
-                        joinFunction,
-                        earlyFireDelay == null ? -1L : earlyFireDelay);
-        // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
+        final TwoInputStreamOperator<RowData, RowData, RowData> operator;
+        if (isAsyncStateEnabled(config)) {
+            operator =
+                    new AsyncKeyedCoProcessOperator<>(
+                            new AsyncStateProcTimeIntervalJoin(
+                                    joinSpec.getJoinType(),
+                                    windowBounds.getLeftLowerBound(),
+                                    windowBounds.getLeftUpperBound(),
+                                    minCleanUpIntervalMillis,
+                                    leftTypeInfo,
+                                    rightTypeInfo,
+                                    joinFunction));
+        } else {
+            operator =
+                    new KeyedCoProcessOperator<>(
+                            new ProcTimeIntervalJoin(
+                                    joinSpec.getJoinType(),
+                                    windowBounds.getLeftLowerBound(),
+                                    windowBounds.getLeftUpperBound(),
+                                    minCleanUpIntervalMillis,
+                                    leftTypeInfo,
+                                    rightTypeInfo,
+                                    joinFunction,
+                                    earlyFireDelay == null ? -1L : earlyFireDelay));
+        }
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
-                new KeyedCoProcessOperator<>(procJoinFunc),
+                operator,
                 returnTypeInfo,
                 leftInputTransform.getParallelism(),
                 false);
@@ -418,30 +443,50 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) leftInputTransform.getOutputType();
         InternalTypeInfo<RowData> rightTypeInfo =
                 (InternalTypeInfo<RowData>) rightInputTransform.getOutputType();
-        RowTimeIntervalJoin rowJoinFunc =
-                new RowTimeIntervalJoin(
-                        joinSpec.getJoinType(),
-                        windowBounds.getLeftLowerBound(),
-                        windowBounds.getLeftUpperBound(),
-                        0L, // allowedLateness
-                        minCleanUpIntervalMillis,
-                        leftTypeInfo,
-                        rightTypeInfo,
-                        joinFunction,
-                        windowBounds.getLeftTimeIdx(),
-                        windowBounds.getRightTimeIdx(),
-                        earlyFireDelay == null ? -1L : earlyFireDelay,
-                        // Cross-domain flag: an event-time interval join early-fires on the wall
-                        // clock while keeping its event-time cleanup. The operator only acts on it
-                        // once early-firing is enabled (earlyFireDelay >= 0).
-                        earlyFireTimeMode == EarlyFireJoinHintOptions.TimeMode.PROCTIME);
-        // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
+        final TwoInputStreamOperator<RowData, RowData, RowData> operator;
+        if (isAsyncStateEnabled(config)) {
+            AsyncStateRowTimeIntervalJoin rowJoinFunc =
+                    new AsyncStateRowTimeIntervalJoin(
+                            joinSpec.getJoinType(),
+                            windowBounds.getLeftLowerBound(),
+                            windowBounds.getLeftUpperBound(),
+                            0L, // allowedLateness
+                            minCleanUpIntervalMillis,
+                            leftTypeInfo,
+                            rightTypeInfo,
+                            joinFunction,
+                            windowBounds.getLeftTimeIdx(),
+                            windowBounds.getRightTimeIdx());
+            operator =
+                    new AsyncKeyedCoProcessOperatorWithWatermarkDelay<>(
+                            rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
+        } else {
+            RowTimeIntervalJoin rowJoinFunc =
+                    new RowTimeIntervalJoin(
+                            joinSpec.getJoinType(),
+                            windowBounds.getLeftLowerBound(),
+                            windowBounds.getLeftUpperBound(),
+                            0L, // allowedLateness
+                            minCleanUpIntervalMillis,
+                            leftTypeInfo,
+                            rightTypeInfo,
+                            joinFunction,
+                            windowBounds.getLeftTimeIdx(),
+                            windowBounds.getRightTimeIdx(),
+                            earlyFireDelay == null ? -1L : earlyFireDelay,
+                            // Cross-domain flag: an event-time interval join early-fires on the
+                            // wall clock while keeping its event-time cleanup. The operator only
+                            // acts on it once early-firing is enabled (earlyFireDelay >= 0).
+                            earlyFireTimeMode == EarlyFireJoinHintOptions.TimeMode.PROCTIME);
+            operator =
+                    new KeyedCoProcessOperatorWithWatermarkDelay<>(
+                            rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
+        }
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
-                new KeyedCoProcessOperatorWithWatermarkDelay<>(
-                        rowJoinFunc, rowJoinFunc.getMaxOutputDelay()),
+                operator,
                 returnTypeInfo,
                 leftInputTransform.getParallelism(),
                 false);
