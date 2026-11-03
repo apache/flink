@@ -51,7 +51,8 @@ class TestHarnessTableSemantics implements TableSemantics {
         this.changelogMode = changelogMode;
     }
 
-    static TestHarnessTableSemantics of(
+    /** Table semantics at runtime, including the argument's changelog mode and upsert keys. */
+    static TestHarnessTableSemantics forRuntime(
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
         return new TestHarnessTableSemantics(
                 tableArg.dataType,
@@ -62,8 +63,7 @@ class TestHarnessTableSemantics implements TableSemantics {
     }
 
     /**
-     * Table semantics during type inference. The changelog mode and upsert keys are not known yet,
-     * so both are withheld, as in the planner's {@code CallBindingCallContext}.
+     * Table semantics during type inference, before the changelog mode and upsert keys are known.
      */
     static TestHarnessTableSemantics forTypeInference(
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
@@ -73,6 +73,17 @@ class TestHarnessTableSemantics implements TableSemantics {
                 Collections.emptyList(),
                 tableArg.timeColumnIndex,
                 null);
+    }
+
+    /** Table semantics while the changelog mode is derived, before upsert keys are known. */
+    static TestHarnessTableSemantics forChangelogModeInference(
+            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
+        return new TestHarnessTableSemantics(
+                tableArg.dataType,
+                tableArg.partitionColumnIndices(),
+                Collections.emptyList(),
+                tableArg.timeColumnIndex,
+                tableArg.effectiveChangelogMode());
     }
 
     @Override

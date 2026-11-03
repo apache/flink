@@ -277,7 +277,7 @@ class PtfChangelogModeResolverTest {
     }
 
     @Test
-    void testContextTableSemanticsReflectConfiguredPartitionAndUpsertKeys() {
+    void testContextTableSemanticsReportPartitionButNoUpsertKeys() {
         List<ProcessTableFunctionTestHarness.ArgumentInfo> arguments =
                 Collections.singletonList(
                         new ProcessTableFunctionTestHarness.TableArgumentInfo(
@@ -305,8 +305,7 @@ class PtfChangelogModeResolverTest {
         TableSemantics semantics = observed.get(0);
         assertThat(semantics).isNotNull();
         assertThat(semantics.partitionByColumns()).containsExactly(1);
-        assertThat(semantics.upsertKeyColumns()).hasSize(1);
-        assertThat(semantics.upsertKeyColumns().get(0)).containsExactly(1);
+        assertThat(semantics.upsertKeyColumns()).isEmpty();
     }
 
     @ParameterizedTest(name = "{0}")

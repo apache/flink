@@ -570,7 +570,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                 "Argument '%s' is not a table argument. Available table arguments: %s",
                                 argName, tableArgNames));
             }
-            return TestHarnessTableSemantics.of((TableArgumentInfo) argInfo);
+            return TestHarnessTableSemantics.forRuntime((TableArgumentInfo) argInfo);
         }
 
         @Override
