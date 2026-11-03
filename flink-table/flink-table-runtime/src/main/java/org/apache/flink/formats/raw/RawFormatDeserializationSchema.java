@@ -213,7 +213,7 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
                 return RawValueData::fromBytes;
 
             case VARIANT:
-                return createVariantConverter(charsetName);
+                return createVariantConverter();
 
             case BOOLEAN:
                 return data -> data[0] != 0;
@@ -284,25 +284,17 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
     }
 
     /**
-     * Creates a converter that decodes the bytes with the configured charset and parses the text as
-     * a JSON document into a {@link Variant}. Duplicate object keys are rejected, matching the
-     * default of {@code PARSE_JSON}.
+     * Creates a converter that parses UTF-8 JSON bytes into a {@link Variant} like {@code
+     * PARSE_JSON}, so invalid UTF-8 and duplicate object keys are rejected.
      */
-    private static DeserializationRuntimeConverter createVariantConverter(
-            final String charsetName) {
+    private static DeserializationRuntimeConverter createVariantConverter() {
         return new DeserializationRuntimeConverter() {
             private static final long serialVersionUID = 1L;
-            private transient Charset charset;
-
-            @Override
-            public void open() {
-                charset = Charset.forName(charsetName);
-            }
 
             @Override
             public Object convert(byte[] data) {
                 try {
-                    return BinaryVariantInternalBuilder.parseJson(new String(data, charset), false);
+                    return BinaryVariantInternalBuilder.parseJson(data, false);
                 } catch (Exception e) {
                     throw new DeserializationException(
                             "Failed to deserialize VARIANT type. "
