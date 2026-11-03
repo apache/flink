@@ -139,21 +139,23 @@ class ProcessTableFunctionTestHarnessChangelogModeTest {
     }
 
     @Test
-    void testProcessElementRejectsRowKindNotInConfiguredInputMode() throws Exception {
-        // insertOnly() is trait-consistent for SUPPORT_UPDATES, so the rejection happens at
-        // processElement() time rather than at build() time.
+    void testUpdatingArgumentDefaultsToInsertOnly() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> h =
                 ProcessTableFunctionTestHarness.ofClass(
                                 PtfTestFunctions.PlainUpdatingPassthroughPTF.class)
                         .withTableArgument(
                                 TableArgument.forName("input")
                                         .type(DataTypes.of(VALUE_ROW))
-                                        .changelogMode(ChangelogMode.insertOnly())
                                         .build())
                         .build()) {
-            assertThatThrownBy(() -> h.processElement(RowKind.UPDATE_AFTER, 10))
+            h.processElement(RowKind.INSERT, 10);
+            assertThat(h.getOutput()).containsExactly(Row.of(10));
+
+            assertThatThrownBy(() -> h.processElement(RowKind.UPDATE_AFTER, 20))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("UPDATE_AFTER");
+                    .hasMessageContainingAll(
+                            "Row kind UPDATE_AFTER is not permitted on table argument 'input'",
+                            "Expected consumed changelog mode: [INSERT]");
         }
     }
 

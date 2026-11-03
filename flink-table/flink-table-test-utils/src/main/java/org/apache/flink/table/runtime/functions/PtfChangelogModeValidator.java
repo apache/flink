@@ -54,10 +54,9 @@ final class PtfChangelogModeValidator {
     }
 
     /**
-     * Validates the per-argument changelog configuration: SUPPORT_UPDATES requiring an explicit
-     * mode, REQUIRE_UPDATE_BEFORE/REQUIRE_FULL_DELETE trait compatibility, full deletes in retract
-     * modes, upsert mode requiring set semantics with matching partition columns, and upsert-key
-     * column validity.
+     * Validates the per-argument changelog configuration: REQUIRE_UPDATE_BEFORE/REQUIRE_FULL_DELETE
+     * trait compatibility, full deletes in retract modes, upsert mode requiring set semantics with
+     * matching partition columns, and upsert-key column validity.
      *
      * @throws IllegalArgumentException if configuration references unknown columns
      * @throws IllegalStateException if configuration violates documented constraints
@@ -84,26 +83,13 @@ final class PtfChangelogModeValidator {
 
     private static void validateUpdatingInput(
             ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
-        ChangelogMode mode = requireExplicitChangelogMode(tableArg);
+        ChangelogMode mode = tableArg.effectiveChangelogMode();
         requireUpdateBeforeIfDeclared(tableArg, mode);
         requireFullDeleteIfDeclared(tableArg, mode);
         rejectKeyOnlyDeletesInRetractMode(tableArg, mode);
         if (isUpsertStyleInput(mode)) {
             validateUpsertStyleInput(tableArg, mode);
         }
-    }
-
-    private static ChangelogMode requireExplicitChangelogMode(
-            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
-        if (tableArg.changelogMode == null) {
-            throw new IllegalStateException(
-                    String.format(
-                            "Table argument '%s' declares SUPPORT_UPDATES but no changelog mode "
-                                    + "was configured. Use .changelogMode(...) on "
-                                    + "TableArgument.forName(\"%s\") to specify it.",
-                            tableArg.name, tableArg.name));
-        }
-        return tableArg.changelogMode;
     }
 
     private static void requireUpdateBeforeIfDeclared(

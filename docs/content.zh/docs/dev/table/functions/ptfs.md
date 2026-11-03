@@ -3017,7 +3017,8 @@ void testTimerWithState() throws Exception {
 
 A table argument that declares `ArgumentTrait.SUPPORT_UPDATES` receives an updating changelog rather
 than an insert-only stream. You can configure the changelog mode of a particular table argument
-via `.changelogMode()` on `TableArgument.Builder`.
+via `.changelogMode()` on `TableArgument.Builder`. If not configured, it defaults to
+`ChangelogMode.insertOnly()`.
 
 When processing elements for a table argument with a specific changelog mode, the harness will
 reject any row kind that the mode does not contain.

@@ -1090,8 +1090,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
              * Configures the changelog mode this table argument's input carries, as reported by
              * {@link TableSemantics#changelogMode()}.
              *
-             * <p>Required for an argument that declares {@code ArgumentTrait.SUPPORT_UPDATES}. Any
-             * other argument only accepts {@link ChangelogMode#insertOnly()}.
+             * <p>Defaults to {@link ChangelogMode#insertOnly()}. An argument that doesn't declare
+             * {@code ArgumentTrait.SUPPORT_UPDATES} only accepts {@link
+             * ChangelogMode#insertOnly()}.
              *
              * @param mode the changelog mode this argument's input carries
              */

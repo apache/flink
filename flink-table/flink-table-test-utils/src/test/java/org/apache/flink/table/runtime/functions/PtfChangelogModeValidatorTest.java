@@ -222,16 +222,6 @@ class PtfChangelogModeValidatorTest {
                         IllegalArgumentException.class,
                         "Upsert key column 'nonexistentColumn' not found"),
                 invalid(
-                        "SUPPORT_UPDATES declared without a configured changelog mode",
-                        ProcessTableFunctionTestHarness.ofClass(
-                                        PtfTestFunctions.PlainUpdatingPassthroughPTF.class)
-                                .withTableArgument(
-                                        TableArgument.forName("input")
-                                                .type(DataTypes.of(VALUE_ROW))
-                                                .build()),
-                        IllegalStateException.class,
-                        "no changelog mode was configured. Use .changelogMode(...)"),
-                invalid(
                         "upsert output with row-semantic table arguments",
                         ProcessTableFunctionTestHarness.ofClass(
                                         PtfTestFunctions.UpdatingOutputPTF.class)
