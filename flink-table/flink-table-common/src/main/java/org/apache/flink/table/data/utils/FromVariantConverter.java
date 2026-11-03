@@ -72,7 +72,8 @@ public final class FromVariantConverter implements Serializable {
      * @throws IllegalArgumentException if VARIANT cannot be cast to the type
      */
     public static FromVariantConverter create(final LogicalType type, final ZoneId sessionZone) {
-        return new FromVariantConverter(createReader(type, sessionZone, false));
+        return new FromVariantConverter(
+                createReader(type, TimeZone.getTimeZone(sessionZone), false));
     }
 
     /**
@@ -93,7 +94,7 @@ public final class FromVariantConverter implements Serializable {
 
     // With copyVariants, a VARIANT is copied out of its parent rather than returned as a view.
     private static ValueReader createReader(
-            final LogicalType type, final ZoneId sessionZone, final boolean copyVariants) {
+            final LogicalType type, final TimeZone sessionZone, final boolean copyVariants) {
         switch (type.getTypeRoot()) {
             case BOOLEAN:
                 return Variant::getBoolean;
@@ -131,9 +132,9 @@ public final class FromVariantConverter implements Serializable {
                 {
                     final int length = LogicalTypeChecks.getLength(type);
                     final boolean charTarget = type.is(LogicalTypeRoot.CHAR);
-                    final TimeZone timeZone = TimeZone.getTimeZone(sessionZone);
                     return variant ->
-                            VariantCastUtils.toStringValue(variant, timeZone, length, charTarget);
+                            VariantCastUtils.toStringValue(
+                                    variant, sessionZone, length, charTarget);
                 }
             case BINARY:
             case VARBINARY:
@@ -182,7 +183,7 @@ public final class FromVariantConverter implements Serializable {
     // A nested variant null becomes NULL, or fails for a NOT NULL type. A VARIANT type keeps it.
     private static ValueReader createChildReader(
             final LogicalType type,
-            final ZoneId sessionZone,
+            final TimeZone sessionZone,
             final boolean copyVariants,
             final String notNullMessage) {
         final ValueReader reader = createReader(type, sessionZone, copyVariants);
@@ -201,7 +202,7 @@ public final class FromVariantConverter implements Serializable {
     }
 
     private static ValueReader createArrayReader(
-            final ArrayType type, final ZoneId sessionZone, final boolean copyVariants) {
+            final ArrayType type, final TimeZone sessionZone, final boolean copyVariants) {
         final LogicalType elementType = type.getElementType();
         final ValueReader elementReader =
                 createChildReader(
@@ -223,7 +224,7 @@ public final class FromVariantConverter implements Serializable {
     }
 
     private static ValueReader createMapReader(
-            final MapType type, final ZoneId sessionZone, final boolean copyVariants) {
+            final MapType type, final TimeZone sessionZone, final boolean copyVariants) {
         final LogicalType keyType = type.getKeyType();
         if (!keyType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new IllegalArgumentException(
@@ -251,7 +252,7 @@ public final class FromVariantConverter implements Serializable {
     }
 
     // A ROW copies every VARIANT below it, like a value read back from a binary row.
-    private static ValueReader createRowReader(final LogicalType type, final ZoneId sessionZone) {
+    private static ValueReader createRowReader(final LogicalType type, final TimeZone sessionZone) {
         final List<LogicalType> fieldTypes = LogicalTypeChecks.getFieldTypes(type);
         final String[] fieldNames = LogicalTypeChecks.getFieldNames(type).toArray(new String[0]);
         final int fieldCount = fieldTypes.size();

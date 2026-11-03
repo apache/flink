@@ -391,6 +391,13 @@ class FromVariantConverterTest {
                 arguments(DataTypes.BINARY(2), new byte[] {1, 2}),
                 arguments(DataTypes.BYTES(), new byte[] {(byte) 0xCA, (byte) 0xFE}),
                 arguments(DataTypes.DATE(), (int) LocalDate.of(2026, 9, 25).toEpochDay()),
+                // dates are proleptic Gregorian: the earliest DATE, a day the 1582 calendar switch
+                // skipped, and a leap day of 1600
+                arguments(DataTypes.DATE(), (int) LocalDate.of(0, 1, 1).toEpochDay()),
+                arguments(DataTypes.DATE(), (int) LocalDate.of(1582, 10, 10).toEpochDay()),
+                arguments(
+                        DataTypes.TIMESTAMP(6),
+                        TimestampData.fromLocalDateTime(LocalDateTime.of(1600, 2, 29, 12, 0))),
                 arguments(DataTypes.TIME(3), LocalTime.of(10, 15, 30).toSecondOfDay() * 1000 + 123),
                 arguments(DataTypes.TIMESTAMP(3), TimestampData.fromLocalDateTime(DATE_TIME)),
                 arguments(DataTypes.TIMESTAMP(9), TimestampData.fromEpochMillis(1, 234_567)),

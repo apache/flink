@@ -31,15 +31,9 @@ import org.apache.flink.types.variant.BinaryVariantUtil;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantTypeException;
 
-import javax.annotation.Nullable;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.TimeZone;
 
@@ -77,11 +71,6 @@ public final class VariantCastUtils {
     private static final double LONG_MAGNITUDE_LIMIT = -(double) Long.MIN_VALUE;
 
     private static final int TIMESTAMP_NANOS_PRECISION = 9;
-
-    // The nanoseconds in one unit of the last fractional-second digit that each precision keeps.
-    private static final int[] NANOS_PER_DIGIT = {
-        1_000_000_000, 100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10
-    };
 
     // TIME is millisecond-of-day at runtime, so it renders with three fractional-second digits.
     private static final int TIME_PRECISION = 3;
@@ -260,13 +249,23 @@ public final class VariantCastUtils {
      * shifted into the session time zone, the same as a regular {@code TIMESTAMP_LTZ} to {@code
      * TIMESTAMP} cast. Fractional seconds beyond the target precision are truncated.
      */
-    public static TimestampData toTimestamp(Variant variant, int precision, ZoneId sessionZone) {
-        final LocalDateTime dateTime = toLocalDateTime(variant, sessionZone);
-        if (dateTime == null) {
-            throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
+    public static TimestampData toTimestamp(Variant variant, int precision, TimeZone sessionZone) {
+        final TimestampData timestamp;
+        switch (variant.getType()) {
+            case TIMESTAMP:
+            case TIMESTAMP_NS:
+                timestamp = TimestampData.fromLocalDateTime(variant.getDateTime());
+                break;
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
+                timestamp =
+                        DateTimeUtils.timestampWithLocalZoneToTimestamp(
+                                TimestampData.fromInstant(variant.getInstant()), sessionZone);
+                break;
+            default:
+                throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
         }
-        return TimestampData.fromLocalDateTime(
-                dateTime.withNano(truncateNanos(dateTime.getNano(), precision)));
+        return DateTimeUtils.truncate(timestamp, precision);
     }
 
     /**
@@ -274,38 +273,45 @@ public final class VariantCastUtils {
      * read as a wall-clock time in the session time zone, the same as a regular {@code TIMESTAMP}
      * to {@code TIMESTAMP_LTZ} cast. Fractional seconds beyond the target precision are truncated.
      */
-    public static TimestampData toTimestampLtz(Variant variant, int precision, ZoneId sessionZone) {
-        final Instant instant;
+    public static TimestampData toTimestampLtz(
+            Variant variant, int precision, TimeZone sessionZone) {
+        final TimestampData timestamp;
         switch (variant.getType()) {
             case TIMESTAMP_LTZ:
             case TIMESTAMP_LTZ_NS:
-                instant = variant.getInstant();
+                timestamp = TimestampData.fromInstant(variant.getInstant());
                 break;
             case TIMESTAMP:
             case TIMESTAMP_NS:
-                instant = variant.getDateTime().atZone(sessionZone).toInstant();
+                timestamp =
+                        DateTimeUtils.timestampToTimestampWithLocalZone(
+                                TimestampData.fromLocalDateTime(variant.getDateTime()),
+                                sessionZone);
                 break;
             default:
                 throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
         }
-        return TimestampData.fromInstant(
-                Instant.ofEpochSecond(
-                        instant.getEpochSecond(), truncateNanos(instant.getNano(), precision)));
+        return DateTimeUtils.truncate(timestamp, precision);
     }
 
     /**
-     * Reads a date or timestamp variant as the target {@code DATE}, in days since the epoch. A
-     * timestamp keeps its date, read in the session time zone for a {@code TIMESTAMP_LTZ}.
+     * Reads a date or timestamp variant as the target {@code DATE}. A timestamp keeps its date,
+     * read in the session time zone for a {@code TIMESTAMP_LTZ}.
      */
-    public static int toDate(Variant variant, ZoneId sessionZone) {
-        if (variant.getType() == Variant.Type.DATE) {
-            return (int) variant.getDate().toEpochDay();
+    public static int toDate(Variant variant, TimeZone sessionZone) {
+        switch (variant.getType()) {
+            case DATE:
+                return DateTimeUtils.toInternal(variant.getDate());
+            case TIMESTAMP:
+            case TIMESTAMP_NS:
+                return DateTimeUtils.toInternal(variant.getDateTime().toLocalDate());
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
+                return DateTimeUtils.timestampWithLocalZoneToDate(
+                        TimestampData.fromInstant(variant.getInstant()), sessionZone);
+            default:
+                throw unsupportedKind(variant, "DATE");
         }
-        final LocalDateTime dateTime = toLocalDateTime(variant, sessionZone);
-        if (dateTime == null) {
-            throw unsupportedKind(variant, "DATE");
-        }
-        return (int) dateTime.toLocalDate().toEpochDay();
     }
 
     /**
@@ -315,48 +321,22 @@ public final class VariantCastUtils {
      * fractional seconds beyond the target precision are then truncated, the same as a regular
      * {@code TIME} to {@code TIME(p)} cast.
      */
-    public static int toTime(Variant variant, int precision, ZoneId sessionZone) {
-        final LocalTime time;
-        if (variant.getType() == Variant.Type.TIME) {
-            time = variant.getTime();
-        } else {
-            final LocalDateTime dateTime = toLocalDateTime(variant, sessionZone);
-            if (dateTime == null) {
-                throw unsupportedKind(variant, String.format("TIME(%d)", precision));
-            }
-            time = dateTime.toLocalTime();
-        }
-        return DateTimeUtils.applyTimePrecisionTruncation(
-                DateTimeUtils.toInternal(time), precision);
-    }
-
-    /**
-     * Reads a timestamp variant as a wall-clock time, shifting a {@code TIMESTAMP_LTZ} into the
-     * session time zone. Returns {@code null} for any other kind, so that the caller builds the
-     * error message only when the cast fails.
-     */
-    private static @Nullable LocalDateTime toLocalDateTime(Variant variant, ZoneId sessionZone) {
+    public static int toTime(Variant variant, int precision, TimeZone sessionZone) {
         switch (variant.getType()) {
+            case TIME:
+                return DateTimeUtils.applyTimePrecisionTruncation(
+                        DateTimeUtils.toInternal(variant.getTime()), precision);
             case TIMESTAMP:
             case TIMESTAMP_NS:
-                return variant.getDateTime();
+                return DateTimeUtils.timestampWithoutLocalZoneToTime(
+                        TimestampData.fromLocalDateTime(variant.getDateTime()), precision);
             case TIMESTAMP_LTZ:
             case TIMESTAMP_LTZ_NS:
-                return LocalDateTime.ofInstant(variant.getInstant(), sessionZone);
+                return DateTimeUtils.timestampWithLocalZoneToTime(
+                        TimestampData.fromInstant(variant.getInstant()), sessionZone, precision);
             default:
-                return null;
+                throw unsupportedKind(variant, String.format("TIME(%d)", precision));
         }
-    }
-
-    /**
-     * Zeroes the fractional-second digits beyond the precision. A java.time nano-of-second is never
-     * negative, so this also truncates toward the past before 1970, unlike dividing an epoch
-     * millisecond.
-     */
-    private static int truncateNanos(int nanoOfSecond, int precision) {
-        return precision >= TIMESTAMP_NANOS_PRECISION
-                ? nanoOfSecond
-                : nanoOfSecond - nanoOfSecond % NANOS_PER_DIGIT[precision];
     }
 
     /**

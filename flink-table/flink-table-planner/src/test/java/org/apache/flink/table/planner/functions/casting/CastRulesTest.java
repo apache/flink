@@ -2322,11 +2322,11 @@ class CastRulesTest {
                                 CET_CONTEXT,
                                 VARIANT_BUILDER.of(Instant.parse("2020-01-01T23:30:00Z")),
                                 (int) LocalDate.of(2020, 1, 2).toEpochDay())
-                        // before 1970, the day is still the one the timestamp falls on
+                        // before 1970 and the 1582 calendar switch, the timestamp keeps its day
                         .fromCase(
                                 VARIANT(),
-                                VARIANT_BUILDER.of(LocalDateTime.of(1969, 12, 31, 23, 0)),
-                                (int) LocalDate.of(1969, 12, 31).toEpochDay())
+                                VARIANT_BUILDER.of(LocalDateTime.of(1582, 10, 4, 23, 0)),
+                                (int) LocalDate.of(1582, 10, 4).toEpochDay())
                         .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
                         // a TIME has no date
                         .fail(
