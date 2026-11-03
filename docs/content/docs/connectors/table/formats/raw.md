@@ -111,8 +111,12 @@ Format Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Specify the line delimiter for splitting incoming messages into multiple rows during
-      deserialization. When set, each incoming message is decoded using 'raw.charset' and then split
-      by this delimiter; one row is emitted per segment. During serialization, the delimiter bytes
+      deserialization. Only supported for a <code>STRING</code>, <code>VARCHAR</code> or <code>CHAR</code>
+      column. When set, each incoming message is split by this delimiter; one row is emitted
+      per segment. If 'raw.charset' is UTF-8, the message is split on the UTF-8 bytes of the delimiter
+      without being decoded, so each segment keeps its original bytes. Otherwise the message is decoded
+      using 'raw.charset' before it is split.
+      During serialization, the delimiter bytes
       are appended to each serialized value. Common values are '\n' (newline) or '||'.
       <br><strong>Note:</strong> When the same delimiter is configured for both serialization and
       deserialization, the two are round-trip compatible: a trailing delimiter appended by the
@@ -193,6 +197,6 @@ The table below details the SQL types the format supports, including details of 
     </tbody>
 </table>
 
-Note: combining `VARIANT` with `raw.line-delimiter` gives you newline-delimited JSON, where each line of a message
-becomes one row.
+Note: a `VARIANT` column holds one JSON document per message. If a message holds more, only the first is read. To read
+newline-delimited JSON, declare the column as `STRING` with `raw.line-delimiter` and convert each row with `PARSE_JSON`.
 
