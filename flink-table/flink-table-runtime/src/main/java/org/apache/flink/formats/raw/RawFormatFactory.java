@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -93,6 +94,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     DynamicTableSource.Context context, DataType producedDataType) {
                 final RowType physicalRowType = (RowType) producedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
+                checkLineDelimiter(fieldType, lineDelimiter);
                 checkVariantCharset(fieldType, charsetName);
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
@@ -126,6 +128,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType physicalRowType = (RowType) consumedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
+                checkLineDelimiter(fieldType, lineDelimiter);
                 checkVariantCharset(fieldType, charsetName);
                 return new RawFormatSerializationSchema(
                         fieldType, charsetName, isBigEndian, lineDelimiter.orElse(null));
@@ -162,6 +165,22 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
             throw new ValidationException(
                     String.format(
                             "The 'raw' format doesn't supports '%s' as column type.",
+                            fieldType.asSummaryString()));
+        }
+    }
+
+    /**
+     * Checks that a line delimiter is only set for a string column. The bytes of other types can
+     * contain the delimiter, so splitting them would cut a value apart.
+     */
+    private static void checkLineDelimiter(LogicalType fieldType, Optional<String> lineDelimiter) {
+        if (lineDelimiter.isPresent() && !fieldType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            throw new ValidationException(
+                    String.format(
+                            "The 'raw' format supports '%s.%s' only for a string column, "
+                                    + "but the column type is '%s'.",
+                            IDENTIFIER,
+                            RawFormatOptions.LINE_DELIMITER.key(),
                             fieldType.asSummaryString()));
         }
     }
