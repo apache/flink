@@ -65,25 +65,7 @@ export class JarService {
     allowNonRestoredState: string
   ): Observable<{ jobid: string }> {
     const requestParam = { entryClass, parallelism, programArgs, savepointPath, allowNonRestoredState };
-    let params = new HttpParams();
-    if (entryClass) {
-      params = params.append('entry-class', entryClass);
-    }
-    if (parallelism) {
-      params = params.append('parallelism', parallelism);
-    }
-    if (programArgs) {
-      params = params.append('program-args', programArgs);
-    }
-    if (savepointPath) {
-      params = params.append('savepointPath', programArgs);
-    }
-    if (allowNonRestoredState) {
-      params = params.append('allowNonRestoredState', allowNonRestoredState);
-    }
-    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam, {
-      params
-    });
+    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam);
   }
 
   public getPlan(jarId: string, entryClass: string, parallelism: string, programArgs: string): Observable<PlanDetail> {
