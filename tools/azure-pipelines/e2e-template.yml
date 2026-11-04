@@ -113,8 +113,14 @@ jobs:
       condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
       continueOnError: true
     - script: |
-        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
-        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+        JDK_HOME="$JAVA_HOME_${{parameters.jdk}}_X64"
+        if [ -z "$JDK_HOME" ] && [ "${{parameters.jdk}}" = "8" ]; then
+          sudo apt-get update
+          sudo apt-get install -y openjdk-8-jdk-headless
+          JDK_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        fi
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JDK_HOME"
+        echo "##vso[task.setvariable variable=PATH]$JDK_HOME/bin:$PATH"
       displayName: "Set JDK"
     - script: |
         echo "Setting up Maven"

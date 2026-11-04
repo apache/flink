@@ -70,9 +70,9 @@ env:
 jobs:
   compile:
     name: "Compile"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble_v2
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -126,9 +126,9 @@ jobs:
   packaging:
     name: "Test packaging/licensing"
     needs: compile
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble_v2
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -171,9 +171,9 @@ jobs:
   test:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble_v2
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -290,7 +290,7 @@ jobs:
     name: "E2E (group ${{ matrix.group }})"
     needs: compile
     # the end to end tests are not executed in Flink's CI Docker container due to problems when running Docker-in-Docker
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 310
     env:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
