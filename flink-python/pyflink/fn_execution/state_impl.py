@@ -809,10 +809,14 @@ class InternalSynchronousMapRuntimeState(object):
     def contains(self, map_key):
         if self._is_empty:
             return False
-        if self.get(map_key) is None:
+        if map_key in self._write_cache:
+            exists, _ = self._write_cache[map_key]
+            return exists
+        if self._cleared:
             return False
-        else:
-            return True
+        exists, _ = self._map_state_handler.blocking_get(
+            self._state_key, map_key, self._map_key_encoder, self._map_value_decoder)
+        return exists
 
     def is_empty(self):
         if self._is_empty is None:
