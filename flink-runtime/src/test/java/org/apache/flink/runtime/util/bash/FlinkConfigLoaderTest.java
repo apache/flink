@@ -248,6 +248,26 @@ public class FlinkConfigLoaderTest {
     }
 
     @Test
+    void testloadAndModifyConfigurationWithFlattenJoinsMultiLineValues() throws Exception {
+        try (FileWriter fw =
+                new FileWriter(
+                        new File(confDir.toFile(), GlobalConfiguration.FLINK_CONF_FILENAME))) {
+            fw.write("env:\n");
+            fw.write("  java:\n");
+            fw.write("    opts:\n");
+            fw.write("      all: |\n");
+            fw.write("        --add-exports=java.base/sun.net.util=ALL-UNNAMED\n");
+            fw.write("        --add-opens=java.base/java.lang=ALL-UNNAMED\n");
+        }
+        String[] args = {"-c", confDir.toFile().getAbsolutePath(), "-flatten"};
+        List<String> list = FlinkConfigLoader.loadAndModifyConfiguration(args);
+        assertThat(list)
+                .containsExactly(
+                        "env.java.opts.all: --add-exports=java.base/sun.net.util=ALL-UNNAMED"
+                                + " --add-opens=java.base/java.lang=ALL-UNNAMED");
+    }
+
+    @Test
     void testMigrateLegacyConfigToStandardYaml() throws Exception {
         File file =
                 new File(

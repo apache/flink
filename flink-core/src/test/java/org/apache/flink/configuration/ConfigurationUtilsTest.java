@@ -21,8 +21,14 @@ package org.apache.flink.configuration;
 import org.apache.flink.util.TimeUtils;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -156,6 +162,83 @@ class ConfigurationUtilsTest {
                             "test-int-key: 1");
         }
         assertThat(expected).containsExactlyInAnyOrderElementsOf(actualData);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"|", "|+", "|-", ">", ">+", ">-"})
+    void testFlattenedLinesJoinBlockScalars(String indicator, @TempDir Path confDir)
+            throws IOException {
+        Files.write(
+                confDir.resolve(GlobalConfiguration.FLINK_CONF_FILENAME),
+                Arrays.asList(
+                        "env:",
+                        "  java:",
+                        "    opts:",
+                        "      all: " + indicator,
+                        "        --add-exports=java.base/sun.net.util=ALL-UNNAMED",
+                        "",
+                        "        --add-opens=java.base/java.lang=ALL-UNNAMED",
+                        "",
+                        "parallelism.default: 2"));
+        final Configuration configuration =
+                GlobalConfiguration.loadConfiguration(confDir.toString());
+
+        assertThat(ConfigurationUtils.convertConfigToWritableLines(configuration, true))
+                .containsExactlyInAnyOrder(
+                        "env.java.opts.all: --add-exports=java.base/sun.net.util=ALL-UNNAMED"
+                                + " --add-opens=java.base/java.lang=ALL-UNNAMED",
+                        "parallelism.default: 2");
+    }
+
+    @Test
+    void testFlattenedLinesJoinLineBreaksInStringValues() {
+        final Configuration configuration = new Configuration();
+        configuration.setString("crlf", "a\r\nb\r\n");
+        configuration.setString("cr", "a\rb");
+        configuration.setString("surrounding-whitespace", "\n  a \n\t\n b  \n");
+        configuration.setString("needs-quoting", "*\n*");
+        configuration.setString("single-line-with-spaces", "  a  b  ");
+        configuration.set(
+                ConfigOptions.key("list").stringType().asList().noDefaultValue(),
+                Arrays.asList("a\nb", "c"));
+
+        assertThat(ConfigurationUtils.convertConfigToWritableLines(configuration, true))
+                .containsExactlyInAnyOrder(
+                        "crlf: a b",
+                        "cr: a b",
+                        "surrounding-whitespace: a b",
+                        "needs-quoting: '* *'",
+                        "single-line-with-spaces: '  a  b  '",
+                        "list: [\"a\\nb\", c]");
+    }
+
+    @Test
+    void testFlattenedLinesOfDelegatingConfiguration() {
+        final Configuration backingConfig = new Configuration();
+        backingConfig.setString("prefix.multi-line", "a\nb");
+        backingConfig.setString("prefix.single-line", "c");
+        backingConfig.setString("other", "d");
+
+        assertThat(
+                        ConfigurationUtils.convertConfigToWritableLines(
+                                new DelegatingConfiguration(backingConfig, "prefix."), true))
+                .containsExactlyInAnyOrder("multi-line: a b", "single-line: c");
+    }
+
+    @Test
+    void testNestedLinesKeepMultiLineStringValues(@TempDir Path confDir) throws IOException {
+        final String multiLineValue = "--add-exports=a=ALL-UNNAMED\n--add-opens=b=ALL-UNNAMED\n";
+        final Configuration configuration = new Configuration();
+        configuration.setString("env.java.opts.all", multiLineValue);
+
+        Files.write(
+                confDir.resolve(GlobalConfiguration.FLINK_CONF_FILENAME),
+                ConfigurationUtils.convertConfigToWritableLines(configuration, false));
+
+        assertThat(
+                        GlobalConfiguration.loadConfiguration(confDir.toString())
+                                .getString("env.java.opts.all", null))
+                .isEqualTo(multiLineValue);
     }
 
     @Test
