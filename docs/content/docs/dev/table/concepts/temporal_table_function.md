@@ -62,7 +62,7 @@ the versioning time attribute.
 ```java
 TemporalTableFunction rates = tEnv
     .from("currency_rates")
-    .createTemporalTableFunction("update_time", "currency");
+    .createTemporalTableFunction($("update_time"), $("currency"));
  
 tEnv.createTemporarySystemFunction("rates", rates);                                                        
 ```
