@@ -199,6 +199,8 @@ public class HistoryServerOptions {
                                             "The remote directory is then only bounded by the retention options, so set %s to avoid unbounded growth. ",
                                             code(HISTORY_SERVER_RETAINED_TTL_KEY))
                                     .text(
+                                            "Jobs outside the local cache are not listed in the job overview and can only be opened by their URL. ")
+                                    .text(
                                             "This option only applies to job archives, not to application archives.")
                                     .build());
 

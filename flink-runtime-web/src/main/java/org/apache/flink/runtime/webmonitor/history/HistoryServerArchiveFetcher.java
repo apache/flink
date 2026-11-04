@@ -677,6 +677,12 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                                 try {
                                     archiveMetaInfo.setEventType(ArchiveEventType.DETAIL_PARSING);
                                     for (ArchivedJson archive : detailArchives) {
+                                        if (Thread.currentThread().isInterrupted()) {
+                                            LOG.debug(
+                                                    "Detail parsing for job {} was cancelled.",
+                                                    jobId);
+                                            return;
+                                        }
                                         String path = archive.getPath();
                                         String json = archive.getJson();
                                         // this implicitly writes into webJobDir; strip the leading
@@ -733,20 +739,23 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     /** Marks the job as recently viewed and evicts the least recently viewed ones locally. */
     void markRecentlyViewed(String jobId) {
-        if (!isOwnedByRefreshDirectory(jobId)) {
+        if (cachedRetainedJobs <= 0 || !isOwnedByRefreshDirectory(jobId) || isCachedByScan(jobId)) {
             return;
         }
         List<ArchiveEvent> events = new ArrayList<>();
         synchronized (mostRecentlyViewedJobs) {
             mostRecentlyViewedJobs.put(jobId, Boolean.TRUE);
             Iterator<String> eldest = mostRecentlyViewedJobs.keySet().iterator();
-            while (mostRecentlyViewedJobs.size() > numCachedMostRecentlyViewedJobs) {
+            while (mostRecentlyViewedJobs.size() > numCachedMostRecentlyViewedJobs
+                    && eldest.hasNext()) {
                 String evictedId = eldest.next();
+                // an in-flight fetch must finish first, a later call evicts it
+                if (evictedId.equals(jobId) || isFetchInFlight(evictedId)) {
+                    continue;
+                }
                 eldest.remove();
-                // archives still inside the cached window are managed by the scan
-                if (cachedArchivesPerRefreshDirectory.values().stream()
-                        .noneMatch(ids -> ids.contains(evictedId))) {
-                    cleanUpLazyFetchTask(evictedId);
+                // archives that entered the cached window are managed by the scan
+                if (!isCachedByScan(evictedId)) {
                     events.add(deleteJobFiles(evictedId));
                 }
             }
@@ -757,14 +766,44 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         }
     }
 
+    private boolean isCachedByScan(String jobId) {
+        return cachedArchivesPerRefreshDirectory.values().stream()
+                .anyMatch(ids -> ids.contains(jobId));
+    }
+
+    private boolean isFetchInFlight(String jobId) {
+        if (commonFetchTasks.containsKey(jobId) || individualFetchTasks.containsKey(jobId)) {
+            return true;
+        }
+        ArchiveMetaInfo metaInfo = archiveMetaInfoCache.get(jobId);
+        if (metaInfo == null) {
+            return false;
+        }
+        switch (metaInfo.getEventType()) {
+            case PENDING:
+            case OVERVIEW_PARSING:
+            case DETAIL_PARSING:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     /** Application-owned jobs are nested deeper and managed by the application fetcher. */
     private boolean isOwnedByRefreshDirectory(String jobId) {
         ArchiveMetaInfo metaInfo = archiveMetaInfoCache.get(jobId);
         if (metaInfo == null || metaInfo.getArchivePath() == null) {
             return false;
         }
-        Path parent = metaInfo.getArchivePath().getParent();
-        return refreshDirs.stream().anyMatch(dir -> dir.getPath().equals(parent));
+        for (HistoryServer.RefreshLocation dir : refreshDirs) {
+            // refresh dirs are kept as configured while archive paths are fully qualified
+            Path qualifiedDir = dir.getPath().makeQualified(dir.getFs());
+            Path qualifiedParent = metaInfo.getArchivePath().makeQualified(dir.getFs()).getParent();
+            if (qualifiedDir.equals(qualifiedParent)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     void cleanUpArchives(HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode) {

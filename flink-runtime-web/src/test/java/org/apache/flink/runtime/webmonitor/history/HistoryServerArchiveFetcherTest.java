@@ -502,13 +502,14 @@ class HistoryServerArchiveFetcherTest {
         JobID newest = JobID.generate();
         JobID older = JobID.generate();
         Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
 
         fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
         fetcher.fetchArchives(EAGER);
-        assertThat(isCachedLocally(older)).isTrue();
+        assertThat(isCachedLocally(older)).isFalse();
         view(fetcher, older, olderArchive);
+        assertThat(isCachedLocally(older)).isTrue();
 
-        createArchive(newest, 2000);
         archiveEvents.clear();
         fetcher.fetchArchives(EAGER);
 
@@ -565,6 +566,91 @@ class HistoryServerArchiveFetcherTest {
         assertThat(isCachedLocally(old1)).isFalse();
         assertThat(isCachedLocally(old2)).isTrue();
         assertThat(old1Archive.getFileSystem().exists(old1Archive)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewingJobInsideCachedWindowDoesNotTakeViewedSlot() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old = JobID.generate();
+        Path oldArchive = createArchive(old, 1000);
+        Path newestArchive = createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old, oldArchive);
+        view(fetcher, newest, newestArchive);
+
+        assertThat(isCachedLocally(old)).isTrue();
+        assertThat(isCachedLocally(newest)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchivesAreNotEvictedWhenCachedLimitIsNotSet() throws Exception {
+        JobID first = JobID.generate();
+        JobID second = JobID.generate();
+        Path firstArchive = createArchive(first, 1000);
+        Path secondArchive = createArchive(second, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, -1, 1);
+        view(fetcher, first, firstArchive);
+        view(fetcher, second, secondArchive);
+
+        assertThat(isCachedLocally(first)).isTrue();
+        assertThat(isCachedLocally(second)).isTrue();
+    }
+
+    @TestTemplate
+    void testArchiveWithFetchInFlightIsNotEvictedByViewingAnotherJob() throws Exception {
+        JobID newest = JobID.generate();
+        JobID inFlight = JobID.generate();
+        JobID other = JobID.generate();
+        Path inFlightArchive = createArchive(inFlight, 1000);
+        Path otherArchive = createArchive(other, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, inFlight, inFlightArchive);
+        archiveMetaInfoCache.get(inFlight.toString()).setEventType(DETAIL_PARSING);
+
+        view(fetcher, other, otherArchive);
+        assertThat(isCachedLocally(inFlight)).isTrue();
+
+        // once the fetch is done, the next view evicts it
+        archiveMetaInfoCache.get(inFlight.toString()).setEventType(CREATED);
+        fetcher.markRecentlyViewed(other.toString());
+        assertThat(isCachedLocally(inFlight)).isFalse();
+        assertThat(isCachedLocally(other)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchiveIsTrackedWhenRefreshDirIsNotQualified() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        HistoryServer.RefreshLocation location = createRefreshLocation(remoteArchiveRootPath);
+        Path unqualified = new Path(remoteArchiveRootPath.getAbsolutePath());
+        fetcher =
+                new HistoryServerArchiveFetcher<>(
+                        Collections.singletonList(
+                                new HistoryServer.RefreshLocation(unqualified, location.getFs())),
+                        localArchiveRootPath,
+                        event -> archiveEvents.add(event),
+                        true,
+                        RETAIN_ALL,
+                        archiveStorage,
+                        archiveMetaInfoCache,
+                        4,
+                        4,
+                        1,
+                        1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, older, olderArchive);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(older)).isTrue();
     }
 
     @TestTemplate
