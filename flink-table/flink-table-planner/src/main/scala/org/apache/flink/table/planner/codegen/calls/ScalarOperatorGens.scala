@@ -1738,10 +1738,18 @@ object ScalarOperatorGens {
     val keyType = key.resultType
 
     val accessCode = if (isIntegerNumeric(keyType)) {
+      val elementAccess = if (keyType.is(BIGINT)) {
+        // Narrowing a BIGINT key to int before the range check would wrap an out-of-range key
+        // onto an existing element. A smaller key cannot wrap onto a valid index.
+        s"$keyTerm >= 1L && $keyTerm - 1L <= Integer.MAX_VALUE " +
+          s"? $variantTerm.getElement((int) ($keyTerm - 1L)) : null"
+      } else {
+        s"$variantTerm.getElement((int) $keyTerm - 1)"
+      }
       generateIntegerKeyAccess(
         variantTerm,
         variantTypeTerm,
-        keyTerm,
+        elementAccess,
         resultTerm,
         nullTerm,
         tmpValue
@@ -1807,13 +1815,13 @@ object ScalarOperatorGens {
   private def generateIntegerKeyAccess(
       variantTerm: String,
       variantTypeTerm: String,
-      keyTerm: String,
+      elementAccess: String,
       resultTerm: String,
       nullTerm: String,
       tmpValue: String): String = {
     s"""
        |  if ($variantTerm.isArray()){
-       |    $variantTypeTerm $tmpValue = $variantTerm.getElement((int) $keyTerm - 1);
+       |    $variantTypeTerm $tmpValue = $elementAccess;
        |    if ($tmpValue == null) {
        |      $nullTerm = true;
        |    } else {
