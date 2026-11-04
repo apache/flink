@@ -48,6 +48,11 @@ import static org.apache.flink.table.data.utils.ToVariantConverter.TIMESTAMP_PRE
  * exception to exactness: they are approximate by definition, so they accept any numeric kind and
  * reject only a magnitude they cannot represent at all.
  *
+ * <p>A timestamp kind reaches every datetime type the way a regular cast from its SQL type does,
+ * using the session time zone between {@code TIMESTAMP_LTZ} and a type without one. {@code DATE}
+ * and {@code TIME} keep only the date or the time of day. A {@code DATE} or {@code TIME} value
+ * reaches only its own type, because any other datetime type needs a part the value does not have.
+ *
  * <p>A length or a precision is not part of the value in that sense, so it follows the rules of a
  * regular cast into the same type. A value longer than the target is trimmed, fractional seconds
  * beyond the target precision are truncated, and the fixed width targets {@code CHAR(n)} and {@code
@@ -240,42 +245,98 @@ public final class VariantCastUtils {
     }
 
     /**
-     * Reads a timestamp variant as the target {@code TIMESTAMP}. {@link Variant#getDateTime()}
-     * accepts both the microsecond ({@link Variant.Type#TIMESTAMP}) and nanosecond ({@link
-     * Variant.Type#TIMESTAMP_NS}) encodings. Fractional seconds beyond the target precision are
-     * truncated, the same as a regular {@code TIMESTAMP} to {@code TIMESTAMP(p)} cast.
+     * Reads a timestamp variant as the target {@code TIMESTAMP}. A {@code TIMESTAMP_LTZ} value is
+     * shifted into the session time zone, the same as a regular {@code TIMESTAMP_LTZ} to {@code
+     * TIMESTAMP} cast. Fractional seconds beyond the target precision are truncated.
      */
-    public static TimestampData toTimestamp(Variant variant, int precision) {
-        final Variant.Type type = variant.getType();
-        if (type == Variant.Type.TIMESTAMP || type == Variant.Type.TIMESTAMP_NS) {
-            return DateTimeUtils.truncate(
-                    TimestampData.fromLocalDateTime(variant.getDateTime()), precision);
+    public static TimestampData toTimestamp(Variant variant, int precision, TimeZone sessionZone) {
+        final TimestampData timestamp;
+        switch (variant.getType()) {
+            case TIMESTAMP:
+            case TIMESTAMP_NS:
+                timestamp = TimestampData.fromLocalDateTime(variant.getDateTime());
+                break;
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
+                timestamp =
+                        DateTimeUtils.timestampWithLocalZoneToTimestamp(
+                                TimestampData.fromInstant(variant.getInstant()), sessionZone);
+                break;
+            default:
+                throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
         }
-        throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
-    }
-
-    /** Reads a timestamp with local time zone variant. See {@link #toTimestamp(Variant, int)}. */
-    public static TimestampData toTimestampLtz(Variant variant, int precision) {
-        final Variant.Type type = variant.getType();
-        if (type == Variant.Type.TIMESTAMP_LTZ || type == Variant.Type.TIMESTAMP_LTZ_NS) {
-            return DateTimeUtils.truncate(
-                    TimestampData.fromInstant(variant.getInstant()), precision);
-        }
-        throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
+        return DateTimeUtils.truncate(timestamp, precision);
     }
 
     /**
-     * Reads a time variant as the target {@code TIME}. The runtime TIME representation is
-     * millisecond-of-day, so a variant's microseconds are dropped and any fractional seconds beyond
-     * the target precision are then truncated, the same as a regular {@code TIME} to {@code
-     * TIME(p)} cast.
+     * Reads a timestamp variant as the target {@code TIMESTAMP_LTZ}. A {@code TIMESTAMP} value is
+     * read as a wall-clock time in the session time zone, the same as a regular {@code TIMESTAMP}
+     * to {@code TIMESTAMP_LTZ} cast. Fractional seconds beyond the target precision are truncated.
      */
-    public static int toTime(Variant variant, int precision) {
-        if (variant.getType() == Variant.Type.TIME) {
-            return DateTimeUtils.applyTimePrecisionTruncation(
-                    DateTimeUtils.toInternal(variant.getTime()), precision);
+    public static TimestampData toTimestampLtz(
+            Variant variant, int precision, TimeZone sessionZone) {
+        final TimestampData timestamp;
+        switch (variant.getType()) {
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
+                timestamp = TimestampData.fromInstant(variant.getInstant());
+                break;
+            case TIMESTAMP:
+            case TIMESTAMP_NS:
+                timestamp =
+                        DateTimeUtils.timestampToTimestampWithLocalZone(
+                                TimestampData.fromLocalDateTime(variant.getDateTime()),
+                                sessionZone);
+                break;
+            default:
+                throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
         }
-        throw unsupportedKind(variant, String.format("TIME(%d)", precision));
+        return DateTimeUtils.truncate(timestamp, precision);
+    }
+
+    /**
+     * Reads a date or timestamp variant as the target {@code DATE}. A timestamp keeps its date,
+     * read in the session time zone for a {@code TIMESTAMP_LTZ}.
+     */
+    public static int toDate(Variant variant, TimeZone sessionZone) {
+        switch (variant.getType()) {
+            case DATE:
+                return DateTimeUtils.toInternal(variant.getDate());
+            case TIMESTAMP:
+            case TIMESTAMP_NS:
+                return DateTimeUtils.toInternal(variant.getDateTime().toLocalDate());
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
+                return DateTimeUtils.timestampWithLocalZoneToDate(
+                        TimestampData.fromInstant(variant.getInstant()), sessionZone);
+            default:
+                throw unsupportedKind(variant, "DATE");
+        }
+    }
+
+    /**
+     * Reads a time or timestamp variant as the target {@code TIME}. A timestamp keeps its time of
+     * day, read in the session time zone for a {@code TIMESTAMP_LTZ}. The runtime TIME
+     * representation is millisecond-of-day, so a variant's microseconds are dropped and any
+     * fractional seconds beyond the target precision are then truncated, the same as a regular
+     * {@code TIME} to {@code TIME(p)} cast.
+     */
+    public static int toTime(Variant variant, int precision, TimeZone sessionZone) {
+        switch (variant.getType()) {
+            case TIME:
+                return DateTimeUtils.applyTimePrecisionTruncation(
+                        DateTimeUtils.toInternal(variant.getTime()), precision);
+            case TIMESTAMP:
+            case TIMESTAMP_NS:
+                return DateTimeUtils.timestampWithoutLocalZoneToTime(
+                        TimestampData.fromLocalDateTime(variant.getDateTime()), precision);
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
+                return DateTimeUtils.timestampWithLocalZoneToTime(
+                        TimestampData.fromInstant(variant.getInstant()), sessionZone, precision);
+            default:
+                throw unsupportedKind(variant, String.format("TIME(%d)", precision));
+        }
     }
 
     /**

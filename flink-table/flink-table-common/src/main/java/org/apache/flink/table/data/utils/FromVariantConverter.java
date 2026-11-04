@@ -67,7 +67,8 @@ public final class FromVariantConverter implements Serializable {
     /**
      * Creates a converter for a type that VARIANT casts to.
      *
-     * @param sessionZone renders a {@code TIMESTAMP_LTZ} value read as a string
+     * @param sessionZone the session time zone, for a cast between {@code TIMESTAMP_LTZ} and a type
+     *     without a time zone
      * @throws IllegalArgumentException if VARIANT cannot be cast to the type
      */
     public static FromVariantConverter create(final LogicalType type, final ZoneId sessionZone) {
@@ -79,8 +80,8 @@ public final class FromVariantConverter implements Serializable {
      * Converts a variant into internal data.
      *
      * @throws TableRuntimeException if a value does not match its type
-     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN}, {@code DATE}
-     *     or binary value has another kind
+     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN} or binary
+     *     value has another kind
      */
     public Object convert(final Variant variant) {
         return reader.read(variant);
@@ -143,21 +144,22 @@ public final class FromVariantConverter implements Serializable {
                     return variant -> VariantCastUtils.toBytes(variant, length, fixedLength);
                 }
             case DATE:
-                return variant -> (int) variant.getDate().toEpochDay();
+                return variant -> VariantCastUtils.toDate(variant, sessionZone);
             case TIME_WITHOUT_TIME_ZONE:
                 {
                     final int precision = LogicalTypeChecks.getPrecision(type);
-                    return variant -> VariantCastUtils.toTime(variant, precision);
+                    return variant -> VariantCastUtils.toTime(variant, precision, sessionZone);
                 }
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 {
                     final int precision = LogicalTypeChecks.getPrecision(type);
-                    return variant -> VariantCastUtils.toTimestamp(variant, precision);
+                    return variant -> VariantCastUtils.toTimestamp(variant, precision, sessionZone);
                 }
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 {
                     final int precision = LogicalTypeChecks.getPrecision(type);
-                    return variant -> VariantCastUtils.toTimestampLtz(variant, precision);
+                    return variant ->
+                            VariantCastUtils.toTimestampLtz(variant, precision, sessionZone);
                 }
             case UUID:
                 return VariantCastUtils::toUuid;

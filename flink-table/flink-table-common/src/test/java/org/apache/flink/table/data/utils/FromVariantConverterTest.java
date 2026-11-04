@@ -330,6 +330,7 @@ class FromVariantConverterTest {
                 DataTypes.ROW(
                                 FIELD("int", DataTypes.INT()),
                                 FIELD("ltz", DataTypes.STRING()),
+                                FIELD("ts", DataTypes.TIMESTAMP(0)),
                                 FIELD("list", DataTypes.ARRAY(DataTypes.INT().notNull())),
                                 FIELD("map", DataTypes.MAP(DataTypes.CHAR(2), DataTypes.INT())),
                                 FIELD("variant", DataTypes.VARIANT()),
@@ -339,6 +340,7 @@ class FromVariantConverterTest {
                 BUILDER.object()
                         .add("int", BUILDER.of(1))
                         .add("ltz", BUILDER.of(Instant.EPOCH))
+                        .add("ts", BUILDER.of(Instant.EPOCH))
                         .add("list", BUILDER.array().add(BUILDER.of(2)).build())
                         .add("map", BUILDER.object().add("k", BUILDER.ofNull()).build())
                         .add("variant", BUILDER.ofNull())
@@ -357,6 +359,8 @@ class FromVariantConverterTest {
         assertThat(actual).isEqualTo(converter.convert(variant));
         // the session zone survives too
         assertThat(actual.getString(1).toString()).startsWith("1970-01-01 09:00:00");
+        assertThat(actual.getTimestamp(2, 0))
+                .isEqualTo(TimestampData.fromLocalDateTime(LocalDateTime.of(1970, 1, 1, 9, 0)));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -387,6 +391,13 @@ class FromVariantConverterTest {
                 arguments(DataTypes.BINARY(2), new byte[] {1, 2}),
                 arguments(DataTypes.BYTES(), new byte[] {(byte) 0xCA, (byte) 0xFE}),
                 arguments(DataTypes.DATE(), (int) LocalDate.of(2026, 9, 25).toEpochDay()),
+                // dates are proleptic Gregorian: the earliest DATE, a day the 1582 calendar switch
+                // skipped, and a leap day of 1600
+                arguments(DataTypes.DATE(), (int) LocalDate.of(0, 1, 1).toEpochDay()),
+                arguments(DataTypes.DATE(), (int) LocalDate.of(1582, 10, 10).toEpochDay()),
+                arguments(
+                        DataTypes.TIMESTAMP(6),
+                        TimestampData.fromLocalDateTime(LocalDateTime.of(1600, 2, 29, 12, 0))),
                 arguments(DataTypes.TIME(3), LocalTime.of(10, 15, 30).toSecondOfDay() * 1000 + 123),
                 arguments(DataTypes.TIMESTAMP(3), TimestampData.fromLocalDateTime(DATE_TIME)),
                 arguments(DataTypes.TIMESTAMP(9), TimestampData.fromEpochMillis(1, 234_567)),
