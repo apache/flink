@@ -570,6 +570,29 @@ public class VariantSemanticTest extends SemanticTestBase {
                             "sink_t")
                     .build();
 
+    static final TableTestProgram VARIANT_ARRAY_ACCESS_WITH_INDEX_OUTSIDE_INT_RANGE =
+            TableTestProgram.of(
+                            "variant-array-access-with-index-outside-int-range",
+                            "validates that a BIGINT index outside the INT range returns NULL")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v VARIANT", "i BIGINT")
+                                    .producedValues(
+                                            Row.of(
+                                                    BUILDER.array().add(BUILDER.of(1)).build(),
+                                                    4294967297L),
+                                            Row.of(
+                                                    BUILDER.array().add(BUILDER.of(1)).build(),
+                                                    -4294967295L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("e VARIANT")
+                                    .consumedValues(new Row(1), new Row(1))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT v[i] FROM t")
+                    .build();
+
     static final TableTestProgram VARIANT_OBJECT_ACCESS =
             TableTestProgram.of(
                             "variant-object-access",
@@ -749,6 +772,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_ARRAY_ACCESS,
                 VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES,
                 VARIANT_ARRAY_ACCESS_WITH_NON_LITERAL_INDEX,
+                VARIANT_ARRAY_ACCESS_WITH_INDEX_OUTSIDE_INT_RANGE,
                 VARIANT_OBJECT_ACCESS,
                 VARIANT_OBJECT_ACCESS_WITH_NON_LITERAL_KEY,
                 VARIANT_NESTED_ACCESS,
