@@ -20,7 +20,7 @@ import functools
 import os
 import threading
 import unittest
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import (
     Annotated, Any, Dict, Generator, Iterable, Iterator, List, Mapping, MutableMapping,
     Optional, Tuple, TypedDict, Union,
@@ -345,6 +345,19 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
         for field_type, result, expected in cases:
             dtype = pf.DataType.struct({"word": field_type})
             self.assertEqual(_eval_udtf(pf.udtf(lambda: result, return_dtype=dtype)), expected)
+
+    def test_single_field_dataclass_items_are_rows(self):
+        @dataclass
+        class Output:
+            value: int
+
+        def emit(value) -> Iterator[Output]:
+            yield Output(value)
+
+        explicit = pf.udtf(lambda value: [Output(value)],
+                           return_dtype=pf.DataType.struct({"value": pf.DataType.int64()}))
+        for declaration in (pf.udtf(emit), explicit):
+            self.assertEqual(_eval_udtf(declaration, 42), [Row(value=42)])
 
     def test_flat_map_validates_row_input_before_building_expression(self):
         def column(value: int) -> Iterator[int]:

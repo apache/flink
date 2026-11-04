@@ -22,7 +22,7 @@ import collections.abc
 import functools
 import inspect
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass
 from typing import (
     Annotated, Any, Callable, Iterator, List, Optional, Tuple, Type, Union, cast, get_args,
     get_origin, overload,
@@ -543,7 +543,8 @@ class _DataFrameTableFunctionAdapter(TableFunction):
                 result = invoke_func(*args)
             for item in _iter_user_results(result):
                 if is_struct and field_count == 1 and item is not None:
-                    if not isinstance(item, (Row, tuple, collections.abc.Mapping)):
+                    if not isinstance(item, (Row, tuple, collections.abc.Mapping)) and \
+                            not is_dataclass(item):
                         item = Row(item)
                 if not is_struct and isinstance(item, (Row, tuple)):
                     if len(item) != 1:
