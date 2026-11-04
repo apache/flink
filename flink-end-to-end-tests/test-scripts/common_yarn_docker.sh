@@ -27,6 +27,9 @@ FLINK_TARBALL=flink.tar.gz
 FLINK_DIRNAME=$(basename "${FLINK_DIR}")
 
 MAX_RETRY_SECONDS=120
+# TaskManagers on a NodeManager with a cold localization cache can take more than 2 minutes to
+# download the Flink distribution from HDFS on a loaded CI machine.
+SLOT_REQUEST_TIMEOUT_SECONDS=300
 CLUSTER_SETUP_RETRIES=3
 IMAGE_BUILD_RETRIES=5
 
@@ -128,7 +131,7 @@ function start_hadoop_cluster_and_prepare_flink() {
     FLINK_CONFIG=$(cat << END
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
-slot.request.timeout: 120000
+slot.request.timeout: $((SLOT_REQUEST_TIMEOUT_SECONDS * 1000))
 END
 )
     docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
@@ -198,7 +201,8 @@ function wait_for_single_yarn_application {
         current_time=$(date +%s)
         time_diff=$((current_time - start_time))
 
-        if [[ $time_diff -ge $MAX_RETRY_SECONDS ]]; then
+        # Wait longer than the slot request timeout so that a job without slots fails in Flink first
+        if [[ $time_diff -ge $((SLOT_REQUEST_TIMEOUT_SECONDS + MAX_RETRY_SECONDS)) ]]; then
             echo "Application ${application_id} is in state ${application_state} and we have waited too long, quitting..."
             exit 1
         else
