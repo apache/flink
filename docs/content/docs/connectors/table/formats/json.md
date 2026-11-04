@@ -257,6 +257,35 @@ The following table lists the type mapping from Flink type to JSON type.
     </tbody>
 </table>
 
+Features
+--------
 
+### Allow top-level JSON Arrays
+
+Usually, we assume the top-level of JSON string is a stringified JSON object. Then this stringified JSON object can be converted into one SQL row.
+
+There are some cases that, the top-level of JSON string is a stringified JSON array, and we want to explode the array into multiple records. Each element within the array is a JSON object, the schema of every such JSON object is the same as defined in SQL, and each of these JSON objects can be converted into one row. Flink JSON Format supports reading such data.
+
+For example, for the following SQL DDL:
+```sql
+CREATE TABLE user_behavior (
+  col1 BIGINT,
+  col2 VARCHAR
+) WITH (
+ 'format' = 'json',
+ ...
+)
+```
+
+Flink JSON Format will produce 2 rows `(123, "a")` and `(456, "b")` with both of following two JSON string.
+The top-level is JSON Array:
+```json lines
+[{"col1": 123, "col2": "a"}, {"col1": 456, "col2": "b"}]
+```
+The top-level is JSON Object:
+```json lines
+{"col1": 123, "col2": "a"}
+{"col1": 456, "col2": "b"}
+```
 
 

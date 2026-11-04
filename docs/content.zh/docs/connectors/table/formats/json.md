@@ -243,3 +243,34 @@ Format 参数
     </tr>
     </tbody>
 </table>
+
+特性
+--------
+
+### 允许 json array 直接展开成多行数据
+
+通常，我们假设 JSON 的最外层数据是一个 JSON Object。所以一条 JSON 会转换成一行结果。
+
+但是在某些情况下 JSON 的最外层数据可能是一个 JSON Array，我们期望它可以被展开成多条结果。 JSON Array 的每个元素都是一个 JSON Object， 这些 JSON Object 的 schema 需要和 SQL 定义一致。然后每个 JSON Object 会被转成一行结果。Flink JSON Format 支持对这种情况的默认处理。
+
+例如，对于如下 DDL：
+```sql
+CREATE TABLE user_behavior (
+  col1 BIGINT,
+  col2 VARCHAR
+) WITH (
+ 'format' = 'json',
+ ...
+)
+```
+
+以下两种情况下 Flink JSON Format 都将会产生两条数据 `(123, "a")` 和 `(456, "b")`。
+最外层是一个 JSON Array：
+```json lines
+[{"col1": 123, "col2": "a"}, {"col1": 456, "col2": "b"}]
+```
+最外层是一个 JSON Object：
+```json lines
+{"col1": 123, "col2": "a"}
+{"col1": 456, "col2": "b"}
+```
