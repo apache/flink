@@ -21,7 +21,6 @@
 import collections.abc
 import functools
 import inspect
-import types
 from dataclasses import dataclass, is_dataclass
 from typing import (
     Annotated, Any, Callable, Iterator, List, Optional, Tuple, Type, Union, cast, get_args,
@@ -50,7 +49,7 @@ from pyflink.dataframe.udf import (
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import col, with_columns
-from pyflink.table.typehints import _is_typed_dict
+from pyflink.table.typehints import _is_typed_dict, _is_union
 from pyflink.table.types import RowType, _to_java_data_type
 from pyflink.table.udf import (
     TableFunction,
@@ -300,8 +299,9 @@ def _resolve_udtf(
 def _infer_udtf_return_dtype(
     context: _UDFDeclarationContext, return_dtype: Optional[_DataTypeLike]
 ) -> Tuple[DataType, bool]:
-    if return_dtype is not None and get_origin(return_dtype) is tuple:
-        dtype, has_named_fields = _positional_struct(return_dtype), False
+    explicit_tuple = _positional_tuple_hint(return_dtype)
+    if explicit_tuple is not None:
+        dtype, has_named_fields = _positional_struct(explicit_tuple), False
     elif return_dtype is not None:
         dtype = _convert_to_dtype(return_dtype)
         has_named_fields = isinstance(dtype._to_table_data_type(), RowType)
@@ -316,8 +316,9 @@ def _infer_udtf_return_dtype(
             collections.abc.Iterator, collections.abc.Iterable, collections.abc.Generator, list
         ):
             raise TypeError("Cannot infer UDTF return type; specify return_dtype explicitly.")
-        if get_origin(hint) is tuple:
-            dtype, has_named_fields = _positional_struct(hint), False
+        inferred_tuple = _positional_tuple_hint(hint)
+        if inferred_tuple is not None:
+            dtype, has_named_fields = _positional_struct(inferred_tuple), False
         else:
             dtype = DataType._from_type_hint(hint)
             has_named_fields = isinstance(dtype._to_table_data_type(), RowType)
@@ -325,6 +326,17 @@ def _infer_udtf_return_dtype(
     if isinstance(table_type, RowType) and not table_type.fields:
         raise ValueError("A UDTF must declare at least one output field.")
     return dtype, has_named_fields
+
+
+def _positional_tuple_hint(hint: Any) -> Optional[Any]:
+    """Returns the tuple hint when a UDTF return type, optionally ``Optional``, is a tuple."""
+    if get_origin(hint) is tuple:
+        return hint
+    if _is_union(hint):
+        members = [member for member in get_args(hint) if member is not type(None)]
+        if len(members) == 1 and get_origin(members[0]) is tuple:
+            return members[0]
+    return None
 
 
 def _positional_struct(tuple_hint: Any) -> DataType:
@@ -387,7 +399,7 @@ def _is_flat_map_row_hint(hint: Any) -> bool:
     origin = get_origin(hint)
     if origin is Annotated:
         return _is_flat_map_row_hint(get_args(hint)[0])
-    if origin in (Union, getattr(types, "UnionType", Union)):
+    if _is_union(hint):
         return any(_is_flat_map_row_hint(member) for member in get_args(hint))
     if _is_typed_dict(hint):
         return True

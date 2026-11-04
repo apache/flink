@@ -102,6 +102,13 @@ def _is_named_tuple_type(type_hint: Any) -> bool:
     )
 
 
+def _is_union(type_hint: Any) -> bool:
+    origin = get_origin(type_hint)
+    return origin is Union or (
+        _PEP_604_UNION_TYPE is not None and origin is _PEP_604_UNION_TYPE
+    )
+
+
 def _is_composite_type(type_hint: Any) -> bool:
     return (
         _is_typed_dict(type_hint)
@@ -307,9 +314,7 @@ def _from_python_type(type_hint: Any) -> DataType:
         origin = get_origin(hint)
         arguments = get_args(hint)
 
-        if origin is Union or (
-            _PEP_604_UNION_TYPE is not None and origin is _PEP_604_UNION_TYPE
-        ):
+        if _is_union(hint):
             return infer_union(hint, arguments)
 
         # `Any` opts out of the type system, so it stays nullable rather than

@@ -18,6 +18,7 @@
 
 import functools
 import os
+import sys
 import threading
 import unittest
 from dataclasses import dataclass, replace
@@ -519,15 +520,26 @@ class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
         def emit_unannotated(row):
             yield row["x"], "ok"
 
-        self.assertEqual(
-            pf.udtf(emit_unannotated, return_dtype=Tuple[int, str]).return_dtype,
-            pf.udtf(emit).return_dtype,
-        )
+        optional_hints = [Optional[Tuple[int, str]]]
+        if sys.version_info >= (3, 10):
+            optional_hints.append(Tuple[int, str] | None)
+        declarations = [("inferred", pf.udtf(emit))]
+        declarations += [
+            (f"explicit {hint}", pf.udtf(emit_unannotated, return_dtype=hint))
+            for hint in [Tuple[int, str]] + optional_hints
+        ]
+        for hint in optional_hints:
+            def emit_optional(row):
+                yield row["x"], "ok"
+            emit_optional.__annotations__ = {"return": Iterator[hint]}
+            declarations.append((f"inferred {hint}", pf.udtf(emit_optional)))
+
         source = pf.from_dict({"x": [1]})
-        for func, return_dtype in ((emit, None), (emit_unannotated, Tuple[int, str])):
-            with self.subTest(return_dtype=return_dtype):
+        for label, declaration in declarations:
+            with self.subTest(declaration=label):
+                self.assertEqual(declaration.return_dtype, pf.udtf(emit).return_dtype)
                 with self.assertRaisesRegex(ValueError, "named output fields"):
-                    source.flat_map(func, return_dtype=return_dtype)
+                    source.flat_map(declaration)
         named = source.flat_map(emit, return_dtype="ROW<value BIGINT, label STRING>")
         self.assertEqual(named.columns, ["value", "label"])
 
