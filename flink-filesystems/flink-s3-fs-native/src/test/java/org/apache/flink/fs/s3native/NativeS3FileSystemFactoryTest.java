@@ -439,6 +439,29 @@ class NativeS3FileSystemFactoryTest {
         assertThat(createFs(config).getClientProvider().isRetryCircuitBreakerEnabled()).isTrue();
     }
 
+    @Test
+    void testRetryModeDefault() throws Exception {
+        assertThat(createFs(baseConfig()).getClientProvider().getRetryMode())
+                .isEqualTo(NativeS3FileSystemFactory.RetryMode.STANDARD);
+    }
+
+    @Test
+    void testRetryModeExplicitlyConfigured() throws Exception {
+        Configuration config = baseConfig();
+        config.set(
+                NativeS3FileSystemFactory.RETRY_MODE, NativeS3FileSystemFactory.RetryMode.ADAPTIVE);
+        assertThat(createFs(config).getClientProvider().getRetryMode())
+                .isEqualTo(NativeS3FileSystemFactory.RetryMode.ADAPTIVE);
+    }
+
+    @Test
+    void testRetryModeIsReadFromTheLowerCaseValueOfAFlinkConfigFile() throws Exception {
+        Configuration config = baseConfig();
+        config.setString("s3.retry.mode", "adaptive");
+        assertThat(createFs(config).getClientProvider().getRetryMode())
+                .isEqualTo(NativeS3FileSystemFactory.RetryMode.ADAPTIVE);
+    }
+
     // --- Timeouts ---
 
     @Test

@@ -110,7 +110,7 @@ CRT_VERSION="$(resolve_crt_version || true)"
 if [[ -z "${CRT_VERSION}" ]]; then
     echo "ERROR: aws-crt version could not be resolved for aws-crt-client:${SDK_VERSION}." >&2
     echo "       Set AWS_CRT_VERSION explicitly and re-run, e.g." >&2
-    echo "       AWS_CRT_VERSION=0.33.6 $0 ${OUTPUT_DIR}" >&2
+    echo "       AWS_CRT_VERSION=<version> $0 ${OUTPUT_DIR}" >&2
     exit 1
 fi
 
