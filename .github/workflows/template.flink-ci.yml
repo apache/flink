@@ -72,7 +72,7 @@ jobs:
     name: "Compile"
     runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute_v2
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -138,7 +138,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute_v2
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -191,7 +191,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-26.04
     container:
-      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_resolute_v2
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -243,10 +243,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-
-      - name: "Install Python header files"
-        if: matrix.module == 'python'
-        run: sudo apt-get update && sudo apt-get -y install python3-dev
 
       - name: "Set coredump pattern"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
