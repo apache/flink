@@ -327,8 +327,7 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       val rightInput = inputs.get(i)
       val rightUpsertKeys = fmq.getUpsertKeys(rightInput)
       val joinType = joinTypes.get(i)
-      // The columns this join equates on each side. On the left, only the columns that input i's
-      // conditions reference count, not every join column of the inputs before it.
+      // Only the left columns that input i's own condition references, not every previous join column.
       val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getLeftSideJoinKeyIndices(i): _*)
       val rightJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(i): _*)
 
