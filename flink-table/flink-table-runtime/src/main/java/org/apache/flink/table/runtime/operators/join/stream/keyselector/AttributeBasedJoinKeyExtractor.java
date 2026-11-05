@@ -171,8 +171,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
     }
 
     @Override
-    public int[] getLeftSideJoinKeyIndices(final int depth) {
-        final List<KeyExtractor> keyExtractors = this.leftKeyExtractorsMap.get(depth);
+    public int[] getLeftSideJoinKeyIndices(final int inputId) {
+        final List<KeyExtractor> keyExtractors = this.leftKeyExtractorsMap.get(inputId);
         if (keyExtractors == null) {
             return new int[0];
         }

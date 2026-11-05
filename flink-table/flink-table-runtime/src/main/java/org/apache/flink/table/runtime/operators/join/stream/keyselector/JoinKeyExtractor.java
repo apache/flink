@@ -84,15 +84,14 @@ public interface JoinKeyExtractor extends Serializable {
     int[] getJoinKeyIndices(int inputId);
 
     /**
-     * Gets the field indices in the joined row of the previous inputs that make up the key returned
-     * by {@link #getLeftSideJoinKey(int, RowData)} for a specific input depth.
+     * Gets the field indices in the joined row of the previous inputs that make up the left-side
+     * join key for a given input.
      *
-     * @param depth The current processing depth (0-based index), representing the target input ID
-     *     for state lookup.
+     * @param inputId The ID of the input stream.
      * @return An array of integers representing the field indices in the joined row that form the
-     *     state lookup key.
+     *     left-side join key.
      */
-    int[] getLeftSideJoinKeyIndices(int depth);
+    int[] getLeftSideJoinKeyIndices(int inputId);
 
     /**
      * Extracts the common key from an input row. The common key consists of attributes that are
