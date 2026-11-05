@@ -31,8 +31,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** Tests for {@link PushCalcPastChangelogNormalizeRule}. */
 class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
@@ -51,6 +53,7 @@ class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
                                         .column("f1", INT().notNull())
                                         .column("f2", STRING())
                                         .column("f3", BIGINT().notNull())
+                                        .column("f4", BOOLEAN())
                                         .primaryKey("f1")
                                         .build())
                         .unboundedScanSource(ChangelogMode.upsert())
@@ -226,6 +229,26 @@ class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
                 "SELECT f3 FROM T WHERE f2 < 1 AND f2 > 0\n"
                         + " UNION SELECT f3 FROM T WHERE f2 < 3 AND f2 > 0\n"
                         + " INTERSECT SELECT f3 FROM T WHERE f2 > 0 AND f2 < 10");
+    }
+
+    @Test
+    void testSelfJoinWithIdenticalBooleanColumnFilter() {
+        util.tableEnv().createTable("T", sourceDescriptor);
+        final String sql =
+                "SELECT f1.f1 FROM T AS f1 "
+                        + "JOIN T AS f2 ON f1.f1 = f2.f1 "
+                        + "WHERE f1.f4 AND f2.f4";
+        assertThatCode(() -> util.tableEnv().explainSql(sql)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void testSelfJoinWithDisjunctiveFilter() {
+        util.tableEnv().createTable("T", sourceDescriptor);
+        final String sql =
+                "SELECT f1.f1 FROM T AS f1 "
+                        + "JOIN T AS f2 ON f1.f1 = f2.f1 "
+                        + "WHERE (f1.f4 OR f1.f3 < 1) AND (f2.f4 OR f2.f3 < 1)";
+        assertThatCode(() -> util.tableEnv().explainSql(sql)).doesNotThrowAnyException();
     }
 
     @Test
