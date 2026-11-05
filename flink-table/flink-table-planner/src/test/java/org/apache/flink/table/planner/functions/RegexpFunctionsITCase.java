@@ -55,6 +55,21 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 null,
                                 DataTypes.BOOLEAN().nullable())
                         .testResult(
+                                lit(null, DataTypes.NULL()).regexp("foo"),
+                                "REGEXP(NULL, 'foo')",
+                                null,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").regexp(lit(null, DataTypes.NULL())),
+                                "REGEXP(f1, NULL)",
+                                null,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                lit(null, DataTypes.NULL()).regexp(lit(null, DataTypes.NULL())),
+                                "REGEXP(NULL, NULL)",
+                                null,
+                                DataTypes.BOOLEAN())
+                        .testResult(
                                 $("f1").regexp("foo"),
                                 "REGEXP(f1, 'foo')",
                                 true,
@@ -551,7 +566,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").regexpSplit("[0-9]+"),
                                 "REGEXP_SPLIT(f0, '[0-9]+')",
                                 new String[] {"Hello", "World", ""},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // null input test
                         .testResult(
                                 $("f0").regexpSplit(null),
@@ -563,13 +578,13 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f5").regexpSplit(""),
                                 "REGEXP_SPLIT(f5, '')",
                                 new String[] {"1", "2", "3", "4", "5"},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Empty regex splits by Unicode code point
                         .testResult(
                                 $("f8").regexpSplit(""),
                                 "REGEXP_SPLIT(f8, '')",
                                 new String[] {"\uD801\uDC37", "a"},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Leading, consecutive and trailing matches produce empty strings
                         .testResult(
                                 $("f6").regexpSplit(","),
@@ -581,12 +596,12 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f9").regexpSplit(","),
                                 "REGEXP_SPLIT(f9, ',')",
                                 new String[] {""},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         .testResult(
                                 $("f9").regexpSplit(""),
                                 "REGEXP_SPLIT(f9, '')",
                                 new String[] {""},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // null string input
                         .testResult(
                                 $("f1").regexpSplit("[0-9]+"),
@@ -604,36 +619,37 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f2").regexpSplit("[,;|]"),
                                 "REGEXP_SPLIT(f2, '[,;|]')",
                                 new String[] {"a", "b", "c", "d"},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Whitespace regex
                         .testResult(
                                 $("f3").regexpSplit("\\s+"),
                                 "REGEXP_SPLIT(f3, '\\s+')",
                                 new String[] {"one", "two", "three"},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // No match - return original string
                         .testResult(
                                 $("f5").regexpSplit("[a-z]+"),
                                 "REGEXP_SPLIT(f5, '[a-z]+')",
                                 new String[] {"12345"},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Valid non-literal regex is resolved per record
                         .testResult(
                                 $("f5").regexpSplit($("f0")),
                                 "REGEXP_SPLIT(f5, f0)",
                                 new String[] {"12345"},
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Invalid non-literal regex - return null at runtime
                         .testResult(
                                 $("f5").regexpSplit($("f7")),
                                 "REGEXP_SPLIT(f5, f7)",
                                 null,
                                 DataTypes.ARRAY(DataTypes.STRING()))
-                        // Invalid literal regex - fail during planning
-                        .testTableApiValidationError(
-                                $("f6").regexpSplit("("), "Invalid regular expression for")
-                        .testSqlValidationError(
-                                "REGEXP_SPLIT(f6, '(')", "Invalid regular expression for")
+                        // Invalid literal regex - return null at runtime
+                        .testResult(
+                                $("f5").regexpSplit("("),
+                                "REGEXP_SPLIT(f5, '(')",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Validation error for non-string type input
                         .testTableApiValidationError(
                                 $("f4").regexpSplit("[0-9]+"),

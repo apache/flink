@@ -530,15 +530,6 @@ public class SqlFunctionUtils {
         }
     }
 
-    /** Splits the string into Unicode code points, preserving supplementary characters. */
-    public static StringData[] splitByCodePoints(String str) {
-        return str.codePoints()
-                .mapToObj(
-                        codePoint ->
-                                StringData.fromString(new String(Character.toChars(codePoint))))
-                .toArray(StringData[]::new);
-    }
-
     /**
      * Calculate the hash value of a given string.
      *

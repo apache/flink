@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.getRegexpPattern;
-import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.splitByCodePoints;
 
 /**
  * Implementation of {@link BuiltInFunctionDefinitions#REGEXP_SPLIT}.
@@ -67,11 +66,10 @@ public class RegexpSplitFunction extends BuiltInScalarFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        // A literal regex is compiled once per call site instead of being looked up in the
-        // shared per-thread cache for every record. Invalid literals are already rejected
-        // during planning.
+        // Resolve a literal regex once per call site to avoid cache lookups for every record.
+        // Invalid patterns are handled by eval, which returns null.
         if (literalRegex != null) {
-            literalPattern = Pattern.compile(literalRegex);
+            literalPattern = getRegexpPattern(literalRegex);
         }
     }
 
@@ -79,10 +77,16 @@ public class RegexpSplitFunction extends BuiltInScalarFunction {
         if (str == null || regex == null) {
             return null;
         }
+        // A non-null literal without a compiled pattern is known to be invalid after open.
+        if (literalRegex != null && literalPattern == null) {
+            return null;
+        }
 
         String string = str.toString();
         String regexStr = regex.toString();
-        // An empty input falls through so that it yields [''], consistent with other vendors
+        // With an empty regex, let an empty input fall through to yield [''], matching
+        // PostgreSQL's regexp_split_to_array, which ignores zero-length boundary matches:
+        // https://www.postgresql.org/docs/18/functions-matching.html#FUNCTIONS-POSIX-REGEXP
         if (regexStr.isEmpty() && !string.isEmpty()) {
             return new GenericArrayData(splitByCodePoints(string));
         }
@@ -100,5 +104,14 @@ public class RegexpSplitFunction extends BuiltInScalarFunction {
             result[i] = StringData.fromString(splitResult[i]);
         }
         return new GenericArrayData(result);
+    }
+
+    /** Splits the string into Unicode code points, preserving supplementary characters. */
+    private static StringData[] splitByCodePoints(String str) {
+        return str.codePoints()
+                .mapToObj(
+                        codePoint ->
+                                StringData.fromString(new String(Character.toChars(codePoint))))
+                .toArray(StringData[]::new);
     }
 }
