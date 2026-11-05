@@ -45,6 +45,8 @@ import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableExecutorFactory;
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableJobSubmitter;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
@@ -61,6 +63,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.net.URL;
 import java.util.Arrays;
@@ -85,7 +89,9 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
             StreamExecutionEnvironment executionEnvironment,
             Planner planner,
             Executor executor,
-            boolean isStreamingMode) {
+            boolean isStreamingMode,
+            MaterializedTableExecutorFactory materializedTableExecutorFactory,
+            @Nullable MaterializedTableJobSubmitter materializedTableJobSubmitter) {
         super(
                 catalogManager,
                 moduleManager,
@@ -95,7 +101,9 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 functionCatalog,
                 planner,
                 isStreamingMode,
-                executionEnvironment);
+                executionEnvironment,
+                materializedTableExecutorFactory,
+                materializedTableJobSubmitter);
     }
 
     public static StreamTableEnvironment create(
@@ -153,6 +161,9 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         catalogManager,
                         functionCatalog);
 
+        final MaterializedTableExecutorFactory materializedTableExecutorFactory =
+                lookupMaterializedTableExecutorFactory(userClassLoader);
+
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
@@ -162,7 +173,9 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 executionEnvironment,
                 planner,
                 executor,
-                settings.isStreamingMode());
+                settings.isStreamingMode(),
+                materializedTableExecutorFactory,
+                null);
     }
 
     @Override

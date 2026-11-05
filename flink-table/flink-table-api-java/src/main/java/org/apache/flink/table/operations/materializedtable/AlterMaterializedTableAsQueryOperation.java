@@ -32,7 +32,7 @@ import java.util.function.Function;
  * Operation to describe an ALTER MATERIALIZED TABLE AS query operation. The operation is not
  * executable and only serves as a wrapper.
  *
- * <p>As an example see {@link MaterializedTableManager} where it is transformed to {@link
+ * <p>As an example see {@code DefaultMaterializedTableExecutor} where it is transformed to {@link
  * AlterMaterializedTableChangeOperation} before execution.
  */
 @Internal

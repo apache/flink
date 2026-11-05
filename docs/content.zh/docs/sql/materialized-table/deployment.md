@@ -50,7 +50,7 @@ under the License.
 
 ## 部署 SQL Gateway
 
-物化表必须通过 SQL Gateway 创建，SQL Gateway 需要针对元数据持久化和作业调度进行特定的配置。
+Materialized Tables in full refresh mode must be created and operated through SQL Gateway, which schedules their refresh workflows. SQL Gateway requires specific configurations for metadata persistence and job scheduling. Materialized Tables in continuous refresh mode can also be created from any `TableEnvironment` (see [Using Table API](#using-table-api)).
 
 ### 配置 Catalog Store
 
@@ -102,7 +102,7 @@ refresh mode only. The test-filesystem catalog used in the
 ### 在 Standalone 集群运行刷新作业
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'remote';
+Flink SQL> SET 'execution.target' = 'remote';
 [INFO] Execute statement succeeded.
 
 FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
@@ -117,7 +117,7 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 **Kubernetes session 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'kubernetes-session';
+Flink SQL> SET 'execution.target' = 'kubernetes-session';
 [INFO] Execute statement succeeded.
 
 Flink SQL> SET 'kubernetes.cluster-id' = 'flink-cluster-mt-session-1';
@@ -128,12 +128,12 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 [INFO] Execute statement succeeded.
 ```
 
-设置 `execution.mode` 为 `kubernetes-session` 并设置参数 `kubernetes.cluster-id` 指向一个已经存在的 Kubernetes session 集群.
+设置 `execution.target` 为 `kubernetes-session` 并设置参数 `kubernetes.cluster-id` 指向一个已经存在的 Kubernetes session 集群.
 
 **YARN session 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'yarn-session';
+Flink SQL> SET 'execution.target' = 'yarn-session';
 [INFO] Execute statement succeeded.
 
 Flink SQL> SET 'yarn.application.id' = 'application-xxxx';
@@ -143,14 +143,14 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
-设置 `execution.mode` 为 `yarn-session` 并设置参数 `yarn.application.id` 指向一个已经存在的 YARN session 集群。
+设置 `execution.target` 为 `yarn-session` 并设置参数 `yarn.application.id` 指向一个已经存在的 YARN session 集群。
 
 ### 在 application 模式下运行刷新作业
 
 **Kubernetes application 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'kubernetes-application';
+Flink SQL> SET 'execution.target' = 'kubernetes-application';
 [INFO] Execute statement succeeded.
 
 Flink SQL> SET 'kubernetes.cluster-id' = 'flink-cluster-mt-application-1';
@@ -160,23 +160,23 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
-设置 `execution.mode` 为 `kubernetes-application` ，`kubernetes.cluster-id` 是一个可选配置，如果未配置，在提交作业时会自动生成。
+设置 `execution.target` 为 `kubernetes-application` ，`kubernetes.cluster-id` 是一个可选配置，如果未配置，在提交作业时会自动生成。
 
 **YARN application 模式：**
 
 ```sql
-Flink SQL> SET 'execution.mode' = 'yarn-application';
+Flink SQL> SET 'execution.target' = 'yarn-application';
 [INFO] Execute statement succeeded.
 
 FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
-设置 `execution.mode` 为 `yarn-application` ，`yarn.application.id` 无需配置。
+设置 `execution.target` 为 `yarn-application` ，`yarn.application.id` 无需配置。
 
 ## 运维操作
 
-集群信息（如 `execution.mode` 或 `kubernetes.cluster-id`）已持久化在 Catalog 中，暂停或恢复物化表刷新作业时无需重复设置。
+Cluster information (e.g., `execution.target` or `kubernetes.cluster-id`) is already persisted in the catalog and does not need to be set when suspending or dropping a Materialized Table. Resuming a Materialized Table, or altering an activated one, submits a new refresh job to the session's `execution.target` and cluster id, so set them as when creating the Materialized Table.
 
 ### 暂停刷新作业
 ```sql
@@ -200,3 +200,29 @@ Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table
 > ...
 [INFO] Execute statement succeeded.
 ```
+
+# Using Table API
+
+Materialized tables in continuous refresh mode can also be managed from any `TableEnvironment`. Full refresh mode still requires SQL Gateway, which schedules the refresh workflows.
+
+Configure the session cluster on the program's `TableConfig`, or in the configuration the program runs with:
+
+| Session cluster | Options |
+|---|---|
+| Standalone | `execution.target: remote`, `rest.address`, `rest.port` |
+| YARN session | `execution.target: yarn-session`, `yarn.application.id` |
+| Kubernetes session | `execution.target: kubernetes-session`, `kubernetes.cluster-id` |
+
+```java
+TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+tEnv.getConfig().set("execution.target", "remote");
+tEnv.getConfig().set("rest.address", "flink-jobmanager");
+tEnv.getConfig().set("execution.checkpointing.savepoint-dir", "s3://my-bucket/savepoints");
+
+tEnv.executeSql("CREATE MATERIALIZED TABLE my_materialized_table ...");
+```
+
+* A statement that submits a refresh job fails before anything changes if the target can't host one: an unset, `local` or `embedded` target, an application target, or a session target without its cluster id. Application mode requires SQL Gateway.
+* Suspending a materialized table, and altering an activated one, stop the refresh job with a savepoint and require `execution.checkpointing.savepoint-dir`.
+* Any program that uses the same catalog, and SQL Gateway, can operate the materialized table. The refresh job is reached through the execution target and cluster id recorded in the catalog. For `remote`, configure the same `rest.address` as the program that submitted it.
+* Resuming a materialized table, and altering an activated one, restart the refresh job on the program's own target, which must match the recorded one. A refresh job that SQL Gateway deployed in its own application cluster can be suspended, refreshed and dropped from a program, but must be resumed or altered through SQL Gateway.

@@ -696,7 +696,7 @@ ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'sink.par
 ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'format' = 'csv');
 ```
 
-<span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
+<span class="label label-danger">Note</span> When run through the Flink SQL Gateway or a `TableEnvironment`, the behavior depends on the refresh mode and current refresh status:
 - `FULL` mode: the change is applied to the catalog. The refresh workflow is not touched.
 - `CONTINUOUS` mode, `ACTIVATED` status: the running refresh job is stopped with savepoint, the change is applied to the catalog, and a new refresh job is started using the updated options. The new job does **not** restore from the savepoint taken during suspend, so streaming state is reset.
 - `CONTINUOUS` mode, `SUSPENDED` status: the change is applied to the catalog and the savepoint stored in the refresh handler is cleared, so the next `RESUME` will also start a fresh job.
@@ -730,7 +730,7 @@ ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'sink.parallelis
 ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'format');
 ```
 
-<span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
+<span class="label label-danger">Note</span> When run through the Flink SQL Gateway or a `TableEnvironment`, the behavior depends on the refresh mode and current refresh status:
 - `FULL` mode: the change is applied to the catalog. The refresh workflow is not touched.
 - `CONTINUOUS` mode, `ACTIVATED` status: the running refresh job is stopped with savepoint, the change is applied to the catalog, and a new refresh job is started using the updated options. The new job does **not** restore from the savepoint taken during suspend, so streaming state is reset.
 - `CONTINUOUS` mode, `SUSPENDED` status: the change is applied to the catalog and the savepoint stored in the refresh handler is cleared, so the next `RESUME` will also start a fresh job.

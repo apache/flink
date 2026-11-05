@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
+import org.apache.flink.table.delegation.materializedtable.MaterializedTableExecutorFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
@@ -64,6 +65,21 @@ public class LoaderITCase extends TestLogger {
         assertThat(executorFactory).isNotNull().isInstanceOf(DelegateExecutorFactory.class);
         assertThat(executorFactory.factoryIdentifier())
                 .isEqualTo(ExecutorFactory.DEFAULT_IDENTIFIER);
+    }
+
+    @Test
+    public void testMaterializedTableExecutorFactory() {
+        MaterializedTableExecutorFactory materializedTableExecutorFactory =
+                FactoryUtil.discoverFactory(
+                        LoaderITCase.class.getClassLoader(),
+                        MaterializedTableExecutorFactory.class,
+                        MaterializedTableExecutorFactory.DEFAULT_IDENTIFIER);
+
+        assertThat(materializedTableExecutorFactory)
+                .isNotNull()
+                .isInstanceOf(DelegateMaterializedTableExecutorFactory.class);
+        assertThat(materializedTableExecutorFactory.factoryIdentifier())
+                .isEqualTo(MaterializedTableExecutorFactory.DEFAULT_IDENTIFIER);
     }
 
     @Test

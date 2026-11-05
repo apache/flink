@@ -57,7 +57,9 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
                 executor,
                 functionCatalog,
                 planner,
-                isStreamingMode);
+                isStreamingMode,
+                new MaterializedTableExecutorFactoryMock(),
+                null);
         this.catalogManager = catalogManager;
         this.executor = executor;
         this.functionCatalog = functionCatalog;

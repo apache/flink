@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistic
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
@@ -169,6 +170,31 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
+    }
+
+    @Test
+    void testConfigureSessionCreatesMaterializedTableWithoutRefreshJob() throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " WITH('format' = 'debezium-json')\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " REFRESH_MODE = CONTINUOUS\n"
+                        + " AS SELECT user_id, shop_id, payment_amount_cents FROM datagenSource";
+        service.configureSession(sessionHandle, materializedTableDDL, -1);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        String refreshJobName =
+                String.format(
+                        "Materialized_table_%s_continuous_refresh_job",
+                        userShopsIdentifier.asSerializableString());
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
+        service.configureSession(sessionHandle, "DROP MATERIALIZED TABLE users_shops", -1);
+
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.INITIALIZING);
+        assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNullOrEmpty();
+        assertThat(restClusterClient.listJobs().get(10, TimeUnit.SECONDS))
+                .noneMatch(job -> job.getJobName().equals(refreshJobName));
     }
 
     @Test
@@ -819,7 +845,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                         sessionHandle,
                                         repeatedAlterMaterializedTableSuspendHandle))
                 .rootCause()
-                .isInstanceOf(SqlExecutionException.class)
+                .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s continuous refresh job has been suspended",
@@ -841,7 +867,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                         sessionHandle,
                                         repeatedAlterMaterializedTableResumeHandle))
                 .rootCause()
-                .isInstanceOf(SqlExecutionException.class)
+                .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s continuous refresh job has been resumed",
@@ -950,7 +976,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                         sessionHandle,
                                         repeatedAlterMaterializedTableSuspendHandle))
                 .rootCause()
-                .isInstanceOf(SqlExecutionException.class)
+                .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s refresh workflow has been suspended.",
@@ -973,7 +999,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                         sessionHandle,
                                         repeatedAlterMaterializedTableResumeHandle))
                 .rootCause()
-                .isInstanceOf(SqlExecutionException.class)
+                .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s refresh workflow has been resumed.",
@@ -1870,7 +1896,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                 awaitOperationTermination(
                                         service, sessionHandle, invalidRefreshTableHandle2))
                 .rootCause()
-                .isInstanceOf(SqlExecutionException.class)
+                .isInstanceOf(TableException.class)
                 .hasMessage(
                         String.format(
                                 "Failed to parse a valid partition value for the field 'ds' in materialized table %s using the scheduler time '20240103 00:00:00.000' based on the date format 'yyyy-MM-dd HH:mm:ss'.",
