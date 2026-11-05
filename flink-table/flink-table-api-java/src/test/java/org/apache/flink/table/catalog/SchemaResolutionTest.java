@@ -319,6 +319,10 @@ class SchemaResolutionTest {
                 Schema.newBuilder().column("id", DataTypes.INT()).primaryKey("id", "id").build(),
                 "Invalid primary key 'PK_id_id'. A primary key must not contain duplicate columns. Found: [id]");
 
+        testError(
+                Schema.newBuilder().column("v", DataTypes.VARIANT()).primaryKey("v").build(),
+                "Invalid primary key 'PK_v'. Column 'v' of type VARIANT has no equality.");
+
         // indexes
 
         testError(

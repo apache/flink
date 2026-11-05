@@ -1793,6 +1793,9 @@ SELECT * FROM t WHERE v['a'] = PARSE_JSON('1')                             -- fa
 SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1                              -- compares the number
 ```
 
+A `PRIMARY KEY` column cannot be a `VARIANT` or a type that contains one either. Declare the key
+column with a concrete type.
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}

@@ -410,6 +410,7 @@ CREATE TABLE Orders (
 
 主键用作 Flink 优化的一种提示信息。主键限制表明一张表或视图的某个（些）列是唯一的并且不包含 Null 值。
 主键声明的列都是非 nullable 的。因此主键可以被用作表行级别的唯一标识。
+A primary key column also cannot be a [`VARIANT`]({{< ref "docs/sql/reference/data-types" >}}#variant) or a type that contains one, because these types have no equality.
 
 主键可以和列的定义一起声明，也可以独立声明为表的限制属性，不管是哪种方式，主键都不可以重复定义，否则 Flink 会报错。
 
