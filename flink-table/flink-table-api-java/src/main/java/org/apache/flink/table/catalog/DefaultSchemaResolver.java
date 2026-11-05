@@ -59,6 +59,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isComparableType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalType;
 
@@ -385,6 +386,16 @@ class DefaultSchemaResolver implements SchemaResolver {
             }
 
             final LogicalType columnType = column.getDataType().getLogicalType();
+            // changelog normalization and upsert sinks key their state by the primary key
+            if (!isComparableType(columnType)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid primary key '%s'. Column '%s' of type %s has no equality.",
+                                primaryKey.getName(),
+                                columnName,
+                                columnType.copy(true).asSummaryString()));
+            }
+
             if (columnType.isNullable()) {
                 throw new ValidationException(
                         String.format(
