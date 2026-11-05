@@ -83,15 +83,20 @@ function _set_conf_ssl_helper {
         # Flink is not providing the statically-linked library because of potential licensing issues
         # -> we need to build it ourselves
         FLINK_SHADED_VERSION=$(cat ${END_TO_END_DIR}/../pom.xml | sed -n 's/.*<flink.shaded.version>\(.*\)<\/flink.shaded.version>/\1/p')
-        echo "BUILDING flink-shaded-netty-tcnative-static"
-        # Adding retry to git clone, due to FLINK-24971
-        retry_times_with_exponential_backoff 5 git clone https://github.com/apache/flink-shaded.git
-        cd flink-shaded
-        git checkout "release-${FLINK_SHADED_VERSION}"
-        run_mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
-        cp flink-shaded-netty-tcnative-static/target/flink-shaded-netty-tcnative-static-*.jar $FLINK_DIR/lib/
-        cd ..
-        rm -rf flink-shaded
+        # built once per flink-shaded version and reused by later calls (rest + internal, multiple tests)
+        local tcnative_dir="${E2E_TARBALL_CACHE:-${END_TO_END_DIR}/target}/netty-tcnative-static-${FLINK_SHADED_VERSION}"
+        if ! ls "${tcnative_dir}"/flink-shaded-netty-tcnative-static-*.jar >/dev/null 2>&1; then
+            echo "BUILDING flink-shaded-netty-tcnative-static"
+            # Adding retry to git clone, due to FLINK-24971
+            retry_times_with_exponential_backoff 5 git clone --depth 1 --branch "release-${FLINK_SHADED_VERSION}" https://github.com/apache/flink-shaded.git
+            cd flink-shaded
+            run_mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
+            mkdir -p "${tcnative_dir}"
+            cp flink-shaded-netty-tcnative-static/target/flink-shaded-netty-tcnative-static-*.jar "${tcnative_dir}/"
+            cd ..
+            rm -rf flink-shaded
+        fi
+        cp "${tcnative_dir}"/flink-shaded-netty-tcnative-static-*.jar $FLINK_DIR/lib/
     fi
 
     # adapt config
