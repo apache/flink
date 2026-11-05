@@ -21,9 +21,11 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
+
 /** Lineage edge from source to sink. */
 @PublicEvolving
-public interface LineageEdge {
+public interface LineageEdge extends Serializable {
     SourceLineageVertex source();
 
     LineageVertex sink();

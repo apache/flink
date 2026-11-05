@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,7 +32,8 @@ import java.util.Set;
 
 /** Default implementation for {@link LineageGraph}. */
 @Internal
-public class DefaultLineageGraph implements LineageGraph {
+public class DefaultLineageGraph implements LineageGraph, Serializable {
+    private static final long serialVersionUID = 1L;
     @JsonProperty private final List<LineageEdge> lineageEdges;
     @JsonProperty private final Set<SourceLineageVertex> sources;
     @JsonProperty private final Set<LineageVertex> sinks;
