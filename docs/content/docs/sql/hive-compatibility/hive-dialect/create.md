@@ -132,18 +132,18 @@ table_constraint:
 ### Examples
 
 ```sql
--- creaet non-partition table
+-- create non-partition table
 CREATE TABLE t1(key string, value string);
 
--- creaet partitioned table
+-- create partitioned table
 CREATE TABLE pt1(key string, value string) PARTITIONED BY (year int, month int);
 
--- creaet table with specifc format
+-- create table with specific format
 CREATE TABLE t1(key string, value string) STORED AS ORC;
 
--- create table with specifc rowfromat
+-- create table with specific row format
 CREATE TABLE t1(m MAP<BIGINT, STRING>) 
-  ROW FROMAT DELIMITED COLLECTION ITEMS TERMINATED BY ';'
+  ROW FORMAT DELIMITED COLLECTION ITEMS TERMINATED BY ';'
   MAP KEYS TERMINATED BY ':';
 
 -- create table as select

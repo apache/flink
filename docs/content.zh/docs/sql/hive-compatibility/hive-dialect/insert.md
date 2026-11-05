@@ -32,7 +32,7 @@ can be specified by value expressions or result from query.
 ### Syntax
 
 ```sql
--- Stardard syntax
+-- Standard syntax
 INSERT { OVERWRITE TABLE | INTO [TABLE] } tablename
  [PARTITION (partcol1[=val1], partcol2[=val2] ...) [IF NOT EXISTS]]
    { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement }

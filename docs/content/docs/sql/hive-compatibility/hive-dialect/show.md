@@ -96,10 +96,10 @@ partition_spec:
 -- list all partitions
 SHOW PARTITIONS t1;
 
--- specific a full partition partition spec to list specific partition
+-- specify a full partition spec to list a specific partition
 SHOW PARTITIONS t1 PARTITION (year = 2022, month = 12);
 
--- specific a partial partition spec to list all the specifc partitions
+-- specify a partial partition spec to list all the matching partitions
 SHOW PARTITIONS t1 PARTITION (year = 2022);
 ```
 
