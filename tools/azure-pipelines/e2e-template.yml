@@ -63,6 +63,7 @@ jobs:
     - script: ./tools/ci/free_disk_space.sh
       target: host
       displayName: Free up disk space
+      condition: not(eq(variables['SKIP'], '1'))
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '3.13'
