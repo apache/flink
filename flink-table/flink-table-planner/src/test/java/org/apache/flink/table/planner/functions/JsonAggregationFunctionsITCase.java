@@ -22,14 +22,18 @@ import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.Expressions.$;
@@ -168,6 +172,33 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                 Arrays.asList(
                                         Row.of(1, "{\"A\":1,\"B\":3}", 3),
                                         Row.of(2, "{\"A\":2,\"C\":5}", 5))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
+                        .withDescription("DATE and TIME Values")
+                        .withSource(
+                                ROW(STRING(), DATE(), TIME()),
+                                Arrays.asList(
+                                        Row.ofKind(
+                                                INSERT,
+                                                "A",
+                                                LocalDate.parse("1990-06-02"),
+                                                LocalTime.parse("13:37:42")),
+                                        Row.ofKind(INSERT, "B", null, null)))
+                        .testResult(
+                                source -> "SELECT JSON_OBJECTAGG(f0 VALUE f1) FROM " + source,
+                                TableApiAggSpec.select(
+                                        jsonObjectAgg(JsonOnNull.NULL, $("f0"), $("f1"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(
+                                        Row.of("{\"A\":\"1990-06-02\",\"B\":null}")))
+                        .testResult(
+                                source -> "SELECT JSON_OBJECTAGG(f0 VALUE f2) FROM " + source,
+                                TableApiAggSpec.select(
+                                        jsonObjectAgg(JsonOnNull.NULL, $("f0"), $("f2"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(
+                                        Row.of("{\"A\":\"13:37:42\",\"B\":null}"))),
 
                 // JSON_ARRAYAGG
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
@@ -252,6 +283,33 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                 Arrays.asList(
                                         Row.of(1, "A", "[\"A\"]"),
                                         Row.of(2, "D", "[\"C\",\"D\"]"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("DATE and TIME Values")
+                        .withSource(
+                                ROW(DATE(), TIME()),
+                                Arrays.asList(
+                                        Row.ofKind(
+                                                INSERT,
+                                                LocalDate.parse("1990-06-02"),
+                                                LocalTime.parse("13:37:42")),
+                                        Row.ofKind(INSERT, null, null),
+                                        Row.ofKind(
+                                                INSERT,
+                                                LocalDate.parse("2000-01-01"),
+                                                LocalTime.parse("00:00:01"))))
+                        .testResult(
+                                source -> "SELECT JSON_ARRAYAGG(f0) FROM " + source,
+                                TableApiAggSpec.select(jsonArrayAgg(JsonOnNull.ABSENT, $("f0"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(
+                                        Row.of("[\"1990-06-02\",\"2000-01-01\"]")))
+                        .testResult(
+                                source -> "SELECT JSON_ARRAYAGG(f1) FROM " + source,
+                                TableApiAggSpec.select(jsonArrayAgg(JsonOnNull.ABSENT, $("f1"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(Row.of("[\"13:37:42\",\"00:00:01\"]"))),
 
                 // JSON_OBJECTAGG - Window (group window) Aggregation
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)

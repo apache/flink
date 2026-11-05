@@ -1041,8 +1041,13 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 Arrays.asList(
                                         LocalDate.parse("1990-06-02"),
                                         null,
-                                        LocalDate.parse("2000-01-01")))
-                        .andDataTypes(TIME(3).notNull(), TIME(3).notNull(), ARRAY(DATE()).notNull())
+                                        LocalDate.parse("2000-01-01")),
+                                LocalDate.parse("1990-06-02"))
+                        .andDataTypes(
+                                TIME(3).notNull(),
+                                TIME(3).notNull(),
+                                ARRAY(DATE()).notNull(),
+                                DATE().notNull())
                         .testResult(
                                 jsonString($("f0")),
                                 "JSON_STRING(f0)",
@@ -1057,6 +1062,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f2")),
                                 "JSON_STRING(f2)",
                                 "[\"1990-06-02\",null,\"2000-01-01\"]",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f3")),
+                                "JSON_STRING(f3)",
+                                "\"1990-06-02\"",
                                 STRING().notNull()));
     }
 
