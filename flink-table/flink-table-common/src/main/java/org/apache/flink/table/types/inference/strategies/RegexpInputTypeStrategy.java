@@ -37,8 +37,8 @@ import java.util.Optional;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 
 /**
- * Input type strategy for two-argument regex functions such as {@link
- * BuiltInFunctionDefinitions#REGEXP}. Validates literal regex patterns at planning time.
+ * Input type strategy for {@link BuiltInFunctionDefinitions#REGEXP}. Validates literal regex
+ * patterns at planning time.
  */
 @Internal
 public class RegexpInputTypeStrategy implements InputTypeStrategy {
@@ -74,8 +74,6 @@ public class RegexpInputTypeStrategy implements InputTypeStrategy {
             return patternError;
         }
 
-        // Return the inferred types so that untyped NULL literals are mapped to a string type,
-        // which is required for runtime classes with eval(StringData, StringData) signatures.
         return Optional.of(List.of(strType.get(), regexType.get()));
     }
 

@@ -47,8 +47,13 @@ class RegexpInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, null)
                         .expectArgumentTypes(DataTypes.STRING(), DataTypes.STRING()),
-
-                // Untyped NULL arguments are inferred as strings.
+                TestSpec.forStrategy("Untyped NULL string is inferred as VARCHAR", REGEXP)
+                        .calledWithArgumentTypes(DataTypes.NULL(), DataTypes.STRING())
+                        .expectArgumentTypes(DataTypes.VARCHAR(1), DataTypes.STRING()),
+                TestSpec.forStrategy("Untyped NULL regex is inferred as VARCHAR", REGEXP)
+                        .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.NULL())
+                        .calledWithLiteralAt(1, null)
+                        .expectArgumentTypes(DataTypes.STRING(), DataTypes.VARCHAR(1)),
                 TestSpec.forStrategy("Untyped NULL arguments are inferred as VARCHAR", REGEXP)
                         .calledWithArgumentTypes(DataTypes.NULL(), DataTypes.NULL())
                         .calledWithLiteralAt(1, null)
