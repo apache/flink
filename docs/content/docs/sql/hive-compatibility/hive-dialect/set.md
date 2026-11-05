@@ -40,7 +40,7 @@ SET hiveconf:k1=v1;
 -- set system property
 SET system:k2=v2;
 
--- set vairable for current session
+-- set variable for current session
 SET hivevar:k3=v3;
 
 -- get value for configuration
