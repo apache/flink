@@ -42,6 +42,17 @@
         </li>
       </ul>
     </header>
+    <nz-alert
+      *ngIf="statsRefreshFailed"
+      class="stale-stats"
+      nzType="warning"
+      nzShowIcon
+      [nzMessage]="staleStatsMessage"
+    ></nz-alert>
+    <ng-template #staleStatsMessage>
+      Could not refresh the checkpoint statistics from the JobManager; showing the ones loaded
+      {{ statsUpdatedAt ? 'at ' + (statsUpdatedAt | date: 'HH:mm:ss') : 'earlier' }}. Retrying.
+    </ng-template>
     <div class="strip-canvas" #stripContainer></div>
     <nz-empty *ngIf="!hasHistory" nzNotFoundContent="No checkpoint history yet"></nz-empty>
   </section>
@@ -51,13 +62,15 @@
       <div class="timeline-title">
         <strong *ngIf="selected">
           Checkpoint #{{ selected.id }}
-          <span
+          <nz-tag
             *ngIf="userPinned"
             class="pin-badge"
-            title="Pinned: the timeline below will not change until you click another checkpoint or 'Follow newest'."
+            nzColor="gold"
+            nz-tooltip
+            nzTooltipTitle="Pinned: the timeline below will not change until you click another checkpoint or 'Follow newest'."
           >
             pinned
-          </span>
+          </nz-tag>
         </strong>
         <strong *ngIf="!selected">Per-subtask Timeline</strong>
         <span *ngIf="selected" class="hint">
@@ -68,7 +81,14 @@
           {{ selected.size | humanizeBytes }}
         </span>
         <div class="timeline-actions">
-          <button *ngIf="userPinned" type="button" class="follow-newest" (click)="followNewest()">
+          <button
+            *ngIf="userPinned"
+            nz-button
+            nzSize="small"
+            type="button"
+            class="follow-newest"
+            (click)="followNewest()"
+          >
             Follow newest
           </button>
         </div>
@@ -120,20 +140,28 @@
         <!-- Text, not whitespace-only nodes, around the select: Angular drops whitespace-only nodes. -->
         <span *ngIf="slowestCountOptions.length > 0">
           {{ shownRows < totalRows ? 'Showing the' : 'Showing all' }}
-          <select
+          <nz-select
             class="row-count"
+            nzSize="small"
             aria-label="Number of slowest subtasks shown"
-            (change)="onSlowestCountChange($event)"
+            [ngModel]="shownRows"
+            (ngModelChange)="setSlowestCount($event)"
           >
-            <option *ngFor="let n of slowestCountOptions" [value]="n" [selected]="n === shownRows">
-              {{ n }}
-            </option>
-          </select>
+            <nz-option
+              *ngFor="let n of slowestCountOptions"
+              [nzValue]="n"
+              [nzLabel]="'' + n"
+            ></nz-option>
+          </nz-select>
           {{ shownRows < totalRows ? 'slowest of ' + totalRows + ' subtasks' : 'subtasks' }}
           {{ scrollable ? '· rows ' + (firstRow + 1) + '–' + (firstRow + visibleRows) : '' }}
         </span>
-        <label class="slowest-first">
-          <input type="checkbox" [checked]="slowestFirst" (change)="onSlowestFirstChange($event)" />
+        <label
+          nz-checkbox
+          class="slowest-first"
+          [ngModel]="slowestFirst"
+          (ngModelChange)="setSlowestFirst($event)"
+        >
           slowest first
         </label>
       </span>

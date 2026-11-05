@@ -16,35 +16,40 @@
  * limitations under the License.
  */
 
+@import "theme";
+
+// The theme has no neutral palette token for this one; keep in sync with PHASE_COLOR in the .ts.
+@phase-start-color: #b8c0cc;
+
 .timeline-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: @margin-lg;
 }
 
 header {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
+  gap: @padding-sm;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
+  margin-bottom: @margin-xs;
 }
 
 .hint {
-  margin-left: 8px;
-  color: #8c8c8c;
-  font-size: 12px;
+  margin-left: @margin-xs;
+  color: @text-color-secondary;
+  font-size: @font-size-sm;
 }
 
 .legend {
   display: flex;
-  gap: 12px;
+  gap: @padding-sm;
   margin: 0;
   padding: 0;
-  color: #595959;
   list-style: none;
-  font-size: 12px;
+  color: @text-color-secondary;
+  font-size: @font-size-sm;
 
   li {
     display: inline-flex;
@@ -61,99 +66,91 @@ header {
   }
 
   .completed {
-    background: #52c41a;
+    background: @green-6;
   }
 
   .savepoint {
-    background: #722ed1;
+    background: @purple-6;
   }
 
   .in-progress {
-    background: #faad14;
+    background: @gold-6;
   }
 
   .failed {
-    background: #f5222d;
+    background: @red-6;
   }
 
   .phase-start {
-    background: #b8c0cc;
+    background: @phase-start-color;
   }
 
   .phase-align {
-    background: #91caff;
+    background: @blue-3;
   }
 
   .phase-sync {
-    background: #fa8c16;
+    background: @orange-6;
   }
 
   .phase-async {
-    background: #52c41a;
+    background: @green-6;
   }
 
   .aborted {
-    border: 1.5px dashed #f5222d;
+    border: 1.5px dashed @red-6;
     background: transparent;
   }
 
   .no-ack {
-    border: 1.5px dashed #f5222d;
-    background: repeating-linear-gradient(-45deg, #fff1f0 0 3px, #ffa39e 3px 4.5px);
+    border: 1.5px dashed @red-6;
+    background: repeating-linear-gradient(-45deg, @red-1 0 3px, @red-3 3px 4.5px);
   }
+}
+
+.stale-stats {
+  margin-bottom: @margin-xs;
 }
 
 .strip-canvas {
   width: 100%;
-  min-height: 80px;
+  // The chart's height, reserved before it first renders.
+  min-height: 160px;
   cursor: pointer;
 }
 
 .pin-badge {
-  display: inline-block;
   vertical-align: middle;
-  margin-left: 8px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  background: #faad14;
-  color: #fff;
-  font-weight: 600;
-  font-size: 10px;
+  margin-left: @margin-xs;
 }
 
 .timeline-note {
   display: flex;
-  gap: 12px;
+  gap: @padding-sm;
   justify-content: space-between;
-  // Fixed height so the chart doesn't shift when the note toggles.
-  min-height: 18px;
-  margin: 0 0 8px;
-  color: #8c8c8c;
-  font-size: 12px;
-  line-height: 18px;
+  align-items: center;
+  // Fixed height (a small select's) so the chart doesn't shift when the note toggles.
+  min-height: 24px;
+  margin: 0 0 @margin-xs;
+  color: @text-color-secondary;
+  font-size: @font-size-sm;
 
   .timeline-controls {
     display: inline-flex;
-    gap: 12px;
+    gap: @padding-sm;
     align-items: center;
     margin-left: auto;
     white-space: nowrap;
   }
 
   .slowest-first {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-    cursor: pointer;
+    color: @text-color-secondary;
+    font-size: @font-size-sm;
   }
 
   .row-count {
-    padding: 0 2px;
-    border: 1px solid #d9d9d9;
-    border-radius: 4px;
-    background: #fff;
-    color: #595959;
-    font-size: 12px;
+    width: 72px;
+    margin: 0 4px;
   }
 }
 
@@ -161,34 +158,20 @@ header {
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: @margin-xs;
   align-items: center;
   min-width: 0;
 }
 
 .timeline-actions {
   display: inline-flex;
-  gap: 8px;
+  gap: @margin-xs;
   align-items: center;
   margin-left: auto;
 }
 
-.follow-newest {
-  padding: 2px 10px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  background: #fff;
-  color: #1890ff;
-  font-size: 12px;
-  cursor: pointer;
-
-  &:hover {
-    border-color: #1890ff;
-  }
-}
-
 .partial-failure {
-  margin-bottom: 12px;
+  margin-bottom: @padding-sm;
 }
 
 .timeline-canvas-wrapper {

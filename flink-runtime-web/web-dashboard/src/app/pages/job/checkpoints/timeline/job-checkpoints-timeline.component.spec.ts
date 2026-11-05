@@ -17,656 +17,656 @@
  */
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, ElementRef, SimpleChange } from '@angular/core';
-import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NEVER, Observable, of, Subject, throwError } from 'rxjs';
 
-import {
-  CheckpointConfig,
-  CheckpointHistory,
-  CheckpointSubTask,
-  SubTaskCheckpointStatisticsItem,
-  VerticesItem
-} from '@flink-runtime-web/interfaces';
+import { Checkpoint, CheckpointConfig, CheckpointHistory, CheckpointSubTask } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { StripDatum } from './checkpoint-timeline-rows';
+import { completed, details, historyEntry, noStats, vertex } from './checkpoint-timeline.testing';
 import { JobCheckpointsTimelineComponent } from './job-checkpoints-timeline.component';
 
-const TRIGGERED = 1_000;
-
-interface Phases {
-  start_delay?: number;
-  alignment?: number;
-  sync?: number;
-  async?: number;
-}
-
-const completed = (index: number, phases: Phases, aborted = false): SubTaskCheckpointStatisticsItem =>
-  ({
-    index,
-    status: 'completed',
-    ack_timestamp: 0,
-    end_to_end_duration: 0,
-    checkpointed_size: 0,
-    state_size: 0,
-    checkpoint: { sync: phases.sync ?? 0, async: phases.async ?? 0 },
-    alignment: { buffer: 0, processed: 0, persisted: 0, duration: phases.alignment ?? 0 },
-    start_delay: phases.start_delay ?? 0,
-    unaligned_checkpoint: false,
-    aborted
-  }) as SubTaskCheckpointStatisticsItem;
-
-const noStats = (index: number): SubTaskCheckpointStatisticsItem =>
-  ({ index, status: 'pending_or_failed' }) as SubTaskCheckpointStatisticsItem;
-
-const details = (...subtasks: SubTaskCheckpointStatisticsItem[]): CheckpointSubTask =>
-  ({ subtasks }) as unknown as CheckpointSubTask;
-
-const vertex = (id: string, name: string): VerticesItem => ({ id, name, status: 'RUNNING' }) as VerticesItem;
-
-const checkpoint = (
-  rawStatus: string,
-  duration: number,
-  isSavepoint = false
-): { id: number; duration: number; rawStatus: string; isSavepoint: boolean; triggered: number } => ({
-  id: 7,
-  duration,
-  rawStatus,
-  isSavepoint,
-  triggered: TRIGGERED
-});
-
-type BuildRows = (
-  datum: ReturnType<typeof checkpoint>,
-  perVertex: Record<string, CheckpointSubTask | null>
-) => {
-  rows: Array<{ row: string; phase: string; phaseLabel: string; range: [number, number]; totalDuration: number }>;
-  unacked: Array<{ row: string; label: string; range: [number, number] }>;
-  instants: Array<{ row: string; aborted: boolean; range: [number, number] }>;
-  rowOrder: string[];
-};
-
-const unalignedConfig = (alignedCheckpointTimeout: number, mode = 'exactly_once'): CheckpointConfig =>
-  ({ mode, unaligned_checkpoints: true, aligned_checkpoint_timeout: alignedCheckpointTimeout }) as CheckpointConfig;
-
-const SUBTASK_PHASES = { start_delay: 2, alignment: 5, sync: 1, async: 8 };
-
-describe('JobCheckpointsTimelineComponent rows', () => {
-  let component: JobCheckpointsTimelineComponent;
-  let buildRows: BuildRows;
-
-  beforeEach(() => {
-    component = new JobCheckpointsTimelineComponent(
-      {} as JobService,
-      { markForCheck: () => undefined } as unknown as ChangeDetectorRef
-    );
-    buildRows = (component as unknown as { buildTimelineRows: BuildRows }).buildTimelineRows.bind(component);
-  });
-
-  it('keeps rows in operator then subtask order instead of sorting by duration', () => {
-    component.vertices = [vertex('a', 'Agg'), vertex('s', 'Sink')];
-
-    const { rowOrder } = buildRows(checkpoint('COMPLETED', 60), {
-      a: details(completed(0, { async: 5 }), completed(1, { async: 50 })),
-      s: details(completed(0, { start_delay: 1 }))
-    });
-
-    expect(rowOrder).toEqual(['Agg #0', 'Agg #1', 'Sink #0']);
-  });
-
-  it('keeps a row with an instant marker for subtasks whose phases all rounded to 0ms', () => {
-    component.vertices = [vertex('s', 'Source')];
-
-    const { instants, rowOrder } = buildRows(checkpoint('COMPLETED', 15), {
-      s: details(completed(0, {}), completed(1, { start_delay: 1 }))
-    });
-
-    expect(rowOrder).toEqual(['Source #0', 'Source #1']);
-    expect(instants).toEqual([
-      expect.objectContaining({ row: 'Source #0', aborted: false, range: [TRIGGERED, TRIGGERED] })
-    ]);
-  });
-
-  it('draws a no-ack bar spanning a failed checkpoint for subtasks without stats', () => {
-    component.vertices = [vertex('a', 'Agg')];
-
-    const { unacked, rowOrder } = buildRows(checkpoint('FAILED', 10), {
-      a: details(completed(0, { start_delay: 1, async: 3 }, true), noStats(1), completed(2, { async: 2 }))
-    });
-
-    expect(unacked).toEqual([
-      expect.objectContaining({ row: 'Agg #1', label: 'no ack', range: [TRIGGERED, TRIGGERED + 10] })
-    ]);
-    expect(rowOrder).toEqual(['Agg #0', 'Agg #1', 'Agg #2']);
-  });
-
-  it('marks subtasks without stats as pending up to the latest known progress while in progress', () => {
-    component.vertices = [vertex('a', 'Agg')];
-
-    const { unacked } = buildRows(checkpoint('IN_PROGRESS', 0), {
-      a: details(completed(0, { start_delay: 1, async: 4 }), noStats(1))
-    });
-
-    expect(unacked).toEqual([expect.objectContaining({ label: 'pending', range: [TRIGGERED, TRIGGERED + 5] })]);
-  });
-
-  it('uses the raw status for savepoints', () => {
-    component.vertices = [vertex('a', 'Agg')];
-
-    const { unacked } = buildRows(checkpoint('FAILED', 10, true), { a: details(noStats(0)) });
-
-    expect(unacked.map(u => u.label)).toEqual(['no ack']);
-  });
-
-  it('ignores missing stats on completed checkpoints', () => {
-    component.vertices = [vertex('a', 'Agg')];
-
-    const { unacked, rowOrder } = buildRows(checkpoint('COMPLETED', 10), {
-      a: details(completed(0, { async: 2 }), noStats(1))
-    });
-
-    expect(unacked).toEqual([]);
-    expect(rowOrder).toEqual(['Agg #0']);
-  });
-
-  const segments = (
-    rows: ReturnType<BuildRows>['rows'],
-    row: string
-  ): Array<[string, string, [number, number], number]> =>
-    rows.filter(r => r.row === row).map(r => [r.phase, r.phaseLabel, r.range, r.totalDuration]);
-
-  // Long.MAX_VALUE (2 ** 63 once parsed) means no timeout, i.e. unaligned from the first barrier, like 0.
-  it.each([0, 2 ** 63])('draws no alignment before sync for checkpoints unaligned from the start (timeout %s)', t => {
-    component.vertices = [vertex('a', 'Agg')];
-    component.config = unalignedConfig(t);
-
-    const { rows } = buildRows(checkpoint('COMPLETED', 20), { a: details(completed(0, SUBTASK_PHASES)) });
-
-    expect(segments(rows, 'Agg #0')).toEqual([
-      ['start_delay', 'start_delay', [TRIGGERED, TRIGGERED + 2], 11],
-      ['sync', 'sync', [TRIGGERED + 2, TRIGGERED + 3], 11],
-      ['async', 'async (incl. 5ms alignment)', [TRIGGERED + 3, TRIGGERED + 11], 11]
-    ]);
-  });
-
-  it('draws the alignment up to the aligned checkpoint timeout before sync', () => {
-    component.vertices = [vertex('a', 'Agg')];
-    component.config = unalignedConfig(30_000);
-
-    const { rows } = buildRows(checkpoint('COMPLETED', 40_000), {
-      a: details(
-        completed(0, { start_delay: 5_000, alignment: 31_000, sync: 10, async: 8_000 }),
-        completed(1, SUBTASK_PHASES)
-      )
-    });
-
-    expect(segments(rows, 'Agg #0')).toEqual([
-      ['start_delay', 'start_delay', [TRIGGERED, TRIGGERED + 5_000], 38_010],
-      ['alignment', 'alignment', [TRIGGERED + 5_000, TRIGGERED + 30_000], 38_010],
-      ['sync', 'sync', [TRIGGERED + 30_000, TRIGGERED + 30_010], 38_010],
-      ['async', 'async (incl. 6000ms alignment)', [TRIGGERED + 30_010, TRIGGERED + 38_010], 38_010]
-    ]);
-    // Aligned within the timeout, so it never switched.
-    expect(segments(rows, 'Agg #1').map(([, label]) => label)).toEqual(['start_delay', 'alignment', 'sync', 'async']);
-  });
-
-  it.each([
-    ['savepoints', unalignedConfig(0), true],
-    ['at-least-once checkpoints', unalignedConfig(0, 'at_least_once'), false],
-    ['jobs without unaligned checkpoints', { ...unalignedConfig(0), unaligned_checkpoints: false }, false]
-  ])('draws the whole alignment before sync for %s', (_, config, isSavepoint) => {
-    component.vertices = [vertex('a', 'Agg')];
-    component.config = config;
-
-    const { rows } = buildRows(checkpoint('COMPLETED', 20, isSavepoint), { a: details(completed(0, SUBTASK_PHASES)) });
-
-    expect(segments(rows, 'Agg #0')).toEqual([
-      ['start_delay', 'start_delay', [TRIGGERED, TRIGGERED + 2], 16],
-      ['alignment', 'alignment', [TRIGGERED + 2, TRIGGERED + 7], 16],
-      ['sync', 'sync', [TRIGGERED + 7, TRIGGERED + 8], 16],
-      ['async', 'async', [TRIGGERED + 8, TRIGGERED + 16], 16]
-    ]);
-  });
-
-  it('updates one timeline chart across reloads instead of rebuilding it', () => {
-    const mark = (): { data: ReturnType<typeof vi.fn>; scale: ReturnType<typeof vi.fn> } => {
-      const m = { data: vi.fn(), scale: vi.fn() };
-      m.data.mockReturnValue(m);
-      m.scale.mockReturnValue(m);
-      return m;
-    };
-    const chart = { attr: vi.fn(), render: vi.fn(), destroy: vi.fn() };
-    const create = vi.fn(() => ({ chart, phases: mark(), unacked: mark(), instants: mark() }));
-    const internals = component as unknown as {
-      createTimelineChart: typeof create;
-      renderTimeline: (datum: ReturnType<typeof checkpoint>, perVertex: Record<string, CheckpointSubTask>) => void;
-    };
-    internals.createTimelineChart = create;
-    component.vertices = [vertex('a', 'Agg')];
-
-    internals.renderTimeline(checkpoint('IN_PROGRESS', 5), { a: details(completed(0, { async: 5 }), noStats(1)) });
-    internals.renderTimeline(checkpoint('COMPLETED', 8), {
-      a: details(completed(0, { async: 5 }), completed(1, { async: 8 }))
-    });
-
-    expect(create).toHaveBeenCalledTimes(1);
-    expect(chart.render).toHaveBeenCalledTimes(2);
-    expect(chart.destroy).not.toHaveBeenCalled();
-  });
-
-  it('does not cache the details of an in-progress savepoint', () => {
-    const internals = component as unknown as {
-      detailsCache: Map<number, unknown>;
-      cacheDetails: (datum: ReturnType<typeof checkpoint> & { status: string }, perVertex: object) => void;
-    };
-
-    internals.cacheDetails({ ...checkpoint('IN_PROGRESS', 0, true), status: 'SAVEPOINT' }, {});
-    internals.cacheDetails({ ...checkpoint('COMPLETED', 5, true), id: 8, status: 'SAVEPOINT' }, {});
-
-    expect([...internals.detailsCache.keys()]).toEqual([8]);
-  });
-
-  it('pluralizes the partial-failure message by the number of requested operators', () => {
-    component.failedVertexCount = 1;
-    component.requestedVertexCount = 2;
-
-    expect(component.partialFailureMessage).toBe('1 of 2 operators failed to load — the timeline below is incomplete.');
-  });
-});
-
-const historyEntry = (id: number, status: string, acked: number): CheckpointHistory =>
-  ({
-    id,
-    status,
-    is_savepoint: false,
-    trigger_timestamp: TRIGGERED,
-    end_to_end_duration: 5,
-    num_acknowledged_subtasks: acked,
-    num_subtasks: 4,
-    state_size: 0
-  }) as CheckpointHistory;
-
-describe('JobCheckpointsTimelineComponent polling', () => {
-  let component: JobCheckpointsTimelineComponent;
-  let applyHistory: (next: CheckpointHistory[]) => void;
-  let loads: string[];
-
-  beforeEach(() => {
-    component = new JobCheckpointsTimelineComponent(
-      {} as JobService,
-      { markForCheck: () => undefined } as unknown as ChangeDetectorRef
-    );
-    loads = [];
-    const internals = component as unknown as {
-      renderStrip: () => void;
-      loadTimeline: (datum: { id: number; rawStatus: string }) => void;
-      applyHistory: (next: CheckpointHistory[]) => void;
-    };
-    // The charts need a real canvas; these tests only check what gets selected and loaded.
-    internals.renderStrip = () => undefined;
-    internals.loadTimeline = datum => loads.push(`#${datum.id} ${datum.rawStatus}`);
-    applyHistory = internals.applyHistory.bind(component);
-  });
-
-  it('reloads the followed checkpoint once it completes, without waiting for a newer one', () => {
-    applyHistory([historyEntry(7, 'IN_PROGRESS', 2)]);
-    applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-
-    expect(loads).toEqual(['#7 IN_PROGRESS', '#7 COMPLETED']);
-    expect(component.selected?.acked).toBe('4/4');
-  });
-
-  it('does not reload when nothing changed or while a load is in flight', () => {
-    applyHistory([historyEntry(7, 'IN_PROGRESS', 2)]);
-    applyHistory([historyEntry(7, 'IN_PROGRESS', 2)]);
-    component.loadingTimeline = true;
-    applyHistory([historyEntry(7, 'IN_PROGRESS', 3)]);
-
-    expect(loads).toEqual(['#7 IN_PROGRESS']);
-  });
-
-  it('keeps refreshing a pinned in-progress checkpoint until it finishes', () => {
-    applyHistory([historyEntry(7, 'IN_PROGRESS', 2)]);
-    component.userPinned = true;
-    applyHistory([historyEntry(8, 'IN_PROGRESS', 0), historyEntry(7, 'IN_PROGRESS', 3)]);
-    applyHistory([historyEntry(8, 'IN_PROGRESS', 1), historyEntry(7, 'COMPLETED', 4)]);
-    applyHistory([historyEntry(8, 'COMPLETED', 4), historyEntry(7, 'COMPLETED', 4)]);
-
-    expect(loads).toEqual(['#7 IN_PROGRESS', '#7 IN_PROGRESS', '#7 COMPLETED']);
-    expect([component.selected?.id, component.selected?.acked, component.userPinned]).toEqual([7, '4/4', true]);
-  });
-
-  it('bases the empty state on polled history rather than the parent snapshot', () => {
-    component.history = [];
-    expect(component.hasHistory).toBe(false);
-
-    applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-
-    expect(component.hasHistory).toBe(true);
-  });
-});
-
-interface LoadingInternals {
-  visible$: BehaviorSubject<boolean>;
-  detailsCache: Map<number, unknown>;
-  stripContainer: ElementRef<HTMLDivElement>;
-  timelineContainer: ElementRef<HTMLDivElement>;
-  renderStrip: () => void;
-  renderTimeline: (datum: { id: number }) => void;
-  subscribeTimelineLoads: () => void;
-  startPolling: () => void;
-  computePollDelayMs: () => number;
-  applyHistory: (next: CheckpointHistory[]) => void;
-  toStripDatum: (h: CheckpointHistory) => Parameters<JobCheckpointsTimelineComponent['select']>[0];
-}
-
-describe('JobCheckpointsTimelineComponent loading', () => {
-  let component: JobCheckpointsTimelineComponent;
-  let internals: LoadingInternals;
-  let loadDetails: ReturnType<typeof vi.fn>;
-  let loadStats: ReturnType<typeof vi.fn>;
-  let rendered: number[];
-  const serverError = new HttpErrorResponse({ status: 500 });
-
-  beforeEach(() => {
-    loadDetails = vi.fn();
-    loadStats = vi.fn();
-    component = new JobCheckpointsTimelineComponent(
-      { loadCheckpointAllSubtaskDetails: loadDetails, loadCheckpointStats: loadStats } as unknown as JobService,
-      { markForCheck: () => undefined } as unknown as ChangeDetectorRef
-    );
-    component.jobId = 'job-1';
-    component.vertices = [vertex('a', 'Agg'), vertex('b', 'Sink')];
-    rendered = [];
-    internals = component as unknown as LoadingInternals;
-    internals.stripContainer = new ElementRef(document.createElement('div'));
-    internals.timelineContainer = new ElementRef(document.createElement('div'));
-    // The charts need a real canvas; these tests check what gets fetched, cached and rendered.
-    internals.renderStrip = () => undefined;
-    internals.renderTimeline = datum => rendered.push(datum.id);
-    internals.subscribeTimelineLoads();
-    internals.visible$.next(true);
-  });
-
-  afterEach(() => {
-    component.ngOnDestroy();
-    vi.useRealTimers();
-  });
-
-  it('does not fetch subtask details until the Timeline tab is shown', () => {
-    internals.visible$.next(false);
-    loadDetails.mockReturnValue(of({ a: details(), b: details() }));
-
-    internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-    expect(loadDetails).not.toHaveBeenCalled();
-
-    internals.visible$.next(true);
-    expect(loadDetails).toHaveBeenCalledTimes(1);
-    expect(rendered).toEqual([7]);
-  });
-
-  it('says the JobManager no longer retains the checkpoint when every vertex returns 404', () => {
-    loadDetails.mockReturnValue(of({ a: null, b: null }));
-
-    internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-
-    expect(component.timelineEmpty).toBe(true);
-    expect(component.loadError).toBe('not-retained');
-    expect(component.emptyTimelineMessage).toContain('no longer retains this checkpoint');
-  });
-
-  it('reports other request errors as a failed request rather than an evicted checkpoint', () => {
-    loadDetails.mockReturnValue(throwError(() => serverError));
-
-    internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-
-    expect(component.loadError).toBe('request-failed');
-    expect(component.emptyTimelineMessage).toContain('request to the JobManager failed');
-  });
-
-  it('renders a partial load with its failure count but does not cache it', () => {
-    loadDetails.mockReturnValue(of({ a: details(), b: null }));
-
-    internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-
-    expect(rendered).toEqual([7]);
-    expect([component.failedVertexCount, component.requestedVertexCount]).toEqual([1, 2]);
-    expect(internals.detailsCache.has(7)).toBe(false);
-  });
-
-  it('drops a load still in flight when the job changes', () => {
-    const response = new Subject<Record<string, CheckpointSubTask | null>>();
-    loadDetails.mockReturnValue(response);
-    internals.applyHistory([historyEntry(42, 'COMPLETED', 4)]);
-
-    component.jobId = 'job-2';
-    component.ngOnChanges({ jobId: new SimpleChange('job-1', 'job-2', false) });
-    response.next({ a: details(), b: details() });
-    response.complete();
-
-    expect(rendered).toEqual([]);
-    expect(internals.detailsCache.has(42)).toBe(false);
-  });
-
-  it('drops a stats poll for the previous job that lands after the job changes', () => {
-    const oldJobStats = new Subject<{ history: CheckpointHistory[] }>();
-    loadStats.mockReturnValue(oldJobStats);
-    internals.startPolling();
-
-    component.jobId = 'job-2';
-    component.ngOnChanges({ jobId: new SimpleChange('job-1', 'job-2', false) });
-    oldJobStats.next({ history: [historyEntry(42, 'COMPLETED', 4)] });
-
-    expect(loadStats).toHaveBeenCalledWith('job-1');
-    expect(component.hasHistory).toBe(false);
-    expect(loadDetails).not.toHaveBeenCalled();
-  });
-
-  it('keeps cached details only for checkpoints still in the strip, plus the pinned one', () => {
-    loadDetails.mockReturnValue(of({ a: details(), b: details() }));
-    const cached = (): number[] => [...internals.detailsCache.keys()].sort((a, b) => a - b);
-
-    internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-    component.select(internals.toStripDatum(historyEntry(7, 'COMPLETED', 4)));
-    internals.applyHistory([historyEntry(9, 'COMPLETED', 4), historyEntry(8, 'COMPLETED', 4)]);
-    expect(cached()).toEqual([7]);
-
-    component.followNewest();
-    internals.applyHistory([historyEntry(10, 'COMPLETED', 4), historyEntry(9, 'COMPLETED', 4)]);
-    expect(cached()).toEqual([9, 10]);
-  });
-
-  it('follows the newest checkpoint again once the history empties while pinned', () => {
-    loadDetails.mockReturnValue(of({ a: details(), b: details() }));
-    internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
-    component.select(internals.toStripDatum(historyEntry(7, 'COMPLETED', 4)));
-
-    internals.applyHistory([]);
-    internals.applyHistory([historyEntry(1, 'COMPLETED', 4)]);
-
-    expect(component.userPinned).toBe(false);
-    expect(rendered).toEqual([7, 7, 1]);
-  });
-
-  it('retries a failed load of the followed checkpoint once rather than on every poll', () => {
-    loadDetails.mockReturnValue(throwError(() => serverError));
-
-    for (let poll = 0; poll < 4; poll++) {
-      internals.applyHistory([historyEntry(7, 'COMPLETED', 4)]);
+// jsdom has no canvas, so g2 is swapped for a fake chart that records what the component asks it to draw.
+const g2 = vi.hoisted(() => {
+  class FakeMark {
+    public readonly dataCalls: unknown[][] = [];
+    public readonly scales: Array<[string, { domain: unknown[] }]> = [];
+    public readonly interactions: Array<[string, unknown]> = [];
+
+    public encode(): this {
+      return this;
+    }
+    public axis(): this {
+      return this;
+    }
+    public legend(): this {
+      return this;
+    }
+    public animate(): this {
+      return this;
+    }
+    public style(): this {
+      return this;
+    }
+    public tooltip(): this {
+      return this;
+    }
+    public data(data: unknown[]): this {
+      this.dataCalls.push(data);
+      return this;
+    }
+    public scale(channel: string, options: { domain: unknown[] }): this {
+      this.scales.push([channel, options]);
+      return this;
+    }
+    public interaction(name: string, options: unknown): this {
+      this.interactions.push([name, options]);
+      return this;
+    }
+  }
+
+  class FakeChart {
+    public static readonly instances: FakeChart[] = [];
+    public readonly marks: FakeMark[] = [];
+    public readonly handlers = new Map<string, (event?: unknown) => void>();
+    public readonly emitted: Array<[string, unknown]> = [];
+    public readonly attrs = new Map<string, unknown>();
+    public readonly interactions: Array<[string, unknown]> = [];
+    public renders = 0;
+    public destroyed = false;
+
+    constructor(public readonly options: Record<string, unknown>) {
+      FakeChart.instances.push(this);
     }
 
-    expect(loadDetails).toHaveBeenCalledTimes(2);
-  });
-
-  it('draws a failed savepoint as failed, and an in-progress one as a savepoint', () => {
-    const savepoint = (status: string): CheckpointHistory => ({ ...historyEntry(7, status, 4), is_savepoint: true });
-
-    expect(internals.toStripDatum(savepoint('FAILED')).status).toBe('FAILED');
-    expect(internals.toStripDatum(savepoint('IN_PROGRESS')).status).toBe('SAVEPOINT');
-  });
-
-  it.each([
-    [undefined, 15_000],
-    [0, 15_000],
-    [100, 1_500],
-    [5_000, 5_000],
-    [60_000, 15_000],
-    // Long.MAX_VALUE: periodic checkpointing disabled.
-    [2 ** 63, 15_000]
-  ])('polls every %s ms checkpoint interval at %s ms', (interval, delay) => {
-    component.config = { interval } as CheckpointConfig;
-
-    expect(internals.computePollDelayMs()).toBe(delay);
-  });
-
-  it('keeps polling after a failed stats request', () => {
-    vi.useFakeTimers();
-    loadStats
-      .mockReturnValueOnce(throwError(() => serverError))
-      .mockReturnValue(of({ history: [historyEntry(7, 'COMPLETED', 4)] }));
-    loadDetails.mockReturnValue(of({ a: details(), b: details() }));
-
-    internals.startPolling();
-    expect(loadStats).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(15_000);
-
-    expect(loadStats).toHaveBeenCalledTimes(2);
-    expect(component.selected?.id).toBe(7);
-  });
+    public interval(): FakeMark {
+      const mark = new FakeMark();
+      this.marks.push(mark);
+      return mark;
+    }
+    public coordinate(): this {
+      return this;
+    }
+    public interaction(name: string, options: unknown): this {
+      this.interactions.push([name, options]);
+      return this;
+    }
+    public on(event: string, handler: (event?: unknown) => void): this {
+      this.handlers.set(event, handler);
+      return this;
+    }
+    public emit(event: string, payload?: unknown): void {
+      this.emitted.push([event, payload]);
+    }
+    public attr(key: string, value: unknown): this {
+      this.attrs.set(key, value);
+      return this;
+    }
+    public render(): Promise<this> {
+      this.renders++;
+      return Promise.resolve(this);
+    }
+    public forceFit(): Promise<void> {
+      return Promise.resolve();
+    }
+    public destroy(): void {
+      this.destroyed = true;
+    }
+  }
+  return { FakeChart };
 });
 
-interface Recorder {
-  data: ReturnType<typeof vi.fn>;
-  scale: ReturnType<typeof vi.fn>;
-}
+vi.mock('@antv/g2', () => ({ Chart: g2.FakeChart }));
 
-describe('JobCheckpointsTimelineComponent row window', () => {
-  let component: JobCheckpointsTimelineComponent;
-  let phases: Recorder;
-  let internals: {
-    createTimelineChart: () => unknown;
-    renderTimeline: (datum: ReturnType<typeof checkpoint>, perVertex: Record<string, CheckpointSubTask>) => void;
-    timelineScroll: ElementRef<HTMLDivElement>;
-  };
+type FakeChart = InstanceType<typeof g2.FakeChart>;
 
-  const recorder = (): Recorder => {
-    const m = { data: vi.fn(), scale: vi.fn() };
-    m.data.mockReturnValue(m);
-    m.scale.mockReturnValue(m);
-    return m;
-  };
-  const render = (subtasks: number): void =>
-    internals.renderTimeline(checkpoint('COMPLETED', 400), {
-      a: details(...Array.from({ length: subtasks }, (_, i) => completed(i, { async: 5 + i })))
-    });
-  const lastScale = (channel: string): { domain: unknown[] } =>
-    phases.scale.mock.calls.filter(([c]) => c === channel).at(-1)?.[1];
-  const shownRows = (): unknown[] => lastScale('x').domain;
-  const scrollTo = (row: number): void => {
-    internals.timelineScroll = new ElementRef({ scrollTop: row * 22 } as HTMLDivElement);
-    component.onTimelineScroll();
-  };
+describe('JobCheckpointsTimelineComponent', () => {
+  let fixture: ComponentFixture<JobCheckpointsTimelineComponent>;
+  let element: HTMLElement;
+  let loadStats: ReturnType<typeof vi.fn>;
+  let loadDetails: ReturnType<typeof vi.fn>;
+  // The Timeline tab is shown when the strip has a width; jsdom lays nothing out, so the width is faked.
+  let stripWidth: number;
+  let resizeCallbacks: Array<() => void>;
+  const serverError = new HttpErrorResponse({ status: 500 });
 
-  beforeEach(() => {
-    component = new JobCheckpointsTimelineComponent(
-      {} as JobService,
-      { markForCheck: () => undefined } as unknown as ChangeDetectorRef
+  const strip = (): FakeChart => g2.FakeChart.instances[0];
+  const timeline = (): FakeChart | undefined => g2.FakeChart.instances.slice(1).filter(c => !c.destroyed)[0];
+  const timelineCharts = (): FakeChart[] => g2.FakeChart.instances.slice(1);
+  const stripData = (): StripDatum[] => strip().marks[0].dataCalls.at(-1) as StripDatum[];
+  const stripBar = (id: number): StripDatum => stripData().find(d => d.id === id)!;
+  const detailsRequests = (): Array<[string, number]> =>
+    loadDetails.mock.calls.map(([jobId, id]) => [jobId as string, id as number]);
+  const text = (): string => element.textContent!.replace(/\s+/g, ' ');
+
+  const setHistory = (history: CheckpointHistory[]): void => {
+    fixture.componentRef.setInput('history', history);
+    fixture.detectChanges();
+  };
+  const mount = (history: CheckpointHistory[], vertexIds = ['a'], config?: CheckpointConfig): void => {
+    fixture.componentRef.setInput('jobId', 'job-1');
+    fixture.componentRef.setInput(
+      'vertices',
+      vertexIds.map(id => vertex(id, id === 'a' ? 'Agg' : id === 's' ? 'Sink' : id))
     );
-    internals = component as unknown as typeof internals;
-    phases = recorder();
-    const chart = { attr: vi.fn(), render: vi.fn(), destroy: vi.fn() };
-    internals.createTimelineChart = () => ({ chart, phases, unacked: recorder(), instants: recorder() });
-    component.vertices = [vertex('a', 'Agg')];
-    internals.timelineScroll = new ElementRef({ scrollTop: 0 } as HTMLDivElement);
+    fixture.componentRef.setInput('config', config);
+    setHistory(history);
+    // ngAfterViewInit loads the newest checkpoint and starts polling, after the first check of the view.
+    fixture.detectChanges();
+  };
+  const clickBar = (id: number): void => {
+    strip().handlers.get('interval:click')!({ data: { data: stripBar(id) } });
+    fixture.detectChanges();
+  };
+  const showTab = (): void => {
+    stripWidth = 800;
+    resizeCallbacks.forEach(callback => callback());
+    fixture.detectChanges();
+  };
+
+  beforeEach(async () => {
+    g2.FakeChart.instances.length = 0;
+    loadStats = vi.fn().mockReturnValue(NEVER);
+    loadDetails = vi.fn().mockReturnValue(of({ a: details(completed(0, { async: 5 })) }));
+    stripWidth = 800;
+    resizeCallbacks = [];
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => stripWidth);
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          resizeCallbacks.push(callback);
+        }
+        public observe(): void {}
+        public disconnect(): void {}
+      }
+    );
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
     });
+    await TestBed.configureTestingModule({
+      imports: [JobCheckpointsTimelineComponent],
+      providers: [
+        {
+          provide: JobService,
+          useValue: { loadCheckpointStats: loadStats, loadCheckpointAllSubtaskDetails: loadDetails }
+        }
+      ]
+    }).compileComponents();
+    fixture = TestBed.createComponent(JobCheckpointsTimelineComponent);
+    element = fixture.nativeElement as HTMLElement;
   });
 
-  afterEach(() => vi.unstubAllGlobals());
-
-  // In render(), a higher subtask index finishes later, so the slowest 25 of 300 are #275–#299.
-  it('shows the 25 slowest subtasks in operator order, and offers up to 200 or the row count', () => {
-    render(300);
-    expect(shownRows()).toEqual(Array.from({ length: 25 }, (_, i) => `Agg #${275 + i}`));
-    expect(new Set((phases.data.mock.calls.at(-1)?.[0] as Array<{ row: string }>).map(r => r.row)).size).toBe(25);
-    expect([component.scrollable, component.chartHeight]).toEqual([false, 25 * 22 + 56]);
-    expect(component.slowestCountOptions).toEqual([25, 50, 75, 100, 125, 150, 175, 200]);
-
-    render(60);
-    expect(component.slowestCountOptions).toEqual([25, 50, 60]);
-
-    render(20);
-    expect([component.shownRows, component.scrollable, component.slowestCountOptions]).toEqual([20, false, []]);
-    expect(component.chartHeight).toBe(20 * 22 + 56);
+  afterEach(() => {
+    fixture.destroy();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
-  it('scrolls through more of the slowest than fit, without moving the time scale', () => {
-    render(300);
-    const timeDomain = lastScale('y').domain;
+  describe('strip', () => {
+    it('draws the recent checkpoints oldest first in a 160px chart', () => {
+      mount([historyEntry(9, 'COMPLETED', 4), historyEntry(8, 'FAILED', 2), historyEntry(7, 'COMPLETED', 4)]);
 
-    component.setSlowestCount(100);
-    expect([component.scrollable, shownRows()[0], component.chartHeight]).toEqual([true, 'Agg #200', 25 * 22 + 56]);
-    scrollTo(30);
+      expect(strip().options['height']).toBe(160);
+      expect(stripData().map(d => [d.id, d.status])).toEqual([
+        [7, 'COMPLETED'],
+        [8, 'FAILED'],
+        [9, 'COMPLETED']
+      ]);
+      expect(text()).not.toContain('No checkpoint history yet');
+    });
 
-    expect([component.firstRow, shownRows()[0], shownRows().length]).toEqual([30, 'Agg #230', 25]);
-    expect(lastScale('y').domain).toEqual(timeDomain);
+    it('says when there is no checkpoint history', () => {
+      mount([]);
+
+      expect(text()).toContain('No checkpoint history yet');
+      expect(text()).toContain('Per-subtask Timeline');
+    });
+
+    it('redraws only when the bars or the pin change', () => {
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      const renders = strip().renders;
+
+      setHistory([historyEntry(7, 'COMPLETED', 4)]);
+      expect(strip().renders).toBe(renders);
+      clickBar(7);
+      expect(strip().renders).toBe(renders + 1);
+      setHistory([historyEntry(8, 'IN_PROGRESS', 0), historyEntry(7, 'COMPLETED', 4)]);
+      expect(strip().renders).toBe(renders + 2);
+      // The bars moved, so an open tooltip would point at the wrong one.
+      expect(strip().emitted.at(-1)).toEqual(['tooltip:hide', undefined]);
+    });
+
+    it('shows the tooltip only while the pointer is over a bar', () => {
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      const pointer = (event: string, payload?: unknown): void => strip().handlers.get(event)!(payload);
+
+      expect(strip().marks[0].interactions).toContainEqual(['tooltip', { disableNative: true, wait: 0 }]);
+      strip().emitted.length = 0;
+      pointer('interval:pointermove', { data: { data: stripBar(7) } });
+      pointer('plot:pointermove', { target: { className: 'element' } });
+      pointer('interval:pointerout');
+      // Over the plot but off the bars, e.g. after a re-render moved them.
+      pointer('plot:pointermove', { target: { className: 'plot' } });
+
+      expect(strip().emitted).toEqual([
+        ['tooltip:show', { data: { data: stripBar(7) } }],
+        ['tooltip:hide', undefined],
+        ['tooltip:hide', undefined]
+      ]);
+    });
   });
 
-  it('keeps the window within the picked rows, and starts from the top for another count', () => {
-    render(300);
-    component.setSlowestCount(100);
-    scrollTo(90);
-    expect(component.firstRow).toBe(75);
+  describe('selection', () => {
+    it('follows the newest checkpoint', () => {
+      mount([historyEntry(8, 'COMPLETED', 4), historyEntry(7, 'COMPLETED', 4)]);
 
-    component.setSlowestCount(50);
+      expect(text()).toContain('Checkpoint #8');
+      expect(element.querySelector('.pin-badge')).toBeNull();
+      expect(detailsRequests()).toEqual([['job-1', 8]]);
+    });
 
-    expect([component.firstRow, internals.timelineScroll.nativeElement.scrollTop, shownRows()[0]]).toEqual([
-      0,
-      0,
-      'Agg #250'
+    it('pins a clicked checkpoint until Follow newest is clicked', () => {
+      mount([historyEntry(8, 'COMPLETED', 4), historyEntry(7, 'COMPLETED', 4)]);
+
+      clickBar(7);
+      expect(text()).toContain('Checkpoint #7');
+      expect(element.querySelector('nz-tag.pin-badge')?.textContent?.trim()).toBe('pinned');
+      setHistory([historyEntry(9, 'COMPLETED', 4), historyEntry(8, 'COMPLETED', 4), historyEntry(7, 'COMPLETED', 4)]);
+      expect(text()).toContain('Checkpoint #7');
+
+      const followNewest = element.querySelector<HTMLButtonElement>('button.follow-newest')!;
+      expect(followNewest.classList).toContain('ant-btn');
+      followNewest.click();
+      fixture.detectChanges();
+
+      expect(text()).toContain('Checkpoint #9');
+      expect(element.querySelector('.pin-badge')).toBeNull();
+      expect(element.querySelector('button.follow-newest')).toBeNull();
+    });
+
+    it('explains when the pinned checkpoint leaves the strip', () => {
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      clickBar(7);
+
+      setHistory([historyEntry(9, 'COMPLETED', 4), historyEntry(8, 'COMPLETED', 4)]);
+
+      expect(text()).toContain('Checkpoint #7 is no longer in the recent-checkpoints strip above');
+    });
+
+    it('follows the newest checkpoint again once the history empties while pinned', () => {
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      clickBar(7);
+
+      setHistory([]);
+      expect(text()).toContain('Per-subtask Timeline');
+      setHistory([historyEntry(1, 'COMPLETED', 4)]);
+
+      expect(text()).toContain('Checkpoint #1');
+      expect(element.querySelector('.pin-badge')).toBeNull();
+    });
+  });
+
+  describe('reloads', () => {
+    it('reloads the followed checkpoint once it completes, without waiting for a newer one', () => {
+      mount([historyEntry(7, 'IN_PROGRESS', 2)]);
+      setHistory([historyEntry(7, 'COMPLETED', 4)]);
+
+      expect(detailsRequests()).toEqual([
+        ['job-1', 7],
+        ['job-1', 7]
+      ]);
+      expect(text()).toContain('acked 4/4');
+    });
+
+    it('updates one timeline chart across reloads instead of rebuilding it', () => {
+      mount([historyEntry(7, 'IN_PROGRESS', 2)]);
+      setHistory([historyEntry(7, 'COMPLETED', 4)]);
+
+      expect(timelineCharts().length).toBe(1);
+      expect([timeline()!.renders, timeline()!.destroyed]).toEqual([2, false]);
+    });
+
+    it('does not reload when nothing changed or while a load is in flight', () => {
+      mount([historyEntry(7, 'IN_PROGRESS', 2)]);
+      setHistory([historyEntry(7, 'IN_PROGRESS', 2)]);
+      loadDetails.mockReturnValue(NEVER);
+      setHistory([historyEntry(7, 'IN_PROGRESS', 3)]);
+      setHistory([historyEntry(7, 'IN_PROGRESS', 4)]);
+
+      expect(detailsRequests().length).toBe(2);
+    });
+
+    it('keeps refreshing a pinned in-progress checkpoint until it finishes', () => {
+      mount([historyEntry(7, 'IN_PROGRESS', 2)]);
+      clickBar(7);
+      setHistory([historyEntry(8, 'IN_PROGRESS', 0), historyEntry(7, 'IN_PROGRESS', 3)]);
+      setHistory([historyEntry(8, 'IN_PROGRESS', 1), historyEntry(7, 'COMPLETED', 4)]);
+      setHistory([historyEntry(8, 'COMPLETED', 4), historyEntry(7, 'COMPLETED', 4)]);
+
+      expect(detailsRequests().map(([, id]) => id)).toEqual([7, 7, 7, 7]);
+      expect(text()).toContain('Checkpoint #7');
+      expect(text()).toContain('acked 4/4');
+      expect(element.querySelector('.pin-badge')).not.toBeNull();
+    });
+
+    it('re-selects a finished checkpoint from the cache, and fetches an in-progress savepoint again', () => {
+      mount([historyEntry(8, 'IN_PROGRESS', 2, true), historyEntry(7, 'COMPLETED', 4, true)]);
+      clickBar(7);
+      clickBar(8);
+      clickBar(7);
+      clickBar(8);
+
+      expect(detailsRequests().map(([, id]) => id)).toEqual([8, 7, 8, 8]);
+    });
+
+    it('keeps cached details only for checkpoints still in the strip, plus the pinned one', () => {
+      // The cache isn't visible in the page, so this one reads it.
+      const cached = (): number[] =>
+        [...(fixture.componentInstance as unknown as { detailsCache: Map<number, unknown> }).detailsCache.keys()].sort(
+          (a, b) => a - b
+        );
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      clickBar(7);
+      setHistory([historyEntry(9, 'COMPLETED', 4), historyEntry(8, 'COMPLETED', 4)]);
+      expect(cached()).toEqual([7]);
+
+      element.querySelector<HTMLButtonElement>('button.follow-newest')!.click();
+      setHistory([historyEntry(10, 'COMPLETED', 4), historyEntry(9, 'COMPLETED', 4)]);
+      expect(cached()).toEqual([9, 10]);
+    });
+  });
+
+  describe('loading', () => {
+    it('does not fetch subtask details until the Timeline tab is shown', () => {
+      stripWidth = 0;
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      expect(loadDetails).not.toHaveBeenCalled();
+      expect(loadStats).not.toHaveBeenCalled();
+
+      showTab();
+
+      expect(detailsRequests()).toEqual([['job-1', 7]]);
+      expect(loadStats).toHaveBeenCalledWith('job-1');
+      expect(timeline()).toBeDefined();
+    });
+
+    it('says the JobManager no longer retains the checkpoint when every vertex returns 404', () => {
+      loadDetails.mockReturnValue(of({ a: null }));
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+
+      expect(text()).toContain('the JobManager no longer retains this checkpoint');
+      expect(timeline()).toBeUndefined();
+    });
+
+    it('reports other request errors as a failed request, and retries once rather than on every poll', () => {
+      loadDetails.mockReturnValue(throwError(() => serverError));
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+      expect(text()).toContain('the request to the JobManager failed');
+
+      for (let poll = 0; poll < 3; poll++) {
+        setHistory([historyEntry(7, 'COMPLETED', 4)]);
+      }
+
+      expect(loadDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('draws a partial load with a warning, and does not cache it', () => {
+      loadDetails.mockReturnValue(of({ a: details(completed(0, { async: 5 })), b: null }));
+      mount([historyEntry(7, 'COMPLETED', 4)], ['a', 'b']);
+
+      expect(text()).toContain('1 of 2 operators failed to load — the timeline below is incomplete.');
+      expect(timeline()!.marks[0].dataCalls.at(-1)).toHaveLength(1);
+      clickBar(7);
+      expect(loadDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('drops a load still in flight when the job changes', () => {
+      const response = new Subject<Record<string, CheckpointSubTask | null>>();
+      loadDetails.mockReturnValue(response);
+      mount([historyEntry(42, 'COMPLETED', 4)]);
+
+      fixture.componentRef.setInput('jobId', 'job-2');
+      fixture.detectChanges();
+      response.next({ a: details(completed(0, { async: 5 })) });
+      expect(timeline()).toBeUndefined();
+
+      loadDetails.mockReturnValue(of({ a: details(completed(0, { async: 5 })) }));
+      setHistory([historyEntry(42, 'COMPLETED', 4)]);
+      expect(detailsRequests()).toEqual([
+        ['job-1', 42],
+        ['job-2', 42]
+      ]);
+    });
+  });
+
+  describe('polling', () => {
+    const stats = (history: CheckpointHistory[]): Observable<Checkpoint> => of({ history } as Checkpoint);
+
+    it('shows polled history before the parent passes any', () => {
+      loadStats.mockReturnValue(stats([historyEntry(7, 'COMPLETED', 4)]));
+      mount([]);
+
+      expect(text()).not.toContain('No checkpoint history yet');
+      expect(text()).toContain('Checkpoint #7');
+    });
+
+    it('drops a stats poll for the previous job that lands after the job changes', () => {
+      const oldJobStats = new Subject<Checkpoint>();
+      loadStats.mockReturnValue(oldJobStats);
+      mount([]);
+
+      fixture.componentRef.setInput('jobId', 'job-2');
+      fixture.detectChanges();
+      oldJobStats.next({ history: [historyEntry(42, 'COMPLETED', 4)] } as Checkpoint);
+      fixture.detectChanges();
+
+      expect(loadStats).toHaveBeenCalledWith('job-1');
+      expect(text()).toContain('No checkpoint history yet');
+      expect(loadDetails).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [undefined, 15_000],
+      [0, 15_000],
+      [100, 1_500],
+      [5_000, 5_000],
+      [60_000, 15_000],
+      // Long.MAX_VALUE: periodic checkpointing disabled.
+      [2 ** 63, 15_000]
+    ])('polls a job with a %s ms checkpoint interval every %s ms', (interval, delay) => {
+      vi.useFakeTimers();
+      loadStats.mockReturnValue(stats([historyEntry(7, 'COMPLETED', 4)]));
+      mount([], ['a'], { interval } as CheckpointConfig);
+      expect(loadStats).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(delay - 1);
+      expect(loadStats).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1);
+      expect(loadStats).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the last stats on a failed poll, marked as stale, and keeps polling', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 0, 1, 10, 20, 30));
+      loadStats
+        .mockReturnValueOnce(throwError(() => serverError))
+        .mockReturnValue(stats([historyEntry(8, 'COMPLETED', 4), historyEntry(7, 'COMPLETED', 4)]));
+      mount([historyEntry(7, 'COMPLETED', 4)]);
+
+      expect(text()).toContain('Checkpoint #7');
+      expect(element.querySelector('nz-alert.stale-stats')?.textContent).toContain(
+        'Could not refresh the checkpoint statistics from the JobManager; showing the ones loaded at 10:20:30. Retrying.'
+      );
+
+      vi.advanceTimersByTime(15_000);
+      fixture.detectChanges();
+
+      expect(element.querySelector('nz-alert.stale-stats')).toBeNull();
+      expect(text()).toContain('Checkpoint #8');
+    });
+  });
+
+  describe('row window', () => {
+    let nextId = 1;
+    const phases = (): FakeChart['marks'][number] => timeline()!.marks[0];
+    const lastScale = (channel: string): { domain: unknown[] } =>
+      phases()
+        .scales.filter(([c]) => c === channel)
+        .at(-1)![1];
+    const shownRows = (): unknown[] => lastScale('x').domain;
+    const scrollBox = (): HTMLDivElement => element.querySelector<HTMLDivElement>('.timeline-scroll')!;
+    // A checkpoint of one operator where a higher subtask index finishes later: the slowest 25 of 300 are #275–#299.
+    const showSubtasks = (count: number): void => {
+      loadDetails.mockReturnValue(
+        of({ a: details(...Array.from({ length: count }, (_, i) => completed(i, { async: 5 + i }))) })
+      );
+      setHistory([historyEntry(nextId++, 'COMPLETED', 4)]);
+    };
+    const scrollTo = (row: number): void => {
+      Object.defineProperty(scrollBox(), 'scrollTop', { value: row * 22, writable: true, configurable: true });
+      scrollBox().dispatchEvent(new Event('scroll'));
+      fixture.detectChanges();
+    };
+    const toggleSlowestFirst = (): void => {
+      element.querySelector<HTMLLabelElement>('label.slowest-first')!.click();
+      fixture.detectChanges();
+    };
+    const pickSlowest = (count: number): void => {
+      fixture.componentInstance.setSlowestCount(count);
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => mount([]));
+
+    it('shows the 25 slowest subtasks in operator order, and offers up to 200 or the row count', async () => {
+      showSubtasks(300);
+      // ngModel writes the select's value asynchronously.
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(shownRows()).toEqual(Array.from({ length: 25 }, (_, i) => `Agg #${275 + i}`));
+      expect(new Set((phases().dataCalls.at(-1) as Array<{ row: string }>).map(r => r.row)).size).toBe(25);
+      expect(timeline()!.attrs.get('height')).toBe(25 * 22 + 56);
+      expect(text()).toContain('Showing the 25 slowest of 300 subtasks');
+      expect(element.querySelector('nz-select.row-count')).not.toBeNull();
+      expect(scrollBox().classList).not.toContain('scrollable');
+      expect(fixture.componentInstance.slowestCountOptions).toEqual([25, 50, 75, 100, 125, 150, 175, 200]);
+
+      showSubtasks(60);
+      expect(fixture.componentInstance.slowestCountOptions).toEqual([25, 50, 60]);
+
+      showSubtasks(20);
+      expect(element.querySelector('nz-select.row-count')).toBeNull();
+      expect(timeline()!.attrs.get('height')).toBe(20 * 22 + 56);
+    });
+
+    it('scrolls through more of the slowest than fit, without moving the time scale', () => {
+      showSubtasks(300);
+      const timeDomain = lastScale('y').domain;
+
+      pickSlowest(100);
+      expect(scrollBox().classList).toContain('scrollable');
+      expect(scrollBox().style.height).toBe(`${25 * 22 + 56}px`);
+      expect([shownRows()[0], text().includes('rows 1–25')]).toEqual(['Agg #200', true]);
+      scrollTo(30);
+
+      expect([shownRows()[0], shownRows().length, text().includes('rows 31–55')]).toEqual(['Agg #230', 25, true]);
+      expect(lastScale('y').domain).toEqual(timeDomain);
+    });
+
+    it('keeps the window within the picked rows, and starts from the top for another count', () => {
+      showSubtasks(300);
+      pickSlowest(100);
+      scrollTo(90);
+      expect(text()).toContain('rows 76–100');
+
+      pickSlowest(50);
+
+      expect([scrollBox().scrollTop, shownRows()[0]]).toEqual([0, 'Agg #250']);
+      expect(text()).toContain('rows 1–25');
+    });
+
+    it('sorts the picked rows by when they finished, latest first, and starts again from the top', () => {
+      showSubtasks(300);
+      pickSlowest(50);
+      scrollTo(10);
+
+      toggleSlowestFirst();
+
+      expect(scrollBox().scrollTop).toBe(0);
+      expect(shownRows().slice(0, 3)).toEqual(['Agg #299', 'Agg #298', 'Agg #297']);
+      toggleSlowestFirst();
+      expect(shownRows()[0]).toBe('Agg #250');
+    });
+
+    it('puts subtasks without an ack first when sorting, keeping operator order for ties', () => {
+      fixture.componentRef.setInput('vertices', [vertex('a', 'Agg'), vertex('s', 'Sink')]);
+      loadDetails.mockReturnValue(
+        of({
+          a: details(completed(0, { async: 10 }), noStats(1), completed(2, { async: 30 })),
+          s: details(noStats(0), completed(1, { async: 30 }))
+        })
+      );
+      setHistory([historyEntry(nextId++, 'FAILED', 3)]);
+
+      toggleSlowestFirst();
+
+      expect(shownRows()).toEqual(['Agg #1', 'Sink #0', 'Agg #2', 'Sink #1', 'Agg #0']);
+    });
+
+    it('counts aborted subtasks as the slowest, however short their reported phases', () => {
+      // A failed checkpoint: 30 subtasks finished, #30 was aborted after reporting 1ms, #31 never acked.
+      loadDetails.mockReturnValue(
+        of({
+          a: details(
+            ...Array.from({ length: 30 }, (_, i) => completed(i, { async: 5 + i })),
+            completed(30, { async: 1 }, true),
+            noStats(31)
+          )
+        })
+      );
+      setHistory([historyEntry(nextId++, 'FAILED', 30)]);
+
+      expect(shownRows()).toContain('Agg #30');
+      expect(shownRows()).toContain('Agg #31');
+      toggleSlowestFirst();
+      expect(shownRows().slice(0, 3)).toEqual(['Agg #30', 'Agg #31', 'Agg #29']);
+    });
+  });
+
+  it('highlights the hovered row across the timeline', () => {
+    mount([historyEntry(7, 'COMPLETED', 4)]);
+
+    expect(timeline()!.interactions).toContainEqual(['elementHighlightByX', true]);
+  });
+
+  it('shows a timeline tooltip only over a bar, next to the pointer, and hides it when the rows are redrawn', () => {
+    mount([historyEntry(7, 'COMPLETED', 4)]);
+    const chart = timeline()!;
+    const pointer = (event: string, payload?: unknown): void => chart.handlers.get(event)!(payload);
+    const bar = { phase: 'async' };
+    const plot = { className: 'plot', getBBox: () => ({ x: 50, y: 20 }) };
+
+    expect(chart.interactions).toContainEqual(['tooltip', expect.objectContaining({ disableNative: true, wait: 0 })]);
+    chart.emitted.length = 0;
+    pointer('interval:pointermove', {
+      data: { data: bar },
+      canvas: { x: 80, y: 30 },
+      target: { className: 'element', parentNode: { className: 'group', parentNode: plot } }
+    });
+    pointer('plot:pointermove', { target: { className: 'plot' } });
+    clickBar(7);
+
+    expect(chart.emitted).toEqual([
+      // g2 takes the position relative to the plot area.
+      ['tooltip:show', { offsetX: 30, offsetY: 10, data: { data: bar } }],
+      ['tooltip:hide', undefined],
+      ['tooltip:hide', undefined]
     ]);
-  });
-
-  it('sorts the picked rows by when they finished, latest first, and starts again from the top', () => {
-    render(300);
-    component.setSlowestCount(50);
-    scrollTo(10);
-
-    component.setSlowestFirst(true);
-
-    expect([component.firstRow, internals.timelineScroll.nativeElement.scrollTop]).toEqual([0, 0]);
-    expect(shownRows().slice(0, 3)).toEqual(['Agg #299', 'Agg #298', 'Agg #297']);
-    component.setSlowestFirst(false);
-    expect(shownRows()[0]).toBe('Agg #250');
-  });
-
-  it('puts subtasks without an ack first when sorting, keeping operator order for ties', () => {
-    component.vertices = [vertex('a', 'Agg'), vertex('s', 'Sink')];
-    internals.renderTimeline(checkpoint('FAILED', 50), {
-      a: details(completed(0, { async: 10 }), noStats(1), completed(2, { async: 30 })),
-      s: details(noStats(0), completed(1, { async: 30 }))
-    });
-
-    component.setSlowestFirst(true);
-
-    expect(shownRows()).toEqual(['Agg #1', 'Sink #0', 'Agg #2', 'Sink #1', 'Agg #0']);
-  });
-
-  it('counts aborted subtasks as the slowest, however short their reported phases', () => {
-    // A failed checkpoint: 30 subtasks finished, #30 was aborted after reporting 1ms, #31 never acked.
-    internals.renderTimeline(checkpoint('FAILED', 400), {
-      a: details(
-        ...Array.from({ length: 30 }, (_, i) => completed(i, { async: 5 + i })),
-        completed(30, { async: 1 }, true),
-        noStats(31)
-      )
-    });
-
-    expect(shownRows()).toContain('Agg #30');
-    expect(shownRows()).toContain('Agg #31');
-    component.setSlowestFirst(true);
-    expect(shownRows().slice(0, 3)).toEqual(['Agg #30', 'Agg #31', 'Agg #29']);
   });
 });

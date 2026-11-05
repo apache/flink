@@ -29,6 +29,7 @@ import {
   SimpleChanges,
   ViewChild
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, defer, EMPTY, Observable, of, Subject, timer } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, map, repeat, switchMap, takeUntil } from 'rxjs/operators';
 
@@ -36,21 +37,34 @@ import { Chart } from '@antv/g2';
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import {
+  Checkpoint,
   CheckpointConfig,
   CheckpointHistory,
   CheckpointSubTask,
-  CompletedSubTaskCheckpointStatistics,
-  SubTaskCheckpointStatisticsItem,
   VerticesItem
 } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { formatTimeAxis, startAlignedTicks } from '@flink-runtime-web/utils';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
-type PhaseKey = 'start_delay' | 'alignment' | 'sync' | 'async';
+import {
+  buildTimelineRows,
+  InstantDatum,
+  PhaseKey,
+  slowestFirstOrder,
+  StripDatum,
+  TimelineDatum,
+  TimelineRows,
+  toStripDatum,
+  UnackedDatum
+} from './checkpoint-timeline-rows';
 
 // 'not-retained': every vertex returned 404, i.e. the JobManager no longer keeps this checkpoint's stats.
 type LoadError = 'not-retained' | 'request-failed';
@@ -63,59 +77,7 @@ interface TimelineLoad {
   error?: LoadError;
 }
 
-interface StripDatum {
-  id: number;
-  idLabel: string;
-  duration: number;
-  status: 'COMPLETED' | 'SAVEPOINT' | 'IN_PROGRESS' | 'FAILED';
-  rawStatus: string;
-  isSavepoint: boolean;
-  triggered: number;
-  acked: string;
-  size: number;
-}
-
-interface TimelineDatum {
-  row: string;
-  operatorFull: string;
-  subtask: number;
-  phase: PhaseKey;
-  phaseLabel: string;
-  range: [number, number];
-  durationMs: number;
-  aborted: boolean;
-  stateSize: number;
-  checkpointedSize: number;
-  totalDuration: number;
-}
-
-// A subtask that reported no stats for the checkpoint, drawn as one hatched bar spanning it.
-interface UnackedDatum {
-  row: string;
-  operatorFull: string;
-  subtask: number;
-  label: 'no ack' | 'pending';
-  range: [number, number];
-}
-
-// A subtask whose phases all rounded to 0ms, drawn as a hairline at trigger time so its row isn't empty.
-interface InstantDatum {
-  row: string;
-  operatorFull: string;
-  subtask: number;
-  aborted: boolean;
-  stateSize: number;
-  checkpointedSize: number;
-  range: [number, number];
-}
-
-interface TimelineRows {
-  rows: TimelineDatum[];
-  unacked: UnackedDatum[];
-  instants: InstantDatum[];
-  rowOrder: string[];
-}
-
+// The legend swatches in the .less file use the theme's palette tokens for the same colors.
 const STRIP_COLOR: Record<StripDatum['status'], string> = {
   COMPLETED: '#52c41a',
   SAVEPOINT: '#722ed1',
@@ -127,7 +89,7 @@ const STRIP_STATUSES = Object.keys(STRIP_COLOR) as Array<StripDatum['status']>;
 
 const PHASE_COLOR: Record<PhaseKey, string> = {
   start_delay: '#b8c0cc',
-  alignment: '#91caff',
+  alignment: '#91d5ff',
   sync: '#fa8c16',
   async: '#52c41a'
 };
@@ -138,8 +100,6 @@ const NOT_COMPLETED_STROKE = '#f5222d';
 const NO_ACK_FILL = '#fff1f0';
 const NO_ACK_STRIPE = '#ffa39e';
 const INSTANT_FILL = '#8c8c8c';
-
-const OPERATOR_NAME_MAX = 60;
 
 type IntervalMark = ReturnType<Chart['interval']>;
 
@@ -160,11 +120,16 @@ interface TimelineChart {
     NgFor,
     NgIf,
     DatePipe,
+    FormsModule,
     HumanizeDurationPipe,
     HumanizeBytesPipe,
     NzAlertModule,
+    NzButtonModule,
+    NzCheckboxModule,
     NzEmptyModule,
+    NzSelectModule,
     NzSpinModule,
+    NzTagModule,
     NzTooltipModule
   ]
 })
@@ -191,12 +156,17 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   public firstRow = 0;
   public chartHeight = 0;
   public slowestFirst = false;
+  // When the shown checkpoint stats were last fetched, and whether the latest poll for them failed.
+  public statsUpdatedAt?: number;
+  public statsRefreshFailed = false;
 
   // Diverges from @Input once polling starts feeding live updates.
   private currentHistory: CheckpointHistory[] = [];
   public userPinned = false;
   private stripChart?: Chart;
   private stripInterval?: IntervalMark;
+  // What the strip last drew; polls that change nothing skip the redraw, which would drop an open tooltip.
+  private stripDrawn?: string;
   private timeline?: TimelineChart;
   // Full operator name per row label, for the native tooltip on the truncated labels.
   private rowTitles = new Map<string, string>();
@@ -219,6 +189,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   private static readonly POLL_MIN_MS = 1500;
   private static readonly POLL_MAX_MS = 15000;
   private static readonly STRIP_MAX_BARS = 60;
+  private static readonly STRIP_HEIGHT = 160;
   private static readonly TIMELINE_ROW_HEIGHT = 22;
   // paddingTop (time axis) + paddingBottom, plus a little slack.
   private static readonly TIMELINE_HEIGHT_BASE = 56;
@@ -245,7 +216,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     this.renderStrip();
     this.subscribeTimelineLoads();
     if (this.currentHistory.length > 0) {
-      this.selectInternal(this.toStripDatum(this.currentHistory[0]), false);
+      this.selectInternal(toStripDatum(this.currentHistory[0]), false);
     }
     this.startPolling();
     // G2 locks autoFit at construction; re-fit + resume polling once width is real.
@@ -274,6 +245,8 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       this.userPinned = false;
       this.selected = undefined;
       this.currentHistory = [];
+      this.statsUpdatedAt = undefined;
+      this.statsRefreshFailed = false;
       // Otherwise a load still in flight for the old job lands in the cache under an id the new job reuses.
       this.loadTimeline$.next(null);
       this.detailsCache.clear();
@@ -282,6 +255,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       this.renderStrip();
     }
     if (changes['history']) {
+      this.markStatsFresh();
       this.applyHistory(this.history || []);
     }
     if (changes['vertices'] && !changes['vertices'].firstChange && this.selected) {
@@ -300,47 +274,25 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     this.timeline?.chart.destroy();
   }
 
-  private toStripDatum(h: CheckpointHistory): StripDatum {
-    // FAILED first, so a failed savepoint shows as failed rather than as a savepoint.
-    const status: StripDatum['status'] =
-      h.status === 'FAILED'
-        ? 'FAILED'
-        : h.is_savepoint
-          ? 'SAVEPOINT'
-          : h.status === 'IN_PROGRESS'
-            ? 'IN_PROGRESS'
-            : 'COMPLETED';
-    return {
-      id: h.id,
-      idLabel: String(h.id),
-      duration: Math.max(h.end_to_end_duration || 0, 0),
-      status,
-      rawStatus: h.status,
-      isSavepoint: h.is_savepoint,
-      triggered: h.trigger_timestamp,
-      acked: `${h.num_acknowledged_subtasks}/${h.num_subtasks}`,
-      size: h.state_size
-    };
-  }
-
   private renderStrip(): void {
     const data = (this.currentHistory || [])
       .slice(0, JobCheckpointsTimelineComponent.STRIP_MAX_BARS)
-      .map(h => this.toStripDatum(h))
+      .map(toStripDatum)
       .reverse();
 
     if (!this.stripChart || !this.stripInterval) {
       this.stripChart = new Chart({
         container: this.stripContainer.nativeElement,
         autoFit: true,
-        height: 110,
+        height: JobCheckpointsTimelineComponent.STRIP_HEIGHT,
         paddingTop: 16,
         paddingRight: 16,
         paddingBottom: 36,
         paddingLeft: 56
       });
+      const chart = this.stripChart;
       const isPinned = (d: StripDatum): boolean => this.userPinned && this.selected?.id === d.id;
-      this.stripInterval = this.stripChart
+      this.stripInterval = chart
         .interval()
         .encode('x', 'idLabel')
         .encode('y', 'duration')
@@ -365,8 +317,10 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
               value: `${d.rawStatus} · ${this.humanizeDurationPipe.transform(d.duration)} · acked ${d.acked}`
             })
           ]
-        });
-      this.stripChart.on('interval:click', (ev: { data?: { data?: StripDatum } }) => {
+        })
+        .interaction('tooltip', BARS_ONLY_TOOLTIP);
+      showTooltipOverBarsOnly(chart);
+      chart.on('interval:click', (ev: { data?: { data?: StripDatum } }) => {
         const datum = ev.data?.data;
         if (datum) {
           this.select(datum);
@@ -374,6 +328,13 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       });
     }
 
+    const drawn = JSON.stringify([this.userPinned ? this.selected?.id : null, data]);
+    if (drawn === this.stripDrawn) {
+      return;
+    }
+    this.stripDrawn = drawn;
+    // The bars move under the pointer; the next move over one shows its tooltip again.
+    this.stripChart.emit('tooltip:hide');
     this.stripInterval.scale('x', { domain: data.map(d => d.idLabel) });
     this.stripInterval.data(data);
     void this.stripChart.render();
@@ -391,7 +352,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   public followNewest(): void {
     this.userPinned = false;
     if (this.currentHistory.length > 0) {
-      this.selectInternal(this.toStripDatum(this.currentHistory[0]), false);
+      this.selectInternal(toStripDatum(this.currentHistory[0]), false);
     } else {
       this.cdr.markForCheck();
     }
@@ -425,7 +386,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     }
 
     if (!this.userPinned && nextNewestId !== prevNewestId) {
-      this.selectInternal(this.toStripDatum(next[0]), false);
+      this.selectInternal(toStripDatum(next[0]), false);
       return;
     }
     // Still showing the same checkpoint (the followed newest one, or the pinned one): reload once it gained acks or
@@ -436,7 +397,7 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     if (!selected || !latest || latest.id !== selected.id || this.loadingTimeline) {
       return;
     }
-    const current = this.toStripDatum(latest);
+    const current = toStripDatum(latest);
     const progressed = current.rawStatus !== selected.rawStatus || current.acked !== selected.acked;
     const retry =
       (this.loadError !== undefined || this.failedVertexCount > 0) && this.retriedCheckpointId !== current.id;
@@ -465,26 +426,35 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
         distinctUntilChanged(),
         switchMap(visible =>
           visible
-            ? defer(() => {
+            ? defer((): Observable<Checkpoint | 'failed'> => {
                 const jobId = this.jobId;
                 return jobId
                   ? this.jobService.loadCheckpointStats(jobId).pipe(
-                      catchError(() => of(undefined)),
+                      catchError(() => of('failed' as const)),
                       // A response for the previous job can land after a jobId change has reset the state.
                       filter(() => jobId === this.jobId)
                     )
-                  : of(undefined);
+                  : EMPTY;
               }).pipe(repeat({ delay: () => timer(this.computePollDelayMs()) }))
             : EMPTY
         ),
         takeUntil(this.destroy$)
       )
       .subscribe(stats => {
-        if (!stats) {
+        if (stats === 'failed') {
+          // Keep showing the last stats, marked as stale; the next poll tries again.
+          this.statsRefreshFailed = true;
+          this.cdr.markForCheck();
           return;
         }
+        this.markStatsFresh();
         this.applyHistory(stats.history || []);
       });
+  }
+
+  private markStatsFresh(): void {
+    this.statsUpdatedAt = Date.now();
+    this.statsRefreshFailed = false;
   }
 
   private computePollDelayMs(): number {
@@ -584,122 +554,8 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       });
   }
 
-  private buildTimelineRows(datum: StripDatum, perVertex: Record<string, CheckpointSubTask | null>): TimelineRows {
-    const base = datum.triggered;
-    // A completed checkpoint was acked by every running subtask, so missing stats there are not a failure.
-    const unackedLabel =
-      datum.rawStatus === 'FAILED' ? 'no ack' : datum.rawStatus === 'IN_PROGRESS' ? 'pending' : undefined;
-    const rows: TimelineDatum[] = [];
-    const unacked: UnackedDatum[] = [];
-    const instants: InstantDatum[] = [];
-    const rowOrder: string[] = [];
-    let maxTotal = 0;
-    const rowPrefixOwner = new Map<string, string>();
-
-    for (const vertex of this.vertices) {
-      const cp = perVertex[vertex.id];
-      if (!cp || !cp.subtasks) {
-        continue;
-      }
-      const opNameFull = (vertex.name || '').replace(/\s+/g, ' ').trim();
-      let opName = shortenOperatorName(vertex.name);
-      // shortenOperatorName truncates, so distinct vertices can collide; the row key must stay unique.
-      const owner = rowPrefixOwner.get(opName);
-      if (owner !== undefined && owner !== vertex.id) {
-        opName = `${opName} [${vertex.id.slice(0, 4)}]`;
-      }
-      rowPrefixOwner.set(opName, vertex.id);
-
-      for (const s of cp.subtasks) {
-        const row = `${opName} #${s.index}`;
-        if (!isCompletedSubtask(s)) {
-          // Finished tasks never land here: the JobManager records them as acknowledged when it triggers.
-          if (unackedLabel) {
-            unacked.push({ row, operatorFull: opNameFull, subtask: s.index, label: unackedLabel, range: [base, base] });
-            rowOrder.push(row);
-          }
-          continue;
-        }
-        const startDelay = Math.max(s.start_delay || 0, 0);
-        const reportedAlignment = Math.max(s.alignment.duration || 0, 0);
-        const alignment = this.alignmentBeforeSync(datum, startDelay, reportedAlignment);
-        const alignmentInAsync = reportedAlignment - alignment;
-        const sync = Math.max(s.checkpoint.sync || 0, 0);
-        const asyncMs = Math.max(s.checkpoint.async || 0, 0);
-        const total = startDelay + alignment + sync + asyncMs;
-        rowOrder.push(row);
-        maxTotal = Math.max(maxTotal, total);
-        if (total === 0) {
-          instants.push({
-            row,
-            operatorFull: opNameFull,
-            subtask: s.index,
-            aborted: !!s.aborted,
-            stateSize: s.state_size,
-            checkpointedSize: s.checkpointed_size,
-            range: [base, base]
-          });
-          continue;
-        }
-
-        const segs: Array<[PhaseKey, number]> = [
-          ['start_delay', startDelay],
-          ['alignment', alignment],
-          ['sync', sync],
-          ['async', asyncMs]
-        ];
-        let cursor = base;
-        for (const [phase, ms] of segs) {
-          if (ms > 0) {
-            rows.push({
-              row,
-              operatorFull: opNameFull,
-              subtask: s.index,
-              phase,
-              phaseLabel:
-                phase === 'async' && alignmentInAsync > 0 ? `${phase} (incl. ${alignmentInAsync}ms alignment)` : phase,
-              range: [cursor, cursor + ms],
-              durationMs: ms,
-              aborted: !!s.aborted,
-              stateSize: s.state_size,
-              checkpointedSize: s.checkpointed_size,
-              totalDuration: total
-            });
-          }
-          cursor += ms;
-        }
-      }
-    }
-
-    // Unacked subtasks span the whole checkpoint: until it failed, or the latest ack so far while in progress.
-    const unackedEnd = base + Math.max(datum.duration, maxTotal, 1);
-    for (const u of unacked) {
-      u.range = [base, unackedEnd];
-    }
-
-    return { rows, unacked, instants, rowOrder };
-  }
-
-  // How much of a subtask's alignment came before its sync phase. With unaligned checkpoints, a checkpoint starts
-  // aligned and switches to unaligned once aligned_checkpoint_timeout has passed since the trigger; after that the
-  // rest of the alignment runs during the async phase, whose duration includes it (checkpoint_monitoring.md).
-  // Savepoints and at-least-once checkpoints never switch. The per-subtask unaligned_checkpoint flag can't tell: it
-  // only says whether in-flight data was persisted.
-  private alignmentBeforeSync(datum: StripDatum, startDelay: number, alignment: number): number {
-    const config = this.config;
-    if (!config?.unaligned_checkpoints || config.mode !== 'exactly_once' || datum.isSavepoint) {
-      return alignment;
-    }
-    const timeout = config.aligned_checkpoint_timeout;
-    // 0 and Long.MAX_VALUE both mean unaligned from the first barrier (CheckpointOptions.forConfig).
-    if (!(timeout > 0) || timeout >= Number.MAX_SAFE_INTEGER) {
-      return 0;
-    }
-    return Math.max(0, Math.min(alignment, timeout - startDelay));
-  }
-
   private renderTimeline(datum: StripDatum, perVertex: Record<string, CheckpointSubTask | null>): void {
-    const built = this.buildTimelineRows(datum, perVertex);
+    const built = buildTimelineRows(datum, this.vertices, perVertex, this.config);
     if (built.rowOrder.length === 0) {
       this.showEmptyTimeline();
       return;
@@ -759,6 +615,8 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     timeline.phases.data(shown(rows)).scale('x', xScale).scale('y', yScale);
     timeline.unacked.data(shown(unacked)).scale('x', xScale).scale('y', yScale);
     timeline.instants.data(shown(instants)).scale('x', xScale).scale('y', yScale);
+    // The rows move under the pointer; the next move over a bar shows its tooltip again.
+    timeline.chart.emit('tooltip:hide');
     void timeline.chart.render();
     this.cdr.markForCheck();
   }
@@ -811,14 +669,6 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
     this.firstRow = 0;
     this.timelineScroll.nativeElement.scrollTop = 0;
     this.drawTimelineWindow();
-  }
-
-  public onSlowestFirstChange(event: Event): void {
-    this.setSlowestFirst((event.target as HTMLInputElement).checked);
-  }
-
-  public onSlowestCountChange(event: Event): void {
-    this.setSlowestCount(Number((event.target as HTMLSelectElement).value));
   }
 
   public onTimelineScroll(): void {
@@ -878,17 +728,20 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
             value: this.humanizeBytesPipe.transform(d.checkpointedSize)
           })
         ]
-      })
-      .interaction('tooltip', {
-        // Outside the scroll box, which would clip it on the last visible rows. g2 places a tooltip before measuring
-        // it, so on its first frame it doesn't flip up yet.
-        mount: this.timelineWrapper.nativeElement,
-        // g2 5 ellipsizes the tooltip title at 360px; let full operator names wrap instead.
-        css: {
-          '.g2-tooltip': { 'max-width': '480px' },
-          '.g2-tooltip-title': { 'white-space': 'normal', 'overflow-wrap': 'anywhere' }
-        }
       });
+    // On the chart rather than on one mark: the other marks' defaults would override it.
+    chart.interaction('tooltip', {
+      ...BARS_ONLY_TOOLTIP,
+      // Outside the scroll box, which would clip it on the last visible rows. g2 places a tooltip before measuring
+      // it, so on its first frame it doesn't flip up yet.
+      mount: this.timelineWrapper.nativeElement,
+      // g2 5 ellipsizes the tooltip title at 360px; let full operator names wrap instead.
+      css: {
+        '.g2-tooltip': { 'max-width': '480px' },
+        '.g2-tooltip-title': { 'white-space': 'normal', 'overflow-wrap': 'anywhere' }
+      }
+    });
+    showTooltipOverBarsOnly(chart);
     // Returned from a callback: g2 deep-copies constant style objects, which would turn the canvas into a plain object.
     const hatchFill = { image: (this.noAckHatch ??= createHatchPattern()), repetition: 'repeat' };
     const unacked = chart
@@ -940,6 +793,8 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
       container.title = this.rowTitles.get(String(ev.target?.attributes?.text ?? '')) ?? '';
     });
     chart.on('axis-label-item:pointerout', () => (container.title = ''));
+    // Fades the other rows while hovering one, to follow a row across the chart.
+    chart.interaction('elementHighlightByX', true);
     return { chart, phases, unacked, instants };
   }
 
@@ -990,28 +845,47 @@ export class JobCheckpointsTimelineComponent implements AfterViewInit, OnChanges
   }
 }
 
-// Rows by when they finished, latest first; ties keep operator then subtask order (the sort is stable). Subtasks that
-// never finished come first: those without an ack, and aborted ones, whose reported phases stop short of where they
-// were when the checkpoint failed (they are why it failed).
-function slowestFirstOrder({ rows, unacked, instants, rowOrder }: TimelineRows): string[] {
-  const end = new Map<string, number>();
-  for (const d of [...rows, ...instants]) {
-    end.set(d.row, d.aborted ? Infinity : Math.max(end.get(d.row) ?? -Infinity, d.range[1]));
-  }
-  for (const d of unacked) {
-    end.set(d.row, Infinity);
-  }
-  return [...rowOrder].sort((a, b) => {
-    const [ea, eb] = [end.get(a) ?? 0, end.get(b) ?? 0];
-    return ea === eb ? 0 : eb > ea ? 1 : -1;
-  });
+// g2 points a bar chart's tooltip at the bar nearest the pointer along the band axis, so it also shows over the empty
+// space next to short bars. With this, a chart shows it only while the pointer is over a bar. No throttling, which
+// would drop the show for the bar the pointer ends on.
+const BARS_ONLY_TOOLTIP = { disableNative: true, wait: 0 };
+
+interface G2Node {
+  className?: string;
+  parentNode?: G2Node | null;
+  getBBox?: () => { x: number; y: number };
 }
 
-// Backend tags completed subtasks "completed" (incl. aborted) and others "pending_or_failed".
-function isCompletedSubtask(
-  s: SubTaskCheckpointStatisticsItem
-): s is SubTaskCheckpointStatisticsItem & CompletedSubTaskCheckpointStatistics {
-  return s.status === 'completed';
+interface BarPointerEvent {
+  data?: { data?: object };
+  canvas?: { x: number; y: number };
+  target?: G2Node;
+}
+
+function showTooltipOverBarsOnly(chart: Chart): void {
+  const hide = (): void => void chart.emit('tooltip:hide');
+  // On every move, not just on entering a bar: a redraw drops the tooltip.
+  chart.on('interval:pointermove', (ev: BarPointerEvent) => {
+    const datum = ev.data?.data;
+    if (!datum) {
+      return;
+    }
+    // At the pointer, as g2 would place it; g2 takes the position relative to the plot area.
+    let plot = ev.target;
+    while (plot && plot.className !== 'plot') {
+      plot = plot.parentNode ?? undefined;
+    }
+    const origin = plot?.getBBox?.();
+    const at = origin && ev.canvas ? { offsetX: ev.canvas.x - origin.x, offsetY: ev.canvas.y - origin.y } : {};
+    chart.emit('tooltip:show', { ...at, data: { data: datum } });
+  });
+  chart.on('interval:pointerout', hide);
+  // A redraw can also move the bars away from a still pointer, with no pointerout.
+  chart.on('plot:pointermove', (ev: BarPointerEvent) => {
+    if (ev.target?.className !== 'element') {
+      hide();
+    }
+  });
 }
 
 // Diagonal hatch for unacked rows, used by g2 as a repeating pattern fill.
@@ -1036,12 +910,4 @@ function createHatchPattern(): HTMLCanvasElement {
     ctx.stroke();
   }
   return canvas;
-}
-
-function shortenOperatorName(name: string): string {
-  if (!name) {
-    return '';
-  }
-  const compact = name.replace(/\s+/g, ' ').trim();
-  return compact.length <= OPERATOR_NAME_MAX ? compact : `${compact.slice(0, OPERATOR_NAME_MAX - 3)}...`;
 }
