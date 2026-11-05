@@ -883,6 +883,36 @@ public class MultiJoinTest extends TableTestBase {
                         + "    ON o.user_id = p.user_id");
     }
 
+    /**
+     * The upsert key of OrdersPK contains the common join key user_id but not its join key
+     * (user_id, product), so a new version of an order may be stored under another join key.
+     * OrdersPK has to keep UPDATE_BEFORE, so the multi-way join requires it from all inputs.
+     */
+    @Test
+    void testUpsertKeyNotContainingJoinKeyKeepsUpdateBefore() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_orders ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `name` STRING,"
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  `location` STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyExecPlanInsert(
+                "INSERT INTO sink_orders\n"
+                        + "SELECT o.user_id, u.name, o.order_id, a.location\n"
+                        + "FROM UsersPK u\n"
+                        + "JOIN OrdersPK o\n"
+                        + "    ON u.user_id = o.user_id AND u.name = o.product\n"
+                        + "JOIN AddressPK a\n"
+                        + "    ON u.user_id = a.user_id");
+    }
+
     @Test
     void testPreservesUpsertKeyThreeWayJoinOnFewerLeftColumnsDoesNot() {
         // UserRegionsPK is unique on its join columns (user_id, region), but only user_id is joined

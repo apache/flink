@@ -382,36 +382,51 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     /**
      * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`. If
-     * the unique key of input is a superset of the common join key, then we can ignore
-     * UPDATE_BEFORE. Otherwise, we can't ignore UPDATE_BEFORE.
+     * an upsert key of the input contains its common join key and its join key, then we can ignore
+     * UPDATE_BEFORE and handle deletes by key. Otherwise, we can't.
      *
-     * <p>For example, if the input schema is [id, name, cnt] with the unique key (id) and the
+     * <p>For example, if the input schema is [id, name, cnt] with the upsert key (id) and the
      * common join key is (id, name) across joins, then an insert and update on the id:
      *
      * <p>+I(1001, Tim, 10) -U(1001, Tim, 10) +U(1001, Timo, 11)
      *
      * <p>If the UPDATE_BEFORE is ignored, the `+I(1001, Tim, 10)` record in join will never be
-     * retracted. Therefore, if we want to ignore UPDATE_BEFORE, the unique key must contain join
-     * key.
+     * retracted. Therefore, if we want to ignore UPDATE_BEFORE, the upsert key must contain the
+     * join key, so that all versions of a record are stored under the same key.
      *
-     * <p>This is similar to {@link StreamPhysicalJoin#inputUniqueKeyContainsJoinKey(int)} but here
-     * we use the common join key, since the multi join operator partitions on the common join key.
+     * <p>This is similar to {@link StreamPhysicalJoin#inputUniqueKeyContainsJoinKey(int)}, but the
+     * multi join operator partitions on the common join key and stores each input under its own
+     * join key, so the upsert key must contain both.
      */
-    public boolean inputUniqueKeyContainsCommonJoinKey(int inputId) {
-        final RelNode input = getInputs().get(inputId);
-        final Set<ImmutableBitSet> inputUniqueKeysSet = getUniqueKeys(input);
-        if (inputUniqueKeysSet == null || inputUniqueKeysSet.isEmpty()) {
-            return false;
-        }
+    public boolean inputUpsertKeyContainsJoinKey(int inputId) {
+        return !getUpsertKeysContainingJoinKey(inputId).isEmpty();
+    }
 
+    /**
+     * Returns the upsert keys of the input that contain its common join key and its join key. An
+     * input without UPDATE_BEFORE replaces the record with the same upsert key, which a unique key
+     * that isn't an upsert key doesn't identify.
+     */
+    private List<int[]> getUpsertKeysContainingJoinKey(int inputId) {
         final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(inputId);
         if (commonJoinKeyIndices.length == 0) {
-            return false;
+            return Collections.emptyList();
         }
-
-        final ImmutableBitSet commonJoinKeys = ImmutableBitSet.of(commonJoinKeyIndices);
-        return inputUniqueKeysSet.stream()
-                .anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
+        final RelNode input = inputs.get(inputId);
+        final FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
+        final Set<ImmutableBitSet> upsertKeys =
+                fmq.getUpsertKeysInKeyGroupRange(input, commonJoinKeyIndices);
+        if (upsertKeys == null) {
+            return Collections.emptyList();
+        }
+        final ImmutableBitSet joinKey =
+                ImmutableBitSet.of(commonJoinKeyIndices)
+                        .union(ImmutableBitSet.of(keyExtractor.getJoinKeyIndices(inputId)));
+        return upsertKeys.stream()
+                .filter(upsertKey -> upsertKey.contains(joinKey))
+                .map(ImmutableBitSet::toArray)
+                .collect(Collectors.toList());
     }
 
     private List<InputProperty> createInputProperties() {

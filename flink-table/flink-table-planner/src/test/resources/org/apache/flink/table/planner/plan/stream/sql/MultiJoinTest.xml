@@ -2692,6 +2692,47 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKe
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUpsertKeyNotContainingJoinKeyKeepsUpdateBefore">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_orders
+SELECT o.user_id, u.name, o.order_id, a.location
+FROM UsersPK u
+JOIN OrdersPK o
+    ON u.user_id = o.user_id AND u.name = o.product
+JOIN AddressPK a
+    ON u.user_id = a.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_orders], fields=[user_id, name, order_id, location])
++- LogicalProject(user_id=[$5], name=[$1], order_id=[$4], location=[$8])
+   +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
+      :- LogicalJoin(condition=[AND(=($0, $5), =($1, $6))], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, AddressPK]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_orders], fields=[user_id, name, order_id, location])
++- Calc(select=[user_id0 AS user_id, name, order_id, location])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id, user_id), (user_id)], joinConditions=[((user_id = user_id0) AND (name = product)), (user_id = user_id1)], select=[user_id,name,order_id,user_id0,product,user_id1,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) product, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) location)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- ChangelogNormalize(key=[user_id])
+      :     +- Exchange(distribution=[hash[user_id]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, name]]], fields=[user_id, name])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- ChangelogNormalize(key=[order_id, user_id])
+      :     +- Exchange(distribution=[hash[order_id, user_id]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK]], fields=[order_id, user_id, product])
+      +- Exchange(distribution=[hash[user_id]])
+         +- ChangelogNormalize(key=[user_id])
+            +- Exchange(distribution=[hash[user_id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, AddressPK]], fields=[user_id, location])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWithCastCommonJoinKeyToIntegerMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[
