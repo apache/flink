@@ -405,6 +405,7 @@ CREATE TABLE Orders (
 
 Primary key constraint is a hint for Flink to leverage for optimizations. It tells that a column or a set of columns of a table or a view are unique and they **do not** contain null.
 Neither of columns in a primary can be nullable. Primary key therefore uniquely identify a row in a table.
+A primary key column also cannot be a [`VARIANT`]({{< ref "docs/sql/reference/data-types" >}}#variant) or a type that contains one, because these types have no equality.
 
 Primary key constraint can be either declared along with a column definition (a column constraint) or as a single line (a table constraint).
 For both cases, it should only be declared as a singleton. If you define multiple primary key constraints at the same time, an exception would be thrown.
