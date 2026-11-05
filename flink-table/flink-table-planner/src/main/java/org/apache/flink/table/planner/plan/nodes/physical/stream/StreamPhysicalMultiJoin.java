@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -57,6 +58,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -197,6 +199,16 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 multijoinCondition,
                 joinAttributeMap,
                 localInputUniqueKeys,
+                IntStream.range(0, inputs.size())
+                        .mapToObj(this::getUpsertKeysContainingJoinKey)
+                        .collect(Collectors.toList()),
+                inputs.stream()
+                        .map(
+                                input ->
+                                        ChangelogPlanUtils.getChangelogMode(
+                                                        (StreamPhysicalRel) input)
+                                                .get())
+                        .collect(Collectors.toList()),
                 StateTtlHint.getStateTtlFromHintOnMultiRel(this.hints),
                 inputProperties,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),

@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyE
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.runtime.util.StateParameterizedHarnessTestBase;
 import org.apache.flink.table.runtime.util.StreamRecordUtils;
 import org.apache.flink.table.types.logical.CharType;
@@ -55,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Base class for testing the StreamingMultiJoinOperator. Provides common functionality and helper
@@ -404,7 +406,9 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         retentionTime,
                         generatedJoinConditions,
                         this.keyExtractor,
-                        this.joinAttributeMap);
+                        this.joinAttributeMap,
+                        inputChangelogModes(),
+                        conditionFields());
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -415,6 +419,18 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         harness.setStateBackend(getStateBackend());
         harness.setCheckpointStorage(getCheckpointStorage());
         return harness;
+    }
+
+    /** By default, the changelog modes are unknown, as in plans compiled before this change. */
+    protected List<RuntimeChangelogMode> inputChangelogModes() {
+        return Arrays.asList(new RuntimeChangelogMode[inputSpecs.size()]);
+    }
+
+    /** By default, the join conditions may read all fields, also the ones of the unique key. */
+    protected int[][] conditionFields() {
+        return inputTypeInfos.stream()
+                .map(type -> IntStream.range(0, type.getFieldCount()).toArray())
+                .toArray(int[][]::new);
     }
 
     protected RowType getOutputType() {
