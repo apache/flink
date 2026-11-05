@@ -179,28 +179,36 @@ class TimestampITCase extends BatchTestBase {
   def testLeadLagOn(): Unit = {
     checkResult(
       "SELECT b, d, lag(d) OVER (PARTITION BY b ORDER BY d), " +
-        "LEAD(d) OVER (PARTITION BY b ORDER BY d) FROM T",
-      Seq(
-        row(1, "1969-01-01T00:00:00.123456789", null, null),
-        row(2, "1970-01-01T00:00:00.123", null, "1970-01-01T00:00:00.123456"),
-        row(2, "1970-01-01T00:00:00.123456", "1970-01-01T00:00:00.123", null),
-        row(4, "1972-01-01T00:00", null, null),
-        row(null, null, null, null)
-      )
-    )
-  }
-
-  @Test
-  def testLeadLagOnLtz(): Unit = {
-    checkResult(
-      "SELECT b, h, lag(h) OVER (PARTITION BY b ORDER BY h), " +
+        "LEAD(d) OVER (PARTITION BY b ORDER BY d), " +
+        "h, lag(h) OVER (PARTITION BY b ORDER BY h), " +
         "LEAD(h) OVER (PARTITION BY b ORDER BY h) FROM T",
       Seq(
-        row(1, "1969-01-01T00:00:00.123456789Z", null, null),
-        row(2, "1970-01-01T00:00:00.123Z", null, "1970-01-01T00:00:00.123456Z"),
-        row(2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123Z", null),
-        row(4, "1972-01-01T00:00:00Z", null, null),
-        row(null, null, null, null)
+        row(
+          1,
+          "1969-01-01T00:00:00.123456789",
+          null,
+          null,
+          "1969-01-01T00:00:00.123456789Z",
+          null,
+          null),
+        row(
+          2,
+          "1970-01-01T00:00:00.123",
+          null,
+          "1970-01-01T00:00:00.123456",
+          "1970-01-01T00:00:00.123Z",
+          null,
+          "1970-01-01T00:00:00.123456Z"),
+        row(
+          2,
+          "1970-01-01T00:00:00.123456",
+          "1970-01-01T00:00:00.123",
+          null,
+          "1970-01-01T00:00:00.123456Z",
+          "1970-01-01T00:00:00.123Z",
+          null),
+        row(4, "1972-01-01T00:00", null, null, "1972-01-01T00:00:00Z", null, null),
+        row(null, null, null, null, null, null, null)
       )
     )
   }
