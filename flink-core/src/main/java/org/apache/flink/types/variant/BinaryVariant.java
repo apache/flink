@@ -39,6 +39,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION_MASK;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.checkListsFit;
 import static org.apache.flink.types.variant.BinaryVariantUtil.compareMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
@@ -376,7 +377,9 @@ public final class BinaryVariant implements Variant {
         int sizeBytes = objectSizeBytes(typeInfo);
         int size = readUnsigned(value, pos + 1, sizeBytes);
         int idSize = objectIdSize(typeInfo);
+        int offsetSize = objectOffsetSize(typeInfo);
         int idStart = pos + 1 + sizeBytes;
+        checkListsFit(value, idStart, size, idSize, offsetSize);
         // Read the remembered index once, so that a getter shared between threads only ever
         // returns a field whose key it checked.
         int index = getter == null ? -1 : getter.lastIndex;
@@ -389,7 +392,6 @@ public final class BinaryVariant implements Variant {
                 getter.lastIndex = index;
             }
         }
-        int offsetSize = objectOffsetSize(typeInfo);
         int offsetStart = idStart + size * idSize;
         int dataStart = offsetStart + (size + 1) * offsetSize;
         int offset = readUnsigned(value, offsetStart + offsetSize * index, offsetSize);
