@@ -180,12 +180,12 @@ public class FlinkMarkChangelogNormalizeProgram
                         changelogNormalizeContexts.stream()
                                 .map(ChangelogNormalizeContext::getConditions)
                                 .collect(Collectors.toList()));
-        final RexCall factors = (RexCall) RexUtil.pullFactors(rexBuilder, or);
+        final RexNode factors = RexUtil.pullFactors(rexBuilder, or);
 
         final List<RexNode> commonCondition = new ArrayList<>();
         // Since we are interested in factors only then look for AND
         if (factors.getKind() == SqlKind.AND) {
-            for (RexNode node : factors.getOperands()) {
+            for (RexNode node : ((RexCall) factors).getOperands()) {
                 // If there is OR on top level then it is not a common factor anymore
                 if (node.getKind() == SqlKind.OR) {
                     break;
