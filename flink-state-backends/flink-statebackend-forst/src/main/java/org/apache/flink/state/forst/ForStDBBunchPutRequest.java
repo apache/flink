@@ -74,8 +74,12 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
         } else {
             for (Map.Entry<UK, UV> entry : value.entrySet()) {
                 byte[] key = buildSerializedKey(entry.getKey());
-                byte[] value = buildSerializedValue(entry.getValue());
-                writeBatchWrapper.put(table.getColumnFamilyHandle(), key, value);
+                if (entry.getValue() == null) {
+                    writeBatchWrapper.remove(table.getColumnFamilyHandle(), key);
+                } else {
+                    byte[] serializedValue = buildSerializedValue(entry.getValue());
+                    writeBatchWrapper.put(table.getColumnFamilyHandle(), key, serializedValue);
+                }
             }
         }
     }

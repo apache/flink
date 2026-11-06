@@ -218,6 +218,10 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.MAP_PUT_ALL
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
+        Preconditions.checkArgument(
+                stateRequest.getRequestType() == StateRequestType.CLEAR
+                        || stateRequest.getPayload() != null,
+                "MAP_PUT_ALL does not accept a null map.");
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
