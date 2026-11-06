@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.base.LongComparator;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArrayComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -158,13 +160,17 @@ final class VariableLengthByteKeyComparator<IN>
 
     @Override
     public int extractKeys(Object record, Object[] target, int index) {
-        target[index] = record;
-        return 1;
+        final Tuple2<?, ?> tuple = (Tuple2<?, ?>) record;
+        target[index] = tuple.f0;
+        target[index + 1] = ((StreamRecord<?>) tuple.f1).getTimestamp();
+        return 2;
     }
 
     @Override
     public TypeComparator<?>[] getFlatComparators() {
-        return new TypeComparator[] {this};
+        return new TypeComparator<?>[] {
+            new BytePrimitiveArrayComparator(true), new LongComparator(true)
+        };
     }
 
     // --------------------------------------------------------------------------------------------
