@@ -63,6 +63,11 @@ public class CompressibleFSDataInputStream extends FSDataInputStream {
     }
 
     @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        return compressingDelegate.read(b, off, len);
+    }
+
+    @Override
     public void close() throws IOException {
         compressingDelegate.close();
     }
