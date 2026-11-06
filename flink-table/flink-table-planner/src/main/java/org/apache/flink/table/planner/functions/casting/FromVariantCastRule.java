@@ -77,7 +77,11 @@ class FromVariantCastRule extends AbstractNullAwareCodeGeneratorCastRule<Variant
                     context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
         }
         final String isNullTerm =
-                "(" + inputIsNullTerm + " || " + methodCall(inputTerm, "isNull") + ")";
+                "("
+                        + inputIsNullTerm
+                        + " || "
+                        + staticCall(FromVariantConverter.class, "isVariantNull", inputTerm)
+                        + ")";
         return super.generateCodeBlock(
                 context, inputTerm, isNullTerm, inputLogicalType, targetLogicalType);
     }
