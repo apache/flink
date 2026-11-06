@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.CharType;
@@ -52,9 +53,10 @@ import java.util.stream.Stream;
  * LEFT JOIN Payments p ON o.user_id = p.user_id AND o.details <> p.details LEFT JOIN Shipments s ON
  * p.user_id = s.user_id AND p.details <> s.details
  *
- * <p>Schema: Users(user_id PRIMARY KEY, name, details), Orders, Payments and Shipments(user_id, id,
- * details, PRIMARY KEY (user_id, id)). All inputs are upsert inputs, whose keys contain their join
- * key user_id.
+ * <p>Schema: Users(user_id PRIMARY KEY, name, details), Orders and Payments(user_id, id, details,
+ * PRIMARY KEY (user_id, id)), Shipments(user_id PRIMARY KEY, id, details). All inputs are upsert
+ * inputs, whose keys contain their join key user_id. The key of Shipments is its join key, so it is
+ * stored by its join key only.
  */
 @ExtendWith(ParameterizedTestExtension.class)
 class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTestBase {
@@ -63,6 +65,7 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
     private static final Object[] USER = {"1", "Gus", "A"};
     private static final Object[] ORDER = {"1", "o1", "B"};
     private static final Object[] PAYMENT = {"1", "p1", "X"};
+    private static final Object[] SHIPMENT = {"1", "s1", "Y"};
 
     public StreamingMultiJoinUpsertOperatorTest(StateBackendMode stateBackendMode) {
         super(
@@ -86,6 +89,10 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
                         3,
                         List.of(new ConditionAttributeRef(2, 0, 3, 0))),
                 false);
+        inputSpecs.set(
+                3,
+                JoinInputSideSpec.withUniqueKeyContainedByJoinKey(
+                        createUniqueKeyType(3), keySelectors.get(3)));
     }
 
     @TestTemplate
@@ -186,6 +193,42 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
                 row(USER, ORDER, r("1", "p1", "Y"), r("1", "s1", "X")));
     }
 
+    @TestTemplate
+    void testUpdateOfInputKeyedByJoinKeyThatLosesMatchInsertsNullPadding() throws Exception {
+        insertUserAndOrderAndPaymentAndShipment();
+
+        updateAfterShipment("1", "s1", "X");
+        emits(
+                DELETE,
+                row(USER, ORDER, PAYMENT, SHIPMENT),
+                INSERT,
+                row(USER, ORDER, PAYMENT, NO_ROW));
+
+        // the new version of the shipment is stored, so it matches the new version of the payment
+        updateAfterPayment("1", "p1", "Z");
+        emits(
+                DELETE,
+                row(USER, ORDER, PAYMENT, NO_ROW),
+                INSERT,
+                row(USER, ORDER, NO_ROW, NO_ROW),
+                DELETE,
+                row(USER, ORDER, NO_ROW, NO_ROW),
+                UPDATE_AFTER,
+                row(USER, ORDER, r("1", "p1", "Z"), r("1", "s1", "X")));
+    }
+
+    @TestTemplate
+    void testKeyOnlyDeleteOfInputKeyedByJoinKeyInsertsNullPadding() throws Exception {
+        insertUserAndOrderAndPaymentAndShipment();
+
+        deleteShipment("1", null, null);
+        emits(
+                DELETE,
+                row(USER, ORDER, PAYMENT, SHIPMENT),
+                INSERT,
+                row(USER, ORDER, PAYMENT, NO_ROW));
+    }
+
     private void insertUserAndOrder() throws Exception {
         insertUser(USER);
         insertOrder(ORDER);
@@ -196,6 +239,16 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
         insertUserAndOrder();
         insertPayment(PAYMENT);
         emits(DELETE, row(USER, ORDER, NO_ROW, NO_ROW), INSERT, row(USER, ORDER, PAYMENT, NO_ROW));
+    }
+
+    private void insertUserAndOrderAndPaymentAndShipment() throws Exception {
+        insertUserAndOrderAndPayment();
+        insertShipment(SHIPMENT);
+        emits(
+                DELETE,
+                row(USER, ORDER, PAYMENT, NO_ROW),
+                INSERT,
+                row(USER, ORDER, PAYMENT, SHIPMENT));
     }
 
     private static Object[] row(Object[]... inputRows) {
@@ -214,11 +267,17 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
         return new int[][] {{2}, {2}, {2}, {2}};
     }
 
-    /** All inputs but the first are keyed by (user_id, id), which contains the common join key. */
+    /** Users and Shipments are keyed by user_id, Orders and Payments by (user_id, id). */
     @Override
     protected InternalTypeInfo<RowData> createUniqueKeyType(int inputIndex) {
         if (inputIndex == 0) {
             return super.createUniqueKeyType(inputIndex);
+        }
+        if (inputIndex == 3) {
+            return InternalTypeInfo.of(
+                    RowType.of(
+                            new LogicalType[] {new CharType(false, 20)},
+                            new String[] {"user_id_3"}));
         }
         return InternalTypeInfo.of(
                 RowType.of(
@@ -235,7 +294,7 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
             return super.createKeySelector(inputIndex);
         }
         return HandwrittenSelectorUtil.getRowDataSelector(
-                new int[] {0, 1},
+                inputIndex == 3 ? new int[] {0} : new int[] {0, 1},
                 inputTypeInfos.get(inputIndex).getChildren().toArray(new LogicalType[0]));
     }
 

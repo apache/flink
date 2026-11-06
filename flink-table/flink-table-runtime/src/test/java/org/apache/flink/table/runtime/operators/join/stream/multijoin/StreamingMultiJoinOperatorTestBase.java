@@ -223,6 +223,11 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 2, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
+    protected void updateAfterShipment(Object... fields) throws Exception {
+        testHarness.processElement(
+                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
+    }
+
     protected void deleteUser(Object... fields) throws Exception {
         testHarness.processElement(
                 0, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));

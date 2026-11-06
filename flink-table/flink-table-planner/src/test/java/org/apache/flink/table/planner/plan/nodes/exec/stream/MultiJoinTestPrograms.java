@@ -439,6 +439,88 @@ public class MultiJoinTestPrograms {
      * without UPDATE_BEFORE. Their joined rows are retracted, although their full images are only
      * in the restored state.
      */
+    public static final TableTestProgram MULTI_JOIN_UPSERT_INPUTS =
+            TableTestProgram.of(
+                            "three-way-join-upsert-inputs",
+                            "three way join with upsert inputs that update and delete by key")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "user_id INT PRIMARY KEY NOT ENFORCED", "region STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 2, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 3, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 4, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 5, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 6, "EU"),
+                                            // loses the match with its order
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 6, "US"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addSchema(
+                                            "user_id INT",
+                                            "order_id INT",
+                                            "region STRING",
+                                            "PRIMARY KEY (user_id, order_id) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10, "US"),
+                                            Row.ofKind(RowKind.INSERT, 1, 11, "US"),
+                                            Row.ofKind(RowKind.INSERT, 2, 20, "US"),
+                                            Row.ofKind(RowKind.INSERT, 3, 30, "US"),
+                                            Row.ofKind(RowKind.INSERT, 4, 40, "US"),
+                                            Row.ofKind(RowKind.INSERT, 5, 50, "US"),
+                                            Row.ofKind(RowKind.INSERT, 6, 60, "US"),
+                                            // loses the match with its user
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 10, "EU"),
+                                            Row.ofKind(RowKind.DELETE, 1, 11, null))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "user_id INT PRIMARY KEY NOT ENFORCED", "region STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 2, "US"),
+                                            // gains the match with its order
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 3, "EU"),
+                                            Row.ofKind(RowKind.INSERT, 4, "EU"),
+                                            // loses the match with its order
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 4, "US"),
+                                            Row.ofKind(RowKind.INSERT, 5, "EU"),
+                                            Row.ofKind(RowKind.DELETE, 5, null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id INT",
+                                            "order_id INT",
+                                            "payment_region STRING",
+                                            "PRIMARY KEY (user_id, order_id) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[2, 20, EU]",
+                                            "+I[3, 30, EU]",
+                                            "+I[4, 40, null]",
+                                            "+I[5, 50, null]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT o.user_id, o.order_id, p.region "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id AND u.region <> o.region "
+                                    + "LEFT JOIN Payments p ON o.user_id = p.user_id AND o.region <> p.region")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_UPSERT_INPUTS_WITH_RESTORE =
             TableTestProgram.of(
                             "three-way-join-upsert-inputs-with-restore",
