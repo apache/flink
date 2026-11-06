@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.jupiter.api.Test;
@@ -42,20 +41,23 @@ class KeyedSortPartitionOperatorTest {
     @Test
     void testSortPartition() throws Exception {
         // 1.Test KeyedSortPartitionOperator sorting records by position field.
-        KeyedSortPartitionOperator<Tuple2<Integer, String>, String> operator1 =
+        KeyedSortPartitionOperator<Tuple2<Integer, String>, Integer> operator1 =
                 createSortPartitionOperatorWithPositionField();
-        OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Tuple2<Integer, String>>
+        KeyedOneInputStreamOperatorTestHarness<
+                        Integer, Tuple2<Integer, String>, Tuple2<Integer, String>>
                 testHarness1 =
                         new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator1, value -> value.f1, Types.STRING);
+                                operator1, ignored -> 1, Types.INT);
         Queue<Object> expectedOutput1 = new LinkedList<>();
+        long earlierTimestamp = 1L;
+        long laterTimestamp = 3L;
         testHarness1.open();
-        testHarness1.processElement(new StreamRecord<>(Tuple2.of(3, "3")));
-        testHarness1.processElement(new StreamRecord<>(Tuple2.of(1, "1")));
+        testHarness1.processElement(new StreamRecord<>(Tuple2.of(3, "3"), earlierTimestamp));
+        testHarness1.processElement(new StreamRecord<>(Tuple2.of(1, "1"), laterTimestamp));
         testHarness1.endInput();
         testHarness1.close();
-        expectedOutput1.add(new StreamRecord<>(Tuple2.of(1, "1")));
-        expectedOutput1.add(new StreamRecord<>(Tuple2.of(3, "3")));
+        expectedOutput1.add(new StreamRecord<>(Tuple2.of(1, "1"), laterTimestamp));
+        expectedOutput1.add(new StreamRecord<>(Tuple2.of(3, "3"), earlierTimestamp));
         TestHarnessUtil.assertOutputEquals(
                 "The sort partition result is not correct.",
                 expectedOutput1,
@@ -63,17 +65,20 @@ class KeyedSortPartitionOperatorTest {
         // 2.Test KeyedSortPartitionOperator sorting records by string field.
         KeyedSortPartitionOperator<TestPojo, String> operator2 =
                 createSortPartitionOperatorWithStringField();
-        OneInputStreamOperatorTestHarness<TestPojo, TestPojo> testHarness2 =
+        KeyedOneInputStreamOperatorTestHarness<String, TestPojo, TestPojo> testHarness2 =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        operator2, TestPojo::getKey, Types.STRING);
+                        operator2, ignored -> "group", Types.STRING);
         Queue<Object> expectedOutput2 = new LinkedList<>();
         testHarness2.open();
-        testHarness2.processElement(new StreamRecord<>(new TestPojo("3", 3)));
-        testHarness2.processElement(new StreamRecord<>(new TestPojo("1", 1)));
+        testHarness2.processElement(new StreamRecord<>(new TestPojo("3", 3), earlierTimestamp));
+        testHarness2.processElement(new StreamRecord<>(new TestPojo("1", 1), laterTimestamp));
         testHarness2.endInput();
         testHarness2.close();
-        expectedOutput2.add(new StreamRecord<>(new SortPartitionOperatorTest.TestPojo("1", 1)));
-        expectedOutput2.add(new StreamRecord<>(new SortPartitionOperatorTest.TestPojo("3", 3)));
+        expectedOutput2.add(
+                new StreamRecord<>(new SortPartitionOperatorTest.TestPojo("1", 1), laterTimestamp));
+        expectedOutput2.add(
+                new StreamRecord<>(
+                        new SortPartitionOperatorTest.TestPojo("3", 3), earlierTimestamp));
         TestHarnessUtil.assertOutputEquals(
                 "The sort partition result is not correct.",
                 expectedOutput2,
@@ -81,17 +86,20 @@ class KeyedSortPartitionOperatorTest {
         // 3.Test KeyedSortPartitionOperator sorting records by key selector.
         KeyedSortPartitionOperator<TestPojo, String> operator3 =
                 createSortPartitionOperatorWithKeySelector();
-        OneInputStreamOperatorTestHarness<TestPojo, TestPojo> testHarness3 =
+        KeyedOneInputStreamOperatorTestHarness<String, TestPojo, TestPojo> testHarness3 =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        operator3, TestPojo::getKey, Types.STRING);
+                        operator3, ignored -> "group", Types.STRING);
         Queue<Object> expectedOutput3 = new LinkedList<>();
         testHarness3.open();
-        testHarness3.processElement(new StreamRecord<>(new TestPojo("3", 3)));
-        testHarness3.processElement(new StreamRecord<>(new TestPojo("1", 1)));
+        testHarness3.processElement(new StreamRecord<>(new TestPojo("3", 3), earlierTimestamp));
+        testHarness3.processElement(new StreamRecord<>(new TestPojo("1", 1), laterTimestamp));
         testHarness3.endInput();
         testHarness3.close();
-        expectedOutput3.add(new StreamRecord<>(new SortPartitionOperatorTest.TestPojo("1", 1)));
-        expectedOutput3.add(new StreamRecord<>(new SortPartitionOperatorTest.TestPojo("3", 3)));
+        expectedOutput3.add(
+                new StreamRecord<>(new SortPartitionOperatorTest.TestPojo("1", 1), laterTimestamp));
+        expectedOutput3.add(
+                new StreamRecord<>(
+                        new SortPartitionOperatorTest.TestPojo("3", 3), earlierTimestamp));
         TestHarnessUtil.assertOutputEquals(
                 "The sort partition result is not correct.",
                 expectedOutput3,
@@ -100,20 +108,22 @@ class KeyedSortPartitionOperatorTest {
 
     @Test
     void testOpenClose() throws Exception {
-        KeyedSortPartitionOperator<Tuple2<Integer, String>, String> sortPartitionOperator =
+        KeyedSortPartitionOperator<Tuple2<Integer, String>, Integer> sortPartitionOperator =
                 createSortPartitionOperatorWithPositionField();
-        OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Tuple2<Integer, String>>
+        KeyedOneInputStreamOperatorTestHarness<
+                        Integer, Tuple2<Integer, String>, Tuple2<Integer, String>>
                 testHarness =
                         new KeyedOneInputStreamOperatorTestHarness<>(
-                                sortPartitionOperator, value -> value.f1, Types.STRING);
+                                sortPartitionOperator, ignored -> 1, Types.INT);
         testHarness.open();
         testHarness.processElement(new StreamRecord<>(Tuple2.of(1, "1")));
         testHarness.endInput();
         testHarness.close();
         assertThat(testHarness.getOutput()).isNotEmpty();
+        assertThat(((StreamRecord<?>) testHarness.getOutput().poll()).hasTimestamp()).isFalse();
     }
 
-    private KeyedSortPartitionOperator<Tuple2<Integer, String>, String>
+    private KeyedSortPartitionOperator<Tuple2<Integer, String>, Integer>
             createSortPartitionOperatorWithPositionField() {
         TypeInformation<Tuple2<Integer, String>> inputType =
                 Types.TUPLE(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
