@@ -20,6 +20,7 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.events.EventBuilder;
 import org.apache.flink.traces.SpanBuilder;
 
@@ -93,6 +94,32 @@ public interface MetricGroup {
      * @return the given counter
      */
     <C extends Counter> C counter(String name, C counter);
+
+    /**
+     * Creates and registers a new {@link MonotonicCounter} with Flink.
+     *
+     * <p>Use this for counts that only ever increase, so that reporters can export them as
+     * monotonic/cumulative counters and benefit from automatic reset detection.
+     *
+     * @param name name of the counter
+     * @return the created counter
+     */
+    @PublicEvolving
+    default MonotonicCounter monotonicCounter(String name) {
+        return counter(name, new SimpleMonotonicCounter());
+    }
+
+    /**
+     * Creates and registers a new {@link MonotonicCounter} with Flink.
+     *
+     * @param name name of the counter
+     * @return the created counter
+     * @see #monotonicCounter(String)
+     */
+    @PublicEvolving
+    default MonotonicCounter monotonicCounter(int name) {
+        return monotonicCounter(String.valueOf(name));
+    }
 
     /**
      * Registers a new {@link org.apache.flink.metrics.Gauge} with Flink.

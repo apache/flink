@@ -61,17 +61,17 @@ class OpenTelemetryMetricAdapter {
             CollectionMetadata collectionMetadata,
             Long count,
             Long previousCount,
-            MetricMetadata metricMetadata) {
+            MetricMetadata metricMetadata,
+            boolean isMonotonic) {
         long delta = count - previousCount;
-        if (delta < 0) {
+        if (isMonotonic && delta < 0) {
             LOG.warn(
-                    "Non-monotonic counter {}: current count {} is less than previous count {}",
+                    "Non-monotonic delta for {}: current count {} is less than previous count {}",
                     metricMetadata.getName(),
                     count,
                     previousCount);
             return Optional.empty();
         }
-        Boolean isMonotonic = true;
         return Optional.of(
                 ImmutableMetricData.createLongSum(
                         collectionMetadata.getOtelResource(),
@@ -157,7 +157,12 @@ class OpenTelemetryMetricAdapter {
             Long previousCount,
             MetricMetadata metricMetadata) {
         List<MetricData> metricData = new ArrayList<>();
-        convertCounter(collectionMetadata, count, previousCount, metricMetadata.subMetric("count"))
+        convertCounter(
+                        collectionMetadata,
+                        count,
+                        previousCount,
+                        metricMetadata.subMetric("count"),
+                        false)
                 .ifPresent(metricData::add);
         convertGauge(collectionMetadata, meter::getRate, metricMetadata.subMetric("rate"))
                 .ifPresent(metricData::add);

@@ -27,7 +27,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -96,7 +96,7 @@ public class StreamMultipleInputProcessorFactory {
         int inputsCount = operatorInputs.size();
 
         StreamOneInputProcessor<?>[] inputProcessors = new StreamOneInputProcessor[inputsCount];
-        Counter networkRecordsIn = new SimpleCounter();
+        Counter networkRecordsIn = new SimpleMonotonicCounter();
         ioMetricGroup.reuseRecordsInputCounter(networkRecordsIn);
 
         checkState(
