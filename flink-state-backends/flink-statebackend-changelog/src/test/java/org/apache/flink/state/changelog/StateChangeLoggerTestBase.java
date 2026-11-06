@@ -23,7 +23,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,12 +33,12 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 abstract class StateChangeLoggerTestBase<Namespace> {
     /** A basic test for appending the metadata on first state access. */
     @Test
-    public void testMetadataOperationLogged() throws IOException {
+    void testMetadataOperationLogged() throws IOException {
         TestingStateChangelogWriter writer = new TestingStateChangelogWriter();
         InternalKeyContextImpl<String> keyContext =
                 new InternalKeyContextImpl<>(KeyGroupRange.of(1, 1000), 1000);
@@ -55,7 +55,7 @@ abstract class StateChangeLoggerTestBase<Namespace> {
                         StateChangeOperation.byCode((byte) (i % numOpTypes));
                 log(operation, element, logger, keyContext).ifPresent(expectedAppends::add);
             }
-            assertEquals(expectedAppends, writer.appends);
+            assertThat(writer.appends).isEqualTo(expectedAppends);
         }
     }
 

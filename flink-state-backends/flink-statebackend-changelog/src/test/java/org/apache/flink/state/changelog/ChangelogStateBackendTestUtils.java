@@ -78,11 +78,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.state.StateBackendTestBase.runSnapshot;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test Utilities for Changelog StateBackend. */
 public class ChangelogStateBackendTestUtils {
@@ -289,13 +285,13 @@ public class ChangelogStateBackendTestUtils {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
             keyedBackend.setCurrentKey(1);
-            assertEquals(new StateBackendTestBase.TestPojo("u1", 1), state.value());
+            assertThat(state.value()).isEqualTo(new StateBackendTestBase.TestPojo("u1", 1));
 
             keyedBackend.setCurrentKey(2);
-            assertEquals(new StateBackendTestBase.TestPojo("u2", 222), state.value());
+            assertThat(state.value()).isEqualTo(new StateBackendTestBase.TestPojo("u2", 222));
 
             keyedBackend.setCurrentKey(3);
-            assertEquals(new StateBackendTestBase.TestPojo("u3", 3), state.value());
+            assertThat(state.value()).isEqualTo(new StateBackendTestBase.TestPojo("u3", 3));
         } finally {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
@@ -322,29 +318,30 @@ public class ChangelogStateBackendTestUtils {
             TestType elementA10 = new TestType("a", 10);
             TestType elementA20 = new TestType("a", 20);
 
-            assertTrue(priorityQueue.add(elementA100));
-            assertTrue(priorityQueue.add(elementA10));
-            assertFalse(priorityQueue.add(elementA20));
-            assertFalse(priorityQueue.add(elementA10));
+            assertThat(priorityQueue.add(elementA100)).isTrue();
+            assertThat(priorityQueue.add(elementA10)).isTrue();
+            assertThat(priorityQueue.add(elementA20)).isFalse();
+            assertThat(priorityQueue.add(elementA10)).isFalse();
 
             List<TestType> actualList = new ArrayList<>();
             try (CloseableIterator<TestType> iterator = priorityQueue.iterator()) {
                 iterator.forEachRemaining(actualList::add);
             }
 
-            assertThat(actualList, containsInAnyOrder(elementA100, elementA10, elementA20));
+            assertThat(actualList)
+                    .containsExactlyInAnyOrder(elementA100, elementA10, elementA20);
 
             periodicMaterializationManager.triggerMaterialization();
 
             TestType elementB9 = new TestType("b", 9);
-            assertTrue(priorityQueue.add(elementB9));
+            assertThat(priorityQueue.add(elementB9)).isTrue();
 
             periodicMaterializationManager.triggerMaterialization();
 
             TestType elementC9 = new TestType("c", 9);
             TestType elementC8 = new TestType("c", 8);
-            assertFalse(priorityQueue.add(elementC9));
-            assertTrue(priorityQueue.add(elementC8));
+            assertThat(priorityQueue.add(elementC9)).isFalse();
+            assertThat(priorityQueue.add(elementC8)).isTrue();
 
             KeyedStateHandle snapshot =
                     runSnapshot(
@@ -377,12 +374,11 @@ public class ChangelogStateBackendTestUtils {
                 iterator.forEachRemaining(actualListRestore::add);
             }
 
-            assertThat(
-                    actualListRestore,
-                    containsInAnyOrder(
-                            elementA100, elementA10, elementA20, elementB9, elementC9, elementC8));
+            assertThat(actualListRestore)
+                    .containsExactlyInAnyOrder(
+                            elementA100, elementA10, elementA20, elementB9, elementC9, elementC8);
 
-            assertFalse(priorityQueueRestored.add(new TestType("d", 11)));
+            assertThat(priorityQueueRestored.add(new TestType("d", 11))).isFalse();
         } finally {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
