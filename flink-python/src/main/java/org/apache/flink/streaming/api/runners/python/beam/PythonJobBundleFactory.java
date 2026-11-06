@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.runners.python.beam;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -32,7 +31,10 @@ import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Context;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Contexts;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ForwardingServerCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ForwardingServerCallListener;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerCall;
@@ -40,7 +42,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerCallHandler;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerInterceptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerInterceptors;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,7 +181,14 @@ final class PythonJobBundleFactory implements JobBundleFactory {
                 ServerCall<ReqT, RespT> call,
                 Metadata headers,
                 ServerCallHandler<ReqT, RespT> next) {
-            return next.startCall(
+            final Context context = Context.current();
+            final Context.CancellationListener cancellationListener =
+                    cancelled ->
+                            failureHandler.fail(
+                                    Contexts.statusFromCancelled(cancelled).asRuntimeException());
+            // Context cancellation does not wait for a blocked onMessage callback to return.
+            context.addListener(cancellationListener, Runnable::run);
+            final ServerCall<ReqT, RespT> monitoredCall =
                     new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
                         @Override
                         public void close(Status status, Metadata trailers) {
@@ -189,8 +197,39 @@ final class PythonJobBundleFactory implements JobBundleFactory {
                             }
                             super.close(status, trailers);
                         }
-                    },
-                    headers);
+                    };
+            return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(
+                    next.startCall(monitoredCall, headers)) {
+                @Override
+                public void onHalfClose() {
+                    failUnexpectedCompletion();
+                    super.onHalfClose();
+                }
+
+                @Override
+                public void onCancel() {
+                    try {
+                        failureHandler.fail(
+                                Status.CANCELLED
+                                        .withDescription("Python data RPC was cancelled.")
+                                        .asRuntimeException());
+                        super.onCancel();
+                    } finally {
+                        context.removeListener(cancellationListener);
+                    }
+                }
+
+                @Override
+                public void onComplete() {
+                    try {
+                        // gRPC can close its underlying stream without calling ServerCall.close.
+                        failUnexpectedCompletion();
+                        super.onComplete();
+                    } finally {
+                        context.removeListener(cancellationListener);
+                    }
+                }
+            };
         }
 
         private List<BindableService> wrapServices(List<BindableService> services) {
@@ -201,45 +240,14 @@ final class PythonJobBundleFactory implements JobBundleFactory {
             if (!(service instanceof BeamFnDataGrpc.BeamFnDataImplBase)) {
                 return service;
             }
-            final BindableService monitoredService =
-                    wrapDataService((BeamFnDataGrpc.BeamFnDataImplBase) service);
-            return () -> ServerInterceptors.intercept(monitoredService, this);
+            return () -> ServerInterceptors.intercept(service, this);
         }
 
-        private BindableService wrapDataService(BeamFnDataGrpc.BeamFnDataImplBase dataService) {
-            return new BeamFnDataGrpc.BeamFnDataImplBase() {
-                @Override
-                public StreamObserver<BeamFnApi.Elements> data(
-                        StreamObserver<BeamFnApi.Elements> outbound) {
-                    return wrapInboundObserver(dataService.data(outbound));
-                }
-            };
-        }
-
-        private StreamObserver<BeamFnApi.Elements> wrapInboundObserver(
-                StreamObserver<BeamFnApi.Elements> inbound) {
-            return new StreamObserver<BeamFnApi.Elements>() {
-                @Override
-                public void onNext(BeamFnApi.Elements elements) {
-                    inbound.onNext(elements);
-                }
-
-                @Override
-                public void onError(Throwable cause) {
-                    failureHandler.fail(cause);
-                    inbound.onError(cause);
-                }
-
-                @Override
-                public void onCompleted() {
-                    // Flink does not enable environment expiration. Normal shutdown is managed
-                    // by the factory, which disables failure notifications before closing.
-                    failureHandler.fail(
-                            new IOException(
-                                    "Python data RPC completed before the worker was closed."));
-                    inbound.onCompleted();
-                }
-            };
+        private void failUnexpectedCompletion() {
+            // Flink does not enable environment expiration. Normal shutdown is managed
+            // by the factory, which disables failure notifications before closing.
+            failureHandler.fail(
+                    new IOException("Python data RPC completed before the worker was closed."));
         }
     }
 }

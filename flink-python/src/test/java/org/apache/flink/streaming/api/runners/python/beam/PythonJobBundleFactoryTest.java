@@ -22,19 +22,27 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.server.ServerFactory;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Context;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientCalls;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -55,6 +63,8 @@ class PythonJobBundleFactoryTest {
         final CompletableFuture<Void> clientClosed = new CompletableFuture<>();
         final CountDownLatch received = new CountDownLatch(1);
         final CompletableFuture<Void> terminated = new CompletableFuture<>();
+        final AtomicBoolean failOnNext = new AtomicBoolean();
+        final AtomicBoolean corruptRequest = new AtomicBoolean();
         final BeamFnDataGrpc.BeamFnDataImplBase service =
                 new BeamFnDataGrpc.BeamFnDataImplBase() {
                     @Override
@@ -64,6 +74,9 @@ class PythonJobBundleFactoryTest {
                         return new StreamObserver<BeamFnApi.Elements>() {
                             @Override
                             public void onNext(BeamFnApi.Elements value) {
+                                if (failOnNext.get()) {
+                                    throw new IllegalStateException("test data service failure");
+                                }
                                 received.countDown();
                             }
 
@@ -88,23 +101,47 @@ class PythonJobBundleFactoryTest {
         final ManagedChannel channel =
                 ManagedChannelBuilder.forTarget(descriptor.getUrl()).usePlaintext().build();
         try {
+            final MethodDescriptor<BeamFnApi.Elements, BeamFnApi.Elements> method =
+                    BeamFnDataGrpc.getDataMethod().toBuilder()
+                            .setRequestMarshaller(
+                                    new MethodDescriptor.Marshaller<BeamFnApi.Elements>() {
+                                        @Override
+                                        public InputStream stream(BeamFnApi.Elements value) {
+                                            if (corruptRequest.get()) {
+                                                // Invalid protobuf tag; parsing fails before
+                                                // onNext.
+                                                return new ByteArrayInputStream(new byte[] {0});
+                                            }
+                                            return BeamFnDataGrpc.getDataMethod()
+                                                    .getRequestMarshaller()
+                                                    .stream(value);
+                                        }
+
+                                        @Override
+                                        public BeamFnApi.Elements parse(InputStream stream) {
+                                            return BeamFnDataGrpc.getDataMethod()
+                                                    .getRequestMarshaller()
+                                                    .parse(stream);
+                                        }
+                                    })
+                            .build();
             final StreamObserver<BeamFnApi.Elements> request =
-                    BeamFnDataGrpc.newStub(channel)
-                            .data(
-                                    new StreamObserver<BeamFnApi.Elements>() {
-                                        @Override
-                                        public void onNext(BeamFnApi.Elements value) {}
+                    ClientCalls.asyncBidiStreamingCall(
+                            channel.newCall(method, CallOptions.DEFAULT),
+                            new StreamObserver<BeamFnApi.Elements>() {
+                                @Override
+                                public void onNext(BeamFnApi.Elements value) {}
 
-                                        @Override
-                                        public void onError(Throwable error) {
-                                            clientClosed.complete(null);
-                                        }
+                                @Override
+                                public void onError(Throwable error) {
+                                    clientClosed.complete(null);
+                                }
 
-                                        @Override
-                                        public void onCompleted() {
-                                            clientClosed.complete(null);
-                                        }
-                                    });
+                                @Override
+                                public void onCompleted() {
+                                    clientClosed.complete(null);
+                                }
+                            });
             request.onNext(BeamFnApi.Elements.getDefaultInstance());
             assertThat(received.await(10, TimeUnit.SECONDS)).isTrue();
             assertThat(first).isNotDone();
@@ -124,9 +161,25 @@ class PythonJobBundleFactoryTest {
                     handler.close();
                     responseObserver.get().onError(new IOException("server shutting down"));
                     break;
+                case SERVER_COMPLETE:
+                    responseObserver.get().onCompleted();
+                    break;
+                case SERVER_COMPLETE_AFTER_CLOSE:
+                    handler.close();
+                    responseObserver.get().onCompleted();
+                    break;
+                case SERVER_ON_NEXT_ERROR:
+                    failOnNext.set(true);
+                    request.onNext(BeamFnApi.Elements.getDefaultInstance());
+                    break;
+                case INVALID_REQUEST:
+                    corruptRequest.set(true);
+                    request.onNext(BeamFnApi.Elements.getDefaultInstance());
+                    break;
             }
             clientClosed.get(10, TimeUnit.SECONDS);
-            if (termination == RpcTermination.SERVER_ERROR_AFTER_CLOSE) {
+            if (termination == RpcTermination.SERVER_ERROR_AFTER_CLOSE
+                    || termination == RpcTermination.SERVER_COMPLETE_AFTER_CLOSE) {
                 assertThat(first).isNotDone();
                 assertThat(second).isNotDone();
             } else {
@@ -146,7 +199,104 @@ class PythonJobBundleFactoryTest {
         CLIENT_CANCEL,
         CLIENT_COMPLETE,
         SERVER_ERROR,
-        SERVER_ERROR_AFTER_CLOSE
+        SERVER_ERROR_AFTER_CLOSE,
+        SERVER_COMPLETE,
+        SERVER_COMPLETE_AFTER_CLOSE,
+        SERVER_ON_NEXT_ERROR,
+        INVALID_REQUEST
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testClientCancellationWhileReceiving(boolean factoryClosed) throws Exception {
+        final PythonJobBundleFactory.DataChannelFailureHandler handler =
+                new PythonJobBundleFactory.DataChannelFailureHandler();
+        final CompletableFuture<Throwable> failure = new CompletableFuture<>();
+        handler.register(failure::complete);
+        final CountDownLatch receiving = new CountDownLatch(1);
+        final CountDownLatch releaseReceiver = new CountDownLatch(1);
+        final CompletableFuture<Void> contextCancelled = new CompletableFuture<>();
+        final CompletableFuture<Void> terminated = new CompletableFuture<>();
+        final BeamFnDataGrpc.BeamFnDataImplBase service =
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                    @Override
+                    public StreamObserver<BeamFnApi.Elements> data(
+                            StreamObserver<BeamFnApi.Elements> response) {
+                        Context.current()
+                                .addListener(
+                                        ignored -> contextCancelled.complete(null), Runnable::run);
+                        return new StreamObserver<BeamFnApi.Elements>() {
+                            @Override
+                            public void onNext(BeamFnApi.Elements value) {
+                                receiving.countDown();
+                                try {
+                                    releaseReceiver.await();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    throw new RuntimeException(e);
+                                }
+                            }
+
+                            @Override
+                            public void onError(Throwable error) {
+                                terminated.complete(null);
+                            }
+
+                            @Override
+                            public void onCompleted() {
+                                terminated.complete(null);
+                            }
+                        };
+                    }
+                };
+        final Endpoints.ApiServiceDescriptor.Builder descriptor =
+                Endpoints.ApiServiceDescriptor.newBuilder();
+        final Server server =
+                new PythonJobBundleFactory.DataServerFactory(ServerFactory.createDefault(), handler)
+                        .allocateAddressAndCreate(Collections.singletonList(service), descriptor);
+        final ManagedChannel channel =
+                ManagedChannelBuilder.forTarget(descriptor.getUrl()).usePlaintext().build();
+        try {
+            final StreamObserver<BeamFnApi.Elements> request =
+                    BeamFnDataGrpc.newStub(channel)
+                            .data(
+                                    new StreamObserver<BeamFnApi.Elements>() {
+                                        @Override
+                                        public void onNext(BeamFnApi.Elements value) {}
+
+                                        @Override
+                                        public void onError(Throwable error) {}
+
+                                        @Override
+                                        public void onCompleted() {}
+                                    });
+            request.onNext(BeamFnApi.Elements.getDefaultInstance());
+            assertThat(receiving.await(10, TimeUnit.SECONDS)).isTrue();
+            if (factoryClosed) {
+                handler.close();
+            }
+            request.onError(new IOException("test data RPC failure"));
+            contextCancelled.get(10, TimeUnit.SECONDS);
+            if (factoryClosed) {
+                assertThat(failure).isNotDone();
+            } else {
+                // Notification must not wait for the serialized onNext callback to return.
+                assertThat(failure.get(10, TimeUnit.SECONDS)).isNotNull();
+            }
+            assertThat(terminated).isNotDone();
+            releaseReceiver.countDown();
+            terminated.get(10, TimeUnit.SECONDS);
+            if (factoryClosed) {
+                assertThat(failure).isNotDone();
+            }
+        } finally {
+            handler.close();
+            releaseReceiver.countDown();
+            channel.shutdownNow();
+            server.shutdownNow();
+            assertThat(channel.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(server.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
     }
 
     @Test
