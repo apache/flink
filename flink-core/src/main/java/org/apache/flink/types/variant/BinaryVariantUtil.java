@@ -794,6 +794,7 @@ public class BinaryVariantUtil {
         int idSize = objectIdSize(typeInfo);
         int offsetSize = objectOffsetSize(typeInfo);
         int idStart = pos + 1 + sizeBytes;
+        checkListsFit(value, idStart, size, idSize, offsetSize);
         int offsetStart = idStart + size * idSize;
         int dataStart = offsetStart + (size + 1) * offsetSize;
         return handler.apply(size, idSize, offsetSize, idStart, offsetStart, dataStart);
@@ -857,8 +858,26 @@ public class BinaryVariantUtil {
         // Extracts b1b0 to determine the integer size of the offset list.
         int offsetSize = (typeInfo & 0x3) + 1;
         int offsetStart = pos + 1 + sizeBytes;
+        checkListsFit(value, offsetStart, size, 0, offsetSize);
         int dataStart = offsetStart + (size + 1) * offsetSize;
         return handler.apply(size, offsetSize, offsetStart, dataStart);
+    }
+
+    /**
+     * Checks that the {@code size} field ids and {@code size + 1} offsets of a container, which
+     * start at {@code start}, fit in the value. An array has no field ids and passes an {@code
+     * idSize} of 0.
+     *
+     * <p>Readers size arrays by the element count, and every element takes at least one byte in
+     * these lists, so the check bounds such allocations by the value length. Once it passes, the
+     * int arithmetic that locates the lists and the start of the data cannot overflow.
+     *
+     * @throws VariantTypeException if the lists extend past the end of the value
+     */
+    static void checkListsFit(byte[] value, int start, int size, int idSize, int offsetSize) {
+        if (start + (long) size * (idSize + offsetSize) + offsetSize > value.length) {
+            throw malformedVariant();
+        }
     }
 
     /**
