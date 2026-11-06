@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
+import org.apache.flink.formats.avro.utils.NoSchemaFieldRecord;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
 import org.apache.avro.generic.GenericRecord;
@@ -84,5 +85,16 @@ class AvroDeserializationSchemaTest {
         byte[] encodedData = writeRecord(data, encoding);
         UnionLogicalType deserializedData = deserializer.deserialize(encodedData);
         assertThat(deserializedData).isEqualTo(data);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSpecificRecordWithoutStaticSchemaField(AvroEncoding encoding) throws Exception {
+        NoSchemaFieldRecord record = new NoSchemaFieldRecord("flink", 42);
+        DeserializationSchema<NoSchemaFieldRecord> deserializer =
+                AvroDeserializationSchema.forSpecific(NoSchemaFieldRecord.class, encoding);
+
+        byte[] encodedData = writeRecord(record, record.getSchema(), encoding);
+        assertThat(deserializer.deserialize(encodedData)).isEqualTo(record);
     }
 }
