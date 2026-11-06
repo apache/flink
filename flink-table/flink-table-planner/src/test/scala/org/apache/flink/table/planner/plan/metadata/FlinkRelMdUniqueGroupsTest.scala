@@ -21,10 +21,11 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS, RAND}
 import org.apache.calcite.util.ImmutableBitSet
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.{assertThatIterable, assertThatThrownBy}
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -798,6 +799,72 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       ImmutableBitSet.of(1),
       mq.getUniqueGroups(logicalAntiJoinWithEquiAndNonEquiCond, ImmutableBitSet.of(0, 1, 2, 3, 4)))
+  }
+
+  @Test
+  def testGetUniqueGroupsOnOuterJoinWithNonEquiCondition(): Unit = {
+    // select * from MyTable2 left join MyTable4
+    // on MyTable2.b = MyTable4.a and MyTable2.a > MyTable4.c
+    val leftJoinWithNonEquiCond = relBuilder
+      .scan("MyTable2")
+      .scan("MyTable4")
+      .join(
+        JoinRelType.LEFT,
+        relBuilder.and(
+          relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)),
+          relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 2)))
+      )
+      .build
+    // two rows of MyTable2 with the same b may differ in a, so b alone does not determine the
+    // matched row of MyTable4
+    assertThatIterable(
+      mq.getUniqueGroups(leftJoinWithNonEquiCond, ImmutableBitSet.of(1, 5, 6, 7, 8)))
+      .isEqualTo(ImmutableBitSet.of(1, 5))
+    // a and b of a row of MyTable2 determine whether and with which row of MyTable4 it matches
+    assertThatIterable(
+      mq.getUniqueGroups(leftJoinWithNonEquiCond, ImmutableBitSet.of(0, 1, 5, 6, 7, 8)))
+      .isEqualTo(ImmutableBitSet.of(0, 1))
+
+    // select * from MyTable1 left join MyTable4
+    // on MyTable1.b = MyTable4.a and MyTable1.a > MyTable4.c
+    val leftJoinOnUniqueKeysWithNonEquiCond = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(
+        JoinRelType.LEFT,
+        relBuilder.and(
+          relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)),
+          relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 2)))
+      )
+      .build
+    // b is unique in MyTable1, so it identifies the row of MyTable1 and thus whether it matches
+    assertThatIterable(
+      mq.getUniqueGroups(leftJoinOnUniqueKeysWithNonEquiCond, ImmutableBitSet.of(1, 5, 6, 7, 8)))
+      .isEqualTo(ImmutableBitSet.of(1))
+
+    // select * from MyTable2 left join MyTable4 on MyTable2.b = MyTable4.a and rand() < 0.5
+    val leftJoinWithNonDeterministicCond = relBuilder
+      .scan("MyTable2")
+      .scan("MyTable4")
+      .join(
+        JoinRelType.LEFT,
+        relBuilder.and(
+          relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)),
+          relBuilder.call(LESS_THAN, relBuilder.call(RAND), relBuilder.literal(0.5)))
+      )
+      .build
+    // two rows of MyTable2 with the same b may differ in whether they match
+    assertThatIterable(
+      mq.getUniqueGroups(leftJoinWithNonDeterministicCond, ImmutableBitSet.of(1, 5, 6, 7, 8)))
+      .isEqualTo(ImmutableBitSet.of(1, 5))
+
+    // two rows of MyTable2 with the same b may differ in a, so b alone does not determine the
+    // matched row of MyTable1
+    assertThatIterable(
+      mq.getUniqueGroups(
+        logicalRightJoinWithEquiAndNonEquiCond,
+        ImmutableBitSet.of(0, 1, 2, 3, 4, 6)))
+      .isEqualTo(ImmutableBitSet.of(1, 6))
   }
 
   @Test
