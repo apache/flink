@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -458,6 +459,63 @@ public final class DeletesByKeyPrograms {
                                             "+U[2, 31]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT id, udf1(v) FROM source_t")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_ON_NON_KEY_COLUMN_INTO_DELETES_BY_KEY =
+            TableTestProgram.of(
+                            "multi-join-on-non-key-column-into-delete-by-key",
+                            "ChangelogNormalize: a delete by key from t2 has a null b, so the"
+                                    + " multi-join could not match it on t1.b = t2.b and would keep"
+                                    + " the joined row. Full deletes are needed even though the"
+                                    + " sink accepts deletes by key.")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t1")
+                                    .addSchema(
+                                            "k INT PRIMARY KEY NOT ENFORCED", "b INT", "x STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10, "a"),
+                                            Row.ofKind(RowKind.INSERT, 2, 20, "b"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t2")
+                                    .addSchema(
+                                            "k INT PRIMARY KEY NOT ENFORCED", "b INT", "y STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10, "p"),
+                                            Row.ofKind(RowKind.INSERT, 2, 20, "q"),
+                                            // Delete by key: b is null
+                                            Row.ofKind(RowKind.DELETE, 1, null, null))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t3")
+                                    .addSchema("k INT PRIMARY KEY NOT ENFORCED", "z STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "u"),
+                                            Row.ofKind(RowKind.INSERT, 2, "v"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "k INT PRIMARY KEY NOT ENFORCED",
+                                            "x STRING",
+                                            "y STRING",
+                                            "z STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[2, b, q, v]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT t1.k, t1.x, t2.y, t3.z FROM t1"
+                                    + " JOIN t2 ON t1.k = t2.k AND t1.b = t2.b"
+                                    + " JOIN t3 ON t1.k = t3.k")
                     .build();
 
     /** Increments a {@code BIGINT} input asynchronously. */
