@@ -689,23 +689,55 @@ public class SqlFunctionUtils {
     }
 
     public static String overlay(String s, String r, long start, long length) {
-        if (start <= 0 || start > s.length()) {
+        final int sLength = s.length();
+        // A string never holds more code points than chars, so an out-of-range start can be
+        // rejected here without walking it.
+        if (start <= 0 || start > sLength) {
             return s;
-        } else {
-            StringBuilder sb = new StringBuilder();
-            int startPos = (int) start;
-            int len = (int) length;
-            sb.append(s, 0, startPos - 1);
-            sb.append(r);
-            if ((startPos + len) <= s.length() && len > 0) {
-                sb.append(s.substring(startPos - 1 + len));
-            }
-            return sb.toString();
         }
+
+        // Offsets count code points, as CHAR_LENGTH and SUBSTRING do, so that a supplementary
+        // character is never cut in half.
+        int prefixEnd = 0;
+        int prefixCodePoints = 0;
+        while (prefixCodePoints < start - 1 && prefixEnd < sLength) {
+            prefixEnd += Character.charCount(s.codePointAt(prefixEnd));
+            prefixCodePoints++;
+        }
+        if (prefixEnd == sLength) {
+            // Only reachable for a string holding supplementary characters, where the char
+            // count checked above is larger than the code point count.
+            return s;
+        }
+
+        // What is left holds at most as many code points as chars, so a length that reaches
+        // the char count already consumes the rest without walking it. length stays a long:
+        // casting it first would wrap a huge FOR into a small one.
+        int tailStart = sLength;
+        if (length >= 0 && length < sLength - prefixEnd) {
+            // Walking on from the prefix rather than from the start keeps this to one pass.
+            // Running out of string leaves tailStart at sLength, which is the empty tail the
+            // region running past the end should produce anyway.
+            tailStart = prefixEnd;
+            int replaced = 0;
+            while (replaced < length && tailStart < sLength) {
+                tailStart += Character.charCount(s.codePointAt(tailStart));
+                replaced++;
+            }
+        }
+
+        final int rLength = r.length();
+        final char[] data = new char[prefixEnd + rLength + sLength - tailStart];
+
+        s.getChars(0, prefixEnd, data, 0);
+        r.getChars(0, rLength, data, prefixEnd);
+        s.getChars(tailStart, sLength, data, prefixEnd + rLength);
+
+        return new String(data);
     }
 
     public static String overlay(String s, String r, long start) {
-        return overlay(s, r, start, r.length());
+        return overlay(s, r, start, r.codePointCount(0, r.length()));
     }
 
     public static int position(BinaryStringData seek, BinaryStringData s) {
