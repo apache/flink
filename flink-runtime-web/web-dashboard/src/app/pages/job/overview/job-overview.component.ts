@@ -56,6 +56,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   public pendingNodes: NodesItemCorrect[] = [];
   public pendingLinks: NodesItemLink[] = [];
   public selectedNode: NodesItemCorrect | null;
+  public rescaleSupported = false;
   public top = Math.max(280, Math.min(Math.round(window.innerHeight * 0.4), 500));
   public jobId: string;
   public timeoutId: number;
@@ -92,6 +93,8 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
+        // Batch jobs fall back to the AdaptiveBatchScheduler, which rejects resource requirement updates.
+        this.rescaleSupported = data.plan.type === 'STREAMING' && data.schedulerType === 'Adaptive';
         if (this.jobId !== data.plan.jid || data.plan.nodes.length !== this.nodes.length) {
           this.jobId = data.plan.jid;
           this.nodes = data.plan.nodes;

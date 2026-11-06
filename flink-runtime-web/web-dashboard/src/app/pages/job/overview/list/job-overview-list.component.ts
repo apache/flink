@@ -106,6 +106,8 @@ export class JobOverviewListComponent implements AfterViewInit, OnDestroy {
 
   @Input() public selectedNode: NodesItemCorrect;
 
+  @Input() public rescaleSupported = false;
+
   @Input()
   public set nodes(value: NodesItemCorrect[]) {
     this.innerNodes = value;
