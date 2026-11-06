@@ -51,7 +51,7 @@ The following configuration options are available: (the default is bold)
 With the closure cleaner disabled, it might happen that an anonymous user function is referencing the surrounding class, which is usually not Serializable. This will lead to exceptions by the serializer. The settings are:
 `NONE`: disable the closure cleaner completely, `TOP_LEVEL`: clean only the top-level class without recursing into fields, `RECURSIVE`: clean all the fields recursively.
 
-- `getParallelism()` / `setParallelism(int parallelism)` Set the default parallelism for the job.
+- `getParallelism()` / `setParallelism(int parallelism)` Set the default parallelism for the job. There are two special cases. In the first case, when creating a LocalStreamEnvironment without specifying parallelism.default, the number of processors available to the Java virtual machine will be used. In the second case, when creating mini cluster without specifying parallelism.default, the total number of slots in mini cluster will be used.
 
 - `getMaxParallelism()` / `setMaxParallelism(int parallelism)` Set the default maximum parallelism for the job. This setting determines the maximum degree of parallelism and specifies the upper limit for dynamic scaling.
 

@@ -470,7 +470,8 @@ public class CoreOptions {
             ConfigOptions.key("parallelism.default")
                     .intType()
                     .defaultValue(1)
-                    .withDescription("Default parallelism for jobs.");
+                    .withDescription(
+                            "Default parallelism for jobs. There are two special cases. In the first case, when creating a LocalStreamEnvironment without specifying parallelism.default, the number of processors available to the Java virtual machine will be used. In the second case, when creating mini cluster without specifying parallelism.default, the total number of slots in mini cluster will be used.");
 
     // ------------------------------------------------------------------------
     //  file systems
