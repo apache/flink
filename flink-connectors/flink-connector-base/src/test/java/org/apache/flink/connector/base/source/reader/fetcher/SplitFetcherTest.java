@@ -311,6 +311,60 @@ class SplitFetcherTest {
         fetcherThread.sync();
     }
 
+    @Test
+    void testShutdownSynchronizationBatchIsRetriedAfterWakeUp() throws Exception {
+        TestingSplitReader<Object, TestingSourceSplit> splitReader = new TestingSplitReader<>();
+        // A capacity of one lets another producer hold the only slot, so the shutdown
+        // synchronization batch has to wait for the queue to drain.
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
+                new FutureCompletingBlockingQueue<>(1);
+        final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader, queue);
+
+        try {
+            assertThat(queue.put(1, finishedSplitFetch("other-split"))).isTrue();
+            // An unconsumed wakeUp for the fetcher's own index makes its next put on a full queue
+            // return false without enqueueing anything.
+            queue.wakeUpPuttingThread(0);
+            fetcher.shutdown(true);
+
+            // Spawn a new fetcher thread to go through the shutdown sequence.
+            CheckedThread fetcherThread =
+                    new CheckedThread() {
+                        @Override
+                        public void go() {
+                            fetcher.run();
+                        }
+                    };
+            fetcherThread.start();
+
+            // Wait until the fetcher thread blocks, either on putting the synchronization batch or
+            // on the shutdown latch.
+            waitUntil(
+                    () -> fetcherThread.getState() == WAITING,
+                    Duration.ofSeconds(30),
+                    "The fetcher thread should have blocked while shutting down");
+            assertThat(splitReader.isClosed())
+                    .as("The split reader should have not been closed.")
+                    .isFalse();
+
+            // Free the slot held by the other producer.
+            queue.poll().recycle();
+
+            waitUntil(
+                    () -> queue.size() == 1,
+                    Duration.ofSeconds(30),
+                    "The fetcher should have enqueued its shutdown synchronization batch");
+            // Recycling it pulls the shutdown latch.
+            queue.poll().recycle();
+
+            fetcherThread.sync();
+            assertThat(splitReader.isClosed()).isTrue();
+        } finally {
+            // Releases the fetcher thread if the synchronization batch was dropped.
+            fetcher.shutdown(false);
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  testing utils
     // ------------------------------------------------------------------------
