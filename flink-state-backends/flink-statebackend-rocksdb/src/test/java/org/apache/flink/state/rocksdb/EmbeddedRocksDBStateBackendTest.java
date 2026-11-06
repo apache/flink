@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.state.rocksdb.sstmerge.RocksDBManualCompactionOptions;
@@ -582,6 +583,43 @@ public class EmbeddedRocksDBStateBackendTest
 
         // just the root directory left
         assertThat(allFilesInDbDir).hasSize(1);
+    }
+
+    @TestTemplate
+    public void testAsyncKeyedStateBackendAdaptorDisposeDeletesAllDirectories() throws Exception {
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        Collection<File> allFilesInDbDir =
+                FileUtils.listFilesAndDirs(
+                        new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
+        try {
+            ValueStateDescriptor<String> kvId =
+                    new ValueStateDescriptor<>("id", String.class, null);
+
+            kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+            ValueState<String> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+            backend.setCurrentKey(1);
+            state.update("Hello");
+
+            // more than just the root directory
+            assertThat(allFilesInDbDir.size()).isGreaterThan(1);
+
+            new AsyncKeyedStateBackendAdaptor<>(backend).dispose();
+
+            allFilesInDbDir =
+                    FileUtils.listFilesAndDirs(
+                            new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
+
+            // just the root directory left
+            assertThat(allFilesInDbDir).hasSize(1);
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
     }
 
     @TestTemplate
