@@ -25,9 +25,9 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-/** Base Test for all subclass of {@link TimeIntervalJoin}. */
-abstract class TimeIntervalStreamJoinTestBase {
-    InternalTypeInfo<RowData> rowType =
+/** Base test for the interval join functions. */
+public abstract class TimeIntervalStreamJoinTestBase {
+    protected InternalTypeInfo<RowData> rowType =
             InternalTypeInfo.ofFields(new BigIntType(), VarCharType.STRING_TYPE);
 
     private InternalTypeInfo<RowData> outputRowType =
@@ -36,7 +36,8 @@ abstract class TimeIntervalStreamJoinTestBase {
                     VarCharType.STRING_TYPE,
                     new BigIntType(),
                     VarCharType.STRING_TYPE);
-    RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
+    protected RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
 
     protected String funcCode =
             "public class TestIntervalJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction "

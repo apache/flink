@@ -35,7 +35,7 @@ import org.apache.flink.util.Collector;
  * RowKind#INSERT}, because the join function reuses a single row instance whose kind may have been
  * left at {@link RowKind#UPDATE_AFTER} by an earlier correction.
  */
-class EmitAwareCollector implements Collector<RowData> {
+public class EmitAwareCollector implements Collector<RowData> {
 
     private boolean emitted = false;
     private Collector<RowData> innerCollector;
@@ -43,15 +43,15 @@ class EmitAwareCollector implements Collector<RowData> {
     // The pad to retract before the next matched row, or null when no correction is armed.
     private RowData pendingRetraction;
 
-    void reset() {
+    public void reset() {
         emitted = false;
     }
 
-    boolean isEmitted() {
+    public boolean isEmitted() {
         return emitted;
     }
 
-    void setInnerCollector(Collector<RowData> innerCollector) {
+    public void setInnerCollector(Collector<RowData> innerCollector) {
         this.innerCollector = innerCollector;
     }
 
