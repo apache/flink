@@ -36,4 +36,14 @@ public interface PluginManager {
      *     known plugins.
      */
     <P> Iterator<P> load(Class<P> service);
+
+    /**
+     * Opens all cached plugin instances by invoking {@link Plugin#open(PluginContext)} on each.
+     *
+     * @param context The context to pass to each plugin.
+     */
+    void open(PluginContext context);
+
+    /** Closes all cached plugin instances by invoking {@link Plugin#close()} on each. */
+    void close();
 }
