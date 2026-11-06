@@ -546,11 +546,10 @@ class PipelinedSubpartitionWithReadViewTest {
     }
 
     @TestTemplate
-    void testPriorityEventBypassesBlockedSubpartition() throws Exception {
+    void testPriorityEventBypassesRecoveryCompletionBlock() throws Exception {
         subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
 
-        // Block the subpartition by consuming an aligned checkpoint barrier
-        blockSubpartitionByCheckpoint(1);
+        blockSubpartition(Buffer.DataType.RECOVERY_COMPLETION, 1);
         assertThat(availablityListener.getNumPriorityEvents()).isZero();
 
         // While blocked, add an unaligned checkpoint barrier (priority event).
@@ -578,12 +577,11 @@ class PipelinedSubpartitionWithReadViewTest {
     }
 
     @TestTemplate
-    void testDataStillBlockedAfterPriorityEventBypasses() throws Exception {
+    void testDataStillBlockedAfterPriorityEventBypassesRecoveryCompletionBlock() throws Exception {
         final RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
         subpartition.setChannelStateWriter(channelStateWriter);
 
-        // Block the subpartition
-        blockSubpartitionByCheckpoint(1);
+        blockSubpartition(Buffer.DataType.RECOVERY_COMPLETION, 1);
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
         assertNoNextBuffer(readView);
 
@@ -619,12 +617,46 @@ class PipelinedSubpartitionWithReadViewTest {
         assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
     }
 
+    @TestTemplate
+    void testPriorityEventWaitsForResumeAfterAlignedBarrier() throws Exception {
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+
+        blockSubpartitionByCheckpoint(1);
+
+        // The downstream may not have processed the aligned barrier yet, so a barrier of a newer
+        // checkpoint must not overtake it.
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
+        BufferConsumer barrierBuffer =
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(1, 0, options), true);
+        subpartition.add(barrierBuffer);
+        assertThat(availablityListener.getNumPriorityEvents()).isZero();
+        assertThat(readView.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
+        assertNoNextBuffer(readView);
+
+        readView.resumeConsumption();
+        assertNextEvent(
+                readView,
+                barrierBuffer.getWrittenBytes(),
+                CheckpointBarrier.class,
+                false,
+                0,
+                false,
+                true);
+    }
+
     // ------------------------------------------------------------------------
 
     private void blockSubpartitionByCheckpoint(int numNotifications)
             throws IOException, InterruptedException {
-        subpartition.add(
-                createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER));
+        blockSubpartition(Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER, numNotifications);
+    }
+
+    private void blockSubpartition(Buffer.DataType blockingDataType, int numNotifications)
+            throws IOException, InterruptedException {
+        subpartition.add(createEventBufferConsumer(BUFFER_SIZE, blockingDataType));
 
         assertThat(availablityListener.getNumNotifications()).isEqualTo(numNotifications);
         assertNextEvent(readView, BUFFER_SIZE, null, false, 0, false, true);
