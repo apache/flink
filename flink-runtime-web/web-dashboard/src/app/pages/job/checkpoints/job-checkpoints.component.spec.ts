@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { Component, Input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
@@ -26,6 +27,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { JobCheckpointsComponent } from './job-checkpoints.component';
 import { JobLocalService } from '../job-local.service';
+import { JobCheckpointsTimelineComponent } from './timeline/job-checkpoints-timeline.component';
 
 const mockStats = {
   counts: { restored: 0, total: 3, in_progress: 0, completed: 3, failed: 0 },
@@ -49,6 +51,15 @@ const mockConfig = {
   state_changelog_enabled: false
 };
 
+// The real timeline draws with G2 on a canvas, which jsdom does not provide.
+@Component({ selector: 'flink-job-checkpoints-timeline', template: '' })
+class JobCheckpointsTimelineStubComponent {
+  @Input() jobId?: string;
+  @Input() vertices: unknown[] = [];
+  @Input() history: unknown[] = [];
+  @Input() config?: unknown;
+}
+
 describe('JobCheckpointsComponent', () => {
   let fixture: ComponentFixture<JobCheckpointsComponent>;
   let element: HTMLElement;
@@ -65,7 +76,12 @@ describe('JobCheckpointsComponent', () => {
         { provide: JobService, useValue: { loadCheckpointStats, loadCheckpointConfig } },
         { provide: JobLocalService, useValue: { jobDetailChanges: () => of({ jid: 'job-1' }) } }
       ]
-    }).compileComponents();
+    })
+      .overrideComponent(JobCheckpointsComponent, {
+        remove: { imports: [JobCheckpointsTimelineComponent] },
+        add: { imports: [JobCheckpointsTimelineStubComponent] }
+      })
+      .compileComponents();
     fixture = TestBed.createComponent(JobCheckpointsComponent);
     element = fixture.nativeElement as HTMLElement;
   });

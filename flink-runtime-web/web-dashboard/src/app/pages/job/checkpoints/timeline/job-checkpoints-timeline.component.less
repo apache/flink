@@ -1,0 +1,201 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "theme";
+
+// The theme has no neutral palette token for this one; keep in sync with PHASE_COLOR in the .ts.
+@phase-start-color: #b8c0cc;
+
+.timeline-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: @margin-lg;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @padding-sm;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: @margin-xs;
+}
+
+.hint {
+  margin-left: @margin-xs;
+  color: @text-color-secondary;
+  font-size: @font-size-sm;
+}
+
+.legend {
+  display: flex;
+  gap: @padding-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: @text-color-secondary;
+  font-size: @font-size-sm;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+  }
+
+  .completed {
+    background: @green-6;
+  }
+
+  .savepoint {
+    background: @purple-6;
+  }
+
+  .in-progress {
+    background: @gold-6;
+  }
+
+  .failed {
+    background: @red-6;
+  }
+
+  .phase-start {
+    background: @phase-start-color;
+  }
+
+  .phase-align {
+    background: @blue-3;
+  }
+
+  .phase-sync {
+    background: @orange-6;
+  }
+
+  .phase-async {
+    background: @green-6;
+  }
+
+  .aborted {
+    border: 1.5px dashed @red-6;
+    background: transparent;
+  }
+
+  .no-ack {
+    border: 1.5px dashed @red-6;
+    background: repeating-linear-gradient(-45deg, @red-1 0 3px, @red-3 3px 4.5px);
+  }
+}
+
+.stale-stats {
+  margin-bottom: @margin-xs;
+}
+
+.strip-canvas {
+  width: 100%;
+  // The chart's height, reserved before it first renders.
+  min-height: 160px;
+  cursor: pointer;
+}
+
+.pin-badge {
+  vertical-align: middle;
+  margin-left: @margin-xs;
+}
+
+.timeline-note {
+  display: flex;
+  gap: @padding-sm;
+  justify-content: space-between;
+  align-items: center;
+  // Fixed height (a small select's) so the chart doesn't shift when the note toggles.
+  min-height: 24px;
+  margin: 0 0 @margin-xs;
+  color: @text-color-secondary;
+  font-size: @font-size-sm;
+
+  .timeline-controls {
+    display: inline-flex;
+    gap: @padding-sm;
+    align-items: center;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .slowest-first {
+    color: @text-color-secondary;
+    font-size: @font-size-sm;
+  }
+
+  .row-count {
+    width: 72px;
+    margin: 0 4px;
+  }
+}
+
+.timeline-title {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: @margin-xs;
+  align-items: center;
+  min-width: 0;
+}
+
+.timeline-actions {
+  display: inline-flex;
+  gap: @margin-xs;
+  align-items: center;
+  margin-left: auto;
+}
+
+.partial-failure {
+  margin-bottom: @padding-sm;
+}
+
+.timeline-canvas-wrapper {
+  position: relative;
+  min-height: 160px;
+
+  &.loading {
+    opacity: 0.7;
+  }
+}
+
+.timeline-scroll.scrollable {
+  overflow-y: auto;
+}
+
+.timeline-sticky {
+  position: sticky;
+  top: 0;
+}
+
+.timeline-canvas {
+  width: 100%;
+
+  &.hidden {
+    display: none;
+  }
+}

@@ -57,8 +57,8 @@ export interface Checkpoint {
       is_savepoint: boolean;
       external_path: string;
     };
-    history: CheckpointHistory;
   };
+  history: CheckpointHistory[];
 }
 
 export interface CheckpointHistory {

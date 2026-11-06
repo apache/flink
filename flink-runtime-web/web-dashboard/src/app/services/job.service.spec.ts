@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, of, throwError, toArray } from 'rxjs';
 
-import { JobDetail, JobOverview } from '@flink-runtime-web/interfaces';
+import { CheckpointSubTask, JobDetail, JobOverview } from '@flink-runtime-web/interfaces';
 import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 import { JobService } from './job.service';
 
 describe('JobService', () => {
@@ -130,6 +131,42 @@ describe('JobService', () => {
         v1: { parallelism: { lowerBound: 1, upperBound: 4 } },
         v2: { parallelism: { lowerBound: 1, upperBound: 2 } }
       });
+    });
+  });
+
+  describe('loadCheckpointAllSubtaskDetails', () => {
+    const subtasksOf = (vid: string): string => `./jobs/job-1/checkpoints/details/7/subtasks/${vid}`;
+
+    it('maps a 404 to null for that vertex and keeps the other vertices', async () => {
+      const detail = { id: 7 } as unknown as CheckpointSubTask;
+      httpClient.get.mockImplementation((url: string) =>
+        url === subtasksOf('v1') ? of(detail) : throwError(() => new HttpErrorResponse({ status: 404 }))
+      );
+
+      const result = await firstValueFrom(service.loadCheckpointAllSubtaskDetails('job-1', 7, ['v1', 'v2']));
+
+      expect(result).toEqual({ v1: detail, v2: null });
+    });
+
+    it('fails the whole load on any other error', async () => {
+      const error = new HttpErrorResponse({ status: 500 });
+      httpClient.get.mockImplementation((url: string) => (url === subtasksOf('v1') ? of({}) : throwError(() => error)));
+
+      await expect(firstValueFrom(service.loadCheckpointAllSubtaskDetails('job-1', 7, ['v1', 'v2']))).rejects.toBe(
+        error
+      );
+    });
+
+    it('marks its requests as expecting a 404, unlike the single-vertex default', () => {
+      httpClient.get.mockReturnValue(of({}));
+
+      service.loadCheckpointAllSubtaskDetails('job-1', 7, ['v1', 'v2']).subscribe();
+      service.loadCheckpointSubtaskDetails('job-1', 7, 'v3');
+
+      const expectsNotFound = httpClient.get.mock.calls.map(([, options]) =>
+        (options as { context: HttpContext }).context.get(EXPECTED_NOT_FOUND)
+      );
+      expect(expectsNotFound).toEqual([true, true, false]);
     });
   });
 

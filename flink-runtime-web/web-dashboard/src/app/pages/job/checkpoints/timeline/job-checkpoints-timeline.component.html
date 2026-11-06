@@ -1,0 +1,202 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div class="timeline-wrapper">
+  <section class="strip-section">
+    <header class="strip-header">
+      <div class="strip-title">
+        <strong>Recent Checkpoints</strong>
+        <span class="hint">Click a bar to load its per-subtask timeline below.</span>
+      </div>
+      <ul class="legend">
+        <li>
+          <span class="swatch completed"></span>
+          Completed
+        </li>
+        <li>
+          <span class="swatch savepoint"></span>
+          Savepoint
+        </li>
+        <li>
+          <span class="swatch in-progress"></span>
+          In progress
+        </li>
+        <li>
+          <span class="swatch failed"></span>
+          Failed
+        </li>
+      </ul>
+    </header>
+    <nz-alert
+      *ngIf="statsRefreshFailed"
+      class="stale-stats"
+      nzType="warning"
+      nzShowIcon
+      [nzMessage]="staleStatsMessage"
+    ></nz-alert>
+    <ng-template #staleStatsMessage>
+      Could not refresh the checkpoint statistics from the JobManager; showing the ones loaded
+      {{ statsUpdatedAt ? 'at ' + (statsUpdatedAt | date: 'HH:mm:ss') : 'earlier' }}. Retrying.
+    </ng-template>
+    <div class="strip-canvas" #stripContainer></div>
+    <nz-empty *ngIf="!hasHistory" nzNotFoundContent="No checkpoint history yet"></nz-empty>
+  </section>
+
+  <section class="timeline-section">
+    <header class="timeline-header">
+      <div class="timeline-title">
+        <strong *ngIf="selected">
+          Checkpoint #{{ selected.id }}
+          <nz-tag
+            *ngIf="userPinned"
+            class="pin-badge"
+            nzColor="gold"
+            nz-tooltip
+            nzTooltipTitle="Pinned: the timeline below will not change until you click another checkpoint or 'Follow newest'."
+          >
+            pinned
+          </nz-tag>
+        </strong>
+        <strong *ngIf="!selected">Per-subtask Timeline</strong>
+        <span *ngIf="selected" class="hint">
+          {{ selected.rawStatus }}
+          <ng-container *ngIf="selected.isSavepoint">· savepoint</ng-container>
+          · triggered {{ selected.triggered | date: 'yyyy-MM-dd HH:mm:ss.SSS' }} ·
+          {{ selected.duration | humanizeDuration }} · acked {{ selected.acked }} ·
+          {{ selected.size | humanizeBytes }}
+        </span>
+        <div class="timeline-actions">
+          <button
+            *ngIf="userPinned"
+            nz-button
+            nzSize="small"
+            type="button"
+            class="follow-newest"
+            (click)="followNewest()"
+          >
+            Follow newest
+          </button>
+        </div>
+      </div>
+      <ul class="legend">
+        <li>
+          <span class="swatch phase-start"></span>
+          start_delay
+        </li>
+        <li>
+          <span class="swatch phase-align"></span>
+          alignment
+        </li>
+        <li>
+          <span class="swatch phase-sync"></span>
+          sync
+        </li>
+        <li>
+          <span class="swatch phase-async"></span>
+          async
+        </li>
+        <li nz-tooltip [nzTooltipTitle]="abortedTip" nzTooltipPlacement="bottom">
+          <span class="swatch aborted"></span>
+          aborted
+        </li>
+        <li nz-tooltip [nzTooltipTitle]="noAckTip" nzTooltipPlacement="bottom">
+          <span class="swatch no-ack"></span>
+          no ack
+        </li>
+        <ng-template #abortedTip>
+          Started its snapshot, but the checkpoint failed before it finished. The bar shows the
+          partial work.
+        </ng-template>
+        <ng-template #noAckTip>
+          Reported no statistics for this checkpoint: still pending, or never acknowledged before
+          the checkpoint failed (for example, the barrier never arrived). The bar spans the whole
+          checkpoint.
+        </ng-template>
+      </ul>
+    </header>
+
+    <!-- Reserve the line while a checkpoint is selected so the chart doesn't shift. -->
+    <div *ngIf="selected" class="timeline-note">
+      <span *ngIf="selectedRotatedOut && !timelineEmpty">
+        Checkpoint #{{ selected?.id }} is no longer in the recent-checkpoints strip above — showing
+        the frozen snapshot from when it was pinned.
+      </span>
+      <span *ngIf="totalRows > 1 && !timelineEmpty" class="timeline-controls">
+        <!-- Text, not whitespace-only nodes, around the select: Angular drops whitespace-only nodes. -->
+        <span *ngIf="slowestCountOptions.length > 0">
+          {{ shownRows < totalRows ? 'Showing the' : 'Showing all' }}
+          <nz-select
+            class="row-count"
+            nzSize="small"
+            aria-label="Number of slowest subtasks shown"
+            [ngModel]="shownRows"
+            (ngModelChange)="setSlowestCount($event)"
+          >
+            <nz-option
+              *ngFor="let n of slowestCountOptions"
+              [nzValue]="n"
+              [nzLabel]="'' + n"
+            ></nz-option>
+          </nz-select>
+          {{ shownRows < totalRows ? 'slowest of ' + totalRows + ' subtasks' : 'subtasks' }}
+          {{ scrollable ? '· rows ' + (firstRow + 1) + '–' + (firstRow + visibleRows) : '' }}
+        </span>
+        <label
+          nz-checkbox
+          class="slowest-first"
+          [ngModel]="slowestFirst"
+          (ngModelChange)="setSlowestFirst($event)"
+        >
+          slowest first
+        </label>
+      </span>
+    </div>
+
+    <nz-alert
+      *ngIf="failedVertexCount > 0"
+      class="partial-failure"
+      nzType="warning"
+      nzShowIcon
+      [nzMessage]="partialFailureMessage"
+    ></nz-alert>
+
+    <div class="timeline-canvas-wrapper" [class.loading]="loadingTimeline" #timelineWrapper>
+      <nz-spin [nzSpinning]="loadingTimeline">
+        <!-- With more rows than are visible, the chart stays in place while this box scrolls. -->
+        <div
+          class="timeline-scroll"
+          [class.scrollable]="scrollable"
+          [style.height.px]="scrollable ? chartHeight : null"
+          (scroll)="onTimelineScroll()"
+          #timelineScroll
+        >
+          <div [style.height.px]="scrollable ? scrollContentHeight : null">
+            <!-- G2 sets an inline position on its container, so the sticky goes on this wrapper. -->
+            <div class="timeline-sticky">
+              <div class="timeline-canvas" [class.hidden]="timelineEmpty" #timelineContainer></div>
+            </div>
+          </div>
+        </div>
+        <nz-empty
+          *ngIf="timelineEmpty && !loadingTimeline"
+          [nzNotFoundContent]="emptyTimelineMessage"
+        ></nz-empty>
+      </nz-spin>
+    </div>
+  </section>
+</div>
