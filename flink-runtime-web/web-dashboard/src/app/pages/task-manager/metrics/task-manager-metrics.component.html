@@ -164,6 +164,61 @@
     </tbody>
   </nz-table>
 </nz-card>
+<nz-card
+  *ngIf="taskManagerDetail"
+  nzTitle="Process Usage"
+  nzSize="small"
+  class="flink-memory-model"
+>
+  <nz-table
+    nzBordered
+    [nzTemplateMode]="true"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+    [nzSize]="'small'"
+    class="no-border"
+    [nzWidthConfig]="['220px', null]"
+  >
+    <thead>
+      <tr>
+        <th>
+          Type
+          <i
+            class="header-icon"
+            nz-icon
+            nz-tooltip
+            nzTooltipTitle="CPU usage is the TaskManager JVM's share of the CPUs available to it, i.e. the container's CPU limit if there is one. Memory (RSS) and Total I/O need metrics.system-resource: true and oshi-core on the classpath; otherwise they show as -. Total I/O counts the bytes since the TaskManager started and is always 0 on macOS 11 and later."
+            nzType="info-circle"
+          ></i>
+        </th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>CPU Usage</strong></td>
+        <td>
+          {{
+            metrics['Status.JVM.CPU.Load'] >= 0
+              ? (metrics['Status.JVM.CPU.Load'] * 100 | number: '1.0-2') + ' %'
+              : '-'
+          }}
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Memory (RSS)</strong></td>
+        <td>{{ metrics['Process.Memory.RSS'] | humanizeBytes }}</td>
+      </tr>
+      <tr>
+        <td><strong>Total I/O (Read / Write)</strong></td>
+        <td>
+          {{ metrics['Process.IO.Read'] | humanizeBytes }} /
+          {{ metrics['Process.IO.Write'] | humanizeBytes }}
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>
 <nz-card *ngIf="taskManagerDetail" nzTitle="Advanced" nzSize="small" class="flink-memory-model">
   <div nz-row [nzGutter]="16">
     <div nz-col [nzSpan]="12">

@@ -17,6 +17,9 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.OperatingSystem;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
@@ -24,13 +27,20 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.CentralProcessor.TickType;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
+import oshi.software.os.OSProcess;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -46,9 +56,19 @@ public class SystemResourcesCounter extends Thread {
 
     private static final Logger LOG = LoggerFactory.getLogger(SystemResourcesCounter.class);
 
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+
     private final long probeIntervalMs;
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
+
+    /** The procfs directory of this process, or {@code null} to read the usage through OSHI. */
+    @Nullable private final Path procSelfDir;
+
+    /** OSHI's view of this process; only used if {@link #procSelfDir} is {@code null}. */
+    @Nullable private final OSProcess oshiProcess;
+
+    private boolean processUsageFailureLogged;
 
     private volatile boolean running = true;
 
@@ -78,11 +98,30 @@ public class SystemResourcesCounter extends Thread {
     private AtomicLongArray receiveRatePerInterface;
     private AtomicLongArray sendRatePerInterface;
 
+    private volatile long processMemoryRSS = -1L;
+    private volatile long processBytesRead = -1L;
+    private volatile long processBytesWritten = -1L;
+
     public SystemResourcesCounter(Duration probeInterval) {
+        // On Linux, OSHI's OSProcess also resolves the user and group names of the process by
+        // running "getent passwd" and "getent group" without a timeout, so read procfs instead.
+        this(probeInterval, OperatingSystem.isLinux() ? Paths.get("/proc/self") : null);
+    }
+
+    @VisibleForTesting
+    SystemResourcesCounter(Duration probeInterval, @Nullable Path procSelfDir) {
         probeIntervalMs = probeInterval.toMillis();
         checkState(this.probeIntervalMs > 0);
 
         setName(SystemResourcesCounter.class.getSimpleName() + " probing thread");
+
+        this.procSelfDir = procSelfDir;
+        if (procSelfDir == null) {
+            final int processId = systemInfo.getOperatingSystem().getProcessId();
+            oshiProcess = systemInfo.getOperatingSystem().getProcess(processId);
+        } else {
+            oshiProcess = null;
+        }
 
         cpuUsagePerProcessor =
                 new AtomicReferenceArray<>(
@@ -106,6 +145,7 @@ public class SystemResourcesCounter extends Thread {
             while (running) {
                 calculateCPUUsage(hardwareAbstractionLayer.getProcessor());
                 calculateNetworkUsage(hardwareAbstractionLayer.getNetworkIFs());
+                calculateProcessUsage();
                 Thread.sleep(probeIntervalMs);
             }
         } catch (InterruptedException e) {
@@ -187,6 +227,18 @@ public class SystemResourcesCounter extends Thread {
 
     public long getSendRatePerInterface(int interfaceNo) {
         return sendRatePerInterface.get(interfaceNo);
+    }
+
+    public long getProcessMemoryRSS() {
+        return processMemoryRSS;
+    }
+
+    public long getProcessBytesRead() {
+        return processBytesRead;
+    }
+
+    public long getProcessBytesWritten() {
+        return processBytesWritten;
     }
 
     private long[] getSystemCpuLoadTicksDiff(CentralProcessor processor) {
@@ -279,5 +331,70 @@ public class SystemResourcesCounter extends Thread {
             bytesReceivedPerInterface[i] = networkIF.getBytesRecv();
             bytesSentPerInterface[i] = networkIF.getBytesSent();
         }
+    }
+
+    @VisibleForTesting
+    void calculateProcessUsage() {
+        if (procSelfDir == null) {
+            calculateProcessUsageWithOshi();
+            return;
+        }
+        try {
+            // VmRSS is reported in kB.
+            processMemoryRSS =
+                    parseProcFsValue(Files.readAllLines(procSelfDir.resolve("status")), "VmRSS")
+                            * 1024;
+        } catch (IOException | RuntimeException e) {
+            processMemoryRSS = -1L;
+            logProcessUsageFailure(e);
+        }
+        try {
+            final List<String> io = Files.readAllLines(procSelfDir.resolve("io"));
+            processBytesRead = parseProcFsValue(io, "read_bytes");
+            processBytesWritten = parseProcFsValue(io, "write_bytes");
+        } catch (IOException | RuntimeException e) {
+            processBytesRead = -1L;
+            processBytesWritten = -1L;
+            logProcessUsageFailure(e);
+        }
+    }
+
+    private void calculateProcessUsageWithOshi() {
+        try {
+            checkState(
+                    oshiProcess != null && oshiProcess.updateAttributes(),
+                    "OSHI cannot read the attributes of this process.");
+            processMemoryRSS = oshiProcess.getResidentSetSize();
+            processBytesRead = oshiProcess.getBytesRead();
+            processBytesWritten = oshiProcess.getBytesWritten();
+        } catch (RuntimeException e) {
+            processMemoryRSS = -1L;
+            processBytesRead = -1L;
+            processBytesWritten = -1L;
+            logProcessUsageFailure(e);
+        }
+    }
+
+    private void logProcessUsageFailure(Exception e) {
+        // Reading procfs fails with a ClosedByInterruptException when shutdown() interrupts us.
+        if (running && !processUsageFailureLogged) {
+            processUsageFailureLogged = true;
+            LOG.warn(
+                    "Failed to read the resource usage of the Flink process. The affected "
+                            + "Process.* metrics report -1 until a later probe succeeds.",
+                    e);
+        }
+    }
+
+    /** Returns the number at the start of the value of the {@code key:} line of a procfs file. */
+    private static long parseProcFsValue(List<String> lines, String key) {
+        final String prefix = key + ':';
+        for (String line : lines) {
+            if (line.startsWith(prefix)) {
+                return Long.parseLong(
+                        WHITESPACE.split(line.substring(prefix.length()).trim())[0]);
+            }
+        }
+        throw new IllegalStateException("No " + key + " entry found.");
     }
 }
