@@ -31,6 +31,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.JsonDecoder;
@@ -164,6 +165,12 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         return encoding;
     }
 
+    void resetDecoder() throws IOException {
+        if (encoding == AvroEncoding.BINARY) {
+            this.decoder = DecoderFactory.get().binaryDecoder(inputStream, (BinaryDecoder) decoder);
+        }
+    }
+
     @Override
     public T deserialize(@Nullable byte[] message) throws IOException {
         if (message == null) {
@@ -181,7 +188,14 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             ((JsonDecoder) this.decoder).configure(inputStream);
         }
 
-        return datumReader.read(null, decoder);
+        try {
+            return datumReader.read(null, decoder);
+        } catch (IOException | RuntimeException e) {
+            // A failed decode leaves stale bytes in the BinaryDecoder's internal read-ahead
+            // buffer. Reset the decoder so the next message is not corrupted by those bytes.
+            resetDecoder();
+            throw e;
+        }
     }
 
     void checkAvroInitialized() throws IOException {
