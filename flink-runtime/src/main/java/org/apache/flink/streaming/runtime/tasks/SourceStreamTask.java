@@ -181,6 +181,11 @@ public class SourceStreamTask<
     }
 
     @Override
+    protected void emitFinishedStatus() {
+        emitFinishedStatusToOutputs();
+    }
+
+    @Override
     protected void advanceToEndOfEventTime() throws Exception {
         // Downstream outputs drop watermarks while the announced status is IDLE, so re-activate
         // first to ensure the final MAX_WATERMARK is delivered. A redundant ACTIVE status is

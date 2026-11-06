@@ -58,6 +58,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.SerializedValue;
 
 import org.assertj.core.api.Assertions;
@@ -132,7 +133,9 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                             CheckpointStorageLocationReference.getDefault());
             triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
+            // Source tasks emit FINISHED status before MAX_WATERMARK when completing with drain
             Queue<Object> expectedOutput = new LinkedList<>();
+            expectedOutput.add(WatermarkStatus.FINISHED);
             expectedOutput.add(Watermark.MAX_WATERMARK);
             expectedOutput.add(new EndOfData(StopMode.DRAIN));
             expectedOutput.add(
@@ -148,7 +151,9 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             testHarness.processAll();
             testHarness.finishProcessing();
 
+            // Source tasks emit FINISHED status before MAX_WATERMARK when completing with drain
             Queue<Object> expectedOutput = new LinkedList<>();
+            expectedOutput.add(WatermarkStatus.FINISHED);
             expectedOutput.add(Watermark.MAX_WATERMARK);
             expectedOutput.add(new EndOfData(StopMode.DRAIN));
             assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
@@ -277,11 +282,15 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                         .finish()
                         .build()) {
 
-            testHarness.getStreamTask().invoke(); // should result in end-of-input and task closing
-            testHarness.processAll(); // no-op
+            testHarness.getStreamTask().invoke();
+            testHarness.processAll();
             testHarness.cleanUp(); // close output writer
+            // Source tasks emit FINISHED status before MAX_WATERMARK when completing with drain
             assertThat(output)
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            WatermarkStatus.FINISHED,
+                            Watermark.MAX_WATERMARK,
+                            new EndOfData(StopMode.DRAIN));
 
             LifeCycleMonitorSourceReader sourceReader =
                     (LifeCycleMonitorSourceReader)
