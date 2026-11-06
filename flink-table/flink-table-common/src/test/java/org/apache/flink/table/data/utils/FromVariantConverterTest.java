@@ -48,6 +48,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -172,6 +173,48 @@ class FromVariantConverterTest {
                                         BUILDER.of(new BigDecimal("9223372036854775808"))))
                 .isInstanceOf(TableRuntimeException.class)
                 .hasMessage("Casting the VARIANT value 9223372036854775808 to BIGINT overflowed.");
+    }
+
+    @Test
+    void testStringReachesABinaryTargetAsItsUtf8Bytes() {
+        final Variant variant = BUILDER.of("héllo");
+
+        assertThat((byte[]) convert(DataTypes.BYTES(), variant))
+                .isEqualTo("héllo".getBytes(StandardCharsets.UTF_8));
+        assertThat((byte[]) convert(DataTypes.VARBINARY(3), variant))
+                .containsExactly(0x68, 0xC3, 0xA9);
+        assertThat((byte[]) convert(DataTypes.BINARY(8), variant))
+                .containsExactly(0x68, 0xC3, 0xA9, 0x6C, 0x6C, 0x6F, 0, 0);
+    }
+
+    @Test
+    void testStringWithInvalidUtf8ReachesABinaryTargetWithReplacementCharacters() {
+        final BinaryVariant valid = (BinaryVariant) BUILDER.of("ab");
+        final byte[] value = valid.getValue().clone();
+        // The two payload bytes after the header become C3 28, which is not valid UTF-8.
+        value[1] = (byte) 0xC3;
+        value[2] = 0x28;
+        final Variant invalid = new BinaryVariant(value, valid.getMetadata());
+
+        assertThat((byte[]) convert(DataTypes.BYTES(), invalid))
+                .containsExactly(0xEF, 0xBF, 0xBD, 0x28);
+    }
+
+    @Test
+    void testBinaryTargetRejectsAKindWithoutBytes() {
+        assertThatThrownBy(() -> convert(DataTypes.BYTES(), BUILDER.of(true)))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageStartingWith("Cannot cast a VARIANT BOOLEAN value to BYTES.");
+        assertThatThrownBy(() -> convert(DataTypes.BINARY(2), BUILDER.of(1)))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageStartingWith("Cannot cast a VARIANT INT value to BINARY(2).");
+        assertThatThrownBy(
+                        () ->
+                                convert(
+                                        DataTypes.VARBINARY(2),
+                                        BUILDER.object().add("a", BUILDER.of(1)).build()))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageStartingWith("Cannot cast a VARIANT OBJECT value to VARBINARY(2).");
     }
 
     @Test

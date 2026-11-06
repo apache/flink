@@ -351,12 +351,25 @@ public final class VariantCastUtils {
     }
 
     /**
-     * Reads a binary variant as the target binary type. {@code BINARY} is fixed width, so a shorter
-     * value is padded with zero bytes, and either target truncates a value longer than {@code
-     * targetLength}. This matches a regular cast into the same type.
+     * Reads a binary or string variant as the target binary type. A string becomes its UTF-8 bytes,
+     * like a regular cast from a character string. The string is decoded first, so a payload that
+     * is not valid UTF-8 comes out with the bytes of U+FFFD in place of each malformed sequence, as
+     * in the cast to a character string. {@code BINARY} is fixed width, so a shorter value is
+     * padded with zero bytes, and either target truncates a value longer than {@code targetLength}.
+     * This matches a regular cast into the same type.
      */
     public static byte[] toBytes(Variant variant, int targetLength, boolean fixedLength) {
-        final byte[] value = variant.getBytes();
+        final byte[] value;
+        switch (variant.getType()) {
+            case BYTES:
+                value = variant.getBytes();
+                break;
+            case STRING:
+                value = variant.getString().getBytes(StandardCharsets.UTF_8);
+                break;
+            default:
+                throw unsupportedKind(variant, binaryTarget(targetLength, fixedLength));
+        }
         if (fixedLength) {
             return value.length == targetLength ? value : Arrays.copyOf(value, targetLength);
         }
@@ -585,6 +598,16 @@ public final class VariantCastUtils {
             return "STRING";
         }
         return String.format("%s(%d)", "VARCHAR", targetLength);
+    }
+
+    private static String binaryTarget(int targetLength, boolean fixedLength) {
+        if (fixedLength) {
+            return String.format("%s(%d)", "BINARY", targetLength);
+        }
+        if (targetLength == Integer.MAX_VALUE) {
+            return "BYTES";
+        }
+        return String.format("%s(%d)", "VARBINARY", targetLength);
     }
 
     private static Number numeric(Variant variant, String targetType) {

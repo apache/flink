@@ -298,6 +298,22 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('true') AS BOOLEAN)",
                                 true,
                                 BOOLEAN())
+                        // A string reaches a binary target as its UTF-8 bytes, like a regular cast
+                        // from a character string. Any other kind has no binary form.
+                        .testResult(
+                                lit("\"abc\"").parseJson().cast(BYTES()),
+                                "CAST(PARSE_JSON('\"abc\"') AS BYTES)",
+                                new byte[] {'a', 'b', 'c'},
+                                BYTES())
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('true') AS BYTES)",
+                                TableRuntimeException.class,
+                                "Cannot cast a VARIANT BOOLEAN value to BYTES.")
+                        .testResult(
+                                lit("true").parseJson().tryCast(BYTES()),
+                                "TRY_CAST(PARSE_JSON('true') AS BYTES)",
+                                null,
+                                BYTES())
                         // CAST returns the raw scalar value (string unquoted)
                         .testResult(
                                 lit("\"foo\"").parseJson().cast(STRING()),
