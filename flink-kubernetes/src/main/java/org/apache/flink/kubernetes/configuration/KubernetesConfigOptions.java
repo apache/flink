@@ -532,6 +532,15 @@ public class KubernetesConfigOptions {
                             "Whether to enable HostNetwork mode. "
                                     + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_POD_SERVICE_LINKS_ENABLED =
+            key("kubernetes.pod.service-links.enabled")
+                    .booleanType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Whether information about Kubernetes services should be injected into the environment variables of the JobManager and TaskManager pods, i.e. the 'enableServiceLinks' field of the pod spec. "
+                                    + "If not configured, the value defined in the pod template will be used, and Kubernetes enables it by default when the pod template does not define it either. "
+                                    + "Disabling it could speed up the startup of the pods when there are many services in the same namespace, since every service adds several environment variables to each pod.");
+
     public static final ConfigOption<String> KUBERNETES_CLIENT_USER_AGENT =
             key("kubernetes.client.user-agent")
                     .stringType()

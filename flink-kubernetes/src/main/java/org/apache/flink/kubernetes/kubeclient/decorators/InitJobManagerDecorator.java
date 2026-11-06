@@ -76,6 +76,14 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                         flinkPod.getPodWithoutMainContainer().getSpec().getDnsPolicy(),
                         kubernetesJobManagerParameters.isHostNetworkEnabled());
 
+        final Boolean enableServiceLinks =
+                kubernetesJobManagerParameters
+                        .getEnableServiceLinks()
+                        .orElse(
+                                flinkPod.getPodWithoutMainContainer()
+                                        .getSpec()
+                                        .getEnableServiceLinks());
+
         if (flinkPod.getPodWithoutMainContainer().getSpec().getRestartPolicy() != null) {
             logger.info(
                     "The restart policy of JobManager pod will be overwritten to 'always' "
@@ -89,6 +97,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withServiceAccountName(serviceAccountName)
                 .withHostNetwork(kubernetesJobManagerParameters.isHostNetworkEnabled())
                 .withDnsPolicy(dnsPolicy)
+                .withEnableServiceLinks(enableServiceLinks)
                 .endSpec();
 
         // Specify volume for user artifact(s)
