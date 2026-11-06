@@ -493,7 +493,7 @@ Resuming from both savepoints and checkpoints is supported:
 - given an existing non-changelog job
 - take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - alter configuration (enable Changelog)
-- resume from the taken snapshot
+- resume from the taken snapshot using [`CLAIM`]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) restore mode (see [Limitations](#limitations))
 
 **Disabling Changelog**
 
@@ -501,12 +501,16 @@ Resuming from both savepoints and checkpoints is supported:
 - given an existing changelog job
 - take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - alter configuration (disable Changelog)
-- resume from the taken snapshot
+- resume from the taken snapshot using [`CLAIM`]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) restore mode (see [Limitations](#limitations))
+
+{{< hint warning >}}
+The Changelog state backend does not support the `NO_CLAIM` [restore mode]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}), which is the **default**. When resuming a job that involves Changelog state, use `CLAIM` (or the deprecated `LEGACY`) restore mode. In `NO_CLAIM` mode the job restores successfully but then fails on its first checkpoint with `java.lang.IllegalStateException: Configured state backend (...ChangelogStateBackend...) does not support enforcing a full snapshot`.
+{{< /hint >}}
 
 ### Limitations
  - At most one concurrent checkpoint
  - As of Flink 1.15, only `filesystem` changelog implementation is available
-- [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
+- [`NO_CLAIM`]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) restore mode is not supported; resume with `CLAIM` (or the deprecated `LEGACY`) restore mode instead (see the note above)
 
 ## Migrating from Legacy Backends
 
