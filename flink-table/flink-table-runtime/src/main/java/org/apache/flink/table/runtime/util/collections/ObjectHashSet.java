@@ -17,12 +17,13 @@
 
 package org.apache.flink.table.runtime.util.collections;
 
+import java.util.Arrays;
 import java.util.HashSet;
 
-/** Wrap {@link HashSet} with hashSet interface. */
+/** Wrap {@link HashSet} with hashSet interface and content-based equality for binary values. */
 public class ObjectHashSet<T> extends OptimizableHashSet {
 
-    private HashSet<T> set;
+    private final HashSet<Object> set;
 
     public ObjectHashSet(final int expected, final float f) {
         super(expected, f);
@@ -38,13 +39,31 @@ public class ObjectHashSet<T> extends OptimizableHashSet {
     }
 
     public boolean add(T t) {
-        return set.add(t);
+        return set.add(t instanceof byte[] ? new BinaryKey(((byte[]) t).clone()) : t);
     }
 
     public boolean contains(final T t) {
-        return set.contains(t);
+        return set.contains(t instanceof byte[] ? new BinaryKey((byte[]) t) : t);
     }
 
     @Override
     public void optimize() {}
+
+    private static final class BinaryKey {
+        private final byte[] value;
+
+        private BinaryKey(byte[] value) {
+            this.value = value;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof BinaryKey && Arrays.equals(value, ((BinaryKey) obj).value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(value);
+        }
+    }
 }
