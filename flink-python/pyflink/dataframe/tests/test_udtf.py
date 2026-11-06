@@ -18,9 +18,10 @@
 
 import functools
 import os
+import sys
 import threading
 import unittest
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import (
     Annotated, Any, Dict, Generator, Iterable, Iterator, List, Mapping, MutableMapping,
     Optional, Tuple, TypedDict, Union,
@@ -346,6 +347,19 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
             dtype = pf.DataType.struct({"word": field_type})
             self.assertEqual(_eval_udtf(pf.udtf(lambda: result, return_dtype=dtype)), expected)
 
+    def test_single_field_dataclass_items_are_rows(self):
+        @dataclass
+        class Output:
+            value: int
+
+        def emit(value) -> Iterator[Output]:
+            yield Output(value)
+
+        explicit = pf.udtf(lambda value: [Output(value)],
+                           return_dtype=pf.DataType.struct({"value": pf.DataType.int64()}))
+        for declaration in (pf.udtf(emit), explicit):
+            self.assertEqual(_eval_udtf(declaration, 42), [Row(value=42)])
+
     def test_flat_map_validates_row_input_before_building_expression(self):
         def column(value: int) -> Iterator[int]:
             yield value
@@ -503,9 +517,29 @@ class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
         def emit(row) -> Iterator[Tuple[int, str]]:
             yield row["x"], "ok"
 
+        def emit_unannotated(row):
+            yield row["x"], "ok"
+
+        optional_hints = [Optional[Tuple[int, str]]]
+        if sys.version_info >= (3, 10):
+            optional_hints.append(Tuple[int, str] | None)
+        declarations = [("inferred", pf.udtf(emit))]
+        declarations += [
+            (f"explicit {hint}", pf.udtf(emit_unannotated, return_dtype=hint))
+            for hint in [Tuple[int, str]] + optional_hints
+        ]
+        for hint in optional_hints:
+            def emit_optional(row):
+                yield row["x"], "ok"
+            emit_optional.__annotations__ = {"return": Iterator[hint]}
+            declarations.append((f"inferred {hint}", pf.udtf(emit_optional)))
+
         source = pf.from_dict({"x": [1]})
-        with self.assertRaisesRegex(ValueError, "named output fields"):
-            source.flat_map(emit)
+        for label, declaration in declarations:
+            with self.subTest(declaration=label):
+                self.assertEqual(declaration.return_dtype, pf.udtf(emit).return_dtype)
+                with self.assertRaisesRegex(ValueError, "named output fields"):
+                    source.flat_map(declaration)
         named = source.flat_map(emit, return_dtype="ROW<value BIGINT, label STRING>")
         self.assertEqual(named.columns, ["value", "label"])
 

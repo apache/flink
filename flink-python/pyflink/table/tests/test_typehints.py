@@ -16,11 +16,26 @@
 # limitations under the License.
 ################################################################################
 
+import collections
 import datetime
 import decimal
 import sys
 import unittest
-from typing import Any, Awaitable, Coroutine, List, Optional, TypedDict, Union
+from dataclasses import InitVar, dataclass, field
+from typing import (
+    Any,
+    Awaitable,
+    ClassVar,
+    Coroutine,
+    Generic,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 
 import typing_extensions
 
@@ -89,6 +104,98 @@ class _Department(TypedDict):
     manager: Optional[_Employee]
 
 
+class _EmptyTypedDict(TypedDict):
+    pass
+
+
+@dataclass
+class _PointDataclass:
+    x: int
+    y: int
+
+
+@dataclass
+class _DataclassWithDefaults:
+    id: int = 0
+    label: Optional[str] = None
+
+
+@dataclass
+class _BaseDataclass:
+    id: int
+
+
+@dataclass
+class _DerivedDataclassWithNonFields(_BaseDataclass):
+    registry: ClassVar[int] = 0
+    seed: InitVar[int] = 0
+    label: str = field(default="", init=False)
+
+
+class _PointNamedTuple(NamedTuple):
+    x: int
+    y: int
+
+
+class _NamedTupleWithDefaults(NamedTuple):
+    id: int = 0
+    label: Optional[str] = None
+
+
+@dataclass
+class _QuotedAnnotationsDataclass:
+    point: "_PointNamedTuple"
+    scores: "list[int]"
+    label: "Optional[str]"
+
+
+@dataclass
+class _Team:
+    lead: Optional["_Member"]
+
+
+class _Member(TypedDict):
+    team: Optional[_Team]
+
+
+@dataclass
+class _EmptyDataclass:
+    pass
+
+
+@dataclass
+class _ClassVarOnlyDataclass:
+    registry: ClassVar[int] = 0
+
+
+class _EmptyNamedTuple(NamedTuple):
+    pass
+
+
+_UntypedNamedTuple = collections.namedtuple("_UntypedNamedTuple", ["x", "y"])
+
+_T = TypeVar("_T")
+
+
+@dataclass
+class _GenericBox(Generic[_T]):
+    item: _T
+
+
+@dataclass
+class _IntBox(_GenericBox[int]):
+    pass
+
+
+def _point_row():
+    return DataTypes.ROW(
+        [
+            DataTypes.FIELD("x", DataTypes.BIGINT().not_null()),
+            DataTypes.FIELD("y", DataTypes.BIGINT().not_null()),
+        ]
+    ).not_null()
+
+
 class FromPythonTypeTests(unittest.TestCase):
 
     def test_basic_types_infer_as_not_null(self):
@@ -147,16 +254,10 @@ class FromPythonTypeTests(unittest.TestCase):
             ).not_null(),
         )
 
-    def test_typed_dict_maps_to_not_null_row(self):
-        self.assertEqual(
-            _from_python_type(_Point),
-            DataTypes.ROW(
-                [
-                    DataTypes.FIELD("x", DataTypes.BIGINT().not_null()),
-                    DataTypes.FIELD("y", DataTypes.BIGINT().not_null()),
-                ]
-            ).not_null(),
-        )
+    def test_composites_map_to_not_null_row(self):
+        for hint in (_Point, _PointDataclass, _PointNamedTuple):
+            with self.subTest(hint=hint):
+                self.assertEqual(_from_python_type(hint), _point_row())
 
     def test_nested_typed_dict_field_is_not_null_row(self):
         self.assertEqual(
@@ -228,27 +329,143 @@ class FromPythonTypeTests(unittest.TestCase):
 
     def test_typed_dict_resolves_in_container_position(self):
         self.assertEqual(
-            _from_python_type(list[_Point]),
-            DataTypes.ARRAY(
-                DataTypes.ROW(
-                    [
-                        DataTypes.FIELD("x", DataTypes.BIGINT().not_null()),
-                        DataTypes.FIELD("y", DataTypes.BIGINT().not_null()),
-                    ]
-                ).not_null()
-            ).not_null(),
+            _from_python_type(list[_Point]), DataTypes.ARRAY(_point_row()).not_null()
         )
 
-    def test_self_referencing_typed_dict_raises(self):
+    def test_self_referencing_composite_raises(self):
         for hint, name in (
             (_LinkedNode, "_LinkedNode"),
             (_TreeNode, "_TreeNode"),
             (_Employee, "_Employee"),
             (list[_Department], "_Department"),
+            (_Team, "_Team"),
         ):
             with self.subTest(hint=hint):
-                with self.assertRaisesRegex(TypeError, f"'{name}'.*references itself"):
+                with self.assertRaisesRegex(TypeError, f"'{name}'.*refers to itself"):
                     _from_python_type(hint)
+
+    def test_composite_reused_in_sibling_fields_is_not_self_reference(self):
+        self.assertEqual(
+            _from_python_type(Tuple[_PointDataclass, _PointDataclass]),
+            DataTypes.ROW(
+                [DataTypes.FIELD("_1", _point_row()), DataTypes.FIELD("_2", _point_row())]
+            ).not_null(),
+        )
+
+    def test_only_optional_widens_composite_field_to_nullable(self):
+        expected = DataTypes.ROW(
+            [
+                DataTypes.FIELD("id", DataTypes.BIGINT().not_null()),
+                DataTypes.FIELD("label", DataTypes.STRING()),
+            ]
+        ).not_null()
+        for hint in (_DataclassWithDefaults, _NamedTupleWithDefaults):
+            with self.subTest(hint=hint):
+                self.assertEqual(_from_python_type(hint), expected)
+
+    def test_dataclass_row_follows_dataclass_fields(self):
+        self.assertEqual(
+            _from_python_type(_DerivedDataclassWithNonFields),
+            DataTypes.ROW(
+                [
+                    DataTypes.FIELD("id", DataTypes.BIGINT().not_null()),
+                    DataTypes.FIELD("label", DataTypes.STRING().not_null()),
+                ]
+            ).not_null(),
+        )
+
+    def test_dataclass_quoted_field_annotations_resolve(self):
+        self.assertEqual(
+            _from_python_type(_QuotedAnnotationsDataclass),
+            DataTypes.ROW(
+                [
+                    DataTypes.FIELD("point", _point_row()),
+                    DataTypes.FIELD(
+                        "scores", DataTypes.ARRAY(DataTypes.BIGINT().not_null()).not_null()
+                    ),
+                    DataTypes.FIELD("label", DataTypes.STRING()),
+                ]
+            ).not_null(),
+        )
+
+    def test_unresolved_forward_reference_raises(self):
+        for hint, advises_typing_list in (
+            (List["_PointDataclass"], False),
+            (list["_PointDataclass"], sys.version_info < (3, 11)),
+        ):
+            with self.subTest(hint=hint):
+                with self.assertRaisesRegex(
+                    TypeError, "unresolved forward reference '_PointDataclass'"
+                ) as raised:
+                    _from_python_type(hint)
+                self.assertEqual("typing.List" in str(raised.exception), advises_typing_list)
+
+    def test_unresolvable_field_annotation_raises_type_error_naming_composite(self):
+        @dataclass
+        class LocalInner:
+            x: int
+
+        @dataclass
+        class LocalOuter:
+            inner: "LocalInner"
+
+        with self.assertRaisesRegex(TypeError, "'LocalOuter'.*LocalInner"):
+            _from_python_type(LocalOuter)
+
+    def test_untyped_named_tuple_raises(self):
+        with self.assertRaisesRegex(TypeError, "'_UntypedNamedTuple'.*typing.NamedTuple"):
+            _from_python_type(_UntypedNamedTuple)
+
+    def test_tuple_maps_to_row_with_positional_field_names(self):
+        expected = DataTypes.ROW(
+            [
+                DataTypes.FIELD("_1", DataTypes.BIGINT().not_null()),
+                DataTypes.FIELD("_2", DataTypes.STRING()),
+            ]
+        ).not_null()
+        for hint in (tuple[int, Optional[str]], Tuple[int, Optional[str]]):
+            with self.subTest(hint=hint):
+                self.assertEqual(_from_python_type(hint), expected)
+
+    def test_tuple_without_fixed_element_types_raises(self):
+        for hint, message in (
+            (tuple, "tuple without type arguments"),
+            (Tuple, "tuple without type arguments"),
+            (tuple[int, ...], "fixed number of elements"),
+            (Tuple[int, ...], "fixed number of elements"),
+        ):
+            with self.subTest(hint=hint):
+                with self.assertRaisesRegex(TypeError, message):
+                    _from_python_type(hint)
+
+    def test_zero_field_composite_raises(self):
+        for hint in (
+            tuple[()],
+            Tuple[()],
+            _EmptyDataclass,
+            _ClassVarOnlyDataclass,
+            _EmptyNamedTuple,
+            _EmptyTypedDict,
+        ):
+            with self.subTest(hint=hint):
+                with self.assertRaisesRegex(TypeError, "has no fields"):
+                    _from_python_type(hint)
+
+    def test_generic_composite_raises(self):
+        for hint in (_GenericBox, _GenericBox[int]):
+            with self.subTest(hint=hint):
+                with self.assertRaisesRegex(
+                    TypeError, "_GenericBox.*Generic composite types are not supported"
+                ):
+                    _from_python_type(hint)
+
+    def test_type_variable_field_raises(self):
+        with self.assertRaisesRegex(TypeError, "type variable '~_T'"):
+            _from_python_type(_IntBox)
+
+    def test_dataclass_instance_raises(self):
+        with self.assertRaisesRegex(TypeError, "Cannot infer DataType from type hint"):
+            _from_python_type(_PointDataclass(1, 2))
 
     def test_ambiguous_union_raises(self):
         with self.assertRaises(TypeError):
