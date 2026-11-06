@@ -35,12 +35,16 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Exercises native S3 filesystem operations directly. */
 class NativeS3FileSystemITCase {
@@ -101,6 +105,56 @@ class NativeS3FileSystemITCase {
 
         assertThat(fs.delete(path(dir), true)).isTrue();
         assertThat(fs.exists(renamed)).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "/"})
+    void testBucketRootExistsAsDirectory(String rootSuffix) throws Exception {
+        final Path root = new Path(bucketUri + rootSuffix);
+
+        assertThat(fs.exists(root)).isTrue();
+        final FileStatus status = fs.getFileStatus(root);
+        assertThat(status.isDir()).isTrue();
+        assertThat(status.getLen()).isZero();
+        assertThat(status.getPath()).isEqualTo(root);
+    }
+
+    @Test
+    void testBucketRootCannotBeOpened() throws Exception {
+        write(path("openroot/" + UUID.randomUUID() + ".txt"), "x".getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> fs.open(new Path(bucketUri)))
+                .isInstanceOf(FileNotFoundException.class)
+                .hasMessageContaining("directory");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testBucketRootCannotBeDeleted(boolean recursive) throws Exception {
+        final String dir = "deleteroot-" + UUID.randomUUID();
+        write(path(dir + "/" + UUID.randomUUID() + ".txt"), "x".getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> fs.delete(new Path(bucketUri), recursive))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("root");
+        assertThat(fs.listStatus(path(dir))).hasSize(1);
+    }
+
+    @Test
+    void testMissingBucketRootIsReportedAsNotFound() throws Exception {
+        final Configuration config = new Configuration();
+        container().setS3ConfigOptions(config);
+
+        final NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        factory.configure(config);
+
+        final String missingBucketUri =
+                "s3://missing-bucket-" + UUID.randomUUID().toString().toLowerCase(Locale.ROOT);
+        final FileSystem missingFs = factory.create(URI.create(missingBucketUri + "/"));
+
+        assertThat(missingFs.exists(new Path(missingBucketUri))).isFalse();
+        assertThatThrownBy(() -> missingFs.getFileStatus(new Path(missingBucketUri)))
+                .isInstanceOf(FileNotFoundException.class);
     }
 
     @Test
