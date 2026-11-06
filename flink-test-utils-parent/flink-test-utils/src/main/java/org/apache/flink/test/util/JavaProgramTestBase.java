@@ -97,6 +97,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         // execution environment and how the object reuse mode is enabled
         TestStreamEnvironment env = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
         env.getConfig().enableObjectReuse();
+        env.setAsContext();
 
         // Possibly run the test multiple times
         executeProgramMultipleTimes(env);
@@ -129,8 +130,9 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        StreamExecutionEnvironment env = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
+        TestStreamEnvironment env = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
         env.getConfig().disableObjectReuse();
+        env.setAsContext();
 
         // Possibly run the test multiple times
         executeProgramMultipleTimes(env);
