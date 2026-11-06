@@ -297,6 +297,9 @@ arithmetic:
       Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current
       timestamp and a random component. Compared to UUID(), this function returns a value
       of the UUID data type.
+  - sql: CBRT(numeric)
+    table: NUMERIC.cbrt()
+    description: Returns the cube root as DOUBLE, including for negative values. Returns NULL for NULL input. E.g., CBRT(-27) returns -3.0.
   - sql: BIN(INT)
     table: INT.bin()
     description: |

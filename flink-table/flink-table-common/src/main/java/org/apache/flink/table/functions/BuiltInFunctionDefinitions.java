@@ -2216,6 +2216,15 @@ public final class BuiltInFunctionDefinitions {
                             nullableIfArgs(first(SpecificTypeStrategies.DECIMAL_MOD, argument(1))))
                     .build();
 
+    public static final BuiltInFunctionDefinition CBRT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("CBRT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeRoot.DOUBLE)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.DOUBLE())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.CbrtFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition SQRT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("sqrt")
