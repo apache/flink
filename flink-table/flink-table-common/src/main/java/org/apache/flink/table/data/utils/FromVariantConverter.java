@@ -80,8 +80,8 @@ public final class FromVariantConverter implements Serializable {
      * Converts a variant into internal data.
      *
      * @throws TableRuntimeException if a value does not match its type
-     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN} or binary
-     *     value has another kind
+     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN} value has
+     *     another kind
      */
     public Object convert(final Variant variant) {
         return reader.read(variant);
