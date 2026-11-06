@@ -84,6 +84,16 @@ public interface JoinKeyExtractor extends Serializable {
     int[] getJoinKeyIndices(int inputId);
 
     /**
+     * Gets the field indices in the joined row of the previous inputs that make up the left-side
+     * join key for a given input.
+     *
+     * @param inputId The ID of the input stream.
+     * @return An array of integers representing the field indices in the joined row that form the
+     *     left-side join key.
+     */
+    int[] getLeftSideJoinKeyIndices(int inputId);
+
+    /**
      * Extracts the common key from an input row. The common key consists of attributes that are
      * part of all equi-join conditions in the multi-join sequence.
      *
