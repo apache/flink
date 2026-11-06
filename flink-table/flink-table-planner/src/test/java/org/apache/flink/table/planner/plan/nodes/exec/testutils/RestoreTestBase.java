@@ -396,9 +396,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();
-        awaitSavepointReady(program, futures);
         final JobClient jobClient = tableResult.getJobClient().get();
-        final String savepoint = stopWithSavepointWhenRunning(jobClient);
+        final String savepoint;
+        try {
+            awaitSavepointReady(program, futures);
+            savepoint = stopWithSavepointWhenRunning(jobClient);
+        } catch (Throwable t) {
+            // Otherwise the job keeps running and later programs in this JVM time out as well.
+            jobClient.cancel().get();
+            throw t;
+        }
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
         final Path savepointDirPath =
