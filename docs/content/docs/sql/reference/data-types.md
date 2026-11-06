@@ -1570,6 +1570,7 @@ to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
 | `TIMESTAMP`     | `TIMESTAMP(p)`, `TIMESTAMP_LTZ(p)`, `DATE`, `TIME(p)` |
 | `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)`, `TIMESTAMP(p)`, `DATE`, `TIME(p)` |
 | `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string   |
+| `STRING`        | `BINARY(n)`, `VARBINARY(n)` as its UTF-8 bytes        |
 | `UUID`          | `UUID`                                                |
 | any scalar      | `STRING`, `CHAR(n)`, `VARCHAR(n)`                     |
 | `NULL`          | SQL `NULL` for any nullable target                    |

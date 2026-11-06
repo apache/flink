@@ -2306,7 +2306,8 @@ class CastRulesTest {
                         // the raw bytes stay reachable when the character string cast rejects
                         // them, which is what makes this the way to inspect such a value
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(INVALID_UTF8), INVALID_UTF8)
-                        .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("ab"), new byte[] {'a', 'b'})
+                        .fail(VARIANT(), VARIANT_BUILDER.of(true), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(UUID())
                         .fromCase(VARIANT(), null, null)
                         .fromCase(VARIANT(), Variant.newBuilder().of(UUID_VALUE), UUID_BYTES)
