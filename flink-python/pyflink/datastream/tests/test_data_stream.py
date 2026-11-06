@@ -1088,6 +1088,42 @@ class ProcessDataStreamTests(DataStreamTests):
                     " 2021-01-09 12:00:00.011, [1, 2, 3]]"]
         self.assert_equals_sorted(expected, results)
 
+    def test_value_state_update_none(self):
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
+        # One record per bundle, so None is flushed before the next update. The environment
+        # is shared by the tests in this class, so restore the setting afterwards.
+        key = "python.fn-execution.bundle.size"
+        if config.contains_key(key):
+            self.addCleanup(config.set_string, key, config.get_string(key, None))
+        else:
+            self.addCleanup(config.remove_config, key)
+        config.set_integer(key, 1)
+        ds = self.env.from_collection([('k', '1'), ('k', 'none'), ('k', '2')],
+                                      type_info=Types.TUPLE([Types.STRING(), Types.STRING()]))
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def __init__(self):
+                self.value_state = None
+
+            def open(self, runtime_context: RuntimeContext):
+                self.value_state = runtime_context.get_state(
+                    ValueStateDescriptor('value_state', Types.INT()))
+
+            def process_element(self, value, ctx):
+                previous = self.value_state.value()
+                self.value_state.update(None if value[1] == 'none' else int(value[1]))
+                yield '%s -> %s' % (previous, self.value_state.value())
+
+        ds.key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .process(MyProcessFunction(), output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_value_state_update_none')
+        results = self.test_sink.get_results()
+        expected = ['None -> 1', '1 -> None', 'None -> 2']
+        self.assert_equals_sorted(expected, results)
+
     def test_process_function(self):
         self.env.set_parallelism(1)
         self.env.get_config().set_auto_watermark_interval(2000)
