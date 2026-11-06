@@ -208,6 +208,34 @@ public class RankTestPrograms {
                                     + " where c <= 2")
                     .build();
 
+    public static final TableTestProgram ROW_NUMBER_TOP_N =
+            TableTestProgram.of("row-number-top-n", "validates batch ROW_NUMBER top-n rank")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("MyTable")
+                                    .addSchema(
+                                            "a INT", "b VARCHAR", "c INT primary key not enforced")
+                                    .addOption(CHANGELOG_MODE, "I")
+                                    .producedBeforeRestore(
+                                            Row.of(2, "a", 6),
+                                            Row.of(4, "b", 8),
+                                            Row.of(6, "c", 10),
+                                            Row.of(1, "a", 5),
+                                            Row.of(3, "b", 7),
+                                            Row.of(5, "c", 9))
+                                    .producedAfterRestore(Row.of(4, "d", 7), Row.of(3, "e", 8))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "b VARCHAR")
+                                    .consumedBeforeRestore("+I[2, a]", "+I[4, b]", "+I[6, c]")
+                                    .consumedAfterRestore("+I[4, d]", "+I[3, e]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, b FROM ("
+                                    + " SELECT a, b, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a DESC) rn"
+                                    + " FROM MyTable) t WHERE rn = 1")
+                    .build();
+
     public static final TableTestProgram RANK_2_TEST =
             TableTestProgram.of("rank-2-test", "validates rank node can handle multiple outputs")
                     .setupTableSource(
