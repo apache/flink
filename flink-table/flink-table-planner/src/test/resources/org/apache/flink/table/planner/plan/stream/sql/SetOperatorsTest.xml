@@ -71,6 +71,35 @@ Calc(select=[c0 AS c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testIntersectAllWithOuterProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT a, b FROM T1 INTERSECT ALL SELECT d, e FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalIntersect(all=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a0 AS a])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2)], correlate=[table($REPLICATE_ROWS$1($f0,a,b))], select=[$f0,a,b,a0,b0], rowType=[RecordType(BIGINT $f0, INTEGER a, BIGINT b, INTEGER a0, BIGINT b0)], joinType=[INNER])
+   +- Calc(select=[IF((vcol_left_cnt > vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, a, b], where=[((vcol_left_cnt >= 1) AND (vcol_right_cnt >= 1))])
+      +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(vcol_left_marker) AS vcol_left_cnt, COUNT(vcol_right_marker) AS vcol_right_cnt])
+         +- Exchange(distribution=[hash[a, b]])
+            +- Union(all=[true], union=[a, b, vcol_left_marker, vcol_right_marker])
+               :- Calc(select=[a, b, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+               +- Calc(select=[d, e, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntersectLeftIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
@@ -195,6 +224,64 @@ Calc(select=[c0 AS c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMinusAllWithOuterPermutation">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalMinus(all=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b0 AS b, a0 AS a])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,b,a))], select=[sum_vcol_marker,b,a,b0,a0], rowType=[RecordType(BIGINT sum_vcol_marker, BIGINT b, INTEGER a, BIGINT b0, INTEGER a0)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, b, a], where=[(sum_vcol_marker > 0)])
+      +- GroupAggregate(groupBy=[b, a], select=[b, a, SUM(vcol_marker) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[b, a]])
+            +- Union(all=[true], union=[b, a, vcol_marker])
+               :- Calc(select=[b, a, 1 AS vcol_marker])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+               +- Calc(select=[e AS b, d AS a, -1 AS vcol_marker])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusAllWithOuterProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalMinus(all=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a0 AS a])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,a,b))], select=[sum_vcol_marker,a,b,a0,b0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, BIGINT b, INTEGER a0, BIGINT b0)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, a, b], where=[(sum_vcol_marker > 0)])
+      +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(vcol_marker) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[a, b]])
+            +- Union(all=[true], union=[a, b, vcol_marker])
+               :- Calc(select=[a, b, 1 AS vcol_marker])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+               +- Calc(select=[d, e, -1 AS vcol_marker])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMinusLeftIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
@@ -259,6 +346,30 @@ GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
       :- Exchange(distribution=[hash[a, b, c]])(reuse_id=[1])
       :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
       +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAllWithOuterProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT a, b FROM T1 UNION ALL SELECT d, e FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
++- Calc(select=[d AS a])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
