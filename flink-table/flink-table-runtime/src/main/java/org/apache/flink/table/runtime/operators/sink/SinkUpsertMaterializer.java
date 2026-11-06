@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.sink;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -72,6 +74,11 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
             "The state is cleared because of state ttl. This will result in incorrect result. "
                     + "You can increase the state ttl to avoid this.";
 
+    /** Counter: retractions that don't match any accumulated row. */
+    @VisibleForTesting
+    static final String NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME =
+            "numUnmatchedBuildRetractions";
+
     private final StateTtlConfig ttlConfig;
     private final GeneratedRecordEqualiser generatedRecordEqualiser;
     private final GeneratedRecordEqualiser generatedUpsertKeyEqualiser;
@@ -88,6 +95,8 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
     // The row kind might be +I or +U and will be ignored when applying the deletion.
     private transient ValueState<List<RowData>> state;
     private transient TimestampedCollector<RowData> collector;
+
+    private transient Counter numUnmatchedBuildRetractions;
 
     // Reused ProjectedRowData for comparing upsertKey if hasUpsertKey.
     private transient ProjectedRowData upsertKeyProjectedRow1;
@@ -133,6 +142,10 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
         }
         this.state = getRuntimeContext().getState(descriptor);
         this.collector = new TimestampedCollector<>(output);
+        this.numUnmatchedBuildRetractions =
+                getRuntimeContext()
+                        .getMetricGroup()
+                        .counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
     }
 
     @Override
@@ -179,6 +192,7 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
         final int lastIndex = values.size() - 1;
         final int index = findFirst(values, retract);
         if (index == -1) {
+            numUnmatchedBuildRetractions.inc();
             LOG.info(STATE_CLEARED_WARN_MSG);
             return;
         } else {
@@ -223,6 +237,11 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
                     upsertKeyProjectedRow2.replaceRow(oldRow));
         }
         return equaliser.equals(newRow, oldRow);
+    }
+
+    @VisibleForTesting
+    Counter getNumUnmatchedBuildRetractions() {
+        return numUnmatchedBuildRetractions;
     }
 
     public static SinkUpsertMaterializer create(

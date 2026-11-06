@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.sink;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -67,6 +68,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link SinkUpsertMaterializer}. */
@@ -330,6 +332,43 @@ class SinkUpsertMaterializerTest {
                 of(deleteRecord(3L, 1, "a3"), rowOfKind(RowKind.UPDATE_AFTER, 2L, 1, "a2")),
                 of(deleteRecord(1L, 1, "a1"), null),
                 of(deleteRecord(2L, 1, "a2"), rowOfKind(RowKind.DELETE, 2L, 1, "a2")));
+    }
+
+    @TestTemplate
+    void testNumUnmatchedBuildRetractionsWithUpsertKey() throws Exception {
+        testNumUnmatchedBuildRetractions(new int[] {UPSERT_KEY});
+    }
+
+    @TestTemplate
+    void testNumUnmatchedBuildRetractionsWithoutUpsertKey() throws Exception {
+        testNumUnmatchedBuildRetractions(null);
+    }
+
+    private void testNumUnmatchedBuildRetractions(int[] upsertKey) throws Exception {
+        OneInputStreamOperator<RowData, RowData> materializer =
+                createOperator(LOGICAL_TYPES, upsertKey);
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
+                createHarness(materializer)) {
+            testHarness.open();
+            Counter counter = getNumUnmatchedBuildRetractions(materializer);
+
+            // Retracting a row that is not accumulated is not found and is counted.
+            testHarness.processElement(deleteRecord(1L, 1, "missing"));
+            assertThat(counter.getCount()).isEqualTo(1L);
+
+            // Retracting an accumulated row is matched and is not counted.
+            testHarness.processElement(insertRecord(2L, 1, "a"));
+            testHarness.processElement(deleteRecord(2L, 1, "a"));
+            assertThat(counter.getCount()).isEqualTo(1L);
+        }
+    }
+
+    private static Counter getNumUnmatchedBuildRetractions(
+            OneInputStreamOperator<RowData, RowData> materializer) {
+        if (materializer instanceof SinkUpsertMaterializer) {
+            return ((SinkUpsertMaterializer) materializer).getNumUnmatchedBuildRetractions();
+        }
+        return ((SinkUpsertMaterializerV2) materializer).getNumUnmatchedBuildRetractions();
     }
 
     // boilerplate for common test case of processing starting with three elements
