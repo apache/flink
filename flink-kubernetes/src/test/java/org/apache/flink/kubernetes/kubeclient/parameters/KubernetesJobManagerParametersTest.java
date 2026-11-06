@@ -47,6 +47,7 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
     private static final double JOB_MANAGER_CPU = 2.0;
     private static final double JOB_MANAGER_CPU_LIMIT_FACTOR = 2.5;
+    private static final double JOB_MANAGER_MEMORY_REQUEST_FACTOR = 0.5;
     private static final double JOB_MANAGER_MEMORY_LIMIT_FACTOR = 2.0;
 
     private final ClusterSpecification clusterSpecification =
@@ -166,6 +167,39 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
                 KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR, JOB_MANAGER_CPU_LIMIT_FACTOR);
         assertThat(kubernetesJobManagerParameters.getJobManagerCPULimitFactor())
                 .isEqualTo(JOB_MANAGER_CPU_LIMIT_FACTOR, within(0.00001));
+    }
+
+    @Test
+    void testGetDefaultJobManagerMemoryRequestFactor() {
+        assertThat(kubernetesJobManagerParameters.getJobManagerMemoryRequestFactor())
+                .isEqualTo(1.0, within(0.00001));
+    }
+
+    @Test
+    void testGetJobManagerMemoryRequestFactor() {
+        flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_MEMORY_REQUEST_FACTOR,
+                JOB_MANAGER_MEMORY_REQUEST_FACTOR);
+        assertThat(kubernetesJobManagerParameters.getJobManagerMemoryRequestFactor())
+                .isEqualTo(JOB_MANAGER_MEMORY_REQUEST_FACTOR, within(0.00001));
+    }
+
+    @Test
+    void testGetJobManagerMemoryRequestFactorShouldFailIfGreaterThanOne() {
+        flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_MEMORY_REQUEST_FACTOR, 1.1);
+
+        assertThatThrownBy(kubernetesJobManagerParameters::getJobManagerMemoryRequestFactor)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("greater than 0 and less than or equal to 1");
+    }
+
+    @Test
+    void testGetJobManagerMemoryRequestFactorShouldFailIfLessThanOrEqualToZero() {
+        flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_MEMORY_REQUEST_FACTOR, 0.0);
+
+        assertThatThrownBy(kubernetesJobManagerParameters::getJobManagerMemoryRequestFactor)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("greater than 0 and less than or equal to 1");
     }
 
     @Test

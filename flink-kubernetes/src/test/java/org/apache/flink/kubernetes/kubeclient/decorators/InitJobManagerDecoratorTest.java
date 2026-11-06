@@ -61,6 +61,7 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
             Arrays.asList(
                     new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
                     new Toleration("NoExecute", "key2", "Exists", 6000L, null));
+    private static final double JOB_MANAGER_MEMORY_REQUEST_FACTOR = 0.5;
 
     private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
 
@@ -78,6 +79,9 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
         this.flinkConfig.setString(
                 KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_MEMORY_REQUEST_FACTOR,
+                JOB_MANAGER_MEMORY_REQUEST_FACTOR);
         this.flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, USER_DEFINED_FLINK_LOG_DIR);
     }
 
@@ -117,7 +121,9 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
         assertThat(requests.get("cpu").getAmount()).isEqualTo(Double.toString(JOB_MANAGER_CPU));
         assertThat(requests.get("memory").getAmount())
-                .isEqualTo(String.valueOf(JOB_MANAGER_MEMORY));
+                .isEqualTo(
+                        Integer.toString(
+                                (int) (JOB_MANAGER_MEMORY * JOB_MANAGER_MEMORY_REQUEST_FACTOR)));
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
         assertThat(limits.get("cpu").getAmount())

@@ -142,6 +142,16 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
         return limitFactor;
     }
 
+    public double getTaskManagerMemoryRequestFactor() {
+        final double requestFactor =
+                flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_MEMORY_REQUEST_FACTOR);
+        checkArgument(
+                requestFactor > 0 && requestFactor <= 1,
+                "%s should be greater than 0 and less than or equal to 1.",
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_REQUEST_FACTOR.key());
+        return requestFactor;
+    }
+
     public double getTaskManagerMemoryLimitFactor() {
         final double limitFactor =
                 flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR);
