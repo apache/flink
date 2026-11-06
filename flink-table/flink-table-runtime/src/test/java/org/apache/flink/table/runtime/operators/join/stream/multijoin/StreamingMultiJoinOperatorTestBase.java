@@ -404,7 +404,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         retentionTime,
                         generatedJoinConditions,
                         this.keyExtractor,
-                        this.joinAttributeMap);
+                        this.joinAttributeMap,
+                        nullFilterFields());
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -415,6 +416,11 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         harness.setStateBackend(getStateBackend());
         harness.setCheckpointStorage(getCheckpointStorage());
         return harness;
+    }
+
+    /** By default, no record is filtered. */
+    protected int[][] nullFilterFields() {
+        return new int[inputSpecs.size()][0];
     }
 
     protected RowType getOutputType() {
