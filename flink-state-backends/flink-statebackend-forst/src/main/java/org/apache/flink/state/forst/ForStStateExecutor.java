@@ -22,6 +22,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -31,11 +32,12 @@ import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -74,6 +76,13 @@ public class ForStStateExecutor implements StateExecutor {
     private final WriteOptions writeOptions;
 
     private Throwable executionError;
+
+    /**
+     * Iterate requests from failed batches whose partial-page iterators may still be open after the
+     * worker threads finish, reclaimed during {@link #shutdown()} once all workers have stopped.
+     */
+    private final Queue<ForStDBIterRequest<?, ?, ?, ?, ?>> cleanupIterRequests =
+            new ConcurrentLinkedQueue<>();
 
     /** The ongoing sub-processes count. */
     private final AtomicLong ongoing;
@@ -216,14 +225,11 @@ public class ForStStateExecutor implements StateExecutor {
                                     coordinatorThread)
                             .exceptionally(
                                     e -> {
-                                        try {
-                                            for (ForStDBIterRequest<?, ?, ?, ?, ?> iterRequest :
-                                                    iterRequests) {
-                                                iterRequest.close();
-                                            }
-                                        } catch (IOException ioException) {
-                                            LOG.error("Close iterRequests fail", ioException);
-                                        }
+                                        // Defer closing iterators of a failed batch until
+                                        // shutdown() has stopped the worker threads, so an active
+                                        // worker is never raced and any partial-page iterator left
+                                        // open by a sibling request is still reclaimed.
+                                        cleanupIterRequests.addAll(iterRequests);
                                         executionError = e;
                                         resultFuture.completeExceptionally(e);
                                         return null;
@@ -305,15 +311,26 @@ public class ForStStateExecutor implements StateExecutor {
         if (!sharedWriteThread) {
             shutdownAndWait(writeThreads);
         }
+        IOUtils.closeAllQuietly(cleanupIterRequests);
         LOG.info("Shutting down the ForStStateExecutor.");
     }
 
     private void shutdownAndWait(ExecutorService executorService) {
+        boolean interrupted = false;
+        executorService.shutdown();
         try {
-            executorService.shutdown();
-            while (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {}
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
+            while (!executorService.isTerminated()) {
+                try {
+                    executorService.awaitTermination(60, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                    executorService.shutdownNow();
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

@@ -265,7 +265,7 @@ public class ForStDBOperationTestBase {
 
         @Override
         public void completeExceptionally(String message, Throwable ex) {
-            // do nothing
+            future.completeExceptionally(new RuntimeException(message, ex));
         }
 
         @Override
