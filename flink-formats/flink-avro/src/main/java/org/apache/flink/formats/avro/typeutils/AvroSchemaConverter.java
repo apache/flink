@@ -91,7 +91,7 @@ public class AvroSchemaConverter {
         Preconditions.checkNotNull(avroClass, "Avro specific record class must not be null.");
         // determine schema to retrieve deterministic field order
         final Schema schema = SpecificData.get().getSchema(avroClass);
-        return (TypeInformation<Row>) convertToTypeInfo(schema, true);
+        return (TypeInformation<Row>) convertToTypeInfo(schema, true, false);
     }
 
     /**
@@ -117,6 +117,22 @@ public class AvroSchemaConverter {
     @SuppressWarnings("unchecked")
     public static <T> TypeInformation<T> convertToTypeInfo(
             String avroSchemaString, boolean legacyTimestampMapping) {
+        return convertToTypeInfo(avroSchemaString, legacyTimestampMapping, false);
+    }
+
+    /**
+     * Converts an Avro schema string into a nested row structure with deterministic field order and
+     * data types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroSchemaString Avro schema definition string
+     * @param legacyTimestampMapping legacy mapping of timestamp types
+     * @param timeAsNumber if true, {@code time-millis} is mapped as a plain int and {@code
+     *     time-micros} as a plain long, instead of as a SQL time
+     * @return type information matching the schema
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> TypeInformation<T> convertToTypeInfo(
+            String avroSchemaString, boolean legacyTimestampMapping, boolean timeAsNumber) {
         Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
         final Schema schema;
         try {
@@ -124,11 +140,11 @@ public class AvroSchemaConverter {
         } catch (SchemaParseException e) {
             throw new IllegalArgumentException("Could not parse Avro schema string.", e);
         }
-        return (TypeInformation<T>) convertToTypeInfo(schema, legacyTimestampMapping);
+        return (TypeInformation<T>) convertToTypeInfo(schema, legacyTimestampMapping, timeAsNumber);
     }
 
     private static TypeInformation<?> convertToTypeInfo(
-            Schema schema, boolean legacyTimestampMapping) {
+            Schema schema, boolean legacyTimestampMapping, boolean timeAsNumber) {
         switch (schema.getType()) {
             case RECORD:
                 final List<Schema.Field> fields = schema.getFields();
@@ -137,7 +153,8 @@ public class AvroSchemaConverter {
                 final String[] names = new String[fields.size()];
                 for (int i = 0; i < fields.size(); i++) {
                     final Schema.Field field = fields.get(i);
-                    types[i] = convertToTypeInfo(field.schema(), legacyTimestampMapping);
+                    types[i] =
+                            convertToTypeInfo(field.schema(), legacyTimestampMapping, timeAsNumber);
                     names[i] = field.name();
                 }
                 return Types.ROW_NAMED(names, types);
@@ -146,11 +163,13 @@ public class AvroSchemaConverter {
             case ARRAY:
                 // result type might either be ObjectArrayTypeInfo or BasicArrayTypeInfo for Strings
                 return Types.OBJECT_ARRAY(
-                        convertToTypeInfo(schema.getElementType(), legacyTimestampMapping));
+                        convertToTypeInfo(
+                                schema.getElementType(), legacyTimestampMapping, timeAsNumber));
             case MAP:
                 return Types.MAP(
                         Types.STRING,
-                        convertToTypeInfo(schema.getValueType(), legacyTimestampMapping));
+                        convertToTypeInfo(
+                                schema.getValueType(), legacyTimestampMapping, timeAsNumber));
             case UNION:
                 final Schema actualSchema;
                 if (schema.getTypes().size() == 2
@@ -165,7 +184,7 @@ public class AvroSchemaConverter {
                     // use Kryo for serialization
                     return Types.GENERIC(Object.class);
                 }
-                return convertToTypeInfo(actualSchema, legacyTimestampMapping);
+                return convertToTypeInfo(actualSchema, legacyTimestampMapping, timeAsNumber);
             case FIXED:
                 // logical decimal type
                 if (schema.getLogicalType() instanceof LogicalTypes.Decimal) {
@@ -187,7 +206,7 @@ public class AvroSchemaConverter {
                 final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
                 if (logicalType == LogicalTypes.date()) {
                     return Types.SQL_DATE;
-                } else if (logicalType == LogicalTypes.timeMillis()) {
+                } else if (logicalType == LogicalTypes.timeMillis() && !timeAsNumber) {
                     return Types.SQL_TIME;
                 }
                 return Types.INT;
@@ -196,8 +215,9 @@ public class AvroSchemaConverter {
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
                             || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
                         return Types.SQL_TIMESTAMP;
-                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
-                            || schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                    } else if (!timeAsNumber
+                            && (schema.getLogicalType() == LogicalTypes.timeMicros()
+                                    || schema.getLogicalType() == LogicalTypes.timeMillis())) {
                         return Types.SQL_TIME;
                     }
                 } else {
@@ -208,8 +228,9 @@ public class AvroSchemaConverter {
                     } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
                             || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
                         return Types.LOCAL_DATE_TIME;
-                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
-                            || schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                    } else if (!timeAsNumber
+                            && (schema.getLogicalType() == LogicalTypes.timeMicros()
+                                    || schema.getLogicalType() == LogicalTypes.timeMillis())) {
                         return Types.SQL_TIME;
                     }
                 }
@@ -247,6 +268,21 @@ public class AvroSchemaConverter {
      */
     public static DataType convertToDataType(
             String avroSchemaString, boolean legacyTimestampMapping) {
+        return convertToDataType(avroSchemaString, legacyTimestampMapping, false);
+    }
+
+    /**
+     * Converts an Avro schema string into a nested row structure with deterministic field order and
+     * data types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroSchemaString Avro schema definition string
+     * @param legacyTimestampMapping legacy mapping of local timestamps
+     * @param timeAsNumber if true, {@code time-millis} is mapped to {@code INT} and {@code
+     *     time-micros} to {@code BIGINT}, instead of to {@code TIME(3)} and {@code TIME(6)}
+     * @return data type matching the schema
+     */
+    public static DataType convertToDataType(
+            String avroSchemaString, boolean legacyTimestampMapping, boolean timeAsNumber) {
         Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
         final Schema schema;
         try {
@@ -254,10 +290,11 @@ public class AvroSchemaConverter {
         } catch (SchemaParseException e) {
             throw new IllegalArgumentException("Could not parse Avro schema string.", e);
         }
-        return convertToDataType(schema, legacyTimestampMapping);
+        return convertToDataType(schema, legacyTimestampMapping, timeAsNumber);
     }
 
-    private static DataType convertToDataType(Schema schema, boolean legacyMapping) {
+    private static DataType convertToDataType(
+            Schema schema, boolean legacyMapping, boolean timeAsNumber) {
         switch (schema.getType()) {
             case RECORD:
                 final List<Schema.Field> schemaFields = schema.getFields();
@@ -267,18 +304,22 @@ public class AvroSchemaConverter {
                     final Schema.Field field = schemaFields.get(i);
                     fields[i] =
                             DataTypes.FIELD(
-                                    field.name(), convertToDataType(field.schema(), legacyMapping));
+                                    field.name(),
+                                    convertToDataType(field.schema(), legacyMapping, timeAsNumber));
                 }
                 return DataTypes.ROW(fields).notNull();
             case ENUM:
                 return DataTypes.STRING().notNull();
             case ARRAY:
-                return DataTypes.ARRAY(convertToDataType(schema.getElementType(), legacyMapping))
+                return DataTypes.ARRAY(
+                                convertToDataType(
+                                        schema.getElementType(), legacyMapping, timeAsNumber))
                         .notNull();
             case MAP:
                 return DataTypes.MAP(
                                 DataTypes.STRING().notNull(),
-                                convertToDataType(schema.getValueType(), legacyMapping))
+                                convertToDataType(
+                                        schema.getValueType(), legacyMapping, timeAsNumber))
                         .notNull();
             case UNION:
                 final Schema actualSchema;
@@ -299,7 +340,7 @@ public class AvroSchemaConverter {
                     return new AtomicDataType(
                             new TypeInformationRawType<>(false, Types.GENERIC(Object.class)));
                 }
-                DataType converted = convertToDataType(actualSchema, legacyMapping);
+                DataType converted = convertToDataType(actualSchema, legacyMapping, timeAsNumber);
                 return nullable ? converted.nullable() : converted;
             case FIXED:
                 // logical decimal type
@@ -328,7 +369,7 @@ public class AvroSchemaConverter {
                 final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
                 if (logicalType == LogicalTypes.date()) {
                     return DataTypes.DATE().notNull();
-                } else if (logicalType == LogicalTypes.timeMillis()) {
+                } else if (logicalType == LogicalTypes.timeMillis() && !timeAsNumber) {
                     return DataTypes.TIME(3).notNull();
                 }
                 return DataTypes.INT().notNull();
@@ -339,9 +380,11 @@ public class AvroSchemaConverter {
                         return DataTypes.TIMESTAMP(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
                         return DataTypes.TIMESTAMP(6).notNull();
-                    } else if (schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                    } else if (!timeAsNumber
+                            && schema.getLogicalType() == LogicalTypes.timeMillis()) {
                         return DataTypes.TIME(3).notNull();
-                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+                    } else if (!timeAsNumber
+                            && schema.getLogicalType() == LogicalTypes.timeMicros()) {
                         return DataTypes.TIME(6).notNull();
                     }
                 } else {
@@ -350,9 +393,11 @@ public class AvroSchemaConverter {
                         return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
                         return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).notNull();
-                    } else if (schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                    } else if (!timeAsNumber
+                            && schema.getLogicalType() == LogicalTypes.timeMillis()) {
                         return DataTypes.TIME(3).notNull();
-                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+                    } else if (!timeAsNumber
+                            && schema.getLogicalType() == LogicalTypes.timeMicros()) {
                         return DataTypes.TIME(6).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()) {
                         return DataTypes.TIMESTAMP(3).notNull();

@@ -225,6 +225,77 @@ public class AvroToVariantDataConvertersTest {
         assertEquals(expectedDate, variant.getField("date").getDate());
     }
 
+    private static final Schema TIMES_SCHEMA =
+            new Schema.Parser()
+                    .parse(
+                            ""
+                                    + "{\"type\": \"record\", \"name\": \"Times\", \"fields\": [\n"
+                                    + "  {\"name\": \"millis\", \"type\": {\"type\": \"int\", \"logicalType\": \"time-millis\"}},\n"
+                                    + "  {\"name\": \"micros\", \"type\": {\"type\": \"long\", \"logicalType\": \"time-micros\"}},\n"
+                                    + "  {\"name\": \"millisOrNull\", \"type\": [\"null\", {\"type\": \"int\", \"logicalType\": \"time-millis\"}], \"default\": null},\n"
+                                    + "  {\"name\": \"inArray\", \"type\": {\"type\": \"array\", \"items\": {\"type\": \"int\", \"logicalType\": \"time-millis\"}}}\n"
+                                    + "]}");
+
+    private static GenericRecord timesRecord(int millis, long micros) {
+        return new GenericRecordBuilder(TIMES_SCHEMA)
+                .set("millis", millis)
+                .set("micros", micros)
+                .set("millisOrNull", millis)
+                .set("inArray", java.util.Arrays.asList(millis, millis + 1))
+                .build();
+    }
+
+    @Test
+    public void testTimeLogicalTypesAreMicrosecondsOfDayByDefault() {
+        var converter = AvroToVariantDataConverters.createVariantConverter(TIMES_SCHEMA);
+
+        var variant = converter.convert(timesRecord(28_800_000, 28_800_000_123L));
+
+        // time-millis is turned into microseconds of day, time-micros is already
+        assertEquals(28_800_000_000L, variant.getField("millis").getLong());
+        assertEquals(28_800_000_123L, variant.getField("micros").getLong());
+        assertEquals(28_800_000_000L, variant.getField("millisOrNull").getLong());
+        assertEquals(28_800_000_000L, variant.getField("inArray").getElement(0).getLong());
+    }
+
+    @Test
+    public void testTimeLogicalTypesAsNumbers() {
+        var converter = AvroToVariantDataConverters.createVariantConverter(TIMES_SCHEMA, true);
+
+        var variant = converter.convert(timesRecord(28_800_000, 28_800_000_123L));
+
+        // time-millis stays the Avro int, time-micros the Avro long
+        assertEquals(28_800_000, variant.getField("millis").getInt());
+        assertEquals(28_800_000_123L, variant.getField("micros").getLong());
+        assertEquals(28_800_000, variant.getField("millisOrNull").getInt());
+        assertEquals(28_800_000, variant.getField("inArray").getElement(0).getInt());
+        assertEquals(28_800_001, variant.getField("inArray").getElement(1).getInt());
+    }
+
+    @Test
+    public void testTimeAsNumbersKeepsNullsAndDoesNotTouchOtherTypes() {
+        var converter = AvroToVariantDataConverters.createVariantConverter(TEST_SCHEMA_2, true);
+        var defaultConverter = AvroToVariantDataConverters.createVariantConverter(TEST_SCHEMA_2);
+        var record =
+                new GenericRecordBuilder(TEST_SCHEMA_2)
+                        .set("tsMillis", 1_700_000_000_123L)
+                        .set("tsMicros", 1_700_000_000_123_456L)
+                        .set("tsMicros_union", null)
+                        .set("timeMillis", 28_800_000)
+                        .set("date", 19_000)
+                        .build();
+
+        var variant = converter.convert(record);
+        var defaultVariant = defaultConverter.convert(record);
+
+        assertEquals(28_800_000, variant.getField("timeMillis").getInt());
+        assertEquals(
+                defaultVariant.getField("tsMillis").getDateTime(),
+                variant.getField("tsMillis").getDateTime());
+        assertEquals(defaultVariant.getField("date").getDate(), variant.getField("date").getDate());
+        assertTrue(variant.getField("tsMicros_union").isNull());
+    }
+
     @Test
     public void testComplexRecordWithUnion() {
         var converter = AvroToVariantDataConverters.createVariantConverter(COMPLEX_UNION_SCHEMA);
