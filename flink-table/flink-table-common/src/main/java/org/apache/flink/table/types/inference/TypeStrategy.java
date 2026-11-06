@@ -34,6 +34,14 @@ import java.util.Optional;
 @PublicEvolving
 public interface TypeStrategy {
 
-    /** Infers a type from the given function call. */
+    /**
+     * Infers a type from the given function call.
+     *
+     * <p>Note: {@code DESCRIBE FUNCTION EXTENDED} may invoke this method via {@link
+     * StateTypeStrategy} with a {@code null} {@link CallContext} to surface a state entry's type at
+     * definition time. Implementations that derive the result type from call-time information
+     * should handle {@code null} defensively (e.g. return {@code Optional.empty()}); throwing will
+     * cause {@code DESCRIBE} to render the type as {@code <unknown>}.
+     */
     Optional<DataType> inferType(CallContext callContext);
 }
