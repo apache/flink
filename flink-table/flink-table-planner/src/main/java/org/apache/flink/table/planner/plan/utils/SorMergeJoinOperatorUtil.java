@@ -109,13 +109,11 @@ public class SorMergeJoinOperatorUtil {
             boolean leftIsSmaller,
             boolean[] filterNulls,
             long managedMemory,
+            long externalBufferMemory,
             ClassLoader classLoader) {
         LogicalType[] keyFieldTypes =
                 IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
         RowType keyType = RowType.of(keyFieldTypes);
-        long externalBufferMemory =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-                        .getBytes();
 
         SortMergeJoinFunction sortMergeJoinFunction =
                 SorMergeJoinOperatorUtil.getSortMergeJoinFunction(

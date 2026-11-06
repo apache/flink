@@ -195,6 +195,9 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         RowType leftType = (RowType) leftInputEdge.getOutputType();
         RowType rightType = (RowType) rightInputEdge.getOutputType();
         long managedMemory = JoinUtil.getManagedMemory(joinSpec.getJoinType(), config);
+        long externalBufferMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                        .getBytes();
 
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
@@ -220,6 +223,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                         estimatedRightRowCount,
                         tryDistinctBuildRow,
                         managedMemory,
+                        externalBufferMemory,
                         config,
                         planner.getFlinkContext().getClassLoader());
 
