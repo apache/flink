@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -40,6 +41,7 @@ import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.MultiJoinUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
@@ -50,6 +52,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.typeutils.RowTypeUtils;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -258,6 +261,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
         final GeneratedJoinCondition[] generatedJoinConditions =
                 createJoinConditions(config, classLoader, inputRowTypes);
+        final int[][] conditionFields =
+                MultiJoinUtil.createConditionFields(inputRowTypes, joinConditions, inputKeys);
 
         final StreamOperatorFactory<RowData> operatorFactory =
                 createOperatorFactory(
@@ -269,8 +274,9 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                         IntStream.range(0, numInputs)
                                 .mapToObj(this::toRuntimeChangelogMode)
                                 .collect(Collectors.toList()),
-                        MultiJoinUtil.createConditionFields(
-                                inputRowTypes, joinConditions, inputKeys));
+                        conditionFields,
+                        createConditionFieldsEqualisers(
+                                classLoader, inputRowTypes, conditionFields));
 
         final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
                 createKeySelectors(planner, inputTypeInfos, keyExtractor);
@@ -319,6 +325,26 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         return generatedJoinConditions;
     }
 
+    /** Returns for each input an equaliser of its condition fields, or null if it has none. */
+    private static GeneratedRecordEqualiser[] createConditionFieldsEqualisers(
+            final ClassLoader classLoader,
+            final List<RowType> inputRowTypes,
+            final int[][] conditionFields) {
+        final GeneratedRecordEqualiser[] equalisers =
+                new GeneratedRecordEqualiser[conditionFields.length];
+        for (int i = 0; i < conditionFields.length; i++) {
+            if (conditionFields[i].length > 0) {
+                equalisers[i] =
+                        new EqualiserCodeGenerator(
+                                        RowTypeUtils.projectRowType(
+                                                inputRowTypes.get(i), conditionFields[i]),
+                                        classLoader)
+                                .generateRecordEqualiser("MultiJoinConditionFieldsEqualiser");
+            }
+        }
+        return equalisers;
+    }
+
     private StreamOperatorFactory<RowData> createOperatorFactory(
             final ExecNodeConfig config,
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
@@ -326,7 +352,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final GeneratedJoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor,
             final List<RuntimeChangelogMode> inputChangelogModes,
-            final int[][] conditionFields) {
+            final int[][] conditionFields,
+            final GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
         final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
                         config, inputTypeInfos.size(), stateMetadataList);
@@ -342,7 +369,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 keyExtractor,
                 joinAttributeMap,
                 inputChangelogModes,
-                conditionFields);
+                conditionFields,
+                conditionFieldsEqualisers);
     }
 
     /**

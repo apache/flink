@@ -14,6 +14,9 @@
             }, {
               "name" : "region",
               "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "tag",
+              "dataType" : "VARBINARY(2147483647)"
             } ],
             "primaryKey" : {
               "name" : "PK_user_id",
@@ -24,8 +27,8 @@
         }
       }
     },
-    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, region])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, region, tag])"
   }, {
     "id" : 114,
     "type" : "stream-exec-exchange_1",
@@ -37,7 +40,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647)>",
+    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
     "id" : 115,
@@ -56,6 +59,12 @@
             }, {
               "name" : "region",
               "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "tag",
+              "dataType" : "VARBINARY(2147483647)"
+            }, {
+              "name" : "amount",
+              "dataType" : "INT"
             } ],
             "primaryKey" : {
               "name" : "PK_user_id_order_id",
@@ -66,8 +75,8 @@
         }
       }
     },
-    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id, region])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647), `amount` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id, region, tag, amount])"
   }, {
     "id" : 116,
     "type" : "stream-exec-exchange_1",
@@ -79,7 +88,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647)>",
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647), `amount` INT>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
     "id" : 117,
@@ -142,7 +151,7 @@
           "type" : "INT NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 2,
+          "inputIndex" : 3,
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"
@@ -156,8 +165,22 @@
           "type" : "VARCHAR(2147483647)"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 4,
+          "inputIndex" : 5,
           "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARBINARY(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "VARBINARY(2147483647)"
         } ],
         "type" : "BOOLEAN"
       } ],
@@ -172,7 +195,7 @@
         "type" : "INT NOT NULL"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 5,
+        "inputIndex" : 8,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"
@@ -191,7 +214,7 @@
           "type" : "INT NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 2,
+          "inputIndex" : 3,
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"
@@ -205,8 +228,22 @@
           "type" : "VARCHAR(2147483647)"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 4,
+          "inputIndex" : 5,
           "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARBINARY(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "VARBINARY(2147483647)"
         } ],
         "type" : "BOOLEAN"
       }, {
@@ -219,7 +256,7 @@
           "type" : "INT NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 5,
+          "inputIndex" : 8,
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"
@@ -289,26 +326,26 @@
       "damBehavior" : "PIPELINED",
       "priority" : 2
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `user_id0` INT NOT NULL, `order_id` INT NOT NULL, `region0` VARCHAR(2147483647), `user_id1` INT NOT NULL, `payment_type` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, order_id), (user_id)], joinConditions=[((user_id = user_id0) AND (region <> region0)), (user_id = user_id1)], select=[user_id,region,user_id0,order_id,region0,user_id1,payment_type], rowType=[RecordType(INTEGER user_id, VARCHAR(2147483647) region, INTEGER user_id0, INTEGER order_id, VARCHAR(2147483647) region0, INTEGER user_id1, VARCHAR(2147483647) payment_type)])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647), `user_id0` INT NOT NULL, `order_id` INT NOT NULL, `region0` VARCHAR(2147483647), `tag0` VARBINARY(2147483647), `amount` INT, `user_id1` INT NOT NULL, `payment_type` VARCHAR(2147483647)>",
+    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, order_id), (user_id)], joinConditions=[((user_id = user_id0) AND (region <> region0) AND (tag <> tag0)), (user_id = user_id1)], select=[user_id,region,tag,user_id0,order_id,region0,tag0,amount,user_id1,payment_type], rowType=[RecordType(INTEGER user_id, VARCHAR(2147483647) region, VARBINARY(2147483647) tag, INTEGER user_id0, INTEGER order_id, VARCHAR(2147483647) region0, VARBINARY(2147483647) tag0, INTEGER amount, INTEGER user_id1, VARCHAR(2147483647) payment_type)])"
   }, {
     "id" : 120,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "INT NOT NULL"
-    }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 4,
-      "type" : "VARCHAR(2147483647)"
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 6,
+      "inputIndex" : 7,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 9,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
@@ -320,8 +357,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647), `payment_type` VARCHAR(2147483647)>",
-    "description" : "Calc(select=[user_id0 AS user_id, order_id, region0 AS region, payment_type])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `amount` INT, `payment_type` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[user_id0 AS user_id, order_id, amount, payment_type])"
   }, {
     "id" : 121,
     "type" : "stream-exec-sink_2",
@@ -344,8 +381,8 @@
               "name" : "order_id",
               "dataType" : "INT NOT NULL"
             }, {
-              "name" : "region",
-              "dataType" : "VARCHAR(2147483647)"
+              "name" : "amount",
+              "dataType" : "INT"
             }, {
               "name" : "payment_type",
               "dataType" : "VARCHAR(2147483647)"
@@ -369,8 +406,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647), `payment_type` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, region, payment_type])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `amount` INT, `payment_type` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, amount, payment_type])"
   } ],
   "edges" : [ {
     "source" : 113,

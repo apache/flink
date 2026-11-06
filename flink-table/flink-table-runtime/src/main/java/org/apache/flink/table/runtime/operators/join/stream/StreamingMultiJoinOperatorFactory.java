@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
@@ -54,6 +55,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
     // For each input, its changelog mode, or null if the compiled plan doesn't contain it.
     private final List<RuntimeChangelogMode> inputChangelogModes;
     private final int[][] conditionFields;
+    // For each input, an equaliser of its condition fields, or null if it has none.
+    private final GeneratedRecordEqualiser[] conditionFieldsEqualisers;
 
     public StreamingMultiJoinOperatorFactory(
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
@@ -65,7 +68,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
             final JoinKeyExtractor keyExtractor,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final List<RuntimeChangelogMode> inputChangelogModes,
-            final int[][] conditionFields) {
+            final int[][] conditionFields,
+            final GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
         this.inputTypeInfos = inputTypeInfos;
         this.inputSideSpecs = inputSideSpecs;
         this.joinTypes = joinTypes;
@@ -76,6 +80,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
         this.joinAttributeMap = joinAttributeMap;
         this.inputChangelogModes = inputChangelogModes;
         this.conditionFields = conditionFields;
+        this.conditionFieldsEqualisers = conditionFieldsEqualisers;
     }
 
     @Override
@@ -98,7 +103,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
                         keyExtractor,
                         joinAttributeMap,
                         inputChangelogModes,
-                        conditionFields);
+                        conditionFields,
+                        conditionFieldsEqualisers);
 
         @SuppressWarnings("unchecked")
         final T castedOperator = (T) operator;

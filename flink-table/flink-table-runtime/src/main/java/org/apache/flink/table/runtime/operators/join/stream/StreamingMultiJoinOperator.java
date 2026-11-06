@@ -31,9 +31,12 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
@@ -41,7 +44,6 @@ import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinState
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
@@ -50,9 +52,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 /**
  * Streaming multi-way join operator which supports inner join and left outer join, right joins are
@@ -365,6 +365,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     // For each input, the fields that the join conditions read and that are not part of its key.
     // Only these fields can make the conditions match two versions of a record differently.
     private final int[][] conditionFields;
+    // For each input, an equaliser of its condition fields, or null if it has none.
+    private final GeneratedRecordEqualiser[] generatedConditionFieldsEqualisers;
     // For each input, whether it may update a record without retracting it first, and whether its
     // deletes may contain only the unique key. Both are false for plans compiled without the
     // changelog modes.
@@ -375,7 +377,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private transient TimestampedCollector<RowData> collector;
     private transient List<RowData> nullRows;
     private transient JoinCondition[] instantiatedJoinConditions;
-    private transient RowData.FieldGetter[][] inputFieldGetters;
+    private transient RecordEqualiser[] conditionFieldsEqualisers;
+    private transient ProjectedRowData[] storedConditionFields;
+    private transient ProjectedRowData[] newConditionFields;
 
     public StreamingMultiJoinOperator(
             StreamOperatorParameters<RowData> parameters,
@@ -389,7 +393,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             // We currently don't use this, but it might be useful in the future for optimizations
             Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             List<RuntimeChangelogMode> inputChangelogModes,
-            int[][] conditionFields) {
+            int[][] conditionFields,
+            GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
@@ -400,6 +405,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         this.typedInputs = new ArrayList<>(inputSpecs.size());
         this.multiJoinCondition = multiJoinCondition;
         this.conditionFields = conditionFields;
+        this.generatedConditionFieldsEqualisers = conditionFieldsEqualisers;
         this.isUpsertInput = new boolean[inputSpecs.size()];
         this.hasKeyOnlyDeletes = new boolean[inputSpecs.size()];
         for (int i = 0; i < inputSpecs.size(); i++) {
@@ -415,7 +421,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         super.open();
         initializeCollector();
         initializeNullRows();
-        initializeRowAccess();
+        initializeConditionFieldsEqualisers();
         initializeStateHandlers();
         initializeJoinConditions();
     }
@@ -509,14 +515,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private boolean conditionFieldsEqual(RowData storedRecord, RowData record, int inputId) {
-        for (int field : conditionFields[inputId]) {
-            final RowData.FieldGetter getter = inputFieldGetters[inputId][field];
-            if (!Objects.equals(
-                    getter.getFieldOrNull(storedRecord), getter.getFieldOrNull(record))) {
-                return false;
-            }
-        }
-        return true;
+        // the equaliser also compares the RowKind, which may differ between the two versions
+        final RowKind rowKind = record.getRowKind();
+        record.setRowKind(storedRecord.getRowKind());
+        final boolean equal =
+                conditionFieldsEqualisers[inputId].equals(
+                        storedConditionFields[inputId].replaceRow(storedRecord),
+                        newConditionFields[inputId].replaceRow(record));
+        record.setRowKind(rowKind);
+        return equal;
     }
 
     private void performMultiJoin(RowData input, int inputId) throws Exception {
@@ -918,17 +925,21 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
     }
 
-    private void initializeRowAccess() {
-        this.inputFieldGetters = new RowData.FieldGetter[inputTypes.size()][];
-        for (int i = 0; i < inputTypes.size(); i++) {
-            inputFieldGetters[i] = createFieldGetters(inputTypes.get(i).getChildren());
+    /** Only upsert inputs compare the condition fields of two versions of a record. */
+    private void initializeConditionFieldsEqualisers() {
+        final int numInputs = inputSpecs.size();
+        this.conditionFieldsEqualisers = new RecordEqualiser[numInputs];
+        this.storedConditionFields = new ProjectedRowData[numInputs];
+        this.newConditionFields = new ProjectedRowData[numInputs];
+        for (int i = 0; i < numInputs; i++) {
+            if (isUpsertInput[i] && conditionFields[i].length > 0) {
+                conditionFieldsEqualisers[i] =
+                        generatedConditionFieldsEqualisers[i].newInstance(
+                                getRuntimeContext().getUserCodeClassLoader());
+                storedConditionFields[i] = ProjectedRowData.from(conditionFields[i]);
+                newConditionFields[i] = ProjectedRowData.from(conditionFields[i]);
+            }
         }
-    }
-
-    private static RowData.FieldGetter[] createFieldGetters(List<LogicalType> fieldTypes) {
-        return IntStream.range(0, fieldTypes.size())
-                .mapToObj(field -> RowData.createFieldGetter(fieldTypes.get(field), field))
-                .toArray(RowData.FieldGetter[]::new);
     }
 
     private void initializeStateHandlers() {

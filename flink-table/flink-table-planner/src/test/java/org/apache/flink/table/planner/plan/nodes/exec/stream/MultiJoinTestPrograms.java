@@ -447,10 +447,13 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
-                                            "user_id INT PRIMARY KEY NOT ENFORCED", "region STRING")
+                                            "user_id INT PRIMARY KEY NOT ENFORCED",
+                                            "region STRING",
+                                            "tag BYTES")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .addOption("source.produces-delete-by-key", "true")
-                                    .producedBeforeRestore(Row.ofKind(RowKind.INSERT, 1, "EU"))
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, "EU", new byte[] {1}))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
@@ -458,15 +461,36 @@ public class MultiJoinTestPrograms {
                                             "user_id INT",
                                             "order_id INT",
                                             "region STRING",
+                                            "tag BYTES",
+                                            "amount INT",
                                             "PRIMARY KEY (user_id, order_id) NOT ENFORCED")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .addOption("source.produces-delete-by-key", "true")
                                     .producedBeforeRestore(
-                                            Row.ofKind(RowKind.INSERT, 1, 10, "US"),
-                                            Row.ofKind(RowKind.INSERT, 1, 11, "US"))
+                                            Row.ofKind(
+                                                    RowKind.INSERT, 1, 10, "US", new byte[] {2}, 1),
+                                            Row.ofKind(
+                                                    RowKind.INSERT, 1, 11, "US", new byte[] {2}, 1),
+                                            Row.ofKind(
+                                                    RowKind.INSERT, 1, 12, "US", new byte[] {2}, 1))
                                     .producedAfterRestore(
-                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 10, "EU"),
-                                            Row.ofKind(RowKind.DELETE, 1, 11, null))
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    1,
+                                                    10,
+                                                    "EU",
+                                                    new byte[] {2},
+                                                    1),
+                                            Row.ofKind(RowKind.DELETE, 1, 11, null, null, null),
+                                            // the join conditions read region and tag, which
+                                            // stay the same
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    1,
+                                                    12,
+                                                    "US",
+                                                    new byte[] {2},
+                                                    2))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Payments")
@@ -482,22 +506,27 @@ public class MultiJoinTestPrograms {
                                     .addSchema(
                                             "user_id INT",
                                             "order_id INT",
-                                            "region STRING",
+                                            "amount INT",
                                             "payment_type STRING",
                                             "PRIMARY KEY (user_id, order_id) NOT ENFORCED")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .addOption("sink.supports-delete-by-key", "true")
                                     .consumedBeforeRestore(
-                                            "+I[1, 10, US, card]", "+I[1, 11, US, card]")
+                                            "+I[1, 10, 1, card]",
+                                            "+I[1, 11, 1, card]",
+                                            "+I[1, 12, 1, card]")
                                     // deletes by key only contain the primary key of the sink
                                     .consumedAfterRestore(
-                                            "-D[1, 10, null, null]", "-D[1, 11, null, null]")
+                                            "-D[1, 10, null, null]",
+                                            "-D[1, 11, null, null]",
+                                            "+U[1, 12, 2, card]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink "
-                                    + "SELECT o.user_id, o.order_id, o.region, p.payment_type "
+                                    + "SELECT o.user_id, o.order_id, o.amount, p.payment_type "
                                     + "FROM Users u "
-                                    + "JOIN Orders o ON u.user_id = o.user_id AND u.region <> o.region "
+                                    + "JOIN Orders o ON u.user_id = o.user_id "
+                                    + "AND u.region <> o.region AND u.tag <> o.tag "
                                     + "JOIN Payments p ON u.user_id = p.user_id")
                     .build();
 
