@@ -88,6 +88,8 @@ public class AdaptiveSchedulerBuilder {
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private RestartBackoffTimeStrategy restartBackoffTimeStrategy =
             NoRestartBackoffTimeStrategy.INSTANCE;
+    private RestartBackoffTimeStrategy executionGraphRetryBackoffTimeStrategy =
+            NoRestartBackoffTimeStrategy.INSTANCE;
     private FatalErrorHandler fatalErrorHandler =
             error ->
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
@@ -95,6 +97,9 @@ public class AdaptiveSchedulerBuilder {
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
     private Collection<FailureEnricher> failureEnrichers = Collections.emptySet();
     private long initializationTimestamp = System.currentTimeMillis();
+
+    private java.util.function.UnaryOperator<ExecutionGraphFactory> executionGraphFactoryDecorator =
+            java.util.function.UnaryOperator.identity();
 
     @Nullable private SlotAllocator slotAllocator;
 
@@ -141,6 +146,13 @@ public class AdaptiveSchedulerBuilder {
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
             final Configuration jobMasterConfiguration) {
         this.jobMasterConfiguration = jobMasterConfiguration;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder setExecutionGraphFactoryDecorator(
+            java.util.function.UnaryOperator<ExecutionGraphFactory>
+                    executionGraphFactoryDecorator) {
+        this.executionGraphFactoryDecorator = executionGraphFactoryDecorator;
         return this;
     }
 
@@ -206,6 +218,12 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setExecutionGraphRetryBackoffTimeStrategy(
+            final RestartBackoffTimeStrategy executionGraphRetryBackoffTimeStrategy) {
+        this.executionGraphRetryBackoffTimeStrategy = executionGraphRetryBackoffTimeStrategy;
+        return this;
+    }
+
     public AdaptiveSchedulerBuilder setFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
         this.fatalErrorHandler = fatalErrorHandler;
         return this;
@@ -252,17 +270,18 @@ public class AdaptiveSchedulerBuilder {
 
     public AdaptiveScheduler build() throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
-                new DefaultExecutionGraphFactory(
-                        jobMasterConfiguration,
-                        userCodeLoader,
-                        new DefaultExecutionDeploymentTracker(),
-                        executorService,
-                        executorService,
-                        rpcTimeout,
-                        jobManagerJobMetricGroup,
-                        blobWriter,
-                        shuffleMaster,
-                        partitionTracker);
+                executionGraphFactoryDecorator.apply(
+                        new DefaultExecutionGraphFactory(
+                                jobMasterConfiguration,
+                                userCodeLoader,
+                                new DefaultExecutionDeploymentTracker(),
+                                executorService,
+                                executorService,
+                                rpcTimeout,
+                                jobManagerJobMetricGroup,
+                                blobWriter,
+                                shuffleMaster,
+                                partitionTracker));
 
         final AdaptiveScheduler.Settings settings =
                 AdaptiveScheduler.Settings.of(jobMasterConfiguration);
@@ -298,6 +317,7 @@ public class AdaptiveSchedulerBuilder {
                 fatalErrorHandler,
                 jobStatusListener,
                 failureEnrichers,
-                executionGraphFactory);
+                executionGraphFactory,
+                executionGraphRetryBackoffTimeStrategy);
     }
 }

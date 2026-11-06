@@ -196,6 +196,7 @@ public class AdaptiveScheduler
                 CreatingExecutionGraph.Context,
                 Executing.Context,
                 Restarting.Context,
+                RetryingExecutionGraphCreation.Context,
                 Failing.Context,
                 Finished.Context,
                 StopWithSavepoint.Context {
@@ -432,6 +433,10 @@ public class AdaptiveScheduler
 
     private final RestartBackoffTimeStrategy restartBackoffTimeStrategy;
 
+    private final RestartBackoffTimeStrategy executionGraphRetryBackoffTimeStrategy;
+
+    private long numExecutionGraphCreationRetries;
+
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
     private final Collection<FailureEnricher> failureEnrichers;
@@ -489,7 +494,8 @@ public class AdaptiveScheduler
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
             Collection<FailureEnricher> failureEnrichers,
-            ExecutionGraphFactory executionGraphFactory)
+            ExecutionGraphFactory executionGraphFactory,
+            RestartBackoffTimeStrategy executionGraphRetryBackoffTimeStrategy)
             throws JobExecutionException {
         this(
                 settings,
@@ -516,7 +522,8 @@ public class AdaptiveScheduler
                 fatalErrorHandler,
                 jobStatusListener,
                 failureEnrichers,
-                executionGraphFactory);
+                executionGraphFactory,
+                executionGraphRetryBackoffTimeStrategy);
     }
 
     @VisibleForTesting
@@ -541,7 +548,8 @@ public class AdaptiveScheduler
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
             Collection<FailureEnricher> failureEnrichers,
-            ExecutionGraphFactory executionGraphFactory)
+            ExecutionGraphFactory executionGraphFactory,
+            RestartBackoffTimeStrategy executionGraphRetryBackoffTimeStrategy)
             throws JobExecutionException {
 
         assertPreconditions(jobGraph);
@@ -621,6 +629,7 @@ public class AdaptiveScheduler
                 jobStatusStore,
                 () -> (long) numRestarts,
                 () -> (long) numRescales,
+                () -> numExecutionGraphCreationRetries,
                 this.executionStateMetricsRegistrars,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
@@ -633,6 +642,7 @@ public class AdaptiveScheduler
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
 
         this.jobFailureMetricReporter = new JobFailureMetricReporter(jobManagerJobMetricGroup);
+        this.executionGraphRetryBackoffTimeStrategy = executionGraphRetryBackoffTimeStrategy;
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -1434,6 +1444,15 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public void goToRetryingExecutionGraphCreation(
+            @Nullable ExecutionGraph previousExecutionGraph, Duration backoffTime) {
+        transitionToState(
+                new RetryingExecutionGraphCreation.Factory(
+                        this, LOG, previousExecutionGraph, backoffTime));
+        numExecutionGraphCreationRetries++;
+    }
+
+    @Override
     public void goToFailing(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
@@ -1661,9 +1680,15 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public FailureResult howToHandleFailure(
-            Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
-        FailureResult failureResult = howToHandleFailure(failure);
+    public FailureResult howToHandleEGCreationFailure(Throwable failure) {
+        final FailureEnricher.Context ctx =
+                DefaultFailureEnricherContext.forGlobalFailure(
+                        jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
+        final CompletableFuture<Map<String, String>> failureLabels =
+                FailureEnricherUtils.labelFailure(
+                        failure, ctx, getMainThreadExecutor(), failureEnrichers);
+        final FailureResult failureResult =
+                howToHandleFailure(failure, executionGraphRetryBackoffTimeStrategy);
         // Add reporting as callback for when the failure labeling is completed.
         failureLabels.thenAcceptAsync(
                 (labels) -> jobFailureMetricReporter.reportJobFailure(failureResult, labels),
@@ -1671,20 +1696,30 @@ public class AdaptiveScheduler
         return failureResult;
     }
 
-    private FailureResult howToHandleFailure(Throwable failure) {
+    @Override
+    public FailureResult howToHandleFailure(
+            Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
+        FailureResult failureResult = howToHandleFailure(failure, restartBackoffTimeStrategy);
+        // Add reporting as callback for when the failure labeling is completed.
+        failureLabels.thenAcceptAsync(
+                (labels) -> jobFailureMetricReporter.reportJobFailure(failureResult, labels),
+                componentMainThreadExecutor);
+        return failureResult;
+    }
+
+    private FailureResult howToHandleFailure(
+            Throwable failure, RestartBackoffTimeStrategy strategy) {
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
             return FailureResult.canNotRestart(
                     new JobException("The failure is not recoverable", failure));
         }
 
-        restartBackoffTimeStrategy.notifyFailure(failure);
-        if (restartBackoffTimeStrategy.canRestart()) {
-            return FailureResult.canRestart(
-                    failure, Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
+        strategy.notifyFailure(failure);
+        if (strategy.canRestart()) {
+            return FailureResult.canRestart(failure, Duration.ofMillis(strategy.getBackoffTime()));
         } else {
             return FailureResult.canNotRestart(
-                    new JobException(
-                            "Recovery is suppressed by " + restartBackoffTimeStrategy, failure));
+                    new JobException("Recovery is suppressed by " + strategy, failure));
         }
     }
 
