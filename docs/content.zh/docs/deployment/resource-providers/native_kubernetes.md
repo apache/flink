@@ -44,7 +44,9 @@ Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers dep
 The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
 
 - Kubernetes >= 1.9.
+- Java 11.0.19 or newer when running Flink on Java 11; Java 17 and later are unaffected (see [Java compatibility]({{< ref "docs/deployment/java_compatibility" >}}#native-kubernetes-minimum-version)).
 - KubeConfig, which has access to list, create, delete pods and services, configurable via `~/.kube/config`. You can verify permissions by running `kubectl auth can-i <list|create|edit|delete> pods`.
+- If the API server is reached through a proxy, it must be an HTTP proxy. SOCKS proxies are not supported: `socks5://` in the KubeConfig `proxy-url`, `HTTPS_PROXY` or `ALL_PROXY` fails on client creation, and the JVM `socksProxyHost` setting is ignored.
 - Enabled Kubernetes DNS.
 - `default` service account with [RBAC](#rbac) permissions to create, delete pods.
 
