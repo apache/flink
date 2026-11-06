@@ -87,7 +87,7 @@ public final class SpecificInputTypeStrategies {
             or(
                     logical(LogicalTypeFamily.CHARACTER_STRING),
                     logical(LogicalTypeFamily.BINARY_STRING),
-                    logical(LogicalTypeFamily.TIMESTAMP),
+                    logical(LogicalTypeFamily.DATETIME),
                     logical(LogicalTypeFamily.CONSTRUCTED),
                     logical(LogicalTypeFamily.NUMERIC),
                     logical(LogicalTypeRoot.STRUCTURED_TYPE),
