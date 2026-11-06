@@ -112,6 +112,11 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
                 fileBasedCache.incHitCounter();
                 return stream;
             }
+            if (streamStatus == StreamStatus.CACHED_OPEN
+                    && cacheEntry.checkStatus(FileCacheEntry.EntryStatus.CLOSED)) {
+                // Removal may still be queued; capture the position before falling back.
+                closeCachedStream();
+            }
             // No cache stream
             if (streamStatus == StreamStatus.CACHED_CLOSING) {
                 // if closing, update the position
