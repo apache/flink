@@ -318,13 +318,13 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     var leftFieldCount = inputs.get(0).getRowType.getFieldCount
     var leftUpsertKeys = fmq.getUpsertKeys(inputs.get(0))
 
-    val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(0): _*)
-
     // Process each subsequent input as right side of join
     for (i <- 1 until inputs.size) {
       val rightInput = inputs.get(i)
       val rightUpsertKeys = fmq.getUpsertKeys(rightInput)
       val joinType = joinTypes.get(i)
+      // Only the left columns that input i's own condition references, not every previous join column.
+      val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getLeftSideJoinKeyIndices(i): _*)
       val rightJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(i): _*)
 
       // We compute candidate unique keys that qualify as upsert keys if they include
