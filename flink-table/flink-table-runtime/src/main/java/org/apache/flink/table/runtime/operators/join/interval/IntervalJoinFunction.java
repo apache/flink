@@ -46,7 +46,7 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     private transient JoinCondition joinCondition;
     private transient JoinedRowData reusedJoinRowData;
-    private transient NullAwareGetters joinKey;
+    private transient RowData joinKey;
 
     public IntervalJoinFunction(
             GeneratedJoinCondition joinCondition,
@@ -71,7 +71,16 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     @Override
     public void join(RowData first, RowData second, Collector<RowData> out) throws Exception {
-        if (currentKeyCannotMatch()) {
+        join(first, second, joinKey, out);
+    }
+
+    /**
+     * Joins two rows of the given join key rather than of the key set by {@link #setJoinKey}. Async
+     * state operators need it because they have records of several keys in flight at a time.
+     */
+    public void join(RowData first, RowData second, RowData joinKey, Collector<RowData> out)
+            throws Exception {
+        if (keyCannotMatch(joinKey)) {
             return;
         }
         if (joinCondition.apply(first, second)) {
@@ -85,7 +94,7 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
     }
 
     public void setJoinKey(RowData currentKey) {
-        this.joinKey = (NullAwareGetters) currentKey;
+        this.joinKey = currentKey;
     }
 
     /**
@@ -93,6 +102,15 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
      * in a field that is not null-safe. The join key must be set.
      */
     public boolean currentKeyCannotMatch() {
-        return NullAwareJoinHelper.shouldFilter(nullSafe, filterAllNulls, nullFilterKeys, joinKey);
+        return keyCannotMatch(joinKey);
+    }
+
+    /**
+     * Returns whether no record of the given join key can ever match, because the key has a null in
+     * a field that is not null-safe.
+     */
+    public boolean keyCannotMatch(RowData joinKey) {
+        return NullAwareJoinHelper.shouldFilter(
+                nullSafe, filterAllNulls, nullFilterKeys, (NullAwareGetters) joinKey);
     }
 }
