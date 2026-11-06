@@ -31,7 +31,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Random;
 
+import static org.apache.flink.core.memory.DataOutputSerializer.MAX_ARRAY_SIZE;
+import static org.apache.flink.core.memory.DataOutputSerializer.computeNewBufferLength;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
 class DataInputOutputSerializerTest {
@@ -138,5 +141,33 @@ class DataInputOutputSerializerTest {
 
         String actual = deserializer.readUTF();
         assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testComputeNewBufferLengthNormalDoubling() throws IOException {
+        assertThat(computeNewBufferLength(1024, 1)).isEqualTo(2048);
+    }
+
+    @Test
+    void testComputeNewBufferLengthMinCapacityDominates() throws IOException {
+        assertThat(computeNewBufferLength(1000, 5000)).isEqualTo(6000);
+    }
+
+    @Test
+    void testComputeNewBufferLengthJumpsToCapWhenDoublingOverflows() throws IOException {
+        // currentLength * 2 overflows int and would otherwise produce a linear-step resize loop.
+        assertThat(computeNewBufferLength(1_500_000_000, 100)).isEqualTo(MAX_ARRAY_SIZE);
+    }
+
+    @Test
+    void testComputeNewBufferLengthExactlyAtCap() throws IOException {
+        assertThat(computeNewBufferLength(MAX_ARRAY_SIZE - 100, 50)).isEqualTo(MAX_ARRAY_SIZE);
+    }
+
+    @Test
+    void testComputeNewBufferLengthThrowsWhenRequiredExceedsCap() {
+        assertThatThrownBy(() -> computeNewBufferLength(MAX_ARRAY_SIZE - 10, 100))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("would exceed the maximum Java array size");
     }
 }
