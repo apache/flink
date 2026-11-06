@@ -210,6 +210,28 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
+    void testThreeWayInnerJoinRelPlanNoCommonJoinKeyAllowedBinaryMultiJoin() {
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_USE_MULTI_JOIN_FOR_BINARY_JOIN, true);
+        util.verifyRelPlan(
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.cash = p.price");
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_USE_MULTI_JOIN_FOR_BINARY_JOIN, false);
+    }
+
+    @Test
     void testThreeWayInnerJoinExecPlan() {
         util.verifyExecPlan(
                 "\nSELECT\n"
