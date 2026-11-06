@@ -130,6 +130,75 @@ LogicalProject(a2=[$2], b2=[$0], c=[$1], EXPR$3=[$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCannotPushAggWithoutGroupingKeysToCrossJoinInput">
+    <Resource name="sql">
+      <![CDATA[SELECT a, COUNT(*) FROM T, T2 GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
++- LogicalProject(a=[$0])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushGlobalAggToCrossJoinInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(a), MIN(a) FROM T, T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[MIN($0)])
++- LogicalProject(a=[$0])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[MIN($0)])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushGlobalCountToCrossJoinWithSingleRowInput">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM T, (SELECT COUNT(*) FROM T2 HAVING COUNT(*) > 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalFilter(condition=[>($0, 1)])
+      +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalFilter(condition=[>($0, 1)])
+      +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPushAggThroughJoinWithUniqueJoinKey">
     <Resource name="sql">
       <![CDATA[
@@ -199,6 +268,29 @@ LogicalAggregate(group=[{}], EXPR$0=[$SUM0($0)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
       +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushGlobalCountThroughCrossJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM T, T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject($f2=[*($0, $1)])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
   </TestCase>
