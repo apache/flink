@@ -149,7 +149,16 @@ public class JobResult implements Serializable {
     }
 
     /**
-     * Converts the {@link JobResult} to a {@link JobExecutionResult}.
+     * Converts the {@link JobResult} to a {@link JobExecutionResult}, deserializing the failure
+     * cause if the job did not finish successfully.
+     *
+     * <p><b>Only call this when the origin of this {@link JobResult} is trusted</b> (for example, a
+     * same-process execution such as {@code MiniCluster} or Application Mode, where this process
+     * itself produced the {@link SerializedThrowable}). {@link
+     * SerializedThrowable#deserializeError} can run arbitrary code if the bytes it deserializes did
+     * not originate from a trusted source. A {@link JobResult} obtained from a client that talks to
+     * a remote JobManager (for example any {@code RestClusterClient}-backed {@code JobClient})
+     * should use {@link #toSafeJobExecutionResult} instead.
      *
      * @param classLoader to use for deserialization
      * @return JobExecutionResult
@@ -160,20 +169,46 @@ public class JobResult implements Serializable {
      */
     public JobExecutionResult toJobExecutionResult(ClassLoader classLoader)
             throws JobExecutionException, IOException, ClassNotFoundException {
+        return toJobExecutionResult(
+                classLoader,
+                serializedThrowable == null
+                        ? null
+                        : serializedThrowable.deserializeError(classLoader));
+    }
+
+    /**
+     * Converts the {@link JobResult} to a {@link JobExecutionResult} without deserializing the
+     * failure cause: the thrown exception's cause is the {@link SerializedThrowable} itself, never
+     * the original, live exception object.
+     *
+     * <p>The robust choice when the origin of this {@link JobResult} isn't known to be trustworthy
+     * - for example, one obtained from a {@code RestClusterClient}-backed {@code JobClient} talking
+     * to a remote JobManager. {@code classLoader} is only used to deserialize accumulators. A
+     * caller that needs the original exception object back must call {@link
+     * SerializedThrowable#deserializeError} explicitly on the returned exception's cause, and only
+     * when it separately trusts whoever produced this {@link JobResult}.
+     *
+     * @param classLoader to use for deserializing accumulators
+     * @return JobExecutionResult
+     * @throws JobCancellationException if the job was cancelled
+     * @throws JobExecutionException if the job execution did not succeed
+     * @throws IOException if the accumulator could not be deserialized
+     * @throws ClassNotFoundException if the accumulator could not deserialized
+     */
+    public JobExecutionResult toSafeJobExecutionResult(ClassLoader classLoader)
+            throws JobExecutionException, IOException, ClassNotFoundException {
+        return toJobExecutionResult(classLoader, serializedThrowable);
+    }
+
+    private JobExecutionResult toJobExecutionResult(
+            ClassLoader classLoader, @Nullable Throwable cause)
+            throws JobExecutionException, IOException, ClassNotFoundException {
         if (jobStatus == JobStatus.FINISHED) {
             return new JobExecutionResult(
                     jobId,
                     netRuntime,
                     AccumulatorHelper.deserializeAccumulators(accumulatorResults, classLoader));
         } else {
-            final Throwable cause;
-
-            if (serializedThrowable == null) {
-                cause = null;
-            } else {
-                cause = serializedThrowable.deserializeError(classLoader);
-            }
-
             final JobExecutionException exception;
 
             if (jobStatus == JobStatus.FAILED) {
