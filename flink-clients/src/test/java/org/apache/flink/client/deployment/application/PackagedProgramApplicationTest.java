@@ -26,12 +26,16 @@ import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramDescriptor;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.testjar.FailingJob;
 import org.apache.flink.client.testjar.MultiExecuteJob;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -54,9 +58,15 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.io.ByteArrayOutputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -72,6 +82,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -641,6 +653,108 @@ public class PackagedProgramApplicationTest {
 
         // verify exception history is empty when application is canceled
         assertThat(application.getExceptionHistory()).isEmpty();
+    }
+
+    @Test
+    void testProgramBuiltFromDescriptorIsClosedWhenApplicationFinishes(@TempDir Path tempDir)
+            throws Exception {
+        final PackagedProgramDescriptor descriptor;
+        final Path validationLibrary;
+        try (PackagedProgram program = getProgramWithNestedLibrary(tempDir)) {
+            descriptor = program.getDescriptor();
+            validationLibrary = getExtractedLibrary(program.getJobJarAndDependencies());
+        }
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        descriptor,
+                        getConfiguration(),
+                        Integer.MAX_VALUE,
+                        1,
+                        true,
+                        false,
+                        false,
+                        null);
+        final CompletableFuture<Throwable> fatalError = new CompletableFuture<>();
+
+        // The jobs upload the program's jars, so they need a blob server.
+        try (BlobServer blobServer =
+                new BlobServer(
+                        new Configuration(),
+                        Files.createDirectory(tempDir.resolve("blobs")).toFile(),
+                        new VoidBlobStore())) {
+            blobServer.start();
+            executeApplication(
+                    application,
+                    finishedJobGatewayBuilder().setBlobServerPort(blobServer.getPort()).build(),
+                    scheduledExecutor,
+                    fatalError::complete);
+            application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        }
+
+        assertApplicationFinished(application);
+        assertThat(fatalError).isNotDone();
+        // The jobs were submitted with the library that the application extracted itself.
+        final Path extractedLibrary =
+                getExtractedLibrary(application.getConfiguration().get(PipelineOptions.JARS));
+        assertThat(extractedLibrary).isNotEqualTo(validationLibrary).doesNotExist();
+    }
+
+    @Test
+    void testOwnedProgramIsClosedWhenApplicationIsDisposed(@TempDir Path tempDir) throws Exception {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final Path extractedLibrary = getExtractedLibrary(program.getJobJarAndDependencies());
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        program,
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        getConfiguration(),
+                        Integer.MAX_VALUE,
+                        1,
+                        false,
+                        false,
+                        false,
+                        null,
+                        true);
+
+        application.dispose();
+        application.dispose();
+
+        assertThat(extractedLibrary).doesNotExist();
+    }
+
+    /**
+     * In application mode, the same program is handed to a new application on every leadership
+     * grant, so an application must not close a program that it does not own.
+     */
+    @Test
+    void testProgramPassedInIsNotClosed(@TempDir Path tempDir) throws Exception {
+        try (PackagedProgram program = getProgramWithNestedLibrary(tempDir)) {
+            final Path extractedLibrary = getExtractedLibrary(program.getJobJarAndDependencies());
+            final PackagedProgramApplication application =
+                    new PackagedProgramApplication(
+                            new ApplicationID(),
+                            program,
+                            getConfiguration(),
+                            Integer.MAX_VALUE,
+                            1,
+                            true,
+                            false,
+                            false);
+
+            executeApplication(
+                    application,
+                    finishedJobGatewayBuilder().build(),
+                    scheduledExecutor,
+                    ignored -> {});
+            application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            application.dispose();
+
+            assertApplicationFinished(application);
+            assertThat(extractedLibrary).exists();
+        }
     }
 
     @Test
@@ -1420,6 +1534,29 @@ public class PackagedProgramApplicationTest {
                                         errorHandler),
                         mainThreadExecutor)
                 .join();
+    }
+
+    /** Returns a program running a single {@link MultiExecuteJob} with a nested library. */
+    private static PackagedProgram getProgramWithNestedLibrary(Path tempDir) throws Exception {
+        final ByteArrayOutputStream emptyJar = new ByteArrayOutputStream();
+        new JarOutputStream(emptyJar).close();
+        final Path jar = tempDir.resolve("job.jar");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new JarEntry("lib/nested.jar"));
+            out.write(emptyJar.toByteArray());
+            out.closeEntry();
+        }
+        return PackagedProgram.newBuilder()
+                .setJarFile(jar.toFile())
+                .setEntryPointClassName(MultiExecuteJob.class.getName())
+                .setArguments("1", Boolean.toString(true), Boolean.toString(false))
+                .build();
+    }
+
+    /** Returns the extracted nested library, which comes after the job jar itself. */
+    private static Path getExtractedLibrary(List<?> jobJarAndDependencies) throws Exception {
+        assertThat(jobJarAndDependencies).hasSize(2);
+        return Paths.get(new URL(jobJarAndDependencies.get(1).toString()).toURI());
     }
 
     private PackagedProgram getProgram(int numJobs) throws FlinkException {

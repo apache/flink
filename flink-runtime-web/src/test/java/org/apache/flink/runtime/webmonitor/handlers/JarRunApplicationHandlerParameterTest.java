@@ -462,7 +462,7 @@ class JarRunApplicationHandlerParameterTest {
         PackagedProgramApplication application =
                 LAST_SUBMITTED_APPLICATION_REFERENCE.getAndSet(null);
 
-        assertThat(application.getPackagedProgram().getArguments()).isEmpty();
+        assertThat(application.getProgramDescriptor().getProgramArgs()).isEmpty();
 
         final Configuration configuration = application.getConfiguration();
         assertThat(configuration.get(CoreOptions.DEFAULT_PARALLELISM))
@@ -478,7 +478,7 @@ class JarRunApplicationHandlerParameterTest {
         PackagedProgramApplication application =
                 LAST_SUBMITTED_APPLICATION_REFERENCE.getAndSet(null);
 
-        assertThat(application.getPackagedProgram().getArguments()).isEqualTo(PROG_ARGS);
+        assertThat(application.getProgramDescriptor().getProgramArgs()).isEqualTo(PROG_ARGS);
 
         final Configuration configuration = application.getConfiguration();
         assertThat(configuration.get(CoreOptions.DEFAULT_PARALLELISM)).isEqualTo(PARALLELISM);
