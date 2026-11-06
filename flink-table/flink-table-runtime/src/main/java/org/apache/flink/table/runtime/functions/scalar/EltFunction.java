@@ -40,6 +40,6 @@ public class EltFunction extends BuiltInScalarFunction {
         if (idx < 1 || idx > exprs.length) {
             return null;
         }
-        return exprs[(int) index - 1];
+        return exprs[(int) idx - 1];
     }
 }

@@ -149,12 +149,16 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
     private Stream<TestSetSpec> eltTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT)
-                        .onFieldsWithData(null, null, null, new byte[] {1, 2, 3})
+                        .onFieldsWithData(
+                                null, null, null, new byte[] {1, 2, 3}, (byte) 2, (short) 2, 2L)
                         .andDataTypes(
                                 DataTypes.INT(),
                                 DataTypes.STRING(),
                                 DataTypes.BYTES(),
-                                DataTypes.BYTES())
+                                DataTypes.BYTES(),
+                                DataTypes.TINYINT(),
+                                DataTypes.SMALLINT(),
+                                DataTypes.BIGINT())
                         // null input
                         .testResult(
                                 $("f0").elt("a", "b"), "ELT(f0, 'a', 'b')", null, DataTypes.CHAR(1))
@@ -182,6 +186,31 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.VARCHAR(5))
                         .testResult(
                                 lit(2).elt("a", "b"), "ELT(2, 'a', 'b')", "b", DataTypes.CHAR(1))
+                        .testResult(
+                                lit(2).cast(DataTypes.TINYINT()).elt("scala", "java"),
+                                "ELT(CAST(2 AS TINYINT), 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                $("f4").elt("scala", "java"),
+                                "ELT(f4, 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                $("f5").elt("scala", "java"),
+                                "ELT(f5, 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                $("f6").elt("scala", "java"),
+                                "ELT(f6, 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                $("f4").elt($("f3"), $("f2")),
+                                "ELT(f4, f3, f2)",
+                                null,
+                                DataTypes.BYTES())
                         .testResult(
                                 lit(2).elt($("f2"), $("f3"), $("f3")),
                                 "ELT(2, f2, f3, f3)",
