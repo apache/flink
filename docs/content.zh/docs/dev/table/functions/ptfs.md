@@ -1722,7 +1722,8 @@ changes. In other words: choose a `Row` type that exposes the `RowKind` change f
 
 The changelog of the backing input table decides which kinds of changes enter the function. The function receives `{+I}`
 when the input table is append-only. The function receives `{+I,+U,-D}` if the input table is upserting using the same
-upsert key as the partition key. Otherwise, retractions `{+I,-U,+U,-D}` (i.e. including `RowKind.UPDATE_BEFORE`) enter
+upsert key as the partition key, or if the table argument has row semantics, the input table has an upsert key, and the
+function emits only inserts. Otherwise, retractions `{+I,-U,+U,-D}` (i.e. including `RowKind.UPDATE_BEFORE`) enter
 the function. Use `ArgumentTrait.REQUIRE_UPDATE_BEFORE` to enforce retractions for all updating cases.
 
 For upserting tables, if the changelog contains key-only deletions (also known as partial deletions), only upsert key
