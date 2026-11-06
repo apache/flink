@@ -54,6 +54,7 @@ public class ChangelogNormalizeTestPrograms {
         Row.ofKind(RowKind.UPDATE_BEFORE, "four", 4, "d"),
         Row.ofKind(RowKind.UPDATE_AFTER, "four", 4, "dd"),
         Row.ofKind(RowKind.INSERT, "six", 6, "f"),
+        Row.ofKind(RowKind.DELETE, "seven", 7, "g"),
         Row.ofKind(RowKind.DELETE, "six", 6, "f")
     };
 
