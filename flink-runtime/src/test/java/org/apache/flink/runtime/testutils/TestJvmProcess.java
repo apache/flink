@@ -110,6 +110,14 @@ public abstract class TestJvmProcess {
      */
     public abstract String getEntryPointClassName();
 
+    /**
+     * Returns additional arguments for the JVM. They are placed after the arguments derived from
+     * the surefire configuration, so they take precedence over those.
+     */
+    protected String[] getJvmArgs() {
+        return new String[0];
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     /**
@@ -149,6 +157,7 @@ public abstract class TestJvmProcess {
             cmd = ArrayUtils.addAll(cmd, moduleConfig.trim().split("\\s+"));
         }
 
+        cmd = ArrayUtils.addAll(cmd, getJvmArgs());
         cmd = ArrayUtils.add(cmd, getEntryPointClassName());
 
         String[] mainMethodArgs = getMainMethodArgs();
