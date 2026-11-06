@@ -512,6 +512,27 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     }
 
     @Override
+    public void renameConnection(
+            ObjectPath connectionPath, String newConnectionName, boolean ignoreIfNotExists)
+            throws ConnectionNotExistException, ConnectionAlreadyExistException {
+        checkNotNull(connectionPath);
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(newConnectionName));
+
+        if (connectionExists(connectionPath)) {
+            ObjectPath newPath =
+                    new ObjectPath(connectionPath.getDatabaseName(), newConnectionName);
+
+            if (connectionExists(newPath)) {
+                throw new ConnectionAlreadyExistException(getName(), newPath);
+            } else {
+                connections.put(newPath, connections.remove(connectionPath));
+            }
+        } else if (!ignoreIfNotExists) {
+            throw new ConnectionNotExistException(getName(), connectionPath);
+        }
+    }
+
+    @Override
     public void dropConnection(ObjectPath connectionPath, boolean ignoreIfNotExists)
             throws ConnectionNotExistException {
         checkNotNull(connectionPath);
