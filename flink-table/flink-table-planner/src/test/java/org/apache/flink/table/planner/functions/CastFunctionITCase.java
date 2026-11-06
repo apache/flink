@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
@@ -298,6 +299,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('true') AS BOOLEAN)",
                                 true,
                                 BOOLEAN())
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('\"true\"') AS BOOLEAN)",
+                                TableRuntimeException.class,
+                                "Cannot cast a VARIANT STRING value to BOOLEAN.")
                         // A string reaches a binary target as its UTF-8 bytes, like a regular cast
                         // from a character string. Any other kind has no binary form.
                         .testResult(
@@ -454,7 +459,19 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("42").tryParseJson().cast(TINYINT()),
                                 "CAST(TRY_PARSE_JSON('42') AS TINYINT)",
                                 (byte) 42,
-                                TINYINT()));
+                                TINYINT()),
+                // A nullable target checks for a variant null before it casts, and that check
+                // fails like the cast itself. Only a source or a function can produce an
+                // unreadable variant.
+                TestSetSpec.forExpression("Cast an unreadable VARIANT to a primitive")
+                        .onFieldsWithData(0)
+                        .andDataTypes(INT())
+                        .withFunction(UnknownTypeVariantFunction.class)
+                        .testSqlRuntimeError(
+                                "CAST(UnknownTypeVariantFunction(f0) AS INT)",
+                                TableRuntimeException.class,
+                                "Cannot cast a VARIANT value whose binary encoding is malformed "
+                                        + "or uses an unknown type."));
     }
 
     private static List<TestSetSpec> primitiveToVariantCasts() {
@@ -2708,6 +2725,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         public @DataTypeHint(value = "TIME(0)", bridgedTo = Integer.class) Integer eval(
                 Integer millisOfDay) {
             return millisOfDay;
+        }
+    }
+
+    public static class UnknownTypeVariantFunction extends ScalarFunction {
+        public Variant eval(Integer ignored) {
+            // A primitive header with type id 31, which no version defines, and an empty
+            // dictionary.
+            return new BinaryVariant(new byte[] {0x7C}, new byte[] {0x01, 0x00, 0x00});
         }
     }
 }
