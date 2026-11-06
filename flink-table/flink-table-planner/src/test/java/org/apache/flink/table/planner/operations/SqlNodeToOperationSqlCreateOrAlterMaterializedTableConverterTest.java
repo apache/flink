@@ -23,8 +23,6 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.Interval;
-import org.apache.flink.table.catalog.Interval.TimeUnit;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.StartMode.StartModeKind;
@@ -45,6 +43,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -621,9 +620,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
             assertThat(op.getTableChanges()).isEmpty();
         } else {
             assertThat(op.getTableChanges())
-                    .contains(
-                            TableChange.modifyStartMode(
-                                    StartMode.of(StartModeKind.FROM_BEGINNING)));
+                    .contains(TableChange.modifyStartMode(StartMode.fromBeginning()));
         }
     }
 
@@ -654,26 +651,26 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
 
     private static Collection<Arguments> startModeAlterCases() {
         return List.of(
+                Arguments.of("RESUME_OR_FROM_BEGINNING", StartMode.resumeOrFromBeginning()),
+                Arguments.of("FROM_NOW", StartMode.fromNow()),
+                Arguments.of("FROM_NOW(INTERVAL '2' HOUR)", StartMode.fromNow(Duration.ofHours(2))),
+                Arguments.of("FROM_NOW(INTERVAL '2' DAY)", StartMode.fromNow(Duration.ofHours(48))),
                 Arguments.of(
-                        "RESUME_OR_FROM_BEGINNING",
-                        StartMode.of(StartModeKind.RESUME_OR_FROM_BEGINNING)),
-                Arguments.of("FROM_NOW", StartMode.of(StartModeKind.FROM_NOW)),
-                Arguments.of(
-                        "FROM_NOW(INTERVAL '2' HOUR)",
-                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(2, TimeUnit.HOUR))),
-                Arguments.of(
-                        "FROM_NOW",
-                        StartMode.of(StartModeKind.FROM_NOW),
                         "FROM_TIMESTAMP(TIMESTAMP '1234-12-10 11:22:33')",
-                        StartMode.of(
-                                StartModeKind.FROM_TIMESTAMP,
-                                Instant.parse("1234-12-10T11:22:33Z"))),
-                Arguments.of("RESUME_OR_FROM_NOW", StartMode.of(StartModeKind.RESUME_OR_FROM_NOW)),
+                        StartMode.fromTimestamp(Instant.parse("1234-12-10T11:22:33Z"))),
+                Arguments.of(
+                        "FROM_TIMESTAMP(TIMESTAMP '2025-01-15 10:00:00.123')",
+                        StartMode.fromTimestamp(Instant.parse("2025-01-15T10:00:00.123456789Z"))),
+                Arguments.of("RESUME_OR_FROM_NOW", StartMode.resumeOrFromNow()),
+                Arguments.of(
+                        "RESUME_OR_FROM_NOW(INTERVAL '90' MINUTE)",
+                        StartMode.resumeOrFromNow(Duration.ofMinutes(90))),
+                Arguments.of(
+                        "RESUME_OR_FROM_NOW(INTERVAL '90' SECOND)",
+                        StartMode.resumeOrFromNow(Duration.ofSeconds(90))),
                 Arguments.of(
                         "RESUME_OR_FROM_TIMESTAMP(TIMESTAMP '2025-01-15 10:00:00')",
-                        StartMode.of(
-                                StartModeKind.RESUME_OR_FROM_TIMESTAMP,
-                                Instant.parse("2025-01-15T10:00:00Z"))));
+                        StartMode.resumeOrFromTimestamp(Instant.parse("2025-01-15T10:00:00Z"))));
     }
 
     private void createMaterializedTableInCatalog(String sql, String materializedTableName)
