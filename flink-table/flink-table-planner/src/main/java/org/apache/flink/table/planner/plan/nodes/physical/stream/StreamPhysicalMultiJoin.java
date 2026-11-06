@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.hint.StateTtlHint;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -27,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
+import org.apache.flink.table.planner.plan.utils.MultiJoinUtil;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -51,6 +53,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +173,10 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return pw.item("commonJoinKey", getCommonJoinKeyFieldNames())
                 .item("joinTypes", formatJoinTypes())
                 .item("inputUniqueKeys", formatInputUniqueKeysWithFieldNames())
+                .itemIf(
+                        "inputUpsertKeys",
+                        formatInputUpsertKeysWithFieldNames(),
+                        IntStream.range(0, inputs.size()).anyMatch(this::isStoredByUpsertKey))
                 .itemIf("stateTtlHints", RelExplainUtil.hintsToString(hints), !hints.isEmpty())
                 .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
                 .itemIf(
@@ -390,6 +397,47 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         return String.join(", ", inputUniqueKeyStrings);
+    }
+
+    /**
+     * Formats the upsert keys that the inputs are stored by, or "-" for inputs that are stored by
+     * their unique keys.
+     */
+    private String formatInputUpsertKeysWithFieldNames() {
+        final List<String> inputUpsertKeyStrings = new ArrayList<>();
+        for (int i = 0; i < inputs.size(); i++) {
+            if (!isStoredByUpsertKey(i)) {
+                inputUpsertKeyStrings.add("-");
+                continue;
+            }
+            final List<String> fieldNames = inputs.get(i).getRowType().getFieldNames();
+            inputUpsertKeyStrings.add(
+                    getUpsertKeysContainingJoinKey(i).stream()
+                            .map(
+                                    upsertKey ->
+                                            Arrays.stream(upsertKey)
+                                                    .mapToObj(fieldNames::get)
+                                                    .collect(Collectors.joining(", ", "(", ")")))
+                            .collect(Collectors.joining(", ")));
+        }
+        return String.join(", ", inputUpsertKeyStrings);
+    }
+
+    /**
+     * Returns whether the input is stored by its upsert key, like {@link StreamExecMultiJoin} does.
+     * The changelog mode of the input is only known after the changelog mode inference.
+     */
+    private boolean isStoredByUpsertKey(int inputId) {
+        final RelNode input = inputs.get(inputId);
+        if (!(input instanceof StreamPhysicalRel)) {
+            return false;
+        }
+        final Optional<ChangelogMode> changelogMode =
+                JavaScalaConversionUtil.toJava(
+                        ChangelogPlanUtils.getChangelogMode((StreamPhysicalRel) input));
+        return changelogMode.isPresent()
+                && MultiJoinUtil.isStoredByUpsertKey(
+                        changelogMode.get(), getUpsertKeysContainingJoinKey(inputId));
     }
 
     /**
