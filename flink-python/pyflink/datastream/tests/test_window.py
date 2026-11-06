@@ -25,11 +25,12 @@ from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction, AggregateFunction,
                                           ProcessAllWindowFunction)
 from pyflink.datastream.output_tag import OutputTag
+from pyflink.datastream.state import ListStateDescriptor, StateTtlConfig
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
                                        CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow,
-                                       GlobalWindows, CountTrigger)
+                                       GlobalWindows, CountTrigger, Trigger, TriggerResult)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
     SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
@@ -596,6 +597,67 @@ class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
         super(ProcessWindowTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "process")
+
+    def test_merge_partitioned_state_with_ttl(self):
+        # Keep the records in order. The environment is shared by the tests in this class.
+        self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
+        self.env.set_parallelism(1)
+
+        class MergeCheckTrigger(Trigger):
+
+            def __init__(self):
+                self.descriptor = ListStateDescriptor('merge-check', Types.INT())
+                self.descriptor.enable_time_to_live(
+                    StateTtlConfig.new_builder(Time.days(1))
+                    .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite)
+                    .set_state_visibility(
+                        StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
+                    .build())
+
+            def on_element(self, element, timestamp, window, ctx):
+                ctx.get_partitioned_state(self.descriptor).add(element[2])
+                return TriggerResult.FIRE
+
+            def on_event_time(self, time, window, ctx):
+                return TriggerResult.CONTINUE
+
+            def on_processing_time(self, time, window, ctx):
+                return TriggerResult.CONTINUE
+
+            def can_merge(self):
+                return True
+
+            def on_merge(self, window, ctx):
+                state = ctx.get_partitioned_state(self.descriptor)
+                # read the merge target first so that its empty state gets cached
+                before = list(state.get())
+                ctx.merge_partitioned_state(self.descriptor)
+                after = list(state.get())
+                if before != [] or after != [1]:
+                    raise AssertionError(
+                        'expected [] before and [1] after the merge, got %s and %s'
+                        % (before, after))
+
+            def clear(self, window, ctx):
+                ctx.get_partitioned_state(self.descriptor).clear()
+
+        data_stream: DataStream = self.env.from_collection(
+            [('hi', 0, 1), ('hi', 4, 2)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT()]))
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(5))) \
+            .trigger(MergeCheckTrigger()) \
+            .process(CountWindowProcessFunction(),
+                     Types.TUPLE([Types.STRING(), Types.LONG(), Types.LONG(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_merge_partitioned_state_with_ttl')
+        results = self.test_sink.get_results()
+        expected = ['(hi,0,5,1)', '(hi,0,9,2)']
+        self.assert_equals_sorted(expected, results)
 
 
 class EmbeddedWindowTests(WindowTests, PyFlinkStreamingTestCase):
