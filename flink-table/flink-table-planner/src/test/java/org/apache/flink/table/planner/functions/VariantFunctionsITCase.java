@@ -56,7 +56,7 @@ class VariantFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(variantGet(), variantGetFailure(), tryVariantGet());
+        return Stream.of(variantGet(), variantGetFailure(), tryVariantGet(), unreadableVariant());
     }
 
     private static TestSetSpec variantGet() {
@@ -163,5 +163,19 @@ class VariantFunctionsITCase extends BuiltInFunctionTestBase {
                         $("f0").parseJson().tryVariantGet("$.user["),
                         "Invalid path '$.user[': expected an index or a quoted name after "
                                 + "'$.user['.");
+    }
+
+    private static TestSetSpec unreadableVariant() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_VARIANT_GET, "unreadable")
+                .onFieldsWithData(0)
+                .andDataTypes(INT())
+                .withFunction(CastFunctionITCase.UnknownTypeVariantFunction.class)
+                .testSqlResult(
+                        "TRY_VARIANT_GET(UnknownTypeVariantFunction(f0), '$', 'INT')", null, INT())
+                .testSqlRuntimeError(
+                        "VARIANT_GET(UnknownTypeVariantFunction(f0), '$', 'INT')",
+                        TableRuntimeException.class,
+                        "Cannot cast a VARIANT value whose binary encoding is malformed or uses "
+                                + "an unknown type.");
     }
 }

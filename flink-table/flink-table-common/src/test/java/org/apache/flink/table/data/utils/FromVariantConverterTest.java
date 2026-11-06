@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.utils.UuidUtils;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
+import org.apache.flink.types.variant.VariantTypeException;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -215,6 +217,44 @@ class FromVariantConverterTest {
                                         BUILDER.object().add("a", BUILDER.of(1)).build()))
                 .isInstanceOf(TableRuntimeException.class)
                 .hasMessageStartingWith("Cannot cast a VARIANT OBJECT value to VARBINARY(2).");
+    }
+
+    @Test
+    void testBooleanTargetRejectsAnotherKind() {
+        assertThatThrownBy(() -> convert(DataTypes.BOOLEAN(), BUILDER.of("true")))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageStartingWith("Cannot cast a VARIANT STRING value to BOOLEAN.");
+    }
+
+    @Test
+    void testMalformedVariantFails() {
+        final BinaryVariant valid = (BinaryVariant) BUILDER.of(1);
+        // The header of an INT without its four payload bytes.
+        final Variant truncated =
+                new BinaryVariant(Arrays.copyOf(valid.getValue(), 1), valid.getMetadata());
+
+        assertThatThrownBy(() -> convert(DataTypes.INT(), truncated))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessage(
+                        "Cannot cast a VARIANT value whose binary encoding is malformed or uses "
+                                + "an unknown type.")
+                .hasCauseInstanceOf(VariantTypeException.class);
+    }
+
+    @Test
+    void testNullCheckOfAnUnreadableVariantFails() {
+        // A primitive header with type id 31, which no version defines.
+        final Variant unknown =
+                new BinaryVariant(new byte[] {0x7C}, ((BinaryVariant) BUILDER.of(1)).getMetadata());
+
+        assertThatThrownBy(() -> FromVariantConverter.isVariantNull(unknown))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessage(
+                        "Cannot cast a VARIANT value whose binary encoding is malformed or uses "
+                                + "an unknown type.")
+                .hasCauseInstanceOf(VariantTypeException.class);
+        assertThat(FromVariantConverter.isVariantNull(BUILDER.ofNull())).isTrue();
+        assertThat(FromVariantConverter.isVariantNull(BUILDER.of(1))).isFalse();
     }
 
     @Test

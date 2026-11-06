@@ -79,12 +79,36 @@ public final class FromVariantConverter implements Serializable {
     /**
      * Converts a variant into internal data.
      *
-     * @throws TableRuntimeException if a value does not match its type
-     * @throws VariantTypeException if the variant is malformed, or a {@code BOOLEAN} value has
-     *     another kind
+     * @throws TableRuntimeException if a value does not match its type, or the variant is malformed
      */
     public Object convert(final Variant variant) {
-        return reader.read(variant);
+        try {
+            return reader.read(variant);
+        } catch (VariantTypeException e) {
+            // The readers check the kind first, so only an unreadable encoding gets here.
+            throw unreadable(e);
+        }
+    }
+
+    /**
+     * Returns whether a variant is a variant null, which a cast to a nullable type reads as SQL
+     * {@code NULL}. A cast checks this before {@link #convert}.
+     *
+     * @throws TableRuntimeException if the variant is malformed
+     */
+    public static boolean isVariantNull(final Variant variant) {
+        try {
+            return variant.isNull();
+        } catch (VariantTypeException e) {
+            throw unreadable(e);
+        }
+    }
+
+    private static TableRuntimeException unreadable(final VariantTypeException cause) {
+        return new TableRuntimeException(
+                "Cannot cast a VARIANT value whose binary encoding is malformed or uses an "
+                        + "unknown type.",
+                cause);
     }
 
     @FunctionalInterface
@@ -97,7 +121,7 @@ public final class FromVariantConverter implements Serializable {
             final LogicalType type, final TimeZone sessionZone, final boolean copyVariants) {
         switch (type.getTypeRoot()) {
             case BOOLEAN:
-                return Variant::getBoolean;
+                return VariantCastUtils::toBoolean;
             case TINYINT:
                 return variant ->
                         (byte)

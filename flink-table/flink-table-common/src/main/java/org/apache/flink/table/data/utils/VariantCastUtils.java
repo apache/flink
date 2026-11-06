@@ -127,6 +127,14 @@ public final class VariantCastUtils {
                         variant.getType(), targetType, required));
     }
 
+    /** Reads a boolean variant as the target {@code BOOLEAN}. */
+    public static boolean toBoolean(Variant variant) {
+        if (variant.getType() == Variant.Type.BOOLEAN) {
+            return variant.getBoolean();
+        }
+        throw unsupportedKind(variant, "BOOLEAN");
+    }
+
     /**
      * Reads a numeric variant as a {@code long} and checks it against the target range. An
      * approximate or decimal value is accepted only when it is already integral, so nothing is
