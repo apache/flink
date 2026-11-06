@@ -170,6 +170,23 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         $("f8").jsonLength("   "), "JSON_LENGTH(f8, '   ')", null, INT().nullable())
                 .testResult($("f8").jsonLength(""), "JSON_LENGTH(f8, '')", null, INT().nullable())
 
+                // a path function that fails on the value it reaches -> NULL
+                .testResult(
+                        $("f10").jsonLength("$.min()"),
+                        "JSON_LENGTH(f10, '$.min()')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.a.avg()"),
+                        "JSON_LENGTH(f8, '$.a.avg()')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.a[*].min()"),
+                        "JSON_LENGTH(f8, '$.a[*].min()')",
+                        null,
+                        INT().nullable())
+
                 // the root path on a scalar document behaves like the no-path overload
                 .testResult($("f3").jsonLength("$"), "JSON_LENGTH(f3, '$')", 1, INT().nullable())
 
@@ -2022,6 +2039,21 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f1").jsonType("$.a[*]"),
                                 "JSON_TYPE(f1, '$.a[*]')",
                                 "number",
+                                STRING().nullable()),
+
+                // A path function that fails on the value it reaches yields NULL.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("{\"a\": []}", "{\"a\": [1, 2]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType("$.a.avg()"),
+                                "JSON_TYPE(f0, '$.a.avg()')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$.a[*].min()"),
+                                "JSON_TYPE(f1, '$.a[*].min()')",
+                                null,
                                 STRING().nullable()),
 
                 // The 'lax'/'strict' path mode prefix is rejected at planning time, but a field of
