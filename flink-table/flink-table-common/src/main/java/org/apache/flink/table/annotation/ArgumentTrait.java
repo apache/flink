@@ -193,9 +193,10 @@ public enum ArgumentTrait {
      * <p>The changelog of the backing input table decides which kinds of changes enter the
      * function. The function receives {+I} when the input table is append-only. The function
      * receives {+I,+U,-D} if the input table is upserting using the same upsert key as the
-     * partition key. Otherwise, retractions {+I,-U,+U,-D} (i.e. including {@link
-     * RowKind#UPDATE_BEFORE}) enter the function. Use {@link #REQUIRE_UPDATE_BEFORE} to enforce
-     * retractions for all updating cases.
+     * partition key, or if the table argument has {@link #ROW_SEMANTIC_TABLE}, the input table has
+     * an upsert key, and the function emits only inserts. Otherwise, retractions {+I,-U,+U,-D}
+     * (i.e. including {@link RowKind#UPDATE_BEFORE}) enter the function. Use {@link
+     * #REQUIRE_UPDATE_BEFORE} to enforce retractions for all updating cases.
      *
      * <p>For upserting tables, if the changelog contains key-only deletions (also known as partial
      * deletions), only upsert key fields are set when a row enters the function. Non-key fields are
@@ -243,8 +244,8 @@ public enum ArgumentTrait {
      * // In both encodings, a materialized table would only contain a row for Alice.
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #SET_SEMANTIC_TABLE} arguments that {@link
-     * #SUPPORT_UPDATES}.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments that {@link #SUPPORT_UPDATES}.
      *
      * @see #SUPPORT_UPDATES
      */
@@ -275,8 +276,8 @@ public enum ArgumentTrait {
      * // In both encodings, a materialized table would only contain a row for Alice.
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #SET_SEMANTIC_TABLE} arguments that {@link
-     * #SUPPORT_UPDATES}.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments that {@link #SUPPORT_UPDATES}.
      *
      * @see #SUPPORT_UPDATES
      */
