@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 
@@ -50,6 +51,8 @@ public class SystemResourcesMetricsInitializer {
             instantiateSwapMetrics(system.addGroup("Swap"), hardwareAbstractionLayer.getMemory());
             instantiateCPUMetrics(system.addGroup("CPU"), systemResourcesCounter);
             instantiateNetworkMetrics(system.addGroup("Network"), systemResourcesCounter);
+
+            instantiateProcessMetrics(metricGroup.addGroup("Process"), systemResourcesCounter);
         } catch (NoClassDefFoundError ex) {
             LOG.warn(
                     "Failed to initialize system resource metrics because of missing class definitions."
@@ -90,6 +93,19 @@ public class SystemResourcesMetricsInitializer {
                     String.format("UsageCPU%d", processor),
                     () -> usageCounter.getCpuUsagePerProcessor(processor));
         }
+    }
+
+    @VisibleForTesting
+    static void instantiateProcessMetrics(
+            MetricGroup metrics, SystemResourcesCounter usageCounter) {
+        // Process CPU usage is intentionally not exposed here: Status.JVM.CPU.Load already reports
+        // it without OSHI, and OSHI 6.1.5 under-reports process CPU time on Apple Silicon.
+        metrics.addGroup("Memory")
+                .<Long, Gauge<Long>>gauge("RSS", usageCounter::getProcessMemoryRSS);
+
+        MetricGroup io = metrics.addGroup("IO");
+        io.<Long, Gauge<Long>>gauge("Read", usageCounter::getProcessBytesRead);
+        io.<Long, Gauge<Long>>gauge("Write", usageCounter::getProcessBytesWritten);
     }
 
     private static void instantiateNetworkMetrics(

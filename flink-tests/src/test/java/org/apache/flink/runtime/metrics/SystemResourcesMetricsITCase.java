@@ -105,7 +105,10 @@ class SystemResourcesMetricsITCase {
             "System.Swap.Used",
             "System.Swap.Total",
             "System.Network.*ReceiveRate",
-            "System.Network.*SendRate"
+            "System.Network.*SendRate",
+            "Process.Memory.RSS",
+            "Process.IO.Read",
+            "Process.IO.Write"
         };
 
         String[] expectedHosts = {"taskmanager.", "jobmanager."};

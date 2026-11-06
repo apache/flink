@@ -66,5 +66,12 @@ class SystemResourcesCounterTest {
                 .withFailMessage("There should be at least one network interface")
                 .isGreaterThan(0);
         assertThat(totalCpuUsage + systemResources.getCpuIdle()).isCloseTo(100.0, within(EPSILON));
+
+        assertThat(systemResources.getProcessMemoryRSS())
+                .withFailMessage("Process RSS should be positive")
+                .isGreaterThan(0);
+        // A failed read reports -1. A successful one can be 0, e.g. always on macOS 11 and later.
+        assertThat(systemResources.getProcessBytesRead()).isNotNegative();
+        assertThat(systemResources.getProcessBytesWritten()).isNotNegative();
     }
 }
