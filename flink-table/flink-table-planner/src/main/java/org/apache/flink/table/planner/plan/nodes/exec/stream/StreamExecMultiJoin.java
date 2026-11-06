@@ -114,9 +114,10 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final List<List<int[]>> inputUniqueKeys;
 
-    // For each input, the upsert keys that contain its common join key and its join key. Inputs
-    // without UPDATE_BEFORE or with deletes by key are stored under them instead of the unique
-    // keys. Plans compiled before this change contain neither these nor the changelog modes.
+    // For each input, the upsert keys that contain its common join key and, for all inputs but the
+    // first, its join key. Inputs without UPDATE_BEFORE or with deletes by key are stored under
+    // them instead of the unique keys. Plans compiled before this change contain neither these nor
+    // the changelog modes.
     @Nullable
     @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -347,7 +348,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     /**
      * Returns whether the input is stored under its upsert key, because it may update a record
      * without UPDATE_BEFORE or delete it by key. The planner only allows this if an upsert key
-     * contains the common join key and the join key of the input.
+     * contains the common join key and, for all inputs but the first, the join key of the input.
      */
     private boolean isStoredByUpsertKey(final int inputId) {
         if (inputChangelogModes == null || inputUpsertKeys == null) {

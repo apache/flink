@@ -407,17 +407,17 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
      * join key, so that all versions of a record are stored under the same key.
      *
      * <p>This is similar to {@link StreamPhysicalJoin#inputUniqueKeyContainsJoinKey(int)}, but the
-     * multi join operator partitions on the common join key and stores each input under its own
-     * join key, so the upsert key must contain both.
+     * multi join operator partitions on the common join key and stores each input but the first
+     * under its own join key, so the upsert key must contain both.
      */
     public boolean inputUpsertKeyContainsJoinKey(int inputId) {
         return !getUpsertKeysContainingJoinKey(inputId).isEmpty();
     }
 
     /**
-     * Returns the upsert keys of the input that contain its common join key and its join key. An
-     * input without UPDATE_BEFORE replaces the record with the same upsert key, which a unique key
-     * that isn't an upsert key doesn't identify.
+     * Returns the upsert keys of the input that contain its common join key and, for all inputs but
+     * the first, its join key. An input without UPDATE_BEFORE replaces the record with the same
+     * upsert key, which a unique key that isn't an upsert key doesn't identify.
      */
     private List<int[]> getUpsertKeysContainingJoinKey(int inputId) {
         final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(inputId);
@@ -432,9 +432,13 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         if (upsertKeys == null) {
             return Collections.emptyList();
         }
+        // the first input is stored without its join key, so a change of its join key fields
+        // doesn't move a record to another state key
         final ImmutableBitSet joinKey =
-                ImmutableBitSet.of(commonJoinKeyIndices)
-                        .union(ImmutableBitSet.of(keyExtractor.getJoinKeyIndices(inputId)));
+                inputId == 0
+                        ? ImmutableBitSet.of(commonJoinKeyIndices)
+                        : ImmutableBitSet.of(commonJoinKeyIndices)
+                                .union(ImmutableBitSet.of(keyExtractor.getJoinKeyIndices(inputId)));
         return upsertKeys.stream()
                 .filter(upsertKey -> upsertKey.contains(joinKey))
                 .map(ImmutableBitSet::toArray)
