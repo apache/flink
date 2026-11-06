@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -47,6 +48,7 @@ public class JoinTestPrograms {
     public static final TableTestProgram INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI;
     public static final TableTestProgram SEMI_JOIN_UPSERT_INPUTS_NON_EQUI;
     public static final TableTestProgram SEMI_JOIN_UPSERT_INPUTS_NON_EQUI_PRE_2_4;
+    public static final TableTestProgram SORT_MERGE_JOIN;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -579,6 +581,33 @@ public class JoinTestPrograms {
                 semiJoinWithUpsertInputsAndNonEquiCondition(
                         "join-semi-join-upsert-inputs-non-equi-pre-2-4",
                         "semi join with upsert inputs that delete by key and a non-equi condition restored from a Flink 2.3 plan");
+
+        // batch only, the other join operators are disabled so that the planner picks SortMergeJoin
+        SORT_MERGE_JOIN =
+                TableTestProgram.of("join-sort-merge-join", "sort merge join")
+                        .setupConfig(
+                                ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                                "ShuffleHashJoin,BroadcastHashJoin,NestedLoopJoin")
+                        .setupTableSource(EMPLOYEE)
+                        .setupTableSource(DEPARTMENT)
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("MySink")
+                                        .addSchema("name varchar", "department_name varchar")
+                                        .consumedBeforeRestore(
+                                                Row.of("Baker", "Research"),
+                                                Row.of("Charlie", "Human Resources"),
+                                                Row.of("Charlie", "HR"),
+                                                Row.of("Don", "Sales"))
+                                        .consumedAfterRestore(
+                                                Row.of("Helena", "Engineering"),
+                                                Row.of("Juliet", "Engineering"),
+                                                Row.of("Ivana", "Research"),
+                                                Row.of("Charlie", "People Operations"))
+                                        .build())
+                        .runSql(
+                                "insert into MySink "
+                                        + "SELECT name, department_name FROM EMPLOYEE JOIN DEPARTMENT ON deptno = department_num")
+                        .build();
     }
 
     /**

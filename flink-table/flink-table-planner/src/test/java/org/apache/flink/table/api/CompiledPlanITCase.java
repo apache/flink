@@ -22,10 +22,12 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.types.Row;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -432,6 +434,41 @@ class CompiledPlanITCase extends JsonPlanTestBase {
 
         tableEnv.compilePlanSql("INSERT INTO sink SELECT * FROM src").execute().await();
         assertResult(DATA, sinkPath);
+    }
+
+    @Test
+    void testCompileAndExecutePlanBatchModeWithAdaptiveJoin() throws Exception {
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TABLE t1 (a INT, b BIGINT) WITH ("
+                                + "'connector' = 'values', 'bounded' = 'true', 'data-id' = '%s')",
+                        TestValuesTableFactory.registerData(
+                                Arrays.asList(Row.of(1, 10L), Row.of(2, 20L), Row.of(3, 30L)))));
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TABLE t2 (x INT, y STRING) WITH ("
+                                + "'connector' = 'values', 'bounded' = 'true', 'data-id' = '%s')",
+                        TestValuesTableFactory.registerData(
+                                Arrays.asList(
+                                        Row.of(1, "one"), Row.of(3, "three"), Row.of(4, "four")))));
+        tableEnv.executeSql(
+                "CREATE TABLE sink_t (a INT, b BIGINT, y STRING) WITH ("
+                        + "'connector' = 'values', 'sink-insert-only' = 'false')");
+
+        final String compiledJson =
+                tableEnv.compilePlanSql(
+                                "INSERT INTO sink_t SELECT a, b, y FROM t1 JOIN t2 ON a = x")
+                        .asJsonString();
+        assertThat(compiledJson).contains("batch-exec-adaptive-join_1");
+
+        final CompiledPlan restoredPlan =
+                tableEnv.loadPlan(PlanReference.fromJsonString(compiledJson));
+        assertThat(restoredPlan.asJsonString()).isEqualTo(compiledJson);
+
+        restoredPlan.execute().await();
+        assertThat(TestValuesTableFactory.getResultsAsStrings("sink_t"))
+                .containsExactlyInAnyOrder("+I[1, 10, one]", "+I[3, 30, three]");
     }
 
     private File createSourceSinkTables() throws IOException {
