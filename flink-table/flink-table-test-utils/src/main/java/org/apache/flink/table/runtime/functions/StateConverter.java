@@ -35,4 +35,10 @@ interface StateConverter {
 
     /** Create new internal state instance. */
     Object createNewInternalState();
+
+    /**
+     * Copies an internal state value, so that later mutations of the original are not visible
+     * through the copy.
+     */
+    Object copyInternal(Object internal);
 }

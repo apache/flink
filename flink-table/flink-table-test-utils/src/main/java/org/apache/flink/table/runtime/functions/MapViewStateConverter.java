@@ -19,11 +19,13 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.logical.MapType;
 
 import java.util.HashMap;
@@ -41,6 +43,8 @@ class MapViewStateConverter implements StateConverter {
     private final DataStructureConverter<Object, Object> valueConverter;
     private final ArrayData.ElementGetter keyGetter;
     private final ArrayData.ElementGetter valueGetter;
+    private final TypeSerializer<Object> keySerializer;
+    private final TypeSerializer<Object> valueSerializer;
 
     MapViewStateConverter(
             MapType mapType,
@@ -50,6 +54,8 @@ class MapViewStateConverter implements StateConverter {
         this.valueConverter = valueConverter;
         this.keyGetter = ArrayData.createElementGetter(mapType.getKeyType());
         this.valueGetter = ArrayData.createElementGetter(mapType.getValueType());
+        this.keySerializer = InternalSerializers.create(mapType.getKeyType());
+        this.valueSerializer = InternalSerializers.create(mapType.getValueType());
     }
 
     @Override
@@ -88,5 +94,21 @@ class MapViewStateConverter implements StateConverter {
     @Override
     public Object createNewInternalState() {
         return new GenericMapData(new HashMap<>());
+    }
+
+    @Override
+    public Object copyInternal(Object internal) {
+        final MapData mapData = (MapData) internal;
+        final ArrayData keyArray = mapData.keyArray();
+        final ArrayData valueArray = mapData.valueArray();
+        final Map<Object, Object> copy = new HashMap<>();
+        for (int i = 0; i < keyArray.size(); i++) {
+            final Object key = keyGetter.getElementOrNull(keyArray, i);
+            final Object value = valueGetter.getElementOrNull(valueArray, i);
+            copy.put(
+                    key == null ? null : keySerializer.copy(key),
+                    value == null ? null : valueSerializer.copy(value));
+        }
+        return new GenericMapData(copy);
     }
 }
