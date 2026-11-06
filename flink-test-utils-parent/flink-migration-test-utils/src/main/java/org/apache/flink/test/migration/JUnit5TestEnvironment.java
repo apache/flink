@@ -20,6 +20,7 @@ package org.apache.flink.test.migration;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MediaType;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestInstances;
+import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -377,6 +379,11 @@ class JUnit5TestEnvironment {
         }
 
         @Override
+        public List<Class<?>> getEnclosingTestClasses() {
+            return Collections.emptyList();
+        }
+
+        @Override
         public Optional<TestInstance.Lifecycle> getTestInstanceLifecycle() {
             return Optional.empty();
         }
@@ -418,8 +425,24 @@ class JUnit5TestEnvironment {
         }
 
         @Override
+        public void publishFile(String name, MediaType mediaType, ThrowingConsumer<Path> action) {
+            // Files are not collected during snapshot generation.
+        }
+
+        @Override
+        public void publishDirectory(String name, ThrowingConsumer<Path> action) {
+            // Directories are not collected during snapshot generation.
+        }
+
+        @Override
         public Store getStore(Namespace namespace) {
             return stores.computeIfAbsent(namespace, ignored -> new GeneratorStore());
+        }
+
+        @Override
+        public Store getStore(StoreScope scope, Namespace namespace) {
+            // Snapshot generation has a single context, so every scope shares the same stores.
+            return getStore(namespace);
         }
 
         @Override

@@ -46,7 +46,7 @@ class ExecutionVertexVersionerTest {
     private ExecutionVertexVersioner executionVertexVersioner;
 
     @BeforeEach
-    private void setUp() {
+    void setUp() {
         executionVertexVersioner = new ExecutionVertexVersioner();
     }
 
