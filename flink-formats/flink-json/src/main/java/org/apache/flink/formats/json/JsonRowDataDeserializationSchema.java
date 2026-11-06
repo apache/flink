@@ -46,6 +46,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializationSchema {
     private static final long serialVersionUID = 1L;
 
+    private final JsonToRowDataConverters converters;
+
     /**
      * Runtime converter that converts {@link JsonNode}s into objects of Flink SQL internal data
      * structures.
@@ -59,9 +61,15 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
         super(rowType, resultTypeInfo, failOnMissingField, ignoreParseErrors, timestampFormat);
-        this.runtimeConverter =
-                new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
-                        .createConverter(checkNotNull(rowType));
+        this.converters =
+                new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat);
+        this.runtimeConverter = converters.createConverter(checkNotNull(rowType));
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        super.open(context);
+        converters.setParseErrorListener(getParseErrorListener());
     }
 
     @Override
@@ -84,6 +92,7 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
                             // will be caught by outer try-catch
                             throw t;
                         }
+                        markParseError();
                         logParseErrorIfDebugEnabled(message, t);
                     }
                 }
@@ -98,7 +107,10 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
                 throw new IOException(
                         format("Failed to deserialize JSON '%s'.", new String(message)), t);
             }
+            markParseError();
             logParseErrorIfDebugEnabled(message, t);
+        } finally {
+            finishMessage();
         }
     }
 

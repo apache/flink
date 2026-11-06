@@ -65,6 +65,7 @@ import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIME_FORMAT;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Tool class used to convert from {@link JsonNode} to {@link RowData}. * */
 @Internal
@@ -81,6 +82,9 @@ public class JsonToRowDataConverters implements Serializable {
     /** Timestamp format specification which is used to parse timestamp. */
     private final TimestampFormat timestampFormat;
 
+    /** Notified when a field conversion error is ignored and the field is set to null. */
+    private transient Runnable parseErrorListener = () -> {};
+
     public JsonToRowDataConverters(
             boolean failOnMissingField,
             boolean ignoreParseErrors,
@@ -88,6 +92,10 @@ public class JsonToRowDataConverters implements Serializable {
         this.failOnMissingField = failOnMissingField;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
+    }
+
+    void setParseErrorListener(Runnable parseErrorListener) {
+        this.parseErrorListener = checkNotNull(parseErrorListener);
     }
 
     /**
@@ -394,6 +402,7 @@ public class JsonToRowDataConverters implements Serializable {
                 if (!ignoreParseErrors) {
                     throw t;
                 }
+                parseErrorListener.run();
                 return null;
             }
         };
