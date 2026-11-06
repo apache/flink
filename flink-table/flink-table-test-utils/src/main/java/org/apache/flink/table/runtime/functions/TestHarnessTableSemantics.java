@@ -23,6 +23,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -34,24 +36,54 @@ class TestHarnessTableSemantics implements TableSemantics {
     private final int[] partitionByColumns;
     private final List<int[]> upsertKeyColumns;
     private final int timeColumnIndex;
+    @Nullable private final ChangelogMode changelogMode;
 
-    TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns) {
-        this(dataType, partitionByColumns, Collections.emptyList(), -1);
-    }
-
-    TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns, int timeColumnIndex) {
-        this(dataType, partitionByColumns, Collections.emptyList(), timeColumnIndex);
-    }
-
-    TestHarnessTableSemantics(
+    private TestHarnessTableSemantics(
             DataType dataType,
             int[] partitionByColumns,
             List<int[]> upsertKeyColumns,
-            int timeColumnIndex) {
+            int timeColumnIndex,
+            @Nullable ChangelogMode changelogMode) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.upsertKeyColumns = upsertKeyColumns;
         this.timeColumnIndex = timeColumnIndex;
+        this.changelogMode = changelogMode;
+    }
+
+    /** Table semantics at runtime, including the argument's changelog mode and upsert keys. */
+    static TestHarnessTableSemantics forRuntime(
+            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
+        return new TestHarnessTableSemantics(
+                tableArg.dataType,
+                tableArg.partitionColumnIndices(),
+                tableArg.upsertKeyIndices(),
+                tableArg.timeColumnIndex,
+                tableArg.effectiveChangelogMode());
+    }
+
+    /**
+     * Table semantics during type inference, before the changelog mode and upsert keys are known.
+     */
+    static TestHarnessTableSemantics forTypeInference(
+            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
+        return new TestHarnessTableSemantics(
+                tableArg.dataType,
+                tableArg.partitionColumnIndices(),
+                Collections.emptyList(),
+                tableArg.timeColumnIndex,
+                null);
+    }
+
+    /** Table semantics while the changelog mode is derived, before upsert keys are known. */
+    static TestHarnessTableSemantics forChangelogModeInference(
+            ProcessTableFunctionTestHarness.TableArgumentInfo tableArg) {
+        return new TestHarnessTableSemantics(
+                tableArg.dataType,
+                tableArg.partitionColumnIndices(),
+                Collections.emptyList(),
+                tableArg.timeColumnIndex,
+                tableArg.effectiveChangelogMode());
     }
 
     @Override
@@ -81,7 +113,7 @@ class TestHarnessTableSemantics implements TableSemantics {
 
     @Override
     public Optional<ChangelogMode> changelogMode() {
-        return Optional.empty();
+        return Optional.ofNullable(changelogMode);
     }
 
     @Override
