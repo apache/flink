@@ -78,7 +78,8 @@ import static org.apache.calcite.rex.RexUnknownAs.UNKNOWN;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>CALCITE-7588, CALCITE-7578: Lines 574 ~ 588, 598 ~ 600, 624 ~ 636
+ *   <li>CALCITE-7588, CALCITE-7578: Lines 575 ~ 589, 599 ~ 601, 625 ~ 637
+ *   <li>FLINK-40923: Lines 720 ~ 724
  * </ol>
  */
 public class RexSimplify {
@@ -716,7 +717,11 @@ public class RexSimplify {
         // Simplify "x <op> x"
         final RexNode o0 = operands.get(0);
         final RexNode o1 = operands.get(1);
-        if (o0.equals(o1) && RexUtil.isDeterministic(o0)) {
+        // FLINK MODIFICATION BEGIN
+        if (o0.equals(o1)
+                && RexUtil.isDeterministic(o0)
+                && !SqlTypeUtil.isApproximateNumeric(o0.getType())) {
+            // FLINK MODIFICATION END
             RexNode newExpr;
             switch (e.getKind()) {
                 case EQUALS:
