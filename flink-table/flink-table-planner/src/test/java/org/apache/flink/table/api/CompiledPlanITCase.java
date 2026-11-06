@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -439,6 +440,58 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     @Test
     void testCompileAndExecutePlanBatchModeWithAdaptiveJoin() throws Exception {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        createAdaptiveJoinTables();
+
+        final String compiledJson =
+                tableEnv.compilePlanSql(
+                                "INSERT INTO sink_t SELECT a, b, y FROM t1 JOIN t2 ON a = x")
+                        .asJsonString();
+        assertThat(compiledJson).contains("batch-exec-adaptive-join_1");
+
+        final CompiledPlan restoredPlan =
+                tableEnv.loadPlan(PlanReference.fromJsonString(compiledJson));
+        assertThat(restoredPlan.asJsonString()).isEqualTo(compiledJson);
+
+        restoredPlan.execute().await();
+        assertThat(TestValuesTableFactory.getResultsAsStrings("sink_t"))
+                .containsExactlyInAnyOrder("+I[1, 10, one]", "+I[3, 30, three]");
+    }
+
+    @Test
+    void testExecutePlanWithAdaptiveJoinUsesPersistedExternalBufferMemory() throws Exception {
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        // keep the adaptive join a sort merge join at runtime, which is where the external buffer
+        // is carved out of the join's managed memory
+        tableEnv.getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                        "ShuffleHashJoin,BroadcastHashJoin,NestedLoopJoin");
+        createAdaptiveJoinTables();
+
+        // the plan persists the default memory options, giving the join a budget of 266 mb
+        final String compiledJson =
+                tableEnv.compilePlanSql(
+                                "INSERT INTO sink_t SELECT a, b, y FROM t1 JOIN t2 ON a = x")
+                        .asJsonString();
+        assertThat(compiledJson)
+                .contains("batch-exec-adaptive-join_1")
+                .contains("\"originalJoin\" : \"SortMergeJoin\"")
+                .contains("\"table.exec.resource.external-buffer-memory\" : \"10 mb\"");
+
+        // a buffer larger than the persisted budget would make the sort merge join fail on open
+        // with "Memory size is too small", so the job only succeeds if the session value is not
+        // used
+        tableEnv.getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY,
+                        MemorySize.parse("300 mb"));
+        tableEnv.loadPlan(PlanReference.fromJsonString(compiledJson)).execute().await();
+
+        assertThat(TestValuesTableFactory.getResultsAsStrings("sink_t"))
+                .containsExactlyInAnyOrder("+I[1, 10, one]", "+I[3, 30, three]");
+    }
+
+    private void createAdaptiveJoinTables() {
         tableEnv.executeSql(
                 String.format(
                         "CREATE TABLE t1 (a INT, b BIGINT) WITH ("
@@ -455,20 +508,6 @@ class CompiledPlanITCase extends JsonPlanTestBase {
         tableEnv.executeSql(
                 "CREATE TABLE sink_t (a INT, b BIGINT, y STRING) WITH ("
                         + "'connector' = 'values', 'sink-insert-only' = 'false')");
-
-        final String compiledJson =
-                tableEnv.compilePlanSql(
-                                "INSERT INTO sink_t SELECT a, b, y FROM t1 JOIN t2 ON a = x")
-                        .asJsonString();
-        assertThat(compiledJson).contains("batch-exec-adaptive-join_1");
-
-        final CompiledPlan restoredPlan =
-                tableEnv.loadPlan(PlanReference.fromJsonString(compiledJson));
-        assertThat(restoredPlan.asJsonString()).isEqualTo(compiledJson);
-
-        restoredPlan.execute().await();
-        assertThat(TestValuesTableFactory.getResultsAsStrings("sink_t"))
-                .containsExactlyInAnyOrder("+I[1, 10, one]", "+I[3, 30, three]");
     }
 
     private File createSourceSinkTables() throws IOException {

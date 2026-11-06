@@ -24,6 +24,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.adaptive.AdaptiveJoinOperatorGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -188,6 +189,9 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
         RowType leftType = (RowType) leftInputEdge.getOutputType();
         RowType rightType = (RowType) rightInputEdge.getOutputType();
         long managedMemory = JoinUtil.getManagedMemory(joinSpec.getJoinType(), config);
+        long externalBufferMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                        .getBytes();
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
                         config,
@@ -209,7 +213,8 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
                         estimatedLeftRowCount,
                         estimatedRightRowCount,
                         tryDistinctBuildRow,
-                        managedMemory);
+                        managedMemory,
+                        externalBufferMemory);
 
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
