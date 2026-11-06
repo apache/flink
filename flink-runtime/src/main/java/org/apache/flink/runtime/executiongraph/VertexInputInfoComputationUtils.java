@@ -232,7 +232,11 @@ public class VertexInputInfoComputationUtils {
                 }
             } else {
                 checkArgument(consumerIndex < numConsumers);
-                checkArgument(numConsumers <= numSubpartitions);
+                checkArgument(
+                        numConsumers <= numSubpartitions,
+                        "A result with %s subpartitions cannot be consumed by %s consumers.",
+                        numSubpartitions,
+                        numConsumers);
 
                 int start = consumerIndex * numSubpartitions / numConsumers;
                 int nextStart = (consumerIndex + 1) * numSubpartitions / numConsumers;

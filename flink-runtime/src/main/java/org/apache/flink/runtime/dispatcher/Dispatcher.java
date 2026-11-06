@@ -79,6 +79,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexParallelismOverrides;
 import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
 import org.apache.flink.runtime.jobmanager.ApplicationWriter;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
@@ -1275,11 +1276,38 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private CompletableFuture<Acknowledge> internalSubmitJob(ExecutionPlan executionPlan) {
-        if (executionPlan instanceof JobGraph) {
-            applyParallelismOverrides((JobGraph) executionPlan);
+        final JobID jobId = executionPlan.getJobID();
+
+        final Map<String, String> parallelismOverrides =
+                JobVertexParallelismOverrides.merge(
+                        configuration, executionPlan.getJobConfiguration());
+        if (!parallelismOverrides.isEmpty()) {
+            final Map<JobVertexID, String> overridesByJobVertexId =
+                    JobVertexParallelismOverrides.byJobVertexId(parallelismOverrides);
+            log.info(
+                    "Resolved {} for job {} to {}.",
+                    PipelineOptions.PARALLELISM_OVERRIDES.key(),
+                    jobId,
+                    overridesByJobVertexId);
+            if (executionPlan instanceof JobGraph) {
+                try {
+                    applyParallelismOverrides((JobGraph) executionPlan, overridesByJobVertexId);
+                } catch (IllegalArgumentException e) {
+                    return FutureUtils.completedExceptionally(
+                            new JobSubmissionException(jobId, e.getMessage(), e));
+                }
+            } else {
+                // The generator applies the map in the job master; keeping it in the plan makes a
+                // recovery replay the same overrides as for a JobGraph changed here.
+                executionPlan
+                        .getJobConfiguration()
+                        .set(
+                                PipelineOptions.PARALLELISM_OVERRIDES,
+                                JobVertexParallelismOverrides.toConfigurationValue(
+                                        overridesByJobVertexId));
+            }
         }
 
-        final JobID jobId = executionPlan.getJobID();
         final String jobName = executionPlan.getName();
         final ApplicationID applicationId = executionPlan.getApplicationId().orElse(null);
 
@@ -2550,22 +2578,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return CompletableFuture.runAsync(() -> terminateJob(jobId), getMainThreadExecutor(jobId));
     }
 
-    private void applyParallelismOverrides(JobGraph jobGraph) {
-        Map<String, String> overrides = new HashMap<>();
-        overrides.putAll(configuration.get(PipelineOptions.PARALLELISM_OVERRIDES));
-        overrides.putAll(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES));
+    private void applyParallelismOverrides(
+            JobGraph jobGraph, Map<JobVertexID, String> parallelismOverrides) {
+        final Set<JobVertexID> unknownVertices = new HashSet<>(parallelismOverrides.keySet());
         for (JobVertex vertex : jobGraph.getVertices()) {
-            String override = overrides.get(vertex.getID().toHexString());
-            if (override != null) {
-                int currentParallelism = vertex.getParallelism();
-                int overrideParallelism = Integer.parseInt(override);
-                log.info(
-                        "Changing job vertex {} parallelism from {} to {}",
-                        vertex.getID(),
-                        currentParallelism,
-                        overrideParallelism);
-                vertex.setParallelism(overrideParallelism);
+            if (JobVertexParallelismOverrides.apply(vertex, parallelismOverrides)) {
+                unknownVertices.remove(vertex.getID());
             }
+        }
+        if (!unknownVertices.isEmpty()) {
+            log.warn(
+                    "Ignoring {} for job vertices {} which are not part of job {}.",
+                    PipelineOptions.PARALLELISM_OVERRIDES.key(),
+                    unknownVertices,
+                    jobGraph.getJobID());
         }
     }
 

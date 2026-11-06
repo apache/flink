@@ -51,7 +51,11 @@ public class StreamNodeForwardGroup implements ForwardGroup<Integer> {
                         .filter(v -> v > 0)
                         .collect(Collectors.toSet());
 
-        checkState(configuredParallelisms.size() <= 1);
+        checkState(
+                configuredParallelisms.size() <= 1,
+                "The stream nodes %s of a forward group must have the same parallelism, found %s.",
+                streamNodes.stream().map(StreamNode::getId).collect(Collectors.toList()),
+                configuredParallelisms);
         if (configuredParallelisms.size() == 1) {
             this.parallelism = configuredParallelisms.iterator().next();
         }
