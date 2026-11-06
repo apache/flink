@@ -1687,6 +1687,93 @@ Sink(table=[default_catalog.default_database.sink_three_way], fields=[user_id, o
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPreservesUpsertKeyThreeWayJoinOnFewerLeftColumnsDoesNot">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO sink_orders
+SELECT
+    o.order_id,
+    o.user_id,
+    r.name,
+    a.location
+FROM UserRegionsPK r
+JOIN OrdersPK o
+    ON r.user_id = o.user_id
+JOIN RegionAddressPK a
+    ON r.user_id = a.user_id AND r.region = a.region
+ON CONFLICT DO DEDUPLICATE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_orders], fields=[order_id, user_id, name, location])
++- LogicalProject(order_id=[$3], user_id=[$4], name=[$2], location=[$8])
+   +- LogicalJoin(condition=[AND(=($0, $6), =($1, $7))], joinType=[inner])
+      :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, UserRegionsPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, RegionAddressPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_orders], fields=[order_id, user_id, name, location], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[order_id, user_id0 AS user_id, name, location])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id, region), (order_id, user_id), (user_id, region)], joinConditions=[=(user_id, user_id0), AND(=(user_id, user_id1), =(region, region0))], select=[user_id,region,name,order_id,user_id0,user_id1,region0,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) region, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) region0, VARCHAR(2147483647) location)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- ChangelogNormalize(key=[user_id, region])
+      :     +- Exchange(distribution=[hash[user_id, region]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, UserRegionsPK]], fields=[user_id, region, name])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- ChangelogNormalize(key=[order_id, user_id])
+      :     +- Exchange(distribution=[hash[order_id, user_id]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK, project=[order_id, user_id]]], fields=[order_id, user_id])
+      +- Exchange(distribution=[hash[user_id]])
+         +- ChangelogNormalize(key=[user_id, region])
+            +- Exchange(distribution=[hash[user_id, region]])
+               +- TableSourceScan(table=[[default_catalog, default_database, RegionAddressPK]], fields=[user_id, region, location])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesUpsertKeyThreeWayJoinOnSecondInputColumns">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO sink_addresses
+SELECT
+    a.user_id,
+    a.region,
+    u.name,
+    a.location
+FROM UsersPK u
+JOIN UserRegionsPK r
+    ON u.user_id = r.user_id
+JOIN RegionAddressPK a
+    ON r.user_id = a.user_id AND r.region = a.region]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_addresses], fields=[user_id, region, name, location])
++- LogicalProject(user_id=[$7], region=[$8], name=[$1], location=[$9])
+   +- LogicalJoin(condition=[AND(=($4, $7), =($5, $8))], joinType=[inner])
+      :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, UserRegionsPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, RegionAddressPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_addresses], fields=[user_id, region, name, location])
++- Calc(select=[user_id1 AS user_id, region0 AS region, name, location])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, region), (user_id, region)], joinConditions=[=(user_id, user_id0), AND(=(user_id0, user_id1), =(region, region0))], select=[user_id,name,user_id0,region,user_id1,region0,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) region, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) region0, VARCHAR(2147483647) location)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, name]]], fields=[user_id, name])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UserRegionsPK, project=[user_id, region]]], fields=[user_id, region])
+      +- Exchange(distribution=[hash[user_id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, RegionAddressPK]], fields=[user_id, region, location])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPreservesUpsertKeyTwoWayInnerJoinOrders">
     <Resource name="sql">
       <![CDATA[

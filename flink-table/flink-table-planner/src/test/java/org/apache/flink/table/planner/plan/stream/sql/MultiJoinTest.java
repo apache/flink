@@ -176,6 +176,24 @@ public class MultiJoinTest extends TableTestBase {
                                 + "  user_id STRING PRIMARY KEY NOT ENFORCED,"
                                 + "  location STRING"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE UserRegionsPK ("
+                                + "  user_id STRING NOT NULL,"
+                                + "  region STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (user_id, region) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE RegionAddressPK ("
+                                + "  user_id STRING NOT NULL,"
+                                + "  region STRING NOT NULL,"
+                                + "  location STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (user_id, region) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
     }
 
     @Test
@@ -863,6 +881,71 @@ public class MultiJoinTest extends TableTestBase {
                         + "    ON o.user_id = u.user_id\n"
                         + "JOIN PaymentsPK p\n"
                         + "    ON o.user_id = p.user_id");
+    }
+
+    @Test
+    void testPreservesUpsertKeyThreeWayJoinOnFewerLeftColumnsDoesNot() {
+        // UserRegionsPK is unique on its join columns (user_id, region), but only user_id is joined
+        // to OrdersPK: an order matches the user's row of every region, so the orders key is not
+        // unique in the output and the sink needs upsertMaterialize.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_orders ("
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  location STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`, `user_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "\nINSERT INTO sink_orders\n"
+                        + "SELECT\n"
+                        + "    o.order_id,\n"
+                        + "    o.user_id,\n"
+                        + "    r.name,\n"
+                        + "    a.location\n"
+                        + "FROM UserRegionsPK r\n"
+                        + "JOIN OrdersPK o\n"
+                        + "    ON r.user_id = o.user_id\n"
+                        + "JOIN RegionAddressPK a\n"
+                        + "    ON r.user_id = a.user_id AND r.region = a.region\n"
+                        + "ON CONFLICT DO DEDUPLICATE");
+    }
+
+    @Test
+    void testPreservesUpsertKeyThreeWayJoinOnSecondInputColumns() {
+        // RegionAddressPK is joined on the key of UserRegionsPK, the second input, which stays
+        // unique after joining UsersPK on user_id: an address matches at most one row, so the
+        // address key is unique in the output and the sink needs no upsertMaterialize.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_addresses ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `region` STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  location STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `region`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "\nINSERT INTO sink_addresses\n"
+                        + "SELECT\n"
+                        + "    a.user_id,\n"
+                        + "    a.region,\n"
+                        + "    u.name,\n"
+                        + "    a.location\n"
+                        + "FROM UsersPK u\n"
+                        + "JOIN UserRegionsPK r\n"
+                        + "    ON u.user_id = r.user_id\n"
+                        + "JOIN RegionAddressPK a\n"
+                        + "    ON r.user_id = a.user_id AND r.region = a.region");
     }
 
     @Test

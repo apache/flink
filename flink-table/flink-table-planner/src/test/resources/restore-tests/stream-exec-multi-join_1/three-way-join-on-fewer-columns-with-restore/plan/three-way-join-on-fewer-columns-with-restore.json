@@ -1,0 +1,608 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`UserRegions`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "region",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "region" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, UserRegions]], fields=[user_id, region, name])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id, region]])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-changelog-normalize_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "uniqueKeys" : [ 0, 1 ],
+    "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "changelogNormalizeState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647)>",
+    "description" : "ChangelogNormalize(key=[user_id, region])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "user_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "order_id", "user_id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id]]], fields=[order_id, user_id])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL>",
+    "description" : "Exchange(distribution=[hash[order_id, user_id]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-changelog-normalize_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "uniqueKeys" : [ 0, 1 ],
+    "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "changelogNormalizeState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL>",
+    "description" : "ChangelogNormalize(key=[order_id, user_id])"
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`RegionAddresses`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "region",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "location",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "region" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `location` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, RegionAddresses]], fields=[user_id, region, location])"
+  }, {
+    "id" : 10,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `location` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id, region]])"
+  }, {
+    "id" : 11,
+    "type" : "stream-exec-changelog-normalize_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "uniqueKeys" : [ 0, 1 ],
+    "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "changelogNormalizeState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `location` VARCHAR(2147483647)>",
+    "description" : "ChangelogNormalize(key=[user_id, region])"
+  }, {
+    "id" : 12,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `location` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 13,
+    "type" : "stream-exec-multi-join_1",
+    "joinTypes" : [ "INNER", "INNER", "INNER" ],
+    "joinConditions" : [ {
+      "kind" : "LITERAL",
+      "value" : true,
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "VARCHAR(2147483647) NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "multiJoinCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "joinAttributeMap" : {
+      "0" : [ {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      }, {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      }, {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 1
+      } ],
+      "1" : [ {
+        "leftInputId" : 0,
+        "leftFieldIndex" : 0,
+        "rightInputId" : 1,
+        "rightFieldIndex" : 1
+      } ],
+      "2" : [ {
+        "leftInputId" : 0,
+        "leftFieldIndex" : 0,
+        "rightInputId" : 2,
+        "rightFieldIndex" : 0
+      }, {
+        "leftInputId" : 0,
+        "leftFieldIndex" : 1,
+        "rightInputId" : 2,
+        "rightFieldIndex" : 1
+      } ]
+    },
+    "inputUniqueKeys" : [ [ [ 0, 1 ] ], [ [ 0, 1 ] ], [ [ 0, 1 ] ] ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "input-state-0"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "input-state-1"
+    }, {
+      "index" : 2,
+      "ttl" : "0 ms",
+      "name" : "input-state-2"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 2
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `region` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647) NOT NULL, `user_id0` VARCHAR(2147483647) NOT NULL, `user_id1` VARCHAR(2147483647) NOT NULL, `region0` VARCHAR(2147483647) NOT NULL, `location` VARCHAR(2147483647)>",
+    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id, region), (order_id, user_id), (user_id, region)], joinConditions=[(user_id = user_id0), ((user_id = user_id1) AND (region = region0))], select=[user_id,region,name,order_id,user_id0,user_id1,region0,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) region, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) region0, VARCHAR(2147483647) location)])"
+  }, {
+    "id" : 14,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 7,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `location` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[order_id, user_id0 AS user_id, name, location])"
+  }, {
+    "id" : 15,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "user_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "location",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "order_id", "user_id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "requireUpsertMaterialize" : true,
+    "upsertMaterializeStrategy" : "ADAPTIVE",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "sinkMaterializeState"
+    } ],
+    "conflictStrategy" : {
+      "behavior" : "DEDUPLICATE"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `location` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user_id, name, location], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
