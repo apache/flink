@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.metrics.filter.ReporterFilter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
@@ -88,6 +89,8 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     private final CompletableFuture<Void> terminationFuture;
 
     private final long maximumFramesize;
+
+    private final ReporterFilter<Metric> queryServiceFilter;
 
     @Nullable private MetricQueryService queryService;
 
@@ -160,6 +163,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             ScheduledExecutorService reporterScheduledExecutor,
             ScheduledExecutorService viewUpdaterScheduledExecutor) {
         this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
+        this.queryServiceFilter = config.getQueryServiceFilter();
         this.scopeFormats = config.getScopeFormats();
         this.globalDelimiter = config.getDelimiter();
         this.terminationFuture = new CompletableFuture<>();
@@ -566,7 +570,16 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
                 }
                 try {
                     if (queryService != null) {
-                        queryService.addMetric(metricName, metric, group);
+                        final String logicalScope =
+                                group.getLogicalScope(CharacterFilter.NO_OP_FILTER);
+                        if (queryServiceFilter.filter(metric, metricName, logicalScope)) {
+                            queryService.addMetric(metricName, metric, group);
+                        } else {
+                            LOG.trace(
+                                    "Skip exposing {}.{} through the metric query service due to filter rules.",
+                                    logicalScope,
+                                    metricName);
+                        }
                     }
                 } catch (Exception e) {
                     LOG.warn("Error while registering metric: {}.", metricName, e);

@@ -20,6 +20,9 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
+import org.apache.flink.runtime.metrics.filter.ReporterFilter;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.util.Preconditions;
 
@@ -39,12 +42,19 @@ public class MetricRegistryConfiguration {
 
     private final long queryServiceMessageSizeLimit;
 
+    // decides which metrics are exposed through the metric query service
+    private final ReporterFilter<Metric> queryServiceFilter;
+
     public MetricRegistryConfiguration(
-            ScopeFormats scopeFormats, char delimiter, long queryServiceMessageSizeLimit) {
+            ScopeFormats scopeFormats,
+            char delimiter,
+            long queryServiceMessageSizeLimit,
+            ReporterFilter<Metric> queryServiceFilter) {
 
         this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
         this.delimiter = delimiter;
         this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
+        this.queryServiceFilter = Preconditions.checkNotNull(queryServiceFilter);
     }
 
     // ------------------------------------------------------------------------
@@ -61,6 +71,10 @@ public class MetricRegistryConfiguration {
 
     public long getQueryServiceMessageSizeLimit() {
         return queryServiceMessageSizeLimit;
+    }
+
+    public ReporterFilter<Metric> getQueryServiceFilter() {
+        return queryServiceFilter;
     }
 
     // ------------------------------------------------------------------------
@@ -92,10 +106,30 @@ public class MetricRegistryConfiguration {
             delim = '.';
         }
 
+        ReporterFilter<Metric> queryServiceFilter;
+        try {
+            queryServiceFilter =
+                    DefaultReporterFilters.queryServiceMetricsFromConfiguration(configuration);
+            LOG.info(
+                    "Metrics matching {} will not be exposed through the metric query service (REST API / web UI).",
+                    configuration.get(MetricOptions.QUERY_SERVICE_EXCLUDES));
+        } catch (Exception e) {
+            LOG.warn(
+                    "Failed to parse {}, using the default value.",
+                    MetricOptions.QUERY_SERVICE_EXCLUDES.key(),
+                    e);
+            queryServiceFilter =
+                    DefaultReporterFilters.queryServiceMetricsFromConfiguration(
+                            new Configuration());
+        }
+
         // padding to account for serialization overhead
         final long messageSizeLimitPadding = 256;
 
         return new MetricRegistryConfiguration(
-                scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding);
+                scopeFormats,
+                delim,
+                maximumFrameSize - messageSizeLimitPadding,
+                queryServiceFilter);
     }
 }

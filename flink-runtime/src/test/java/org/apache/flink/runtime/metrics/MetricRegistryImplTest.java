@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.EventOptions;
 import org.apache.flink.configuration.MetricOptions;
@@ -68,7 +69,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -620,6 +623,97 @@ class MetricRegistryImplTest {
                 new TestCounter(), "foo", new MetricGroupTest.DummyAbstractMetricGroup(registry));
 
         assertThat(reporter.getLastAddedMetric()).isNotEmpty();
+    }
+
+    @Test
+    void testQueryServiceExcludesSplitWatermarkMetricsByDefault() throws Exception {
+        final NotificationCapturingMetricReporter reporter =
+                new NotificationCapturingMetricReporter();
+        final MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test", reporter)));
+        try {
+            registry.startQueryService(new TestingRpcService(), new ResourceID("mqs"));
+
+            final MetricGroup operatorGroup =
+                    TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                    registry, "host", new ResourceID("tm"))
+                            .addJob(new JobID(), "job")
+                            .addTask(createExecutionAttemptId(), "task")
+                            .getOrAddOperator("source");
+
+            operatorGroup
+                    .addGroup("split", "split-0")
+                    .addGroup("watermark")
+                    .gauge("currentWatermark", () -> 42L);
+            // reporters are unaffected by the query service filter
+            assertThat(reporter.getLastAddedMetricName()).hasValue("currentWatermark");
+
+            operatorGroup.counter("marker");
+
+            assertThat(queryMetricNames(registry, "marker"))
+                    .contains("marker")
+                    .doesNotContain("currentWatermark");
+        } finally {
+            registry.closeAsync().get();
+        }
+    }
+
+    @Test
+    void testQueryServiceExcludesAreConfigurable() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.set(
+                MetricOptions.QUERY_SERVICE_EXCLUDES, Collections.singletonList("*:excluded"));
+        final MetricRegistryImpl registry =
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(configuration));
+        try {
+            registry.startQueryService(new TestingRpcService(), new ResourceID("mqs"));
+
+            final MetricGroup group =
+                    TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                            registry, "host", new ResourceID("tm"));
+            group.counter("excluded");
+            group.counter("included");
+
+            assertThat(queryMetricNames(registry, "included"))
+                    .contains("included")
+                    .doesNotContain("excluded");
+        } finally {
+            registry.closeAsync().get();
+        }
+    }
+
+    /**
+     * Queries the metric query service until the dump contains {@code awaitedMetricName} and
+     * returns the names of all dumped metrics. Metrics are added to the query service
+     * asynchronously but in registration order, so once the awaited metric is present every metric
+     * registered before it has been processed as well.
+     */
+    private static List<String> queryMetricNames(
+            MetricRegistryImpl registry, String awaitedMetricName) throws Exception {
+        final MetricQueryServiceGateway gateway =
+                checkNotNull(registry.getMetricQueryServiceGateway());
+        final MetricDumpSerialization.MetricDumpDeserializer deserializer =
+                new MetricDumpSerialization.MetricDumpDeserializer();
+
+        List<String> names = Collections.emptyList();
+        for (int attempt = 0; attempt < 100 && !names.contains(awaitedMetricName); attempt++) {
+            if (attempt > 0) {
+                Thread.sleep(50);
+            }
+            names =
+                    deserializer
+                            .deserialize(
+                                    gateway.queryMetrics(Duration.ofSeconds(5))
+                                            .get(5, TimeUnit.SECONDS))
+                            .stream()
+                            .map(dump -> dump.name)
+                            .collect(Collectors.toList());
+        }
+        return names;
     }
 
     @Test

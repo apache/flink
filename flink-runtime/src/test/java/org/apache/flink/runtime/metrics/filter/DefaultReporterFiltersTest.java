@@ -90,6 +90,75 @@ class DefaultReporterFiltersTest {
     }
 
     @Test
+    void testQueryServiceFilterExcludesSplitWatermarkMetricsByDefault() {
+        final ReporterFilter<Metric> metricFilter =
+                DefaultReporterFilters.queryServiceMetricsFromConfiguration(new Configuration());
+
+        assertThat(
+                        metricFilter.filter(
+                                GAUGE,
+                                "currentWatermark",
+                                "taskmanager.job.task.operator.split.watermark"))
+                .isFalse();
+        assertThat(
+                        metricFilter.filter(
+                                GAUGE,
+                                "accumulatedIdleTimeMs",
+                                "taskmanager.job.task.operator.split.watermark"))
+                .isFalse();
+        assertThat(metricFilter.filter(COUNTER, "numRecordsIn", "taskmanager.job.task.operator"))
+                .isTrue();
+        assertThat(metricFilter.filter(GAUGE, "currentInputWatermark", "taskmanager.job.task"))
+                .isTrue();
+    }
+
+    @Test
+    void testQueryServiceFilterFromConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                MetricOptions.QUERY_SERVICE_EXCLUDES,
+                Arrays.asList("*:excluded*", "*.custom:*:gauge"));
+
+        final ReporterFilter<Metric> metricFilter =
+                DefaultReporterFilters.queryServiceMetricsFromConfiguration(configuration);
+
+        assertThat(metricFilter.filter(COUNTER, "excludedCounter", "taskmanager")).isFalse();
+        assertThat(metricFilter.filter(COUNTER, "included", "taskmanager")).isTrue();
+        assertThat(metricFilter.filter(GAUGE, "included", "taskmanager.custom")).isFalse();
+        assertThat(metricFilter.filter(COUNTER, "included", "taskmanager.custom")).isTrue();
+        // the default exclusion is replaced, not extended
+        assertThat(
+                        metricFilter.filter(
+                                GAUGE,
+                                "currentWatermark",
+                                "taskmanager.job.task.operator.split.watermark"))
+                .isTrue();
+    }
+
+    @Test
+    void testQueryServiceFilterWithoutExcludesExposesSplitWatermarkMetrics() {
+        final Configuration listForm = new Configuration();
+        listForm.set(MetricOptions.QUERY_SERVICE_EXCLUDES, Collections.emptyList());
+
+        final Configuration flatStringForm = new Configuration();
+        flatStringForm.setString(MetricOptions.QUERY_SERVICE_EXCLUDES.key(), "");
+
+        for (Configuration configuration : Arrays.asList(listForm, flatStringForm)) {
+            final ReporterFilter<Metric> metricFilter =
+                    DefaultReporterFilters.queryServiceMetricsFromConfiguration(configuration);
+
+            assertThat(
+                            metricFilter.filter(
+                                    GAUGE,
+                                    "currentWatermark",
+                                    "taskmanager.job.task.operator.split.watermark"))
+                    .isTrue();
+            assertThat(metricFilter.filter(COUNTER, "numRecordsIn", "taskmanager.job.task"))
+                    .isTrue();
+        }
+    }
+
+    @Test
     void testFromConfigurationIncludeByScope() {
         Configuration configuration = new Configuration();
         configuration.set(
