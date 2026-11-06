@@ -27,20 +27,27 @@ import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -355,11 +362,24 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     private final GeneratedJoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
+    // For each input, the fields that the join conditions read and that are not part of its key.
+    // Only these fields can make the conditions match two versions of a record differently.
+    private final int[][] conditionFields;
+    // For each input, an equaliser of its condition fields, or null if it has none.
+    private final GeneratedRecordEqualiser[] generatedConditionFieldsEqualisers;
+    // For each input, whether it may update a record without retracting it first, and whether its
+    // deletes may contain only the unique key. Both are false for plans compiled without the
+    // changelog modes.
+    private final boolean[] isUpsertInput;
+    private final boolean[] hasKeyOnlyDeletes;
 
     private transient List<MultiJoinStateView> stateHandlers;
     private transient TimestampedCollector<RowData> collector;
     private transient List<RowData> nullRows;
     private transient JoinCondition[] instantiatedJoinConditions;
+    private transient RecordEqualiser[] conditionFieldsEqualisers;
+    private transient ProjectedRowData[] storedConditionFields;
+    private transient ProjectedRowData[] newConditionFields;
 
     public StreamingMultiJoinOperator(
             StreamOperatorParameters<RowData> parameters,
@@ -371,7 +391,10 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             GeneratedJoinCondition[] joinConditions,
             JoinKeyExtractor keyExtractor,
             // We currently don't use this, but it might be useful in the future for optimizations
-            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
+            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
+            List<RuntimeChangelogMode> inputChangelogModes,
+            int[][] conditionFields,
+            GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
@@ -381,6 +404,14 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         this.keyExtractor = keyExtractor;
         this.typedInputs = new ArrayList<>(inputSpecs.size());
         this.multiJoinCondition = multiJoinCondition;
+        this.conditionFields = conditionFields;
+        this.generatedConditionFieldsEqualisers = conditionFieldsEqualisers;
+        this.isUpsertInput = new boolean[inputSpecs.size()];
+        this.hasKeyOnlyDeletes = new boolean[inputSpecs.size()];
+        for (int i = 0; i < inputSpecs.size(); i++) {
+            isUpsertInput[i] = isUpsertInput(inputChangelogModes.get(i));
+            hasKeyOnlyDeletes[i] = hasKeyOnlyDeletes(inputChangelogModes.get(i));
+        }
 
         initializeInputs();
     }
@@ -390,6 +421,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         super.open();
         initializeCollector();
         initializeNullRows();
+        initializeConditionFieldsEqualisers();
         initializeStateHandlers();
         initializeJoinConditions();
     }
@@ -406,8 +438,92 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             return;
         }
 
+        if (isUpsert(input)) {
+            final RowData replacedRecord = replacedRecord(input, inputId);
+            if (replacedRecord != null) {
+                replaceRecord(replacedRecord, input, inputId);
+                return;
+            }
+        } else {
+            input = retractedRecord(input, inputId);
+        }
         performMultiJoin(input, inputId);
         addRecordToState(input, inputId);
+    }
+
+    /**
+     * Returns the stored record that the given record replaces, or null if there is none or if the
+     * join conditions match both versions the same way. An upsert input updates a record by sending
+     * only the new version, without retracting the old one.
+     */
+    private @Nullable RowData replacedRecord(RowData record, int inputId) throws Exception {
+        if (!isUpsertInput[inputId]
+                || !inputSpecs.get(inputId).hasUniqueKey()
+                || conditionFields[inputId].length == 0) {
+            return null;
+        }
+        final RowData storedRecord =
+                stateHandlers
+                        .get(inputId)
+                        .getRecord(keyExtractor.getJoinKey(record, inputId), record);
+        if (storedRecord == null || conditionFieldsEqual(storedRecord, record, inputId)) {
+            // the new version produces the same joined rows, which update the old ones
+            return null;
+        }
+        return storedRecord;
+    }
+
+    /**
+     * Returns the full record to retract. A DELETE may contain only the unique key, e.g. from an
+     * upsert source, so the stored record with the same unique key is returned if there is one.
+     */
+    private RowData retractedRecord(RowData retraction, int inputId) throws Exception {
+        if (retraction.getRowKind() != RowKind.DELETE
+                || !hasKeyOnlyDeletes[inputId]
+                || !inputSpecs.get(inputId).hasUniqueKey()
+                || conditionFields[inputId].length == 0) {
+            return retraction;
+        }
+        final RowData storedRecord =
+                stateHandlers
+                        .get(inputId)
+                        .getRecord(keyExtractor.getJoinKey(retraction, inputId), retraction);
+        if (storedRecord == null) {
+            return retraction;
+        }
+        // the stored record is removed from state with this retraction
+        storedRecord.setRowKind(RowKind.DELETE);
+        return storedRecord;
+    }
+
+    /**
+     * Replaces a stored record with its new version: the joined rows and null padding of the old
+     * version are retracted, then the new version is joined and stored.
+     */
+    private void replaceRecord(RowData replacedRecord, RowData record, int inputId)
+            throws Exception {
+        // set the RowKind back, because the record may be the one in state
+        replacedRecord.setRowKind(RowKind.DELETE);
+        performMultiJoin(replacedRecord, inputId);
+        replacedRecord.setRowKind(RowKind.INSERT);
+        // the old version must not count as a match of the other inputs for the new version
+        stateHandlers
+                .get(inputId)
+                .retractRecord(keyExtractor.getJoinKey(replacedRecord, inputId), replacedRecord);
+        performMultiJoin(record, inputId);
+        addRecordToState(record, inputId);
+    }
+
+    private boolean conditionFieldsEqual(RowData storedRecord, RowData record, int inputId) {
+        // the equaliser also compares the RowKind, which may differ between the two versions
+        final RowKind rowKind = record.getRowKind();
+        record.setRowKind(storedRecord.getRowKind());
+        final boolean equal =
+                conditionFieldsEqualisers[inputId].equals(
+                        storedConditionFields[inputId].replaceRow(storedRecord),
+                        newConditionFields[inputId].replaceRow(record));
+        record.setRowKind(rowKind);
+        return equal;
     }
 
     private void performMultiJoin(RowData input, int inputId) throws Exception {
@@ -809,6 +925,23 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
     }
 
+    /** Only upsert inputs compare the condition fields of two versions of a record. */
+    private void initializeConditionFieldsEqualisers() {
+        final int numInputs = inputSpecs.size();
+        this.conditionFieldsEqualisers = new RecordEqualiser[numInputs];
+        this.storedConditionFields = new ProjectedRowData[numInputs];
+        this.newConditionFields = new ProjectedRowData[numInputs];
+        for (int i = 0; i < numInputs; i++) {
+            if (isUpsertInput[i] && conditionFields[i].length > 0) {
+                conditionFieldsEqualisers[i] =
+                        generatedConditionFieldsEqualisers[i].newInstance(
+                                getRuntimeContext().getUserCodeClassLoader());
+                storedConditionFields[i] = ProjectedRowData.from(conditionFields[i]);
+                newConditionFields[i] = ProjectedRowData.from(conditionFields[i]);
+            }
+        }
+    }
+
     private void initializeStateHandlers() {
         if (this.stateHandler.getKeyedStateStore().isPresent()) {
             getRuntimeContext().setKeyedStateStore(this.stateHandler.getKeyedStateStore().get());
@@ -979,5 +1112,22 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 this.instantiatedJoinConditions[i] = cond;
             }
         }
+    }
+
+    /** Returns whether the input may update a record without retracting it first. */
+    private static boolean isUpsertInput(@Nullable RuntimeChangelogMode inputChangelogMode) {
+        // plans compiled before this change do not contain the changelog mode, and their inputs
+        // keep the handling of the version that compiled them
+        if (inputChangelogMode == null) {
+            return false;
+        }
+        final ChangelogMode changelogMode = inputChangelogMode.deserialize();
+        return changelogMode.contains(RowKind.UPDATE_AFTER)
+                && !changelogMode.contains(RowKind.UPDATE_BEFORE);
+    }
+
+    /** Returns whether a DELETE of the input may contain only the unique key. */
+    private static boolean hasKeyOnlyDeletes(@Nullable RuntimeChangelogMode inputChangelogMode) {
+        return inputChangelogMode != null && inputChangelogMode.deserialize().keyOnlyDeletes();
     }
 }

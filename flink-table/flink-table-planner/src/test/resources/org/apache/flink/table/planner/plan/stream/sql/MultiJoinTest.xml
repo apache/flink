@@ -674,6 +674,41 @@ Sink(table=[default_catalog.default_database.UnnestSink], targetColumns=[[0],[1]
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFirstInputUpsertKeyNotContainingJoinKeyOmitsUpdateBefore">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_regions
+SELECT r.user_id, r.region, u.description, a.location
+FROM UsersPK u
+JOIN UserRegionsPK r
+    ON u.user_id = r.user_id AND u.name = r.region
+JOIN AddressPK a
+    ON u.user_id = a.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_regions], fields=[user_id, region, description, location])
++- LogicalProject(user_id=[$4], region=[$5], description=[$3], location=[$8])
+   +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
+      :- LogicalJoin(condition=[AND(=($0, $4), =($1, $5))], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, UserRegionsPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, AddressPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_regions], fields=[user_id, region, description, location], changelogMode=[NONE])
++- Calc(select=[user_id0 AS user_id, region, description, location], changelogMode=[I,UA,D])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, region), (user_id)], joinConditions=[AND(=(user_id, user_id0), =(name, region)), =(user_id, user_id1)], select=[user_id,name,description,user_id0,region,user_id1,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) description, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) region, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) location)], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[user_id]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, name, description]]], fields=[user_id, name, description], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[user_id]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UserRegionsPK, project=[user_id, region]]], fields=[user_id, region], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[user_id]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, AddressPK]], fields=[user_id, location], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFourWayComplexJoinExecPlan">
     <Resource name="sql">
       <![CDATA[
@@ -2689,6 +2724,47 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKe
 :     +- TableSourceScan(table=[[default_catalog, default_database, Orders2]], fields=[order_id, user_id, product])
 +- Exchange(distribution=[hash[user_id]])
    +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, name, cash])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertKeyNotContainingJoinKeyKeepsUpdateBefore">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_orders
+SELECT o.user_id, u.name, o.order_id, a.location
+FROM UsersPK u
+JOIN OrdersPK o
+    ON u.user_id = o.user_id AND u.name = o.product
+JOIN AddressPK a
+    ON u.user_id = a.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_orders], fields=[user_id, name, order_id, location])
++- LogicalProject(user_id=[$5], name=[$1], order_id=[$4], location=[$8])
+   +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
+      :- LogicalJoin(condition=[AND(=($0, $5), =($1, $6))], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, AddressPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_orders], fields=[user_id, name, order_id, location], changelogMode=[NONE])
++- Calc(select=[user_id0 AS user_id, name, order_id, location], changelogMode=[I,UB,UA,D])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id, user_id), (user_id)], joinConditions=[AND(=(user_id, user_id0), =(name, product)), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,product,user_id1,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) product, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) location)], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[user_id]], changelogMode=[I,UB,UA,D])
+      :  +- ChangelogNormalize(key=[user_id], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[user_id]], changelogMode=[I,UA,D])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, name]]], fields=[user_id, name], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[user_id]], changelogMode=[I,UB,UA,D])
+      :  +- ChangelogNormalize(key=[order_id, user_id], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[order_id, user_id]], changelogMode=[I,UA,D])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK]], fields=[order_id, user_id, product], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[user_id]], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[user_id], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[user_id]], changelogMode=[I,UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, AddressPK]], fields=[user_id, location], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>

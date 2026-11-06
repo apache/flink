@@ -25,7 +25,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
@@ -35,6 +37,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyE
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.runtime.util.StateParameterizedHarnessTestBase;
 import org.apache.flink.table.runtime.util.StreamRecordUtils;
 import org.apache.flink.table.types.logical.CharType;
@@ -54,7 +57,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Base class for testing the StreamingMultiJoinOperator. Provides common functionality and helper
@@ -216,6 +221,11 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected void updateAfterPayment(Object... fields) throws Exception {
         testHarness.processElement(
                 2, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
+    }
+
+    protected void updateAfterShipment(Object... fields) throws Exception {
+        testHarness.processElement(
+                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
     protected void deleteUser(Object... fields) throws Exception {
@@ -404,7 +414,10 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         retentionTime,
                         generatedJoinConditions,
                         this.keyExtractor,
-                        this.joinAttributeMap);
+                        this.joinAttributeMap,
+                        inputChangelogModes(),
+                        conditionFields(),
+                        conditionFieldsEqualisers());
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -415,6 +428,64 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         harness.setStateBackend(getStateBackend());
         harness.setCheckpointStorage(getCheckpointStorage());
         return harness;
+    }
+
+    /** By default, the changelog modes are unknown, as in plans compiled before this change. */
+    protected List<RuntimeChangelogMode> inputChangelogModes() {
+        return Arrays.asList(new RuntimeChangelogMode[inputSpecs.size()]);
+    }
+
+    /** By default, the join conditions may read all fields, also the ones of the unique key. */
+    protected int[][] conditionFields() {
+        return inputTypeInfos.stream()
+                .map(type -> IntStream.range(0, type.getFieldCount()).toArray())
+                .toArray(int[][]::new);
+    }
+
+    /** Equalisers of the {@link #conditionFields()}, like the ones the planner generates. */
+    private GeneratedRecordEqualiser[] conditionFieldsEqualisers() {
+        final int[][] conditionFields = conditionFields();
+        final GeneratedRecordEqualiser[] equalisers =
+                new GeneratedRecordEqualiser[conditionFields.length];
+        for (int i = 0; i < conditionFields.length; i++) {
+            final List<LogicalType> fieldTypes = inputTypeInfos.get(i).getChildren();
+            equalisers[i] =
+                    new ConditionFieldsEqualiser(
+                            IntStream.of(conditionFields[i])
+                                    .mapToObj(fieldTypes::get)
+                                    .toArray(LogicalType[]::new));
+        }
+        return equalisers;
+    }
+
+    /**
+     * Compares the fields of two projected rows and, like the generated equaliser, their RowKind.
+     */
+    private static final class ConditionFieldsEqualiser extends GeneratedRecordEqualiser {
+        private static final long serialVersionUID = 1L;
+
+        private final LogicalType[] fieldTypes;
+
+        private ConditionFieldsEqualiser(LogicalType[] fieldTypes) {
+            super("", "", new Object[0]);
+            this.fieldTypes = fieldTypes;
+        }
+
+        @Override
+        public RecordEqualiser newInstance(ClassLoader classLoader) {
+            final RowData.FieldGetter[] getters =
+                    IntStream.range(0, fieldTypes.length)
+                            .mapToObj(i -> RowData.createFieldGetter(fieldTypes[i], i))
+                            .toArray(RowData.FieldGetter[]::new);
+            return (row1, row2) ->
+                    row1.getRowKind() == row2.getRowKind()
+                            && Arrays.stream(getters)
+                                    .allMatch(
+                                            getter ->
+                                                    Objects.equals(
+                                                            getter.getFieldOrNull(row1),
+                                                            getter.getFieldOrNull(row2)));
+        }
     }
 
     protected RowType getOutputType() {
