@@ -420,6 +420,8 @@ object FlinkBatchRuleSets {
     AsyncCalcSplitRule.NESTED_SPLIT,
     // Avoid having async calls in multiple projections in a single calc.
     AsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
+    // Restores Python calc projection order after async calc splitting.
+    PythonCalcSplitRule.REORDER_PROJECT,
     // remove output of rank number when it is not used by successor calc
     RedundantRankNumberColumnRemoveRule.INSTANCE,
     // Rewrites a join over a LATERAL SNAPSHOT table function call into a dedicated
