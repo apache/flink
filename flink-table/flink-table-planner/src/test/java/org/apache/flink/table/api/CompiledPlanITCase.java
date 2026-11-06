@@ -22,10 +22,14 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -217,6 +221,54 @@ class CompiledPlanITCase extends JsonPlanTestBase {
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath)).await();
 
         assertResult(DATA, sinkPath);
+    }
+
+    @Test
+    void testCompilePlanInline() throws Exception {
+        File sinkPath = createSourceSinkTables();
+
+        TableResult tableResult =
+                tableEnv.executeSql("COMPILE PLAN FOR INSERT INTO sink SELECT * FROM src");
+
+        assertThat(tableResult.getResultKind()).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT);
+        assertThat(tableResult.getResolvedSchema())
+                .isEqualTo(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
+
+        List<Row> rows = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(rows).hasSize(1);
+        String planJson = rows.get(0).getFieldAs(0);
+        assertThat(planJson).contains("\"flinkVersion\"");
+        assertThat(planJson).contains("stream-exec-table-source-scan");
+        assertThat(planJson).contains("stream-exec-sink");
+
+        // The returned JSON must be a valid, executable plan.
+        tableEnv.loadPlan(PlanReference.fromJsonString(planJson)).execute().await();
+        assertResult(DATA, sinkPath);
+    }
+
+    @Test
+    void testCompilePlanInlineWithStatementSet() throws Exception {
+        createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
+        createTestCsvSinkTable("sinkA", COLUMNS_DEFINITION);
+        createTestCsvSinkTable("sinkB", COLUMNS_DEFINITION);
+
+        TableResult tableResult =
+                tableEnv.executeSql(
+                        "COMPILE PLAN FOR STATEMENT SET BEGIN "
+                                + "INSERT INTO sinkA SELECT * FROM src; "
+                                + "INSERT INTO sinkB SELECT * FROM src; "
+                                + "END");
+
+        assertThat(tableResult.getResultKind()).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT);
+        assertThat(tableResult.getResolvedSchema())
+                .isEqualTo(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
+
+        List<Row> rows = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(rows).hasSize(1);
+        String planJson = rows.get(0).getFieldAs(0);
+        assertThat(planJson).contains("\"flinkVersion\"");
+        assertThat(planJson).contains("sinkA");
+        assertThat(planJson).contains("sinkB");
     }
 
     @Test
