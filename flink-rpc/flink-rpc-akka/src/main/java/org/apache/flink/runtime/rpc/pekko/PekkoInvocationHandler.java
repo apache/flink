@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.Local;
@@ -263,7 +264,8 @@ class PekkoInvocationHandler implements InvocationHandler, PekkoBasedEndpoint, R
                                             ExceptionUtils.stripCompletionException(failure),
                                             callStackCapture,
                                             address,
-                                            rpcInvocation));
+                                            rpcInvocation,
+                                            futureTimeout));
                         } else {
                             completableFuture.complete(resultValue);
                         }
@@ -379,7 +381,8 @@ class PekkoInvocationHandler implements InvocationHandler, PekkoBasedEndpoint, R
             Throwable exception,
             @Nullable Throwable callStackCapture,
             String recipient,
-            RpcInvocation rpcInvocation) {
+            RpcInvocation rpcInvocation,
+            Duration callTimeout) {
         if (!(exception instanceof AskTimeoutException)) {
             return exception;
         }
@@ -394,13 +397,17 @@ class PekkoInvocationHandler implements InvocationHandler, PekkoBasedEndpoint, R
             newException =
                     new TimeoutException(
                             String.format(
-                                    "Invocation of [%s] at recipient [%s] timed out. This is usually caused by: 1) Pekko failed sending "
+                                    "Invocation of [%s] at recipient [%s] timed out after %d ms. This is usually caused by: 1) Pekko failed sending "
                                             + "the message silently, due to problems like oversized payload or serialization failures. "
                                             + "In that case, you should find detailed error information in the logs. 2) The recipient needs "
-                                            + "more time for responding, due to problems like slow machines or network jitters. In that case, you can try to increase %s.",
+                                            + "more time for responding, due to problems like slow machines or network jitters. In that case, "
+                                            + "you can try to increase the timeout of this call: %s by default, client.timeout for client "
+                                            + "operations or %s for REST requests.",
                                     rpcInvocation,
                                     recipient,
-                                    RpcOptions.ASK_TIMEOUT_DURATION.key()));
+                                    callTimeout.toMillis(),
+                                    RpcOptions.ASK_TIMEOUT_DURATION.key(),
+                                    WebOptions.TIMEOUT.key()));
         }
 
         newException.initCause(exception);
