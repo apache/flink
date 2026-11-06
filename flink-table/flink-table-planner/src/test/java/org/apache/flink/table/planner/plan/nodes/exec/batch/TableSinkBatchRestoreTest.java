@@ -18,18 +18,33 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.common.TableSinkTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
+import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.test.program.TableTestProgram;
+
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Batch Compiled Plan tests for {@link BatchExecSink}. */
 public class TableSinkBatchRestoreTest extends BatchRestoreTestBase {
 
     public TableSinkBatchRestoreTest() {
         super(BatchExecSink.class);
+    }
+
+    @Test
+    void testExecNodeMetadataContainsRequiredOptions() {
+        assertThat(ExecNodeMetadataUtil.consumedOptions(BatchExecSink.class))
+                .containsExactlyInAnyOrder(
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER.key());
     }
 
     @Override

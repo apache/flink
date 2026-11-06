@@ -355,6 +355,7 @@
     "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.nested-constraint-enforcer" : "IGNORE",
       "table.exec.sink.not-null-enforcer" : "ERROR",
       "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",

@@ -119,6 +119,7 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
         consumedOptions = {
             "table.exec.sink.not-null-enforcer",
             "table.exec.sink.type-length-enforcer",
+            "table.exec.sink.nested-constraint-enforcer",
             "table.exec.sink.upsert-materialize",
             "table.exec.sink.keyed-shuffle",
             "table.exec.sink.rowtime-inserter"
