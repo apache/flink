@@ -27,6 +27,7 @@ import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 import org.apache.flink.table.types.inference.utils.ModelSemanticsMock;
 import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -79,6 +80,7 @@ public abstract class TypeStrategiesTestBase {
         functionDefinitionMock.functionKind = FunctionKind.SCALAR;
         final CallContextMock callContextMock = new CallContextMock();
         callContextMock.functionDefinition = functionDefinitionMock;
+        callContextMock.typeFactory = new DataTypeFactoryMock();
         callContextMock.argumentDataTypes = testSpec.inputTypes;
         callContextMock.name = "f";
         callContextMock.outputDataType = Optional.empty();
