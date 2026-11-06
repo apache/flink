@@ -18,11 +18,8 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
@@ -30,7 +27,6 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -40,7 +36,6 @@ import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.test.util.source.FailingCheckpointedSource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -79,22 +74,6 @@ class EventTimeAllWindowCheckpointingITCase {
         return config;
     }
 
-    private static DataStream<Tuple2<Long, IntType>> createFailingSourceStream(
-            StreamExecutionEnvironment env,
-            int numKeys,
-            int numElementsPerWindow,
-            int numElementsPerKey) {
-        final FailingCheckpointedSource<Tuple2<Long, IntType>> source =
-                FailingCheckpointedSource.of(
-                        new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(
-                                numKeys, numElementsPerWindow),
-                        numElementsPerKey,
-                        TypeInformation.of(new TypeHint<Tuple2<Long, IntType>>() {}));
-        // like the legacy FailingSource, the source is non-parallel
-        return env.fromSource(source, WatermarkStrategy.noWatermarks(), "Failing Source")
-                .setParallelism(1);
-    }
-
     // ------------------------------------------------------------------------
 
     @Test
@@ -108,7 +87,8 @@ class EventTimeAllWindowCheckpointingITCase {
         env.enableCheckpointing(100);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
-        createFailingSourceStream(env, numKeys, windowSize, numElementsPerKey)
+        EventTimeWindowCheckpointingITCase.createFailingSourceStream(
+                        env, numKeys, windowSize, numElementsPerKey)
                 .rebalance()
                 .windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                 .apply(
@@ -176,7 +156,8 @@ class EventTimeAllWindowCheckpointingITCase {
         env.enableCheckpointing(100);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
-        createFailingSourceStream(env, numKeys, windowSlide, numElementsPerKey)
+        EventTimeWindowCheckpointingITCase.createFailingSourceStream(
+                        env, numKeys, windowSlide, numElementsPerKey)
                 .rebalance()
                 .windowAll(
                         SlidingEventTimeWindows.of(
@@ -245,7 +226,8 @@ class EventTimeAllWindowCheckpointingITCase {
         env.enableCheckpointing(100);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
-        createFailingSourceStream(env, numKeys, windowSize, numElementsPerKey)
+        EventTimeWindowCheckpointingITCase.createFailingSourceStream(
+                        env, numKeys, windowSize, numElementsPerKey)
                 .rebalance()
                 .windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                 .reduce(
@@ -317,7 +299,8 @@ class EventTimeAllWindowCheckpointingITCase {
         env.enableCheckpointing(100);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
-        createFailingSourceStream(env, numKeys, windowSlide, numElementsPerKey)
+        EventTimeWindowCheckpointingITCase.createFailingSourceStream(
+                        env, numKeys, windowSlide, numElementsPerKey)
                 .rebalance()
                 .windowAll(
                         SlidingEventTimeWindows.of(
