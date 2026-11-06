@@ -490,6 +490,12 @@ public class CheckpointCoordinator {
                         < nextCheckpointTriggeringRelativeTime) {
                     rescheduleTrigger(currentRelativeTime, currentCheckpointInterval);
                 }
+            } else {
+                // Periodic checkpointing is disabled for the current backlog status. Cancel any
+                // trigger that has already been scheduled (e.g. by the checkpoint scheduler before
+                // the backlog was reported) so that no checkpoint is triggered until the status
+                // changes again (FLINK-39108).
+                cancelPeriodicTrigger();
             }
         }
     }
@@ -2227,9 +2233,14 @@ public class CheckpointCoordinator {
                                                     - clock.relativeTimeMillis()),
                                     TimeUnit.MILLISECONDS);
                 } else {
+                    // Periodic checkpointing has been disabled in the meantime (e.g. a source
+                    // reported backlog with a disabled interval-during-backlog). Do not trigger
+                    // this run either; the trigger will be rescheduled when the effective
+                    // interval becomes enabled again (FLINK-39108).
                     nextCheckpointTriggeringRelativeTime = Long.MAX_VALUE;
                     currentPeriodicTrigger = null;
                     currentPeriodicTriggerFuture = null;
+                    return;
                 }
             }
 
