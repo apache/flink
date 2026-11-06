@@ -120,19 +120,21 @@ public class TritonUtils {
     }
 
     /**
-     * Builds the inference URL for a specific model and version.
+     * Builds the inference URL for a specific model and optional version.
      *
-     * <p>This method normalizes various endpoint formats to the standard Triton REST API path:
+     * <p>This method normalizes various endpoint formats to the standard Triton REST API path. When
+     * {@code modelVersion} is {@code null} or empty the unversioned path is used; otherwise the
+     * versioned path is used:
      *
      * <pre>
-     * Input: http://localhost:8000          → http://localhost:8000/v2/models/mymodel/versions/1/infer
-     * Input: http://localhost:8000/v2       → http://localhost:8000/v2/models/mymodel/versions/1/infer
-     * Input: http://localhost:8000/v2/models → http://localhost:8000/v2/models/mymodel/versions/1/infer
+     * No version: http://localhost:8000 → http://localhost:8000/v2/models/mymodel/infer
+     * With version: http://localhost:8000 → http://localhost:8000/v2/models/mymodel/versions/1/infer
      * </pre>
      *
      * @param endpoint The base URL or partial URL of the Triton server
      * @param modelName The name of the model
-     * @param modelVersion The version of the model (e.g., "1", "latest")
+     * @param modelVersion The version of the model (e.g. "1"), or {@code null}/empty to use the
+     *     unversioned endpoint
      * @return The complete inference endpoint URL
      */
     public static String buildInferenceUrl(String endpoint, String modelName, String modelVersion) {
@@ -143,6 +145,9 @@ public class TritonUtils {
             } else {
                 baseUrl += "/v2/models";
             }
+        }
+        if (modelVersion == null || modelVersion.isEmpty()) {
+            return String.format("%s/%s/infer", baseUrl, modelName);
         }
         return String.format("%s/%s/versions/%s/infer", baseUrl, modelName, modelVersion);
     }
