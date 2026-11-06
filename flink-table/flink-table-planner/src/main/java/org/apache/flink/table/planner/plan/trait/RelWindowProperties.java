@@ -38,6 +38,16 @@ public class RelWindowProperties {
     private final ImmutableBitSet windowStartColumns;
     private final ImmutableBitSet windowEndColumns;
     private final ImmutableBitSet windowTimeColumns;
+
+    /**
+     * The columns that hold the window's original time attribute (the column referenced by the
+     * window TVF time descriptor). After applying the window TVF this column is materialized to a
+     * regular timestamp (see FLINK-39899), so it can no longer be recognized as a time attribute by
+     * its type; we track its position here so that window operators (e.g. window deduplicate) can
+     * still identify it.
+     */
+    private final ImmutableBitSet timeAttributeColumns;
+
     private final WindowSpec windowSpec;
     private final LogicalType timeAttributeType;
 
@@ -49,6 +59,7 @@ public class RelWindowProperties {
             ImmutableBitSet windowStartColumns,
             ImmutableBitSet windowEndColumns,
             ImmutableBitSet windowTimeColumns,
+            ImmutableBitSet timeAttributeColumns,
             WindowSpec windowSpec,
             LogicalType timeAttributeType) {
         if (windowStartColumns.isEmpty() || windowEndColumns.isEmpty()) {
@@ -59,6 +70,7 @@ public class RelWindowProperties {
                     windowStartColumns,
                     windowEndColumns,
                     windowTimeColumns,
+                    timeAttributeColumns,
                     windowSpec,
                     timeAttributeType);
         }
@@ -68,6 +80,7 @@ public class RelWindowProperties {
             ImmutableBitSet windowStartColumns,
             ImmutableBitSet windowEndColumns,
             ImmutableBitSet windowTimeColumns,
+            ImmutableBitSet timeAttributeColumns,
             WindowSpec windowSpec,
             LogicalType timeAttributeType) {
         checkArgument(
@@ -77,6 +90,7 @@ public class RelWindowProperties {
         this.windowStartColumns = checkNotNull(windowStartColumns);
         this.windowEndColumns = checkNotNull(windowEndColumns);
         this.windowTimeColumns = checkNotNull(windowTimeColumns);
+        this.timeAttributeColumns = checkNotNull(timeAttributeColumns);
         this.windowSpec = checkNotNull(windowSpec);
         this.timeAttributeType = checkNotNull(timeAttributeType);
     }
@@ -84,11 +98,13 @@ public class RelWindowProperties {
     public @Nullable RelWindowProperties copy(
             ImmutableBitSet windowStartColumns,
             ImmutableBitSet windowEndColumns,
-            ImmutableBitSet windowTimeColumns) {
+            ImmutableBitSet windowTimeColumns,
+            ImmutableBitSet timeAttributeColumns) {
         return create(
                 windowStartColumns,
                 windowEndColumns,
                 windowTimeColumns,
+                timeAttributeColumns,
                 windowSpec,
                 this.timeAttributeType);
     }
@@ -97,11 +113,13 @@ public class RelWindowProperties {
             ImmutableBitSet windowStartColumns,
             ImmutableBitSet windowEndColumns,
             ImmutableBitSet windowTimeColumns,
+            ImmutableBitSet timeAttributeColumns,
             WindowSpec windowSpec) {
         return create(
                 windowStartColumns,
                 windowEndColumns,
                 windowTimeColumns,
+                timeAttributeColumns,
                 windowSpec,
                 this.timeAttributeType);
     }
@@ -116,6 +134,10 @@ public class RelWindowProperties {
 
     public ImmutableBitSet getWindowTimeColumns() {
         return windowTimeColumns;
+    }
+
+    public ImmutableBitSet getTimeAttributeColumns() {
+        return timeAttributeColumns;
     }
 
     public ImmutableBitSet getWindowColumns() {
@@ -151,6 +173,8 @@ public class RelWindowProperties {
 
     @Override
     public int hashCode() {
+        // timeAttributeColumns is intentionally excluded (like timeAttributeType): it is derived
+        // deterministically from the same window, so it cannot differ when the other fields match.
         return Objects.hash(windowStartColumns, windowEndColumns, windowTimeColumns, windowSpec);
     }
 

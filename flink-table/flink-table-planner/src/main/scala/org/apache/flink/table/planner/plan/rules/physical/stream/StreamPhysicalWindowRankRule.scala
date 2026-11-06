@@ -40,7 +40,7 @@ class StreamPhysicalWindowRankRule(config: Config) extends ConverterRule(config)
     val windowProperties = fmq.getRelWindowProperties(rank.getInput)
     val partitionKey = rank.partitionKey
     WindowUtil.groupingContainsWindowStartEnd(partitionKey, windowProperties) &&
-    !RankUtil.canConvertToDeduplicate(rank)
+    !RankUtil.canConvertToDeduplicate(rank, windowProperties)
   }
 
   override def convert(rel: RelNode): RelNode = {
