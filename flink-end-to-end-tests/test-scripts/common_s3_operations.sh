@@ -47,9 +47,12 @@ function aws_cli_start() {
   fi
   export AWSCLI_CONTAINER_ID="$CONTAINER_ID"
 
-  while [[ "$(docker inspect -f {{.State.Running}} "$AWSCLI_CONTAINER_ID")" -ne "true" ]]; do
-    sleep 0.1
-  done
+  if ! wait_for_container_running "$AWSCLI_CONTAINER_ID"; then
+    docker kill "$AWSCLI_CONTAINER_ID"
+    docker rm "$AWSCLI_CONTAINER_ID"
+    export AWSCLI_CONTAINER_ID=
+    return 1
+  fi
   on_exit aws_cli_stop
 }
 
