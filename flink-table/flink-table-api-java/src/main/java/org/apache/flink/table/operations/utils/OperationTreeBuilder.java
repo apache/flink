@@ -159,7 +159,7 @@ public final class OperationTreeBuilder {
                 new SortOperationFactory(),
                 new FunctionTableFactory(),
                 new CorrelatedFunctionTableFactory(),
-                new SetOperationFactory(isStreamingMode),
+                new SetOperationFactory(),
                 new AggregateOperationFactory(isStreamingMode),
                 new JoinOperationFactory(),
                 new ValuesOperationFactory());

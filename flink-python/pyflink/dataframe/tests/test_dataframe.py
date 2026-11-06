@@ -325,17 +325,6 @@ class DataFrameSetOperationTests(PyFlinkDataFrameUTTestCase):
                 with self.assertRaisesRegex(Py4JJavaError, "same TableEnvironment"):
                     getattr(left, method)(right)
 
-    def test_set_operations_preserve_streaming_restrictions(self):
-        streaming_environment = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-        left = pf.from_table(streaming_environment.sql_query("SELECT 1 AS id"))
-        right = pf.from_table(streaming_environment.sql_query("SELECT 2 AS id"))
-
-        self.assert_dataframe_schema(left.union_all(right), ["id"])
-        for method in ("union", "intersect", "intersect_all", "minus", "minus_all"):
-            with self.subTest(method=method):
-                with self.assertRaisesRegex(Py4JJavaError, "currently not supported"):
-                    getattr(left, method)(right)
-
 
 class DataFrameExplodeTests(PyFlinkDataFrameUTTestCase):
     def setUp(self):
