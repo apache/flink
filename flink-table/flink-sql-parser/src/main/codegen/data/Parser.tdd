@@ -166,6 +166,7 @@
     "org.apache.flink.sql.parser.dql.SqlRichDescribeModel"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
     "org.apache.flink.sql.parser.dql.SqlUnloadModule"
+    "org.apache.flink.sql.parser.expr.SqlInfixCastOperator"
     "org.apache.flink.sql.parser.expr.SqlUnresolvedTryCastFunction"
     "org.apache.flink.sql.parser.ddl.SqlStopJob"
     "org.apache.flink.sql.parser.dql.SqlShowJobs"
@@ -754,10 +755,12 @@
 
   # Binary operators tokens
   binaryOperatorsTokens: [
+    "< INFIX_CAST: \"::\" >"
   ]
 
   # Binary operators initialization
   extraBinaryExpressions: [
+    "InfixCast"
   ]
 
   # List of files in @includes directory that have parser method
