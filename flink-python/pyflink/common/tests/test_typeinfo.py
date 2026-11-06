@@ -17,7 +17,9 @@
 ################################################################################
 
 from pyflink.common.typeinfo import Types, RowTypeInfo, TupleTypeInfo, _from_java_type
+from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.util.java_utils import to_jarray
 
 
 class TypeInfoTests(PyFlinkTestCase):
@@ -143,3 +145,21 @@ class TypeInfoTests(PyFlinkTestCase):
         list_type_info = Types.LIST(Types.INT())
         self.assertEqual(list_type_info,
                          _from_java_type(list_type_info.get_java_type_info()))
+
+    def test_internal_type_info(self):
+        # InternalTypeInfo is produced by sources such as CsvReaderFormat. It bridges to
+        # RowData internally, so it must be converted through its logical type back to a
+        # PyFlink type. See FLINK-39724.
+        gateway = get_gateway()
+        JInternalTypeInfo = \
+            gateway.jvm.org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+        JVarCharType = gateway.jvm.org.apache.flink.table.types.logical.VarCharType
+        JDoubleType = gateway.jvm.org.apache.flink.table.types.logical.DoubleType
+        JRowType = gateway.jvm.org.apache.flink.table.types.logical.RowType
+        JLogicalType = gateway.jvm.org.apache.flink.table.types.logical.LogicalType
+
+        j_field_types = to_jarray(JLogicalType, [JVarCharType(), JDoubleType()])
+        j_internal_type_info = JInternalTypeInfo.of(JRowType.of(j_field_types))
+
+        self.assertEqual(Types.ROW([Types.STRING(), Types.DOUBLE()]),
+                         _from_java_type(j_internal_type_info))
