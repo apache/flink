@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
+import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.sql.parser.ddl.table.SqlAlterTableAdd;
 import org.apache.flink.sql.parser.ddl.table.SqlAlterTableDrop.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.table.SqlAlterTableDrop.SqlAlterTableDropConstraint;
@@ -28,12 +29,16 @@ import org.apache.flink.sql.parser.ddl.table.SqlAlterTableSchema;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SchemaAddConverter;
 import org.apache.flink.table.planner.operations.converters.SchemaConverter;
 import org.apache.flink.table.planner.operations.converters.SchemaModifyConverter;
 import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 
 import java.util.List;
 import java.util.Set;
@@ -69,6 +74,39 @@ public abstract class SqlAlterTableSchemaConverter<T extends SqlAlterTableSchema
      */
     public static class SqlAlterTableSchemaAddConverter
             extends SqlAlterTableSchemaConverter<SqlAlterTableAdd> {
+        @Override
+        protected Operation convertToOperation(
+                SqlAlterTableAdd alterTableSchema,
+                ResolvedCatalogTable oldTable,
+                ConvertContext context) {
+            if (alterTableSchema.ifColumnNotExists()) {
+                final SqlNodeList columnsToAdd =
+                        new SqlNodeList(alterTableSchema.getParserPosition());
+                for (SqlNode column : alterTableSchema.getColumnPositions()) {
+                    final SqlTableColumnPosition columnPosition = (SqlTableColumnPosition) column;
+                    final String columnName =
+                            OperationConverterUtils.extractSimpleColumnName(
+                                    columnPosition.getColumn().getName(), EX_MSG_PREFIX);
+                    if (!oldTable.getResolvedSchema().getColumn(columnName).isPresent()) {
+                        columnsToAdd.add(columnPosition);
+                    }
+                }
+                if (columnsToAdd.isEmpty()) {
+                    return new NopOperation();
+                }
+                final SqlAlterTableAdd filteredAddition =
+                        new SqlAlterTableAdd(
+                                alterTableSchema.getParserPosition(),
+                                alterTableSchema.getTableName(),
+                                columnsToAdd,
+                                alterTableSchema.getConstraints(),
+                                alterTableSchema.getWatermark().orElse(null),
+                                alterTableSchema.ifTableExists());
+                return super.convertToOperation(filteredAddition, oldTable, context);
+            }
+            return super.convertToOperation(alterTableSchema, oldTable, context);
+        }
+
         @Override
         protected SchemaConverter createSchemaConverter(
                 ResolvedCatalogTable oldTable, ConvertContext context) {
