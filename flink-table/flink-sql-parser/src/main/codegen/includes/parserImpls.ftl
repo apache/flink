@@ -948,7 +948,7 @@ SqlAlterTable SqlAlterTable() :
     |
         <ADD>
         (
-            LOOKAHEAD(2)
+            LOOKAHEAD(4)
             AlterTableAddPartition(addPartitionCtx)
             {
                 return new SqlAddPartitions(startPos.plus(getPos()),
@@ -956,6 +956,42 @@ SqlAlterTable SqlAlterTable() :
                         addPartitionCtx.ifNotExists,
                         addPartitionCtx.partSpecs,
                         addPartitionCtx.partProps);
+            }
+        |
+            <COLUMN>
+            ifNotExists = IfNotExistsOpt()
+            AddOrModifyColumn(ctx)
+            {
+                return new SqlAlterTableAdd(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+                            ctx.constraints,
+                            ctx.watermark,
+                            ifExists,
+                            ifNotExists);
+            }
+        |
+            <IF> <NOT> <EXISTS>
+            (
+                AddOrModifyColumn(ctx)
+            |
+                <LPAREN>
+                AddOrModifyColumn(ctx)
+                (
+                    <COMMA> AddOrModifyColumn(ctx)
+                )*
+                <RPAREN>
+            )
+            {
+                return new SqlAlterTableAdd(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+                            ctx.constraints,
+                            ctx.watermark,
+                            ifExists,
+                            true);
             }
         |
         (

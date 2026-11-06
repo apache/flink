@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
@@ -41,6 +43,8 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -70,6 +74,49 @@ class CatalogITCase {
 
         assertThat(tableEnv.getCatalog(name)).isPresent();
         assertThat(tableEnv.getCatalog(name)).containsInstanceOf(GenericInMemoryCatalog.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "ADD COLUMN IF NOT EXISTS abc INT",
+                "ADD IF NOT EXISTS abc INT",
+                "ADD IF NOT EXISTS (abc INT)",
+                "ADD IF NOT EXISTS (id INT, abc INT)"
+            })
+    void testRepeatedSchemaSetupWithConditionalColumnAddition(String addition) throws Exception {
+        final Catalog catalog = new GenericInMemoryCatalog("shared");
+        final ObjectPath destination = new ObjectPath(catalog.getDefaultDatabase(), "dst_table");
+        final Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("id", DataTypes.BIGINT())
+                        .column("abc", DataTypes.INT())
+                        .build();
+
+        for (int submission = 0; submission < 2; submission++) {
+            final StreamExecutionEnvironment executionEnvironment =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            executionEnvironment.setParallelism(1);
+            final TableEnvironment tableEnv = StreamTableEnvironment.create(executionEnvironment);
+            tableEnv.registerCatalog("shared", catalog);
+            tableEnv.useCatalog("shared");
+            tableEnv.executeSql(
+                    "CREATE TEMPORARY VIEW src_table AS "
+                            + "SELECT CAST(1 AS BIGINT) AS id, CAST(2 AS INT) AS abc");
+
+            assertThat(
+                            tableEnv.executeSql(
+                                            "CREATE TABLE IF NOT EXISTS dst_table (id BIGINT) "
+                                                    + "WITH ('connector' = 'blackhole')")
+                                    .getResultKind())
+                    .isEqualTo(ResultKind.SUCCESS);
+            assertThat(tableEnv.executeSql("ALTER TABLE dst_table " + addition).getResultKind())
+                    .isEqualTo(ResultKind.SUCCESS);
+            assertThat(catalog.getTable(destination).getUnresolvedSchema())
+                    .isEqualTo(expectedSchema);
+
+            tableEnv.executeSql("INSERT INTO dst_table SELECT * FROM src_table").await();
+        }
     }
 
     @Test
