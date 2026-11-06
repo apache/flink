@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, forkJoin, mergeMap, Observable } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -53,6 +53,7 @@ import {
 import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND, rethrowOnlyNotFound } from './http-context';
 
 @Injectable({
   providedIn: 'root'
@@ -94,9 +95,12 @@ export class JobService {
   }
 
   public loadJob(jobId: string): Observable<JobDetailCorrect> {
-    return this.httpClient.get<JobDetail>(`${this.configService.BASE_URL}/jobs/${jobId}`).pipe(
+    // A 404 means the job is gone (e.g. expired from the job store); callers handle it, so it is
+    // neither notified as a server error nor swallowed like other errors.
+    const context = new HttpContext().set(EXPECTED_NOT_FOUND, true);
+    return this.httpClient.get<JobDetail>(`${this.configService.BASE_URL}/jobs/${jobId}`, { context }).pipe(
       map(job => this.convertJob(job)),
-      catchError(() => EMPTY)
+      catchError(rethrowOnlyNotFound)
     );
   }
 
