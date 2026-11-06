@@ -89,6 +89,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             GeneratedRecordEqualiser genSortKeyEqualiser,
+            GeneratedRecordEqualiser genAccEqualiser,
             GeneratedRecordComparator genSortKeyComparator,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
@@ -99,6 +100,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
                 genAggsHandler,
                 genRecordEqualiser,
                 genSortKeyEqualiser,
+                genAccEqualiser,
                 genSortKeyComparator,
                 accTypes,
                 inputFieldTypes,
@@ -156,7 +158,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
             emitUpdatesForIds(
                     ids,
                     ids.size() - 1,
-                    accMapState.get(GenericRowData.of(ids.get(ids.size() - 2))), // prevAcc
+                    getAccFromState(GenericRowData.of(ids.get(ids.size() - 2))), // prevAcc
                     aggFuncs.getAccumulators(), // currAcc
                     origRowKind,
                     insRow,
@@ -165,7 +167,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
 
         // Add/Update state
         valueMapState.put(id, insRow);
-        accMapState.put(GenericRowData.of(id), aggFuncs.getAccumulators());
+        putAccInState(GenericRowData.of(id), aggFuncs.getAccumulators());
         sortedListState.update(sortedList);
         idState.update(++id);
 
@@ -188,7 +190,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
             prevAcc = aggFuncs.createAccumulators();
         } else {
             int jIndex = idIndex == -1 ? sortedList.get(prevIndex).f1.size() - 1 : idIndex;
-            prevAcc = accMapState.get(GenericRowData.of(sortedList.get(prevIndex).f1.get(jIndex)));
+            prevAcc = getAccFromState(GenericRowData.of(sortedList.get(prevIndex).f1.get(jIndex)));
             if (prevAcc == null) {
                 prevAcc = aggFuncs.createAccumulators();
             }
@@ -273,12 +275,12 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
             // to comply with the sql rows syntax
             for (int j = 0; j < ids.size(); j++) {
                 RowData value = valueMapState.get(ids.get(j));
-                RowData prevAcc = accMapState.get(GenericRowData.of(ids.get(j)));
+                RowData prevAcc = getAccFromState(GenericRowData.of(ids.get(j)));
                 aggFuncs.accumulate(value);
                 RowData newAcc = aggFuncs.getAccumulators();
                 // Logic to early out
                 // TODO: Move comparison to function i.e. canEarlyOut(prev, curr)
-                if (newAcc.equals(prevAcc)) {
+                if (accEqualiser.equals(newAcc, prevAcc)) {
                     // Previous accumulator is the same as the current accumulator.
                     // This means all the ids will have no change in the accumulated value.
                     // Skip sending downstream updates in such cases to reduce network traffic
@@ -291,7 +293,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
                 aggFuncs.setAccumulators(newAcc);
                 collectUpdateBefore(out, value, prevValue);
                 collectUpdateAfter(out, value, newValue);
-                accMapState.put(GenericRowData.of(ids.get(j)), newAcc);
+                putAccInState(GenericRowData.of(ids.get(j)), newAcc);
             }
         }
     }
@@ -391,10 +393,10 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
                 return null;
             } else {
                 Long prevId = sortedList.get(i - 1).f1.get(sortedList.get(i - 1).f1.size() - 1);
-                return accMapState.get(GenericRowData.of(prevId));
+                return getAccFromState(GenericRowData.of(prevId));
             }
         } else {
-            return accMapState.get(GenericRowData.of(sortedList.get(i).f1.get(j - 1)));
+            return getAccFromState(GenericRowData.of(sortedList.get(i).f1.get(j - 1)));
         }
     }
 
@@ -414,15 +416,15 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
         for (int j = removeIndex; j < ids.size(); j++) {
             RowData value = valueMapState.get(ids.get(j));
             if (j == removeIndex) {
-                RowData deletedAcc = accMapState.get(GenericRowData.of(ids.get(j)));
+                RowData deletedAcc = getAccFromState(GenericRowData.of(ids.get(j)));
                 collectDelete(out, value, setAccumulatorAndGetValue(deletedAcc));
                 aggFuncs.setAccumulators(baseAcc);
             } else {
-                RowData prevAcc = accMapState.get(GenericRowData.of(ids.get(j)));
+                RowData prevAcc = getAccFromState(GenericRowData.of(ids.get(j)));
                 aggFuncs.accumulate(value);
                 RowData newAcc = aggFuncs.getAccumulators();
                 // Logic to early out
-                if (newAcc.equals(prevAcc)) {
+                if (accEqualiser.equals(newAcc, prevAcc)) {
                     return true;
                 }
                 RowData newValue = aggFuncs.getValue();
@@ -430,7 +432,7 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
                 aggFuncs.setAccumulators(newAcc);
                 collectUpdateBefore(out, value, prevValue);
                 collectUpdateAfter(out, value, newValue);
-                accMapState.put(GenericRowData.of(ids.get(j)), newAcc);
+                putAccInState(GenericRowData.of(ids.get(j)), newAcc);
             }
         }
         return false;

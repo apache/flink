@@ -52,6 +52,7 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
                 aggsHandleFunction,
                 GENERATED_ROW_VALUE_EQUALISER,
                 GENERATED_SORT_KEY_EQUALISER,
+                GENERATED_ACC_EQUALISER,
                 generatedSortKeyComparator,
                 accTypes,
                 inputFieldTypes,
@@ -109,6 +110,7 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
                                 lastValueAggsHandleFunction,
                                 GENERATED_ROW_VALUE_EQUALISER,
                                 GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_ACC_EQUALISER,
                                 GENERATED_SORT_KEY_COMPARATOR_ASC,
                                 lastValueAccTypes,
                                 inputFieldTypes,
@@ -154,7 +156,6 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
 
     @TestTemplate
     void testRetractWithEarlyOutDoesNotRestartFollowingSortKeys() throws Exception {
-        assumeEarlyOutSupported();
         // Sum ts rather than the sort key so rows sharing a sort key change the accumulator
         // differently
         GeneratedAggsHandleFunction sumOfTsAggsHandleFunction =
@@ -171,6 +172,7 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
                                 sumOfTsAggsHandleFunction,
                                 GENERATED_ROW_VALUE_EQUALISER,
                                 GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_ACC_EQUALISER,
                                 GENERATED_SORT_KEY_COMPARATOR_ASC,
                                 accTypes,
                                 inputFieldTypes,
@@ -210,6 +212,7 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
                                 aggsSumLongHandleFunction,
                                 GENERATED_ROW_VALUE_EQUALISER,
                                 GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_ACC_EQUALISER,
                                 GENERATED_SORT_KEY_COMPARATOR_ASC,
                                 accTypes,
                                 inputFieldTypes,
@@ -562,7 +565,6 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
 
     @TestTemplate
     void testRetractWithEarlyOut() throws Exception {
-        assumeEarlyOutSupported();
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
