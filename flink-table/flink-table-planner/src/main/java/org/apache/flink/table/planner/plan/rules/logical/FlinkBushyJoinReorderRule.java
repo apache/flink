@@ -27,7 +27,6 @@ import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.LoptMultiJoin;
 import org.apache.calcite.rel.rules.MultiJoin;
@@ -39,7 +38,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.immutables.value.Value;
 
@@ -86,19 +84,6 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
     /** Creates a FlinkBushyJoinReorderRule. */
     protected FlinkBushyJoinReorderRule(Config config) {
         super(config);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkBushyJoinReorderRule(RelBuilderFactory relBuilderFactory) {
-        this(Config.DEFAULT.withRelBuilderFactory(relBuilderFactory).as(Config.class));
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkBushyJoinReorderRule(
-            RelFactories.JoinFactory joinFactory,
-            RelFactories.ProjectFactory projectFactory,
-            RelFactories.FilterFactory filterFactory) {
-        this(RelBuilder.proto(joinFactory, projectFactory, filterFactory));
     }
 
     @Override

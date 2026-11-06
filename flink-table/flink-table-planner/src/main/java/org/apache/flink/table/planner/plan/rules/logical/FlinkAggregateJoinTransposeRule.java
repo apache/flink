@@ -110,58 +110,6 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
         this.allowFunctions = allowFunctions;
     }
 
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateJoinTransposeRule(
-            Class<? extends Aggregate> aggregateClass,
-            RelFactories.AggregateFactory aggregateFactory,
-            Class<? extends Join> joinClass,
-            RelFactories.JoinFactory joinFactory) {
-        this(aggregateClass, joinClass, RelBuilder.proto(aggregateFactory, joinFactory), false);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateJoinTransposeRule(
-            Class<? extends Aggregate> aggregateClass,
-            RelFactories.AggregateFactory aggregateFactory,
-            Class<? extends Join> joinClass,
-            RelFactories.JoinFactory joinFactory,
-            boolean allowFunctions) {
-        this(
-                aggregateClass,
-                joinClass,
-                RelBuilder.proto(aggregateFactory, joinFactory),
-                allowFunctions);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateJoinTransposeRule(
-            Class<? extends Aggregate> aggregateClass,
-            RelFactories.AggregateFactory aggregateFactory,
-            Class<? extends Join> joinClass,
-            RelFactories.JoinFactory joinFactory,
-            RelFactories.ProjectFactory projectFactory) {
-        this(
-                aggregateClass,
-                joinClass,
-                RelBuilder.proto(aggregateFactory, joinFactory, projectFactory),
-                false);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateJoinTransposeRule(
-            Class<? extends Aggregate> aggregateClass,
-            RelFactories.AggregateFactory aggregateFactory,
-            Class<? extends Join> joinClass,
-            RelFactories.JoinFactory joinFactory,
-            RelFactories.ProjectFactory projectFactory,
-            boolean allowFunctions) {
-        this(
-                aggregateClass,
-                joinClass,
-                RelBuilder.proto(aggregateFactory, joinFactory, projectFactory),
-                allowFunctions);
-    }
-
     private boolean containsSnapshot(RelNode relNode) {
         RelNode original = null;
         if (relNode instanceof RelSubset) {
