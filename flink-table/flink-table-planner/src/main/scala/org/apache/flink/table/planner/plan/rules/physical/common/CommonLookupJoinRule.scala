@@ -132,14 +132,16 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
       temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
+      calcProgram: Option[RexProgram],
+      hints: util.List[RelHint]): CommonPhysicalLookupJoin
 
   protected def transformToLookupJoin(
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
       temporalTable: RelOptTable,
       calcProgram: Option[RexProgram],
-      convention: FlinkConvention): CommonPhysicalLookupJoin = {
+      convention: FlinkConvention,
+      hints: util.List[RelHint]): CommonPhysicalLookupJoin = {
     val joinInfo = join.analyzeCondition
     val cluster = join.getCluster
     val isStream = if (convention == FlinkConventions.STREAM_PHYSICAL) {
@@ -187,7 +189,8 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
         lookupHint,
         false,
         enableLookupShuffle,
-        preferCustomShuffle)
+        preferCustomShuffle,
+        hints)
     } else {
       new BatchPhysicalLookupJoin(
         cluster,
@@ -199,7 +202,8 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
         join.getJoinType,
         lookupHint,
         enableLookupShuffle,
-        preferCustomShuffle)
+        preferCustomShuffle,
+        hints)
     }
   }
 }
@@ -223,10 +227,10 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join = call.rel[FlinkLogicalJoin](0)
     val input = call.rel[FlinkLogicalRel](1)
-    val tableScan = call.rel[RelNode](3)
+    val tableScan = call.rel[TableScan](3)
 
     validateJoin(join)
-    val temporalJoin = transform(join, input, tableScan.getTable, None)
+    val temporalJoin = transform(join, input, tableScan.getTable, None, tableScan.getHints)
     call.transformTo(temporalJoin)
   }
 
@@ -255,10 +259,11 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
     val join = call.rel[FlinkLogicalJoin](0)
     val input = call.rel[FlinkLogicalRel](1)
     val calc = call.rel[FlinkLogicalCalc](3)
-    val tableScan = call.rel[RelNode](4)
+    val tableScan = call.rel[TableScan](4)
 
     validateJoin(join)
-    val temporalJoin = transform(join, input, tableScan.getTable, Some(calc.getProgram))
+    val temporalJoin =
+      transform(join, input, tableScan.getTable, Some(calc.getProgram), tableScan.getHints)
     call.transformTo(temporalJoin)
   }
 

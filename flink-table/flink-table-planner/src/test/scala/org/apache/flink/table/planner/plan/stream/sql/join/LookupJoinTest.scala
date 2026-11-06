@@ -1096,6 +1096,30 @@ class LookupJoinTest extends TableTestBase with Serializable {
   private def verifyTranslationSuccess(sql: String): Unit = {
     util.tableEnv.sqlQuery(sql).explain()
   }
+
+  @Test
+  def testLookupJoinWithDifferentOptionsHintsIsNotDeduplicated(): Unit = {
+    // Two lookup joins on the same table that carry different OPTIONS hints must not be
+    // deduplicated into a single node, otherwise the second one would silently read with the
+    // connector options of the first one. See FLINK-40678.
+    val sql =
+      """
+        |SELECT T.a, D.name
+        |FROM MyTable AS T
+        |JOIN LookupTable /*+ OPTIONS('data-id'='probeA') */ FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id
+        |UNION ALL
+        |SELECT T.a, D.name
+        |FROM MyTable AS T
+        |JOIN LookupTable /*+ OPTIONS('data-id'='probeB') */ FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id
+        |""".stripMargin
+    val plan = util.tableEnv.sqlQuery(sql).explain()
+    // before the fix both joins were deduplicated into a single node, so that only the options
+    // of the first hint survived in the plan
+    assertThat(plan).contains("data-id=probeA")
+    assertThat(plan).contains("data-id=probeB")
+  }
 }
 
 class TestTemporalTable(
