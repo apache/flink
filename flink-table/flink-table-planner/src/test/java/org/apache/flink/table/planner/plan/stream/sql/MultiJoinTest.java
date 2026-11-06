@@ -194,6 +194,21 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayInnerJoinWithIsNotDistinctRelPlan() {
+        util.verifyRelPlan(
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id IS NOT DISTINCT FROM o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
+    }
+
+    @Test
     @Tag("no-common-join-key")
     void testThreeWayInnerJoinRelPlanNoCommonJoinKey() {
         util.verifyRelPlan(
