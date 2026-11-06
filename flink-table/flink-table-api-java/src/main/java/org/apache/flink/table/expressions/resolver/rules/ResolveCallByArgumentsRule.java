@@ -607,6 +607,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         @Override
+        public boolean isArgumentDefault(int pos) {
+            return isFunction(getArgument(pos), BuiltInFunctionDefinitions.DEFAULT);
+        }
+
+        @Override
         public boolean isArgumentLiteral(int pos) {
             final ResolvedExpression arg = getArgument(pos);
             return arg instanceof ValueLiteralExpression
@@ -617,7 +622,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public boolean isArgumentNull(int pos) {
             final ResolvedExpression arg = getArgument(pos);
-            if (isFunction(arg, BuiltInFunctionDefinitions.DEFAULT)) {
+            if (isArgumentDefault(pos)) {
                 return true;
             }
             if (arg instanceof ValueLiteralExpression) {
