@@ -20,7 +20,9 @@ package org.apache.flink.runtime.rest.handler.application;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.runtime.application.ArchivedApplication;
+import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ApplicationDetailsInfo;
+import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.ApplicationIDPathParameter;
@@ -31,6 +33,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 
@@ -40,6 +43,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /** Handler returning the details for the specified application. */
 public class ApplicationDetailsHandler
@@ -64,7 +68,20 @@ public class ApplicationDetailsHandler
             @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway) {
         ApplicationID applicationId = request.getPathParameter(ApplicationIDPathParameter.class);
         return gateway.requestApplication(applicationId, timeout)
-                .thenApply(ApplicationDetailsInfo::fromArchivedApplication);
+                .thenApply(ApplicationDetailsInfo::fromArchivedApplication)
+                .exceptionally(
+                        throwable -> {
+                            final Throwable cause =
+                                    ExceptionUtils.stripCompletionException(throwable);
+                            if (cause instanceof FlinkApplicationNotFoundException) {
+                                throw new CompletionException(
+                                        new NotFoundException(
+                                                String.format(
+                                                        "Application %s not found", applicationId),
+                                                cause));
+                            }
+                            throw new CompletionException(cause);
+                        });
     }
 
     @Override

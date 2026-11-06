@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { ApplicationLocalService } from '@flink-runtime-web/pages/application/application-local.service';
 import { ApplicationService, StatusService } from '@flink-runtime-web/services';
@@ -66,5 +67,27 @@ describe('ApplicationDetailComponent', () => {
     expect(component.isError).toBe(true);
     expect(component.isLoading).toBe(false);
     expect(setApplicationDetail).not.toHaveBeenCalled();
+  });
+
+  it('stops polling and reports the application as gone once it is no longer found', () => {
+    const refresh$ = new Subject<boolean>();
+    component = new ApplicationDetailComponent(
+      { loadApplication } as unknown as ApplicationService,
+      { setApplicationDetail } as unknown as ApplicationLocalService,
+      { refresh$ } as unknown as StatusService,
+      activatedRoute,
+      cdr
+    );
+    loadApplication.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+    component.ngOnInit();
+    refresh$.next(true);
+    refresh$.next(true);
+    refresh$.next(true);
+
+    expect(loadApplication).toHaveBeenCalledTimes(1);
+    expect(component.notFound).toBe(true);
+    expect(component.isError).toBe(false);
+    expect(component.isLoading).toBe(false);
   });
 });

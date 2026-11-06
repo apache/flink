@@ -21,7 +21,9 @@ package org.apache.flink.runtime.rest.handler.application;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.runtime.application.ArchivedApplication;
+import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ApplicationDetailsInfo;
+import org.apache.flink.runtime.rest.RestMatchers;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.ApplicationIDPathParameter;
@@ -32,6 +34,9 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +47,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for the {@link ApplicationDetailsHandler}. */
 class ApplicationDetailsHandlerTest {
@@ -99,5 +105,20 @@ class ApplicationDetailsHandlerTest {
                 handler.handleRequest(handlerRequest, testingRestfulGateway).get();
         assertThat(detailsInfo)
                 .isEqualTo(ApplicationDetailsInfo.fromArchivedApplication(archivedApplication));
+    }
+
+    @Test
+    void testUnknownApplicationRespondsWithNotFound() {
+        final TestingRestfulGateway gateway =
+                new TestingRestfulGateway.Builder()
+                        .setRequestApplicationFunction(
+                                applicationId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkApplicationNotFoundException(
+                                                        applicationId)))
+                        .build();
+
+        assertThat(handler.handleRequest(handlerRequest, gateway))
+                .satisfies(matching(RestMatchers.respondsWithError(HttpResponseStatus.NOT_FOUND)));
     }
 }
