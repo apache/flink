@@ -185,6 +185,18 @@ public class TableConfigOptions {
                                     + "For example, it prevented using rows in computed columns or join keys. "
                                     + "The new behavior takes the nullability into consideration.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_ORDER_BY_ALL_ENABLED =
+            key("table.order-by-all-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enables the 'ORDER BY ALL' clause, a shorthand that sorts by every"
+                                    + " expression in the SELECT list, from left to right. A trailing"
+                                    + " ASC/DESC and NULLS FIRST/LAST applies to all sort keys."
+                                    + " Disabled by default during the initial rollout; will be"
+                                    + " enabled by default in a future release.");
+
     // ------------------------------------------------------------------------------------------
     // Options for plan handling
     // ------------------------------------------------------------------------------------------
