@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -55,6 +57,22 @@ public class MultiJoinUtil {
             extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
         }
         return joinAttributeMap;
+    }
+
+    /**
+     * Returns whether an input is stored under its upsert key, because it may update a record
+     * without UPDATE_BEFORE or delete it by key. The planner only allows this if an upsert key
+     * contains the common join key and, for all inputs but the first, the join key of the input.
+     *
+     * @param inputChangelogMode the changelog mode of the input
+     * @param upsertKeys the upsert keys of the input that contain its common join key and join key
+     */
+    public static boolean isStoredByUpsertKey(
+            final ChangelogMode inputChangelogMode, final List<int[]> upsertKeys) {
+        final boolean isUpsert =
+                inputChangelogMode.contains(RowKind.UPDATE_AFTER)
+                        && !inputChangelogMode.contains(RowKind.UPDATE_BEFORE);
+        return (isUpsert || inputChangelogMode.keyOnlyDeletes()) && !upsertKeys.isEmpty();
     }
 
     /**

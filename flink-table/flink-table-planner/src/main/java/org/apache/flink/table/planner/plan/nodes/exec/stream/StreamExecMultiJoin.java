@@ -53,7 +53,6 @@ import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.typeutils.RowTypeUtils;
-import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
@@ -373,21 +372,13 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 conditionFieldsEqualisers);
     }
 
-    /**
-     * Returns whether the input is stored under its upsert key, because it may update a record
-     * without UPDATE_BEFORE or delete it by key. The planner only allows this if an upsert key
-     * contains the common join key and, for all inputs but the first, the join key of the input.
-     */
+    /** Returns whether the input is stored under its upsert key, see {@link MultiJoinUtil}. */
     private boolean isStoredByUpsertKey(final int inputId) {
         if (inputChangelogModes == null || inputUpsertKeys == null) {
             return false;
         }
-        final ChangelogMode changelogMode = inputChangelogModes.get(inputId);
-        final boolean isUpsert =
-                changelogMode.contains(RowKind.UPDATE_AFTER)
-                        && !changelogMode.contains(RowKind.UPDATE_BEFORE);
-        return (isUpsert || changelogMode.keyOnlyDeletes())
-                && !inputUpsertKeys.get(inputId).isEmpty();
+        return MultiJoinUtil.isStoredByUpsertKey(
+                inputChangelogModes.get(inputId), inputUpsertKeys.get(inputId));
     }
 
     /** Returns the changelog mode of the input, or null for plans compiled before this change. */
