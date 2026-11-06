@@ -57,10 +57,14 @@ public class RegexpInputTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
-        if (STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure).isEmpty()) {
+        final Optional<DataType> strType =
+                STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure);
+        if (strType.isEmpty()) {
             return Optional.empty();
         }
-        if (STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure).isEmpty()) {
+        final Optional<DataType> regexType =
+                STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure);
+        if (regexType.isEmpty()) {
             return Optional.empty();
         }
 
@@ -70,7 +74,7 @@ public class RegexpInputTypeStrategy implements InputTypeStrategy {
             return patternError;
         }
 
-        return Optional.of(callContext.getArgumentDataTypes());
+        return Optional.of(List.of(strType.get(), regexType.get()));
     }
 
     @Override
