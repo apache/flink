@@ -1,0 +1,122 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package org.apache.flink.formats.protobuf.testproto;
+option java_multiple_files = true;
+
+// Proto to test various field conflicts that can occur with protobuf getter generation:
+// 1. Enum numeric accessor vs *_value field conflict
+// 2. Repeated field accessor base name vs singular field conflicts
+// 3. Enum field named *_value conflicting with another enum's numeric accessor (enum-to-enum)
+message FieldConflictPbMessage {
+  // Enum field - generates getStatus() and getStatusValue() accessors
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_ACTIVE = 1;
+    STATUS_INACTIVE = 2;
+  }
+  Status status = 1;
+  // Field with proto name ending in _value; conflicts with enum numeric accessor
+  string status_value = 2;
+
+  // Control field to ensure no unintended field conflicts
+  int32 control_field = 3;
+
+  // Repeated field - generates getTagsList() / getTagsCount() accessors
+  repeated string tags = 4;
+  // Singular field whose name conflicts with repeated field List accessor
+  string tags_list = 5;
+  // Singular field whose name conflicts with repeated field Count accessor
+  int32 tags_count = 6;
+  // Non-conflicting *_value field in same message to verify mixed conflict/non-conflict generation
+  string other_value = 7;
+
+  // Edge case: Map field (verify no field conflict with map-related accessors)
+  map<string, int32> tags_map = 8;
+
+  // Edge case: Boolean field for presence testing
+  bool active = 9;
+  bool active_value = 10;  // Test boolean with *_value field conflict
+
+  // Edge case: Multiple enum field conflicts in same message
+  enum Priority {
+    PRIORITY_UNSPECIFIED = 0;
+    PRIORITY_LOW = 1;
+    PRIORITY_HIGH = 2;
+  }
+  Priority priority = 11;
+  int32 priority_value = 12;
+
+  // Edge case: Enum-to-enum field conflict (enum field named *_value conflicting with another enum's numeric accessor)
+  // The 'mode' enum generates getModeValue() for its numeric accessor
+  // The 'mode_value' enum field generates getModeValue() for its enum object accessor
+  // These conflict! Protoc should generate getMode13Value() and getModeValue14()
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    MODE_MANUAL = 1;
+    MODE_AUTO = 2;
+  }
+  enum ModeValue {
+    MODE_VALUE_UNSPECIFIED = 0;
+    MODE_VALUE_DEFAULT = 1;
+    MODE_VALUE_CUSTOM = 2;
+  }
+  Mode mode = 13;
+  ModeValue mode_value = 14;
+
+  // Edge case: Nested message field
+  message NestedMessage {
+    string nested_field = 1;
+  }
+  NestedMessage nested = 15;
+  repeated NestedMessage nested_list = 16;  // Should not conflict
+
+  // Edge case: Additional repeated field conflict scenario
+  repeated int32 items = 17;
+  string items_list = 18;
+  int64 items_count = 19;
+
+  // Edge case: Enum field ending with _list conflicting with repeated field's List accessor
+  // Repeated field 'data' generates getDataList()
+  // Enum field 'data_list' also tries to generate getDataList()
+  // Protobuf resolves by appending field numbers to BOTH:
+  // - repeated 'data' (field 20) → getData20(), getData20Count(), getData20List()
+  // - enum 'data_list' (field 21) → getDataList21()
+  enum DataList {
+    DATA_LIST_UNSPECIFIED = 0;
+    DATA_LIST_JSON = 1;
+    DATA_LIST_XML = 2;
+  }
+  repeated string data = 20;
+  DataList data_list = 21;
+
+  // Edge case: Enum field ending with _count conflicting with repeated field's Count accessor
+  // Repeated field 'record' generates getRecordCount()
+  // Enum field 'record_count' also tries to generate getRecordCount()
+  // Protobuf resolves by appending field numbers to BOTH:
+  // - repeated 'record' (field 22) → getRecord22(), getRecord22Count(), getRecord22List()
+  // - enum 'record_count' (field 23) → getRecordCount23()
+  enum RecordCount {
+    RECORD_COUNT_UNSPECIFIED = 0;
+    RECORD_COUNT_SMALL = 1;
+    RECORD_COUNT_LARGE = 2;
+  }
+  repeated string record = 22;
+  RecordCount record_count = 23;
+}
