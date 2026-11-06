@@ -30,11 +30,13 @@ import java.util.Properties;
 public class DatadogHttpReporterFactory implements MetricReporterFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatadogHttpReporterFactory.class);
+    private static final String DEFAULT_DATACENTER_DOMAIN = "https://app.datadoghq.%s";
 
     private static final String API_KEY = "apikey";
     private static final String PROXY_HOST = "proxyHost";
     private static final String PROXY_PORT = "proxyPort";
     private static final String DATA_CENTER = "dataCenter";
+    private static final String DATA_CENTER_URL = "dataCenterUrl";
     private static final String TAGS = "tags";
     private static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
     private static final String USE_LOGICAL_IDENTIFIER = "useLogicalIdentifier";
@@ -44,10 +46,18 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
         final String apiKey = config.getProperty(API_KEY, null);
         final String proxyHost = config.getProperty(PROXY_HOST, null);
         final int proxyPort = Integer.valueOf(config.getProperty(PROXY_PORT, "8080"));
+
+        if (config.containsKey(DATA_CENTER)) {
+            LOG.warn(
+                    "The 'dataCenter' option is deprecated; please use 'dataCenterUrl' instead.");
+        }
         final String rawDataCenter = config.getProperty(DATA_CENTER, "US");
+        final String dataCenterUrl = config.getProperty(
+                DATA_CENTER_URL,
+                String.format(DEFAULT_DATACENTER_DOMAIN,  DataCenter.valueOf(rawDataCenter).getDomain()));
+
         final int maxMetricsPerRequestValue =
                 Integer.valueOf(config.getProperty(MAX_METRICS_PER_REQUEST, "2000"));
-        final DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
         if (config.containsKey(TAGS)) {
             LOG.warn(
                     "The 'tags' option is deprecated; please use 'scope.variables.additional' instead.");
@@ -61,7 +71,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
                 proxyHost,
                 proxyPort,
                 maxMetricsPerRequestValue,
-                dataCenter,
+                dataCenterUrl,
                 tags,
                 useLogicalIdentifier);
     }
