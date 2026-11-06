@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -47,6 +49,7 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerEnvironmentHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingListHandler;
@@ -113,6 +116,7 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHan
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingListHandler;
@@ -183,6 +187,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingLi
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
+import org.apache.flink.runtime.rest.util.EnvironmentInfoUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
@@ -311,6 +316,40 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 .setMaxThreadInfoDepth(
                         clusterConfiguration.get(RestOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
                 .build();
+    }
+
+    /**
+     * Returns the YARN container context if YARN log urls are enabled and the container environment
+     * is complete, otherwise empty, in which case the generated log url handlers are used.
+     */
+    @VisibleForTesting
+    protected Optional<EnvironmentInfoUtils.EnvironmentContext> readYarnEnvironmentContext() {
+        return EnvironmentInfoUtils.getEnvironmentContext();
+    }
+
+    private Optional<EnvironmentInfoUtils.EnvironmentContext> getYarnLogUrlEnvironmentContext() {
+        if (!clusterConfiguration.get(
+                HistoryServerOptions
+                        .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS)) {
+            return Optional.empty();
+        }
+        final Optional<EnvironmentInfoUtils.EnvironmentContext> context =
+                readYarnEnvironmentContext();
+        if (context.isPresent()) {
+            log.info(
+                    "Serving and archiving YARN NodeManager log urls ({}: true).",
+                    HistoryServerOptions
+                            .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS
+                            .key());
+        } else {
+            log.warn(
+                    "{} is enabled, but the YARN container environment variables (CONTAINER_ID, NM_HOST, NM_HTTP_PORT, USER)"
+                            + " are not all set. Falling back to the default log url handlers.",
+                    HistoryServerOptions
+                            .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS
+                            .key());
+        }
+        return context;
     }
 
     @Override
@@ -928,8 +967,36 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobManagerJobConfigurationHandler.getMessageHeaders(),
                         jobManagerJobConfigurationHandler));
-        handlers.add(Tuple2.of(JobManagerLogUrlHeaders.getInstance(), jobManagerLogUrlHandler));
-        handlers.add(Tuple2.of(TaskManagerLogUrlHeaders.getInstance(), taskManagerLogUrlHandler));
+
+        final Optional<EnvironmentInfoUtils.EnvironmentContext> yarnLogUrlContext =
+                getYarnLogUrlEnvironmentContext();
+        if (yarnLogUrlContext.isPresent()) {
+            final JobManagerLogUrlHandler yarnJobManagerLogUrlHandler =
+                    new JobManagerLogUrlHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            JobManagerLogUrlHeaders.getInstance(),
+                            yarnLogUrlContext.get());
+            final TaskManagerLogUrlHandler yarnTaskManagerLogUrlHandler =
+                    new TaskManagerLogUrlHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerLogUrlHeaders.getInstance(),
+                            executionGraphCache,
+                            executor,
+                            yarnLogUrlContext.get());
+            handlers.add(
+                    Tuple2.of(JobManagerLogUrlHeaders.getInstance(), yarnJobManagerLogUrlHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerLogUrlHeaders.getInstance(), yarnTaskManagerLogUrlHandler));
+        } else {
+            handlers.add(Tuple2.of(JobManagerLogUrlHeaders.getInstance(), jobManagerLogUrlHandler));
+            handlers.add(
+                    Tuple2.of(TaskManagerLogUrlHeaders.getInstance(), taskManagerLogUrlHandler));
+        }
 
         final AbstractRestHandler<?, ?, ?, ?> jobVertexFlameGraphHandler;
         if (clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH)) {
