@@ -20,7 +20,6 @@ package org.apache.flink.client.program.artifact;
 import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +54,7 @@ class HttpArtifactFetcher extends ArtifactFetcher {
         String fileName = FilenameUtils.getName(url.getPath());
         File targetFile = new File(targetDir, fileName);
         try (InputStream inputStream = conn.getInputStream()) {
-            FileUtils.copyToFile(inputStream, targetFile);
+            ArtifactUtils.copyToFileWhenComplete(inputStream, targetFile);
         }
         LOG.debug(
                 "Copied file from {} to {}, cost {} ms",
