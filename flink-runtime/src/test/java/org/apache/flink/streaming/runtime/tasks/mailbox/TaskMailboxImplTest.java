@@ -395,6 +395,18 @@ class TaskMailboxImplTest {
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailB);
     }
 
+    @Test
+    void testNonUrgentMailQueuedBehindUrgentMailIsTakenFromBatch() {
+        Mail urgentMail = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "urgentMail");
+        Mail mail = new Mail(() -> {}, DEFAULT_PRIORITY, "mail");
+
+        taskMailbox.put(urgentMail);
+        taskMailbox.put(mail);
+
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(urgentMail);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail);
+    }
+
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
     void testMailOrderWithBatch(boolean isAsyncPut) throws Exception {
