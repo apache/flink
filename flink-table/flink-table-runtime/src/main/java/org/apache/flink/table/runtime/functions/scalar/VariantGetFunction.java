@@ -104,10 +104,10 @@ public class VariantGetFunction extends BuiltInScalarFunction {
         if (value == null || converter == null) {
             return value;
         }
-        if (value.isNull()) {
-            return null;
-        }
         try {
+            if (FromVariantConverter.isVariantNull(value)) {
+                return null;
+            }
             return converter.convert(value);
         } catch (RuntimeException e) {
             if (isTry) {
