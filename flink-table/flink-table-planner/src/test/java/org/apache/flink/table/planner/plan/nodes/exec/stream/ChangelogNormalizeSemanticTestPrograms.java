@@ -18,12 +18,18 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * {@link TableTestProgram} definitions for semantic testing {@link StreamExecChangelogNormalize}.
@@ -77,6 +83,39 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             "+U[two, 1, dd]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 3")
+                    .build();
+
+    static final TableTestProgram UPSERT_SOURCE_WITH_NON_DETERMINISTIC_FILTER =
+            TableTestProgram.of(
+                            "upsert-with-non-deterministic-filter",
+                            "validates retractions without reevaluating a non-deterministic filter")
+                    .setupConfig(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false)
+                    .setupTemporarySystemFunction("first_occurrence", FirstOccurrenceFilter.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(SOURCE_SCHEMA)
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "one", 1, "a"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 2, "bb"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 1, "ccc"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 3, "dddd"),
+                                            Row.ofKind(RowKind.DELETE, "one", 3, "dddd"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addMode(ChangelogMode.all())
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[one, 1, a]",
+                                            "-U[one, 1, a]",
+                                            "+U[one, 2, bb]",
+                                            "-D[one, 2, bb]",
+                                            "+I[one, 3, dddd]",
+                                            "-D[one, 3, dddd]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE first_occurrence(b)")
                     .build();
 
     static final TableTestProgram UPSERT_SOURCE_WITH_KEY_FILTER =
@@ -349,4 +388,24 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t")
                     .build();
+
+    /** Rejects previously evaluated values so retractions cannot safely reevaluate this filter. */
+    public static class FirstOccurrenceFilter extends ScalarFunction {
+
+        private transient Set<Integer> seenValues;
+
+        @Override
+        public void open(FunctionContext context) {
+            seenValues = new HashSet<>();
+        }
+
+        public boolean eval(Integer value) {
+            return seenValues.add(value);
+        }
+
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+    }
 }
