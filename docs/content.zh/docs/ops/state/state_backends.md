@@ -485,7 +485,14 @@ env.enable_changelog_statebackend(true)
 - 给定一个没有开启 Changelog 的作业
 - 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - 更改配置（开启 Changelog）
-- 从创建的 snapshot 恢复
+- 以 [CLAIM]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}}) 模式从创建的 snapshot 恢复
+
+{{< hint warning >}}
+Changelog state backend 不支持默认的 `NO_CLAIM` 模式。开启 Changelog 的作业以 `NO_CLAIM` 模式恢复时可以恢复成功，
+但之后的 checkpoint 都会失败，并抛出 `IllegalStateException`，提示该 state backend 不支持强制创建完整 snapshot，因此作业始终无法完成任何 checkpoint。
+恢复开启 Changelog 的作业时，请将 [`execution.state-recovery.claim-mode`]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}})
+设置为 `CLAIM`（或在 `bin/flink run` 中指定 `-claimMode CLAIM`）。
+{{< /hint >}}
 
 **关闭 Changelog**
 
@@ -500,7 +507,7 @@ env.enable_changelog_statebackend(true)
 ### 限制
 - 最多同时创建一个 checkpoint
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
-- 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
+- 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}}) 模式：开启 Changelog 的作业必须以 `CLAIM` 模式恢复
 
 {{< top >}}
 
