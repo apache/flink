@@ -21,10 +21,11 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, GREATER_THAN, IS_NOT_DISTINCT_FROM, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
 import org.apache.calcite.util.ImmutableBitSet
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.{assertThatIterable, assertThatThrownBy}
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -667,8 +668,10 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(0, 2, 3, 4, 5, 6, 7, 8, 9)))
 
     // without equi join condition
+    // there is no equi-condition, so the nullable unique key b of the null-padded left side may be
+    // null on matched rows
     assertEquals(
-      ImmutableBitSet.of(1, 5, 6, 7, 8, 9),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
       mq.getUniqueGroups(
         logicalRightJoinWithoutEquiCond,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
@@ -681,15 +684,17 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
 
     // full outer join
+    // the unique keys are nullable, so they cannot tell the rows padded with nulls apart from the
+    // real rows whose unique keys are null
     // both left join keys and right join keys are unique
     assertEquals(
-      ImmutableBitSet.of(1),
+      ImmutableBitSet.of(0, 1, 2, 3, 4),
       mq.getUniqueGroups(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(0, 1, 2, 3, 4)))
     assertEquals(
-      ImmutableBitSet.of(5),
+      ImmutableBitSet.of(5, 6, 7, 8),
       mq.getUniqueGroups(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(5, 6, 7, 8)))
     assertEquals(
-      ImmutableBitSet.of(1, 5),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8),
       mq.getUniqueGroups(
         logicalFullJoinOnUniqueKeys,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8)))
@@ -699,7 +704,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
     // left join keys are not unique and right join keys are unique
     assertEquals(
-      ImmutableBitSet.of(0, 1, 2, 3, 4, 6),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
       mq.getUniqueGroups(
         logicalFullJoinOnRHSUniqueKeys,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
@@ -711,7 +716,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
     // left join keys are unique and right join keys are not unique
     assertEquals(
-      ImmutableBitSet.of(1, 5, 6, 7, 8, 9),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
       mq.getUniqueGroups(
         logicalFullJoinOnLHSUniqueKeys,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
@@ -723,7 +728,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
     // neither left join keys nor right join keys are unique (non join columns have unique columns)
     assertEquals(
-      ImmutableBitSet.of(1, 5, 6, 7, 8, 9),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
       mq.getUniqueGroups(
         logicalFullJoinNotOnUniqueKeys,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
@@ -735,14 +740,14 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
     // with non-equi join condition
     assertEquals(
-      ImmutableBitSet.of(1, 5, 6, 7, 8, 9),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
       mq.getUniqueGroups(
         logicalFullJoinWithEquiAndNonEquiCond,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
 
     // without equi join condition
     assertEquals(
-      ImmutableBitSet.of(1, 5, 6, 7, 8, 9),
+      ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
       mq.getUniqueGroups(
         logicalFullJoinWithoutCond,
         ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
@@ -798,6 +803,47 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       ImmutableBitSet.of(1),
       mq.getUniqueGroups(logicalAntiJoinWithEquiAndNonEquiCond, ImmutableBitSet.of(0, 1, 2, 3, 4)))
+  }
+
+  @Test
+  def testGetUniqueGroupsOnOuterJoinWithNullPaddedInput(): Unit = {
+    // select * from MyTable1 left join MyTable4 on MyTable1.e = MyTable4.c
+    val leftJoinNotOnUniqueKeys = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(
+        JoinRelType.LEFT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 2)))
+      .build
+    // the unique key MyTable4.a is nullable and not a join key, so it may be null on matched rows
+    assertThatIterable(mq.getUniqueGroups(leftJoinNotOnUniqueKeys, ImmutableBitSet.of(5, 6, 7, 8)))
+      .isEqualTo(ImmutableBitSet.of(5, 6, 7, 8))
+
+    // select * from MyTable1 left join MyTable4 on MyTable1.b is not distinct from MyTable4.a
+    val leftJoinNullSafeOnUniqueKeys = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(
+        JoinRelType.LEFT,
+        relBuilder.call(IS_NOT_DISTINCT_FROM, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build
+    // the null-safe join key MyTable4.a may be null on matched rows
+    assertThatIterable(
+      mq.getUniqueGroups(leftJoinNullSafeOnUniqueKeys, ImmutableBitSet.of(5, 6, 7, 8)))
+      .isEqualTo(ImmutableBitSet.of(5, 6, 7, 8))
+
+    // select * from TableSourceTable1 full join MyTable2 on TableSourceTable1.a = MyTable2.a
+    val fullJoinOnNotNullUniqueKeys = relBuilder
+      .scan("TableSourceTable1")
+      .scan("MyTable2")
+      .join(
+        JoinRelType.FULL,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
+    // the unique key (a, b) of TableSourceTable1 contains the NOT NULL column a
+    assertThatIterable(
+      mq.getUniqueGroups(fullJoinOnNotNullUniqueKeys, ImmutableBitSet.of(0, 1, 2, 3)))
+      .isEqualTo(ImmutableBitSet.of(0, 1))
   }
 
   @Test
