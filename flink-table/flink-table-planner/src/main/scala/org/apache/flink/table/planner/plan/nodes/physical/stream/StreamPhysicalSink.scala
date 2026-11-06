@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpsertKeyUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpsertKeyEquivalenceUtil, UpsertKeyUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -107,6 +107,9 @@ class StreamPhysicalSink(
     tableSinkSpec.setTableSink(tableSink)
     // no need to call getUpsertKeysInKeyGroupRange here because there's no exchange before sink,
     // and only add exchange in exec sink node.
+    // the reported keys are the ones to use: only the upsert materializer reads this key, and it is
+    // only added when no upsert key fits the pk, even through equi-join equivalences (see
+    // primaryKeysContainsUpsertKey), or when forced.
     val inputUpsertKeys = FlinkRelMetadataQuery
       .reuseOrCreate(cluster.getMetadataQuery)
       .getUpsertKeys(inputRel)
@@ -147,8 +150,9 @@ class StreamPhysicalSink(
     val primaryKeys = contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
     val pks = ImmutableBitSet.of(primaryKeys: _*)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
-    val changeLogUpsertKeys = fmq.getUpsertKeys(getInput)
-    changeLogUpsertKeys != null && changeLogUpsertKeys.asScala.exists(pks.contains)
+    // upsert keys within the pk, treating equi-join-equivalent columns as interchangeable
+    val changeLogUpsertKeys = UpsertKeyEquivalenceUtil.upsertKeysWithin(getInput, pks, fmq)
+    changeLogUpsertKeys != null && !changeLogUpsertKeys.isEmpty
   }
 
   def getUpsertKeyNames: String = {

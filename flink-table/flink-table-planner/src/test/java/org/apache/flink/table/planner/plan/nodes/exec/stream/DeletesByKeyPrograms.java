@@ -296,6 +296,197 @@ public final class DeletesByKeyPrograms {
                             "INSERT INTO sink_t SELECT l.id, r.name, l.v FROM left_t l JOIN right_t r ON l.id = r.id")
                     .build();
 
+    /**
+     * The sink primary key (l_id, sub) is not an upsert key of the join, but equals the upsert key
+     * (r_id, sub) through l.id = r.id. Deletes by key must still carry l_id.
+     */
+    public static final TableTestProgram JOIN_ON_EQUIVALENT_KEY_INTO_DELETES_BY_KEY =
+            TableTestProgram.of(
+                            "join-on-equivalent-key-into-delete-by-key",
+                            "No ChangelogNormalize: validates results when joining sources with deletes by key"
+                                    + " only, writing to sink supporting deletes by key whose primary"
+                                    + " key matches the join's upsert key only through the join condition")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("left_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            Row.ofKind(RowKind.INSERT, 3, 30),
+                                            // Delete by key
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 3, 40))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("right_t")
+                                    .addSchema(
+                                            "id INT",
+                                            "sub STRING",
+                                            "name STRING",
+                                            "PRIMARY KEY (id, sub) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "a", "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "a", "Bob"),
+                                            Row.ofKind(RowKind.INSERT, 2, "b", "Bobby"),
+                                            Row.ofKind(RowKind.INSERT, 3, "a", "Emily"),
+                                            // Delete by key
+                                            Row.ofKind(RowKind.DELETE, 2, "b", null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, "a", "BOB"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "l_id INT",
+                                            "r_id INT",
+                                            "sub STRING",
+                                            "name STRING",
+                                            "v INT",
+                                            "PRIMARY KEY (l_id, sub) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .testMaterializedData()
+                                    .consumedValues(
+                                            "+I[2, 2, a, BOB, 20]", "+I[3, 3, a, Emily, 40]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT l.id, r.id, r.sub, r.name, l.v FROM left_t l JOIN right_t r ON l.id = r.id")
+                    .build();
+
+    /**
+     * Like {@link #JOIN_ON_EQUIVALENT_KEY_INTO_DELETES_BY_KEY}, but r.id is projected away, so the
+     * sink primary key (l_id, sub) is an upsert key only through l.id = r.id.
+     */
+    public static final TableTestProgram JOIN_ON_EQUIVALENT_KEY_PROJECTED_AWAY_INTO_DELETES_BY_KEY =
+            TableTestProgram.of(
+                            "join-on-equivalent-key-projected-away-into-delete-by-key",
+                            "No ChangelogNormalize: validates results when the join column the upsert key"
+                                    + " uses is projected away and the sink primary key relies on the"
+                                    + " column it is equated with, writing to sink supporting deletes by key")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("left_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            Row.ofKind(RowKind.INSERT, 3, 30),
+                                            // Delete by key
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 3, 40))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("right_t")
+                                    .addSchema(
+                                            "id INT",
+                                            "sub STRING",
+                                            "name STRING",
+                                            "PRIMARY KEY (id, sub) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "a", "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "a", "Bob"),
+                                            Row.ofKind(RowKind.INSERT, 2, "b", "Bobby"),
+                                            Row.ofKind(RowKind.INSERT, 3, "a", "Emily"),
+                                            // Delete by key
+                                            Row.ofKind(RowKind.DELETE, 2, "b", null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, "a", "BOB"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "l_id INT",
+                                            "sub STRING",
+                                            "name STRING",
+                                            "v INT",
+                                            "PRIMARY KEY (l_id, sub) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[2, a, BOB, 20]", "+I[3, a, Emily, 40]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT l.id, r.sub, r.name, l.v FROM left_t l JOIN right_t r ON l.id = r.id")
+                    .build();
+
+    /**
+     * The sink primary key (id, l_tenant, line) equals the upsert key (id, r_tenant, line) through
+     * l.tenant = r.tenant, but with l.id projected away l_tenant is in no reported upsert key.
+     * Deletes by key must still carry l_tenant.
+     */
+    public static final TableTestProgram JOIN_ON_EQUIVALENT_KEY_COLUMN_INTO_DELETES_BY_KEY =
+            TableTestProgram.of(
+                            "join-on-equivalent-key-column-into-delete-by-key",
+                            "No ChangelogNormalize: validates results when the sink primary key matches"
+                                    + " the join's upsert key only through a column that is in no"
+                                    + " reported upsert key, writing to sink supporting deletes by key")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("left_t")
+                                    .addSchema(
+                                            "id INT",
+                                            "tenant INT",
+                                            "v INT",
+                                            "PRIMARY KEY (id, tenant) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 100, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 100, 20),
+                                            Row.ofKind(RowKind.INSERT, 3, 100, 30),
+                                            // Delete by key
+                                            Row.ofKind(RowKind.DELETE, 3, 100, null))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("right_t")
+                                    .addSchema(
+                                            "id INT",
+                                            "tenant INT",
+                                            "line STRING",
+                                            "name STRING",
+                                            "PRIMARY KEY (id, tenant, line) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 100, "a", "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, 100, "a", "Bob"),
+                                            Row.ofKind(RowKind.INSERT, 2, 100, "b", "Bobby"),
+                                            Row.ofKind(RowKind.INSERT, 3, 100, "a", "Carl"),
+                                            // Delete by key
+                                            Row.ofKind(RowKind.DELETE, 2, 100, "b", null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 100, "a", "BOB"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "id INT",
+                                            "l_tenant INT",
+                                            "r_tenant INT",
+                                            "line STRING",
+                                            "name STRING",
+                                            "v INT",
+                                            "PRIMARY KEY (id, l_tenant, line) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .testMaterializedData()
+                                    .consumedValues(
+                                            "+I[1, 100, 100, a, Alice, 10]",
+                                            "+I[2, 100, 100, a, BOB, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT r.id, l.tenant, r.tenant, r.line, r.name, l.v"
+                                    + " FROM left_t l JOIN right_t r ON l.id = r.id AND l.tenant = r.tenant")
+                    .build();
+
     public static final TableTestProgram DELETE_BY_KEY_DELETE_BY_KEY_WITH_EXPRESSION =
             TableTestProgram.of(
                             "delete-by-key-delete-by-key-with-expression",

@@ -1137,32 +1137,27 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     private def canUpsertKeysWithImmutableColsSatisfyPk(sink: StreamPhysicalSink): Boolean = {
       val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
       val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-      val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
       if (sinkDefinedPks.isEmpty) {
         // A keyless sink can only stay upsert when the input has a real, column-based upsert
         // key. An empty candidate means "at most one row" (e.g. a global aggregate), not columns
         // to match on - UpsertKeyUtil.getSmallestKey would otherwise prefer it over a real one.
+        val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
         return changeLogUpsertKeys != null && changeLogUpsertKeys.nonEmpty &&
           !changeLogUpsertKeys.exists(_.isEmpty)
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
-      // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
+      // upsert keys within the sink pk, modulo equi-join equivalence;
+      // null => fall back to beforeAndAfter
+      val changeLogUpsertKeys =
+        UpsertKeyEquivalenceUtil.upsertKeysWithin(sink.getInput, sinkPks, fmq)
       if (changeLogUpsertKeys == null) {
         return false
       }
       val immutableCols =
         Option.apply(fmq.getImmutableColumns(sink.getInput)).getOrElse(ImmutableBitSet.of())
 
-      // when input immutableCols is empty, this degrades to uk.equals(sinkPks)
-      changeLogUpsertKeys.exists(
-        uk => {
-          // 1. uk ⊆ sinkPks
-          val isSinkPkContainsUk = sinkPks.contains(uk)
-          // 2. (sinkPks \ uk) ⊆ immutableCols
-          val extraSinkPkCols = sinkPks.except(uk)
-          val areExtraSinkPkColsImmutable = immutableCols.contains(extraSinkPkCols)
-          isSinkPkContainsUk && areExtraSinkPkColsImmutable
-        })
+      // each key is already within the sink pk; the remaining pk columns must be immutable
+      changeLogUpsertKeys.exists(uk => immutableCols.contains(sinkPks.except(uk)))
     }
 
     /**
@@ -1699,12 +1694,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       if (sinkDefinedPks.nonEmpty) {
         val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
         val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-        val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+        // upsert keys within the sink pk, modulo equi-join equivalence
+        val changeLogUpsertKeys =
+          UpsertKeyEquivalenceUtil.upsertKeysWithin(sink.getInput, sinkPks, fmq)
         // if input is UA only, primary key != upsert key (upsert key can be null) we should
         // fallback to beforeAndAfter.
         // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
         // this differs from batch job's unique key inference
-        if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(_.equals(sinkPks))) {
+        if (changeLogUpsertKeys == null || !changeLogUpsertKeys.contains(sinkPks)) {
           upsertKeyDifferentFromPk = true
         }
       }
@@ -1713,15 +1710,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   }
 
   /**
-   * Whether this calc's own output still has an upsert key after its projection. A DELETE_BY_KEY
-   * tombstone passed through this calc must still carry a key in its output, otherwise nothing
-   * downstream would know what to delete.
+   * Whether this calc's own output still has an upsert key after its projection, including one
+   * recovered through an equi-join equivalence. A DELETE_BY_KEY tombstone passed through this calc
+   * must still carry a key in its output, otherwise nothing downstream would know what to delete.
    *
    * This method is an extra safety net, in case downstream consumers don't require an upsert key.
    */
   private def hasOutputUpsertKey(calc: StreamPhysicalCalcBase): Boolean = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(calc)
+    val allColumns = ImmutableBitSet.range(calc.getRowType.getFieldCount)
+    val upsertKeys = UpsertKeyEquivalenceUtil.upsertKeysWithin(calc, allColumns, fmq)
     upsertKeys != null && upsertKeys.exists(!_.isEmpty)
   }
 

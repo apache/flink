@@ -49,7 +49,8 @@ object FlinkDefaultRelMetadataProvider {
       FlinkRelMdCollation.SOURCE,
       RelMdExplainVisibility.SOURCE,
       FlinkRelMdWindowProperties.SOURCE,
-      FlinkRelMdImmutableColumns.SOURCE
+      FlinkRelMdImmutableColumns.SOURCE,
+      FlinkRelMdEquiJoinColumnPairs.SOURCE
     )
   )
 }
