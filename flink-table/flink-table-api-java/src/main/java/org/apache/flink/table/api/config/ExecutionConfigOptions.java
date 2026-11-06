@@ -825,6 +825,22 @@ public class ExecutionConfigOptions {
                                     + " 2 - version with improved performance");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION =
+            key("table.exec.event-time-temporal-join.version")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            "Which version of the event-time temporal join operator to use for "
+                                    + "newly planned queries: "
+                                    + "1 - legacy implementation; use it to restore state created "
+                                    + "with version 1, e.g. by jobs that were submitted without a "
+                                    + "compiled plan before this option was introduced. "
+                                    + "2 - implementation that reads state in time order on the "
+                                    + "RocksDB and ForSt state backends. "
+                                    + "The two versions have incompatible state. Compiled plans "
+                                    + "keep the version they were compiled with.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UidGeneration> TABLE_EXEC_UID_GENERATION =
             key("table.exec.uid.generation")
                     .enumType(UidGeneration.class)
