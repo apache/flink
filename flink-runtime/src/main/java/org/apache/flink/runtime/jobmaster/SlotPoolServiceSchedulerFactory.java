@@ -71,7 +71,9 @@ public interface SlotPoolServiceSchedulerFactory {
     JobManagerOptions.SchedulerType getSchedulerType();
 
     /**
-     * Creates a {@link SchedulerNG}.
+     * Creates a {@link SchedulerNG}. All executors are borrowed. The recovery executor is only for
+     * adaptive graph creation and state assignment, not asynchronous checkpoint-trigger
+     * initialization or cleanup.
      *
      * @return created SchedulerNG
      * @throws Exception if the scheduler creation fails
@@ -80,6 +82,7 @@ public interface SlotPoolServiceSchedulerFactory {
             Logger log,
             ExecutionPlan executionPlan,
             Executor ioExecutor,
+            Executor recoveryExecutor,
             Configuration configuration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
