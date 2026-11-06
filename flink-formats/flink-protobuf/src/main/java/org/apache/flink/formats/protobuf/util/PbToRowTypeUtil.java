@@ -36,6 +36,9 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /** Generate Row type information according to pb descriptors. */
 public class PbToRowTypeUtil {
     public static RowType generateRowType(Descriptors.Descriptor root) {
@@ -43,20 +46,43 @@ public class PbToRowTypeUtil {
     }
 
     public static RowType generateRowType(Descriptors.Descriptor root, boolean enumAsInt) {
+        // Track message types currently being resolved in the ancestor chain to detect
+        // recursive references (e.g., A -> B -> A). Without this, recursive proto
+        // definitions cause infinite recursion and StackOverflowError.
+        Set<String> ancestors = new HashSet<>();
+        return generateRowTypeInternal(root, enumAsInt, ancestors);
+    }
+
+    /**
+     * @param ancestors message type full names currently being resolved in the call stack. Used to
+     *     detect cycles: if a field's message type is already in this set, it's a recursive
+     *     reference and gets emitted as BYTES instead of recursing infinitely.
+     */
+    private static RowType generateRowTypeInternal(
+            Descriptors.Descriptor root, boolean enumAsInt, Set<String> ancestors) {
         int size = root.getFields().size();
         LogicalType[] types = new LogicalType[size];
         String[] rowFieldNames = new String[size];
 
-        for (int i = 0; i < size; i++) {
-            FieldDescriptor field = root.getFields().get(i);
-            rowFieldNames[i] = field.getName();
-            types[i] = generateFieldTypeInformation(field, enumAsInt);
+        // Mark this type as "being resolved" before processing its fields
+        String fullName = root.getFullName();
+        ancestors.add(fullName);
+
+        try {
+            for (int i = 0; i < size; i++) {
+                FieldDescriptor field = root.getFields().get(i);
+                rowFieldNames[i] = field.getName();
+                types[i] = generateFieldTypeInformation(field, enumAsInt, ancestors);
+            }
+        } finally {
+            // Unmark when we're done - sibling branches shouldn't see this type as an ancestor
+            ancestors.remove(fullName);
         }
         return RowType.of(types, rowFieldNames);
     }
 
     private static LogicalType generateFieldTypeInformation(
-            FieldDescriptor field, boolean enumAsInt) {
+            FieldDescriptor field, boolean enumAsInt, Set<String> ancestors) {
         JavaType fieldType = field.getJavaType();
         LogicalType type;
         if (fieldType.equals(JavaType.MESSAGE)) {
@@ -66,16 +92,36 @@ public class PbToRowTypeUtil {
                                 generateFieldTypeInformation(
                                         field.getMessageType()
                                                 .findFieldByName(PbConstant.PB_MAP_KEY_NAME),
-                                        enumAsInt),
+                                        enumAsInt,
+                                        ancestors),
                                 generateFieldTypeInformation(
                                         field.getMessageType()
                                                 .findFieldByName(PbConstant.PB_MAP_VALUE_NAME),
-                                        enumAsInt));
+                                        enumAsInt,
+                                        ancestors));
                 return mapType;
-            } else if (field.isRepeated()) {
-                return new ArrayType(generateRowType(field.getMessageType()));
+            }
+
+            // Cycle detection: if this field's message type is already being resolved
+            // in the ancestor chain, we have a recursive proto definition
+            // (e.g., Node -> Child -> Node). Columnar schemas cannot represent
+            // infinite recursion, so we emit the field as raw BYTES. The protobuf
+            // binary is preserved and can be deserialized on demand if consumers
+            // need the recursive data.
+            String msgFullName = field.getMessageType().getFullName();
+            if (ancestors.contains(msgFullName)) {
+                LogicalType bytesType = new VarBinaryType(Integer.MAX_VALUE);
+                if (field.isRepeated()) {
+                    return new ArrayType(bytesType);
+                }
+                return bytesType;
+            }
+
+            if (field.isRepeated()) {
+                return new ArrayType(
+                        generateRowTypeInternal(field.getMessageType(), enumAsInt, ancestors));
             } else {
-                return generateRowType(field.getMessageType());
+                return generateRowTypeInternal(field.getMessageType(), enumAsInt, ancestors);
             }
         } else {
             if (fieldType.equals(JavaType.STRING)) {
