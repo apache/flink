@@ -363,6 +363,12 @@ By default no operator is disabled.</td>
             <td>Specifies a minimum time interval for how long idle state (i.e. state which was not updated), will be retained. State will never be cleared until it was idle for less than the minimum time, and will be cleared at some time after it was idle. Default is never clean-up the state. NOTE: Cleaning up state requires additional overhead for bookkeeping. Default value is 0, which means that it will never clean up state.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.temporal-join.rowtime.use-heap</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, the event-time temporal join keeps the buffered probe-side (left) rows in a min-heap ordered by event time, so that each watermark only touches the rows that are ready to be emitted instead of scanning all buffered rows. This mainly helps when many rows are buffered ahead of the watermark. Note: the state layout differs between the two modes, so changing this option is not compatible with existing checkpoints and savepoints.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.udf-metric-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
