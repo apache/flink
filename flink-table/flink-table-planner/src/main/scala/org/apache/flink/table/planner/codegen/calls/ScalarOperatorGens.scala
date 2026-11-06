@@ -1421,6 +1421,15 @@ object ScalarOperatorGens {
     GeneratedExpression(arrayTerm, GeneratedExpression.NEVER_NULL, code, arrayType)
   }
 
+  // A literal index below 1 can never address an element. A computed one returns NULL instead.
+  private def validateLiteralArrayIndex(index: GeneratedExpression): Unit =
+    index.literalValue match {
+      case Some(v: Number) if v.longValue() < 1 =>
+        throw new ValidationException(
+          s"Array element access needs an index starting at 1 but was $v.")
+      case _ => // nothing
+    }
+
   /**
    * Return null when array index out of bounds which follows Calcite's behaviour.
    * @see
@@ -1435,12 +1444,7 @@ object ScalarOperatorGens {
     val resultTypeTerm = primitiveTypeTermForType(componentInfo)
     val defaultTerm = primitiveDefaultValue(componentInfo)
 
-    index.literalValue match {
-      case Some(v: Int) if v < 1 =>
-        throw new ValidationException(
-          s"Array element access needs an index starting at 1 but was $v.")
-      case _ => // nothing
-    }
+    validateLiteralArrayIndex(index)
     val idxStr = s"${index.resultTerm} - 1"
     val arrayIsNull = s"${array.resultTerm}.isNullAt($idxStr)"
     val arrayGet =
@@ -1738,6 +1742,7 @@ object ScalarOperatorGens {
     val keyType = key.resultType
 
     val accessCode = if (isIntegerNumeric(keyType)) {
+      validateLiteralArrayIndex(key)
       val elementAccess = if (keyType.is(BIGINT)) {
         // Narrowing a BIGINT key to int before the range check would wrap an out-of-range key
         // onto an existing element. A smaller key cannot wrap onto a valid index.
