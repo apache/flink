@@ -75,14 +75,14 @@ class SplitFetcherPauseResumeSplitReaderTest {
 
         if (individualReader) {
             testHarness.addPrefilledSplitsIndividualReader(2, 5);
-            assertThat(numSplitReaders.get()).isEqualTo(2);
         } else {
             testHarness.addPrefilledSplitsSingleReader(2, 5);
-            assertThat(numSplitReaders.get()).isEqualTo(1);
         }
 
         TestingReaderOutput output = new TestingReaderOutput<>();
         testHarness.runUntilRecordsEmitted(output, 10, 2);
+        // Each fetcher creates its split reader when it first runs.
+        assertThat(numSplitReaders.get()).isEqualTo(individualReader ? 2 : 1);
         Set<Integer> recordSet = new HashSet<>(output.getEmittedRecords());
         assertThat(recordSet).containsExactlyInAnyOrder(0, 1);
 
@@ -125,10 +125,11 @@ class SplitFetcherPauseResumeSplitReaderTest {
                         configuration);
 
         testHarness.addPrefilledSplitsIndividualReader(2, 5);
-        assertThat(numSplitReaders.get()).isEqualTo(2);
 
         TestingReaderOutput output = new TestingReaderOutput<>();
         testHarness.runUntilRecordsEmitted(output, 10, 2);
+        // Each fetcher creates its split reader when it first runs.
+        assertThat(numSplitReaders.get()).isEqualTo(2);
         Set<Integer> recordSet = new HashSet<>(output.getEmittedRecords());
         assertThat(recordSet).containsExactlyInAnyOrder(0, 1);
 

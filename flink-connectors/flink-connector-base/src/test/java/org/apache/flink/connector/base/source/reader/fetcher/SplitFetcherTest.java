@@ -73,6 +73,34 @@ class SplitFetcherTest {
     }
 
     @Test
+    void testSplitReaderRequestedBeforeStartIsCreatedOnce() {
+        final AtomicInteger numCreated = new AtomicInteger();
+        final TestingSplitReader<Object, TestingSourceSplit> reader = new TestingSplitReader<>();
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                new SplitFetcher<>(
+                        0,
+                        new FutureCompletingBlockingQueue<>(),
+                        () -> {
+                            numCreated.incrementAndGet();
+                            return reader;
+                        },
+                        ExceptionUtils::rethrow,
+                        () -> {},
+                        (ignore) -> {},
+                        false);
+
+        // Asking before the fetcher runs creates the reader on the calling thread.
+        assertThat(fetcher.getSplitReader()).isSameAs(reader);
+
+        fetcher.shutdown();
+        fetcher.run();
+
+        assertThat(fetcher.getSplitReader()).isSameAs(reader);
+        assertThat(numCreated).hasValue(1);
+        assertThat(reader.isClosed()).isTrue();
+    }
+
+    @Test
     void testIdleAfterFinishedSplitsEnqueued() {
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
                 createFetcherWithSplit(
