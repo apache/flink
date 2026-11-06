@@ -151,6 +151,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                         leftIsSmaller,
                         filterNulls,
                         managedMemory,
+                        externalBufferMemory,
                         planner.getFlinkContext().getClassLoader());
 
         Transformation<RowData> leftInputTransform =
