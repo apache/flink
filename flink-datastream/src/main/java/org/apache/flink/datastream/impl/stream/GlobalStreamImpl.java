@@ -56,6 +56,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.datastream.impl.utils.StreamUtils.validateStates;
 
 /** The implementation of {@link GlobalStream}. */
@@ -99,6 +100,13 @@ public class GlobalStreamImpl<T> extends AbstractDataStream<T> implements Global
                             operator,
                             AttributeParser.parseAttribute(processFunction)));
         }
+    }
+
+    @Override
+    public GlobalStream<T> returns(TypeInformation<T> typeInfo) {
+        requireNonNull(typeInfo, "TypeInformation must not be null");
+        transformation.setOutputType(typeInfo);
+        return this;
     }
 
     @Override

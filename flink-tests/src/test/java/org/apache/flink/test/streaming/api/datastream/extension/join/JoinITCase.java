@@ -19,6 +19,8 @@
 package org.apache.flink.test.streaming.api.datastream.extension.join;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.DataStreamV2SourceUtils;
 import org.apache.flink.api.connector.dsv2.WrappedSink;
 import org.apache.flink.api.connector.sink2.Sink;
@@ -33,7 +35,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.datastream.api.ExecutionEnvironment;
 import org.apache.flink.datastream.api.builtin.BuiltinFuncs;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.extension.join.JoinFunction;
 import org.apache.flink.datastream.api.extension.join.JoinType;
@@ -95,12 +96,24 @@ class JoinITCase extends AbstractTestBase implements Serializable {
 
         NonKeyedPartitionStream<String> joinedStream =
                 BuiltinFuncs.join(
-                        source1,
-                        (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
-                        source2,
-                        (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
-                        new TestJoinFunction(),
-                        JoinType.INNER);
+                                source1,
+                                (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
+                                source2,
+                                (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
+                                (JoinFunction<KeyAndValue, KeyAndValue, String>)
+                                        (leftRecord, rightRecord, output, ctx) -> {
+                                            assertThat(leftRecord.key).isNotNull();
+                                            assertThat(leftRecord.key).isEqualTo(rightRecord.key);
+                                            String result =
+                                                    leftRecord.key
+                                                            + ":"
+                                                            + leftRecord.value
+                                                            + ":"
+                                                            + rightRecord.value;
+                                            output.collect(result);
+                                        },
+                                JoinType.INNER)
+                        .returns(TypeInformation.of(String.class));
 
         joinedStream.toSink(new WrappedSink<>(new TestSink()));
         env.execute("testInnerJoinWithSameKey");
@@ -131,12 +144,24 @@ class JoinITCase extends AbstractTestBase implements Serializable {
 
         NonKeyedPartitionStream<String> joinedStream =
                 BuiltinFuncs.join(
-                        source1,
-                        (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
-                        source2,
-                        (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
-                        new TestJoinFunction(),
-                        JoinType.INNER);
+                                source1,
+                                (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
+                                source2,
+                                (KeySelector<KeyAndValue, String>) keyAndValue -> keyAndValue.key,
+                                (JoinFunction<KeyAndValue, KeyAndValue, String>)
+                                        (leftRecord, rightRecord, output, ctx) -> {
+                                            assertThat(leftRecord.key).isNotNull();
+                                            assertThat(leftRecord.key).isEqualTo(rightRecord.key);
+                                            String result =
+                                                    leftRecord.key
+                                                            + ":"
+                                                            + leftRecord.value
+                                                            + ":"
+                                                            + rightRecord.value;
+                                            output.collect(result);
+                                        },
+                                JoinType.INNER)
+                        .returns(TypeInformation.of(String.class));
 
         joinedStream.toSink(new WrappedSink<>(new TestSink()));
         env.execute("testInnerJoinWithMultipleKeys");
@@ -333,26 +358,23 @@ class JoinITCase extends AbstractTestBase implements Serializable {
 
         NonKeyedPartitionStream<Tuple3<String, Integer, Integer>> joinedStream =
                 BuiltinFuncs.join(
-                        source1,
-                        (KeySelector<Tuple2<String, Integer>, String>) elem -> elem.f0,
-                        source2,
-                        (KeySelector<Tuple2<String, Integer>, String>) elem -> elem.f0,
-                        new JoinFunction<
-                                Tuple2<String, Integer>,
-                                Tuple2<String, Integer>,
-                                Tuple3<String, Integer, Integer>>() {
-
-                            @Override
-                            public void processRecord(
-                                    Tuple2<String, Integer> leftRecord,
-                                    Tuple2<String, Integer> rightRecord,
-                                    Collector<Tuple3<String, Integer, Integer>> output,
-                                    RuntimeContext ctx)
-                                    throws Exception {
-                                output.collect(
-                                        Tuple3.of(leftRecord.f0, leftRecord.f1, rightRecord.f1));
-                            }
-                        });
+                                source1,
+                                (KeySelector<Tuple2<String, Integer>, String>) elem -> elem.f0,
+                                source2,
+                                (KeySelector<Tuple2<String, Integer>, String>) elem -> elem.f0,
+                                (JoinFunction<
+                                                Tuple2<String, Integer>,
+                                                Tuple2<String, Integer>,
+                                                Tuple3<String, Integer, Integer>>)
+                                        (leftRecord, rightRecord, output, ctx) ->
+                                                output.collect(
+                                                        Tuple3.of(
+                                                                leftRecord.f0,
+                                                                leftRecord.f1,
+                                                                rightRecord.f1)))
+                        .returns(
+                                TypeInformation.of(
+                                        new TypeHint<Tuple3<String, Integer, Integer>>() {}));
 
         joinedStream.toSink(
                 new WrappedSink<>(
@@ -410,14 +432,9 @@ class JoinITCase extends AbstractTestBase implements Serializable {
         NonKeyedPartitionStream<KeyAndValue> source =
                 env.fromSource(DataStreamV2SourceUtils.fromData(data), sourceName);
         return source.process(
-                new OneInputStreamProcessFunction<KeyAndValue, KeyAndValue>() {
-                    @Override
-                    public void processRecord(
-                            KeyAndValue record,
-                            Collector<KeyAndValue> output,
-                            PartitionedContext<KeyAndValue> ctx)
-                            throws Exception {}
-                });
+                        (OneInputStreamProcessFunction<KeyAndValue, KeyAndValue>)
+                                (record, output, ctx) -> {})
+                .returns(TypeInformation.of(KeyAndValue.class));
     }
 
     private static class TestJoinFunction
