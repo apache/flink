@@ -18,13 +18,21 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -96,5 +104,45 @@ public class ForStListStateTest extends ForStStateTestBase {
             assertThat(listState.get()).isNullOrEmpty();
         }
         drain();
+    }
+
+    @Test
+    public void testAsyncGetOnEmptyStateWithTtl() throws Exception {
+        ListStateDescriptor<Integer> descriptor =
+                new ListStateDescriptor<>("testState", IntSerializer.INSTANCE);
+        descriptor.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofMinutes(10)).build());
+        InternalListState<String, Integer, Integer> listState =
+                keyedBackend.createState(1, IntSerializer.INSTANCE, descriptor);
+
+        setCurrentContext("test", "test");
+        CompletableFuture<StateIterator<Integer>> neverWritten = new CompletableFuture<>();
+        listState.asyncGet().thenAccept(neverWritten::complete);
+        CompletableFuture<Iterable<Integer>> neverWrittenAsIterable = new CompletableFuture<>();
+        StateFutureUtils.toIterable(listState.asyncGet())
+                .thenAccept(neverWrittenAsIterable::complete);
+        drain();
+        assertThat(neverWritten).isCompletedWithValue(null);
+        assertThat(neverWrittenAsIterable).isCompletedWithValue(Collections.emptyList());
+
+        setCurrentContext("test", "test");
+        listState.asyncAdd(1);
+        drain();
+
+        setCurrentContext("test", "test");
+        List<Integer> values = new ArrayList<>();
+        ThrowingConsumer<Integer, Exception> collectValue = values::add;
+        listState.asyncGet().thenCompose(iter -> iter.onNext(collectValue));
+        drain();
+        assertThat(values).containsExactly(1);
+
+        setCurrentContext("test", "test");
+        listState.asyncClear();
+        drain();
+
+        setCurrentContext("test", "test");
+        CompletableFuture<StateIterator<Integer>> cleared = new CompletableFuture<>();
+        listState.asyncGet().thenAccept(cleared::complete);
+        drain();
+        assertThat(cleared).isCompletedWithValue(null);
     }
 }
