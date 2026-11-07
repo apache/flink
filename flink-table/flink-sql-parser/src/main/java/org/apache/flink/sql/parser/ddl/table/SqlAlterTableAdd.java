@@ -29,7 +29,9 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
 
 import javax.annotation.Nullable;
 
@@ -45,6 +47,9 @@ import java.util.List;
  * -- add single column
  * ALTER TABLE mytable ADD new_column STRING COMMENT 'new_column docs';
  *
+ * -- add a column only if it is missing
+ * ALTER TABLE mytable ADD COLUMN IF NOT EXISTS new_column INT;
+ *
  * -- add multiple columns, constraint, and watermark
  * ALTER TABLE mytable ADD (
  *     log_ts STRING COMMENT 'log timestamp string' FIRST,
@@ -56,6 +61,8 @@ import java.util.List;
  * }</pre>
  */
 public class SqlAlterTableAdd extends SqlAlterTableSchema {
+
+    private final boolean ifColumnNotExists;
 
     private static final SqlSpecialOperator ADD_OPERATOR =
             new SqlSpecialOperator("ALTER TABLE ADD", SqlKind.ALTER_TABLE) {
@@ -72,7 +79,8 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
                             (SqlNodeList) operands[1],
                             constraints,
                             (SqlWatermark) operands[3],
-                            ((SqlLiteral) operands[4]).booleanValue());
+                            ((SqlLiteral) operands[4]).booleanValue(),
+                            ((SqlLiteral) operands[5]).booleanValue());
                 }
             };
 
@@ -83,7 +91,31 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
             List<SqlTableConstraint> constraint,
             @Nullable SqlWatermark sqlWatermark,
             boolean ifTableExists) {
+        this(pos, tableName, addedColumns, constraint, sqlWatermark, ifTableExists, false);
+    }
+
+    public SqlAlterTableAdd(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList addedColumns,
+            List<SqlTableConstraint> constraint,
+            @Nullable SqlWatermark sqlWatermark,
+            boolean ifTableExists,
+            boolean ifColumnNotExists) {
         super(pos, tableName, addedColumns, constraint, sqlWatermark, ifTableExists);
+        this.ifColumnNotExists = ifColumnNotExists;
+    }
+
+    /** Whether to skip columns whose names already exist. */
+    public boolean ifColumnNotExists() {
+        return ifColumnNotExists;
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        final List<SqlNode> operands = new ArrayList<>(super.getOperandList());
+        operands.add(SqlLiteral.createBoolean(ifColumnNotExists, SqlParserPos.ZERO));
+        return ImmutableNullableList.copyOf(operands);
     }
 
     @Override
@@ -93,6 +125,18 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
 
     @Override
     protected String getAlterOperation() {
-        return "ADD";
+        if (!ifColumnNotExists) {
+            return "ADD";
+        }
+        return columnList.size() == 1 ? "ADD COLUMN IF NOT EXISTS" : "ADD IF NOT EXISTS";
+    }
+
+    @Override
+    protected void unparseTableSchema(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (ifColumnNotExists && columnList.size() == 1) {
+            columnList.get(0).unparse(writer, leftPrec, rightPrec);
+        } else {
+            super.unparseTableSchema(writer, leftPrec, rightPrec);
+        }
     }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.ddl.view.SqlCreateView;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
+import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
@@ -627,6 +628,83 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "ALTER TABLE `T1` ADD (\n"
                                 + "  `NEW_ROW`.`F2` ARRAY< INTEGER > AFTER `NEW_ROW`.`F0`\n"
                                 + ")");
+    }
+
+    @Test
+    void testAlterTableAddColumnIfNotExists() {
+        sql("alter table dst_table add column if not exists abc int")
+                .ok("ALTER TABLE `DST_TABLE` ADD COLUMN IF NOT EXISTS `ABC` INTEGER");
+    }
+
+    @Test
+    void testAlterTableAddParenthesizedColumnIfNotExists() {
+        sql("ALTER TABLE `paimon`.`test_db`.`test_table` ADD IF NOT EXISTS (`value` STRING)")
+                .withConfig(c -> c.withQuoting(Quoting.BACK_TICK))
+                .ok(
+                        "ALTER TABLE `paimon`.`test_db`.`test_table` ADD COLUMN IF NOT EXISTS `value` STRING");
+    }
+
+    @Test
+    void testAlterTableAddColumnIfNotExistsWithoutColumnKeyword() {
+        sql("ALTER TABLE `paimon`.`test_db`.`test_table` ADD IF NOT EXISTS `value` STRING")
+                .withConfig(c -> c.withQuoting(Quoting.BACK_TICK))
+                .ok(
+                        "ALTER TABLE `paimon`.`test_db`.`test_table` ADD COLUMN IF NOT EXISTS `value` STRING");
+    }
+
+    @Test
+    void testAlterTableAddColumnsIfNotExists() {
+        sql("alter table if exists t1 add if not exists (c int first, d as c + 1 after c, m string metadata from 'mk1' virtual after d)")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` ADD IF NOT EXISTS (\n"
+                                + "  `C` INTEGER FIRST,\n"
+                                + "  `D` AS (`C` + 1) AFTER `C`,\n"
+                                + "  `M` STRING METADATA FROM 'mk1' VIRTUAL AFTER `D`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterTableAddColumnsIfNotExistsRequiresColumns() {
+        sql("alter table t1 add if not exists (^)^").fails("(?s).*Encountered.*");
+        sql("alter table t1 add if not exists (^primary^ key (id) not enforced)")
+                .fails("(?s).*Encountered.*");
+        sql("alter table t1 add if not exists (^watermark^ for ts as ts)")
+                .fails("(?s).*Encountered.*");
+    }
+
+    @Test
+    void testAlterTableAddColumnKeyword() {
+        sql("alter table t1 add column new_column int")
+                .ok("ALTER TABLE `T1` ADD (\n" + "  `NEW_COLUMN` INTEGER\n" + ")");
+        sql("alter table t1 add column col_int as col_a - col_b after col_b")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterTableAddColumnIfNotExistsWithDefinition() {
+        sql("alter table if exists t1 add column if not exists abc int not null comment 'new column' first")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` ADD COLUMN IF NOT EXISTS `ABC` INTEGER NOT NULL COMMENT 'new column' FIRST");
+        sql("alter table t1 add column if not exists col_int as col_a - col_b after col_b")
+                .ok(
+                        "ALTER TABLE `T1` ADD COLUMN IF NOT EXISTS `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`");
+        sql("alter table t1 add column if not exists col_int int metadata from 'mk1' virtual comment 'metadata' after col_b")
+                .ok(
+                        "ALTER TABLE `T1` ADD COLUMN IF NOT EXISTS `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'metadata' AFTER `COL_B`");
+        sql("alter table t1 add column if not exists abc int primary key not enforced")
+                .ok(
+                        "ALTER TABLE `T1` ADD COLUMN IF NOT EXISTS `ABC` INTEGER PRIMARY KEY NOT ENFORCED");
+    }
+
+    @Test
+    void testAlterTableAddQuotedColumnIfNotExists() {
+        sql("alter table \"My Table\" add column if not exists \"Mixed Case\" int")
+                .ok("ALTER TABLE `My Table` ADD COLUMN IF NOT EXISTS `Mixed Case` INTEGER");
+        sql("alter table t1 add \"COLUMN\" int")
+                .ok("ALTER TABLE `T1` ADD (\n" + "  `COLUMN` INTEGER\n" + ")");
     }
 
     @Test
