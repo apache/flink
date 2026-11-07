@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /** The mock server that host MixedDispatcher. */
@@ -73,7 +74,12 @@ public class MixedKubernetesServerExtension implements BeforeEachCallback, After
 
     @Override
     public void afterEach(ExtensionContext extensionContext) {
-        mock.destroy();
+        try {
+            mock.destroy();
+        } catch (RejectedExecutionException e) {
+            // Fabric8's MockWebServer#shutdown() can race its own Vert.x close and throw after the
+            // server has already stopped (fabric8io/kubernetes-client#7747, fixed in 7.7.0).
+        }
         clients.forEach(Client::close);
     }
 
