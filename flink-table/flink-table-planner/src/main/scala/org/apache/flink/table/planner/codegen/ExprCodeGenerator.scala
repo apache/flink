@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -29,8 +30,10 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyV
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonFunctionOperand, isJsonObjectOperand, isJsonObjectOrArrayOperand}
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonFunctionOperand, isSupportedJsonOperand}
 import org.apache.flink.table.planner.codegen.calls._
+import org.apache.flink.table.planner.codegen.calls.{JsonCallGen, _}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -49,6 +52,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 
@@ -61,6 +65,8 @@ class ExprCodeGenerator(
     nullableInput: Boolean,
     val rexProgram: RexProgram)
   extends RexVisitor[GeneratedExpression] {
+
+  private val LOG = LoggerFactory.getLogger(classOf[ExprCodeGenerator])
 
   def this(ctx: CodeGeneratorContext, nullableInput: Boolean) =
     this(ctx, nullableInput, null)
@@ -568,19 +574,25 @@ class ExprCodeGenerator(
    *   - `IF(cond, then, else)`: only `cond` is unconditional; `IfCallGen` guards `then`/`else`.
    *   - `COALESCE(v_0, ..., v_n)` / `IFNULL(input, null_replacement)`: only `v_0` / `input` is
    *     unconditional; `generateCoalesce` guards the rest.
+   *   - `GREATEST(v_0, ..., v_n)` / `LEAST(...)`: only `v_0` is unconditional;
+   *     `generateGreatestLeast` skips the remaining operands once an earlier one is NULL.
    */
   private def conditionalOperandIndices(call: RexCall): Set[Int] = call.getKind match {
     case SqlKind.CASE | SqlKind.AND | SqlKind.OR | SqlKind.COALESCE =>
       (1 until call.getOperands.size).toSet
-    case SqlKind.OTHER_FUNCTION if call.getOperator == IF || isCoalesceLike(call.getOperator) =>
+    case SqlKind.OTHER_FUNCTION
+        if call.getOperator == IF || isShortCircuitFunction(call.getOperator) =>
       (1 until call.getOperands.size).toSet
     case _ => Set.empty
   }
 
-  private def isCoalesceLike(operator: SqlOperator): Boolean = operator match {
+  private def isShortCircuitFunction(operator: SqlOperator): Boolean = operator match {
     case bsf: BridgingSqlFunction =>
-      bsf.getDefinition == BuiltInFunctionDefinitions.COALESCE ||
-      bsf.getDefinition == BuiltInFunctionDefinitions.IF_NULL
+      Set(
+        BuiltInFunctionDefinitions.COALESCE,
+        BuiltInFunctionDefinitions.IF_NULL,
+        BuiltInFunctionDefinitions.GREATEST,
+        BuiltInFunctionDefinitions.LEAST).contains(bsf.getDefinition)
     case _ => false
   }
 
