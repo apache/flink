@@ -68,7 +68,11 @@ class TtlListState<K, N, T>
         // 1. The timestamp of elements in list state isn't updated when get even if updateTsOnRead
         // is true.
         // 2. we don't clear state here cause forst is LSM-tree based.
-        return original.asyncGet().thenApply(stateIter -> new AsyncIteratorWrapper(stateIter));
+        // 3. An empty state is returned as null, as the AppendingState#asyncGet contract requires.
+        return original.asyncGet()
+                .thenApply(
+                        stateIter ->
+                                stateIter == null ? null : new AsyncIteratorWrapper(stateIter));
     }
 
     @Override
