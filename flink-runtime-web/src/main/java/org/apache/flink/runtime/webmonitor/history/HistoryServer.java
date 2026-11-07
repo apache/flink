@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -76,8 +77,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_CACHED_RETAINED_JOBS;
 import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE;
 import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE;
+import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS;
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerApplicationArchiveFetcher.APPLICATIONS_SUBDIR;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerApplicationArchiveFetcher.APPLICATION_OVERVIEWS_SUBDIR;
@@ -304,6 +307,40 @@ public class HistoryServer {
                 config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE);
         int lazyFetchExecutorIndividualPoolSize =
                 config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE);
+        int cachedRetainedJobs = config.get(HISTORY_SERVER_CACHED_RETAINED_JOBS, -1);
+        int numCachedMostRecentlyViewedJobs =
+                config.get(HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS);
+        if (cachedRetainedJobs == 0 || cachedRetainedJobs < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1",
+                    HISTORY_SERVER_CACHED_RETAINED_JOBS.key());
+        }
+        if (numCachedMostRecentlyViewedJobs < 1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to less than 1",
+                    HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS.key());
+        }
+        if (cachedRetainedJobs > 0) {
+            int retainedJobs = config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+            if (retainedJobs > 0 && cachedRetainedJobs > retainedJobs) {
+                LOG.warn(
+                        "{} ({}) is larger than {} ({}), so it has no extra effect.",
+                        HISTORY_SERVER_CACHED_RETAINED_JOBS.key(),
+                        cachedRetainedJobs,
+                        HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key(),
+                        retainedJobs);
+            }
+            if (!LAZY.equals(archiveLoadMode)) {
+                LOG.warn(
+                        "{} is set but the load mode is {}, evicted archives cannot be fetched on demand.",
+                        HISTORY_SERVER_CACHED_RETAINED_JOBS.key(),
+                        archiveLoadMode);
+            }
+        }
+        LOG.info(
+                "Cached retained jobs: {}, cached most recently viewed jobs: {}.",
+                cachedRetainedJobs,
+                numCachedMostRecentlyViewedJobs);
         archiveFetcher =
                 new HistoryServerArchiveFetcher<>(
                         refreshDirs,
@@ -314,7 +351,9 @@ public class HistoryServer {
                         archiveStorage,
                         archiveMetaInfoCache,
                         lazyFetchExecutorCommonPoolSize,
-                        lazyFetchExecutorIndividualPoolSize);
+                        lazyFetchExecutorIndividualPoolSize,
+                        cachedRetainedJobs,
+                        numCachedMostRecentlyViewedJobs);
         applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,

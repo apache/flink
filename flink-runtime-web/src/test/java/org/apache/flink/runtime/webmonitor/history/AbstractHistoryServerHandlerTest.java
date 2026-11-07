@@ -40,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -153,7 +154,9 @@ public class AbstractHistoryServerHandlerTest {
                         storage,
                         jobMetaInfoCache,
                         4,
-                        4);
+                        4,
+                        1,
+                        1);
         HistoryServerApplicationArchiveFetcher<T> applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,
@@ -373,5 +376,115 @@ public class AbstractHistoryServerHandlerTest {
         assertThat(detailResponse.get().f0).isEqualTo(200);
         assertThat(detailResponse.get().f1).contains(jobId.toString());
         assertThat(blockingArchiveStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
+    }
+
+    /**
+     * Two users open two jobs outside the cached window in {@code LAZY} mode. Viewing the second
+     * job must not cancel the first job's fetch that is still in flight.
+     */
+    @TestTemplate
+    void testLazyModeViewingAnotherJobDoesNotCancelInFlightFetch() throws Exception {
+        startServer(LAZY);
+
+        JobID newest = JobID.generate();
+        JobID first = JobID.generate();
+        JobID second = JobID.generate();
+        long now = System.currentTimeMillis();
+        long[] times = {now - 3000, now - 2000, now - 1000};
+        JobID[] ids = {first, second, newest};
+        for (int i = 0; i < ids.length; i++) {
+            org.apache.flink.core.fs.Path archive =
+                    createJobArchive(remoteArchiveRootPath.toFile(), ids[i], true);
+            assertThat(new File(archive.toUri()).setLastModified(times[i])).isTrue();
+        }
+
+        assertThat(HttpUtils.getFromHTTP(baseUrl + "/jobs/overview").f0).isEqualTo(200);
+
+        HistoryServerTestUtils.BlockingArchiveStorage<?> storage =
+                (HistoryServerTestUtils.BlockingArchiveStorage<?>) handler.archiveStorage;
+
+        AtomicReference<Tuple2<Integer, String>> firstResponse = new AtomicReference<>();
+        CompletableFuture<Void> firstFuture = requestAsync(first, firstResponse);
+        waitUntil(() -> storage.exists("jobs/" + first + ".json"));
+        assertThat(firstFuture.isDone()).isFalse();
+
+        // viewing another old job while the first fetch is still blocked
+        AtomicReference<Tuple2<Integer, String>> secondResponse = new AtomicReference<>();
+        CompletableFuture<Void> secondFuture = requestAsync(second, secondResponse);
+        waitUntil(() -> storage.exists("jobs/" + second + ".json"));
+        assertThat(secondFuture.isDone()).isFalse();
+
+        storage.releaseLatch.countDown();
+        firstFuture.get(10, TimeUnit.SECONDS);
+        secondFuture.get(10, TimeUnit.SECONDS);
+        assertThat(firstResponse.get().f0).isEqualTo(200);
+        assertThat(secondResponse.get().f0).isEqualTo(200);
+        assertThat(firstResponse.get().f1).contains(first.toString());
+    }
+
+    /**
+     * Requests for an uncached job, including the plain {@code /jobs/<id>} one, must fetch it and
+     * all of them must succeed when sent in parallel.
+     */
+    @TestTemplate
+    void testLazyModeParallelRequestsForUncachedJobAllSucceed() throws Exception {
+        startServer(LAZY);
+
+        JobID newest = JobID.generate();
+        JobID old = JobID.generate();
+        long now = System.currentTimeMillis();
+        org.apache.flink.core.fs.Path oldArchive =
+                createJobArchive(remoteArchiveRootPath.toFile(), old, true);
+        assertThat(new File(oldArchive.toUri()).setLastModified(now - 5000)).isTrue();
+        createJobArchive(remoteArchiveRootPath.toFile(), newest, true);
+
+        assertThat(HttpUtils.getFromHTTP(baseUrl + "/jobs/overview").f0).isEqualTo(200);
+        HistoryServerTestUtils.BlockingArchiveStorage<?> storage =
+                (HistoryServerTestUtils.BlockingArchiveStorage<?>) handler.archiveStorage;
+        storage.releaseLatch.countDown();
+
+        String[] paths = {"", "/config", "/config", "", "/config"};
+        List<CompletableFuture<Tuple2<Integer, String>>> futures = new ArrayList<>();
+        for (String path : paths) {
+            futures.add(
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return HttpUtils.getFromHTTP(baseUrl + "/jobs/" + old + path);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }));
+        }
+        for (CompletableFuture<Tuple2<Integer, String>> future : futures) {
+            Tuple2<Integer, String> response = future.get(20, TimeUnit.SECONDS);
+            assertThat(response.f0).isEqualTo(200);
+            assertThat(response.f1).contains(old.toString());
+        }
+    }
+
+    private static void waitUntil(ThrowingSupplier<Boolean> condition) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (!condition.get()) {
+            assertThat(System.nanoTime()).isLessThan(deadline);
+            Thread.sleep(10);
+        }
+    }
+
+    @FunctionalInterface
+    private interface ThrowingSupplier<T> {
+        T get() throws Exception;
+    }
+
+    private CompletableFuture<Void> requestAsync(
+            JobID jobId, AtomicReference<Tuple2<Integer, String>> response) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    try {
+                        response.set(HttpUtils.getFromHTTP(baseUrl + "/jobs/" + jobId + "/config"));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 }
