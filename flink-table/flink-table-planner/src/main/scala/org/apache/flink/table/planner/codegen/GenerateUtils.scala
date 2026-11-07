@@ -101,26 +101,56 @@ object GenerateUtils {
          |""".stripMargin
     }
 
-    val resultCode = if (operands.nonEmpty) {
-      s"""
-         |${operands.map(_.code).mkString("\n")}
-         |$nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
-         |$resultTerm = $defaultValue;
-         |if (!$nullTerm) {
-         |  $wrappedResultAssignment
-         |  $nullTermCode
-         |}
-         |""".stripMargin
-    } else {
-      s"""
-         |${operands.map(_.code).mkString("\n")}
-         |$nullTerm = false;
-         |$wrappedResultAssignment
-         |$nullTermCode
-         |""".stripMargin
+    // operands that are never null do not make the result null
+    val nullCheck = operands.map(_.nullTerm).filter(_ != NEVER_NULL) match {
+      case Seq() => NEVER_NULL
+      case nullTerms => nullTerms.mkString(" || ")
     }
 
+    val resultCode =
+      if (isSingleAssignment(operands, stmt, wrapTryCatch, isResultNullable, returnType)) {
+        // a primitive result in one assignment; the call still only runs if no operand is null
+        val assignment = if (returnType.is(LogicalTypeRoot.BOOLEAN)) {
+          s"!$nullTerm && ($result)"
+        } else {
+          s"$nullTerm ? $defaultValue : ($result)"
+        }
+        s"""
+           |${operands.map(_.code).mkString("\n")}
+           |$nullTerm = $nullCheck;
+           |$resultTerm = $assignment;
+           |""".stripMargin
+      } else if (operands.nonEmpty) {
+        s"""
+           |${operands.map(_.code).mkString("\n")}
+           |$nullTerm = $nullCheck;
+           |$resultTerm = $defaultValue;
+           |if (!$nullTerm) {
+           |  $wrappedResultAssignment
+           |  $nullTermCode
+           |}
+           |""".stripMargin
+      } else {
+        s"""
+           |${operands.map(_.code).mkString("\n")}
+           |$nullTerm = false;
+           |$wrappedResultAssignment
+           |$nullTermCode
+           |""".stripMargin
+      }
+
     GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
+  }
+
+  // Whether the result can be computed in one assignment instead of an if block.
+  private def isSingleAssignment(
+      operands: Seq[GeneratedExpression],
+      stmt: String,
+      wrapTryCatch: Boolean,
+      isResultNullable: Boolean,
+      returnType: LogicalType): Boolean = {
+    operands.nonEmpty && stmt.isEmpty && !wrapTryCatch &&
+    !isResultNullable && !isReference(returnType)
   }
 
   /**

@@ -1078,48 +1078,67 @@ object ScalarOperatorGens {
   def generateIfElse(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      resultType: LogicalType,
-      i: Int = 0): GeneratedExpression = {
-    // else part
-    if (i == operands.size - 1) {
-      generateCast(ctx, operands(i), resultType, nullOnFailure = true)
-    } else {
-      // check that the condition is boolean
-      // we do not check for null instead we use the default value
-      // thus null is false
-      requireBoolean(operands(i))
-      val condition = operands(i)
-      val trueAction = generateCast(ctx, operands(i + 1), resultType, nullOnFailure = true)
-      val falseAction = generateIfElse(ctx, operands, resultType, i + 2)
-
-      val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
-      val resultTypeTerm = primitiveTypeTermForType(resultType)
-      val defaultValue = primitiveDefaultValue(resultType)
-
-      val operatorCode =
-        s"""
-           |${condition.code}
-           |$resultTypeTerm $resultTerm = $defaultValue;
-           |boolean $nullTerm;
-           |if (${condition.resultTerm}) {
-           |  ${trueAction.code}
-           |  $nullTerm = ${trueAction.nullTerm};
-           |  if (!$nullTerm) {
-           |    $resultTerm = ${trueAction.resultTerm};
-           |  }
-           |}
-           |else {
-           |  ${falseAction.code}
-           |  $nullTerm = ${falseAction.nullTerm};
-           |  if (!$nullTerm) {
-           |    $resultTerm = ${falseAction.resultTerm};
-           |  }
-           |}
-           |""".stripMargin.trim
-
-      GeneratedExpression(resultTerm, nullTerm, operatorCode, resultType)
+      resultType: LogicalType): GeneratedExpression = {
+    if (operands.size == 1) {
+      return generateCast(ctx, operands.head, resultType, nullOnFailure = true)
     }
+    val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
+
+    def assign(action: GeneratedExpression): String =
+      s"""
+         |${action.code}
+         |$nullTerm = ${action.nullTerm};
+         |if (!$nullTerm) {
+         |  $resultTerm = ${action.resultTerm};
+         |}
+         |""".stripMargin
+
+    // a null condition is false via its default value
+    val whens = (0 until operands.size - 1 by 2).map {
+      j =>
+        requireBoolean(operands(j))
+        (operands(j), generateCast(ctx, operands(j + 1), resultType, nullOnFailure = true))
+    }
+    val elseAction = generateCast(ctx, operands.last, resultType, nullOnFailure = true)
+
+    // flat guarded blocks instead of nested else keep the splitter output flat
+    val doneTerm = newName(ctx, "done")
+    val branches = whens.zipWithIndex.map {
+      case ((condition, trueAction), i) =>
+        val branch =
+          s"""
+             |${condition.code}
+             |if (${condition.resultTerm}) {
+             |  ${assign(trueAction)}
+             |  $doneTerm = true;
+             |}
+             |""".stripMargin
+        // the first branch of a chunk is guarded by its chunk
+        if (i % CASE_CHUNK_WHENS == 0) branch else s"if (!$doneTerm) {\n$branch\n}"
+    }
+    // one guard per chunk, so after a match the remaining chunks cost one check each even when
+    // the code splitter moves their branches into methods
+    val chunks = branches.grouped(CASE_CHUNK_WHENS).zipWithIndex.map {
+      case (chunk, 0) => chunk.mkString("\n")
+      case (chunk, _) => s"if (!$doneTerm) {\n${chunk.mkString("\n")}\n}"
+    }
+    val code =
+      s"""
+         |$resultTypeTerm $resultTerm = $defaultValue;
+         |boolean $nullTerm = true;
+         |boolean $doneTerm = false;
+         |${chunks.mkString("\n")}
+         |if (!$doneTerm) {
+         |  ${assign(elseAction)}
+         |}
+         |""".stripMargin.trim
+    GeneratedExpression(resultTerm, nullTerm, code, resultType)
   }
+
+  // Number of WHENs of a CASE behind one shared guard.
+  private val CASE_CHUNK_WHENS = 10
 
   def generateDot(
       ctx: CodeGeneratorContext,

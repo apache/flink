@@ -64,7 +64,7 @@ class CodeSplitTest {
 
     @Test
     void testJoinCondition() {
-        int numFields = 200;
+        int numFields = 500;
 
         FlinkTypeFactory typeFactory = new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE);
         RexBuilder builder = new RexBuilder(typeFactory);
