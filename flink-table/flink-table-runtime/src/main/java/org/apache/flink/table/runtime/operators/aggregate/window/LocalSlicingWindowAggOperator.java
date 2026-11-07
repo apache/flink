@@ -147,6 +147,15 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         }
     }
 
+    @Override 
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        if (watermarkStatus.isIdle()) {
+            // Downstream may advance its watermark past buffered windows once this input is idle.
+            windowBuffer.flush();
+        }
+        super.processWatermarkStatus(watermarkStatus);
+    }
+
     /** Compute memory size from memory faction. */
     private long computeMemorySize() {
         final Environment environment = getContainingTask().getEnvironment();
