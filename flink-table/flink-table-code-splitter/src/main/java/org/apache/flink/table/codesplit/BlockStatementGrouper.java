@@ -26,7 +26,6 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.ArrayList;
@@ -110,7 +109,7 @@ public class BlockStatementGrouper {
 
     private final String parameters;
 
-    private final TokenStreamRewriter rewriter;
+    private final FlinkTokenStreamRewriter rewriter;
 
     private final StatementContext topStatement;
 
@@ -129,7 +128,7 @@ public class BlockStatementGrouper {
         JavaParser javaParser = new JavaParser(tokenStream);
         javaParser.getInterpreter().setPredictionMode(PredictionMode.SLL);
         this.topStatement = javaParser.statement();
-        this.rewriter = new TokenStreamRewriter(tokenStream);
+        this.rewriter = new FlinkTokenStreamRewriter(tokenStream);
     }
 
     /**
@@ -280,7 +279,7 @@ public class BlockStatementGrouper {
             return counter.getCounter();
         }
 
-        private Map<String, List<String>> rewrite(TokenStreamRewriter rewriter) {
+        private Map<String, List<String>> rewrite(FlinkTokenStreamRewriter rewriter) {
             Map<String, List<String>> groupStrings =
                     CollectionUtil.newHashMapWithExpectedSize(groups.size());
 
@@ -322,7 +321,7 @@ public class BlockStatementGrouper {
         /**
          * @return String representation of this group element.
          */
-        String getBody(TokenStreamRewriter rewriter);
+        String getBody(FlinkTokenStreamRewriter rewriter);
 
         ParserRuleContext getContext();
     }
@@ -351,7 +350,7 @@ public class BlockStatementGrouper {
         }
 
         @Override
-        public String getBody(TokenStreamRewriter rewriter) {
+        public String getBody(FlinkTokenStreamRewriter rewriter) {
             return rewriter.getText(this.parserRuleContext.getSourceInterval());
         }
 
@@ -363,14 +362,14 @@ public class BlockStatementGrouper {
 
     /**
      * Extracted element that is represented by {@link ParserRuleContext} and {@link
-     * TokenStreamRewriter} It's used for extracted block statements that represent TRUE/FALSE
+     * FlinkTokenStreamRewriter} It's used for extracted block statements that represent TRUE/FALSE
      * branches of IF/ELSE statements or WHILE's statement body. The string representation is
-     * extracted from {@link TokenStreamRewriter} which could be further rewritten.
+     * extracted from {@link FlinkTokenStreamRewriter} which could be further rewritten.
      *
      * <p>This element can be used for IF/ELSE/WHILE statements that will be rewritten in further
      * processing. Then this statement in the original code cen be rewritten using Start and Stop
-     * tokens, whereas the getBody() method backed by TokenStreamRewriter will return the rewritten
-     * value of the original statement.
+     * tokens, whereas the getBody() method backed by FlinkTokenStreamRewriter will return the
+     * rewritten value of the original statement.
      *
      * <p>The example would parserRuleContext and rewriter representing below statement:
      *
@@ -429,7 +428,7 @@ public class BlockStatementGrouper {
         }
 
         @Override
-        public String getBody(TokenStreamRewriter rewriter) {
+        public String getBody(FlinkTokenStreamRewriter rewriter) {
             return rewriter.getText(parserRuleContext.getSourceInterval());
         }
 

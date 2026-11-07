@@ -23,7 +23,6 @@ import org.apache.flink.util.Preconditions;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.HashMap;
@@ -81,7 +80,7 @@ public class DeclarationRewriter implements CodeRewriter {
     private final int maxMethodLength;
 
     private final CommonTokenStream tokenStream;
-    private final TokenStreamRewriter rewriter;
+    private final FlinkTokenStreamRewriter rewriter;
 
     private boolean hasRewrite = false;
 
@@ -90,7 +89,7 @@ public class DeclarationRewriter implements CodeRewriter {
         this.maxMethodLength = maxMethodLength;
 
         this.tokenStream = new CommonTokenStream(new JavaLexer(CharStreams.fromString(code)));
-        this.rewriter = new TokenStreamRewriter(tokenStream);
+        this.rewriter = new FlinkTokenStreamRewriter(tokenStream);
     }
 
     public String rewrite() {

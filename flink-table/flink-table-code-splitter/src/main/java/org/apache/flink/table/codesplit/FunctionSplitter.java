@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.ArrayList;
@@ -124,7 +123,7 @@ public class FunctionSplitter implements CodeRewriter {
     private class FunctionSplitVisitor extends JavaParserBaseVisitor<Void> {
 
         private final CommonTokenStream tokenStream;
-        private final TokenStreamRewriter rewriter;
+        private final FlinkTokenStreamRewriter rewriter;
 
         private final List<Map<String, String>> boolVarNames;
 
@@ -132,7 +131,7 @@ public class FunctionSplitter implements CodeRewriter {
 
         private FunctionSplitVisitor(List<Map<String, String>> boolVarNames) {
             this.tokenStream = new CommonTokenStream(new JavaLexer(CharStreams.fromString(code)));
-            this.rewriter = new TokenStreamRewriter(tokenStream);
+            this.rewriter = new FlinkTokenStreamRewriter(tokenStream);
 
             this.boolVarNames = boolVarNames;
 

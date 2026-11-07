@@ -26,7 +26,6 @@ import org.apache.flink.util.Preconditions;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.ArrayList;
@@ -167,7 +166,7 @@ public class BlockStatementSplitter {
 
         private final CommonTokenStream tokenStream;
 
-        private final TokenStreamRewriter rewriter;
+        private final FlinkTokenStreamRewriter rewriter;
 
         private final String parameters;
 
@@ -175,7 +174,7 @@ public class BlockStatementSplitter {
 
         private BlockStatementVisitor(String code, String parameters) {
             this.tokenStream = new CommonTokenStream(new JavaLexer(CharStreams.fromString(code)));
-            this.rewriter = new TokenStreamRewriter(tokenStream);
+            this.rewriter = new FlinkTokenStreamRewriter(tokenStream);
             this.parameters = parameters;
         }
 
