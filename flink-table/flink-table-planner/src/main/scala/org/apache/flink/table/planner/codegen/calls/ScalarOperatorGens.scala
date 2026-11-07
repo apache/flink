@@ -1078,47 +1078,67 @@ object ScalarOperatorGens {
   def generateIfElse(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      resultType: LogicalType,
-      i: Int = 0): GeneratedExpression = {
-    // else part
-    if (i == operands.size - 1) {
-      generateCast(ctx, operands(i), resultType, nullOnFailure = true)
-    } else {
-      // check that the condition is boolean
-      // we do not check for null instead we use the default value
-      // thus null is false
-      requireBoolean(operands(i))
-      val condition = operands(i)
-      val trueAction = generateCast(ctx, operands(i + 1), resultType, nullOnFailure = true)
-      val falseAction = generateIfElse(ctx, operands, resultType, i + 2)
-
-      val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
-      val resultTypeTerm = primitiveTypeTermForType(resultType)
-      val defaultValue = primitiveDefaultValue(resultType)
-
-      val operatorCode =
-        s"""
-           |${condition.code}
-           |$resultTypeTerm $resultTerm = $defaultValue;
-           |boolean $nullTerm;
-           |if (${condition.resultTerm}) {
-           |  ${trueAction.code}
-           |  $nullTerm = ${trueAction.nullTerm};
-           |  if (!$nullTerm) {
-           |    $resultTerm = ${trueAction.resultTerm};
-           |  }
-           |}
-           |else {
-           |  ${falseAction.code}
-           |  $nullTerm = ${falseAction.nullTerm};
-           |  if (!$nullTerm) {
-           |    $resultTerm = ${falseAction.resultTerm};
-           |  }
-           |}
-           |""".stripMargin.trim
-
-      GeneratedExpression(resultTerm, nullTerm, operatorCode, resultType)
+      resultType: LogicalType): GeneratedExpression = {
+    require(operands.size % 2 == 1, "CASE expects WHEN/THEN pairs and an ELSE operand.")
+    if (operands.size == 1) {
+      return generateCast(ctx, operands.head, resultType, nullOnFailure = true)
     }
+    val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
+
+    def assign(action: GeneratedExpression): String =
+      s"""
+         |${action.code}
+         |$nullTerm = ${action.nullTerm};
+         |if (!$nullTerm) {
+         |  $resultTerm = ${action.resultTerm};
+         |}
+         |""".stripMargin
+
+    // a null condition is false via its default value
+    val whens = (0 until operands.size - 1 by 2).map {
+      j =>
+        requireBoolean(operands(j))
+        (operands(j), generateCast(ctx, operands(j + 1), resultType, nullOnFailure = true))
+    }
+    val elseAction = generateCast(ctx, operands.last, resultType, nullOnFailure = true)
+
+    // flat guarded blocks instead of nested else keep the splitter output flat
+    val doneTerm = newName(ctx, "done")
+    // A fixed size keeps a CASE with up to 10 WHENs in one chunk, without any chunk guard. Sizing
+    // chunks dynamically would need the code size of the branches, which is unknown here for now.
+    val chunkSize = 10
+    // blocks after the first are skipped once a WHEN matched
+    def guardAllButFirst(blocks: Seq[String]): String =
+      (blocks.head +: blocks.tail.map(b => s"if (!$doneTerm) {\n$b\n}")).mkString("\n")
+    val chunks = whens
+      .grouped(chunkSize)
+      .map {
+        chunk =>
+          guardAllButFirst(chunk.map {
+            case (condition, trueAction) =>
+              s"""
+                 |${condition.code}
+                 |if (${condition.resultTerm}) {
+                 |  ${assign(trueAction)}
+                 |  $doneTerm = true;
+                 |}
+                 |""".stripMargin
+          })
+      }
+      .toSeq
+    val code =
+      s"""
+         |$resultTypeTerm $resultTerm = $defaultValue;
+         |boolean $nullTerm = true;
+         |boolean $doneTerm = false;
+         |${guardAllButFirst(chunks)}
+         |if (!$doneTerm) {
+         |  ${assign(elseAction)}
+         |}
+         |""".stripMargin.trim
+    GeneratedExpression(resultTerm, nullTerm, code, resultType)
   }
 
   def generateDot(
