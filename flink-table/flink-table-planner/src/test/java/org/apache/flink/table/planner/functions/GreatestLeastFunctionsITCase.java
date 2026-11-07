@@ -22,7 +22,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -176,6 +178,171 @@ class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "LEAST(f5, f6)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "LEAST(STRING NOT NULL, TIMESTAMP(3) NOT NULL)"));
+                                        + "LEAST(STRING NOT NULL, TIMESTAMP(3) NOT NULL)"),
+                // raw </> comparison path: byte/short/long and the int-backed DATE/TIME
+                TestSetSpec.forExpression("GREATEST/LEAST over TINYINT/SMALLINT/BIGINT/DATE/TIME")
+                        .onFieldsWithData(
+                                (byte) 1,
+                                (byte) 2,
+                                (short) 10,
+                                (short) 20,
+                                100L,
+                                200L,
+                                LocalDate.of(2020, 1, 1),
+                                LocalDate.of(2021, 6, 15),
+                                LocalTime.of(1, 2, 3),
+                                LocalTime.of(10, 20, 30))
+                        .andDataTypes(
+                                DataTypes.TINYINT().notNull(),
+                                DataTypes.TINYINT().notNull(),
+                                DataTypes.SMALLINT().notNull(),
+                                DataTypes.SMALLINT().notNull(),
+                                DataTypes.BIGINT().notNull(),
+                                DataTypes.BIGINT().notNull(),
+                                DataTypes.DATE().notNull(),
+                                DataTypes.DATE().notNull(),
+                                DataTypes.TIME().notNull(),
+                                DataTypes.TIME().notNull())
+                        .testResult(
+                                call("GREATEST", $("f0"), $("f1")),
+                                "GREATEST(f0, f1)",
+                                (byte) 2,
+                                DataTypes.TINYINT().notNull())
+                        .testResult(
+                                call("LEAST", $("f0"), $("f1")),
+                                "LEAST(f0, f1)",
+                                (byte) 1,
+                                DataTypes.TINYINT().notNull())
+                        .testResult(
+                                call("GREATEST", $("f2"), $("f3")),
+                                "GREATEST(f2, f3)",
+                                (short) 20,
+                                DataTypes.SMALLINT().notNull())
+                        .testResult(
+                                call("LEAST", $("f2"), $("f3")),
+                                "LEAST(f2, f3)",
+                                (short) 10,
+                                DataTypes.SMALLINT().notNull())
+                        .testResult(
+                                call("GREATEST", $("f4"), $("f5")),
+                                "GREATEST(f4, f5)",
+                                200L,
+                                DataTypes.BIGINT().notNull())
+                        .testResult(
+                                call("LEAST", $("f4"), $("f5")),
+                                "LEAST(f4, f5)",
+                                100L,
+                                DataTypes.BIGINT().notNull())
+                        .testResult(
+                                call("GREATEST", $("f6"), $("f7")),
+                                "GREATEST(f6, f7)",
+                                LocalDate.of(2021, 6, 15),
+                                DataTypes.DATE().notNull())
+                        .testResult(
+                                call("LEAST", $("f6"), $("f7")),
+                                "LEAST(f6, f7)",
+                                LocalDate.of(2020, 1, 1),
+                                DataTypes.DATE().notNull())
+                        .testResult(
+                                call("GREATEST", $("f8"), $("f9")),
+                                "GREATEST(f8, f9)",
+                                LocalTime.of(10, 20, 30),
+                                DataTypes.TIME().notNull())
+                        .testResult(
+                                call("LEAST", $("f8"), $("f9")),
+                                "LEAST(f8, f9)",
+                                LocalTime.of(1, 2, 3),
+                                DataTypes.TIME().notNull()),
+                // Float/Double.compare path: NaN sorts greatest, -0.0 sorts below 0.0.
+                // NaN/-0.0 are fed as strings and cast at runtime because fromValues stores numeric
+                // literals as BigDecimal, which cannot represent NaN and collapses -0.0 to 0.0.
+                TestSetSpec.forExpression(
+                                "GREATEST/LEAST over FLOAT/DOUBLE incl NaN and signed zero")
+                        .onFieldsWithData(1.0f, 2.0d, "NaN", "-0.0", "0.0")
+                        .andDataTypes(
+                                DataTypes.FLOAT().notNull(),
+                                DataTypes.DOUBLE().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testResult(
+                                call("GREATEST", $("f0"), $("f2").cast(DataTypes.FLOAT())),
+                                "GREATEST(f0, CAST(f2 AS FLOAT))",
+                                Float.NaN,
+                                DataTypes.FLOAT().notNull())
+                        .testResult(
+                                call("LEAST", $("f0"), $("f2").cast(DataTypes.FLOAT())),
+                                "LEAST(f0, CAST(f2 AS FLOAT))",
+                                1.0f,
+                                DataTypes.FLOAT().notNull())
+                        .testResult(
+                                call("GREATEST", $("f1"), $("f2").cast(DataTypes.DOUBLE())),
+                                "GREATEST(f1, CAST(f2 AS DOUBLE))",
+                                Double.NaN,
+                                DataTypes.DOUBLE().notNull())
+                        .testResult(
+                                call("LEAST", $("f1"), $("f2").cast(DataTypes.DOUBLE())),
+                                "LEAST(f1, CAST(f2 AS DOUBLE))",
+                                2.0d,
+                                DataTypes.DOUBLE().notNull())
+                        .testResult(
+                                call(
+                                        "GREATEST",
+                                        $("f3").cast(DataTypes.FLOAT()),
+                                        $("f4").cast(DataTypes.FLOAT())),
+                                "GREATEST(CAST(f3 AS FLOAT), CAST(f4 AS FLOAT))",
+                                0.0f,
+                                DataTypes.FLOAT().notNull())
+                        .testResult(
+                                call(
+                                        "LEAST",
+                                        $("f3").cast(DataTypes.FLOAT()),
+                                        $("f4").cast(DataTypes.FLOAT())),
+                                "LEAST(CAST(f3 AS FLOAT), CAST(f4 AS FLOAT))",
+                                -0.0f,
+                                DataTypes.FLOAT().notNull()),
+                // Boolean.compare path: false < true
+                TestSetSpec.forExpression("GREATEST/LEAST over BOOLEAN")
+                        .onFieldsWithData(false, true)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                call("GREATEST", $("f0"), $("f1")),
+                                "GREATEST(f0, f1)",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                call("LEAST", $("f0"), $("f1")),
+                                "LEAST(f0, f1)",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                // short-circuit: a NULL arg must stop evaluation of the remaining args. MOD(f1, 0)
+                // would throw if evaluated; repeating it forces a shared RexLocalRef so the body
+                // must
+                // stay guarded (not hoisted) under table.optimizer.reuse-sub-expression-enabled.
+                TestSetSpec.forExpression("GREATEST/LEAST short-circuit on NULL arg")
+                        .onFieldsWithData(null, 6, 0)
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.INT().notNull())
+                        .testResult(
+                                call("GREATEST", $("f0"), $("f1").mod($("f2"))),
+                                "GREATEST(f0, MOD(f1, f2))",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                call("LEAST", $("f0"), $("f1").mod($("f2"))),
+                                "LEAST(f0, MOD(f1, f2))",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                call(
+                                        "GREATEST",
+                                        $("f0"),
+                                        $("f1").mod($("f2")),
+                                        $("f1").mod($("f2"))),
+                                "GREATEST(f0, MOD(f1, f2), MOD(f1, f2))",
+                                null,
+                                DataTypes.INT()));
     }
 }
