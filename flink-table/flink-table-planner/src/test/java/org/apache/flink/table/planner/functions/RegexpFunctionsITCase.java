@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -39,8 +41,79 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         regexpExtractAllTestCases(),
                         regexpInstrTestCases(),
                         regexpReplaceTestCases(),
-                        regexpSubstrTestCases())
+                        regexpSubstrTestCases(),
+                        literalPatternTestCases())
                 .flatMap(s -> s);
+    }
+
+    // Literal patterns are compiled at codegen; the same pattern from a column must match.
+    private Stream<TestSetSpec> literalPatternTestCases() {
+        // more patterns than the pattern cache holds
+        final String manyPatterns =
+                IntStream.range(0, 70)
+                        .mapToObj(i -> "REGEXP(f2, 'a|x" + i + "')")
+                        .collect(Collectors.joining(" AND "));
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP, "Literal pattern")
+                        .onFieldsWithData(
+                                "foo-123 bar-45", "say \"hi\" \\ ü", "abc", "", "\"hi\" \\\\ ü")
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        // an empty pattern never matches
+                        .testSqlResult("REGEXP(f2, '')", false, DataTypes.BOOLEAN().nullable())
+                        .testSqlResult("REGEXP(f2, f3)", false, DataTypes.BOOLEAN().nullable())
+                        // special characters in the pattern
+                        .testSqlResult(
+                                "REGEXP(f1, '\"hi\" \\\\ ü')", true, DataTypes.BOOLEAN().nullable())
+                        .testSqlResult("REGEXP(f1, f4)", true, DataTypes.BOOLEAN().nullable())
+                        .testSqlResult(manyPatterns, true, DataTypes.BOOLEAN().nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Literal pattern")
+                        .onFieldsWithData("foo-123 bar-45", "([a-z]+)-(\\d+)")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, '([a-z]+)-(\\d+)', 2)",
+                                "123",
+                                DataTypes.STRING().nullable())
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, f1, 2)", "123", DataTypes.STRING().nullable())
+                        // no index: whole match
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, '([a-z]+)-(\\d+)')",
+                                "foo-123",
+                                DataTypes.STRING().nullable())
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, f1)", "foo-123", DataTypes.STRING().nullable())
+                        // invalid index: NULL
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, '([a-z]+)-(\\d+)', 3)",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, f1, 3)", null, DataTypes.STRING().nullable())
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, '([a-z]+)-(\\d+)', -1)",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testSqlResult(
+                                "REGEXP_EXTRACT(f0, f1, -1)", null, DataTypes.STRING().nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP_REPLACE, "Literal pattern")
+                        .onFieldsWithData("abc", "b")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        // replacement is literal text
+                        .testSqlResult(
+                                "REGEXP_REPLACE(f0, 'b', '$1\\\\')",
+                                "a$1\\\\c",
+                                DataTypes.STRING().nullable())
+                        .testSqlResult(
+                                "REGEXP_REPLACE(f0, f1, '$1\\\\')",
+                                "a$1\\\\c",
+                                DataTypes.STRING().nullable()));
     }
 
     private Stream<TestSetSpec> regexpTestCases() {
