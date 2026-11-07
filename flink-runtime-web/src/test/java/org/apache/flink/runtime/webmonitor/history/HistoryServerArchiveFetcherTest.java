@@ -626,8 +626,10 @@ class HistoryServerArchiveFetcherTest {
     @TestTemplate
     void testViewedArchiveIsTrackedWhenRefreshDirIsNotQualified() throws Exception {
         JobID newest = JobID.generate();
-        JobID older = JobID.generate();
-        Path olderArchive = createArchive(older, 1000);
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
         createArchive(newest, 2000);
 
         HistoryServer.RefreshLocation location = createRefreshLocation(remoteArchiveRootPath);
@@ -647,10 +649,119 @@ class HistoryServerArchiveFetcherTest {
                         1,
                         1);
         fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchiveThatLaterEntersCachedWindowIsNotEvictedByScan() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        Path newestArchive = createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
         view(fetcher, older, olderArchive);
+
+        // the older job moves into the cached window and is then scan-cached
+        newestArchive.getFileSystem().delete(newestArchive, false);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(older)).isTrue();
+
+        // two newer archives push it out of the window again, but it is still viewed
+        createArchive(JobID.generate(), 3000);
+        createArchive(JobID.generate(), 4000);
         fetcher.fetchArchives(EAGER);
 
         assertThat(isCachedLocally(older)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchiveIsCleanedWhenRemoteArchiveIsDeleted() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, older, olderArchive);
+        assertThat(isCachedLocally(older)).isTrue();
+
+        olderArchive.getFileSystem().delete(olderArchive, false);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(older)).isFalse();
+        assertThat(archiveMetaInfoCache).doesNotContainKey(older.toString());
+        assertThat(isCachedLocally(newest)).isTrue();
+    }
+
+    @TestTemplate
+    void testFinishedFetchDoesNotPinViewedArchive() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        // a stale finished task must not count as an in-flight fetch
+        archiveMetaInfoCache.get(old1.toString()).setEventType(CREATED);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+    }
+
+    @TestTemplate
+    void testPinnedArchiveIsNotEvictedUntilReleased() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        fetcher.acquireJob(old1.toString());
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isTrue();
+
+        fetcher.releaseJob(old1.toString());
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+    }
+
+    @TestTemplate
+    void testFailedOnDemandFetchClearsMetaAndCanBeRetried() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old = JobID.generate();
+        Path oldArchive = createArchive(old, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(old)).isFalse();
+
+        Path hidden = new Path(oldArchive.getParent(), "hidden-" + old);
+        oldArchive.getFileSystem().rename(oldArchive, hidden);
+        assertThatThrownBy(() -> fetcher.lazyProcessJobArchive(old.toString(), oldArchive, true))
+                .isInstanceOf(Exception.class);
+        assertThat(archiveMetaInfoCache).doesNotContainKey(old.toString());
+
+        oldArchive.getFileSystem().rename(hidden, oldArchive);
+        view(fetcher, old, oldArchive);
+        assertThat(isCachedLocally(old)).isTrue();
     }
 
     @TestTemplate

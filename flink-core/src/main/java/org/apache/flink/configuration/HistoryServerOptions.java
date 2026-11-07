@@ -201,6 +201,8 @@ public class HistoryServerOptions {
                                     .text(
                                             "Jobs outside the local cache are not listed in the job overview and can only be opened by their URL. ")
                                     .text(
+                                            "The limit is applied separately to each archive directory. ")
+                                    .text(
                                             "This option only applies to job archives, not to application archives.")
                                     .build());
 
@@ -216,6 +218,8 @@ public class HistoryServerOptions {
                                             code(HISTORY_SERVER_CACHED_RETAINED_JOBS.key()))
                                     .text(
                                             "It does not limit how many remote archives can be fetched, only how many stay cached locally. ")
+                                    .text(
+                                            "Jobs viewed by several users share these slots, so raise it in production to avoid evicting each other. ")
                                     .text("Must be at least 1.")
                                     .build());
 

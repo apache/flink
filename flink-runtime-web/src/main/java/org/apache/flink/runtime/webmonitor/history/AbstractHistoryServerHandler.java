@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.configuration.HistoryServerOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
@@ -86,6 +85,8 @@ public abstract class AbstractHistoryServerHandler<Entry>
 
     /** Matches jobs/{jobId} or jobs/{jobId}/... paths. */
     private static final Pattern JOB_ID_PATTERN = Pattern.compile("^jobs/([^/]+)(?:/.*)?$");
+
+    private static final int MAX_LAZY_LOAD_ATTEMPTS = 3;
 
     /** Matches applications/{appId}. */
     private static final Pattern APPLICATION_ID_PATTERN = Pattern.compile("^applications/([^/]+)$");
@@ -172,14 +173,22 @@ public abstract class AbstractHistoryServerHandler<Entry>
             requestPath = requestPath + ".json";
 
             LOG.debug("Responding to request for path {}", requestPath);
-            Entry resource = loadResource(requestPath, archiveLoadMode);
+            // the job must not be evicted until the response has opened its entry
+            String servedJobId = acquireServedJob(requestPath);
+            try {
+                Entry resource = loadResource(requestPath, archiveLoadMode);
 
-            if (resource == null) {
-                LOG.debug("Unable to load requested resource {}", requestPath);
-                throw new NotFoundException("Resource not found.");
+                if (resource == null) {
+                    LOG.debug("Unable to load requested resource {}", requestPath);
+                    throw new NotFoundException("Resource not found.");
+                }
+
+                respondWithResource(ctx, routedRequest.getRequest(), requestPath, resource);
+            } finally {
+                if (servedJobId != null) {
+                    archiveFetcher.releaseJob(servedJobId);
+                }
             }
-
-            respondWithResource(ctx, routedRequest.getRequest(), requestPath, resource);
         } else {
             File destFile = new File(rootPath, requestPath);
             if (!destFile.exists()) {
@@ -338,24 +347,15 @@ public abstract class AbstractHistoryServerHandler<Entry>
             // for job/${jobId}...
             String jobId = extractJobId(requestKey);
             if (jobId != null) {
-                if (archiveStorage.exists(requestKey)) {
-                    archiveFetcher.markRecentlyViewed(jobId);
-                    return archiveStorage.getEntry(requestKey);
+                // another request may evict the job between fetching and reading it, in which
+                // case it is fetched again
+                for (int attempt = 0; attempt < MAX_LAZY_LOAD_ATTEMPTS; attempt++) {
+                    Entry entry = loadJobResourceLazily(requestKey, jobId);
+                    if (entry != null) {
+                        return entry;
+                    }
                 }
-                ArchiveMetaInfo jobArchiveMetaInfo = archiveFetcher.getArchiveMetaInfo(jobId);
-                if (archiveFetcher.needLazyLoadIndividually(jobId)) {
-                    Path archivePath =
-                            jobArchiveMetaInfo == null ? null : jobArchiveMetaInfo.getArchivePath();
-                    archiveFetcher.lazyFetchArchiveProactively(jobId, archivePath);
-                }
-                if (archiveFetcher.getArchiveMetaInfo(jobId) != null) {
-                    archiveFetcher.markRecentlyViewed(jobId);
-                }
-                // wait for the job archive to be loaded
-                if (!requestKey.endsWith(jobId + JSON_FILE_ENDING)) {
-                    archiveFetcher.waitLazyFetchArchiveFinished(jobId);
-                }
-                return archiveStorage.getEntry(requestKey);
+                return null;
             }
         }
 
@@ -364,6 +364,42 @@ public abstract class AbstractHistoryServerHandler<Entry>
         }
 
         return null;
+    }
+
+    /** Pins the job of a lazily loaded job request, returns its id or null if nothing is pinned. */
+    @Nullable
+    private String acquireServedJob(String requestPath) {
+        if (!LAZY.equals(archiveLoadMode) || archiveFetcher == null) {
+            return null;
+        }
+        String requestKey = requestPath.startsWith("/") ? requestPath.substring(1) : requestPath;
+        if (requestKey.equals(JobsOverviewHeaders.URL.substring(1) + JSON_FILE_ENDING)) {
+            return null;
+        }
+        String jobId = extractJobId(requestKey);
+        if (jobId != null) {
+            archiveFetcher.acquireJob(jobId);
+        }
+        return jobId;
+    }
+
+    @Nullable
+    private Entry loadJobResourceLazily(String requestKey, String jobId) throws Exception {
+        if (archiveStorage.exists(requestKey)) {
+            archiveFetcher.markRecentlyViewed(jobId);
+            return archiveStorage.getEntry(requestKey);
+        }
+        archiveFetcher.lazyFetchArchiveIfNeeded(jobId);
+        if (archiveFetcher.getArchiveMetaInfo(jobId) != null) {
+            archiveFetcher.markRecentlyViewed(jobId);
+        }
+        // wait for the job archive to be loaded
+        if (requestKey.endsWith(jobId + JSON_FILE_ENDING)) {
+            archiveFetcher.waitLazyFetchOverviewReady(jobId);
+        } else {
+            archiveFetcher.waitLazyFetchArchiveFinished(jobId);
+        }
+        return archiveStorage.getEntry(requestKey);
     }
 
     /**
@@ -420,7 +456,10 @@ public abstract class AbstractHistoryServerHandler<Entry>
     protected static String extractJobId(String requestPath) {
         Matcher matcher = JOB_ID_PATTERN.matcher(requestPath);
         if (matcher.matches()) {
-            return matcher.group(1);
+            String jobId = matcher.group(1);
+            return jobId.endsWith(JSON_FILE_ENDING)
+                    ? jobId.substring(0, jobId.length() - JSON_FILE_ENDING.length())
+                    : jobId;
         }
         return null;
     }

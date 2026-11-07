@@ -118,7 +118,7 @@ historyserver.archive.load.mode: LAZY
 
 **本地缓存与远程保留**
 
-默认情况下，`historyserver.archive.retained-jobs` 保留的所有归档都会缓存到本地。如果希望远程保留大量历史，同时只在本地缓存最近的作业，可以设置 `historyserver.archive.cached-retained-jobs`。更早的归档只会从本地缓存中淘汰，当 `historyserver.archive.load.mode` 为 `LAZY` 时按需获取。这些作业不会出现在作业列表中，只能通过 URL 直接打开。通过这种方式最近查看的 `historyserver.archive.num-cached-most-recently-viewed-jobs` 个作业（默认 1 个）会保留在本地缓存中。
+默认情况下，`historyserver.archive.retained-jobs` 保留的所有归档都会缓存到本地。如果希望远程保留大量历史，同时只在本地缓存最近的作业，可以设置 `historyserver.archive.cached-retained-jobs`。更早的归档只会从本地缓存中淘汰，当 `historyserver.archive.load.mode` 为 `LAZY` 时按需获取。这些作业不会出现在作业列表中，只能通过 URL 直接打开。通过这种方式最近查看的 `historyserver.archive.num-cached-most-recently-viewed-jobs` 个作业（默认 1 个）会保留在本地缓存中。该限制对每个归档目录分别生效，且所有用户查看的作业共享这些名额，生产环境中如果多人查看旧作业，请调大该值。
 
 ```yaml
 historyserver.archive.load.mode: LAZY
