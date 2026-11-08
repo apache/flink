@@ -85,15 +85,15 @@ under the License.
     </property>
 
     <property>
-         <name>dfs.secondary.http.address</name>
-         <value>master:50090</value>
+         <name>dfs.namenode.secondary.http-address</name>
+         <value>master:9868</value>
          <description>Address of secondary namenode web server</description>
     </property>
 
     <property>
-         <name>dfs.secondary.https.port</name>
-         <value>50490</value>
-         <description>The https port where secondary-namenode binds</description>
+         <name>dfs.namenode.secondary.https-address</name>
+         <value>master:9869</value>
+         <description>Address of secondary namenode https web server</description>
     </property>
 
     <property>

@@ -195,7 +195,7 @@ public class YarnConfigOptions {
      * unset yarn priority setting and use cluster default priority.
      *
      * @see <a
-     *     href="https://hadoop.apache.org/docs/r2.10.2/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN
+     *     href="https://hadoop.apache.org/docs/r3.4.3/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN
      *     Capacity Scheduling Doc</a>
      */
     public static final ConfigOption<Integer> APPLICATION_PRIORITY =

@@ -207,6 +207,23 @@
 				</exclusion>
             </exclusions>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-hdfs-client</artifactId>
+            <version>${flink.hadoop.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>ch.qos.reload4j</groupId>
+                    <artifactId>reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
 	<dependencyManagement>
@@ -262,45 +279,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!-- This profile adds dependencies needed to execute the tests with Hadoop 3 -->
-        <profile>
-            <id>hadoop3-tests</id>
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.hadoop</groupId>
-                    <artifactId>hadoop-hdfs-client</artifactId>
-                    <version>${flink.hadoop.version}</version>
-                    <scope>test</scope>
-					<exclusions>
-						<exclusion>
-							<groupId>ch.qos.reload4j</groupId>
-							<artifactId>reload4j</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.slf4j</groupId>
-							<artifactId>slf4j-reload4j</artifactId>
-						</exclusion>
-					</exclusions>
-                </dependency>
-            </dependencies>
-            <dependencyManagement>
-                <dependencies>
-                    <dependency>
-                        <!-- dependency convergence -->
-                        <groupId>com.nimbusds</groupId>
-                        <artifactId>nimbus-jose-jwt</artifactId>
-                        <version>4.41.1</version>
-                    </dependency>
-                    <dependency>
-                        <!-- dependency convergence -->
-                        <groupId>com.squareup.okio</groupId>
-                        <artifactId>okio</artifactId>
-                        <version>1.17.2</version>
-                    </dependency>
-                </dependencies>
-            </dependencyManagement>
-        </profile>
-    </profiles>
 </project>

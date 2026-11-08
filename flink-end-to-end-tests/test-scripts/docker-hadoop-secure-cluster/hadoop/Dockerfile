@@ -24,7 +24,9 @@
 #
 # Creates multi-node, kerberized Hadoop cluster on Docker
 
-FROM eclipse-temurin:8-jdk-jammy
+# Hadoop's container-executor links against OpenSSL 1.1 (libcrypto.so.1.1), which jammy no longer ships.
+# The focal tags no longer receive updates. Only the disabled YARN Kerberos e2e test uses this image.
+FROM eclipse-temurin:8-jdk-focal
 
 RUN set -x \
     && addgroup hadoop \
@@ -82,7 +84,6 @@ ENV HADOOP_HDFS_HOME /usr/local/hadoop
 ENV HADOOP_MAPRED_HOME /usr/local/hadoop
 ENV HADOOP_YARN_HOME /usr/local/hadoop
 ENV HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop
-ENV YARN_CONF_DIR /usr/local/hadoop/etc/hadoop
 ENV HADOOP_LOG_DIR /var/log/hadoop
 ENV HADOOP_BIN_HOME $HADOOP_HOME/bin
 ENV PATH $PATH:$HADOOP_BIN_HOME
@@ -93,7 +94,10 @@ ENV KERBEROS_ADMIN_USER admin/admin
 ENV KERBEROS_ADMIN_PASSWORD admin
 ENV KEYTAB_DIR /etc/security/keytabs
 
-RUN mkdir /var/log/hadoop
+RUN set -x \
+    && mkdir /var/log/hadoop \
+    && chown root:hadoop /var/log/hadoop \
+    && chmod 775 /var/log/hadoop
 
 ADD config/core-site.xml $HADOOP_HOME/etc/hadoop/core-site.xml
 ADD config/hdfs-site.xml $HADOOP_HOME/etc/hadoop/hdfs-site.xml
@@ -127,7 +131,7 @@ RUN set -x \
     && echo "Port 2122" >> /etc/ssh/sshd_config
 
 # Hdfs ports
-EXPOSE 9000 50010 50020 50075 50090 50475 50091 8020
+EXPOSE 9000 9866 9867 9864 9868 9865 9869 8020
 # Mapred ports
 EXPOSE 19888
 # Yarn ports
