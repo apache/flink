@@ -78,6 +78,11 @@ under the License.
 					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-server</artifactId>
 				</exclusion>
+				<!-- hadoop-common 3.4 declares jersey-json, but none of its classes use it. -->
+				<exclusion>
+					<groupId>com.github.pjfanning</groupId>
+					<artifactId>jersey-json</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>org.apache.avro</groupId>
 					<artifactId>avro</artifactId>
@@ -177,6 +182,15 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<!-- hadoop-common 3.4 declares Netty, but none of its classes use it. -->
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-handler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-transport-native-epoll</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
