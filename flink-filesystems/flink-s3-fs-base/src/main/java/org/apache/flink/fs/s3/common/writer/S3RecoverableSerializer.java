@@ -21,8 +21,6 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import com.amazonaws.services.s3.model.PartETag;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -55,7 +53,7 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
     @Override
     public byte[] serialize(S3Recoverable obj) throws IOException {
         final List<PartETag> partList = obj.parts();
-        final PartETag[] parts = partList.toArray(new PartETag[partList.size()]);
+        final PartETag[] parts = partList.toArray(new PartETag[0]);
 
         final byte[] keyBytes = obj.getObjectName().getBytes(CHARSET);
         final byte[] uploadIdBytes = obj.uploadId().getBytes(CHARSET);

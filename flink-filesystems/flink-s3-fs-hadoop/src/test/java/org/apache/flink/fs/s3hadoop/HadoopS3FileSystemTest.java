@@ -21,8 +21,12 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
+import org.apache.hadoop.fs.s3a.impl.streams.InputStreamType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.apache.hadoop.fs.s3a.impl.streams.StreamIntegration.determineInputStreamType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -123,6 +127,75 @@ class HadoopS3FileSystemTest {
         assertThat(hadoopConf.get("fs.s3a.fast.upload.buffer", null)).isEqualTo("disk");
         assertThat(hadoopConf.get("fs.s3a.multipart.purge.age", null)).isEqualTo("86400");
         assertThat(hadoopConf.get("fs.s3a.s3guard.ddb.table.capacity.read", null)).isEqualTo("10");
+    }
+
+    // ------------------------------------------------------------------------
+    //  These tests check the Flink-side default for the S3A input stream type.
+    //  hadoop-aws 3.4.3 defaults fs.s3a.input.stream.type to the analytics-
+    //  accelerator stream; Flink pins the classic stream unless the user
+    //  configures otherwise.
+    // ------------------------------------------------------------------------
+
+    /** With no user configuration, the classic input stream must be pinned. */
+    @Test
+    void testInputStreamTypeDefaultsToClassic() {
+        org.apache.hadoop.conf.Configuration hadoopConf =
+                loadHadoopConfigWithDefaults(new Configuration());
+
+        assertThat(determineInputStreamType(hadoopConf)).isEqualTo(InputStreamType.Classic);
+    }
+
+    /** An explicit user-configured stream type must not be overridden. */
+    @Test
+    void testInputStreamTypeUserOverrideWins() {
+        Configuration conf = new Configuration();
+        conf.setString("s3.input.stream.type", "analytics");
+
+        org.apache.hadoop.conf.Configuration hadoopConf = loadHadoopConfigWithDefaults(conf);
+
+        assertThat(determineInputStreamType(hadoopConf)).isEqualTo(InputStreamType.Analytics);
+    }
+
+    /** The legacy prefetch toggle must still select the prefetching stream. */
+    @Test
+    void testInputStreamTypePrefetchToggleStillWorks() {
+        Configuration conf = new Configuration();
+        conf.setString("s3.prefetch.enabled", "true");
+
+        org.apache.hadoop.conf.Configuration hadoopConf = loadHadoopConfigWithDefaults(conf);
+
+        assertThat(determineInputStreamType(hadoopConf)).isEqualTo(InputStreamType.Prefetch);
+    }
+
+    /** Without a user choice, uploads carry a CRC32 checksum. */
+    @Test
+    void testUploadChecksumAlgorithmDefaultsToCrc32() {
+        org.apache.hadoop.conf.Configuration hadoopConf =
+                loadHadoopConfigWithDefaults(new Configuration());
+
+        assertThat(hadoopConf.get("fs.s3a.create.checksum.algorithm")).isEqualTo("CRC32");
+    }
+
+    /** A user's algorithm, NONE included, must not be overridden. */
+    @ParameterizedTest
+    @ValueSource(strings = {"NONE", "CRC32C"})
+    void testUploadChecksumAlgorithmUserChoiceWins(String algorithm) {
+        Configuration conf = new Configuration();
+        conf.setString("s3.create.checksum.algorithm", algorithm);
+
+        org.apache.hadoop.conf.Configuration hadoopConf = loadHadoopConfigWithDefaults(conf);
+
+        assertThat(hadoopConf.get("fs.s3a.create.checksum.algorithm")).isEqualTo(algorithm);
+    }
+
+    private static org.apache.hadoop.conf.Configuration loadHadoopConfigWithDefaults(
+            Configuration flinkConf) {
+        HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+        configLoader.setFlinkConfig(flinkConf);
+
+        org.apache.hadoop.conf.Configuration hadoopConf = configLoader.getOrLoadHadoopConfig();
+        new S3FileSystemFactory().applyHadoopConfigDefaults(hadoopConf);
+        return hadoopConf;
     }
 
     private static void checkHadoopAccessKeys(

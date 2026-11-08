@@ -22,9 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RefCountedFSOutputStream;
 
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.UploadPartResult;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -322,14 +319,13 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         @Override
         public void run() {
             try {
-                final UploadPartResult result =
+                future.complete(
                         s3AccessHelper.uploadPart(
                                 objectName,
                                 uploadId,
                                 partNumber,
                                 file.getInputFile(),
-                                file.getPos());
-                future.complete(new PartETag(result.getPartNumber(), result.getETag()));
+                                file.getPos()));
                 file.release();
             } catch (Throwable t) {
                 future.completeExceptionally(t);

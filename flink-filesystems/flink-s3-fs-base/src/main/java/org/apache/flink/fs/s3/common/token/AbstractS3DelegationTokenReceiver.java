@@ -32,8 +32,15 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-/** Delegation token receiver for S3 filesystems. */
+/**
+ * Delegation token receiver for S3 filesystems.
+ *
+ * <p>It references no AWS SDK types, because it is bundled into plugins with different AWS SDK
+ * versions.
+ */
 @Internal
 public abstract class AbstractS3DelegationTokenReceiver implements DelegationTokenReceiver {
 
@@ -47,15 +54,40 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
     @VisibleForTesting @Nullable static volatile String region;
 
     public static void updateHadoopConfig(org.apache.hadoop.conf.Configuration hadoopConfig) {
+        updateHadoopConfig(hadoopConfig, DynamicTemporaryAWSCredentialsProvider.NAME);
+    }
+
+    /**
+     * Registers the given delegation token credentials provider in {@code
+     * fs.s3a.aws.credentials.provider} and propagates the configured region.
+     *
+     * <p>When {@code credentialsProviderName} differs from the SDK v1 based {@link
+     * DynamicTemporaryAWSCredentialsProvider}, any user-configured reference to that legacy
+     * provider is remapped to {@code credentialsProviderName}: the legacy provider cannot be loaded
+     * in plugins that do not bundle AWS SDK v1 (e.g. {@code flink-s3-fs-hadoop}).
+     */
+    public static void updateHadoopConfig(
+            org.apache.hadoop.conf.Configuration hadoopConfig, String credentialsProviderName) {
         LOG.info("Updating Hadoop configuration");
 
         String providers = hadoopConfig.get(PROVIDER_CONFIG_NAME, "");
-        if (!providers.contains(DynamicTemporaryAWSCredentialsProvider.NAME)) {
+        if (!credentialsProviderName.equals(DynamicTemporaryAWSCredentialsProvider.NAME)) {
+            String remappedProviders = replaceLegacyProvider(providers, credentialsProviderName);
+            if (!remappedProviders.equals(providers)) {
+                LOG.info(
+                        "Remapped legacy SDK v1 credentials provider {} to {}",
+                        DynamicTemporaryAWSCredentialsProvider.NAME,
+                        credentialsProviderName);
+                providers = remappedProviders;
+                hadoopConfig.set(PROVIDER_CONFIG_NAME, providers);
+            }
+        }
+        if (!providers.contains(credentialsProviderName)) {
             if (providers.isEmpty()) {
                 LOG.debug("Setting provider");
-                providers = DynamicTemporaryAWSCredentialsProvider.NAME;
+                providers = credentialsProviderName;
             } else {
-                providers = DynamicTemporaryAWSCredentialsProvider.NAME + "," + providers;
+                providers = credentialsProviderName + "," + providers;
                 LOG.debug("Prepending provider, new providers value: {}", providers);
             }
             hadoopConfig.set(PROVIDER_CONFIG_NAME, providers);
@@ -69,6 +101,28 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
         }
 
         LOG.info("Updated Hadoop configuration successfully");
+    }
+
+    /**
+     * Replaces the legacy SDK v1 delegation token credentials provider with its replacement,
+     * dropping duplicates while preserving the order of the remaining chain. Returns the input
+     * unchanged when the legacy provider is not referenced.
+     */
+    private static String replaceLegacyProvider(String providers, String replacement) {
+        boolean legacyFound = false;
+        Set<String> remapped = new LinkedHashSet<>();
+        for (String provider : providers.split(",")) {
+            String trimmed = provider.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.equals(DynamicTemporaryAWSCredentialsProvider.NAME)) {
+                legacyFound = true;
+                trimmed = replacement;
+            }
+            remapped.add(trimmed);
+        }
+        return legacyFound ? String.join(",", remapped) : providers;
     }
 
     @Override

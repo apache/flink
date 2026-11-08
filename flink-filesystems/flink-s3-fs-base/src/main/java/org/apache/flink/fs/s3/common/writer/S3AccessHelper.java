@@ -20,12 +20,6 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
 
-import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.UploadPartResult;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -33,12 +27,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * An interface that abstracts away the Multi-Part Upload (MPU) functionality offered by S3, from
- * the specific implementation of the file system. This is needed so that we can accommodate both
- * Hadoop S3 and Presto.
+ * the specific implementation of the file system.
  *
- * <p>Multipart uploads are convenient for large object. These will be uploaded in multiple parts
- * and the mutli-part upload is the equivalent of a transaction, where the upload with all its parts
+ * <p>Multipart uploads are convenient for large objects. These will be uploaded in multiple parts
+ * and the multipart upload is the equivalent of a transaction, where the upload with all its parts
  * will be either committed or discarded.
+ *
+ * <p>Only flink-s3-fs-hadoop implements this interface. The writer classes are bundled into the
+ * presto plugin as well, which ships no AWS SDK v2, so this interface uses no SDK types.
  */
 @Internal
 public interface S3AccessHelper {
@@ -61,11 +57,10 @@ public interface S3AccessHelper {
      * @param partNumber the number of the part being uploaded (has to be in [1 ... 10000]).
      * @param inputFile the (local) file holding the part to be uploaded.
      * @param length the length of the part.
-     * @return The {@link UploadPartResult result} of the attempt to upload the part.
+     * @return The part number and ETag of the uploaded part.
      * @throws IOException
      */
-    UploadPartResult uploadPart(
-            String key, String uploadId, int partNumber, File inputFile, long length)
+    PartETag uploadPart(String key, String uploadId, int partNumber, File inputFile, long length)
             throws IOException;
 
     /**
@@ -75,10 +70,9 @@ public interface S3AccessHelper {
      *
      * @param key the key used to identify this part.
      * @param inputFile the (local) file holding the data to be uploaded.
-     * @return The {@link PutObjectResult result} of the attempt to stage the incomplete part.
      * @throws IOException
      */
-    PutObjectResult putObject(String key, File inputFile) throws IOException;
+    void putObject(String key, File inputFile) throws IOException;
 
     /**
      * Finalizes a Multi-Part Upload.
@@ -88,10 +82,9 @@ public interface S3AccessHelper {
      * @param partETags the list of {@link PartETag ETags} associated with this MPU.
      * @param length the size of the uploaded object.
      * @param errorCount a counter that will be used to count any failed attempts to commit the MPU.
-     * @return The {@link CompleteMultipartUploadResult result} of the attempt to finalize the MPU.
      * @throws IOException
      */
-    CompleteMultipartUploadResult commitMultiPartUpload(
+    void commitMultiPartUpload(
             String key,
             String uploadId,
             List<PartETag> partETags,
@@ -121,11 +114,11 @@ public interface S3AccessHelper {
     long getObject(String key, File targetLocation) throws IOException;
 
     /**
-     * Fetches the metadata associated with a given key on S3.
+     * Fetches the length of the object associated with a given key on S3.
      *
      * @param key the key.
-     * @return The associated {@link ObjectMetadata}.
+     * @return The length of the object in bytes.
      * @throws IOException
      */
-    ObjectMetadata getObjectMetadata(String key) throws IOException;
+    long getObjectLength(String key) throws IOException;
 }

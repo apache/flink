@@ -20,8 +20,6 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.core.fs.RecoverableWriter;
 
-import com.amazonaws.services.s3.model.PartETag;
-
 import javax.annotation.Nullable;
 
 import java.util.List;
