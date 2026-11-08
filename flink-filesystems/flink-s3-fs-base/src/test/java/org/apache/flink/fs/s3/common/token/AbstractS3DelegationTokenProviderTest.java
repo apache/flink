@@ -56,7 +56,8 @@ class AbstractS3DelegationTokenProviderTest {
                     }
 
                     @Override
-                    AWSSecurityTokenService createStsClient() {
+                    AWSSecurityTokenService createStsClient(
+                            String region, String accessKey, String secretKey) {
                         return stsClient;
                     }
                 };
@@ -86,11 +87,7 @@ class AbstractS3DelegationTokenProviderTest {
 
         final ObtainedDelegationTokens tokens = provider.obtainDelegationTokens();
 
-        final Credentials deserializedCredentials =
-                InstantiationUtil.deserializeObject(
-                        tokens.getTokens(), getClass().getClassLoader());
-        assertThat(deserializedCredentials).isEqualTo(credentials);
-        assertThat(tokens.getValidUntil()).contains(credentials.getExpiration().getTime());
+        assertTokensContain(tokens, credentials);
         assertThat(stsClient.requestCount).isEqualTo(1);
         assertThat(stsClient.shutdownCount).isEqualTo(1);
     }
@@ -135,13 +132,26 @@ class AbstractS3DelegationTokenProviderTest {
 
         final ObtainedDelegationTokens tokens = provider.obtainDelegationTokens();
 
-        final Credentials deserializedCredentials =
-                InstantiationUtil.deserializeObject(
-                        tokens.getTokens(), getClass().getClassLoader());
-        assertThat(deserializedCredentials).isEqualTo(credentials);
-        assertThat(tokens.getValidUntil()).contains(credentials.getExpiration().getTime());
+        assertTokensContain(tokens, credentials);
         assertThat(stsClient.requestCount).isEqualTo(1);
         assertThat(stsClient.shutdownCount).isEqualTo(1);
+    }
+
+    private static void assertTokensContain(
+            ObtainedDelegationTokens tokens, Credentials credentials) throws Exception {
+        final S3SessionCredentials deserializedCredentials =
+                InstantiationUtil.deserializeObject(
+                        tokens.getTokens(),
+                        AbstractS3DelegationTokenProviderTest.class.getClassLoader());
+        assertThat(deserializedCredentials.getAccessKeyId())
+                .isEqualTo(credentials.getAccessKeyId());
+        assertThat(deserializedCredentials.getSecretAccessKey())
+                .isEqualTo(credentials.getSecretAccessKey());
+        assertThat(deserializedCredentials.getSessionToken())
+                .isEqualTo(credentials.getSessionToken());
+        assertThat(deserializedCredentials.getExpirationEpochMilli())
+                .isEqualTo(credentials.getExpiration().getTime());
+        assertThat(tokens.getValidUntil()).contains(credentials.getExpiration().getTime());
     }
 
     private static Credentials createCredentials() {

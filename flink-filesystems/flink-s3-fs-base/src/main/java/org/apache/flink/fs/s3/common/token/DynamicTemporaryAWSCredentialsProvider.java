@@ -24,7 +24,6 @@ import com.amazonaws.SdkBaseException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
 import org.slf4j.Logger;
@@ -54,7 +53,7 @@ public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsPro
 
     @Override
     public AWSCredentials getCredentials() throws SdkBaseException {
-        Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
+        S3SessionCredentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
         if (credentials == null) {
             throw new NoAwsCredentialsException(COMPONENT);
         }
@@ -67,6 +66,6 @@ public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsPro
 
     @Override
     public void refresh() {
-        // Intentionally blank. Credentials are updated by S3DelegationTokenReceiver
+        // Intentionally blank. Credentials are updated by the delegation token receiver.
     }
 }
