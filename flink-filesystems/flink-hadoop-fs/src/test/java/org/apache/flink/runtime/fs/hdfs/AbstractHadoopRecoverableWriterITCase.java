@@ -34,6 +34,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.annotation.Nullable;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -93,6 +95,8 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         cleanupLocalDir();
     }
 
+    /** Returns the local directory the writer stages data in, or null if it uses none. */
+    @Nullable
     protected abstract String getLocalTmpDir() throws Exception;
 
     protected abstract String getIncompleteObjectName(

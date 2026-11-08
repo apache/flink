@@ -20,12 +20,13 @@ package org.apache.flink.fs.gs;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterExceptionITCase;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,14 +34,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for exception handling in {@link
  * org.apache.flink.fs.gs.writer.GSRecoverableWriter}.
  */
-@ExtendWith(RequireGCSConfiguration.class)
 class HadoopGSRecoverableWriterExceptionITCase
         extends AbstractHadoopRecoverableWriterExceptionITCase {
 
     @BeforeAll
     static void setup() throws IOException {
-        basePath = RequireGCSConfiguration.getBasePath();
-        FileSystem.initialize(new Configuration());
+        GSTestCredentials.assumeCredentialsAvailable();
+        FileSystem.initialize(new Configuration(), null);
+        basePath = new Path(GSTestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
         assertThat(basePath.getFileSystem().exists(basePath)).isFalse();
         skipped = false;
     }
