@@ -33,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AbstractS3DelegationTokenReceiverTest {
 
     private static final String PROVIDER_CLASS_NAME = "TestProvider";
+    private static final String SDK_V2_PROVIDER_CLASS_NAME =
+            "org.apache.flink.fs.s3.common.token.HadoopDynamicTemporaryAWSCredentialsProvider";
     private static final String REGION = "testRegion";
 
     @BeforeEach
@@ -77,6 +79,46 @@ class AbstractS3DelegationTokenReceiverTest {
         AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
                 .isEqualTo(DynamicTemporaryAWSCredentialsProvider.NAME);
+    }
+
+    @Test
+    void updateHadoopConfigShouldSetGivenProviderName() {
+        org.apache.hadoop.conf.Configuration hadoopConfiguration =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfiguration.set(PROVIDER_CONFIG_NAME, "");
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(
+                hadoopConfiguration, SDK_V2_PROVIDER_CLASS_NAME);
+        assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
+                .isEqualTo(SDK_V2_PROVIDER_CLASS_NAME);
+    }
+
+    @Test
+    void updateHadoopConfigShouldRemapLegacyProviderName() {
+        // A user-configured reference to the SDK v1 provider must be remapped in plugins that
+        // register a different (SDK v2) provider, because the v1 provider class cannot be loaded
+        // there.
+        org.apache.hadoop.conf.Configuration hadoopConfiguration =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfiguration.set(
+                PROVIDER_CONFIG_NAME,
+                DynamicTemporaryAWSCredentialsProvider.NAME + "," + PROVIDER_CLASS_NAME);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(
+                hadoopConfiguration, SDK_V2_PROVIDER_CLASS_NAME);
+        assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
+                .isEqualTo(SDK_V2_PROVIDER_CLASS_NAME + "," + PROVIDER_CLASS_NAME);
+    }
+
+    @Test
+    void updateHadoopConfigShouldDropDuplicateAfterRemapping() {
+        org.apache.hadoop.conf.Configuration hadoopConfiguration =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfiguration.set(
+                PROVIDER_CONFIG_NAME,
+                SDK_V2_PROVIDER_CLASS_NAME + "," + DynamicTemporaryAWSCredentialsProvider.NAME);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(
+                hadoopConfiguration, SDK_V2_PROVIDER_CLASS_NAME);
+        assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
+                .isEqualTo(SDK_V2_PROVIDER_CLASS_NAME);
     }
 
     @Test

@@ -32,8 +32,6 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<!-- hadoop-aws 3.4 requires AWS SDK v2; stay on Hadoop 3.3 until the S3 filesystems are migrated (FLINK-30975) -->
-		<fs.hadoopshaded.version>3.3.4</fs.hadoopshaded.version>
 		<surefire.module.config> <!--
 			S5CmdOnHadoopS3FileSystemITCase uses ArraysAsListSerializer indirectly
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
@@ -86,12 +84,35 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- S3 base -->
+		<!-- hadoop-aws 3.4 uses AWS SDK v2. The SDK v1 that flink-s3-fs-base brings in for
+		     flink-s3-fs-presto is excluded; the SDK v2 modules are declared below. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-kms</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-dynamodb</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -286,12 +307,20 @@ under the License.
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
-									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
-										Filter must be removed as soon as XmlResponsesSaxParser of this module is
-										dropped, for example when discontinuing support for Java 8. -->
+									<artifact>org.apache.flink:flink-s3-fs-base</artifact>
+									<!-- Exclude XmlResponsesSaxParser from flink-s3-fs-base as it is AWS SDK v1 code.
+										We do not need this for SDK v2. This is only needed by Presto. -->
 									<excludes>
 										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<!-- Root-level LICENSE/NOTICE files fail the license checker; attribution is in this module's META-INF/NOTICE. -->
+									<artifact>software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3</artifact>
+									<excludes>
+										<exclude>LICENSE</exclude>
+										<exclude>NOTICE</exclude>
+										<exclude>THIRD-PARTY-NOTICES</exclude>
 									</excludes>
 								</filter>
 							</filters>

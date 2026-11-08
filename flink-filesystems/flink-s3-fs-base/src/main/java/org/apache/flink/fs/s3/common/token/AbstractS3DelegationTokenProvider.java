@@ -19,25 +19,25 @@
 package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Optional;
 
-/** Delegation token provider for S3 filesystems. */
+/**
+ * Delegation token provider for S3 filesystems.
+ *
+ * <p>It references no AWS SDK types, because it is bundled into plugins with different AWS SDK
+ * versions. Each plugin creates the STS client with its own SDK in {@link
+ * #createSessionTokenClient}.
+ */
 @Internal
 public abstract class AbstractS3DelegationTokenProvider implements DelegationTokenProvider {
 
@@ -107,40 +107,9 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
         }
     }
 
-    /**
-     * Creates the client that obtains session credentials from AWS STS. The default uses AWS SDK
-     * v1; a plugin that bundles another AWS SDK version overrides this.
-     */
-    protected SessionTokenClient createSessionTokenClient(
-            String region, String accessKey, String secretKey) {
-        final AWSSecurityTokenService stsClient = createStsClient(region, accessKey, secretKey);
-        return new SessionTokenClient() {
-            @Override
-            public S3SessionCredentials getSessionCredentials() {
-                final Credentials credentials = stsClient.getSessionToken().getCredentials();
-                return new S3SessionCredentials(
-                        credentials.getAccessKeyId(),
-                        credentials.getSecretAccessKey(),
-                        credentials.getSessionToken(),
-                        credentials.getExpiration().getTime());
-            }
-
-            @Override
-            public void close() {
-                stsClient.shutdown();
-            }
-        };
-    }
-
-    @VisibleForTesting
-    AWSSecurityTokenService createStsClient(String region, String accessKey, String secretKey) {
-        return AWSSecurityTokenServiceClientBuilder.standard()
-                .withRegion(region)
-                .withCredentials(
-                        new AWSStaticCredentialsProvider(
-                                new BasicAWSCredentials(accessKey, secretKey)))
-                .build();
-    }
+    /** Creates the STS client with the AWS SDK that the filesystem plugin bundles. */
+    protected abstract SessionTokenClient createSessionTokenClient(
+            String region, String accessKey, String secretKey);
 
     /** Obtains session credentials from AWS STS without exposing the AWS SDK version. */
     protected interface SessionTokenClient extends AutoCloseable {
