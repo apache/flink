@@ -72,7 +72,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-26.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk17 -Pjava17-target"
+          environment: PROFILE="-Djdk17 -Pjava17-target"
           run_end_to_end: false
           container: flink-build-container
           jdk: 17
@@ -119,7 +119,7 @@ stages:
             vmImage: 'ubuntu-26.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-26.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk17 -Pjava17-target"
+          environment: PROFILE="-Djdk17 -Pjava17-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 17
@@ -141,7 +141,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-26.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Pjava11-target"
+          environment: PROFILE="-Djdk11 -Pjava11-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 11
@@ -152,7 +152,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-26.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk21 -Pjava21-target"
+          environment: PROFILE="-Djdk21 -Pjava21-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 21
@@ -163,7 +163,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-26.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Penable-adaptive-scheduler -Djdk17 -Pjava17-target"
+          environment: PROFILE="-Penable-adaptive-scheduler -Djdk17 -Pjava17-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 17
@@ -179,5 +179,5 @@ stages:
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk17 -Pjava17-target"
+          environment: PROFILE="-Djdk17 -Pjava17-target"
           container: flink-build-container

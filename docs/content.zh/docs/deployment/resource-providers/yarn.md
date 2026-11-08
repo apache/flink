@@ -40,7 +40,7 @@ Flink can dynamically allocate and de-allocate TaskManager resources depending o
 
 ### Preparation
 
-This *Getting Started* section assumes a functional YARN environment, starting from version 2.10.2. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
+This *Getting Started* section assumes a functional YARN environment, starting from version 3.4.3. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
 
 - Make sure your YARN cluster is ready for accepting Flink applications by running `yarn top`. It should show no error messages.
 - Download a recent Flink distribution from the [download page]({{< downloads >}}) and unpack it.
@@ -187,17 +187,13 @@ Overwriting this configuration parameter can lead to multiple YARN clusters affe
 
 #### Container Shutdown Behaviour
 
-- **YARN 2.3.0 < version < 2.4.0**. All containers are restarted if the application master fails.
-- **YARN 2.4.0 < version < 2.6.0**. TaskManager containers are kept alive across application master failures. This has the advantage that the startup time is faster and that the user does not have to wait for obtaining the container resources again.
-- **YARN 2.6.0 <= version**: Sets the attempt failure validity interval to the Flinks' Pekko timeout value. The attempt failure validity interval says that an application is only killed after the system has seen the maximum number of application attempts during one interval. This avoids that a long lasting job will deplete it's application attempts.
+TaskManager containers are kept alive across application master failures. This has the advantage that the startup time is faster and that the user does not have to wait for obtaining the container resources again.
 
-{{< hint danger >}}
-Hadoop YARN 2.4.0 has a major bug (fixed in 2.5.0) preventing container restarts from a restarted Application Master/Job Manager container. See <a href="https://issues.apache.org/jira/browse/FLINK-4142">FLINK-4142</a> for details. We recommend using at least Hadoop 2.5.0 for high availability setups on YARN.</p>
-{{< /hint >}}
+Flink sets the attempt failure validity interval to [yarn.application-attempt-failures-validity-interval]({{< ref "docs/deployment/config" >}}#yarn-application-attempt-failures-validity-interval) (10 seconds by default). The attempt failure validity interval says that an application is only killed after the system has seen the maximum number of application attempts during one interval. This avoids that a long lasting job will deplete its application attempts.
 
 ### Supported Hadoop versions.
 
-Flink on YARN is compiled against Hadoop 2.10.2, and all Hadoop versions `>= 2.10.2` are supported, including Hadoop 3.x.
+Flink on YARN is compiled against Hadoop 3.4.3, and all Hadoop versions `>= 3.4.3` are supported.
 
 For providing Flink with the required Hadoop dependencies, we recommend setting the `HADOOP_CLASSPATH` environment variable already introduced in the [Getting Started / Preparation](#preparation) section. 
 
