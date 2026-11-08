@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,11 +38,13 @@ class AbstractS3DelegationTokenReceiverTest {
     @BeforeEach
     void beforeEach() {
         AbstractS3DelegationTokenReceiver.region = null;
+        AbstractS3DelegationTokenReceiver.credentials = null;
     }
 
     @AfterEach
     void afterEach() {
         AbstractS3DelegationTokenReceiver.region = null;
+        AbstractS3DelegationTokenReceiver.credentials = null;
     }
 
     @Test
@@ -98,6 +101,22 @@ class AbstractS3DelegationTokenReceiverTest {
                 new org.apache.hadoop.conf.Configuration();
         AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertThat(hadoopConfiguration.get("fs.s3a.endpoint.region")).isEqualTo(REGION);
+    }
+
+    @Test
+    void onNewTokensObtainedShouldStoreDeserializedCredentials() throws Exception {
+        AbstractS3DelegationTokenReceiver receiver = createReceiver();
+        S3SessionCredentials credentials =
+                new S3SessionCredentials("accessKeyId", "secretAccessKey", "sessionToken", 42L);
+
+        receiver.onNewTokensObtained(InstantiationUtil.serializeObject(credentials));
+
+        S3SessionCredentials storedCredentials = AbstractS3DelegationTokenReceiver.getCredentials();
+        assertThat(storedCredentials).isNotNull();
+        assertThat(storedCredentials.getAccessKeyId()).isEqualTo("accessKeyId");
+        assertThat(storedCredentials.getSecretAccessKey()).isEqualTo("secretAccessKey");
+        assertThat(storedCredentials.getSessionToken()).isEqualTo("sessionToken");
+        assertThat(storedCredentials.getExpirationEpochMilli()).isEqualTo(42L);
     }
 
     private AbstractS3DelegationTokenReceiver createReceiver() {

@@ -31,10 +31,10 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.amazonaws.services.securitytoken.model.Credentials;
-import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.Optional;
 
 /** Delegation token provider for S3 filesystems. */
@@ -52,24 +52,21 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public void init(Configuration configuration) {
         region = configuration.getString(String.format("%s.region", serviceConfigPrefix()), null);
         if (!StringUtils.isNullOrWhitespaceOnly(region)) {
-            LOG.debug("Region: " + region);
+            LOG.debug("Region: {}", region);
         }
 
         accessKey =
                 configuration.getString(
                         String.format("%s.access-key", serviceConfigPrefix()), null);
         if (!StringUtils.isNullOrWhitespaceOnly(accessKey)) {
-            LOG.debug("Access key: " + accessKey);
+            LOG.debug("Access key: {}", accessKey);
         }
 
         secretKey =
                 configuration.getString(
                         String.format("%s.secret-key", serviceConfigPrefix()), null);
         if (!StringUtils.isNullOrWhitespaceOnly(secretKey)) {
-            LOG.debug(
-                    "Secret key: "
-                            + GlobalConfiguration.HIDDEN_CONTENT
-                            + " (sensitive information)");
+            LOG.debug("Secret key: {} (sensitive information)", GlobalConfiguration.HIDDEN_CONTENT);
         }
     }
 
@@ -88,36 +85,69 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        final AWSSecurityTokenService stsClient = createStsClient();
+        final SessionTokenClient client = createSessionTokenClient(region, accessKey, secretKey);
         try {
-            final GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
-            final Credentials credentials = sessionTokenResult.getCredentials();
+            final S3SessionCredentials credentials = client.getSessionCredentials();
             LOG.info(
                     "Session credentials obtained successfully with access key: {} expiration: {}",
                     credentials.getAccessKeyId(),
-                    credentials.getExpiration());
+                    Instant.ofEpochMilli(credentials.getExpirationEpochMilli()));
 
             return new ObtainedDelegationTokens(
                     InstantiationUtil.serializeObject(credentials),
-                    Optional.of(credentials.getExpiration().getTime()));
+                    Optional.of(credentials.getExpirationEpochMilli()));
         } finally {
-            // Shutdown is best effort, so a failure must not discard the obtained tokens or
+            // Closing is best effort, so a failure must not discard the obtained tokens or
             // mask an acquisition failure.
             try {
-                stsClient.shutdown();
+                client.close();
             } catch (RuntimeException e) {
                 LOG.warn("Failed to shut down STS client for {}", serviceName(), e);
             }
         }
     }
 
+    /**
+     * Creates the client that obtains session credentials from AWS STS. The default uses AWS SDK
+     * v1; a plugin that bundles another AWS SDK version overrides this.
+     */
+    protected SessionTokenClient createSessionTokenClient(
+            String region, String accessKey, String secretKey) {
+        final AWSSecurityTokenService stsClient = createStsClient(region, accessKey, secretKey);
+        return new SessionTokenClient() {
+            @Override
+            public S3SessionCredentials getSessionCredentials() {
+                final Credentials credentials = stsClient.getSessionToken().getCredentials();
+                return new S3SessionCredentials(
+                        credentials.getAccessKeyId(),
+                        credentials.getSecretAccessKey(),
+                        credentials.getSessionToken(),
+                        credentials.getExpiration().getTime());
+            }
+
+            @Override
+            public void close() {
+                stsClient.shutdown();
+            }
+        };
+    }
+
     @VisibleForTesting
-    AWSSecurityTokenService createStsClient() {
+    AWSSecurityTokenService createStsClient(String region, String accessKey, String secretKey) {
         return AWSSecurityTokenServiceClientBuilder.standard()
                 .withRegion(region)
                 .withCredentials(
                         new AWSStaticCredentialsProvider(
                                 new BasicAWSCredentials(accessKey, secretKey)))
                 .build();
+    }
+
+    /** Obtains session credentials from AWS STS without exposing the AWS SDK version. */
+    protected interface SessionTokenClient extends AutoCloseable {
+
+        S3SessionCredentials getSessionCredentials() throws Exception;
+
+        @Override
+        void close();
     }
 }

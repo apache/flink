@@ -21,7 +21,6 @@ package org.apache.flink.fs.s3.common.token;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,8 +58,8 @@ class DynamicTemporaryAWSCredentialsProviderTest {
     void getCredentialsShouldStoreCredentialsWhenCredentialsProvided() throws Exception {
         DynamicTemporaryAWSCredentialsProvider provider =
                 new DynamicTemporaryAWSCredentialsProvider();
-        Credentials credentials =
-                new Credentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN, null);
+        S3SessionCredentials credentials =
+                new S3SessionCredentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN, 0L);
         AbstractS3DelegationTokenReceiver receiver =
                 new AbstractS3DelegationTokenReceiver() {
                     @Override

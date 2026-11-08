@@ -26,11 +26,12 @@ import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
+import java.time.Instant;
 
 /** Delegation token receiver for S3 filesystems. */
 @Internal
@@ -41,7 +42,7 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractS3DelegationTokenReceiver.class);
 
-    @VisibleForTesting @Nullable static volatile Credentials credentials;
+    @VisibleForTesting @Nullable static volatile S3SessionCredentials credentials;
 
     @VisibleForTesting @Nullable static volatile String region;
 
@@ -79,24 +80,25 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
                                 DelegationTokenProvider.CONFIG_PREFIX, serviceName()),
                         null);
         if (!StringUtils.isNullOrWhitespaceOnly(region)) {
-            LOG.debug("Region: " + region);
+            LOG.debug("Region: {}", region);
         }
     }
 
     @Override
     public void onNewTokensObtained(byte[] tokens) throws Exception {
         LOG.info("Updating session credentials");
-        credentials =
+        final S3SessionCredentials newCredentials =
                 InstantiationUtil.deserializeObject(
                         tokens, AbstractS3DelegationTokenReceiver.class.getClassLoader());
+        credentials = newCredentials;
         LOG.info(
                 "Session credentials updated successfully with access key: {} expiration: {}",
-                credentials.getAccessKeyId(),
-                credentials.getExpiration());
+                newCredentials.getAccessKeyId(),
+                Instant.ofEpochMilli(newCredentials.getExpirationEpochMilli()));
     }
 
     @Nullable
-    public static Credentials getCredentials() {
+    public static S3SessionCredentials getCredentials() {
         return credentials;
     }
 }
