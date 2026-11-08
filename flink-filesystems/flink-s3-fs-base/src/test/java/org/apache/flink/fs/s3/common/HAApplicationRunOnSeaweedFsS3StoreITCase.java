@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.shaded.guava33.com.google.common.base.Predicates.not;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,7 +88,11 @@ public abstract class HAApplicationRunOnSeaweedFsS3StoreITCase
                 .listObjects(
                         getSeaweedFsContainer().getDefaultBucketName(),
                         createSubPath(CLUSTER_ID, APPLICATION_RESULT_STORE_FOLDER))
-                .getObjectSummaries();
+                .getObjectSummaries()
+                .stream()
+                // S3A on Hadoop 3.4 keeps directory markers by default; they aren't store entries.
+                .filter(summary -> !summary.getKey().endsWith("/"))
+                .collect(Collectors.toList());
     }
 
     private static String createSubPath(String... subfolders) {

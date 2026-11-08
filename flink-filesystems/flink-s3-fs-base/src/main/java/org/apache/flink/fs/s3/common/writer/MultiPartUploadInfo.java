@@ -20,8 +20,6 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
 
-import com.amazonaws.services.s3.model.PartETag;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;

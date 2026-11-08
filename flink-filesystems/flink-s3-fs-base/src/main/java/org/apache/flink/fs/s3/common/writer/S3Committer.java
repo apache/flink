@@ -21,8 +21,6 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,16 +99,13 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
                 LOG.trace("Exception when committing:", e);
 
                 try {
-                    ObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
-                    if (totalLength != metadata.getContentLength()) {
+                    final long objectLength = s3AccessHelper.getObjectLength(objectName);
+                    if (totalLength != objectLength) {
                         String message =
                                 String.format(
                                         "Inconsistent result for object %s: conflicting lengths. "
                                                 + "Recovered committer for upload %s indicates %s bytes, present object is %s bytes",
-                                        objectName,
-                                        uploadId,
-                                        totalLength,
-                                        metadata.getContentLength());
+                                        objectName, uploadId, totalLength, objectLength);
                         LOG.warn(message);
                         throw new IOException(message, e);
                     }
