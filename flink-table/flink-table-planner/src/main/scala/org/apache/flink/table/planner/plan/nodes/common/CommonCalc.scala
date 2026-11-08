@@ -79,7 +79,7 @@ abstract class CommonCalc(
       sqlExplainLevel: SqlExplainLevel): String = {
     val projectList = calcProgram.getProjectList.toList
     val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
-    val localExprs = calcProgram.getExprList.toList
+    val localExprs = calcProgram.getExprList.toIndexedSeq
     val outputFieldNames = calcProgram.getOutputRowType.getFieldNames.toList
 
     projectList

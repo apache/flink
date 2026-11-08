@@ -316,7 +316,7 @@ object FlinkRexUtil {
     getExpressionString(
       expr,
       inFields,
-      Option.empty[List[RexNode]],
+      Option.empty[IndexedSeq[RexNode]],
       ExpressionFormat.Prefix,
       expressionDetail)
   }
@@ -324,7 +324,7 @@ object FlinkRexUtil {
   def getExpressionString(
       expr: RexNode,
       inFields: Seq[String],
-      localExprsTable: Option[List[RexNode]],
+      localExprsTable: Option[IndexedSeq[RexNode]],
       expressionFormat: ExpressionFormat,
       expressionDetail: ExpressionDetail): String = {
     expr match {

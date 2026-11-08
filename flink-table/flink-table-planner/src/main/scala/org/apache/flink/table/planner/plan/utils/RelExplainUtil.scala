@@ -101,7 +101,7 @@ object RelExplainUtil {
   def expressionToString(
       expr: RexNode,
       inputType: RelDataType,
-      expressionFunc: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+      expressionFunc: (RexNode, List[String], Option[IndexedSeq[RexNode]]) => String): String = {
     if (expr != null) {
       val inputFieldNames = inputType.getFieldNames.toList
       expressionFunc(expr, inputFieldNames, None)
@@ -646,7 +646,7 @@ object RelExplainUtil {
       f: (
           RexNode,
           List[String],
-          Option[List[RexNode]],
+          Option[IndexedSeq[RexNode]],
           ExpressionFormat,
           ExpressionDetail) => String,
       expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
@@ -672,14 +672,14 @@ object RelExplainUtil {
       f: (
           RexNode,
           List[String],
-          Option[List[RexNode]],
+          Option[IndexedSeq[RexNode]],
           ExpressionFormat,
           ExpressionDetail) => String,
       expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
       expressionDetail: ExpressionDetail = ExpressionDetail.Digest): String = {
     val cond = calcProgram.getCondition
     val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
-    val localExprs = calcProgram.getExprList.toList
+    val localExprs = calcProgram.getExprList.toIndexedSeq
 
     if (cond != null) {
       f(cond, inputFieldNames, Some(localExprs), expressionFormat, expressionDetail)
@@ -693,7 +693,7 @@ object RelExplainUtil {
       expression: (
           RexNode,
           List[String],
-          Option[List[RexNode]],
+          Option[IndexedSeq[RexNode]],
           ExpressionFormat,
           ExpressionDetail) => String,
       expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
@@ -701,7 +701,7 @@ object RelExplainUtil {
 
     val proj = calcProgram.getProjectList.toList
     val inFields = calcProgram.getInputRowType.getFieldNames.toList
-    val localExprs = calcProgram.getExprList.toList
+    val localExprs = calcProgram.getExprList.toIndexedSeq
     val outFields = calcProgram.getOutputRowType.getFieldNames.toList
 
     proj
@@ -721,7 +721,7 @@ object RelExplainUtil {
   def correlateToString(
       inputType: RelDataType,
       rexCall: RexCall,
-      expression: (RexNode, List[String], Option[List[RexNode]], ExpressionDetail) => String,
+      expression: (RexNode, List[String], Option[IndexedSeq[RexNode]], ExpressionDetail) => String,
       expressionDetail: ExpressionDetail): String = {
     val name = rexCall.getOperator.toString
     val inFields = inputType.getFieldNames.toList
@@ -912,7 +912,7 @@ object RelExplainUtil {
   def measuresDefineToString(
       measures: ImmutableMap[String, RexNode],
       fieldNames: List[String],
-      expression: (RexNode, List[String], Option[List[RexNode]], ExpressionDetail) => String,
+      expression: (RexNode, List[String], Option[IndexedSeq[RexNode]], ExpressionDetail) => String,
       expressionDetail: ExpressionDetail): String =
     measures
       .map { case (k, v) => s"${expression(v, fieldNames, None, expressionDetail)} AS $k" }
