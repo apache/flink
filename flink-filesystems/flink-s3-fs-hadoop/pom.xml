@@ -32,6 +32,8 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
+		<!-- hadoop-aws 3.4 requires AWS SDK v2; stay on Hadoop 3.3 until the S3 filesystems are migrated (FLINK-30975) -->
+		<fs.hadoopshaded.version>3.3.4</fs.hadoopshaded.version>
 		<surefire.module.config> <!--
 			S5CmdOnHadoopS3FileSystemITCase uses ArraysAsListSerializer indirectly
 			-->--add-opens=java.base/java.util=ALL-UNNAMED

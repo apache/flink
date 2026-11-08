@@ -90,6 +90,18 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Used unshaded by hadoop-azure and azure-storage; hadoop-azure 3.4 no longer pulls it in -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
 		<!-- for Azure IT tests to check if HTTP endpoints are enabled / not -->
 		<dependency>
 			<groupId>com.microsoft.azure</groupId>
@@ -159,6 +171,7 @@ under the License.
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>META-INF/**/module-info.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
