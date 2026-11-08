@@ -97,11 +97,7 @@ public class ExecutorThreadFactory implements ThreadFactory {
         this.threadPriority = threadPriority;
         this.exceptionHandler = exceptionHandler;
 
-        SecurityManager securityManager = System.getSecurityManager();
-        this.group =
-                (securityManager != null)
-                        ? securityManager.getThreadGroup()
-                        : Thread.currentThread().getThreadGroup();
+        this.group = Thread.currentThread().getThreadGroup();
     }
 
     // ------------------------------------------------------------------------

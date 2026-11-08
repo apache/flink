@@ -115,6 +115,11 @@ public class ClusterOptions {
                                             link(
                                                     "https://issues.apache.org/jira/browse/FLINK-16510",
                                                     "FLINK-16510"))
+                                    .linebreak()
+                                    .text(
+                                            "This option relies on the Java Security Manager, which was permanently disabled in JDK 24 (%s). "
+                                                    + "On JDK 24 and newer it must be left at its default.",
+                                            link("https://openjdk.org/jeps/486", "JEP 486"))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
@@ -130,6 +135,11 @@ public class ClusterOptions {
                                             "Note that this configuration option can interfere with %s: "
                                                     + "In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when %s is configured.",
                                             code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()))
+                                    .linebreak()
+                                    .text(
+                                            "This option relies on the Java Security Manager, which was permanently disabled in JDK 24 (%s). "
+                                                    + "On JDK 24 and newer it must be left at its default.",
+                                            link("https://openjdk.org/jeps/486", "JEP 486"))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
