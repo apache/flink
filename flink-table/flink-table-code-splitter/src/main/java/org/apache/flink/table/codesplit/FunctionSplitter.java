@@ -26,9 +26,11 @@ import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Split long functions into several smaller functions.
@@ -225,44 +227,68 @@ public class FunctionSplitter implements CodeRewriter {
                         blockContext.start, String.format("\n%s = false;", hasReturnedVarName));
             }
 
-            for (String methodBody : mergedCodeBlocks) {
-                long counter = CodeSplitUtil.getCounter().getAndIncrement();
+            List<String> blocks = mergedCodeBlocks;
+            Set<String> singleCalls = new HashSet<>();
+            while (true) {
+                newSplitMethodCalls.clear();
+                for (String methodBody : blocks) {
+                    if (singleCalls.contains(methodBody)) {
+                        // a call that is alone in its group stays a call
+                        newSplitMethodCalls.add(methodBody);
+                        continue;
+                    }
+                    long counter = CodeSplitUtil.getCounter().getAndIncrement();
 
-                // void f_splitXX(int x, String y)
-                String splitMethodDef =
-                        returnType
-                                + " "
-                                + functionName
-                                + "_split"
-                                + counter
-                                + parameters
-                                + methodQualifier;
+                    // void f_splitXX(int x, String y)
+                    String splitMethodDef =
+                            returnType
+                                    + " "
+                                    + functionName
+                                    + "_split"
+                                    + counter
+                                    + parameters
+                                    + methodQualifier;
 
-                String newSplitMethod = splitMethodDef + " {\n" + methodBody + "\n}\n";
+                    String newSplitMethod = splitMethodDef + " {\n" + methodBody + "\n}\n";
 
-                String newSplitMethodCall =
-                        functionName
-                                + "_split"
-                                + counter
-                                + "("
-                                + String.join(", ", declarations)
-                                + ");\n";
-                if (hasReturnedVarName != null && newSplitMethod.contains(hasReturnedVarName)) {
-                    newSplitMethodCall +=
-                            String.format("if (%s) { return; }\n", hasReturnedVarName);
+                    String newSplitMethodCall =
+                            functionName
+                                    + "_split"
+                                    + counter
+                                    + "("
+                                    + String.join(", ", declarations)
+                                    + ");\n";
+                    if (hasReturnedVarName != null && newSplitMethod.contains(hasReturnedVarName)) {
+                        newSplitMethodCall +=
+                                String.format("if (%s) { return; }\n", hasReturnedVarName);
+                    }
+
+                    newSplitMethods.add(newSplitMethod);
+                    newSplitMethodCalls.add(newSplitMethodCall);
                 }
-
-                newSplitMethods.add(newSplitMethod);
-                newSplitMethodCalls.add(newSplitMethodCall);
+                // group the calls into further methods while they do not fit into one
+                if (newSplitMethodCalls.size() <= 1
+                        || String.join("", newSplitMethodCalls).length() <= maxMethodLength) {
+                    break;
+                }
+                List<String> merged = getMergedCodeBlocks(newSplitMethodCalls);
+                if (merged.size() == newSplitMethodCalls.size()) {
+                    break;
+                }
+                singleCalls.clear();
+                singleCalls.addAll(newSplitMethodCalls);
+                blocks = merged;
             }
 
+            for (String newSplitMethod : newSplitMethods) {
+                rewriter.insertAfter(ctx.getParent().stop, "\n" + newSplitMethod);
+            }
             for (int i = 0; i < blockStatementContexts.size(); i++) {
-                if (i < newSplitMethods.size()) {
+                if (i < newSplitMethodCalls.size()) {
                     rewriter.replace(
                             blockStatementContexts.get(i).start,
                             blockStatementContexts.get(i).stop,
                             newSplitMethodCalls.get(i));
-                    rewriter.insertAfter(ctx.getParent().stop, "\n" + newSplitMethods.get(i));
                 } else {
                     rewriter.delete(
                             blockStatementContexts.get(i).start,
