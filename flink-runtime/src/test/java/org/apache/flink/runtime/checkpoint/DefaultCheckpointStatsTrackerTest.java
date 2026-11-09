@@ -40,6 +40,8 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -194,7 +196,7 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(counts.getNumberOfCompletedCheckpoints()).isEqualTo(2);
         assertThat(counts.getNumberOfFailedCheckpoints()).isOne();
 
-        tracker.reportFailedCheckpointsWithoutInProgress();
+        tracker.reportFailedCheckpointsWithoutInProgress(null);
 
         CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
         counts = snapshot1.getCounts();
@@ -280,7 +282,7 @@ class DefaultCheckpointStatsTrackerTest {
                     }
 
                     @Override
-                    public void onFailedCheckpoint() {
+                    public void onFailedCheckpoint(@Nullable CheckpointFailureReason reason) {
                         onFailedCheckpointCount.incrementAndGet();
                     }
                 };
