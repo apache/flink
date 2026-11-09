@@ -384,8 +384,7 @@ public abstract class JoinReorderITCaseBase {
         // The filter references all three tables, so no join of two of them can apply it.
         String query = "SELECT T1.b1, T2.b2, T3.c3 FROM T1, T2, T3 WHERE T1.b1 + T2.b2 + T3.b3 = 4";
 
-        List<String> expectedList =
-                Arrays.asList("1,1,Hello", "1,1,Hello world", "1,2,Hi", "2,1,Hi");
+        List<String> expectedList = List.of("1,1,Hello", "1,1,Hello world", "1,2,Hi", "2,1,Hi");
         assertEquals(query, expectedList);
     }
 
@@ -400,7 +399,7 @@ public abstract class JoinReorderITCaseBase {
                         + "LEFT OUTER JOIN T2 ON T1.a1 = T2.a2 "
                         + "LEFT OUTER JOIN T4 ON T2.b2 = T4.b4 WHERE T1.b1 <= 2";
 
-        List<String> expectedList = Arrays.asList("1,1,1", "2,2,2", "2,3,3");
+        List<String> expectedList = List.of("1,1,1", "2,2,2", "2,3,3");
         assertEquals(query, expectedList);
     }
 
@@ -414,7 +413,7 @@ public abstract class JoinReorderITCaseBase {
                         + "LEFT OUTER JOIN T2 ON T1.b1 = T2.b2 AND T1.b1 > 10 "
                         + "WHERE T1.b1 > 8 AND T1.b1 < 13";
 
-        List<String> expectedList = Arrays.asList("10,null", "11,11", "12,12", "9,null");
+        List<String> expectedList = List.of("10,null", "11,11", "12,12", "9,null");
         assertEquals(query, expectedList);
     }
 
@@ -428,7 +427,7 @@ public abstract class JoinReorderITCaseBase {
                 "SELECT T1.b1, T2.b2 FROM T1 "
                         + "RIGHT OUTER JOIN T2 ON T1.b1 > 100 WHERE T2.b2 <= 2";
 
-        List<String> expectedList = Arrays.asList("null,1", "null,2");
+        List<String> expectedList = List.of("null,1", "null,2");
         assertEquals(query, expectedList);
     }
 
@@ -442,7 +441,7 @@ public abstract class JoinReorderITCaseBase {
                         + "FULL OUTER JOIN (SELECT * FROM T2 WHERE b2 < 3) t2 "
                         + "ON t1.b1 = t2.b2 AND t1.b1 > 1";
 
-        List<String> expectedList = Arrays.asList("1,null", "2,2", "null,1");
+        List<String> expectedList = List.of("1,null", "2,2", "null,1");
         assertEquals(query, expectedList);
     }
 
@@ -458,7 +457,7 @@ public abstract class JoinReorderITCaseBase {
                         + "(SELECT * FROM T2 LEFT OUTER JOIN T3 ON T2.a2 = T3.a3) t "
                         + "ON T1.b1 = t.b2 AND T1.b1 > t.b3 WHERE t.b2 <= 4";
 
-        List<String> expectedList = Arrays.asList("3,3,2", "4,4,2", "null,1,1", "null,2,2");
+        List<String> expectedList = List.of("3,3,2", "4,4,2", "null,1,1", "null,2,2");
         assertEquals(query, expectedList);
     }
 
@@ -474,7 +473,7 @@ public abstract class JoinReorderITCaseBase {
                         + "LEFT OUTER JOIN T2 ON T1.b1 = T2.b2 AND T2.b2 <> 4 "
                         + "JOIN T3 ON T1.a1 = T3.a3 AND T2.b2 > T3.b3 WHERE T1.b1 <= 4";
 
-        List<String> expectedList = Collections.singletonList("3,3,Hello");
+        List<String> expectedList = List.of("3,3,Hello");
         assertEquals(query, expectedList);
     }
 
