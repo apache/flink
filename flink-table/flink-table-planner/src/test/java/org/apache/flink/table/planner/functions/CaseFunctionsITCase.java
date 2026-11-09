@@ -31,78 +31,78 @@ import java.util.stream.Stream;
 class CaseFunctionsITCase extends BuiltInFunctionTestBase {
 
     private static final String CASE_STATEMENT =
-            longCase(idx -> String.format("when f0 = %d then %d", idx, idx), "9999");
+            longCase(idx -> String.format("WHEN f0 = %d THEN %d", idx, idx), "9999");
 
     // every WHEN from f0 on is true
     private static final String OVERLAPPING_CASE_STATEMENT =
-            longCase(1000, idx -> String.format("when f0 <= %d then %d", idx, idx), "9999");
+            longCase(1000, idx -> String.format("WHEN f0 <= %d THEN %d", idx, idx), "9999");
 
     // the last WHEN divides by zero if it runs; it starts the last chunk (chunks of 10)
     private static final String FAILING_LATER_CASE_STATEMENT =
-            "case when f0 = 110 then 0 "
+            "CASE WHEN f0 = 110 THEN 0 "
                     + IntStream.range(1, 20)
-                            .mapToObj(idx -> String.format("when f0 = -%d then %d", idx, idx))
+                            .mapToObj(idx -> String.format("WHEN f0 = -%d THEN %d", idx, idx))
                             .collect(Collectors.joining(" "))
-                    + " when 10 / (f0 - 110) = 1 then 1 else 9999 end";
+                    + " WHEN 10 / (f0 - 110) = 1 THEN 1 ELSE 9999 END";
 
     private static final String NULL_RESULT_CASE_STATEMENT =
             longCase(
                     idx ->
                             String.format(
-                                    "when f0 = %d then %s",
+                                    "WHEN f0 = %d THEN %s",
                                     idx, idx == 110 ? "CAST(NULL AS INT)" : idx),
                     "1");
 
     private static final String NO_ELSE_CASE_STATEMENT =
-            longCase(idx -> String.format("when f0 = %d then %d", idx, idx), null);
+            longCase(idx -> String.format("WHEN f0 = %d THEN %d", idx, idx), null);
 
     // WHEN 110 is a nullable BOOLEAN column
     private static final String NULLABLE_CONDITION_CASE_STATEMENT =
             longCase(
                     idx ->
                             idx == 110
-                                    ? "when f1 then -1"
-                                    : String.format("when f0 = %d then %d", idx, idx),
+                                    ? "WHEN f1 THEN -1"
+                                    : String.format("WHEN f0 = %d THEN %d", idx, idx),
                     "9999");
 
     private static final String STRING_CASE_STATEMENT =
             longCase(
-                    idx -> String.format("when f0 = %d then CAST(%d AS STRING)", idx, idx),
+                    idx -> String.format("WHEN f0 = %d THEN CAST(%d AS STRING)", idx, idx),
                     "CAST(NULL AS STRING)");
 
     private static final String DECIMAL_CASE_STATEMENT =
             longCase(
-                    idx -> String.format("when f0 = %d then CAST(%d AS DECIMAL(10, 2))", idx, idx),
+                    idx -> String.format("WHEN f0 = %d THEN CAST(%d AS DECIMAL(10, 2))", idx, idx),
                     "CAST(NULL AS DECIMAL(10, 2))");
 
     private static final String TIMESTAMP_CASE_STATEMENT =
             longCase(
                     idx ->
                             String.format(
-                                    "when f0 = %d then "
+                                    "WHEN f0 = %d THEN "
                                             + "TIMESTAMPADD(SECOND, %d, TIMESTAMP '2020-01-01 00:00:00')",
                                     idx, idx),
                     "CAST(NULL AS TIMESTAMP(0))");
 
     private static final String ARRAY_CASE_STATEMENT =
             longCase(
-                    idx -> String.format("when f0 = %d then ARRAY[%d]", idx, idx),
+                    idx -> String.format("WHEN f0 = %d THEN ARRAY[%d]", idx, idx),
                     "CAST(NULL AS ARRAY<INT NOT NULL>)");
 
     private static final String INNER_CASE_STATEMENT =
-            longCase(idx -> String.format("when f1 = %d then %d", idx, idx), "9999");
+            longCase(idx -> String.format("WHEN f1 = %d THEN %d", idx, idx), "9999");
 
     // a long CASE in a WHEN and in a THEN of another long CASE
     private static final String NESTED_CASE_STATEMENT =
             longCase(
                     idx -> {
                         if (idx == 100) {
-                            return "when (" + INNER_CASE_STATEMENT + ") = -1 then -100";
+                            return "WHEN (" + INNER_CASE_STATEMENT + ") = -1 THEN -100";
                         }
                         if (idx == 110) {
-                            return "when f0 = 110 then (" + INNER_CASE_STATEMENT + ")";
+                            return "WHEN f0 = 110 THEN (" + INNER_CASE_STATEMENT + ")";
                         }
-                        return String.format("when f0 = %d then %d", idx, idx);
+                        return String.format("WHEN f0 = %d THEN %d", idx, idx);
                     },
                     "9999");
 
@@ -123,7 +123,7 @@ class CaseFunctionsITCase extends BuiltInFunctionTestBase {
                                                         n,
                                                         idx ->
                                                                 String.format(
-                                                                        "when f0 = %d then %d",
+                                                                        "WHEN f0 = %d THEN %d",
                                                                         idx, idx),
                                                         "9999"),
                                                 n - 1,
@@ -223,8 +223,8 @@ class CaseFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     private static String longCase(int whens, IntFunction<String> when, String elseValue) {
-        return "case "
+        return "CASE "
                 + IntStream.range(0, whens).mapToObj(when).collect(Collectors.joining(" "))
-                + (elseValue == null ? " end" : " else " + elseValue + " end");
+                + (elseValue == null ? " END" : " ELSE " + elseValue + " END");
     }
 }
