@@ -37,7 +37,7 @@ class CaseFunctionsITCase extends BuiltInFunctionTestBase {
     private static final String OVERLAPPING_CASE_STATEMENT =
             longCase(1000, idx -> String.format("when f0 <= %d then %d", idx, idx), "9999");
 
-    // the last WHEN divides by zero if it runs; it starts the last chunk (21 WHENs, chunks of 5)
+    // the last WHEN divides by zero if it runs; it starts the last chunk (chunks of 10)
     private static final String FAILING_LATER_CASE_STATEMENT =
             "case when f0 = 110 then 0 "
                     + IntStream.range(1, 20)
@@ -111,9 +111,9 @@ class CaseFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.concat(specs(), chunkBoundarySpecs());
     }
 
-    // matches the last WHEN at chunk-size boundaries (chunks of ceil(sqrt(n)))
+    // matches the last WHEN at chunk-size boundaries (chunks of 10)
     private static Stream<TestSetSpec> chunkBoundarySpecs() {
-        return IntStream.of(9, 10, 16, 17)
+        return IntStream.of(10, 11, 20, 21)
                 .mapToObj(
                         n ->
                                 TestSetSpec.forExpression("CASE WHEN with " + n + " WHENs")

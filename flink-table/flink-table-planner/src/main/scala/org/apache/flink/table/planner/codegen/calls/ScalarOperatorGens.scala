@@ -1106,9 +1106,9 @@ object ScalarOperatorGens {
 
     // flat guarded blocks instead of nested else keep the splitter output flat
     val doneTerm = newName(ctx, "done")
-    // Chunks by WHEN count: k = sqrt(n) keeps the n/k + k checks after a match low. Could be
-    // reconsidered in future, e.g. chunks by the code size of the branches, unknown here for now.
-    val chunkSize = math.ceil(math.sqrt(whens.size)).toInt
+    // A fixed size keeps a CASE with up to 10 WHENs in one chunk, without any chunk guard. Sizing
+    // chunks dynamically would need the code size of the branches, which is unknown here for now.
+    val chunkSize = 10
     // blocks after the first are skipped once a WHEN matched
     def guardAllButFirst(blocks: Seq[String]): String =
       (blocks.head +: blocks.tail.map(b => s"if (!$doneTerm) {\n$b\n}")).mkString("\n")
