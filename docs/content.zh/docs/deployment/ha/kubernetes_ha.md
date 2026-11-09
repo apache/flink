@@ -35,6 +35,8 @@ Kubernetes 高可用服务只能在部署到 Kubernetes 时使用。因此，当
 为了使用 Flink 的 Kubernetes 高可用服务，你必须满足以下先决条件:
 
 - Kubernetes >= 1.9.
+- Java 11.0.19 or newer when running Flink on Java 11; Java 17 and later are unaffected (see [Java compatibility]({{< ref "docs/deployment/java_compatibility" >}}#native-kubernetes-minimum-version)).
+- If the API server is reached through a proxy, it must be an HTTP proxy. SOCKS proxies are not supported: `socks5://` in the KubeConfig `proxy-url`, `HTTPS_PROXY` or `ALL_PROXY` fails on client creation, and the JVM `socksProxyHost` setting is ignored.
 - 具有创建、编辑、删除 ConfigMaps 权限的服务帐户。想了解更多信息，请查看如何在 [Flink 原生 Kubernetes 集成]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#rbac) 和 [在 Kubernetes 上单节点部署 Flink]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#kubernetes-high-availability-services) 两种模式中配置服务帐户。
 
 
