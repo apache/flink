@@ -407,15 +407,16 @@ public class VariantSemanticTest extends SemanticTestBase {
                             "SELECT s FROM t WHERE PARSE_JSON(s)['a'] = PARSE_JSON('1')",
                             ValidationException.class,
                             "An expression of type VARIANT cannot be used in a comparison with '='")
-                    // the SQL converter expands IS [NOT] DISTINCT FROM into =
                     .runFailingSql(
                             "SELECT s FROM t WHERE PARSE_JSON(s)['a'] IS DISTINCT FROM PARSE_JSON('1')",
                             ValidationException.class,
-                            "An expression of type VARIANT cannot be used in a comparison with '='")
+                            "An expression of type VARIANT cannot be used in a comparison with "
+                                    + "'IS DISTINCT FROM'")
                     .runFailingSql(
                             "SELECT s FROM t WHERE PARSE_JSON(s)['a'] IS NOT DISTINCT FROM PARSE_JSON('1')",
                             ValidationException.class,
-                            "An expression of type VARIANT cannot be used in a comparison with '='")
+                            "An expression of type VARIANT cannot be used in a comparison with "
+                                    + "'IS NOT DISTINCT FROM'")
                     .build();
 
     static final TableTestProgram VARIANT_FIELD_AS_JOIN_KEY =
