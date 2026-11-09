@@ -95,7 +95,7 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
             final String sql =
                     "CREATE OR ALTER MATERIALIZED TABLE "
                             + SOURCE_REGULAR_TABLE_NAME
-                            + " AS SELECT a, b FROM t1";
+                            + " AS SELECT a, b FROM missing_table";
             assertThatThrownBy(() -> parse(sql))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining(
@@ -133,7 +133,7 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
                             () ->
                                     parse(
                                             "CREATE OR ALTER MATERIALIZED TABLE src_view"
-                                                    + " AS SELECT a, b FROM t1"))
+                                                    + " AS SELECT a, b FROM missing_table"))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining(
                             "VIEW does not support the CREATE OR ALTER MATERIALIZED TABLE operation.");

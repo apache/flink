@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.utils;
+package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
@@ -38,15 +38,15 @@ import static org.apache.flink.table.catalog.Column.metadata;
 import static org.apache.flink.table.catalog.Column.physical;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link MaterializedTableUtils#validateAndExtractColumnChanges}. */
+/** Tests for {@link MaterializedTableSchemaUtils#validateAndExtractColumnChanges}. */
 class ValidateAndExtractColumnChangesTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("input")
     void test(TestSpec spec) {
         assertThat(
-                        MaterializedTableUtils.validateAndExtractColumnChanges(
-                                spec.oldSchema, spec.newSchema, spec.schemaDefinedInQuery))
+                        MaterializedTableSchemaUtils.validateAndExtractColumnChanges(
+                                spec.oldSchema, spec.newSchema, spec.schemaDeclared))
                 .containsExactlyInAnyOrderElementsOf(spec.expected);
     }
 
@@ -143,7 +143,7 @@ class ValidateAndExtractColumnChangesTest {
                         true,
                         List.of(TableChange.add(metadata("m", DataTypes.STRING(), null, false)))),
                 TestSpec.of(
-                        "schemaDefinedInQuery=false makes added column nullable",
+                        "schemaDeclared=false makes added column nullable",
                         schema(physical("a", DataTypes.INT())),
                         schema(
                                 physical("a", DataTypes.INT()),
@@ -173,7 +173,7 @@ class ValidateAndExtractColumnChangesTest {
                                 TableChange.modifyPhysicalColumnType(
                                         physical("a", DataTypes.INT()), DataTypes.STRING()))),
                 TestSpec.of(
-                        "nullability change with schemaDefinedInQuery=true emits modifyPhysicalColumnType",
+                        "nullability change with schemaDeclared=true emits modifyPhysicalColumnType",
                         schema(physical("a", DataTypes.INT().notNull())),
                         schema(physical("a", DataTypes.INT())),
                         true,
@@ -304,19 +304,19 @@ class ValidateAndExtractColumnChangesTest {
         private final String name;
         private final ResolvedSchema oldSchema;
         private final ResolvedSchema newSchema;
-        private final boolean schemaDefinedInQuery;
+        private final boolean schemaDeclared;
         private final List<TableChange> expected;
 
         TestSpec(
                 String name,
                 ResolvedSchema oldSchema,
                 ResolvedSchema newSchema,
-                boolean schemaDefinedInQuery,
+                boolean schemaDeclared,
                 List<TableChange> expected) {
             this.name = name;
             this.oldSchema = oldSchema;
             this.newSchema = newSchema;
-            this.schemaDefinedInQuery = schemaDefinedInQuery;
+            this.schemaDeclared = schemaDeclared;
             this.expected = expected;
         }
 
@@ -324,9 +324,9 @@ class ValidateAndExtractColumnChangesTest {
                 String name,
                 ResolvedSchema oldSchema,
                 ResolvedSchema newSchema,
-                boolean schemaDefinedInQuery,
+                boolean schemaDeclared,
                 List<TableChange> expected) {
-            return new TestSpec(name, oldSchema, newSchema, schemaDefinedInQuery, expected);
+            return new TestSpec(name, oldSchema, newSchema, schemaDeclared, expected);
         }
 
         @Override
