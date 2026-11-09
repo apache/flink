@@ -1079,6 +1079,7 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       resultType: LogicalType): GeneratedExpression = {
+    require(operands.size % 2 == 1, "CASE expects WHEN/THEN pairs and an ELSE operand.")
     if (operands.size == 1) {
       return generateCast(ctx, operands.head, resultType, nullOnFailure = true)
     }
@@ -1105,40 +1106,40 @@ object ScalarOperatorGens {
 
     // flat guarded blocks instead of nested else keep the splitter output flat
     val doneTerm = newName(ctx, "done")
-    val branches = whens.zipWithIndex.map {
-      case ((condition, trueAction), i) =>
-        val branch =
-          s"""
-             |${condition.code}
-             |if (${condition.resultTerm}) {
-             |  ${assign(trueAction)}
-             |  $doneTerm = true;
-             |}
-             |""".stripMargin
-        // the first branch of a chunk is guarded by its chunk
-        if (i % CASE_CHUNK_WHENS == 0) branch else s"if (!$doneTerm) {\n$branch\n}"
-    }
-    // one guard per chunk, so after a match the remaining chunks cost one check each even when
-    // the code splitter moves their branches into methods
-    val chunks = branches.grouped(CASE_CHUNK_WHENS).zipWithIndex.map {
-      case (chunk, 0) => chunk.mkString("\n")
-      case (chunk, _) => s"if (!$doneTerm) {\n${chunk.mkString("\n")}\n}"
-    }
+    // Chunks by WHEN count: k = sqrt(n) keeps the n/k + k checks after a match low. Could be
+    // reconsidered in future, e.g. chunks by the code size of the branches, unknown here for now.
+    val chunkSize = math.ceil(math.sqrt(whens.size)).toInt
+    // blocks after the first are skipped once a WHEN matched
+    def guardAllButFirst(blocks: Seq[String]): String =
+      (blocks.head +: blocks.tail.map(b => s"if (!$doneTerm) {\n$b\n}")).mkString("\n")
+    val chunks = whens
+      .grouped(chunkSize)
+      .map {
+        chunk =>
+          guardAllButFirst(chunk.map {
+            case (condition, trueAction) =>
+              s"""
+                 |${condition.code}
+                 |if (${condition.resultTerm}) {
+                 |  ${assign(trueAction)}
+                 |  $doneTerm = true;
+                 |}
+                 |""".stripMargin
+          })
+      }
+      .toSeq
     val code =
       s"""
          |$resultTypeTerm $resultTerm = $defaultValue;
          |boolean $nullTerm = true;
          |boolean $doneTerm = false;
-         |${chunks.mkString("\n")}
+         |${guardAllButFirst(chunks)}
          |if (!$doneTerm) {
          |  ${assign(elseAction)}
          |}
          |""".stripMargin.trim
     GeneratedExpression(resultTerm, nullTerm, code, resultType)
   }
-
-  // Number of WHENs of a CASE behind one shared guard.
-  private val CASE_CHUNK_WHENS = 10
 
   def generateDot(
       ctx: CodeGeneratorContext,
