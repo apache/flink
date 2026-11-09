@@ -28,6 +28,7 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.InsertConflictStrategy;
+import org.apache.flink.table.api.MaterializedPipeline;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.PartitionedTable;
@@ -39,8 +40,10 @@ import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
+import org.apache.flink.table.api.internal.materializedtable.MaterializedPipelineImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -61,9 +64,11 @@ import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -487,6 +492,47 @@ public class TableImpl implements Table {
                 ContextResolvedTable.anonymous(resolvedCatalogBaseTable),
                 conflictStrategy,
                 overwrite);
+    }
+
+    @Override
+    public MaterializedPipeline materializeInto(String path) {
+        return createMaterializedPipeline(path, null);
+    }
+
+    @Override
+    public MaterializedPipeline materializeInto(String path, Duration freshness) {
+        Preconditions.checkNotNull(freshness, "Freshness must not be null.");
+        return createMaterializedPipeline(path, toIntervalFreshness(freshness));
+    }
+
+    private MaterializedPipeline createMaterializedPipeline(
+            String path, @Nullable IntervalFreshness freshness) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        final UnresolvedIdentifier unresolvedIdentifier =
+                tableEnvironment.getParser().parseIdentifier(path);
+        final ObjectIdentifier identifier =
+                tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        return new MaterializedPipelineImpl(
+                tableEnvironment, getQueryOperation(), identifier, freshness);
+    }
+
+    private static IntervalFreshness toIntervalFreshness(Duration freshness) {
+        if (freshness.isNegative() || freshness.isZero()) {
+            throw new ValidationException(
+                    String.format("Freshness must be positive, but was: %s", freshness));
+        }
+        if (freshness.getNano() != 0) {
+            throw new ValidationException(
+                    String.format(
+                            "Freshness must be a whole number of seconds, but was: %s", freshness));
+        }
+        if (freshness.getSeconds() > Integer.MAX_VALUE) {
+            throw new ValidationException(
+                    String.format(
+                            "Freshness must be at most %d seconds, but was: %s",
+                            Integer.MAX_VALUE, freshness));
+        }
+        return IntervalFreshness.fromDuration(freshness);
     }
 
     @Override
