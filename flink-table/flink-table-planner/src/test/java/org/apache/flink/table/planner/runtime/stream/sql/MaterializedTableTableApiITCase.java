@@ -44,12 +44,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.MaterializedPipeline;
+import org.apache.flink.table.api.MaterializedTable;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
@@ -58,7 +65,18 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.Factory;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
@@ -77,12 +95,18 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.dateFormat;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -163,7 +187,7 @@ class MaterializedTableTableApiITCase {
                         RestOptions.ADDRESS,
                         MINI_CLUSTER.getClientConfiguration().get(RestOptions.ADDRESS));
 
-        catalog = new GenericInMemoryCatalog(CATALOG, DATABASE);
+        catalog = new StorageTestCatalog();
         tEnv.registerCatalog(CATALOG, catalog);
         tEnv.useCatalog(CATALOG);
         tEnv.useDatabase(DATABASE);
@@ -213,10 +237,17 @@ class MaterializedTableTableApiITCase {
 
     @Test
     void testCreateMaterializedTableInContinuousMode() throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        final MaterializedPipeline pipeline =
+                usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30));
 
+        final MaterializedTable materializedTable = pipeline.execute();
+
+        assertThat(materializedTable.getIdentifier()).isEqualTo(USERS_SHOPS);
         final ResolvedCatalogMaterializedTable actualMaterializedTable = getUsersShops();
         assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(USERS_SHOPS_SCHEMA);
+        assertThat(actualMaterializedTable.getOptions()).isEmpty();
+        assertThat(actualMaterializedTable.getExpandedQuery())
+                .contains("`test_catalog`.`test_db`.`datagenSource`");
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
                 .isSameAs(LogicalRefreshMode.AUTOMATIC);
         assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
@@ -266,11 +297,92 @@ class MaterializedTableTableApiITCase {
                         CheckpointingOptions.CHECKPOINTING_INTERVAL,
                         Duration.ofMillis(checkpointInterval));
 
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
 
         final JobID refreshJobId = getRefreshJobId();
         waitUntilAllTasksAreRunning(clusterClient, refreshJobId);
         assertThat(getCheckpointInterval(refreshJobId)).isEqualTo(checkpointInterval);
+    }
+
+    @Test
+    void testCreateMaterializedTableWritesQueryResult() throws Exception {
+        createBoundedValuesSource(
+                List.of(
+                        Row.of(1L, 1L, 1L, "2024-01-01"),
+                        Row.of(2L, 2L, 2L, "2024-01-02"),
+                        Row.of(3L, 3L, 3L, "2024-01-02")));
+
+        tEnv.from("my_source")
+                .select($("user_id"), $("shop_id"), $("order_created_at").as("ds"), $("order_id"))
+                .groupBy($("user_id"), $("shop_id"), $("ds"))
+                .select($("user_id"), $("shop_id"), $("ds"), $("order_id").count().as("order_cnt"))
+                .materializeInto("users_shops")
+                .execute();
+
+        CommonTestUtils.waitUtil(
+                () -> getUsersShopsResults().size() == 3,
+                TIMEOUT,
+                PAUSE,
+                "Failed to verify the data in materialized table.");
+        assertThat(getUsersShopsResults())
+                .containsExactlyInAnyOrder(
+                        "+I[1, 1, 2024-01-01, 1]",
+                        "+I[2, 2, 2024-01-02, 1]",
+                        "+I[3, 3, 2024-01-02, 1]");
+    }
+
+    @Test
+    void testCreateMaterializedTableFromTableWithConstraintsStoresPhysicalColumnsOnly() {
+        tEnv.executeSql(
+                "CREATE TABLE constrained_source (\n"
+                        + "  id BIGINT,\n"
+                        + "  ts TIMESTAMP(3),\n"
+                        + "  next_id AS id + 1,\n"
+                        + "  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,\n"
+                        + "  PRIMARY KEY (id) NOT ENFORCED\n"
+                        + ")\n"
+                        + "WITH ('connector' = 'datagen', 'rows-per-second' = '1')");
+
+        tEnv.from("constrained_source").materializeInto("users_shops").execute();
+
+        final ResolvedSchema actualSchema = getUsersShops().getResolvedSchema();
+        assertThat(actualSchema.getColumnNames()).containsExactly("id", "ts", "next_id");
+        assertThat(actualSchema.getColumns()).allMatch(Column::isPhysical);
+        assertThat(actualSchema.getPrimaryKey()).isEmpty();
+        assertThat(actualSchema.getWatermarkSpecs()).isEmpty();
+    }
+
+    @Test
+    void testCreateMaterializedTableStoresTheSchemaOfItsStoredQuery() throws Exception {
+        tEnv.createTable(
+                "events",
+                TableDescriptor.forConnector("datagen")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("id", DataTypes.BIGINT())
+                                        .column("ts", DataTypes.TIMESTAMP(3))
+                                        .watermark("ts", $("ts").minus(lit(1).seconds()))
+                                        .build())
+                        .option("rows-per-second", "1")
+                        .build());
+        final Table query =
+                tEnv.from("events")
+                        .window(Tumble.over(lit(1).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"))
+                        .select($("w").start().as("window_start"), $("id").count().as("cnt"));
+
+        query.materializeInto("users_shops").execute();
+
+        // The Table API infers a nullable window start, the stored SQL text a NOT NULL one.
+        assertThat(query.getResolvedSchema().getColumn("window_start"))
+                .map(column -> column.getDataType().getLogicalType())
+                .hasValue(DataTypes.TIMESTAMP(3).getLogicalType());
+        assertThat(getUsersShops().getResolvedSchema().getColumn("window_start"))
+                .map(column -> column.getDataType().getLogicalType())
+                .hasValue(DataTypes.TIMESTAMP(3).notNull().getLogicalType());
+        final JobID refreshJobId = getRefreshJobId();
+        waitUntilAllTasksAreRunning(clusterClient, refreshJobId);
+        assertThat(getJobStatus(refreshJobId)).isEqualTo(JobStatus.RUNNING);
     }
 
     @Test
@@ -406,20 +518,10 @@ class MaterializedTableTableApiITCase {
     @Test
     void testAlterMaterializedTableAsQueryInContinuousModeWithSuspendStatus(
             @TempDir Path temporaryPath) throws Exception {
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops"
-                        + " PARTITIONED BY (ds)\n"
-                        + UPDATING_VALUES_SINK
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  ds,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds)");
+        usersShopsQuery()
+                .dropColumns($("pv"))
+                .materializeInto("users_shops", Duration.ofSeconds(30))
+                .execute();
         final ResolvedCatalogMaterializedTable oldTable = getUsersShops();
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
 
@@ -562,7 +664,7 @@ class MaterializedTableTableApiITCase {
     @Test
     void testAlterMaterializedTableSuspendAndResumeInContinuousMode(@TempDir Path temporaryPath)
             throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
 
         assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
@@ -594,7 +696,7 @@ class MaterializedTableTableApiITCase {
     @Test
     void testAlterMaterializedTableWithoutSavepointDirConfiguredInContinuousMode()
             throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
 
         assertThatThrownBy(() -> tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND"))
@@ -607,7 +709,7 @@ class MaterializedTableTableApiITCase {
     @Test
     void testAlterMaterializedTableWithRepeatedSuspendAndResumeInContinuousMode(
             @TempDir Path temporaryPath) throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
 
         setupSavepointDir(temporaryPath);
@@ -638,7 +740,7 @@ class MaterializedTableTableApiITCase {
 
     @Test
     void testDropMaterializedTableInContinuousMode() throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
 
         assertThat(catalog.getTable(USERS_SHOPS.toObjectPath()).getTableKind())
                 .isEqualTo(TableKind.MATERIALIZED_TABLE);
@@ -701,7 +803,7 @@ class MaterializedTableTableApiITCase {
     @Test
     void resumeOntoAnotherClusterIsRejectedBeforeAnythingChanges(@TempDir Path temporaryPath)
             throws Exception {
-        tEnv.executeSql(USERS_SHOPS_DDL);
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
         setupSavepointDir(temporaryPath);
         tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
@@ -724,8 +826,98 @@ class MaterializedTableTableApiITCase {
     }
 
     // --------------------------------------------------------------------------------------------
+    // Redeploy
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    void testRedeployWithDroppedColumnIsRejectedAndLeavesRefreshJobSuspended(
+            @TempDir Path temporaryPath) throws Exception {
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
+        final ResolvedCatalogMaterializedTable oldTable = getUsersShops();
+        waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
+
+        setupSavepointDir(temporaryPath);
+
+        assertThatThrownBy(
+                        () ->
+                                usersShopsQuery()
+                                        .dropColumns($("pv"))
+                                        .materializeInto("users_shops")
+                                        .execute())
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Dropping of persisted column `pv` is not supported.");
+        final ResolvedCatalogMaterializedTable rejectedTable = getUsersShops();
+        assertThat(rejectedTable.getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
+        assertThat(rejectedTable.getResolvedSchema()).isEqualTo(oldTable.getResolvedSchema());
+        assertThat(rejectedTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+        assertThat(getRefreshHandler().getRestorePath()).isPresent();
+    }
+
+    @Test
+    void testRedeployMaterializedTableWithMaterializeInto(@TempDir Path temporaryPath)
+            throws Exception {
+        tEnv.executeSql(
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + UPDATING_VALUES_SINK
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)");
+        final JobID oldJobId = getRefreshJobId();
+        addDistributionToUsersShops(TableDistribution.ofHash(List.of("user_id"), 4));
+        final ResolvedCatalogMaterializedTable oldTable = getUsersShops();
+        waitUntilAllTasksAreRunning(clusterClient, oldJobId);
+        setupSavepointDir(temporaryPath);
+
+        usersShopsQuery().materializeInto("users_shops", Duration.ofMinutes(1)).execute();
+
+        final ResolvedCatalogMaterializedTable newTable = getUsersShops();
+        assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
+                .containsExactly(Column.physical("pv", DataTypes.INT()));
+        assertThat(newTable.getExpandedQuery())
+                .contains("`test_catalog`.`test_db`.`datagenSource`");
+        assertThat(newTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
+        final JobID newJobId = getRefreshJobId();
+        assertThat(newJobId).isNotEqualTo(oldJobId);
+        assertThat(getJobRestoreSavepointPath(newJobId)).isEmpty();
+        assertThat(newTable.getDefinitionFreshness()).isEqualTo(IntervalFreshness.ofSecond("30"));
+        assertThat(newTable.getPartitionKeys()).containsExactly("ds");
+        assertThat(oldTable.getOptions()).isNotEmpty();
+        assertThat(newTable.getOptions()).isEmpty();
+        assertThat(oldTable.getDistribution()).isPresent();
+        assertThat(newTable.getDistribution()).isEmpty();
+    }
+
+    // --------------------------------------------------------------------------------------------
     // Test helpers
     // --------------------------------------------------------------------------------------------
+
+    private Table usersShopsQuery(Expression... additionalAggregates) {
+        final List<Expression> selection =
+                new ArrayList<>(
+                        List.of(
+                                $("user_id"),
+                                $("shop_id"),
+                                $("ds"),
+                                $("payment_amount_cents").sum().as("payed_buy_fee_sum"),
+                                lit(1).sum().as("pv")));
+        selection.addAll(Arrays.asList(additionalAggregates));
+        return tEnv.from("datagenSource")
+                .select(
+                        $("user_id"),
+                        $("shop_id"),
+                        dateFormat($("order_created_at"), "yyyy-MM-dd").as("ds"),
+                        $("payment_amount_cents"))
+                .groupBy($("user_id"), $("shop_id"), $("ds"))
+                .select(selection.toArray(new Expression[0]));
+    }
 
     private void createBoundedValuesSource(List<Row> data) {
         tEnv.executeSql(
@@ -757,6 +949,17 @@ class MaterializedTableTableApiITCase {
                         .getCatalogManager()
                         .getTableOrError(USERS_SHOPS)
                         .getResolvedTable();
+    }
+
+    private void addDistributionToUsersShops(TableDistribution distribution) throws Exception {
+        final CatalogMaterializedTable table =
+                (CatalogMaterializedTable) catalog.getTable(USERS_SHOPS.toObjectPath());
+        catalog.alterTable(
+                USERS_SHOPS.toObjectPath(),
+                MaterializedTableChangeHandler.buildNewMaterializedTable(
+                        MaterializedTableChangeHandler.getHandlerWithChanges(
+                                table, List.of(TableChange.add(distribution)))),
+                false);
     }
 
     private ContinuousRefreshHandler getRefreshHandler() throws Exception {
@@ -839,5 +1042,75 @@ class MaterializedTableTableApiITCase {
         return clusterClient
                 .sendRequest(headers, parameters, EmptyRequestBody.getInstance())
                 .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    /** A test catalog that owns the storage of its materialized tables. */
+    private static final class StorageTestCatalog extends GenericInMemoryCatalog {
+
+        private StorageTestCatalog() {
+            super(CATALOG, DATABASE);
+        }
+
+        @Override
+        public Optional<Factory> getFactory() {
+            return Optional.of(new CatalogStorageTableFactory());
+        }
+    }
+
+    /**
+     * Stores a table without a 'connector' option in the 'values' connector and passes every other
+     * table to its own connector.
+     */
+    private static final class CatalogStorageTableFactory
+            implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+
+        @Override
+        public String factoryIdentifier() {
+            return "mt-catalog-storage";
+        }
+
+        @Override
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<ConfigOption<?>> optionalOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public DynamicTableSource createDynamicTableSource(Context context) {
+            return FactoryUtil.createDynamicTableSource(
+                    null,
+                    context.getObjectIdentifier(),
+                    withStorageConnector(context.getCatalogTable()),
+                    Collections.emptyMap(),
+                    context.getConfiguration(),
+                    context.getClassLoader(),
+                    context.isTemporary());
+        }
+
+        @Override
+        public DynamicTableSink createDynamicTableSink(Context context) {
+            return FactoryUtil.createDynamicTableSink(
+                    null,
+                    context.getObjectIdentifier(),
+                    withStorageConnector(context.getCatalogTable()),
+                    Collections.emptyMap(),
+                    context.getConfiguration(),
+                    context.getClassLoader(),
+                    context.isTemporary());
+        }
+
+        private static ResolvedCatalogTable withStorageConnector(ResolvedCatalogTable table) {
+            if (table.getOptions().containsKey(FactoryUtil.CONNECTOR.key())) {
+                return table;
+            }
+            final Map<String, String> options = new HashMap<>(table.getOptions());
+            options.put(FactoryUtil.CONNECTOR.key(), "values");
+            options.put("sink-insert-only", "false");
+            return table.copy(options);
+        }
     }
 }
