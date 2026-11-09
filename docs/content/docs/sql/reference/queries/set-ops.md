@@ -47,7 +47,7 @@ Flink SQL> (SELECT s FROM t1) UNION (SELECT s FROM t2);
 
 Flink SQL> (SELECT s FROM t1) UNION ALL (SELECT s FROM t2);
 +---+
-|  c|
+|  s|
 +---+
 |  c|
 |  a|
