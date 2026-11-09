@@ -1451,7 +1451,8 @@ variant:
     table: VARIANT.at(INT)
     description: |
       If the VARIANT is an ARRAY value, returns a VARIANT whose value is the element at
-      the specified index. The index starts from 1, If the index is out of range, it returns NULL.
+      the specified index. The index starts from 1. A literal index below 1 fails during
+      planning. Any other index out of range returns NULL.
   - sql: variant '[' STRING ']'
     table: VARIANT.at(STRING)
     description: |

@@ -666,7 +666,7 @@ public class VariantSemanticTest extends SemanticTestBase {
     static final TableTestProgram VARIANT_ARRAY_ERROR_ACCESS =
             TableTestProgram.of(
                             "variant-array-error-access",
-                            "validates variant array access using [] operator in sql and at() in table api with string")
+                            "validates that an invalid index on a variant array fails")
                     .setupTableSource(VARIANT_ARRAY_SOURCE)
                     .runFailingSql(
                             "SELECT v['1'], v['2'], v['3'] FROM t",
@@ -679,6 +679,18 @@ public class VariantSemanticTest extends SemanticTestBase {
                                     + "<MAP>[<ANY>]\n"
                                     + "<ROW>[<CHARACTER>|<INTEGER>]\n"
                                     + "<VARIANT>[<CHARACTER>|<INTEGER>]")
+                    .runFailingSql(
+                            "SELECT v[0] FROM t",
+                            ValidationException.class,
+                            "Array element access needs an index starting at 1 but was 0.")
+                    .runFailingSql(
+                            "SELECT v[-1] FROM t",
+                            ValidationException.class,
+                            "Array element access needs an index starting at 1 but was -1.")
+                    .runFailingSql(
+                            "SELECT v[-4294967295] FROM t",
+                            ValidationException.class,
+                            "Array element access needs an index starting at 1 but was -4294967295.")
                     .build();
 
     static final TableTestProgram VARIANT_OBJECT_ERROR_ACCESS =

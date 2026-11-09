@@ -1548,7 +1548,9 @@ variant:
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |
-      如果这是一个 ARRAY 类型的 VARIANT，则返回一个 VARIANT，其值为指定索引处的元素。索引从 1 开始，如果索引超出范围，则返回 NULL。
+      If the VARIANT is an ARRAY value, returns a VARIANT whose value is the element at
+      the specified index. The index starts from 1. A literal index below 1 fails during
+      planning. Any other index out of range returns NULL.
 
   - sql: variant '[' STRING ']'
     table: VARIANT.at(STRING)
