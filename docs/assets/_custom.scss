@@ -96,8 +96,9 @@ aside nav ul {
 }
 
 aside.book-menu nav {
+    // A text shadow instead of a bold font, so a hovered link keeps its width and doesn't wrap.
     a:hover {
-        font-weight: bold;
+        text-shadow: 0 0 0.65px currentColor, 0 0 0.65px currentColor;
         opacity: 1.0;
     }
 
