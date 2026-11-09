@@ -498,7 +498,7 @@ $ ./bin/flink run \
       --parallelism 8 \
       -Dkubernetes.cluster-id=<ClusterId> \
       -Dtaskmanager.memory.process.size=4096m \
-      -Dkubernetes.taskmanager.cpu=2 \
+      -Dkubernetes.taskmanager.cpu.amount=2 \
       -Dtaskmanager.numberOfTaskSlots=4 \
       -Dkubernetes.container.image.ref=<PyFlinkImageName> \
       --pyModule word_count \

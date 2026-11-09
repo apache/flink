@@ -66,7 +66,7 @@ In order to use this feature, local recovery has to be enabled via `state.backen
 Moreover, the TaskManager processes need to get a deterministic resource id assigned via `taskmanager.resource-id`.
 Last but not least, a failed TaskManager process needs to be restarted with the same working directory.
 
-```bash
+```yaml
 process.working-dir: /path/to/working/dir/base
 state.backend.local-recovery: true
 taskmanager.resource-id: TaskManager_1 # important: Change for every TaskManager process

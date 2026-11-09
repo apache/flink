@@ -141,8 +141,8 @@ $ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
         "kubernetes.container.image.ref": "'${FLINK_IMAGE_NAME}'",
         "jobmanager.memory.process.size": "1000m",
         "taskmanager.memory.process.size": "1000m",
-        "kubernetes.jobmanager.cpu": 0.5,
-        "kubernetes.taskmanager.cpu": 0.5,
+        "kubernetes.jobmanager.cpu.amount": 0.5,
+        "kubernetes.taskmanager.cpu.amount": 0.5,
         "kubernetes.rest-service.exposed.type": "NodePort"
     }
 }'

@@ -115,7 +115,7 @@ In case you have a locally available Flink job JAR, artifact upload can be used 
 $ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     -Dkubernetes.artifacts.local-upload-enabled=true \
     -Dkubernetes.artifacts.local-upload-target=s3://my-bucket/ \
     local:///tmp/my-flink-job.jar
@@ -128,7 +128,7 @@ You can add additional artifacts via the `user.artifacts.artifact-list` config o
 $ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     -Dkubernetes.artifacts.local-upload-enabled=true \
     -Dkubernetes.artifacts.local-upload-target=s3://my-bucket/ \
     -Duser.artifacts.artifact-list=local:///tmp/my-flink-udf1.jar\;s3://my-bucket/my-flink-udf2.jar \
@@ -142,14 +142,14 @@ In case the job JAR or any additional artifact is already available remotely via
 $ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     s3://my-bucket/my-flink-job.jar
 
 # HTTP(S)
 $ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     https://ip:port/my-flink-job.jar
 ```
 
@@ -330,9 +330,7 @@ For more details see the [official Kubernetes documentation](https://kubernetes.
 The following command will expose the secret `mysecret` as environment variable in the started pods:
 
 ```bash
-$ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\
-    env:SECRET_USERNAME,secret:mysecret,key:username;\
-    env:SECRET_PASSWORD,secret:mysecret,key:password
+$ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef="env:SECRET_USERNAME,secret:mysecret,key:username;env:SECRET_PASSWORD,secret:mysecret,key:password"
 ```
 
 The env variable `SECRET_USERNAME` contains the username and the env variable `SECRET_PASSWORD` contains the password of the secret `mysecret`.
@@ -426,7 +424,7 @@ spec:
 $ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-checkpoint-cluster \
-    -Dkubernetes.container.image=flink:latest \
+    -Dkubernetes.container.image.ref=flink:latest \
     -Dkubernetes.persistent-volume-claims=flink-checkpoints-pvc:/opt/flink/checkpoints \
     -Dstate.checkpoints.dir=file:///opt/flink/checkpoints \
     local:///opt/flink/usrlib/my-flink-job.jar
@@ -667,8 +665,8 @@ All the fields defined in the pod template that are not listed in the tables wil
                     <a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a>
                 <br>
                 CPU: <br>
-                    <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-cpu">kubernetes.jobmanager.cpu</a>
-                    <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-cpu">kubernetes.taskmanager.cpu</a></td>
+                    <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-cpu-amount">kubernetes.jobmanager.cpu.amount</a>
+                    <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-cpu-amount">kubernetes.taskmanager.cpu.amount</a></td>
             <td>The memory and cpu resources(including requests and limits) will be overwritten by Flink configuration options. All other resources(e.g. ephemeral-storage) will be retained.</td>
         </tr>
         <tr>

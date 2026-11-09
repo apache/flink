@@ -94,7 +94,7 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 
 or in the `flink-conf.yml` configuration file:
 
-```
+```yaml
 execution.checkpointing.unaligned: true
 ```
 
@@ -110,7 +110,7 @@ env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 
 or in the `flink-conf.yml` configuration file:
 
-```
+```yaml
 execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
