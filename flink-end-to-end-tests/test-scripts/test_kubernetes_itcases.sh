@@ -32,7 +32,7 @@ MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFi
 
 function run_mvn_test {
   local test_class=$1
-  run_mvn test -pl flink-kubernetes $MVN_LOGGING_OPTIONS -Dtest=${test_class}
+  run_mvn test -pl flink-kubernetes $MVN_LOGGING_OPTIONS -Dtest=${test_class} -Dfast
 
   EXIT_CODE=$?
   if [ $EXIT_CODE != 0 ]; then
