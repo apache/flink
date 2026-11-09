@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.hint.StateTtlHint;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -26,6 +27,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
+import org.apache.flink.table.planner.plan.utils.MultiJoinUtil;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -50,6 +53,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +61,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -168,6 +173,10 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return pw.item("commonJoinKey", getCommonJoinKeyFieldNames())
                 .item("joinTypes", formatJoinTypes())
                 .item("inputUniqueKeys", formatInputUniqueKeysWithFieldNames())
+                .itemIf(
+                        "inputUpsertKeys",
+                        formatInputUpsertKeysWithFieldNames(),
+                        IntStream.range(0, inputs.size()).anyMatch(this::isStoredByUpsertKey))
                 .itemIf("stateTtlHints", RelExplainUtil.hintsToString(hints), !hints.isEmpty())
                 .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
                 .itemIf(
@@ -197,6 +206,16 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 multijoinCondition,
                 joinAttributeMap,
                 localInputUniqueKeys,
+                IntStream.range(0, inputs.size())
+                        .mapToObj(this::getUpsertKeysContainingJoinKey)
+                        .collect(Collectors.toList()),
+                inputs.stream()
+                        .map(
+                                input ->
+                                        ChangelogPlanUtils.getChangelogMode(
+                                                        (StreamPhysicalRel) input)
+                                                .get())
+                        .collect(Collectors.toList()),
                 StateTtlHint.getStateTtlFromHintOnMultiRel(this.hints),
                 inputProperties,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
@@ -381,37 +400,97 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     }
 
     /**
+     * Formats the upsert keys that the inputs are stored by, or "-" for inputs that are stored by
+     * their unique keys.
+     */
+    private String formatInputUpsertKeysWithFieldNames() {
+        final List<String> inputUpsertKeyStrings = new ArrayList<>();
+        for (int i = 0; i < inputs.size(); i++) {
+            if (!isStoredByUpsertKey(i)) {
+                inputUpsertKeyStrings.add("-");
+                continue;
+            }
+            final List<String> fieldNames = inputs.get(i).getRowType().getFieldNames();
+            inputUpsertKeyStrings.add(
+                    getUpsertKeysContainingJoinKey(i).stream()
+                            .map(
+                                    upsertKey ->
+                                            Arrays.stream(upsertKey)
+                                                    .mapToObj(fieldNames::get)
+                                                    .collect(Collectors.joining(", ", "(", ")")))
+                            .collect(Collectors.joining(", ")));
+        }
+        return String.join(", ", inputUpsertKeyStrings);
+    }
+
+    /**
+     * Returns whether the input is stored by its upsert key, like {@link StreamExecMultiJoin} does.
+     * The changelog mode of the input is only known after the changelog mode inference.
+     */
+    private boolean isStoredByUpsertKey(int inputId) {
+        final RelNode input = inputs.get(inputId);
+        if (!(input instanceof StreamPhysicalRel)) {
+            return false;
+        }
+        final Optional<ChangelogMode> changelogMode =
+                JavaScalaConversionUtil.toJava(
+                        ChangelogPlanUtils.getChangelogMode((StreamPhysicalRel) input));
+        return changelogMode.isPresent()
+                && MultiJoinUtil.isStoredByUpsertKey(
+                        changelogMode.get(), getUpsertKeysContainingJoinKey(inputId));
+    }
+
+    /**
      * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`. If
-     * the unique key of input is a superset of the common join key, then we can ignore
-     * UPDATE_BEFORE. Otherwise, we can't ignore UPDATE_BEFORE.
+     * an upsert key of the input contains its common join key and its join key, then we can ignore
+     * UPDATE_BEFORE and handle deletes by key. Otherwise, we can't.
      *
-     * <p>For example, if the input schema is [id, name, cnt] with the unique key (id) and the
+     * <p>For example, if the input schema is [id, name, cnt] with the upsert key (id) and the
      * common join key is (id, name) across joins, then an insert and update on the id:
      *
      * <p>+I(1001, Tim, 10) -U(1001, Tim, 10) +U(1001, Timo, 11)
      *
      * <p>If the UPDATE_BEFORE is ignored, the `+I(1001, Tim, 10)` record in join will never be
-     * retracted. Therefore, if we want to ignore UPDATE_BEFORE, the unique key must contain join
-     * key.
+     * retracted. Therefore, if we want to ignore UPDATE_BEFORE, the upsert key must contain the
+     * join key, so that all versions of a record are stored under the same key.
      *
-     * <p>This is similar to {@link StreamPhysicalJoin#inputUniqueKeyContainsJoinKey(int)} but here
-     * we use the common join key, since the multi join operator partitions on the common join key.
+     * <p>This is similar to {@link StreamPhysicalJoin#inputUniqueKeyContainsJoinKey(int)}, but the
+     * multi join operator partitions on the common join key and stores each input but the first
+     * under its own join key, so the upsert key must contain both.
      */
-    public boolean inputUniqueKeyContainsCommonJoinKey(int inputId) {
-        final RelNode input = getInputs().get(inputId);
-        final Set<ImmutableBitSet> inputUniqueKeysSet = getUniqueKeys(input);
-        if (inputUniqueKeysSet == null || inputUniqueKeysSet.isEmpty()) {
-            return false;
-        }
+    public boolean inputUpsertKeyContainsJoinKey(int inputId) {
+        return !getUpsertKeysContainingJoinKey(inputId).isEmpty();
+    }
 
+    /**
+     * Returns the upsert keys of the input that contain its common join key and, for all inputs but
+     * the first, its join key. An input without UPDATE_BEFORE replaces the record with the same
+     * upsert key, which a unique key that isn't an upsert key doesn't identify.
+     */
+    private List<int[]> getUpsertKeysContainingJoinKey(int inputId) {
         final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(inputId);
         if (commonJoinKeyIndices.length == 0) {
-            return false;
+            return Collections.emptyList();
         }
-
-        final ImmutableBitSet commonJoinKeys = ImmutableBitSet.of(commonJoinKeyIndices);
-        return inputUniqueKeysSet.stream()
-                .anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
+        final RelNode input = inputs.get(inputId);
+        final FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
+        final Set<ImmutableBitSet> upsertKeys =
+                fmq.getUpsertKeysInKeyGroupRange(input, commonJoinKeyIndices);
+        if (upsertKeys == null) {
+            return Collections.emptyList();
+        }
+        // the first input is stored without its join key, so a change of its join key fields
+        // doesn't move a record to another state key
+        final ImmutableBitSet joinKey =
+                inputId == 0
+                        ? ImmutableBitSet.of(commonJoinKeyIndices)
+                        : ImmutableBitSet.of(commonJoinKeyIndices)
+                                .union(ImmutableBitSet.of(keyExtractor.getJoinKeyIndices(inputId)));
+        return upsertKeys.stream()
+                .filter(upsertKey -> upsertKey.contains(joinKey))
+                .map(ImmutableBitSet::toArray)
+                .collect(Collectors.toList());
     }
 
     private List<InputProperty> createInputProperties() {

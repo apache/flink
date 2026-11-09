@@ -1,0 +1,469 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 113,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Users`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "region",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "tag",
+              "dataType" : "VARBINARY(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_user_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, region, tag])"
+  }, {
+    "id" : 114,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 115,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "order_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "region",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "tag",
+              "dataType" : "VARBINARY(2147483647)"
+            }, {
+              "name" : "amount",
+              "dataType" : "INT"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_user_id_order_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "order_id" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647), `amount` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id, region, tag, amount])"
+  }, {
+    "id" : 116,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647), `amount` INT>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 117,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Payments`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "payment_type",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_user_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `payment_type` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[user_id, payment_type])"
+  }, {
+    "id" : 118,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `payment_type` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 119,
+    "type" : "stream-exec-multi-join_1",
+    "joinTypes" : [ "INNER", "INNER", "INNER" ],
+    "joinConditions" : [ {
+      "kind" : "LITERAL",
+      "value" : true,
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "INT NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 3,
+          "type" : "INT NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARBINARY(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "VARBINARY(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      } ],
+      "type" : "BOOLEAN"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 8,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "multiJoinCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "INT NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 3,
+          "type" : "INT NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARBINARY(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "VARBINARY(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "INT NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 8,
+          "type" : "INT NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN"
+    },
+    "joinAttributeMap" : {
+      "0" : [ {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      }, {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      } ],
+      "1" : [ {
+        "leftInputId" : 0,
+        "leftFieldIndex" : 0,
+        "rightInputId" : 1,
+        "rightFieldIndex" : 0
+      } ],
+      "2" : [ {
+        "leftInputId" : 0,
+        "leftFieldIndex" : 0,
+        "rightInputId" : 2,
+        "rightFieldIndex" : 0
+      } ]
+    },
+    "inputUniqueKeys" : [ [ [ 0 ] ], [ [ 0, 1 ] ], [ [ 0 ] ] ],
+    "inputUpsertKeys" : [ [ [ 0 ] ], [ [ 0, 1 ] ], [ [ 0 ] ] ],
+    "inputChangelogModes" : [ [ "INSERT", "UPDATE_AFTER", "~DELETE" ], [ "INSERT", "UPDATE_AFTER", "~DELETE" ], [ "INSERT", "UPDATE_AFTER", "~DELETE" ] ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "input-state-0"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "input-state-1"
+    }, {
+      "index" : 2,
+      "ttl" : "0 ms",
+      "name" : "input-state-2"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 2
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `region` VARCHAR(2147483647), `tag` VARBINARY(2147483647), `user_id0` INT NOT NULL, `order_id` INT NOT NULL, `region0` VARCHAR(2147483647), `tag0` VARBINARY(2147483647), `amount` INT, `user_id1` INT NOT NULL, `payment_type` VARCHAR(2147483647)>",
+    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, order_id), (user_id)], joinConditions=[((user_id = user_id0) AND (region <> region0) AND (tag <> tag0)), (user_id = user_id1)], select=[user_id,region,tag,user_id0,order_id,region0,tag0,amount,user_id1,payment_type], rowType=[RecordType(INTEGER user_id, VARCHAR(2147483647) region, VARBINARY(2147483647) tag, INTEGER user_id0, INTEGER order_id, VARCHAR(2147483647) region0, VARBINARY(2147483647) tag0, INTEGER amount, INTEGER user_id1, VARCHAR(2147483647) payment_type)])"
+  }, {
+    "id" : 120,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 7,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 9,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "partialDeleteKeys" : [ 0, 1 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `amount` INT, `payment_type` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[user_id0 AS user_id, order_id, amount, payment_type])"
+  }, {
+    "id" : 121,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "order_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "amount",
+              "dataType" : "INT"
+            }, {
+              "name" : "payment_type",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_user_id_order_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "order_id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
+    "upsertMaterializeStrategy" : "MAP",
+    "inputUpsertKey" : [ 0, 1 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` INT NOT NULL, `amount` INT, `payment_type` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, amount, payment_type])"
+  } ],
+  "edges" : [ {
+    "source" : 113,
+    "target" : 114,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 115,
+    "target" : 116,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 117,
+    "target" : 118,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 114,
+    "target" : 119,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 116,
+    "target" : 119,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 118,
+    "target" : 119,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 119,
+    "target" : 120,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 120,
+    "target" : 121,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
