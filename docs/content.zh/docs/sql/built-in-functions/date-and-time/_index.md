@@ -25,6 +25,8 @@ under the License.
 
 # Date & Time Functions
 
+Date and time functions create, extract from, round, shift, format and convert values of the `DATE`, `TIME`, `TIMESTAMP` and `TIMESTAMP_LTZ` types, such as `EXTRACT`, `DATE_FORMAT` and `TIMESTAMPADD`. The functions that return the current date or time, such as `CURRENT_TIMESTAMP`, use the session [time zone]({{< ref "docs/sql/timezone" >}}). Except `CURRENT_ROW_TIMESTAMP`, they are evaluated for each row in streaming mode, but once per query in batch mode. The units that functions such as `EXTRACT` and `TIMESTAMPDIFF` take are listed [at the end](#时间间隔单位和时间点单位标识符).
+
 {{< sql_functions_zh "temporal" >}}
 
 ## 时间间隔单位和时间点单位标识符

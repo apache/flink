@@ -25,4 +25,6 @@ under the License.
 
 # 集合函数
 
+Collection functions build, read and change `ARRAY` and `MAP` values, such as `ARRAY_CONTAINS` and `MAP_KEYS`. Array positions start at 1, so `ARRAY[10, 20][1]` returns 10.
+
 {{< sql_functions_zh "collection" >}}

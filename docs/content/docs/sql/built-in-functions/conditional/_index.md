@@ -25,4 +25,6 @@ under the License.
 
 # Conditional Functions
 
+Conditional functions return one of their arguments depending on a condition or on NULLs, such as `CASE`, `IF`, `COALESCE` and `NULLIF`. `GREATEST` and `LEAST` return the largest or smallest argument.
+
 {{< sql_functions "conditional" >}}

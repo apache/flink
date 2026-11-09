@@ -25,4 +25,6 @@ under the License.
 
 # Collection Functions
 
+Collection functions build, read and change `ARRAY` and `MAP` values, such as `ARRAY_CONTAINS` and `MAP_KEYS`. Array positions start at 1, so `ARRAY[10, 20][1]` returns 10.
+
 {{< sql_functions "collection" >}}

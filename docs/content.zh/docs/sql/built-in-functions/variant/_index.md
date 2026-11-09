@@ -25,6 +25,8 @@ under the License.
 
 # Variant 函数
 
+Variant functions parse JSON and XML text into [`VARIANT`]({{< ref "docs/sql/reference/data-types" >}}#variant) values and read values out of them, such as `PARSE_JSON`, `PARSE_XML` and `VARIANT_GET`. To turn a `VARIANT` back into JSON text, use [`JSON_STRING`]({{< ref "docs/sql/built-in-functions/json" >}}).
+
 {{< sql_functions_zh "variant" >}}
 
 ## XML to VARIANT
@@ -127,6 +129,9 @@ maps to a `TIMESTAMP_LTZ`, although it is `10000-01-01 07:00:00` in UTC, and
 | `dateTime` with an offset    | `TIMESTAMP_LTZ`                              |
 | `dateTime` without an offset | `TIMESTAMP`                                  |
 
+`float` and `double` keep the sign of zero, so `-0` maps to `-0.0`. The other numeric types have no
+negative zero, so `-0` maps to `0`.
+
 The offset of a `dateTime` is `Z` or a signed `hh:mm` of at most 14 hours. It is used to compute the
 instant and isn't stored, since a `TIMESTAMP_LTZ` has no offset. For example,
 `2026-09-30T12:30:00+02:00`, `2026-09-30T10:30:00Z`, and `2026-09-30T06:00:00-04:30` map to the same
@@ -134,8 +139,13 @@ instant and isn't stored, since a `TIMESTAMP_LTZ` has no offset. For example,
 instant without a date or a time.
 
 `TIME` keeps microseconds, so `12:30:45.1234567` is stored as `12:30:45.123456`. `TIMESTAMP` and
-`TIMESTAMP_LTZ` keep nanoseconds, or microseconds outside the nanosecond range from 1677 to 2262.
-Further digits are truncated, like in a cast, instead of keeping the text as a `STRING`.
+`TIMESTAMP_LTZ` keep nanoseconds if the value has digits below a microsecond and is in the
+nanosecond range. A 64-bit count of nanoseconds since `1970-01-01 00:00:00` UTC covers
+`1677-09-21 00:12:43.145224192` to `2262-04-11 23:47:16.854775807` UTC. A `dateTime` without an
+offset is compared as if it were in UTC, so the range is the same in every session time zone.
+Outside the range, the value keeps microseconds, so `2300-01-01T00:00:00.000000001` is stored as
+`2300-01-01 00:00:00`. Further digits are truncated, like in a cast, instead of keeping the text as
+a `STRING`.
 
 A typed value casts directly to its type, without the cast to `STRING`:
 

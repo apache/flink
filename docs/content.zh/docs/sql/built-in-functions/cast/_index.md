@@ -25,4 +25,6 @@ under the License.
 
 # Cast Functions
 
+Cast functions convert a value to another data type. `CAST` fails the job when a value can't be converted, while `TRY_CAST` returns NULL instead. [Casting]({{< ref "docs/sql/reference/data-types" >}}#cast-方法) lists which types can be cast to which.
+
 {{< sql_functions_zh "conversion" >}}

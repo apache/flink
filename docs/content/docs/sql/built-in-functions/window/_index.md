@@ -26,6 +26,8 @@ under the License.
 
 # Window Functions
 
+Window functions compute a value for each row from a window of rows that an `OVER` clause defines, such as `ROW_NUMBER`, `RANK` and `LAG`. They return one value for each input row, and aggregate functions do the same when used with `OVER`, see [Over Aggregation]({{< ref "docs/sql/reference/queries/over-agg" >}}). The [window table functions](#window-table-functions) at the end assign rows to time windows.
+
 {{< sql_functions "window" >}}
 
 ## Window Table Functions

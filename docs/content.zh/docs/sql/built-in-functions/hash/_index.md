@@ -25,4 +25,6 @@ under the License.
 
 # 哈希函数
 
+Hash functions return the hash of a string as a string of hexadecimal digits, such as `MD5` and `SHA256`. They are deterministic, and they return NULL if an argument is NULL.
+
 {{< sql_functions_zh "hashfunctions" >}}

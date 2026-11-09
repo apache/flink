@@ -25,4 +25,6 @@ under the License.
 
 # String & Binary Functions
 
+String and binary functions work on character strings and, for some functions, on binary strings. They concatenate, search, extract, replace, trim, pad, encode and split them, such as `CONCAT`, `SUBSTRING` and `TRIM`. Positions in a string start at 1. Functions that match a regular expression, such as `REGEXP_EXTRACT`, are in [Regular Expressions]({{< ref "docs/sql/built-in-functions/regular-expressions" >}}).
+
 {{< sql_functions "string" >}}

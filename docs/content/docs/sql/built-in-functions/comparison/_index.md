@@ -25,4 +25,6 @@ under the License.
 
 # Comparison Functions
 
+Comparison functions compare values and return a `BOOLEAN`, such as `=`, `BETWEEN ... AND`, `LIKE` and `IN`. The operators `=`, `<>`, `<`, `<=`, `>` and `>=` return UNKNOWN when either side is NULL. `IS NULL`, `IS NOT NULL` and `IS [NOT ]DISTINCT FROM` never return UNKNOWN, and `IS [NOT ]DISTINCT FROM` treats two NULLs as equal.
+
 {{< sql_functions "comparison" >}}

@@ -25,6 +25,8 @@ under the License.
 
 # 位图函数
 
+Bitmap functions work on [`BITMAP`]({{< ref "docs/sql/reference/data-types" >}}#bitmap) values, which store a set of 32-bit integers in a compressed form. The scalar functions build, combine, convert and inspect bitmaps, such as `BITMAP_BUILD` and `BITMAP_CARDINALITY`. The [aggregate functions](#位图聚合函数) combine the values of many rows into one bitmap or its cardinality.
+
 {{< sql_functions_zh "bitmap" >}}
 
 ## 位图聚合函数

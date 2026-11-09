@@ -27,8 +27,12 @@ under the License.
 
 聚合函数将所有的行作为输入，并返回单个聚合值作为结果。
 
+They aggregate the whole input, each group of a [`GROUP BY`]({{< ref "docs/sql/reference/queries/group-agg" >}}), each window of a [window aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), or the rows of an [`OVER` window]({{< ref "docs/sql/reference/queries/over-agg" >}}). `COUNT(*)` counts every row, while `COUNT(expression)` counts the rows where `expression` isn't NULL.
+
 {{< sql_functions_zh "aggregate" >}}
 
 ## 分组函数
+
+In a query with [`GROUPING SETS`, `ROLLUP` or `CUBE`]({{< ref "docs/sql/reference/queries/group-agg" >}}#grouping-sets), these functions tell which grouping set a row belongs to.
 
 {{< sql_functions_zh "grouping" >}}

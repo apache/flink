@@ -25,4 +25,6 @@ under the License.
 
 # Mathematical Functions
 
+Mathematical functions compute on numeric values: arithmetic operators, powers and logarithms, trigonometric functions, rounding and random numbers, such as `ROUND`, `LOG` and `RAND`.
+
 {{< sql_functions_zh "arithmetic" >}}

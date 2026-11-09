@@ -25,4 +25,6 @@ under the License.
 
 # Utility Functions
 
+Utility functions return information about the session or about a value, such as `CURRENT_DATABASE` and `TYPEOF`, and generate UUIDs. `DESCRIPTOR` passes a list of column names to a function, such as a process table function. `callSql` and `.as` exist only in the Table API.
+
 {{< sql_functions "utility" >}}

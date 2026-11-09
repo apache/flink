@@ -25,10 +25,12 @@ under the License.
 
 # Aggregate Functions
 
-The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result. 
+Aggregate functions compute one value from many rows, such as `SUM` or `COUNT`. They aggregate the whole input, each group of a [`GROUP BY`]({{< ref "docs/sql/reference/queries/group-agg" >}}), each window of a [window aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), or the rows of an [`OVER` window]({{< ref "docs/sql/reference/queries/over-agg" >}}). `COUNT(*)` counts every row, while `COUNT(expression)` counts the rows where `expression` isn't NULL.
 
 {{< sql_functions "aggregate" >}}
 
 ## Grouping Functions
+
+In a query with [`GROUPING SETS`, `ROLLUP` or `CUBE`]({{< ref "docs/sql/reference/queries/group-agg" >}}#grouping-sets), these functions tell which grouping set a row belongs to.
 
 {{< sql_functions "grouping" >}}

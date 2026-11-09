@@ -25,4 +25,6 @@ under the License.
 
 # 比较函数
 
+Comparison functions compare values and return a `BOOLEAN`, such as `=`, `BETWEEN ... AND`, `LIKE` and `IN`. The operators `=`, `<>`, `<`, `<=`, `>` and `>=` return UNKNOWN when either side is NULL. `IS NULL`, `IS NOT NULL` and `IS [NOT ]DISTINCT FROM` never return UNKNOWN, and `IS [NOT ]DISTINCT FROM` treats two NULLs as equal.
+
 {{< sql_functions_zh "comparison" >}}

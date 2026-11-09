@@ -25,4 +25,6 @@ under the License.
 
 # Boolean Functions
 
+Boolean functions combine and test `BOOLEAN` values. They follow three-valued logic, where NULL stands for UNKNOWN: `TRUE OR NULL` is TRUE, while `FALSE OR NULL` is UNKNOWN. The `IS` tests, such as `IS TRUE`, always return TRUE or FALSE.
+
 {{< sql_functions "logical" >}}

@@ -26,6 +26,8 @@ under the License.
 
 # Window Functions
 
+Window functions compute a value for each row from a window of rows that an `OVER` clause defines, such as `ROW_NUMBER`, `RANK` and `LAG`. They return one value for each input row, and aggregate functions do the same when used with `OVER`, see [Over Aggregation]({{< ref "docs/sql/reference/queries/over-agg" >}}). The [window table functions](#window-table-functions) at the end assign rows to time windows.
+
 {{< sql_functions_zh "window" >}}
 
 ## Window Table Functions
@@ -34,7 +36,7 @@ Window table functions assign each row of the `data` table to windows and add th
 
 | Function                         | Description                                                                                                                                                                                                                                                                            |
 |----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `TUMBLE(data => TABLE t, ...)`   | Assigns each row of the `data` table to a tumbling window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#tumble) for the full list of arguments, semantics, and usage.     |
-| `HOP(data => TABLE t, ...)`      | Assigns each row of the `data` table to a hopping window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#hop) for the full list of arguments, semantics, and usage.         |
-| `CUMULATE(data => TABLE t, ...)` | Assigns each row of the `data` table to a cumulating window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#cumulate) for the full list of arguments, semantics, and usage. |
-| `SESSION(data => TABLE t, ...)`  | Assigns each row of the `data` table to a session window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#session) for the full list of arguments, semantics, and usage.     |
+| `TUMBLE(data => TABLE t, ...)`   | Assigns each row of the `data` table to a tumbling window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#滚动窗口tumble) for the full list of arguments, semantics, and usage.     |
+| `HOP(data => TABLE t, ...)`      | Assigns each row of the `data` table to a hopping window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#滑动窗口hop) for the full list of arguments, semantics, and usage.         |
+| `CUMULATE(data => TABLE t, ...)` | Assigns each row of the `data` table to a cumulating window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#累积窗口cumulate) for the full list of arguments, semantics, and usage. |
+| `SESSION(data => TABLE t, ...)`  | Assigns each row of the `data` table to a session window specified by additional window columns (`window_start`, `window_end`, `window_time`). See [Window TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}#会话窗口session) for the full list of arguments, semantics, and usage.     |

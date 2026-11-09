@@ -25,4 +25,6 @@ under the License.
 
 # Row & Structured Type Functions
 
+These functions build, read and update rows and [structured types]({{< ref "docs/sql/reference/data-types" >}}#structured): the `ROW` constructor, field access with `.`, and `OBJECT_OF` and `OBJECT_UPDATE` for structured types, which map to a Java class.
+
 {{< sql_functions_zh "structured" >}}

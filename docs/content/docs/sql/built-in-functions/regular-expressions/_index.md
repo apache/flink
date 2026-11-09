@@ -25,4 +25,6 @@ under the License.
 
 # Regular Expression Functions
 
+Regular expression functions test, count, find, extract and replace the substrings of a string that match a regular expression, such as `REGEXP`, `REGEXP_EXTRACT` and `REGEXP_REPLACE`. A regular expression uses the syntax of Java's [`Pattern`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Pattern.html) class. For simpler patterns, see `LIKE` and `SIMILAR TO` in [Comparison]({{< ref "docs/sql/built-in-functions/comparison" >}}).
+
 {{< sql_functions "regex" >}}
