@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Preconditions;
@@ -143,5 +144,29 @@ class StreamElementQueueTest {
         assertThat(popCompleted(queue)).containsExactly(new Watermark(2L), new Watermark(5L));
         assertThat(queue.size()).isZero();
         assertThat(popCompleted(queue)).isEmpty();
+    }
+
+    /** Tests that a watermark status is emitted in order with the watermarks and records. */
+    @TestTemplate
+    void testWatermarkStatusIsEmittedInOrder() {
+        final StreamElementQueue<Integer> queue = createStreamElementQueue(4);
+
+        ResultFuture<Integer> record = putSuccessfully(queue, new StreamRecord<>(1, 0L));
+        putSuccessfully(queue, new Watermark(2L));
+        putSuccessfully(queue, WatermarkStatus.IDLE);
+        putSuccessfully(queue, WatermarkStatus.ACTIVE);
+
+        assertThat(popCompleted(queue)).isEmpty();
+        assertThat(queue.size()).isEqualTo(4);
+
+        record.complete(Collections.singleton(11));
+
+        assertThat(popCompleted(queue))
+                .containsExactly(
+                        new StreamRecord<>(11, 0L),
+                        new Watermark(2L),
+                        WatermarkStatus.IDLE,
+                        WatermarkStatus.ACTIVE);
+        assertThat(queue.isEmpty()).isTrue();
     }
 }

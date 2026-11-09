@@ -57,6 +57,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
@@ -428,6 +429,110 @@ public class AsyncWaitOperatorTest {
                     testHarness.getOutput(),
                     new StreamRecordComparator());
         }
+    }
+
+    @Test
+    void testWatermarkStatusDoesNotOvertakeWatermarkOrdered() throws Exception {
+        testWatermarkStatusDoesNotOvertakeWatermark(AsyncDataStream.OutputMode.ORDERED);
+    }
+
+    @Test
+    void testWatermarkStatusDoesNotOvertakeWatermarkUnordered() throws Exception {
+        testWatermarkStatusDoesNotOvertakeWatermark(AsyncDataStream.OutputMode.UNORDERED);
+    }
+
+    /**
+     * A watermark status must be emitted after the watermarks that arrived before it. Downstream
+     * ignores watermarks received after an IDLE status, so a status overtaking a queued watermark
+     * loses that watermark.
+     */
+    private void testWatermarkStatusDoesNotOvertakeWatermark(AsyncDataStream.OutputMode mode)
+            throws Exception {
+        final CompletableFuture<Void> trigger = new CompletableFuture<>();
+        final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(new ControllableAsyncFunction<>(trigger), TIMEOUT, 10, mode);
+
+        testHarness.open();
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processWatermark(new Watermark(100L));
+            testHarness.processWatermarkStatus(WatermarkStatus.IDLE);
+        }
+
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        trigger.complete(null);
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
+
+        assertThat(testHarness.getOutput())
+                .containsExactly(
+                        new StreamRecord<>(1, 1L), new Watermark(100L), WatermarkStatus.IDLE);
+    }
+
+    @Test
+    void testWatermarkStatusWithEmptyQueueIsEmittedImmediately() throws Exception {
+        final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(
+                        new ControllableAsyncFunction<>(new CompletableFuture<>()),
+                        TIMEOUT,
+                        10,
+                        AsyncDataStream.OutputMode.ORDERED);
+
+        testHarness.open();
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processWatermarkStatus(WatermarkStatus.IDLE);
+        }
+
+        assertThat(testHarness.getOutput()).containsExactly(WatermarkStatus.IDLE);
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.close();
+        }
+    }
+
+    @Test
+    void testWatermarkStatusIsRestoredInOrder() throws Exception {
+        final OneInputStreamOperatorTestHarness<Integer, Integer> snapshotHarness =
+                createTestHarness(
+                        new ControllableAsyncFunction<>(new CompletableFuture<>()),
+                        TIMEOUT,
+                        10,
+                        AsyncDataStream.OutputMode.ORDERED);
+
+        snapshotHarness.open();
+
+        final OperatorSubtaskState snapshot;
+        synchronized (snapshotHarness.getCheckpointLock()) {
+            snapshotHarness.processElement(new StreamRecord<>(1, 1L));
+            snapshotHarness.processWatermark(new Watermark(100L));
+            snapshotHarness.processWatermarkStatus(WatermarkStatus.IDLE);
+            snapshot = snapshotHarness.snapshot(0L, 0L);
+        }
+
+        final OneInputStreamOperatorTestHarness<Integer, Integer> recoverHarness =
+                createTestHarness(
+                        new ControllableAsyncFunction<>(CompletableFuture.completedFuture(null)),
+                        TIMEOUT,
+                        10,
+                        AsyncDataStream.OutputMode.ORDERED);
+
+        recoverHarness.initializeState(snapshot);
+
+        synchronized (recoverHarness.getCheckpointLock()) {
+            recoverHarness.open();
+            recoverHarness.endInput();
+            recoverHarness.close();
+        }
+
+        assertThat(recoverHarness.getOutput())
+                .containsExactly(
+                        new StreamRecord<>(1, 1L), new Watermark(100L), WatermarkStatus.IDLE);
     }
 
     /** Test the AsyncWaitOperator with ordered mode and processing time. */

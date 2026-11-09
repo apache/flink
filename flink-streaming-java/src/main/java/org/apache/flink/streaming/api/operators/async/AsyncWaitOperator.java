@@ -49,6 +49,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -233,6 +234,8 @@ public class AsyncWaitOperator<IN, OUT>
                     processElement(element.<IN>asRecord());
                 } else if (element.isWatermark()) {
                     processWatermark(element.asWatermark());
+                } else if (element.isWatermarkStatus()) {
+                    processWatermarkStatus(element.asWatermarkStatus());
                 } else if (element.isLatencyMarker()) {
                     processLatencyMarker(element.asLatencyMarker());
                 } else {
@@ -289,6 +292,14 @@ public class AsyncWaitOperator<IN, OUT>
         // watermarks are always completed
         // if there is no prior element, we can directly emit them
         // this also avoids watermarks being held back until the next element has been processed
+        outputCompletedElement();
+    }
+
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        // a watermark status must not overtake the watermarks queued before it: downstream ignores
+        // watermarks that arrive after an IDLE status, so they would be lost
+        addToWorkQueue(watermarkStatus);
         outputCompletedElement();
     }
 
