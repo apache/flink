@@ -22,6 +22,7 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -29,6 +30,8 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
 
 import scala.Enumeration;
 
@@ -175,6 +178,15 @@ public class MultiJoinTest extends TableTestBase {
                         "CREATE TABLE AddressPK ("
                                 + "  user_id STRING PRIMARY KEY NOT ENFORCED,"
                                 + "  location STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE UserRegionsPK ("
+                                + "  user_id STRING NOT NULL,"
+                                + "  region STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (user_id, region) NOT ENFORCED"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
     }
 
@@ -863,6 +875,67 @@ public class MultiJoinTest extends TableTestBase {
                         + "    ON o.user_id = u.user_id\n"
                         + "JOIN PaymentsPK p\n"
                         + "    ON o.user_id = p.user_id");
+    }
+
+    /**
+     * The upsert key of OrdersPK contains the common join key user_id but not its join key
+     * (user_id, product), so a new version of an order may be stored under another join key.
+     * OrdersPK has to keep UPDATE_BEFORE, so the multi-way join requires it from all inputs.
+     * UsersPK joins on (user_id, name) too, but as the first input it is stored without its join
+     * key.
+     */
+    @Test
+    void testUpsertKeyNotContainingJoinKeyKeepsUpdateBefore() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_orders ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `name` STRING,"
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  `location` STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        verifyRelPlanInsertWithChangelogModes(
+                "INSERT INTO sink_orders\n"
+                        + "SELECT o.user_id, u.name, o.order_id, a.location\n"
+                        + "FROM UsersPK u\n"
+                        + "JOIN OrdersPK o\n"
+                        + "    ON u.user_id = o.user_id AND u.name = o.product\n"
+                        + "JOIN AddressPK a\n"
+                        + "    ON u.user_id = a.user_id");
+    }
+
+    /**
+     * The first input is stored without its join key, so its upsert key only has to contain the
+     * common join key user_id, not its join key (user_id, name). No input needs UPDATE_BEFORE.
+     */
+    @Test
+    void testFirstInputUpsertKeyNotContainingJoinKeyOmitsUpdateBefore() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_regions ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `region` STRING NOT NULL,"
+                                + "  `description` STRING,"
+                                + "  `location` STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `region`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        verifyRelPlanInsertWithChangelogModes(
+                "INSERT INTO sink_regions\n"
+                        + "SELECT r.user_id, r.region, u.description, a.location\n"
+                        + "FROM UsersPK u\n"
+                        + "JOIN UserRegionsPK r\n"
+                        + "    ON u.user_id = r.user_id AND u.name = r.region\n"
+                        + "JOIN AddressPK a\n"
+                        + "    ON u.user_id = a.user_id");
     }
 
     @Test
@@ -1752,5 +1825,12 @@ public class MultiJoinTest extends TableTestBase {
                         + "    ON s.user_id = d.user_id\n"
                         + "CROSS JOIN UNNEST(split(REGEXP_REPLACE(d.data, '^\\[\"|\"\\]$', '') , '\", \"')) AS T(edata)\n"
                         + "WHERE NOT (s.location IS NOT NULL)");
+    }
+
+    private void verifyRelPlanInsertWithChangelogModes(String insert) {
+        util.verifyRelPlanInsert(
+                insert,
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(ExplainDetail.CHANGELOG_MODE)));
     }
 }

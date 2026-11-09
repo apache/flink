@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -31,7 +35,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class MultiJoinUtil {
     public static Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
@@ -44,17 +51,89 @@ public class MultiJoinUtil {
                         .map(input -> input.getRowType().getFieldCount())
                         .collect(Collectors.toList());
 
+        final List<Integer> inputOffsets = inputOffsets(inputFieldCounts);
+
+        for (final RexNode condition : joinConditions) {
+            extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
+        }
+        return joinAttributeMap;
+    }
+
+    /**
+     * Returns whether an input is stored under its upsert key, because it may update a record
+     * without UPDATE_BEFORE or delete it by key. The planner only allows this if an upsert key
+     * contains the common join key and, for all inputs but the first, the join key of the input.
+     *
+     * @param inputChangelogMode the changelog mode of the input
+     * @param upsertKeys the upsert keys of the input that contain its common join key and join key
+     */
+    public static boolean isStoredByUpsertKey(
+            final ChangelogMode inputChangelogMode, final List<int[]> upsertKeys) {
+        final boolean isUpsert =
+                inputChangelogMode.contains(RowKind.UPDATE_AFTER)
+                        && !inputChangelogMode.contains(RowKind.UPDATE_BEFORE);
+        return (isUpsert || inputChangelogMode.keyOnlyDeletes()) && !upsertKeys.isEmpty();
+    }
+
+    /**
+     * Returns, for each input, the indices of the fields that the join conditions read and that are
+     * not part of every key of the input. Two versions of a record have the same key, so if they
+     * agree on these fields, they match the same rows.
+     *
+     * @param inputRowTypes the row types of all inputs
+     * @param joinConditions the join condition of each input, over the fields of all inputs up to
+     *     and including it
+     * @param inputKeys the keys of each input
+     */
+    public static int[][] createNonKeyConditionFields(
+            final List<RowType> inputRowTypes,
+            final List<? extends @Nullable RexNode> joinConditions,
+            final List<List<int[]>> inputKeys) {
+        final List<Integer> inputFieldCounts =
+                inputRowTypes.stream().map(RowType::getFieldCount).collect(Collectors.toList());
+        final List<Integer> inputOffsets = inputOffsets(inputFieldCounts);
+
+        final List<Set<Integer>> conditionFields = new ArrayList<>();
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            conditionFields.add(new TreeSet<>());
+        }
+        for (final RexNode condition : joinConditions) {
+            if (condition == null) {
+                continue;
+            }
+            for (final int index : RelOptUtil.InputFinder.bits(condition)) {
+                final InputRef ref = findInputRef(index, inputOffsets, inputFieldCounts);
+                if (ref != null) {
+                    conditionFields.get(ref.inputIndex).add(ref.attributeIndex);
+                }
+            }
+        }
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            final List<int[]> keys = inputKeys.get(i);
+            if (keys.isEmpty()) {
+                continue;
+            }
+            final Set<Integer> fieldsOfEveryKey = toSet(keys.get(0));
+            keys.forEach(key -> fieldsOfEveryKey.retainAll(toSet(key)));
+            conditionFields.get(i).removeAll(fieldsOfEveryKey);
+        }
+        return conditionFields.stream()
+                .map(fields -> fields.stream().mapToInt(Integer::intValue).toArray())
+                .toArray(int[][]::new);
+    }
+
+    private static List<Integer> inputOffsets(final List<Integer> inputFieldCounts) {
         final List<Integer> inputOffsets = new ArrayList<>();
         int currentOffset = 0;
         for (final Integer count : inputFieldCounts) {
             inputOffsets.add(currentOffset);
             currentOffset += count;
         }
+        return inputOffsets;
+    }
 
-        for (final RexNode condition : joinConditions) {
-            extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
-        }
-        return joinAttributeMap;
+    private static Set<Integer> toSet(final int[] fields) {
+        return IntStream.of(fields).boxed().collect(Collectors.toSet());
     }
 
     private static void extractEqualityConditions(
