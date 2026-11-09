@@ -471,13 +471,14 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 Cache the intermediate result of the transformation. Currently, only jobs that run with batch 
 execution mode are supported. The cache intermediate result is generated lazily at the first time 
 the intermediate result is computed so that the result can be reused by later jobs. If the cache is 
-lost, it will be recomputed using the original transformations.
+lost, it will be recomputed using the original transformations. In Java, `cache()` is defined on
+`SingleOutputStreamOperator`, which transformations and sources return, and on side outputs.
 
 {{< tabs cache >}}
 {{< tab "Java" >}}
 ```java
 DataStream<Integer> dataStream = //...
-CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+CachedDataStream<Integer> cachedDataStream = dataStream.map(i -> i + 1).cache();
 cachedDataStream.print(); // Do anything with the cachedDataStream
 ...
 env.execute(); // Execute and create cache.
