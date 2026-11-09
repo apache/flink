@@ -150,7 +150,7 @@ CREATE TABLE user_actions (
 ) WITH (
   'scan.watermark.idle-timeout'='1min',
   ...
-).
+);
 ```
 
 Or you can use the `OPTIONS` hint:
@@ -177,7 +177,7 @@ user_action_time TIMESTAMP(3),
 'scan.watermark.alignment.max-drift'='1min',
 'scan.watermark.alignment.update-interval'='1s',
 ...
-).
+);
 ```
 
 Of course, you can also still use the `OPTIONS` hint.

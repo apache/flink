@@ -128,8 +128,8 @@ The optimizer rewrites the IN condition into a join and group operation. For str
 ```sql
 SELECT user, amount
 FROM Orders
-WHERE product EXISTS (
-    SELECT product FROM NewProducts
+WHERE EXISTS (
+    SELECT product FROM NewProducts WHERE NewProducts.product = Orders.product
 )
 ```
 

@@ -177,12 +177,12 @@ CREATE TABLE orders (
 CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
-    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
+    update_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
     WATERMARK FOR update_time AS update_time - INTERVAL '15' SECOND,
     PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
     'connector' = 'kafka',
-    'value.format' = 'debezium-json',
+    'value.format' = 'debezium-json'
    /* ... */
 );
 

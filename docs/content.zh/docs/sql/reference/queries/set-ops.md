@@ -127,8 +127,8 @@ WHERE product IN (
 ```sql
 SELECT user, amount
 FROM Orders
-WHERE product EXISTS (
-    SELECT product FROM NewProducts
+WHERE EXISTS (
+    SELECT product FROM NewProducts WHERE NewProducts.product = Orders.product
 )
 ```
 

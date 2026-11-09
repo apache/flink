@@ -1097,7 +1097,7 @@ CREATE MODEL my_model
 INPUT(text STRING)
 OUTPUT(response STRING)
 WITH (
-  'provider' = 'openai',
+  'provider' = 'openai'
 );
 ```
 

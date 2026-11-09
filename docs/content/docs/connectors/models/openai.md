@@ -55,7 +55,7 @@ Suppose the following data is stored in a table named `movie_comment`, and the p
 ```sql
 CREATE TEMPORARY VIEW movie_comment(id, movie_name,  user_comment, actual_label)
 AS VALUES
-  (1, 'Good Stuff', 'The part where children guess the sounds is my favorite. It's a very romantic narrative compared to other movies I've seen. Very gentle and full of love.', 'positive');
+  (1, 'Good Stuff', 'The part where children guess the sounds is my favorite. It''s a very romantic narrative compared to other movies I''ve seen. Very gentle and full of love.', 'positive');
 
 CREATE TEMPORARY TABLE print_sink(
   id BIGINT,
