@@ -289,3 +289,21 @@ pre.chroma code {
         margin: 0;
     }
 }
+
+// Alphabetical index on the built-in functions page.
+.function-index {
+    ul {
+        columns: 4 12rem;
+        list-style: none;
+        padding-left: 0;
+    }
+
+    li {
+        margin: 0.2rem 0;
+        break-inside: avoid;
+    }
+
+    &.wide ul {
+        columns: 2 20rem;
+    }
+}
