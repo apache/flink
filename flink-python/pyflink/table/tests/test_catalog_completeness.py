@@ -52,6 +52,7 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
             'listConnections',
             'createConnection',
             'alterConnection',
+            'renameConnection',
             'convertTableToMaterializedTable'}
 
 
