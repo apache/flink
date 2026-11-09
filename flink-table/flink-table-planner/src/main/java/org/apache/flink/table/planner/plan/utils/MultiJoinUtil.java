@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
@@ -123,6 +124,55 @@ public class MultiJoinUtil {
             conditionFields.get(i).removeAll(fieldsOfEveryKey);
         }
         return conditionFields.stream()
+                .map(fields -> fields.stream().mapToInt(Integer::intValue).toArray())
+                .toArray(int[][]::new);
+    }
+
+    /**
+     * Returns, for each input, the indices of the fields in which a NULL means that a row of this
+     * input can never be part of a join result together with a row of another input.
+     *
+     * <p>A field qualifies if it is compared with {@code =} in a conjunct of the condition that
+     * joins input {@code k}, and either the field belongs to input {@code k} or the join of input
+     * {@code k} is an inner join. {@code IS NOT DISTINCT FROM} never qualifies.
+     *
+     * @param inputRowTypes the row types of all inputs
+     * @param joinConditions the join condition of each input, over the fields of all inputs up to
+     *     and including it; the condition of input 0 is not used
+     * @param joinTypes the join type of each input
+     */
+    public static int[][] createNullFilterFields(
+            final List<RowType> inputRowTypes,
+            final List<? extends @Nullable RexNode> joinConditions,
+            final List<FlinkJoinType> joinTypes) {
+        final List<Integer> inputFieldCounts =
+                inputRowTypes.stream().map(RowType::getFieldCount).collect(Collectors.toList());
+        final List<Integer> inputOffsets = inputOffsets(inputFieldCounts);
+
+        final List<Set<Integer>> nullFilterFields = new ArrayList<>();
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            nullFilterFields.add(new TreeSet<>());
+        }
+        for (int k = 1; k < joinConditions.size(); k++) {
+            final RexNode condition = joinConditions.get(k);
+            if (condition == null) {
+                continue;
+            }
+            final int joinedInput = k;
+            final boolean isInnerJoin = joinTypes.get(k) == FlinkJoinType.INNER;
+            forEachEquality(
+                    condition,
+                    inputOffsets,
+                    inputFieldCounts,
+                    (leftRef, rightRef) -> {
+                        for (final InputRef ref : List.of(leftRef, rightRef)) {
+                            if (isInnerJoin || ref.inputIndex == joinedInput) {
+                                nullFilterFields.get(ref.inputIndex).add(ref.attributeIndex);
+                            }
+                        }
+                    });
+        }
+        return nullFilterFields.stream()
                 .map(fields -> fields.stream().mapToInt(Integer::intValue).toArray())
                 .toArray(int[][]::new);
     }

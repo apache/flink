@@ -417,7 +417,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         this.joinAttributeMap,
                         inputChangelogModes(),
                         conditionFields(),
-                        conditionFieldsEqualisers());
+                        conditionFieldsEqualisers(),
+                        nullFilterFields());
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -428,6 +429,11 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         harness.setStateBackend(getStateBackend());
         harness.setCheckpointStorage(getCheckpointStorage());
         return harness;
+    }
+
+    /** By default, no record is filtered. */
+    protected int[][] nullFilterFields() {
+        return new int[inputSpecs.size()][0];
     }
 
     /** By default, the changelog modes are unknown, as in plans compiled before this change. */
