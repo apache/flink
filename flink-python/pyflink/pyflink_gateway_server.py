@@ -118,6 +118,14 @@ def prepare_environment_variables(env):
     env["FLINK_BIN_DIR"] = os.path.join(real_flink_home, "bin")
 
 
+def get_log_dir(env):
+    flink_home = os.path.realpath(_find_flink_home())
+    if "FLINK_LOG_DIR" in env:
+        return env["FLINK_LOG_DIR"]
+    return read_from_config(
+        KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env['FLINK_CONF_DIR'])
+
+
 def construct_log_settings(env):
     templates = [
         "-Dlog.file=${flink_log_dir}/flink-${flink_ident_string}-python-${hostname}.log",
