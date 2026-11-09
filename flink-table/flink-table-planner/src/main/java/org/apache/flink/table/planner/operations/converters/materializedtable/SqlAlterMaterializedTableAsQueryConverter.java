@@ -26,10 +26,10 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableSchemaUtils;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils;
-import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
 import org.apache.calcite.sql.SqlNode;
 
@@ -74,7 +74,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
             ResolvedSchema newSchema = queryOperation.getResolvedSchema();
             List<TableChange> tableChanges =
                     new ArrayList<>(
-                            MaterializedTableUtils.validateAndExtractColumnChanges(
+                            MaterializedTableSchemaUtils.validateAndExtractColumnChanges(
                                     oldSchema, newSchema, false));
 
             if (!tableChanges.isEmpty()) {
