@@ -77,12 +77,11 @@ counts.execute().print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-The Scala Table API is enabled by importing `org.apache.flink.table.api._`, `org.apache.flink.api.scala._`, and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
+The Scala Table API is enabled by importing `org.apache.flink.table.api._` and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
 
 The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dollar character (`$`).
 
 ```scala
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 

@@ -95,16 +95,6 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-
-// create a streaming TableEnvironment from a StreamExecutionEnvironment
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = StreamTableEnvironment.create(env)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 from pyflink.datastream import StreamExecutionEnvironment

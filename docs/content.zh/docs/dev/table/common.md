@@ -217,16 +217,6 @@ StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = StreamTableEnvironment.create(env)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 from pyflink.datastream import StreamExecutionEnvironment
@@ -513,7 +503,7 @@ val revenue = orders
 
 **Note:** The Scala Table API uses Scala String interpolation that starts with a dollar sign (`$`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import
 * `org.apache.flink.table.api._` - for implicit expression conversions 
-* `org.apache.flink.api.scala._` and `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
+* `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
@@ -1038,20 +1028,6 @@ Table table = table1
   .unionAll(table2);
 
 System.out.println(table.explain());
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = StreamTableEnvironment.create(env)
-
-val table1 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
-val table2 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
-val table = table1
-  .where($"word".like("F%"))
-  .unionAll(table2)
-
-println(table.explain())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

@@ -76,12 +76,11 @@ counts.execute().print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Scala 的 Table API 通过引入 `org.apache.flink.table.api._`、`org.apache.flink.api.scala._` 和 `org.apache.flink.table.api.bridge.scala._`（开启数据流的桥接支持）来使用。
+Scala 的 Table API 通过引入 `org.apache.flink.table.api._` 和 `org.apache.flink.table.api.bridge.scala._`（开启数据流的桥接支持）来使用。
 
 下面的例子展示了如何创建一个 Scala 的 Table API 程序。通过 Scala 的带美元符号（`$`）的字符串插值来实现表字段引用。
 
 ```scala
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 

@@ -99,16 +99,6 @@ GroupWindowedTable windowedTable = table.window(
             .as("userActionWindow"));
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val stream: DataStream[(String, String)] = ...
-
-// 声明一个额外的字段作为时间属性字段
-val table = tEnv.fromDataStream(stream, $"UserActionTimestamp", $"user_name", $"data", $"user_action_time".proctime)
-
-val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 事件时间
@@ -295,31 +285,6 @@ GroupWindowedTable windowedTable = table.window(Tumble
        .over(lit(10).minutes())
        .on($("user_action_time"))
        .as("userActionWindow"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-// Option 1:
-
-// 基于 stream 中的事件产生时间戳和 watermark
-val stream: DataStream[(String, String)] = inputStream.assignTimestampsAndWatermarks(...)
-
-// 声明一个额外的逻辑字段作为事件时间属性
-val table = tEnv.fromDataStream(stream, $"user_name", $"data", $"user_action_time".rowtime)
-
-
-// Option 2:
-
-// 从第一个字段获取事件时间，并且产生 watermark
-val stream: DataStream[(Long, String, String)] = inputStream.assignTimestampsAndWatermarks(...)
-
-// 第一个字段已经用作事件时间抽取了，不用再用一个新字段来表示事件时间了
-val table = tEnv.fromDataStream(stream, $"user_action_time".rowtime, $"user_name", $"data")
-
-// Usage:
-
-val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 ```
 {{< /tab >}}
 {{< /tabs >}}

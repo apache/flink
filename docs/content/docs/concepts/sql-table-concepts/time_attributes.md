@@ -235,32 +235,6 @@ GroupWindowedTable windowedTable = table.window(Tumble
        .as("userActionWindow"));
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-// Option 1:
-
-// extract timestamp and assign watermarks based on knowledge of the stream
-val stream: DataStream[(String, String)] = inputStream.assignTimestampsAndWatermarks(...)
-
-// declare an additional logical field as an event time attribute
-val table = tEnv.fromDataStream(stream, $"user_name", $"data", $"user_action_time".rowtime)
-
-
-// Option 2:
-
-// extract timestamp from first field, and assign watermarks based on knowledge of the stream
-val stream: DataStream[(Long, String, String)] = inputStream.assignTimestampsAndWatermarks(...)
-
-// the first field has been used for timestamp extraction, and is no longer necessary
-// replace first field with a logical event time attribute
-val table = tEnv.fromDataStream(stream, $"user_action_time".rowtime, $"user_name", $"data")
-
-// Usage:
-
-val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 
@@ -337,16 +311,6 @@ GroupWindowedTable windowedTable = table.window(
         Tumble.over(lit(10).minutes())
             .on($("user_action_time"))
             .as("userActionWindow"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val stream: DataStream[(String, String)] = ...
-
-// declare an additional logical field as a processing time attribute
-val table = tEnv.fromDataStream(stream, $"UserActionTimestamp", $"user_name", $"data", $"user_action_time".proctime)
-
-val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

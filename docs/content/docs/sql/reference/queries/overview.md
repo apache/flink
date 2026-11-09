@@ -90,46 +90,6 @@ tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = StreamTableEnvironment.create(env)
-
-// read a DataStream from an external source
-val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
-
-// SQL query with an inlined (unregistered) table
-val table = ds.toTable(tableEnv, $"user", $"product", $"amount")
-val result = tableEnv.sqlQuery(
-  s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
-
-// SQL query with a registered table
-// register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount")
-// run a SQL query on the Table and retrieve the result as a new Table
-val result2 = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
-
-// create and register a TableSink
-val schema = Schema.newBuilder()
-  .column("product", DataTypes.STRING())
-  .column("amount", DataTypes.INT())
-  .build()
-
-val sinkDescriptor = TableDescriptor.forConnector("filesystem")
-  .schema(schema)
-  .format(FormatDescriptor.forFormat("csv")
-    .option("field-delimiter", ",")
-    .build())
-  .build()
-
-tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor)
-
-// run an INSERT SQL on the Table and emit the result to the TableSink
-tableEnv.executeSql(
-  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
