@@ -18,10 +18,11 @@ under the License.
 */}}
 {{/*
   Lists all built-in functions in alphabetical order, followed by the operators and special forms,
-  and the Table API-only functions. Each entry links to its category page, which shows it in the
-  sql_functions table.
+  and the Table API-only functions. Each entry links to the category page that shows it.
 
-  A category's "sqlFunctions" names one sql_functions.yml key or a list of keys.
+  A category's "sqlFunctions" names one sql_functions.yml key or a list of keys. A page with
+  "markdownFunctions: true" also lists the functions of its Markdown tables, whose rows start
+  with a name followed by "(", such as "| `TUMBLE(data => TABLE t, ...)` |".
 
   An entry of sql_functions.yml is a function if a line of its "sql" field starts with an
   upper-case name that is followed by "(" or nothing, such as "LOWER(string)" or "CURRENT_DATE".
@@ -33,8 +34,14 @@ under the License.
 {{ $functions := slice }}
 {{ $operators := slice }}
 {{ $tableOnly := slice }}
-{{ range .Page.Sections }}
+{{ range .Page.CurrentSection.Pages }}
   {{ $category := . }}
+  {{ if index .Params "markdownfunctions" }}
+    {{ range findRESubmatch "(?m)^\\| `([A-Z][A-Z0-9_]*)\\(" .RawContent }}
+      {{ $name := index . 1 }}
+      {{ $functions = $functions | append (dict "name" $name "link" $category.RelPermalink "category" $category.LinkTitle "key" (print $name " " $category.RelPermalink)) }}
+    {{ end }}
+  {{ end }}
   {{ with index .Params "sqlfunctions" }}
     {{ range $key := cond (reflect.IsSlice .) . (slice .) }}
       {{ range index $yml $key }}

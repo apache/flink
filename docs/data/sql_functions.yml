@@ -303,18 +303,6 @@ string:
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
-  - sql: REGEXP_REPLACE(str, regex, replacement)
-    table: str.regexpReplace(regex, replacement)
-    description: |
-      Returns a version of str with every substring that matches the Java regular expression regex replaced by replacement.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
-
-      E.g. REGEXP_REPLACE('foobar', 'oo|ar', '') returns "fb".
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, replacement <CHAR | VARCHAR>`
-
-      Returns a `STRING`. `NULL` if any of the arguments are `NULL`, or if a non-literal regex is invalid.
   - sql: OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
     table: |
       STRING1.overlay(STRING2, INT1)
@@ -352,56 +340,6 @@ string:
   - sql: REPLACE(string1, string2, string3)
     table: STRING1.replace(STRING2, STRING3)
     description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., 'hello world'.replace('world', 'flink') returns 'hello flink'; 'ababab'.replace('abab', 'z') returns 'zab'.
-  - sql: REGEXP_COUNT(str, regex)
-    table: str.regexpCount(regex)
-    description: |
-      Returns the number of times str matches the regex pattern. regex must be a Java regular expression.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      Returns an `INTEGER` representation of the number of matches. `NULL` if any of the arguments are `NULL` or regex is invalid.
-  - sql: REGEXP_EXTRACT(str, regex[, extractIndex])
-    table: str.regexpExtract(regex[, extractIndex])
-    description: |
-      Returns the substring in str captured by the group at position extractIndex of the Java regular expression regex.
-
-      extractIndex starts from 1, and 0 means matching the whole regex. It defaults to 0 when not specified and must not exceed the number of capturing groups in regex.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
-
-      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2) returns "bar".
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <INTEGER>`
-
-      Returns a `STRING` representation of the captured substring. `NULL` if any of the arguments are `NULL`, if extractIndex exceeds the number of capturing groups, if there is no match, or if a non-literal regex is invalid.
-  - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
-    table: str.regexpExtractAll(regex[, extractIndex])
-    description: |
-      Extracts all the substrings in str that match the regex expression and correspond to the regex group extractIndex.
-      
-      regex may contain multiple groups. extractIndex indicates which regex group to extract and starts from 1, also the default value if not specified. 0 means matching the entire regular expression.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
-      
-      Returns an `ARRAY<STRING>` representation of all the matched substrings. `NULL` if any of the arguments are `NULL` or invalid.
-  - sql: REGEXP_INSTR(str, regex)
-    table: str.regexpInstr(regex)
-    description: |
-      Returns the position of the first substring in str that matches regex.
-      
-      Result indexes begin at 1, 0 if there is no match.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      Returns an `INTEGER` representation of the first matched substring index. `NULL` if any of the arguments are `NULL` or regex is invalid.
-  - sql: REGEXP_SUBSTR(str, regex)
-    table: str.regexpSubstr(regex)
-    description: |
-      Returns the first substring in str that matches regex.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      Returns an `STRING` representation of the first matched substring. `NULL` if any of the arguments are `NULL` or regex is invalid or pattern is not found.
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |
@@ -433,6 +371,26 @@ string:
   - sql: TO_BASE64(string)
     table: STRING.toBase64()
     description: Returns the base64-encoded result from string; returns NULL if string is NULL. E.g., TO_BASE64('hello world') returns "aGVsbG8gd29ybGQ=".
+  - sql: BIN(INT)
+    table: INT.bin()
+    description: Returns a string representation of INTEGER in binary format. Returns NULL if INTEGER is NULL. E.g., 4.bin() returns "100" and 12.bin() returns "1100".
+  - sql: |
+      HEX(numeric)
+      HEX(string)
+    table: |
+      NUMERIC.hex()
+      STRING.hex()
+    description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
+  - sql: UNHEX(expr)
+    table: expr.unhex()
+    description: |
+      Converts hexadecimal string expr to BINARY. If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
+      
+      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
+      
+      expr <CHAR | VARCHAR>
+      
+      Returns a BINARY. `NULL` if expr is `NULL` or expr contains non-hex characters.
   - sql: ASCII(string)
     table: STRING.ascii()
     description: Returns the numeric value of the first character of string. Returns NULL if string is NULL. E.g., ascii('abc') returns 97, and ascii(CAST(NULL AS VARCHAR)) returns NULL.
@@ -495,16 +453,6 @@ string:
       Also a value of a particular key in QUERY can be extracted by providing the key as the third argument string3.
 
       E.g., parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') returns 'v1'. 
-  - sql: REGEXP(str, regex)
-    table: str.regexp(regex)
-    description: |
-      Returns `TRUE` if any substring of str matches the Java regular expression regex, otherwise `FALSE`.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime, or an empty regex, makes the function return `FALSE` rather than `NULL`.
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-
-      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
   - sql: REVERSE(string)
     table: STRING.reverse()
     description: Returns the reversed string. Returns NULL if string is NULL.
@@ -558,6 +506,80 @@ string:
       `MAKE_VALID_UTF8()` can fully replace a `CAST(bytes AS STRING)` which would error in case of invalid UTF-8.
 
       E.g., `MAKE_VALID_UTF8(x'48656C6C6F')` returns `'Hello'`; `MAKE_VALID_UTF8(x'80')` returns `'�'` (the `U+FFFD` replacement character).
+
+regex:
+  - sql: REGEXP(str, regex)
+    table: str.regexp(regex)
+    description: |
+      Returns `TRUE` if any substring of str matches the Java regular expression regex, otherwise `FALSE`.
+
+      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime, or an empty regex, makes the function return `FALSE` rather than `NULL`.
+
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+
+      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
+  - sql: REGEXP_COUNT(str, regex)
+    table: str.regexpCount(regex)
+    description: |
+      Returns the number of times str matches the regex pattern. regex must be a Java regular expression.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `INTEGER` representation of the number of matches. `NULL` if any of the arguments are `NULL` or regex is invalid.
+  - sql: REGEXP_EXTRACT(str, regex[, extractIndex])
+    table: str.regexpExtract(regex[, extractIndex])
+    description: |
+      Returns the substring in str captured by the group at position extractIndex of the Java regular expression regex.
+
+      extractIndex starts from 1, and 0 means matching the whole regex. It defaults to 0 when not specified and must not exceed the number of capturing groups in regex.
+
+      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
+
+      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2) returns "bar".
+
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <INTEGER>`
+
+      Returns a `STRING` representation of the captured substring. `NULL` if any of the arguments are `NULL`, if extractIndex exceeds the number of capturing groups, if there is no match, or if a non-literal regex is invalid.
+  - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
+    table: str.regexpExtractAll(regex[, extractIndex])
+    description: |
+      Extracts all the substrings in str that match the regex expression and correspond to the regex group extractIndex.
+      
+      regex may contain multiple groups. extractIndex indicates which regex group to extract and starts from 1, also the default value if not specified. 0 means matching the entire regular expression.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      Returns an `ARRAY<STRING>` representation of all the matched substrings. `NULL` if any of the arguments are `NULL` or invalid.
+  - sql: REGEXP_INSTR(str, regex)
+    table: str.regexpInstr(regex)
+    description: |
+      Returns the position of the first substring in str that matches regex.
+      
+      Result indexes begin at 1, 0 if there is no match.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `INTEGER` representation of the first matched substring index. `NULL` if any of the arguments are `NULL` or regex is invalid.
+  - sql: REGEXP_REPLACE(str, regex, replacement)
+    table: str.regexpReplace(regex, replacement)
+    description: |
+      Returns a version of str with every substring that matches the Java regular expression regex replaced by replacement.
+
+      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
+
+      E.g. REGEXP_REPLACE('foobar', 'oo|ar', '') returns "fb".
+
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, replacement <CHAR | VARCHAR>`
+
+      Returns a `STRING`. `NULL` if any of the arguments are `NULL`, or if a non-literal regex is invalid.
+  - sql: REGEXP_SUBSTR(str, regex)
+    table: str.regexpSubstr(regex)
+    description: |
+      Returns the first substring in str that matches regex.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `STRING` representation of the first matched substring. `NULL` if any of the arguments are `NULL` or regex is invalid or pattern is not found.
 
 temporal:
   - sql: DATE string
@@ -820,26 +842,6 @@ conversion:
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
     description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., TRY_CAST('42' AS INT) returns 42; TRY_CAST(NULL AS STRING) returns NULL of type STRING; TRY_CAST('non-number' AS INT) returns NULL of type INT; COALESCE(TRY_CAST('non-number' AS INT), 0) returns 0 of type INT.
-  - sql: BIN(INT)
-    table: INT.bin()
-    description: Returns a string representation of INTEGER in binary format. Returns NULL if INTEGER is NULL. E.g., 4.bin() returns "100" and 12.bin() returns "1100".
-  - sql: |
-      HEX(numeric)
-      HEX(string)
-    table: |
-      NUMERIC.hex()
-      STRING.hex()
-    description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
-  - sql: UNHEX(expr)
-    table: expr.unhex()
-    description: |
-      Converts hexadecimal string expr to BINARY. If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
-      
-      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
-      
-      expr <CHAR | VARCHAR>
-      
-      Returns a BINARY. `NULL` if expr is `NULL` or expr contains non-hex characters.
 
 collection:
   - sql: ARRAY '[' value1 [, value2 ]* ']'

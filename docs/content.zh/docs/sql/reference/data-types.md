@@ -1548,13 +1548,13 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 `CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
 
 `PARSE_XML` maps an XML document to an object, see
-[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions/variant" >}}#xml-to-variant).
+[XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
 to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`. `VARIANT_GET` and
 `TRY_VARIANT_GET` read the value at a
-[path]({{< ref "docs/sql/functions/built-in-functions/variant" >}}#variant-paths) such as `'$.items[0].qty'`
+[path]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-paths) such as `'$.items[0].qty'`
 and cast it by the same rules, returning `NULL` when nothing is at the path.
 
 | Stored kind     | Succeeds for                                          |
@@ -1828,7 +1828,7 @@ for debugging: it never fails, but can be lossy. Both render a `TIMESTAMP_LTZ` i
 
 用于以压缩形式存储 32 位整数的位图数据类型，基于 [RoaringBitmap](https://roaringbitmap.org/) 实现。
 
-位图类型适用于高效地表示和查询大量整数集合。它支持多种内置的[标量函数]({{< ref "docs/sql/functions/built-in-functions/bitmap" >}})和[聚合函数]({{< ref "docs/sql/functions/built-in-functions/bitmap" >}}#位图聚合函数)。
+位图类型适用于高效地表示和查询大量整数集合。它支持多种内置的[标量函数]({{< ref "docs/sql/built-in-functions/bitmap" >}})和[聚合函数]({{< ref "docs/sql/built-in-functions/bitmap" >}}#位图聚合函数)。
 
 位图类型是对 SQL 标准的扩展。
 
@@ -1914,7 +1914,7 @@ UUID 'A0EEBC99-9C0B-4EF8-BB6D-6BB9BD380A11'  -- a0eebc99-9c0b-4ef8-bb6d-6bb9bd38
 UUID 'a0eebc999c0b4ef8bb6d6bb9bd380a11'      -- fails at validation
 ```
 
-The [arithmetic functions]({{< ref "docs/sql/functions/built-in-functions/mathematical" >}})
+The [arithmetic functions]({{< ref "docs/sql/built-in-functions/mathematical" >}})
 `UUID_V4()` and `UUID_V7()` generate a random and a time-ordered `UUID`. `UUID()` returns a random
 version 4 UUID as a `CHAR(36)` string instead.
 

@@ -20,19 +20,20 @@ under the License.
   The built-in functions used to be one page with a heading per category, and links elsewhere
   point at those headings, such as ".../built-in-functions/#string-functions". The browser never
   sends the part after "#" to the server, so a redirect cannot handle these links. This script
-  sends each old anchor, in English and in Chinese, to the page that now holds the section.
+  sends each old anchor, in English and in Chinese, to the page that now holds the section. A
+  target is relative to the built-in functions section unless it starts with "docs/".
 */}}
-{{ $base := "docs/sql/functions/built-in-functions" }}
+{{ $base := "docs/sql/built-in-functions" }}
 {{ $moves := slice
   (slice "comparison" "comparison-functions" "比较函数")
-  (slice "logical" "logical-functions" "逻辑函数")
+  (slice "boolean" "logical-functions" "逻辑函数")
   (slice "mathematical" "arithmetic-functions" "算术函数")
   (slice "string-and-binary" "string-functions" "字符串函数")
   (slice "date-and-time" "temporal-functions" "时间函数")
   (slice "date-and-time#time-interval-and-point-unit-specifiers" "time-interval-and-point-unit-specifiers")
   (slice "date-and-time#时间间隔单位和时间点单位标识符" "时间间隔单位和时间点单位标识符")
   (slice "conditional" "conditional-functions" "条件函数")
-  (slice "type-conversion" "type-conversion-functions" "类型转换函数")
+  (slice "cast" "type-conversion-functions" "类型转换函数")
   (slice "collection" "collection-functions" "集合函数")
   (slice "json" "json-functions" "json-函数")
   (slice "variant" "variant-functions" "variant-函数")
@@ -47,13 +48,14 @@ under the License.
   (slice "aggregate" "aggregate-functions" "聚合函数")
   (slice "bitmap#bitmap-aggregate-functions" "bitmap-aggregate-functions")
   (slice "bitmap#位图聚合函数" "位图聚合函数")
-  (slice "table-functions" "table-functions")
-  (slice "column-functions" "column-functions" "列函数")
-  (slice "named-arguments" "named-arguments")
+  (slice "process-table-functions" "table-functions")
+  (slice "docs/dev/table/functions/column-functions" "column-functions" "列函数")
+  (slice "docs/sql/named-arguments" "named-arguments")
 }}
 {{ $targets := dict }}
 {{ range $moves }}
-  {{ $url := relref $.Page (printf "%s/%s" $base (index . 0)) }}
+  {{ $target := index . 0 }}
+  {{ $url := relref $.Page (cond (hasPrefix $target "docs/") $target (printf "%s/%s" $base $target)) }}
   {{ range after 1 . }}
     {{ $targets = merge $targets (dict . $url) }}
   {{ end }}

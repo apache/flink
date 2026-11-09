@@ -267,7 +267,7 @@ look at the [event stream navigation](#pattern-navigation) section.
 ### Aggregations
 
 Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both
-[built-in]({{< ref "docs/sql/functions/built-in-functions" >}}) and custom
+[built-in]({{< ref "docs/sql/built-in-functions" >}}) and custom
 [user defined]({{< ref "docs/dev/table/functions/udfs" >}}) functions are supported.
 
 Aggregate functions are applied to each subset of rows mapped to a match. In order to understand

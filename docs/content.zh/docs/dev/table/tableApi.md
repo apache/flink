@@ -1156,7 +1156,7 @@ val result = orders
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Enriches an append-only table with the current state of an updating table by calling the built-in `SNAPSHOT` [process table function]({{< ref "docs/sql/functions/built-in-functions" >}}) as the build (right) side of a `LATERAL` join. Each probe-side row is joined with the build-side state that is current when the row is processed. Both inner and left outer joins are supported. An equality predicate is recommended but not required.
+Enriches an append-only table with the current state of an updating table by calling the built-in `SNAPSHOT` [process table function]({{< ref "docs/sql/built-in-functions/process-table-functions" >}}) as the build (right) side of a `LATERAL` join. Each probe-side row is joined with the build-side state that is current when the row is processed. Both inner and left outer joins are supported. An equality predicate is recommended but not required.
 
 See [LATERAL SNAPSHOT join]({{< ref "docs/sql/reference/queries/joins" >}}#lateral-snapshot-join) for the full list of `SNAPSHOT` arguments and the join semantics.
 
@@ -2897,7 +2897,7 @@ val asyncPredictResult = model.predict(
 
 行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类)。
 
-任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/sql/functions/built-in-functions/row-and-structured-types" >}})来访问。
+任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/sql/built-in-functions/row-and-structured-types" >}})来访问。
 
 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将泛型当作黑匣子一样传输和处理。
 

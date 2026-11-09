@@ -54,7 +54,7 @@ For a deeper understanding of how Flink SQL processes streaming data, see:
 
 * [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}): Interactive CLI for running SQL queries without programming.
 * [SQL Reference]({{< ref "docs/sql/reference" >}}): Complete SQL syntax reference (DDL, DML, queries).
-* [Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}}): Available SQL functions for data transformation.
+* [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): Available SQL functions for data transformation.
 * [SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}): REST and HiveServer2 service for remote SQL access.
 * [JDBC Driver]({{< ref "docs/sql/interfaces/jdbc-driver" >}}): Connect to Flink SQL from any JDBC-compatible tool.
 * [Catalogs]({{< ref "docs/sql/catalogs" >}}): Manage metadata for databases, tables, and functions.
