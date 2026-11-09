@@ -44,15 +44,16 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
@@ -128,6 +130,35 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         }
     }
 
+    /** Lock of a single job, removed from the map when nobody holds or waits for it. */
+    private static final class JobLock {
+        private final ReentrantLock lock = new ReentrantLock();
+        // guarded by the compute calls on the jobLocks map
+        private int users;
+    }
+
+    /** A held job lock that does not throw on close. */
+    private interface HeldJobLock extends AutoCloseable {
+        @Override
+        void close();
+    }
+
+    private HeldJobLock lockJob(String jobId) {
+        JobLock jobLock =
+                jobLocks.compute(
+                        jobId,
+                        (id, existing) -> {
+                            JobLock result = existing != null ? existing : new JobLock();
+                            result.users++;
+                            return result;
+                        });
+        jobLock.lock.lock();
+        return () -> {
+            jobLock.lock.unlock();
+            jobLocks.compute(jobId, (id, existing) -> --existing.users == 0 ? null : existing);
+        };
+    }
+
     /** Representation of archive event. */
     public static class ArchiveEvent {
         private final String id;
@@ -181,15 +212,24 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     private final int numCachedMostRecentlyViewedJobs;
 
     /**
-     * Guards the local state of a job (files, meta info, cached ids, overview) against concurrent
-     * eviction, scan and overview updates. It is never held while waiting for a fetch.
+     * Guards the bookkeeping of the locally cached jobs (the most recently viewed ones). It is only
+     * held for in-memory updates, never while reading or deleting archives, and never while waiting
+     * for a job lock or a fetch.
      */
     private final Object localStateLock = new Object();
 
-    private final Object[] fetchLocks = new Object[64];
+    /**
+     * Serializes the fetch, the deletion and the pinning of a single job. A job lock may be held
+     * during I/O. The lock order is job lock, then {@link #localStateLock}, and at most one job
+     * lock is held at a time.
+     */
+    private final ConcurrentHashMap<String, JobLock> jobLocks = new ConcurrentHashMap<>();
 
-    /** Number of requests currently serving a job, guarded by {@link #localStateLock}. */
-    private final Map<String, Integer> jobsInUse = new HashMap<>();
+    /** Serializes the rebuilds of the combined overviews. It is a leaf lock. */
+    private final Object overviewLock = new Object();
+
+    /** Number of requests currently serving a job, only incremented while holding its job lock. */
+    private final ConcurrentHashMap<String, Integer> jobsInUse = new ConcurrentHashMap<>();
 
     /** Access ordered, the eldest entry is the least recently viewed job. */
     private final Map<String, Boolean> mostRecentlyViewedJobs =
@@ -234,9 +274,6 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             int numCachedMostRecentlyViewedJobs)
             throws IOException {
         this.cachedRetainedJobs = cachedRetainedJobs;
-        for (int i = 0; i < fetchLocks.length; i++) {
-            fetchLocks[i] = new Object();
-        }
         this.numCachedMostRecentlyViewedJobs = numCachedMostRecentlyViewedJobs;
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
@@ -340,7 +377,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                     }
 
                     if (fetch) {
-                        synchronized (localStateLock) {
+                        try (HeldJobLock ignored = lockJob(archiveId)) {
                             fetchArchive(
                                     refreshDir, archiveId, archivePath, archiveLoadMode, events);
                         }
@@ -348,26 +385,26 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                 }
             }
 
-            synchronized (localStateLock) {
-                // clean local
-                if (archivesToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
-                        && processExpiredArchiveDeletion) {
-                    events.addAll(cleanupExpiredArchives(archivesToRemove));
-                }
-                // clean remote and local
-                if (!archivesBeyondRetainedLimit.isEmpty()) {
-                    events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
-                }
-                // clean local only
-                if (!archivesToEvictLocally.isEmpty()) {
+            // clean local
+            if (archivesToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
+                    && processExpiredArchiveDeletion) {
+                events.addAll(cleanupExpiredArchives(archivesToRemove));
+            }
+            // clean remote and local
+            if (!archivesBeyondRetainedLimit.isEmpty()) {
+                events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+            }
+            // clean local only
+            if (!archivesToEvictLocally.isEmpty()) {
+                synchronized (localStateLock) {
                     archivesToEvictLocally
                             .values()
                             .forEach(ids -> ids.removeAll(mostRecentlyViewedJobs.keySet()));
-                    events.addAll(cleanupExpiredArchives(archivesToEvictLocally));
                 }
-                if (!events.isEmpty()) {
-                    updateOverview();
-                }
+                events.addAll(cleanupExpiredArchives(archivesToEvictLocally));
+            }
+            if (!events.isEmpty()) {
+                refreshOverview();
             }
             events.forEach(archiveEventListener);
             LOG.debug("Finished archive scan.");
@@ -383,6 +420,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode,
             List<ArchiveEvent> events)
             throws Exception {
+        // checked while holding the job lock, a concurrent scan may have fetched it meanwhile
         if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
             LOG.trace("Ignoring archive {} because it was already fetched.", archivePath);
         } else {
@@ -499,12 +537,18 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
         archivesToRemove.forEach(
                 (refreshDir, archives) -> {
-                    cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archives);
-                    mostRecentlyViewedJobs.keySet().removeAll(archives);
+                    synchronized (localStateLock) {
+                        cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archives);
+                        mostRecentlyViewedJobs.keySet().removeAll(archives);
+                    }
                     archives.forEach(
                             archiveId -> {
-                                cleanUpLazyFetchTask(archiveId);
-                                deleteLog.addAll(deleteCachedArchives(archiveId, refreshDir));
+                                // the files are deleted outside of the state lock, but not while
+                                // the job is being fetched
+                                try (HeldJobLock ignored = lockJob(archiveId)) {
+                                    cleanUpLazyFetchTask(archiveId);
+                                    deleteLog.addAll(deleteCachedArchives(archiveId, refreshDir));
+                                }
                             });
                 });
 
@@ -629,6 +673,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             Collection<JobDetails> allJobs = new ArrayList<>();
             List<Entry> overviews = archiveStorage.getEntriesByPrefix(JOB_OVERVIEWS_KEY_PREFIX);
             int skipped = 0;
+            int vanished = 0;
             for (Entry overview : overviews) {
                 try {
                     MultipleJobsDetails subJobs;
@@ -643,6 +688,10 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                                         MultipleJobsDetails.class);
                     }
                     allJobs.addAll(subJobs.getJobs());
+                } catch (FileNotFoundException | NoSuchFileException e) {
+                    // The job was evicted after the entries were listed; it is gone, not broken.
+                    vanished++;
+                    LOG.debug("Job overview {} was removed while aggregating.", overview, e);
                 } catch (Exception e) {
                     // A single malformed/incompatible archive (e.g. written by a different Flink
                     // version) must not prevent the remaining archives from being aggregated.
@@ -656,13 +705,13 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             if (skipped > 0) {
                 LOG.warn("Skipped {} job overview(s) that could not be parsed.", skipped);
             }
-            if (!overviews.isEmpty() && allJobs.isEmpty()) {
+            if (overviews.size() > vanished && allJobs.isEmpty()) {
                 // Every entry failed to parse; keep the previously written overview instead of
                 // replacing it with an empty one.
                 LOG.error(
                         "All {} job overview(s) failed to parse; keeping the last known good "
                                 + "combined overview instead of overwriting it.",
-                        overviews.size());
+                        overviews.size() - vanished);
                 return;
             }
             String overviewWithJobs = mapper.writeValueAsString(new MultipleJobsDetails(allJobs));
@@ -834,7 +883,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
      * same job are serialized, so a concurrent request never cancels the fetch of another one.
      */
     void lazyFetchArchiveIfNeeded(String jobId) throws Exception {
-        synchronized (fetchLocks[Math.floorMod(jobId.hashCode(), fetchLocks.length)]) {
+        try (HeldJobLock ignored = lockJob(jobId)) {
             if (!needLazyLoadIndividually(jobId)) {
                 return;
             }
@@ -848,56 +897,86 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         if (cachedRetainedJobs <= 0) {
             return;
         }
-        List<ArchiveEvent> events = new ArrayList<>();
         synchronized (localStateLock) {
             if (!isOwnedByRefreshDirectory(jobId) || isCachedByScan(jobId)) {
                 return;
             }
             mostRecentlyViewedJobs.put(jobId, Boolean.TRUE);
-            evictLeastRecentlyViewed(jobId, events);
         }
-        events.forEach(archiveEventListener);
+        evictLeastRecentlyViewed(jobId);
     }
 
     /**
      * Marks the job as being served to a request. It is not evicted until all such requests have
-     * called {@link #releaseJob}.
+     * called {@link #releaseJob}. This waits for a fetch or a deletion of the job that is running.
      */
     void acquireJob(String jobId) {
-        synchronized (localStateLock) {
+        try (HeldJobLock ignored = lockJob(jobId)) {
             jobsInUse.merge(jobId, 1, Integer::sum);
         }
     }
 
     void releaseJob(String jobId) {
-        List<ArchiveEvent> events = new ArrayList<>();
-        synchronized (localStateLock) {
-            jobsInUse.computeIfPresent(jobId, (id, count) -> count > 1 ? count - 1 : null);
-            // evictions skipped while the job was in use are caught up on here
-            if (cachedRetainedJobs > 0 && !jobsInUse.containsKey(jobId)) {
-                evictLeastRecentlyViewed(null, events);
-            }
+        jobsInUse.computeIfPresent(jobId, (id, count) -> count > 1 ? count - 1 : null);
+        // evictions skipped while the job was in use are caught up on here
+        if (cachedRetainedJobs > 0 && !jobsInUse.containsKey(jobId)) {
+            evictLeastRecentlyViewed(null);
         }
-        events.forEach(archiveEventListener);
     }
 
-    private void evictLeastRecentlyViewed(@Nullable String keepJobId, List<ArchiveEvent> events) {
-        Iterator<String> eldest = mostRecentlyViewedJobs.keySet().iterator();
-        while (mostRecentlyViewedJobs.size() > numCachedMostRecentlyViewedJobs
-                && eldest.hasNext()) {
-            String evictedId = eldest.next();
-            // a job that is being fetched or served must finish first, a later call evicts it
-            if (evictedId.equals(keepJobId) || isInUse(evictedId)) {
-                continue;
-            }
-            eldest.remove();
-            // archives that entered the cached window are managed by the scan
-            if (!isCachedByScan(evictedId)) {
-                events.add(deleteJobFiles(evictedId));
+    /** Evicts the least recently viewed jobs beyond the limit, except for the ones in use. */
+    private void evictLeastRecentlyViewed(@Nullable String keepJobId) {
+        List<ArchiveEvent> events = new ArrayList<>();
+        Set<String> skipped = new HashSet<>();
+        String candidate;
+        while ((candidate = nextEvictionCandidate(keepJobId, skipped)) != null) {
+            if (!evictIfIdle(candidate, events)) {
+                skipped.add(candidate);
             }
         }
         if (!events.isEmpty()) {
-            updateOverview();
+            refreshOverview();
+            events.forEach(archiveEventListener);
+        }
+    }
+
+    @Nullable
+    private String nextEvictionCandidate(@Nullable String keepJobId, Set<String> skipped) {
+        synchronized (localStateLock) {
+            if (mostRecentlyViewedJobs.size() <= numCachedMostRecentlyViewedJobs) {
+                return null;
+            }
+            // the eldest entry is the least recently viewed job
+            for (String jobId : mostRecentlyViewedJobs.keySet()) {
+                if (!jobId.equals(keepJobId) && !skipped.contains(jobId) && !isInUse(jobId)) {
+                    return jobId;
+                }
+            }
+            return null;
+        }
+    }
+
+    /** Evicts the job unless it is in use. Returns false if it was skipped for that reason. */
+    private boolean evictIfIdle(String jobId, List<ArchiveEvent> events) {
+        try (HeldJobLock ignored = lockJob(jobId)) {
+            boolean cachedByScan;
+            synchronized (localStateLock) {
+                // checked again, the job may have been used or evicted before its lock was held
+                if (!mostRecentlyViewedJobs.containsKey(jobId)
+                        || mostRecentlyViewedJobs.size() <= numCachedMostRecentlyViewedJobs) {
+                    return true;
+                }
+                if (isInUse(jobId)) {
+                    return false;
+                }
+                mostRecentlyViewedJobs.remove(jobId);
+                // archives that entered the cached window are managed by the scan
+                cachedByScan = isCachedByScan(jobId);
+            }
+            if (!cachedByScan) {
+                events.add(deleteJobFiles(jobId));
+            }
+            return true;
         }
     }
 
@@ -941,7 +1020,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     }
 
     void refreshOverview() {
-        synchronized (localStateLock) {
+        synchronized (overviewLock) {
             updateOverview();
         }
     }
