@@ -250,8 +250,8 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
             // The inner join factors that the inner join reorder couldn't join, e.g. those of a
             // cross join, are added in method addCrossJoinToTop(), unless the condition of an
             // outer join references them.
-            if (multiJoin.isNullGenerating(index) && !plan.factorIds.contains(index)) {
-                plan = addOuterJoinFactor(plan, index, multiJoin, relBuilder);
+            if (multiJoin.isNullGenerating(index)) {
+                plan = addFactor(plan, index, multiJoin, relBuilder);
             }
         }
         return plan;
@@ -264,14 +264,24 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
 
         JoinPlan plan = bestPlan;
         for (int index : remainIndexes) {
-            if (multiJoin.isNullGenerating(index)) {
-                // An outer join factor whose join condition is true.
-                plan = addOuterJoinFactor(plan, index, multiJoin, relBuilder);
-            } else {
-                plan = addInnerJoinFactor(plan, index, multiJoin, relBuilder);
-            }
+            // E.g. a factor of a cross join, or of an outer join whose join condition is true.
+            plan = addFactor(plan, index, multiJoin, relBuilder);
         }
         return plan;
+    }
+
+    /**
+     * Joins the factor to the plan, unless the plan already contains it, e.g. because the condition
+     * of an outer join joined before references it.
+     */
+    private static JoinPlan addFactor(
+            JoinPlan plan, int index, LoptMultiJoin multiJoin, RelBuilder relBuilder) {
+        if (plan.factorIds.contains(index)) {
+            return plan;
+        }
+        return multiJoin.isNullGenerating(index)
+                ? addOuterJoinFactor(plan, index, multiJoin, relBuilder)
+                : addInnerJoinFactor(plan, index, multiJoin, relBuilder);
     }
 
     /**
@@ -282,12 +292,7 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
     private static JoinPlan addOuterJoinFactor(
             JoinPlan plan, int index, LoptMultiJoin multiJoin, RelBuilder relBuilder) {
         for (int factor : multiJoin.getOuterJoinFactors(index)) {
-            if (!plan.factorIds.contains(factor)) {
-                plan =
-                        multiJoin.isNullGenerating(factor)
-                                ? addOuterJoinFactor(plan, factor, multiJoin, relBuilder)
-                                : addInnerJoinFactor(plan, factor, multiJoin, relBuilder);
-            }
+            plan = addFactor(plan, factor, multiJoin, relBuilder);
         }
         // For left outer join or right outer join, we will build a new join with left join type.
         // For example, for case (A RJ B) IJ C, we will return (B IJ C) LJ A.
@@ -329,15 +334,12 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
             List<? extends RexNode> joinFilters,
             LoptMultiJoin multiJoin,
             RelBuilder relBuilder) {
-        JoinConditionShuttle shuttle =
-                new JoinConditionShuttle(
-                        multiJoin,
+        List<RexNode> newConditions =
+                convertToNewCondition(
                         new ArrayList<>(plan.factorIds),
-                        Collections.singletonList(index));
-        List<RexNode> newConditions = new ArrayList<>();
-        for (RexNode condition : conditions) {
-            newConditions.add(condition.accept(shuttle));
-        }
+                        Collections.singletonList(index),
+                        conditions,
+                        multiJoin);
 
         relBuilder.clear();
         RelNode newJoin =
@@ -518,7 +520,7 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         newFactorIds.addAll(newLeftSidePlan.factorIds);
         newFactorIds.addAll(newRightSidePlan.factorIds);
 
-        List<RexCall> newCondition =
+        List<RexNode> newCondition =
                 convertToNewCondition(
                         new ArrayList<>(newLeftSidePlan.factorIds),
                         new ArrayList<>(newRightSidePlan.factorIds),
@@ -540,26 +542,22 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         return Optional.of(new JoinPlan(newFactorIds, newJoin, appliedJoinFilters));
     }
 
-    private static List<RexCall> convertToNewCondition(
+    /**
+     * Converts the join conditions, which reference the fields of the multiJoin, to reference the
+     * fields of the join of the left and the right factors.
+     */
+    private static List<RexNode> convertToNewCondition(
             List<Integer> leftFactorIds,
             List<Integer> rightFactorIds,
-            List<RexCall> rexNodes,
+            List<? extends RexNode> conditions,
             LoptMultiJoin multiJoin) {
-        RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
-        List<RexCall> newCondition = new ArrayList<>();
-        for (RexCall rexCond : rexNodes) {
-            List<RexNode> resultRexNode = new ArrayList<>();
-            for (RexNode rexNode : rexCond.getOperands()) {
-                rexNode =
-                        rexNode.accept(
-                                new JoinConditionShuttle(multiJoin, leftFactorIds, rightFactorIds));
-                resultRexNode.add(rexNode);
-            }
-            RexNode resultRex = rexBuilder.makeCall(rexCond.op, resultRexNode);
-            newCondition.add((RexCall) resultRex);
+        JoinConditionShuttle shuttle =
+                new JoinConditionShuttle(multiJoin, leftFactorIds, rightFactorIds);
+        List<RexNode> newConditions = new ArrayList<>();
+        for (RexNode condition : conditions) {
+            newConditions.add(condition.accept(shuttle));
         }
-
-        return newCondition;
+        return newConditions;
     }
 
     /**
