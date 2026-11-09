@@ -55,7 +55,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // ingest a DataStream from an external source
-DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
+DataStream<Tuple3<Long, String, Integer>> ds = env.fromSource(...);
 
 // SQL query with an inlined (unregistered) table
 Table table = tableEnv.fromDataStream(ds, $("user"), $("product"), $("amount"));

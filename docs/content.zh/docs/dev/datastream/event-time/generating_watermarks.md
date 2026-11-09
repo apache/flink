@@ -106,9 +106,13 @@ WatermarkStrategy \
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<MyEvent> stream = env.readFile(
-        myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
-        FilePathFilter.createDefaultFilter(), typeInfo);
+FileSource<MyEvent> fileSource = FileSource
+        .forRecordStreamFormat(myFormat, myFilePath)
+        .monitorContinuously(Duration.ofMillis(100))
+        .build();
+
+DataStream<MyEvent> stream = env.fromSource(
+        fileSource, WatermarkStrategy.noWatermarks(), "File Source");
 
 DataStream<MyEvent> withTimestampsAndWatermarks = stream
         .filter( event -> event.severity() == WARNING )
@@ -118,7 +122,7 @@ withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
         .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
         .reduce( (a, b) -> a.add(b) )
-        .addSink(...);
+        .sinkTo(...);
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

@@ -79,13 +79,19 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 处理时间属性可以在 schema 定义的时候用 `.proctime` 后缀来定义。时间属性一定不能定义在一个已有字段上，所以它只能定义在 schema 定义的最后。
 
+在 Java 中，在传给 `fromDataStream` 的 `Schema` 中将处理时间属性声明为计算列 `PROCTIME()`。
+
 {{< tabs "ec1506ee-adf2-4668-a6f0-7944a5b24bc2" >}}
 {{< tab "Java" >}}
 ```java
 DataStream<Tuple2<String, String>> stream = ...;
 
-// 声明一个额外的字段作为时间属性字段
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime());
+// declare an additional column as a processing time attribute
+Table table = tEnv.fromDataStream(
+        stream,
+        Schema.newBuilder()
+            .columnByExpression("user_action_time", "PROCTIME()")
+            .build());
 
 GroupWindowedTable windowedTable = table.window(
         Tumble.over(lit(10).minutes())
@@ -257,7 +263,7 @@ select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='align
 ### 在 DataStream 到 Table 转换时定义
 
 事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。 
-在从 DataStream 转换到 Table 时，由于 `DataStream` 没有时区概念，因此 Flink 总是将 `rowtime` 属性解析成 `TIMESTAMP WITHOUT TIME ZONE` 类型，并且将所有事件时间的值都视为 UTC 时区的值。
+使用 `.rowtime` 表达式转换时，由于 `DataStream` 没有时区概念，因此 Flink 将 `rowtime` 属性解析成 `TIMESTAMP WITHOUT TIME ZONE` 类型，并且将所有事件时间的值都视为 UTC 时区的值。
 
 在从 `DataStream` 到 `Table` 转换时定义事件时间属性有两种方式。取决于用 `.rowtime` 后缀修饰的字段名字是否是已有字段，事件时间字段可以是：
 
@@ -266,26 +272,22 @@ select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='align
 
 不管在哪种情况下，事件时间字段都表示 `DataStream` 中定义的事件的时间戳。
 
+在 Java 中，在传给 `fromDataStream` 的 `Schema` 中声明事件时间属性：`rowtime` 元数据列以 `TIMESTAMP_LTZ(3)` 类型保存每条流记录的时间戳，`SOURCE_WATERMARK()` 复用 `DataStream` 的 watermark。上面两种方式使用基于表达式的转换，这种转换在 Java 中已被弃用。详情请参考 [DataStream API Integration]({{< ref "docs/dev/table/data_stream_api" >}})。
+
 {{< tabs "4ddfd970-e823-48c2-ae38-4e110ada0f9a" >}}
 {{< tab "Java" >}}
 ```java
-
-// Option 1:
-
-// 基于 stream 中的事件产生时间戳和 watermark
+// extract timestamp and assign watermarks based on knowledge of the stream
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
-// 声明一个额外的逻辑字段作为事件时间属性
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime());
-
-
-// Option 2:
-
-// 从第一个字段获取事件时间，并且产生 watermark
-DataStream<Tuple3<Long, String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
-
-// 第一个字段已经用作事件时间抽取了，不用再用一个新字段来表示事件时间了
-Table table = tEnv.fromDataStream(stream, $("user_action_time").rowtime(), $("user_name"), $("data"));
+// declare an additional column that holds the timestamp of each stream record as an
+// event time attribute, and use the watermarks of the DataStream
+Table table = tEnv.fromDataStream(
+        stream,
+        Schema.newBuilder()
+            .columnByMetadata("user_action_time", DataTypes.TIMESTAMP_LTZ(3), "rowtime")
+            .watermark("user_action_time", "SOURCE_WATERMARK()")
+            .build());
 
 // Usage:
 

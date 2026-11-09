@@ -44,9 +44,9 @@ To make proper use of savepoints, it's important to understand the differences b
 It is **highly recommended** that you specify operator IDs via the **`uid(String)`** method. These IDs are used to scope the state of each operator.
 
 ```java
-DataStream<String> stream = env.
+DataStream<String> stream = env
   // Stateful source (e.g. Kafka) with ID
-  .addSource(new StatefulSource())
+  .fromSource(new StatefulSource(), WatermarkStrategy.noWatermarks(), "Stateful Source")
   .uid("source-id") // ID for the source operator
   .shuffle()
   // Stateful mapper with ID

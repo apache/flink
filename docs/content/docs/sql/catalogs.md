@@ -128,11 +128,12 @@ Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
 ```java
 TableEnvironment tableEnv = ...;
 
-// Create a HiveCatalog 
-Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
-
-// Register the catalog
-tableEnv.registerCatalog("myhive", catalog);
+// Create and register a HiveCatalog
+tableEnv.createCatalog(
+    "myhive",
+    CatalogDescriptor.of(
+        "myhive",
+        Configuration.fromMap(Map.of("type", "hive", "hive-conf-dir", "<path_of_hive_conf>"))));
 
 // Create a catalog database
 tableEnv.executeSql("CREATE DATABASE mydb WITH (...)");
@@ -209,17 +210,20 @@ Users can use Java, Scala or Python to create catalog tables programmatically.
 {{< tab "Java" >}}
 ```java
 import java.util.List;
+import java.util.Map;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.catalog.*;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 
 TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
-// Create a HiveCatalog 
-Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
-
-// Register the catalog
-tableEnv.registerCatalog("myhive", catalog);
+// Create and register a HiveCatalog
+tableEnv.createCatalog(
+    "myhive",
+    CatalogDescriptor.of(
+        "myhive",
+        Configuration.fromMap(Map.of("type", "hive", "hive-conf-dir", "<path_of_hive_conf>"))));
+Catalog catalog = tableEnv.getCatalog("myhive").get();
 
 // Create a catalog database 
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...), false);

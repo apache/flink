@@ -164,8 +164,11 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
     @Override
     public void flatMap(Tuple2<Long, Long> input, Collector<Tuple2<Long, Long>> out) throws Exception {
 
-        // access the state value
+        // access the state value, which is null if nothing was set yet
         Tuple2<Long, Long> currentSum = sum.value();
+        if (currentSum == null) {
+            currentSum = Tuple2.of(0L, 0L);
+        }
 
         // update the count
         currentSum.f0 += 1;
@@ -188,14 +191,13 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
         ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
                 new ValueStateDescriptor<>(
                         "average", // the state name
-                        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}), // type information
-                        Tuple2.of(0L, 0L)); // default value of the state, if nothing was set
+                        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {})); // type information
         sum = getRuntimeContext().getState(descriptor);
     }
 }
 
 // this can be used in a streaming program like this (assuming we have a StreamExecutionEnvironment env)
-env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
+env.fromData(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
         .keyBy(value -> value.f0)
         .flatMap(new CountWindowAverage())
         .print();
@@ -624,61 +626,151 @@ the following redistribution schemes are defined:
     your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC
     framesize or out-of-memory errors.
 
-Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
-to buffer elements before sending them to the outside world. It demonstrates
-the basic even-split redistribution list state:
+Below is an example of a `MapFunction` that uses `CheckpointedFunction` to count the elements each
+parallel instance has seen. It demonstrates the basic even-split redistribution list state:
 
 ```java
-public class BufferingSink
-        implements SinkFunction<Tuple2<String, Integer>>,
-                   CheckpointedFunction {
+public class CountingMap
+        implements MapFunction<String, Tuple2<String, Long>>, CheckpointedFunction {
 
-    private final int threshold;
+    private transient ListState<Long> checkpointedCount;
 
-    private transient ListState<Tuple2<String, Integer>> checkpointedState;
-
-    private List<Tuple2<String, Integer>> bufferedElements;
-
-    public BufferingSink(int threshold) {
-        this.threshold = threshold;
-        this.bufferedElements = new ArrayList<>();
-    }
+    private long count;
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
-        bufferedElements.add(value);
-        if (bufferedElements.size() >= threshold) {
-            for (Tuple2<String, Integer> element: bufferedElements) {
-                // send it to the sink
-            }
-            bufferedElements.clear();
-        }
+    public Tuple2<String, Long> map(String value) {
+        count++;
+        return Tuple2.of(value, count);
     }
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.update(bufferedElements);
+        checkpointedCount.update(Collections.singletonList(count));
     }
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-        ListStateDescriptor<Tuple2<String, Integer>> descriptor =
-            new ListStateDescriptor<>(
-                "buffered-elements",
-                TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+        ListStateDescriptor<Long> descriptor =
+            new ListStateDescriptor<>("count", Long.class);
 
-        checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+        checkpointedCount = context.getOperatorStateStore().getListState(descriptor);
 
         if (context.isRestored()) {
-            for (Tuple2<String, Integer> element : checkpointedState.get()) {
-                bufferedElements.add(element);
+            for (Long partialCount : checkpointedCount.get()) {
+                count += partialCount;
             }
         }
     }
 }
 ```
 
-The `initializeState` method takes as argument a `FunctionInitializationContext`. This is used to initialize
+When a job is restored with a different parallelism, an instance can receive the counts of several
+former instances, so `initializeState()` adds them up.
+
+A sink does not implement `CheckpointedFunction`. It keeps its operator state in its writer instead:
+the sink implements `SupportsWriterState`, and the writer, a `StatefulSinkWriter`, returns its state as a
+list from `snapshotState()`. Flink stores that list with even-split redistribution and passes the recovered
+elements to `restoreWriter()`. Below is an example of a sink that buffers elements before sending them to
+the outside world:
+
+```java
+public class BufferingSink
+        implements Sink<Tuple2<String, Integer>>,
+                   SupportsWriterState<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+    private final int threshold;
+
+    public BufferingSink(int threshold) {
+        this.threshold = threshold;
+    }
+
+    @Override
+    public BufferingWriter createWriter(WriterInitContext context) {
+        return new BufferingWriter(threshold, Collections.emptyList());
+    }
+
+    @Override
+    public BufferingWriter restoreWriter(
+            WriterInitContext context, Collection<Tuple2<String, Integer>> recoveredState) {
+        return new BufferingWriter(threshold, recoveredState);
+    }
+
+    @Override
+    public SimpleVersionedSerializer<Tuple2<String, Integer>> getWriterStateSerializer() {
+        return new BufferedElementSerializer();
+    }
+}
+
+public class BufferingWriter
+        implements StatefulSinkWriter<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+    private final int threshold;
+
+    private final List<Tuple2<String, Integer>> bufferedElements;
+
+    public BufferingWriter(int threshold, Collection<Tuple2<String, Integer>> recoveredState) {
+        this.threshold = threshold;
+        this.bufferedElements = new ArrayList<>(recoveredState);
+    }
+
+    @Override
+    public void write(Tuple2<String, Integer> value, Context context) {
+        bufferedElements.add(value);
+        if (bufferedElements.size() >= threshold) {
+            send();
+        }
+    }
+
+    @Override
+    public void flush(boolean endOfInput) {
+        // on a checkpoint, the buffered elements go into the writer state instead
+        if (endOfInput) {
+            send();
+        }
+    }
+
+    private void send() {
+        for (Tuple2<String, Integer> element: bufferedElements) {
+            // send it to the sink
+        }
+        bufferedElements.clear();
+    }
+
+    @Override
+    public List<Tuple2<String, Integer>> snapshotState(long checkpointId) {
+        return new ArrayList<>(bufferedElements);
+    }
+
+    @Override
+    public void close() {}
+}
+
+public class BufferedElementSerializer
+        implements SimpleVersionedSerializer<Tuple2<String, Integer>> {
+
+    @Override
+    public int getVersion() {
+        return 1;
+    }
+
+    @Override
+    public byte[] serialize(Tuple2<String, Integer> element) throws IOException {
+        DataOutputSerializer out = new DataOutputSerializer(32);
+        out.writeUTF(element.f0);
+        out.writeInt(element.f1);
+        return out.getCopyOfBuffer();
+    }
+
+    @Override
+    public Tuple2<String, Integer> deserialize(int version, byte[] serialized) throws IOException {
+        DataInputDeserializer in = new DataInputDeserializer(serialized);
+        return Tuple2.of(in.readUTF(), in.readInt());
+    }
+}
+```
+
+In a function that implements `CheckpointedFunction`, the `initializeState` method takes as argument a
+`FunctionInitializationContext`. This is used to initialize
 the non-keyed state "containers". These are a container of type `ListState` where the non-keyed state objects
 are going to be stored upon checkpointing.
 
@@ -687,12 +779,15 @@ with a `StateDescriptor` that contains the state name and information
 about the type of the value that the state holds:
 
 ```java
-ListStateDescriptor<Tuple2<String, Integer>> descriptor =
-    new ListStateDescriptor<>(
-        "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+private transient ListState<Long> checkpointedCount;
 
-checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+@Override
+public void initializeState(FunctionInitializationContext context) throws Exception {
+    ListStateDescriptor<Long> descriptor =
+        new ListStateDescriptor<>("count", Long.class);
+
+    checkpointedCount = context.getOperatorStateStore().getListState(descriptor);
+}
 ```
 
 The naming convention of the state access methods contain its redistribution
@@ -704,70 +799,18 @@ it simply implies that the basic even-split redistribution scheme will be used.
 After initializing the container, we use the `isRestored()` method of the context to check if we are
 recovering after a failure. If this is `true`, *i.e.* we are recovering, the restore logic is applied.
 
-As shown in the code of the modified `BufferingSink`, this `ListState` recovered during state
-initialization is kept in a class variable for future use in `snapshotState()`. There the `ListState` is cleared
-of all objects included by the previous checkpoint, and is then filled with the new ones we want to checkpoint.
+Keep the `ListState` in a field for later use in `snapshotState()`. There, update it with the objects
+you want to checkpoint, which replaces the objects included by the previous checkpoint.
 
 As a side note, the keyed state can also be initialized in the `initializeState()` method. This can be done
 using the provided `FunctionInitializationContext`.
 
-### Stateful Source Functions
+### Stateful Sources
 
-Stateful sources require a bit more care as opposed to other operators.
-In order to make the updates to the state and output collection atomic (required for exactly-once semantics
-on failure/recovery), the user is required to get a lock from the source's context.
-
-```java
-public static class CounterSource
-        extends RichParallelSourceFunction<Long>
-        implements CheckpointedFunction {
-
-    /**  current offset for exactly once semantics */
-    private Long offset = 0L;
-
-    /** flag for job cancellation */
-    private volatile boolean isRunning = true;
-    
-    /** Our state object. */
-    private ListState<Long> state;
-
-    @Override
-    public void run(SourceContext<Long> ctx) {
-        final Object lock = ctx.getCheckpointLock();
-
-        while (isRunning) {
-            // output and state update are atomic
-            synchronized (lock) {
-                ctx.collect(offset);
-                offset += 1;
-            }
-        }
-    }
-
-    @Override
-    public void cancel() {
-        isRunning = false;
-    }
-
-    @Override
-    public void initializeState(FunctionInitializationContext context) throws Exception {
-        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
-                "state",
-                LongSerializer.INSTANCE));
-                
-        // restore any state that we might already have to our fields, initialize state
-        // is also called in case of restore.
-        for (Long l : state.get()) {
-            offset = l;
-        }
-    }
-
-    @Override
-    public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        state.update(Collections.singletonList(offset));
-    }
-}
-```
+A source built on the [Source API]({{< ref "docs/internals/sources" >}}#sourcereader) does not need to
+synchronize emitting records with updating its state. The task thread calls `pollNext()` and `snapshotState()`
+of the `SourceReader` one after the other, never at the same time. Keep the state of the reader, such as the
+current offset, in the splits that `snapshotState()` returns.
 
 Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.api.common.state.CheckpointListener` interface.
 

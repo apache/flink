@@ -42,9 +42,9 @@ Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault
 **强烈建议**你按照本节所述调整你的程序，以便将来能够升级你的程序。主要通过 **`uid(String)`** 方法手动指定算子 ID 。这些 ID 将用于恢复每个算子的状态。
 
 ```java
-DataStream<String> stream = env.
+DataStream<String> stream = env
   // Stateful source (e.g. Kafka) with ID
-  .addSource(new StatefulSource())
+  .fromSource(new StatefulSource(), WatermarkStrategy.noWatermarks(), "Stateful Source")
   .uid("source-id") // ID for the source operator
   .shuffle()
   // Stateful mapper with ID

@@ -554,6 +554,7 @@ class OverloadedFunction extends TableFunction[AnyRef] {
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.Row;
 
@@ -575,7 +576,9 @@ public static class LiteralFunction extends ScalarFunction {
   public TypeInference getTypeInference(DataTypeFactory typeFactory) {
     return TypeInference.newBuilder()
       // 指定输入参数的类型，必要时参数会被隐式转换
-      .typedArguments(DataTypes.STRING(), DataTypes.STRING())
+      .staticArguments(
+          StaticArgument.scalar("s", DataTypes.STRING(), false),
+          StaticArgument.scalar("type", DataTypes.STRING(), false))
       // specify a strategy for the result data type of the function
       .outputTypeStrategy(callContext -> {
         if (!callContext.isArgumentLiteral(1) || callContext.isArgumentNull(1)) {

@@ -2410,7 +2410,7 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         return TypeInference.newBuilder()
-                .typedArguments(DataTypes.INT())
+                .staticArguments(StaticArgument.scalar("value", DataTypes.INT(), false))
                 .accumulatorTypeStrategy(
                         TypeStrategies.explicit(
                                 DataTypes.STRUCTURED(
@@ -2460,7 +2460,7 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
 
   override def getTypeInference(typeFactory: DataTypeFactory): TypeInference =
     TypeInference.newBuilder
-      .typedArguments(DataTypes.INT)
+      .staticArguments(StaticArgument.scalar("value", DataTypes.INT, false))
       .accumulatorTypeStrategy(
         TypeStrategies.explicit(
           DataTypes.STRUCTURED(

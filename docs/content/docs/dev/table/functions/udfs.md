@@ -563,6 +563,7 @@ The following example implemented in Java illustrates the potential of a custom 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.Row;
 
@@ -586,7 +587,9 @@ public static class LiteralFunction extends ScalarFunction {
     return TypeInference.newBuilder()
       // specify typed arguments
       // parameters will be casted implicitly to those types if necessary
-      .typedArguments(DataTypes.STRING(), DataTypes.STRING())
+      .staticArguments(
+          StaticArgument.scalar("s", DataTypes.STRING(), false),
+          StaticArgument.scalar("type", DataTypes.STRING(), false))
       // specify a strategy for the result data type of the function
       .outputTypeStrategy(callContext -> {
         if (!callContext.isArgumentLiteral(1) || callContext.isArgumentNull(1)) {

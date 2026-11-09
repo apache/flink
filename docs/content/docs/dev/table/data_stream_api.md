@@ -88,7 +88,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create a DataStream
-DataStream<String> dataStream = env.fromElements("Alice", "Bob", "John");
+DataStream<String> dataStream = env.fromData("Alice", "Bob", "John");
 
 // interpret the insert-only DataStream as a Table
 Table inputTable = tableEnv.fromDataStream(dataStream);
@@ -211,7 +211,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create a DataStream
-DataStream<Row> dataStream = env.fromElements(
+DataStream<Row> dataStream = env.fromData(
     Row.of("Alice", 12),
     Row.of("Bob", 10),
     Row.of("Alice", 100));
@@ -989,7 +989,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create a user stream
 DataStream<Row> userStream = env
-    .fromElements(
+    .fromData(
         Row.of(LocalDateTime.parse("2021-08-21T13:00:00"), 1, "Alice"),
         Row.of(LocalDateTime.parse("2021-08-21T13:05:00"), 2, "Bob"),
         Row.of(LocalDateTime.parse("2021-08-21T13:10:00"), 2, "Bob"))
@@ -1000,7 +1000,7 @@ DataStream<Row> userStream = env
 
 // create an order stream
 DataStream<Row> orderStream = env
-    .fromElements(
+    .fromData(
         Row.of(LocalDateTime.parse("2021-08-21T13:02:00"), 1, 122),
         Row.of(LocalDateTime.parse("2021-08-21T13:07:00"), 2, 239),
         Row.of(LocalDateTime.parse("2021-08-21T13:11:00"), 2, 999))
@@ -1277,7 +1277,7 @@ public static class User {
 
 // create a DataStream
 DataStream<User> dataStream =
-    env.fromElements(
+    env.fromData(
         new User("Alice", 4, Instant.ofEpochMilli(1000)),
         new User("Bob", 6, Instant.ofEpochMilli(1001)),
         new User("Alice", 10, Instant.ofEpochMilli(1002)));
@@ -1685,7 +1685,7 @@ public static class User {
 }
 
 // create a DataStream
-DataStream<User> dataStream = env.fromElements(
+DataStream<User> dataStream = env.fromData(
     new User("Alice", 4),
     new User("Bob", 6),
     new User("Alice", 10));
@@ -1763,7 +1763,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Schema;
 
 // create some DataStream
-DataStream<Tuple2<Long, String>> dataStream = env.fromElements(
+DataStream<Tuple2<Long, String>> dataStream = env.fromData(
     Tuple2.of(12L, "Alice"),
     Tuple2.of(0L, "Bob"));
 
@@ -2192,7 +2192,7 @@ import org.apache.flink.types.RowKind;
 
 // create a changelog DataStream
 DataStream<Row> dataStream =
-    env.fromElements(
+    env.fromData(
         Row.ofKind(RowKind.INSERT, "Alice", 12),
         Row.ofKind(RowKind.INSERT, "Bob", 5),
         Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 12),
@@ -2224,7 +2224,7 @@ tableEnv
 
 // create a changelog DataStream
 DataStream<Row> dataStream =
-    env.fromElements(
+    env.fromData(
         Row.ofKind(RowKind.INSERT, "Alice", 12),
         Row.ofKind(RowKind.INSERT, "Bob", 5),
         Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 100));
@@ -2821,7 +2821,7 @@ Table tableFromSource = tableEnv.from(sourceDescriptor);
 statementSet.add(tableFromSource.insertInto(sinkDescriptor));
 
 // use table sinks for the DataStream API pipeline
-DataStream<Integer> dataStream = env.fromElements(1, 2, 3);
+DataStream<Integer> dataStream = env.fromData(1, 2, 3);
 Table tableFromStream = tableEnv.fromDataStream(dataStream);
 statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 
@@ -2830,7 +2830,7 @@ statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 statementSet.attachAsDataStream();
 
 // define other DataStream API parts
-env.fromElements(4, 5, 6).sinkTo(new DiscardingSink<>());
+env.fromData(4, 5, 6).sinkTo(new DiscardingSink<>());
 
 // use DataStream API to submit the pipelines
 env.execute();

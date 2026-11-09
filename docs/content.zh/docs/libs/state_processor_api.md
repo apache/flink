@@ -453,7 +453,7 @@ public class SimpleBootstrapFunction extends StateBootstrapFunction<Integer> {
 }
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-DataStream<Integer> data = env.fromElements(1, 2, 3);
+DataStream<Integer> data = env.fromData(1, 2, 3);
 
 StateBootstrapTransformation transformation = OperatorTransformation
     .bootstrapWith(data)
@@ -527,7 +527,7 @@ public class AccountBootstrapper extends KeyedStateBootstrapFunction<Integer, Ac
  
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<Account> accountDataSet = env.fromCollection(accounts);
+DataStream<Account> accountDataSet = env.fromData(accounts);
 
 StateBootstrapTransformation<Account> transformation = OperatorTransformation
     .bootstrapWith(accountDataSet)
@@ -558,7 +558,7 @@ public class Account {
  
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<Account> accountDataSet = env.fromCollection(accounts);
+DataStream<Account> accountDataSet = env.fromData(accounts);
 
 StateBootstrapTransformation<Account> transformation = OperatorTransformation
     .bootstrapWith(accountDataSet)

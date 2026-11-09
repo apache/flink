@@ -592,13 +592,20 @@ The following example shows how to provide a procedure in a `Catalog` and call i
 {{< tab "Java" >}}
 ```java
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
+import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.util.CloseableIterator;
@@ -644,9 +651,37 @@ public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
   }
 }
 
+// and a factory, so that the catalog can be created from its 'type' option. Register the
+// factory in META-INF/services/org.apache.flink.table.factories.Factory.
+public static class CatalogWithBuiltInProcedureFactory implements CatalogFactory {
+
+  @Override
+  public String factoryIdentifier() {
+    return "catalog_with_procedures";
+  }
+
+  @Override
+  public Set<ConfigOption<?>> requiredOptions() {
+    return Collections.emptySet();
+  }
+
+  @Override
+  public Set<ConfigOption<?>> optionalOptions() {
+    return Collections.emptySet();
+  }
+
+  @Override
+  public Catalog createCatalog(Context context) {
+    return new CatalogWithBuiltInProcedure(context.getName());
+  }
+}
+
 TableEnvironment tEnv = TableEnvironment.create(...);
 // register the catalog
-tEnv.registerCatalog("my_catalog", new CatalogWithBuiltInProcedure("my_catalog"));
+tEnv.createCatalog(
+    "my_catalog",
+    CatalogDescriptor.of(
+        "my_catalog", Configuration.fromMap(Map.of("type", "catalog_with_procedures"))));
 // call the procedure with CALL statement
 tEnv.executeSql("call my_catalog.`system`.generate_n(5)");
 

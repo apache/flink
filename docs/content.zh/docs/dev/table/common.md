@@ -1027,8 +1027,8 @@ Table API 提供了一种机制来解释计算 `Table` 的逻辑和优化查询�
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-DataStream<Tuple2<Integer, String>> stream1 = env.fromElements(new Tuple2<>(1, "hello"));
-DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "hello"));
+DataStream<Tuple2<Integer, String>> stream1 = env.fromData(new Tuple2<>(1, "hello"));
+DataStream<Tuple2<Integer, String>> stream2 = env.fromData(new Tuple2<>(1, "hello"));
 
 // explain Table API
 Table table1 = tEnv.fromDataStream(stream1, $("count"), $("word"));
