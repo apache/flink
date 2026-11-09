@@ -521,19 +521,24 @@ We recommend setting all configuration options in DataStream API early before sw
 {{< tab "Java" >}}
 ```java
 import java.time.ZoneId;
+import java.util.List;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
-// create Java DataStream API
-
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
 // set various configuration early
 
-env.setMaxParallelism(256);
+Configuration config = new Configuration();
+config.set(PipelineOptions.SERIALIZATION_CONFIG,
+    List.of("org.example.MyCustomType: {type: kryo, kryo-type: default, class: org.example.CustomKryoSerializer}"));
 
-env.getConfig().addDefaultKryoSerializer(MyCustomType.class, CustomKryoSerializer.class);
+// create Java DataStream API
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+
+env.setMaxParallelism(256);
 
 env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 

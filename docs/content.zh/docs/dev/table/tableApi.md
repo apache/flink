@@ -826,7 +826,7 @@ Table orders = tEnv.from("Orders");
 
 // 对用户定义的聚合函数使用互异（互不相同、去重）聚合
 tEnv.createTemporarySystemFunction("myUdagg", MyUdagg.class);
-orders.groupBy("users")
+orders.groupBy($("users"))
     .select(
         $("users"),
         call("myUdagg", $("points")).distinct().as("myDistinctResult")
@@ -2119,7 +2119,7 @@ table = input.over_window([w: OverWindow].alias("w"))
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // 无界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
-.window(Over.partitionBy($("a")).orderBy("proctime").preceding(UNBOUNDED_RANGE).as("w"));
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // 无界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_ROW).as("w"));

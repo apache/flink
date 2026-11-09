@@ -208,6 +208,7 @@ Users can use Java, Scala or Python to create catalog tables programmatically.
 {{< tabs "62adb189-5538-46e1-87d2-76753cfcc13c" >}}
 {{< tab "Java" >}}
 ```java
+import java.util.List;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -221,7 +222,7 @@ Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
 tableEnv.registerCatalog("myhive", catalog);
 
 // Create a catalog database 
-catalog.createDatabase("mydb", new CatalogDatabaseImpl(...));
+catalog.createDatabase("mydb", new CatalogDatabaseImpl(...), false);
 
 // Create a catalog table
 final Schema schema = Schema.newBuilder()
@@ -376,13 +377,13 @@ catalog.dropTable(new ObjectPath("mydb", "mytable"), false);
 catalog.alterTable(new ObjectPath("mydb", "mytable"), CatalogTable.newBuilder()...build(), false);
 
 // rename table
-catalog.renameTable(new ObjectPath("mydb", "mytable"), "my_new_table");
+catalog.renameTable(new ObjectPath("mydb", "mytable"), "my_new_table", false);
 
 // get table
-catalog.getTable("mytable");
+catalog.getTable(new ObjectPath("mydb", "mytable"));
 
 // check if a table exist or not
-catalog.tableExists("mytable");
+catalog.tableExists(new ObjectPath("mydb", "mytable"));
 
 // list tables in a database
 catalog.listTables("mydb");
@@ -448,10 +449,10 @@ catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogViewImpl(...), 
 catalog.renameTable(new ObjectPath("mydb", "myview"), "my_new_view", false);
 
 // get view
-catalog.getTable("myview");
+catalog.getTable(new ObjectPath("mydb", "myview"));
 
 // check if a view exist or not
-catalog.tableExists("mytable");
+catalog.tableExists(new ObjectPath("mydb", "myview"));
 
 // list views in a database
 catalog.listViews("mydb");
@@ -591,10 +592,10 @@ catalog.dropFunction(new ObjectPath("mydb", "myfunc"), false);
 catalog.alterFunction(new ObjectPath("mydb", "myfunc"), new CatalogFunctionImpl(...), false);
 
 // get function
-catalog.getFunction("myfunc");
+catalog.getFunction(new ObjectPath("mydb", "myfunc"));
 
 // check if a function exist or not
-catalog.functionExists("myfunc");
+catalog.functionExists(new ObjectPath("mydb", "myfunc"));
 
 // list functions in a database
 catalog.listFunctions("mydb");
@@ -638,7 +639,11 @@ Users can also register additional catalogs into an existing Flink session.
 {{< tabs "5e227696-2cad-4def-91ab-9d0d7158abf6" >}}
 {{< tab "Java/Scala" >}}
 ```java
-tableEnv.registerCatalog(new CustomCatalog("myCatalog"));
+tableEnv.createCatalog(
+    "myCatalog",
+    CatalogDescriptor.of(
+        "myCatalog",
+        Configuration.fromMap(Map.of("type", "generic_in_memory"))));
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -984,7 +989,7 @@ public class CustomCatalogStoreFactory implements CatalogStoreFactory {
     
     @Override
     public CatalogStore createCatalogStore() {
-        return new CustomCatalogStore();
+        return new CustomCatalogStore(client);
     }
 
     @Override
@@ -1006,7 +1011,7 @@ public class CustomCatalogStoreFactory implements CatalogStoreFactory {
     
     public Set<ConfigOption<?>> requiredOptions() {
         // define the required options
-        Set<ConfigOption> options = new HashSet();
+        Set<ConfigOption<?>> options = new HashSet<>();
         options.add(OPTION_1);
         options.add(OPTION_2);
         
@@ -1021,9 +1026,9 @@ public class CustomCatalogStoreFactory implements CatalogStoreFactory {
 
 public class CustomCatalogStore extends AbstractCatalogStore {
 
-    private Client client;
+    private CustomClient client;
     
-    public CustomCatalogStore(Client client) {
+    public CustomCatalogStore(CustomClient client) {
         this.client = client;
     }
 

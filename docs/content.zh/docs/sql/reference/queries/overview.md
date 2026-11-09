@@ -207,7 +207,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tableEnv = StreamTableEnvironment.create(env, settings)
 // enable checkpointing
 tableEnv.getConfig
-  .set(CheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+  .set(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE)
 tableEnv.getConfig
   .set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 

@@ -369,7 +369,7 @@ Python 中尚不支持此特性。
 {{< tab "Java" >}}
 ```java
 dataStream.coGroup(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
 ```

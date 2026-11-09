@@ -448,7 +448,7 @@ public class SimpleBootstrapFunction extends StateBootstrapFunction<Integer> {
 	
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-        state = context.getOperatorState().getListState(new ListStateDescriptor<>("state", Types.INT));
+        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>("state", Types.INT));
     }
 }
 
@@ -469,6 +469,13 @@ public class CurrencyRate {
     public String currency;
 
     public Double rate;
+
+    public CurrencyRate() {}
+
+    public CurrencyRate(String currency, Double rate) {
+        this.currency = currency;
+        this.rate = rate;
+    }
 }
 
 public class CurrencyBootstrapFunction extends BroadcastStateBootstrapFunction<CurrencyRate> {
@@ -482,7 +489,7 @@ public class CurrencyBootstrapFunction extends BroadcastStateBootstrapFunction<C
     }
 }
 
-DataStream<CurrencyRate> currencyDataSet = env.fromCollection(
+DataStream<CurrencyRate> currencyDataSet = env.fromData(
     new CurrencyRate("USD", 1.0), new CurrencyRate("EUR", 1.3));
 
 StateBootstrapTransformation<CurrencyRate> broadcastTransformation = OperatorTransformation

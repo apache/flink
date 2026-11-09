@@ -231,7 +231,7 @@ Table table = tEnv.fromDataStream(stream, $("user_action_time").rowtime(), $("us
 
 // Usage:
 
-WindowedTable windowedTable = table.window(Tumble
+GroupWindowedTable windowedTable = table.window(Tumble
        .over(lit(10).minutes())
        .on($("user_action_time"))
        .as("userActionWindow"));
@@ -329,7 +329,7 @@ DataStream<Tuple2<String, String>> stream = ...;
 // declare an additional logical field as a processing time attribute
 Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime());
 
-WindowedTable windowedTable = table.window(
+GroupWindowedTable windowedTable = table.window(
         Tumble.over(lit(10).minutes())
             .on($("user_action_time"))
             .as("userActionWindow"));

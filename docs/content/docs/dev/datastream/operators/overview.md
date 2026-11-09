@@ -372,7 +372,7 @@ Cogroups two data streams on a given key and a common window.
 {{< tab "Java" >}}
 ```java
 dataStream.coGroup(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
 ```

@@ -95,7 +95,7 @@ For example, you could set the parallelism of an operator like this:
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
-int parallelism = parameters.get("mapParallelism", 2);
+int parallelism = parameters.getInt("mapParallelism", 2);
 DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
 ```
 
@@ -118,7 +118,7 @@ Register the parameters globally:
 ParameterTool parameters = ParameterTool.fromArgs(args);
 
 // set up the execution environment
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().setGlobalJobParameters(parameters);
 ```
 

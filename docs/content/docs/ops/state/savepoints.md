@@ -321,7 +321,7 @@ execution.checkpointing.savepoint-dir: hdfs:///flink/savepoints
 {{< /tab >}}
 {{< tab "Java" >}}
 ```java
-env.setDefaultSavepointDir("hdfs:///flink/savepoints");
+env.setDefaultSavepointDirectory("hdfs:///flink/savepoints");
 ```
 {{< /tab >}}
 {{< /tabs >}}
