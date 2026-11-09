@@ -635,7 +635,7 @@ FROM ML_PREDICT(...)
 Configure sufficient memory and network buffers for high-throughput scenarios:
 ```yaml
 taskmanager.memory.managed.size: 2gb
-taskmanager.network.memory.fraction: 0.2
+taskmanager.memory.network.fraction: 0.2
 ```
 
 ## Error Handling

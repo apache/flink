@@ -82,10 +82,10 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 {{< /tab >}}
 {{< /tabs >}}
 
-或者在 `flink-conf.yml` 配置文件中增加配置：
+或者在 `config.yaml` 配置文件中增加配置：
 
 ```yaml
-execution.checkpointing.unaligned: true
+execution.checkpointing.unaligned.enabled: true
 ```
 
 ### 对齐 Checkpoint 的超时
@@ -97,7 +97,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 ```
 
-或是在 `flink-conf.yml` 配置文件中配置：
+或是在 `config.yaml` 配置文件中配置：
 
 ```yaml
 execution.checkpointing.aligned-checkpoint-timeout: 30 s

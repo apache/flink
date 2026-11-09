@@ -217,7 +217,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 ```yaml
 # 用于存储 operator state 快照的 State Backend
 
-state.backend: hashmap
+state.backend.type: hashmap
 
 
 # 存储快照的目录
@@ -520,7 +520,7 @@ env.enable_changelog_state_backend(True)
 ####  使用 Flink 配置文件
 
 ```yaml
-state.backend: hashmap
+state.backend.type: hashmap
 
 # Optional, Flink will automatically default to JobManagerCheckpointStorage
 # when no checkpoint directory is specified.
@@ -555,7 +555,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 #### 使用 Flink 配置文件
 
 ```yaml
-state.backend: hashmap
+state.backend.type: hashmap
 execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
@@ -592,7 +592,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 
 # Advanced FsStateBackend configurations, such as write buffer size
 # can be set manually by using CheckpointingOptions.
-config.set_string('state.storage.fs.write-buffer-size', '4096');
+config.set_string('execution.checkpointing.write-buffer-size', '4096');
 env.configure(config);
 ```
 {{< /tab >}}
@@ -605,7 +605,7 @@ env.configure(config);
 #### 使用 Flink 配置文件
 
 ```yaml
-state.backend: rocksdb
+state.backend.type: rocksdb
 execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
@@ -644,7 +644,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 # If you manually passed FsStateBackend into the RocksDBStateBackend constructor
 # to specify advanced checkpointing configurations such as write buffer size,
 # you can achieve the same results by using CheckpointingOptions.
-config.set_string('state.storage.fs.write-buffer-size', '4096');
+config.set_string('execution.checkpointing.write-buffer-size', '4096');
 env.configure(config);
 ```
 {{< /tab >}}

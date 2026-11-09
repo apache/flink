@@ -426,7 +426,7 @@ $ ./bin/flink run \
     -Dkubernetes.cluster-id=my-checkpoint-cluster \
     -Dkubernetes.container.image.ref=flink:latest \
     -Dkubernetes.persistent-volume-claims=flink-checkpoints-pvc:/opt/flink/checkpoints \
-    -Dstate.checkpoints.dir=file:///opt/flink/checkpoints \
+    -Dexecution.checkpointing.dir=file:///opt/flink/checkpoints \
     local:///opt/flink/usrlib/my-flink-job.jar
 ```
 

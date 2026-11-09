@@ -685,7 +685,7 @@ FROM ML_PREDICT(...)
 为高吞吐量场景配置足够的内存和网络缓冲区：
 ```yaml
 taskmanager.memory.managed.size: 2gb
-taskmanager.network.memory.fraction: 0.2
+taskmanager.memory.network.fraction: 0.2
 ```
 
 <a name="error-handling"></a>
