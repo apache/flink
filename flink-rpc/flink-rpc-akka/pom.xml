@@ -93,12 +93,12 @@ under the License.
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-handler</artifactId>
-			<optional>${flink.markBundledAsOptional}</optional>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-transport</artifactId>
-			<optional>${flink.markBundledAsOptional}</optional>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -181,19 +181,6 @@ under the License.
 								</relocation>
 							</relocations>
 							<filters>
-								<filter>
-									<artifact>io.netty:*</artifact>
-									<excludes>
-										<!-- Only some of these licenses actually apply to the JAR and have been manually
-											 placed in this module's resources directory. -->
-										<exclude>META-INF/license/**</exclude>
-										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
-											 copied into this modules's NOTICE file. -->
-										<exclude>META-INF/NOTICE.txt</exclude>
-										<!-- Drop stale JPMS descriptor; after relocation it points at packages that no longer exist. -->
-										<exclude>META-INF/**/module-info.class</exclude>
-									</excludes>
-								</filter>
 								<filter>
 									<artifact>org.scala-lang:*</artifact>
 									<excludes>
