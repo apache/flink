@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       workflow-caller-id: java11
-      environment: 'PROFILE="-Dinclude_hadoop_aws -Djdk11 -Pjava11-target"'
+      environment: 'PROFILE="-Djdk11 -Pjava11-target"'
       jdk_version: 11
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
@@ -48,7 +48,7 @@ jobs:
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       workflow-caller-id: java21
-      environment: 'PROFILE="-Dinclude_hadoop_aws -Djdk21 -Pjava21-target"'
+      environment: 'PROFILE="-Djdk21 -Pjava21-target"'
       jdk_version: 21
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
