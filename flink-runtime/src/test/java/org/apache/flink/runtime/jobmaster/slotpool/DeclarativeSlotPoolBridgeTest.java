@@ -273,7 +273,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                     declarativeSlotPoolBridge.offerSlots(
                                             localTaskManagerLocation,
                                             new SimpleAckingTaskManagerGateway(),
-                                            Collections.singleton(
+                                            Set.of(
                                                     new SlotOffer(
                                                             allocationId, 0, ResourceProfile.ANY)));
                                 },
@@ -283,7 +283,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                 assertThat(slotFuture.join().getAllocationId()).isSameAs(allocationId);
             }
         } finally {
-            scheduledExecutorService.shutdown();
+            scheduledExecutorService.shutdownNow();
         }
     }
 
