@@ -1555,8 +1555,9 @@ variant:
     table: VARIANT.at(INT)
     description: |
       If the VARIANT is an array, returns a VARIANT holding the element at the index. The index
-      starts at 1. If the index is out of range, returns NULL. If the VARIANT is not an array, an
-      error is thrown. To return NULL instead, use `VARIANT_GET`.
+      starts at 1. A literal index below 1 fails during planning. Any other index out of range
+      returns NULL. If the VARIANT is not an array, an error is thrown. To return NULL instead, use
+      `VARIANT_GET`.
 
   - sql: variant '[' STRING ']'
     table: VARIANT.at(STRING)
