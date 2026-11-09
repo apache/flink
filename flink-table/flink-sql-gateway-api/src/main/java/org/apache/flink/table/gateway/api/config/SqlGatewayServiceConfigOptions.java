@@ -65,7 +65,7 @@ public class SqlGatewayServiceConfigOptions {
                     .defaultValue(100)
                     .withDescription(
                             "Plan cache size, it takes effect iff "
-                                    + "`table.optimizer.plan-cache.enabled` is true.");
+                                    + "`sql-gateway.session.plan-cache.enabled` is true.");
 
     public static final ConfigOption<Duration> SQL_GATEWAY_SESSION_PLAN_CACHE_TTL =
             key("sql-gateway.session.plan-cache.ttl")
@@ -74,7 +74,7 @@ public class SqlGatewayServiceConfigOptions {
                     .withDescription(
                             "TTL for plan cache, it controls how long will the "
                                     + "cache expire after write, it takes effect iff "
-                                    + "`table.optimizer.plan-cache.enabled` is true.");
+                                    + "`sql-gateway.session.plan-cache.enabled` is true.");
 
     public static final ConfigOption<Integer> SQL_GATEWAY_WORKER_THREADS_MAX =
             key("sql-gateway.worker.threads.max")
