@@ -57,7 +57,7 @@ class MultiJoinUtilTest {
                 REX_BUILDER.makeCall(SqlStdOperatorTable.GREATER_THAN, inputRef(5), inputRef(1));
         // input 1 has the key (0), input 2 has the keys (0, 1) and (0)
         assertThat(
-                        MultiJoinUtil.createConditionFields(
+                        MultiJoinUtil.createNonKeyConditionFields(
                                 INPUT_TYPES,
                                 Arrays.asList(null, equals(0, 2), and(equals(2, 4), greaterThan)),
                                 List.of(

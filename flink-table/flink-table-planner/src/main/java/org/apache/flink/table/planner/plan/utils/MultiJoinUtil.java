@@ -77,15 +77,15 @@ public class MultiJoinUtil {
 
     /**
      * Returns, for each input, the indices of the fields that the join conditions read and that are
-     * not part of every key of the input. Two versions of a record have the same key, so only these
-     * fields can make the join conditions match them differently.
+     * not part of every key of the input. Two versions of a record have the same key, so if they
+     * agree on these fields, they match the same rows.
      *
      * @param inputRowTypes the row types of all inputs
      * @param joinConditions the join condition of each input, over the fields of all inputs up to
      *     and including it
      * @param inputKeys the keys of each input
      */
-    public static int[][] createConditionFields(
+    public static int[][] createNonKeyConditionFields(
             final List<RowType> inputRowTypes,
             final List<? extends @Nullable RexNode> joinConditions,
             final List<List<int[]>> inputKeys) {

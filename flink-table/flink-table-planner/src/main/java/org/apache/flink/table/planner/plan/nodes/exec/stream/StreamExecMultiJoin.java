@@ -261,7 +261,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         final GeneratedJoinCondition[] generatedJoinConditions =
                 createJoinConditions(config, classLoader, inputRowTypes);
         final int[][] conditionFields =
-                MultiJoinUtil.createConditionFields(inputRowTypes, joinConditions, inputKeys);
+                MultiJoinUtil.createNonKeyConditionFields(inputRowTypes, joinConditions, inputKeys);
 
         final StreamOperatorFactory<RowData> operatorFactory =
                 createOperatorFactory(
