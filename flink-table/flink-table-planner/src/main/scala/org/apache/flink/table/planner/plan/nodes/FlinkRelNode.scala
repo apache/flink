@@ -49,7 +49,7 @@ trait FlinkRelNode extends RelNode {
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
-      localExprsTable: Option[List[RexNode]],
+      localExprsTable: Option[IndexedSeq[RexNode]],
       sqlExplainLevel: SqlExplainLevel): String = {
     getExpressionString(expr, inFields, localExprsTable, ExpressionFormat.Prefix, sqlExplainLevel)
   }
@@ -57,7 +57,7 @@ trait FlinkRelNode extends RelNode {
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
-      localExprsTable: Option[List[RexNode]],
+      localExprsTable: Option[IndexedSeq[RexNode]],
       expressionDetail: ExpressionDetail): String = {
     getExpressionString(expr, inFields, localExprsTable, ExpressionFormat.Prefix, expressionDetail)
   }
@@ -65,7 +65,7 @@ trait FlinkRelNode extends RelNode {
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
-      localExprsTable: Option[List[RexNode]],
+      localExprsTable: Option[IndexedSeq[RexNode]],
       expressionFormat: ExpressionFormat,
       sqlExplainLevel: SqlExplainLevel): String = {
     getExpressionString(
@@ -79,7 +79,7 @@ trait FlinkRelNode extends RelNode {
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
-      localExprsTable: Option[List[RexNode]],
+      localExprsTable: Option[IndexedSeq[RexNode]],
       expressionFormat: ExpressionFormat,
       expressionDetail: ExpressionDetail): String = {
     FlinkRexUtil.getExpressionString(

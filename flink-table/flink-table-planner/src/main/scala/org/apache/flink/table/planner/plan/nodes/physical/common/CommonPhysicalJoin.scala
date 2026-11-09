@@ -77,7 +77,7 @@ abstract class CommonPhysicalJoin(
         getExpressionString(
           getCondition,
           inputRowType.getFieldNames.toList,
-          Option.empty[List[RexNode]],
+          Option.empty[IndexedSeq[RexNode]],
           preferExpressionFormat(pw),
           preferExpressionDetail(pw))
       )
