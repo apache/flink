@@ -458,15 +458,20 @@ public class SqlFunctionUtils {
             return null;
         }
         try {
-            return REGEXP_PATTERN_CACHE
-                    .get(regex)
-                    .matcher(str)
-                    .replaceAll(Matcher.quoteReplacement(replacement));
+            return regexpReplace(str, REGEXP_PATTERN_CACHE.get(regex), replacement);
         } catch (PatternSyntaxException e) {
             // Literals are rejected at planning time; non-literal invalid regex
             // returns null to preserve the prior runtime contract.
             return null;
         }
+    }
+
+    /**
+     * {@link #regexpReplace(String, String, String)} with a compiled pattern, for non-null
+     * arguments.
+     */
+    public static String regexpReplace(String str, Pattern pattern, String replacement) {
+        return pattern.matcher(str).replaceAll(Matcher.quoteReplacement(replacement));
     }
 
     /**
@@ -478,17 +483,25 @@ public class SqlFunctionUtils {
             return null;
         }
         try {
-            final Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
-            if (m.groupCount() < extractIndex) {
-                return null;
-            }
-            if (m.find()) {
-                return m.group(extractIndex);
-            }
+            return regexpExtract(str, REGEXP_PATTERN_CACHE.get(regex), extractIndex);
         } catch (PatternSyntaxException e) {
             // non-literal invalid regex returns null.
         }
         return null;
+    }
+
+    /**
+     * {@link #regexpExtract(String, String, int)} with a compiled pattern, for non-null arguments.
+     */
+    public static String regexpExtract(String str, Pattern pattern, int extractIndex) {
+        if (extractIndex < 0) {
+            return null;
+        }
+        final Matcher m = pattern.matcher(str);
+        if (m.groupCount() < extractIndex) {
+            return null;
+        }
+        return m.find() ? m.group(extractIndex) : null;
     }
 
     public static String regexpExtract(String str, String regex, long extractIndex) {
@@ -989,12 +1002,21 @@ public class SqlFunctionUtils {
             return false;
         }
         try {
-            return REGEXP_PATTERN_CACHE.get(regex).matcher(s).find(0);
+            return regExp(s, REGEXP_PATTERN_CACHE.get(regex));
         } catch (PatternSyntaxException e) {
             // Literals are rejected at planning time; non-literal invalid regex
             // returns false to preserve the prior runtime contract.
             return false;
         }
+    }
+
+    /** {@link #regExp(String, String)} with a compiled pattern, for non-null arguments. */
+    public static boolean regExp(String s, Pattern pattern) {
+        // an empty pattern never matches
+        if (pattern.pattern().isEmpty()) {
+            return false;
+        }
+        return pattern.matcher(s).find(0);
     }
 
     public static Byte bitAnd(Byte a, Byte b) {
