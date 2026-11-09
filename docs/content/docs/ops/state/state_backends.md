@@ -506,7 +506,7 @@ Resuming from both savepoints and checkpoints is supported:
 ### Limitations
  - At most one concurrent checkpoint
  - As of Flink 1.15, only `filesystem` changelog implementation is available
-- [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
+- [NO_CLAIM]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}}) mode not supported
 
 ## Migrating from Legacy Backends
 

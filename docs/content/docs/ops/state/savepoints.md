@@ -242,7 +242,7 @@ same snapshot.
 
 In order to make sure Flink does not depend on any of the files from that snapshot,
 it will force the first (successful) checkpoint to be a full checkpoint as opposed to an incremental one. 
-This only makes a difference for `state.backend: rocksdb`, because all other state backends always take full checkpoints.
+This only makes a difference for `state.backend.type: rocksdb`, because all other state backends always take full checkpoints.
 
 Once the first full checkpoint completes, all subsequent checkpoints will be taken as usual/configured.
 Consequently, once a checkpoint succeeds you can manually delete the original snapshot. You can not do

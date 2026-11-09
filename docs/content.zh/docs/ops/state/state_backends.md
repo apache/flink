@@ -500,7 +500,7 @@ env.enable_changelog_state_backend(True)
 ### 限制
 - 最多同时创建一个 checkpoint
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
-- 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
+- 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}}) 模式
 
 {{< top >}}
 

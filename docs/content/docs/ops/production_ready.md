@@ -70,7 +70,7 @@ While there is no single correct answer on the perfect checkpoint interval, the 
 
 * **How often must your service deliver results:** Exactly once sinks, such as Kafka or the FileSink, only make results visible on checkpoint completion. Shorter checkpoint intervals make results available more quickly but may also put additional pressure on these systems. It is important to work with stakeholders to find a delivery time that meet product requirements without putting undue load on your sinks.
 
-* **How much load can your Task Managers sustain:** All of Flinks' built-in state backends support asynchronous checkpointing, meaning the snapshot process will not pause data processing. However, it still does require CPU cycles and network bandwidth from your machines. [Incremental checkpointing]({{< ref "docs/deployment/config" >}}#state-backend-incremental) can be a powerful tool to reduce the cost of any given checkpoint.
+* **How much load can your Task Managers sustain:** All of Flinks' built-in state backends support asynchronous checkpointing, meaning the snapshot process will not pause data processing. However, it still does require CPU cycles and network bandwidth from your machines. [Incremental checkpointing]({{< ref "docs/deployment/config" >}}#execution-checkpointing-incremental) can be a powerful tool to reduce the cost of any given checkpoint.
 
 And most importantly, test and measure your job. Every Flink application is unique, and the best way to find the appropriate checkpoint interval is to see how yours behaves in practice. 
 

@@ -202,7 +202,7 @@ scheduler are also available with it. The Flink community is working on addressi
 
   - **Limited integration with Flink’s Web UI**. Slots in fine-grained resource management can have different resource specs. The web UI only shows the slot number without its details at the moment.
 
-  - **Limited integration with batch jobs**. At the moment, fine-grained resource management requires batch workloads to be executed with types of all edges being BLOCKING. To do that, you need to configure [fine-grained.shuffle-mode.all-blocking]({{< ref "docs/deployment/config" >}}#fine-grained-shuffle-mode-all-blocking) to `true`. Notice that this may affect the performance. See [FLINK-20865](https://issues.apache.org/jira/browse/FLINK-20865) for more details.
+  - **Limited integration with batch jobs**. At the moment, fine-grained resource management requires batch workloads to be executed with types of all edges being BLOCKING. Flink converts all edges of such batch jobs to BLOCKING, regardless of [execution.batch-shuffle-mode]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode). Notice that this may affect the performance. See [FLINK-20865](https://issues.apache.org/jira/browse/FLINK-20865) for more details.
 
   - **Hybrid resource requirements are not recommended**. It is not recommended to specify the resource requirements only for some parts of the job and leave the requirements for the rest unspecified. Currently, the unspecified requirement can be fulfilled with slots of any resource. The actual resource acquired by it can be inconsistent across different job executions or failover.
 

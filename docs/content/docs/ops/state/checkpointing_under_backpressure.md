@@ -202,7 +202,7 @@ record that it will soon consume from its checkpointed channels.
 Actions described below are a last resort as they will lead to data loss.
 {{< /hint >}}
 In case of the in-flight data corrupted or by another reason when the job should be restored without the in-flight data, 
-it is possible to use  [recover-without-channel-state.checkpoint-id]({{< ref "docs/deployment/config" >}}#execution-checkpointing-recover-without-channel-state-checkpoint) property.
+it is possible to use  [execution.state-recovery.without-channel-state.checkpoint-id]({{< ref "docs/deployment/config" >}}#execution-state-recovery-without-channel-state-checkpoint-id) property.
 This property requires to specify a checkpoint id for which in-flight data will be ignored.
 Do not set this property, unless a corruption inside the persisted in-flight data has lead to an otherwise unrecoverable situation.
 The property can be applied only after the job will be redeployed which means this operation makes sense only if [externalized checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}#enabling-and-configuring-checkpointing) is enabled.

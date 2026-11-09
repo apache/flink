@@ -1256,7 +1256,7 @@ env.sqlQuery(
 对 `AsyncTableFunction` 的并发调用，其完成顺序可能与输入顺序不一致；但为了保证语义正确，框架仍会按输入顺序把函数输出交给查询下游的算子。即便如此，数据本身仍可能反映实际的完成顺序（例如携带获取时间戳）；这一点是否会影响业务，需要使用方自行判断。
 
 #### 错误处理
-上报错误的主要方式是调用 `CompletableFuture.completeExceptionally(Throwable)`；此外，如果框架在调用 `eval` 时本身就抛出了异常，同样会被视为出错。出错后系统会按照重试策略处理，该策略由 [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}) 控制：若设为 `NO_RETRY`，作业直接失败；若设为 `FIXED_DELAY`，则会在等待 [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) 之后再次发起调用。当失败次数达到 [`table.exec.async-table.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-table-max-attempts" >}}) 上限，或总耗时（含全部重试）超过 [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}})，作业仍会失败。
+上报错误的主要方式是调用 `CompletableFuture.completeExceptionally(Throwable)`；此外，如果框架在调用 `eval` 时本身就抛出了异常，同样会被视为出错。出错后系统会按照重试策略处理，该策略由 [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}) 控制：若设为 `NO_RETRY`，作业直接失败；若设为 `FIXED_DELAY`，则会在等待 [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) 之后再次发起调用。当调用已重试 [`table.exec.async-table.max-retries`]({{< ref "docs/dev/table/config#table-exec-async-table-max-retries" >}}) 次，或总耗时（含全部重试）超过 [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}})，作业仍会失败。
 
 下面的示例演示了如何借助一个后台线程池完成异步任务；当然，任何暴露异步接口的库都可以直接拿来在回调中完成 `CompletableFuture`。更多细节请参阅[实现指南](#implementation-guide)。
 
