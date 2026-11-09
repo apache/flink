@@ -32,6 +32,9 @@ import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,6 +43,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -279,6 +283,22 @@ class JsonParseReuseTest {
         final String code = extractGeneratedCode(sql);
         assertThat(countJsonParse(code))
                 .as("Calls on the same input share one parse even across a CASE boundary")
+                .isOne();
+    }
+
+    @Test
+    void testCallsInDifferentCaseBranchesShareParse() {
+        // each row takes a different branch, conditions on an unrelated column keep both branches
+        final String sql =
+                "SELECT CASE WHEN CHARACTER_LENGTH(other_json) > 3 "
+                        + "THEN JSON_VALUE(json_data, '$.type') "
+                        + "WHEN other_json = '{}' THEN JSON_VALUE(json_data, '$.address.city') "
+                        + "ELSE CAST(NULL AS STRING) END FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("Munich"), Row.of("admin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
+                .as("Calls in different CASE branches on the same input share one parse")
                 .isOne();
     }
 
@@ -585,6 +605,127 @@ class JsonParseReuseTest {
         assertThat(rows).hasSize(2);
         assertThat(countParseJson(extractGeneratedCode(sql)))
                 .as("same input and allowDuplicateKeys should parse once")
+                .isOne();
+    }
+
+    static Stream<Arguments> computedInputInCaseBranches() {
+        return Stream.of(
+                Arguments.of(
+                        "JSON_VALUE(b, '$.type')",
+                        "JSON_VALUE(b, '$.address.city')",
+                        "Munich",
+                        "admin",
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "JSON_TYPE(b)",
+                        "JSON_TYPE(b, '$.roles')",
+                        "array",
+                        "object",
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "JSON_LENGTH(b)", "JSON_LENGTH(b, '$.roles')", 2, 4, JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "CAST(PARSE_JSON(b)['type'] AS STRING)",
+                        "CAST(TRY_PARSE_JSON(b)['address']['city'] AS STRING)",
+                        "Munich",
+                        "admin",
+                        PARSE_JSON_PATTERN),
+                Arguments.of(
+                        "JSON_TYPE(b)",
+                        "JSON_VALUE(b, '$.address.city')",
+                        "Munich",
+                        "object",
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "CAST(JSON_LENGTH(b) AS STRING)",
+                        "JSON_QUERY(b, '$.roles')",
+                        "[\"user\",\"viewer\"]",
+                        "4",
+                        JSON_PARSE_PATTERN));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("computedInputInCaseBranches")
+    void testComputedInputInDifferentCaseBranchesSharesParse(
+            final String firstBranch,
+            final String secondBranch,
+            final Object expectedRow1,
+            final Object expectedRow2,
+            final Pattern parsePattern) {
+        // b = TRIM(json_data) is recomputed in each branch, under a new term each time
+        final String sql =
+                ("SELECT CASE WHEN CHARACTER_LENGTH(other_json) > 3 THEN "
+                                + firstBranch
+                                + " WHEN other_json = '{}' THEN "
+                                + secondBranch
+                                + " ELSE NULL END FROM json_src")
+                        .replace("(b", "(TRIM(BTRIM(json_data))");
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(expectedRow1), Row.of(expectedRow2));
+        assertThat(count(parsePattern, extractGeneratedCode(sql)))
+                .as("Calls on the same computed input in different CASE branches share one parse")
+                .isOne();
+    }
+
+    @Test
+    void testNestedCaseOverComputedJsonValue() {
+        final String sql =
+                "SELECT CASE WHEN c = 'z' THEN c ELSE c END AS c FROM ("
+                        + " SELECT CASE WHEN b = 'z' THEN b ELSE b END AS c FROM ("
+                        + "  SELECT CASE WHEN v = 'z' THEN v ELSE v END AS b FROM ("
+                        + "   SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), "
+                        + "'$.address.city') AS v FROM json_src)))";
+        System.out.println(extractGeneratedCode(sql));
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munich"), Row.of("Berlin"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testComputedJsonValueInBothCaseBranches() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v ELSE CONCAT(v, 'x') END AS r FROM ("
+                        + "SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), "
+                        + "'$.address.city') AS v, other_json LIKE '%x%' AS a FROM json_src)";
+        System.out.println(extractGeneratedCode(sql));
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munichx"), Row.of("Berlin"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testComputedJsonValueNotInEveryCaseBranchStaysLazy() {
+        // v fails for '{}'; that row takes the ELSE branch, so v must not be evaluated for it
+        final String sql =
+                "SELECT CASE WHEN a THEN v WHEN y THEN CONCAT(v, 'x') "
+                        + "ELSE 'none' END AS r FROM ("
+                        + "SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), "
+                        + "'$.x' ERROR ON EMPTY) AS v, other_json LIKE '%x%' AS a, "
+                        + "other_json LIKE '%y%' AS y FROM json_src)";
+        System.out.println(extractGeneratedCode(sql));
+
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("none"), Row.of("1"));
+        final Pattern jsonValueCall =
+                Pattern.compile(
+                        "\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
+        assertThat(count(jsonValueCall, extractGeneratedCode(sql)))
+                .as("v is generated once and computed only for the branches that use it")
+                .isOne();
+    }
+
+    @Test
+    void testComputedJsonValueAcrossCasesIsGeneratedOnce() {
+        // v fails for '{}', which takes no branch that uses it
+        final String sql =
+                "SELECT CASE WHEN a THEN v ELSE CAST(NULL AS STRING) END AS r1, "
+                        + "CASE WHEN b THEN CONCAT(v, 'x') ELSE CAST(NULL AS STRING) END AS r2 "
+                        + "FROM (SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), "
+                        + "'$.x' ERROR ON EMPTY) AS v, other_json LIKE '%x%' AS a, "
+                        + "other_json LIKE '%1%' AS b FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(null, null), Row.of("1", "1x"));
+        final Pattern jsonValueCall =
+                Pattern.compile(
+                        "\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
+        assertThat(count(jsonValueCall, extractGeneratedCode(sql)))
+                .as("v is generated once and shared by both CASEs")
                 .isOne();
     }
 

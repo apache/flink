@@ -26,9 +26,13 @@ import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -103,6 +107,32 @@ class XmlReadReuseTest {
                                 "{\"a\":\"2\"}",
                                 "{\"a\":\"2\"}"));
         assertThat(countReads(sql)).isEqualTo(2);
+    }
+
+    static Stream<Arguments> computedInputInCaseBranches() {
+        return Stream.of(
+                Arguments.of(
+                        "CAST(PARSE_XML(x)['book']['title'] AS STRING)",
+                        "CAST(PARSE_XML(x, TRUE)['book']['title'][1] AS STRING)"),
+                Arguments.of(
+                        "CAST(PARSE_XML(x)['book']['title'] AS STRING)",
+                        "CAST(TRY_PARSE_XML(x, TRUE)['book']['title'][1] AS STRING)"));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("computedInputInCaseBranches")
+    void testComputedInputInDifferentCaseBranchesReadsOnce(
+            final String firstBranch, final String secondBranch) {
+        // x = TRIM(xml) is recomputed in each branch, under a new term each time
+        final String sql =
+                ("SELECT CASE WHEN other_xml = '<a>1</a>' THEN "
+                                + firstBranch
+                                + " WHEN other_xml = '<a>2</a>' THEN "
+                                + secondBranch
+                                + " ELSE NULL END FROM xml_src")
+                        .replace("(x", "(TRIM(xml)");
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Dune"), Row.of("Emma"));
+        assertThat(countReads(sql)).isOne();
     }
 
     @Test

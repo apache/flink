@@ -51,6 +51,7 @@ import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
@@ -129,6 +130,42 @@ class ExprCodeGenerator(
         case _ => Array[Int]()
       }
   }
+
+  /**
+   * Local refs used in several places that may not run, e.g. two CASE branches. Each gets one
+   * method that computes it at most once per record.
+   */
+  private lazy val memoizedLocalRefs: Set[Int] = {
+    if (rexProgram == null || input1Type == null) {
+      Set.empty
+    } else {
+      val exprs = rexProgram.getExprList
+      val sites = mutable.Map[Int, Int]().withDefaultValue(0)
+      exprs.foreach {
+        case call: RexCall =>
+          val always = alwaysEvaluatedRefs(call)
+          conditionalOperandIndices(call).foreach(
+            i =>
+              (alwaysEvaluatedRefs(call.getOperands.get(i)) -- always).foreach(
+                idx => sites(idx) += 1))
+        case _ =>
+      }
+      val roots = rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
+      val always = roots.flatMap(alwaysEvaluatedRefs).toSet
+      sites.collect {
+        case (idx, count)
+            if count > 1 && !always(idx) && !usesContext(exprs.get(idx)) =>
+          idx
+      }.toSet
+    }
+  }
+
+  private val alwaysEvaluatedRefsCache = mutable.Map[Int, Set[Int]]()
+
+  private val usesContextCache = mutable.Map[Int, Boolean]()
+
+  // index -> memoized method name as code, with member terms
+  private val memoizedTerms = mutable.Map[Int, GeneratedExpression]()
 
   /**
    * Generates an expression from a RexNode. If objects or variables can be reused, they will be
@@ -450,7 +487,13 @@ class ExprCodeGenerator(
       val full = ctx.getReusableLocalRefExpr(idx) match {
         case Some(cached) => cached
         case None =>
-          val expr = target.accept(this)
+          val expr =
+            if (memoizedLocalRefs.contains(idx)) {
+              val memoized = memoizedTerms.getOrElseUpdate(idx, generateMemoizedMethod(target))
+              memoized.copy(code = s"${memoized.code}($input1Term);")
+            } else {
+              target.accept(this)
+            }
           ctx.addReusableLocalRefExpr(idx, expr)
           expr
       }
@@ -531,6 +574,11 @@ class ExprCodeGenerator(
 
     // convert operands and help giving untyped NULL literals a type
     val condIdxs = conditionalOperandIndices(call)
+    if (condIdxs.nonEmpty && rexProgram != null && input1Type != null) {
+      // refs evaluated on every path are generated once, before the guarded operands
+      alwaysEvaluatedRefs(call).foreach(
+        idx => visitLocalRef(new RexLocalRef(idx, rexProgram.getExprList.get(idx).getType)))
+    }
     val operands = call.getOperands.zipWithIndex.map {
 
       // this helps e.g. for AS(null)
@@ -575,6 +623,105 @@ class ExprCodeGenerator(
     case SqlKind.OTHER_FUNCTION if call.getOperator == IF || isCoalesceLike(call.getOperator) =>
       (1 until call.getOperands.size).toSet
     case _ => Set.empty
+  }
+
+  /** Indices of the local refs to calls that are evaluated on every execution path of `node`. */
+  private def alwaysEvaluatedRefs(node: RexNode): Set[Int] = node match {
+    case ref: RexLocalRef if ref.getIndex >= localRefInputArity =>
+      alwaysEvaluatedRefsCache.getOrElseUpdate(
+        ref.getIndex, {
+          rexProgram.getExprList.get(ref.getIndex) match {
+            case call: RexCall if isDeterministicThroughProgram(call) =>
+              alwaysEvaluatedRefs(call) + ref.getIndex
+            case _ => Set.empty
+          }
+        }
+      )
+    case call: RexCall if call.getKind == SqlKind.CASE || call.getOperator == IF =>
+      // when_i + (then_i intersect rest), from ELSE backwards; no recursion for large CASEs
+      val ops = call.getOperands.toIndexedSeq
+      ops.init.grouped(2).toVector.foldRight(alwaysEvaluatedRefs(ops.last)) {
+        case (Seq(when, thenValue), rest) =>
+          alwaysEvaluatedRefs(when) ++ alwaysEvaluatedRefs(thenValue).intersect(rest)
+      }
+    case call: RexCall =>
+      // guarded operands may be skipped
+      val guarded = conditionalOperandIndices(call)
+      call.getOperands.zipWithIndex
+        .collect { case (operand, i) if !guarded(i) => alwaysEvaluatedRefs(operand) }
+        .flatten
+        .toSet
+    case _ => Set.empty
+  }
+
+  /**
+   * Whether the expression reads the process function context, which a member method can't. Other
+   * operators reading it (PROCTIME_MATERIALIZE, CURRENT_WATERMARK) are not deterministic, so they
+   * are never memoized.
+   */
+  private def usesContext(node: RexNode): Boolean = node match {
+    case ref: RexLocalRef if ref.getIndex >= localRefInputArity =>
+      usesContextCache.getOrElseUpdate(
+        ref.getIndex,
+        usesContext(rexProgram.getExprList.get(ref.getIndex)))
+    case call: RexCall =>
+      call.getOperator == STREAMRECORD_TIMESTAMP || call.getOperands.exists(usesContext)
+    case _ => false
+  }
+
+  /**
+   * Generates `void localRef$N(RowData in)`, which computes the expression into members once per
+   * record. The expression is generated in isolation: own local variables, own input access and an
+   * empty local-ref cache, as the method can't see the variables of the calling method.
+   */
+  private def generateMemoizedMethod(target: RexNode): GeneratedExpression = {
+    val resultType = FlinkTypeFactory.toLogicalType(target.getType)
+    val method = newName(ctx, "localRef")
+    val Seq(resultTerm, nullTerm, doneTerm, inputTerm) =
+      newNames(ctx, "localRefResult", "localRefIsNull", "localRefDone", "localRefIn")
+    ctx.addReusableMember(s"${primitiveTypeTermForType(resultType)} $resultTerm;")
+    ctx.addReusableMember(s"boolean $nullTerm;")
+    ctx.addReusableMember(s"boolean $doneTerm;")
+    ctx.addReusablePerRecordStatement(s"$doneTerm = false;")
+
+    val savedInputTerm = input1Term
+    input1Term = inputTerm
+    val (expr, localVariables, inputAccess, localRefs) =
+      try {
+        ctx.inSeparateMethod(method) {
+          val expr = target.accept(this)
+          val inputKeys = ctx.reusableInputUnboxingExprs.keys.filter(_._1 == inputTerm).toSeq
+          val inputAccess = inputKeys.map(ctx.reusableInputUnboxingExprs(_).code).mkString("\n")
+          inputKeys.foreach(ctx.reusableInputUnboxingExprs.remove)
+          val localRefs =
+            ctx.getReusableLocalRefExprBottomScope.values.map(_.code).mkString("\n")
+          (expr, ctx.reuseLocalVariableCode(method), inputAccess, localRefs)
+        }
+      } finally {
+        input1Term = savedInputTerm
+      }
+
+    ctx.addReusableMember(
+      s"""
+         |private void $method(${boxedTypeTermForType(input1Type)} $inputTerm) throws Exception {
+         |  if ($doneTerm) {
+         |    return;
+         |  }
+         |  $localVariables
+         |  $inputAccess
+         |  $localRefs
+         |  ${expr.code}
+         |  $resultTerm = ${expr.resultTerm};
+         |  $nullTerm = ${expr.nullTerm};
+         |  $doneTerm = true;
+         |}
+         |""".stripMargin)
+    GeneratedExpression(resultTerm, nullTerm, method, resultType)
+  }
+
+  private def localRefInputArity: Int = input1Type match {
+    case r: RowType => r.getFieldCount
+    case _ => 1
   }
 
   private def isCoalesceLike(operator: SqlOperator): Boolean = operator match {
