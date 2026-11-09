@@ -169,7 +169,7 @@ with_timestamp_and_watermarks = stream \
 
 with_timestamp_and_watermarks \
     .key_by(lambda e: e.get_group()) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(10))) \
     .reduce(lambda a, b: a.add(b)) \
     .add_sink(...)
 ```
@@ -484,12 +484,12 @@ DataStream<String> stream = env.fromSource(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-kafka_source = KafkaSource.builder()
-    .set_bootstrap_servers(brokers)
-    .set_topics("my-topic")
-    .set_group_id("my-group")
-    .set_starting_offsets(KafkaOffsetsInitializer.earliest())
-    .set_value_only_deserializer(SimpleStringSchema())
+kafka_source = KafkaSource.builder() \
+    .set_bootstrap_servers(brokers) \
+    .set_topics("my-topic") \
+    .set_group_id("my-group") \
+    .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
+    .set_value_only_deserializer(SimpleStringSchema()) \
     .build()
 
 stream = env.from_source(

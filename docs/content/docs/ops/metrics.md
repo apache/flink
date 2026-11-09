@@ -286,8 +286,8 @@ class MyMapperMeter(MapFunction):
 
     def open(self, runtime_context: RuntimeContext):
         # an average rate of events per second over 120s, default is 60s.
-        self.meter = runtime_context
-            .get_metrics_group()
+        self.meter = runtime_context \
+            .get_metrics_group() \
             .meter("my_meter", time_span_in_seconds=120)
 
     def map(self, value: str):
@@ -374,12 +374,12 @@ counter = getRuntimeContext()
 ```python
 
 counter = runtime_context \
-    .get_metric_group() \
+    .get_metrics_group() \
     .add_group("my_metrics") \
     .counter("my_counter")
 
 counter = runtime_context \
-    .get_metric_group() \
+    .get_metrics_group() \
     .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 

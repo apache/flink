@@ -122,8 +122,8 @@ val tables = tableEnv.listTables()
 table_env = TableEnvironment.create(...)
 
 # 字符串数组： ["Orders"]
-tables = table_env.listTables()
-# or table_env.executeSql("SHOW TABLES").print()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 
 # 从 catalog 删除 “Orders” 表
 table_env.execute_sql("DROP TABLE Orders")

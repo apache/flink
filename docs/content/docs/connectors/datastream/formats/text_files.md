@@ -89,7 +89,7 @@ final DataStream<String> stream =
 ```python
 source = FileSource \
     .for_record_stream_format(StreamFormat.text_line_format(), *path) \
-    .monitor_continously(Duration.of_seconds(1)) \
+    .monitor_continuously(Duration.of_seconds(1)) \
     .build()
 stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
 ```

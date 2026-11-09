@@ -110,7 +110,7 @@ from pyflink.table import *
 table_env = ... # see "Create a TableEnvironment" section
 
 # Create a source table
-table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
+table_env.execute_sql("""CREATE TEMPORARY TABLE SourceTable (
   f0 STRING
 ) WITH (
   'connector' = 'datagen',
@@ -119,7 +119,7 @@ table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
 """)
 
 # Create a sink table
-table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
+table_env.execute_sql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
 
 # Create a Table from a Table API query
 table1 = table_env.from_path("SourceTable").select(...)
@@ -309,7 +309,7 @@ table_env = ... # see "Create a TableEnvironment" section
 proj_table = table_env.from_path("X").select(...)
 
 # register the Table projTable as table "projectedTable"
-table_env.register_table("projectedTable", proj_table)
+table_env.create_temporary_view("projectedTable", proj_table)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -765,10 +765,10 @@ pipeline.execute()
 table_env = ... # see "Create a TableEnvironment" section
 
 # create a TableSink
-schema = Schema.new_builder()
-    .column("a", DataTypes.INT())
-    .column("b", DataTypes.STRING())
-    .column("c", DataTypes.BIGINT())
+schema = Schema.new_builder() \
+    .column("a", DataTypes.INT()) \
+    .column("b", DataTypes.STRING()) \
+    .column("c", DataTypes.BIGINT()) \
     .build()
     
 table_env.create_temporary_table("CsvSinkTable", TableDescriptor.for_connector("filesystem")
@@ -1162,9 +1162,9 @@ println(explanation)
 settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings=settings)
 
-schema = Schema.new_builder()
-    .column("count", DataTypes.INT())
-    .column("word", DataTypes.STRING())
+schema = Schema.new_builder() \
+    .column("count", DataTypes.INT()) \
+    .column("word", DataTypes.STRING()) \
     .build()
 
 t_env.create_temporary_table("MySource1", TableDescriptor.for_connector("filesystem")

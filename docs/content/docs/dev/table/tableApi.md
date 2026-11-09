@@ -331,9 +331,11 @@ val table = tEnv.fromValues(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from decimal import Decimal
+
 table = t_env.from_elements(
-  [(1, 'ABC'), (2, 'ABCDE')],
-  schema=DataTypes.Row([DataTypes.FIELD('id', DataTypes.DECIMAL(10, 2)),
+  [(Decimal(1), 'ABC'), (Decimal(2), 'ABCDE')],
+  schema=DataTypes.ROW([DataTypes.FIELD('id', DataTypes.DECIMAL(10, 2)),
                         DataTypes.FIELD('name', DataTypes.STRING())]))
 ```
 {{< /tab >}}
@@ -499,7 +501,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import concat
+from pyflink.table.expressions import col, concat
 
 orders = t_env.from_path("Orders")
 result = orders.add_columns(concat(col("c"), 'sunny'))
@@ -530,7 +532,7 @@ val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import concat
+from pyflink.table.expressions import col, concat
 
 orders = t_env.from_path("Orders")
 result = orders.add_or_replace_columns(concat(col("c"), 'sunny').alias('desc'))
@@ -664,7 +666,7 @@ from pyflink.table.window import Tumble
 from pyflink.table.expressions import lit, col
 
 orders = t_env.from_path("Orders")
-result = orders.window(Tumble.over(lit(5).minutes).on(col('rowtime')).alias("w")) \ 
+result = orders.window(Tumble.over(lit(5).minutes).on(col('rowtime')).alias("w")) \
                .group_by(col('a'), col('w')) \
                .select(col('a'), col('w').start, col('w').end, col('b').sum.alias('d'))
 ```
@@ -1002,7 +1004,7 @@ val result = left.join(right)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, lit
 
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
@@ -2485,6 +2487,7 @@ Performs an aggregate operation with a python [general aggregate function]({{< r
 from pyflink.common import Row
 from pyflink.table import DataTypes
 from pyflink.table.udf import AggregateFunction, udaf
+from pyflink.table.expressions import col
 
 class CountAndSumAggregateFunction(AggregateFunction):
 

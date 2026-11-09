@@ -132,8 +132,9 @@ ssg_b = SlotSharingGroup.builder('b') \
             .set_task_heap_memory_mb(100) \
             .build()
 
-some_stream.filter(...).slot_sharing_group('a') # Set the slot sharing group with name "a"
-.map(...).slot_sharing_group(ssg_b) # Directly set the slot sharing group with name and resource.
+# Set the slot sharing group with name "a", then directly set the slot sharing group with name and resource.
+some_stream.filter(...).slot_sharing_group('a') \
+    .map(...).slot_sharing_group(ssg_b)
 
 env.register_slot_sharing_group(ssg_a) # Then register the resource of group "a"
 ```

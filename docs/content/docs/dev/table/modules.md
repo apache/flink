@@ -260,7 +260,7 @@ tableEnv.executeSql("SHOW FULL MODULES").print()
 from pyflink.table import *
 
 # environment configuration
-settings = EnvironmentSettings.inStreamingMode()
+settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(settings)
 
 # Show initially loaded and enabled modules
@@ -633,7 +633,7 @@ tableEnv.listFullModules()
 from pyflink.table import *
 
 # environment configuration
-settings = EnvironmentSettings.inStreamingMode()
+settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(settings)
 
 # Show initially loaded and enabled modules

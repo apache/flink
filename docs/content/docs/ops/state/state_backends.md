@@ -474,7 +474,7 @@ env.enableChangelogStateBackend(true);
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
-env.enable_changelog_statebackend(true)
+env.enable_changelog_state_backend(True)
 ```
 {{< /tab >}}
 {{< /tabs >}}

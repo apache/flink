@@ -136,12 +136,12 @@ println(tableResult1.getJobClient().get().getJobStatus())
 table_env = TableEnvironment.create(...)
 
 # 注册一个 "Orders" 源表，和 "RubberOrders" 结果表
-table_env.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
-table_env.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
+table_env.execute_sql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
 
 # 运行一条 INSERT 语句，将源表的数据输出到结果表中
 table_result1 = table_env \
-    .executeSql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+    .execute_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 # 通过 TableResult 来获取作业状态
 print(table_result1.get_job_client().get_job_status())
 

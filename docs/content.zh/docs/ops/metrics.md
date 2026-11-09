@@ -374,12 +374,12 @@ counter = getRuntimeContext()
 ```python
 
 counter = runtime_context \
-    .get_metric_group() \
+    .get_metrics_group() \
     .add_group("my_metrics") \
     .counter("my_counter")
 
 counter = runtime_context \
-    .get_metric_group() \
+    .get_metrics_group() \
     .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 
@@ -457,8 +457,8 @@ counter = getRuntimeContext()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-counter = runtime_context
-    .get_metric_group() \
+counter = runtime_context \
+    .get_metrics_group() \
     .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 ```

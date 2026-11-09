@@ -162,11 +162,11 @@ tableResult2.print()
 settings = EnvironmentSettings.new_instance()...
 table_env = StreamTableEnvironment.create(env, settings)
 
-t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
-t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
+table_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
+table_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
 
 # 调用 TableEnvironment.explain_sql() 来解释 SELECT 语句
-explanation1 = t_env.explain_sql(
+explanation1 = table_env.explain_sql(
     "SELECT `count`, COUNT(word) FROM (" 
     "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
@@ -174,7 +174,7 @@ explanation1 = t_env.explain_sql(
 print(explanation1)
 
 # 调用 TableEnvironment.execute_sql() 来解释 SELECT 语句
-table_result = t_env.execute_sql(
+table_result = table_env.execute_sql(
     "EXPLAIN PLAN FOR "
     "SELECT `count`, COUNT(word) FROM (" 
     "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
@@ -182,7 +182,7 @@ table_result = t_env.execute_sql(
     "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`")
 table_result.print()
 
-table_result2 = t_env.execute_sql(
+table_result2 = table_env.execute_sql(
     "EXPLAIN ESTIMATED_COST, CHANGELOG_MODE, PLAN_ADVICE, JSON_EXECUTION_PLAN "
     "SELECT `count`, COUNT(word) FROM (" 
     "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "

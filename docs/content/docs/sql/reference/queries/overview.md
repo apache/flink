@@ -102,19 +102,20 @@ result = table_env \
     .sql_query("SELECT SUM(amount) FROM %s WHERE product LIKE '%%Rubber%%'" % table)
 
 # create and register a TableSink
-schema = Schema.new_builder()
-    .column("product", DataTypes.STRING())
-    .column("amount", DataTypes.INT())
+schema = Schema.new_builder() \
+    .column("product", DataTypes.STRING()) \
+    .column("amount", DataTypes.INT()) \
     .build()
 
-sink_descriptor = TableDescriptor.for_connector("filesystem")
-    .schema(schema)
+sink_descriptor = TableDescriptor.for_connector("filesystem") \
+    .schema(schema) \
+    .option("path", "/path/to/file") \
     .format(FormatDescriptor.for_format("csv")
         .option("field-delimiter", ",")
-        .build())
+        .build()) \
     .build()
 
-t_env.create_temporary_table("RubberOrders", sink_descriptor)
+table_env.create_temporary_table("RubberOrders", sink_descriptor)
 
 # run an INSERT SQL on the Table and emit the result to the TableSink
 table_env \

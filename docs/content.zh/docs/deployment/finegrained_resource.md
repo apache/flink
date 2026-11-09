@@ -126,8 +126,9 @@ ssg_b = SlotSharingGroup.builder('b') \
             .set_task_heap_memory_mb(100) \
             .build()
 
-some_stream.filter(...).slot_sharing_group('a') # 设置Slot共享组的名字为‘a’ 
-.map(...).slot_sharing_group(ssg_b) # 直接设置Slot共享组的名字和资源.
+# 设置Slot共享组的名字为‘a’，然后直接设置Slot共享组的名字和资源.
+some_stream.filter(...).slot_sharing_group('a') \
+    .map(...).slot_sharing_group(ssg_b)
 
 env.register_slot_sharing_group(ssg_a) # 注册共享组的资源
 ```

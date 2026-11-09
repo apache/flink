@@ -889,7 +889,7 @@ env.execute();
 ```python
 from datetime import datetime
 from pyflink.common import Row, Types
-from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode,
+from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode, \
     KeyedProcessFunction, RuntimeContext
 from pyflink.datastream.state import ValueStateDescriptor
 from pyflink.table import StreamTableEnvironment, Schema, DataTypes
@@ -1817,7 +1817,7 @@ tableEnv
 from pyflink.common import Row, RowKind
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import DataTypes, StreamTableEnvironment, Schema
+from pyflink.table import ChangelogMode, DataTypes, StreamTableEnvironment, Schema
 
 env = StreamExecutionEnvironment.get_execution_environment()
 t_env = StreamTableEnvironment.create(env)
@@ -2237,7 +2237,7 @@ statement_set.attach_as_datastream()
 
 # define other DataStream API parts
 env.from_collection([4, 5, 6]) \
-   .add_sink(FileSink
+   .sink_to(FileSink
              .for_row_format('/tmp/output', Encoder.simple_string_encoder())
              .build())
 

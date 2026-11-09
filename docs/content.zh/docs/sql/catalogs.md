@@ -273,7 +273,6 @@ val tables = catalog.listTables("mydb") // tables should contain "mytable"
 ```python
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog, CatalogDatabase, ObjectPath, CatalogBaseTable
-from pyflink.table.descriptors import Kafka
 
 settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
@@ -393,17 +392,16 @@ catalog.listTables("mydb");
 ```python
 from pyflink.table import *
 from pyflink.table.catalog import CatalogBaseTable, ObjectPath
-from pyflink.table.descriptors import Kafka
 
 table_schema = TableSchema.builder() \
     .field("name", DataTypes.STRING()) \
     .field("age", DataTypes.INT()) \
     .build()
 
-table_properties = Kafka() \
-    .version("0.11") \
-    .start_from_earlist() \
-    .to_properties()
+table_properties = {
+    "connector": "kafka",
+    "scan.startup.mode": "earliest-offset"
+}
 
 catalog_table = CatalogBaseTable.create_table(schema=table_schema, properties=table_properties, comment="my comment")
 
@@ -417,13 +415,13 @@ catalog.drop_table(ObjectPath("mydb", "mytable"), False)
 catalog.alter_table(ObjectPath("mydb", "mytable"), catalog_table, False)
 
 # rename table
-catalog.rename_table(ObjectPath("mydb", "mytable"), "my_new_table")
+catalog.rename_table(ObjectPath("mydb", "mytable"), "my_new_table", False)
 
 # get table
-catalog.get_table("mytable")
+catalog.get_table(ObjectPath("mydb", "mytable"))
 
 # check if a table exist or not
-catalog.table_exists("mytable")
+catalog.table_exists(ObjectPath("mydb", "mytable"))
 
 # list tables in a database
 catalog.list_tables("mydb")
@@ -488,10 +486,10 @@ catalog.alter_table(ObjectPath("mydb", "mytable"), catalog_table, False)
 catalog.rename_table(ObjectPath("mydb", "myview"), "my_new_view", False)
 
 # get view
-catalog.get_table("myview")
+catalog.get_table(ObjectPath("mydb", "myview"))
 
 # check if a view exist or not
-catalog.table_exists("mytable")
+catalog.table_exists(ObjectPath("mydb", "myview"))
 
 # list views in a database
 catalog.list_views("mydb")
@@ -617,10 +615,10 @@ catalog.drop_function(ObjectPath("mydb", "myfunc"), False)
 catalog.alter_function(ObjectPath("mydb", "myfunc"), catalog_function, False)
 
 # get function
-catalog.get_function("myfunc")
+catalog.get_function(ObjectPath("mydb", "myfunc"))
 
 # check if a function exist or not
-catalog.function_exists("myfunc")
+catalog.function_exists(ObjectPath("mydb", "myfunc"))
 
 # list functions in a database
 catalog.list_functions("mydb")
@@ -648,7 +646,12 @@ tableEnv.createCatalog(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-t_env.register_catalog(catalog)
+from pyflink.common import Configuration
+from pyflink.table.catalog import CatalogDescriptor
+
+conf = Configuration()
+conf.set_string("type", "generic_in_memory")
+t_env.create_catalog("myCatalog", CatalogDescriptor.of("myCatalog", conf))
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}

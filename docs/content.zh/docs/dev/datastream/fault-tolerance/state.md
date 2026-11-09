@@ -311,7 +311,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Duration.ofSeconds(1)) \
+  .new_builder(Time.seconds(1)) \
   .disable_cleanup_in_background() \
   .build()
 ```
@@ -343,7 +343,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Duration.ofSeconds(1)) \
+  .new_builder(Time.seconds(1)) \
   .cleanup_full_snapshot() \
   .build()
 ```
@@ -378,7 +378,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Duration.ofSeconds(1)) \
+  .new_builder(Time.seconds(1)) \
   .cleanup_incrementally(10, True) \
   .build()
 ```

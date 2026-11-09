@@ -123,7 +123,7 @@ dataStream.keyBy(value -> value.f0);
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
-data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result of KeySelector
+data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) # Key by the result of KeySelector
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -177,7 +177,7 @@ dataStream
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -200,7 +200,7 @@ dataStream
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.window_all(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -456,8 +456,8 @@ class MyCoFlatMapFunction(CoFlatMapFunction):
     def flat_map2(self, value):
         yield value[0] + 1
         
-connectedStreams.map(MyCoMapFunction())
-connectedStreams.flat_map(MyCoFlatMapFunction())
+connected_streams.map(MyCoMapFunction())
+connected_streams.flat_map(MyCoFlatMapFunction())
 ```
 {{< /tab >}}
 {{< /tabs>}}
