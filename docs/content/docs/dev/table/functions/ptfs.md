@@ -2147,7 +2147,7 @@ CREATE VIEW Checkouts AS SELECT * FROM CheckoutProcessor(
   on_time => DESCRIPTOR(ts),
   reminderInterval => INTERVAL '1' DAY,
   timeoutInterval => INTERVAL '2' DAY, uid => 'cart-processor'
-)
+);
 
 EXECUTE STATEMENT SET
 BEGIN

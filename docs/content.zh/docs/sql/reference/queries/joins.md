@@ -68,17 +68,17 @@ ON Orders.product_id = Product.id
 SELECT *
 FROM Orders
 LEFT JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 
 SELECT *
 FROM Orders
 RIGHT JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 
 SELECT *
 FROM Orders
 FULL OUTER JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 ```
 
 Interval Joins

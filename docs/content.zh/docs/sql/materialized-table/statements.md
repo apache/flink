@@ -214,14 +214,14 @@ CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '1' HOUR
     REFRESH_MODE = CONTINUOUS
     AS SELECT
-       ...
+       ...;
 
 -- 创建的物化表的刷新模式为全量模式，作业的调度周期为 10 分钟。
 CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '10' MINUTE
     REFRESH_MODE = FULL
     AS SELECT
-       ...
+       ...;
 ```
 
 ## AS <select_statement>

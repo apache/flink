@@ -70,17 +70,17 @@ Returns all rows in the qualified Cartesian product (i.e., all combined rows tha
 SELECT *
 FROM Orders
 LEFT JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 
 SELECT *
 FROM Orders
 RIGHT JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 
 SELECT *
 FROM Orders
 FULL OUTER JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 ```
 
 ### Multiple Regular Joins

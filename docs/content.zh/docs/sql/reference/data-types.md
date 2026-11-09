@@ -1781,10 +1781,10 @@ with `IS NULL`, cast, and passed to aggregate functions such as `COUNT`, `FIRST_
 `LAST_VALUE`.
 
 ```sql
-SELECT v['a'], COUNT(*) FROM t GROUP BY v['a']                             -- fails
-SELECT CAST(v['a'] AS INT), COUNT(*) FROM t GROUP BY CAST(v['a'] AS INT)   -- one group per number
-SELECT * FROM t WHERE v['a'] = PARSE_JSON('1')                             -- fails
-SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1                              -- compares the number
+SELECT v['a'], COUNT(*) FROM t GROUP BY v['a'];                            -- fails
+SELECT CAST(v['a'] AS INT), COUNT(*) FROM t GROUP BY CAST(v['a'] AS INT);  -- one group per number
+SELECT * FROM t WHERE v['a'] = PARSE_JSON('1');                            -- fails
+SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1;                             -- compares the number
 ```
 
 A `PRIMARY KEY` column cannot be a `VARIANT` or a type that contains one either. Declare the key
@@ -1801,8 +1801,8 @@ VARIANT
 Variant type is usually produced by the `PARSE_JSON` or `PARSE_XML` function. For example:
 
 ```sql
-SELECT PARSE_JSON('{"a":1,"b":["a","b","c"]}') AS v
-SELECT PARSE_XML('<a><b>1</b><b>2</b></a>') AS v
+SELECT PARSE_JSON('{"a":1,"b":["a","b","c"]}') AS v;
+SELECT PARSE_XML('<a><b>1</b><b>2</b></a>') AS v;
 ```
 
 {{< /tab >}}
@@ -1882,9 +1882,9 @@ A `UUID` usually comes from a literal, a cast from a string, or the `UUID_V4` an
 functions. For example:
 
 ```sql
-SELECT UUID 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
-SELECT CAST('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' AS UUID)
-SELECT UUID_V7()
+SELECT UUID 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+SELECT CAST('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' AS UUID);
+SELECT UUID_V7();
 ```
 
 {{< /tab >}}

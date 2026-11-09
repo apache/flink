@@ -214,14 +214,14 @@ CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '1' HOUR
     REFRESH_MODE = CONTINUOUS
     AS SELECT
-       ...
+       ...;
 
 -- The refresh mode of the created materialized table is FULL, and the job's schedule cycle is 10 minutes.
 CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '10' MINUTE
     REFRESH_MODE = FULL
     AS SELECT
-       ...
+       ...;
 ```
 
 ## AS <select_statement>

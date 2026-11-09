@@ -411,7 +411,7 @@ CREATE TABLE MyTable (
   WATERMARK FOR ts_field AS ts_field
 ) WITH (
   ...
-)
+);
 
 -- Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
 -- observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp
@@ -421,7 +421,7 @@ CREATE TABLE MyTable (
   WATERMARK FOR ts_field AS ts_field - INTERVAL '0.001' SECOND
 ) WITH (
   ...
-)
+);
 
 -- Sets a watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
 -- Emits watermarks which are the maximum observed timestamp minus the specified delay, e.g. 2 seconds.
@@ -430,7 +430,7 @@ CREATE TABLE MyTable (
   WATERMARK FOR ts_field AS ts_field - INTERVAL '2' SECOND
 ) WITH (
   ...
-)
+);
 ```
 {{< /tab >}}
 {{< /tabs >}}
