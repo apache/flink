@@ -26,8 +26,8 @@ import org.apache.flink.table.types.logical.GeographyType;
  * An internal data structure representing data of {@link GeographyType}.
  *
  * <p>The v1 runtime contract uses OGC:CRS84 and supports the seven standard 2D ISO WKB subtype
- * codes defined by the OGC Simple Feature Access specification. Extended WKB variants such as Z,
- * M, ZM, and EWKB are outside this contract. CRS and SRID metadata are not encoded in the ISO WKB
+ * codes defined by the OGC Simple Feature Access specification. Extended WKB variants such as Z, M,
+ * ZM, and EWKB are outside this contract. CRS and SRID metadata are not encoded in the ISO WKB
  * payload and must be handled at the construction or connector boundary.
  *
  * <p>References:
@@ -35,8 +35,8 @@ import org.apache.flink.table.types.logical.GeographyType;
  * <ul>
  *   <li><a href="https://www.ogc.org/standards/sfa">OGC Simple Feature Access</a>
  *   <li><a href="https://www.opengis.net/def/crs/OGC/1.3/CRS84">OGC:CRS84 definition</a>
- *   <li><a href="https://postgis.net/docs/using_postgis_dbmanagement.html#EWKB_EWKT">PostGIS
- *       EWKB and EWKT documentation</a>
+ *   <li><a href="https://postgis.net/docs/using_postgis_dbmanagement.html#EWKB_EWKT">PostGIS EWKB
+ *       and EWKT documentation</a>
  * </ul>
  */
 @PublicEvolving

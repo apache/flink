@@ -149,10 +149,6 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                     valueLiteral.getValueAs(UUID.class).orElseThrow(IllegalStateException::new));
         }
 
-        if (type.getTypeRoot() == LogicalTypeRoot.GEOGRAPHY) {
-            return convertGeographyLiteral(valueLiteral);
-        }
-
         Object value;
         switch (type.getTypeRoot()) {
             case DECIMAL:
