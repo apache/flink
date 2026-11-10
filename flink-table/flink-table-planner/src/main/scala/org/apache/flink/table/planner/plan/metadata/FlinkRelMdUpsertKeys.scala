@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGr
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil, UpsertKeyUtil}
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -32,7 +32,7 @@ import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelDistribution, RelNode, SingleRel}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rex.{RexNode, RexUtil}
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.util.{Bug, ImmutableBitSet, Util}
 
 import java.util
@@ -75,7 +75,12 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     FlinkRelMdUniqueKeys.INSTANCE.getProjectUniqueKeys(
       projects,
       input,
-      () => FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(input),
+      // a key survives the projection if each column it drops has an equal column that is kept
+      () =>
+        UpsertKeyUtil.getUpsertKeysAlignedTo(
+          input,
+          ImmutableBitSet.of(projects.collect { case ref: RexInputRef => ref.getIndex }: _*),
+          mq),
       ignoreNulls = false
     )
 

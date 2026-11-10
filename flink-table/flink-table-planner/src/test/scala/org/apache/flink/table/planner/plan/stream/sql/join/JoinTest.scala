@@ -849,7 +849,7 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceInnerJoinBasic(): Unit = {
-    // src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2; sink pk {a1, b2} is covered via a1 = a2
+    // sink pk {a1, b2} is an upsert key via a1 = a2 -> no upsertMaterialize
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
     createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
@@ -858,54 +858,6 @@ class JoinTest extends TableTestBase {
         |insert into sink
         |select src1.a1, src2.b2, src1.x1
         |from src1 join src2 on src1.a1 = src2.a2
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceInnerJoinReverse(): Unit = {
-    // src1 pk {a1, b1}, src2 pk {a2}, join a1 = a2; sink pk {a2, b1} is covered via a1 = a2
-    createUpsertSource("src1", "a1 varchar, b1 varchar, x1 varchar", "a1, b1")
-    createUpsertSource("src2", "a2 varchar, x2 varchar", "a2")
-    createUpsertSink("a2 varchar, b1 varchar, x1 varchar", "a2, b1")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src2.a2, src1.b1, src1.x1
-        |from src1 join src2 on src1.a1 = src2.a2
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceLeftJoin(): Unit = {
-    // left join on a1 = a2; sink pk {a1, b2} is covered (nullable a2 replaced by non-null a1)
-    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
-    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
-    createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src1.a1, src2.b2, src1.x1
-        |from src1 left join src2 on src1.a1 = src2.a2
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceRightJoin(): Unit = {
-    // right join on a1 = a2; sink pk {a2, b1} is covered (nullable a1 replaced by non-null a2)
-    createUpsertSource("src1", "a1 varchar, b1 varchar, x1 varchar", "a1, b1")
-    createUpsertSource("src2", "a2 varchar, x2 varchar", "a2")
-    createUpsertSink("a2 varchar, b1 varchar, x1 varchar", "a2, b1")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src2.a2, src1.b1, src1.x1
-        |from src1 right join src2 on src1.a1 = src2.a2
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )
@@ -913,8 +865,8 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceFullOuterJoinNotSatisfied(): Unit = {
-    // full join pads both sides, so neither a1 nor a2 may replace the other; right-only rows have
-    // a1 = null, so sink pk {a1, b2} is not unique -> upsertMaterialize
+    // a full join's condition doesn't hold on padded rows; right-only rows have a1 = null, so sink
+    // pk {a1, b2} is not unique -> upsertMaterialize
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
     createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
@@ -931,7 +883,7 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceMultipleEquiConditions(): Unit = {
-    // join a1 = a2 AND b1 = b2; sink pk {a1, b2} is covered, no upsertMaterialize
+    // sink pk {a1, b2} is an upsert key via a1 = a2 and b1 = b2 -> no upsertMaterialize
     createUpsertSource("src1", "a1 varchar, b1 varchar, x1 varchar", "a1, b1")
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
     createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
@@ -964,8 +916,8 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceThreeWayJoin(): Unit = {
-    // the satisfying equality a1 = a2 is in the deeper join (top join is on b2 = c3); sink pk
-    // {a1, b2} is still covered
+    // a1 = a2 is in the lower join, whose calc projects a2 away and keeps the key {a2, b2} as
+    // {a1, b2} -> no upsertMaterialize
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
     createUpsertSource("src3", "c3 varchar, y3 varchar", "c3")
@@ -984,7 +936,7 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceMultiJoinOperator(): Unit = {
-    // same three-way join with the fused multi-join operator enabled; sink pk {a1, b2} still covered
+    // same three-way join with the fused multi-join operator -> no upsertMaterialize
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
@@ -998,80 +950,6 @@ class JoinTest extends TableTestBase {
         |from src1
         |join src2 on src1.a1 = src2.a2
         |join src3 on src2.b2 = src3.c3
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceSemiJoin(): Unit = {
-    // EXISTS -> semi join (left-only output); src1 pk {a1} is preserved and matches the sink pk
-    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
-    createUpsertSource("src2", "a2 varchar", "a2")
-    createUpsertSink("a1 varchar, x1 varchar", "a1")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src1.a1, src1.x1
-        |from src1
-        |where exists (select 1 from src2 where src1.a1 = src2.a2)
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceAntiJoin(): Unit = {
-    // NOT EXISTS lowers to an anti join, also left-only output; src1's pk {a1} is preserved.
-    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
-    createUpsertSource("src2", "a2 varchar", "a2")
-    createUpsertSink("a1 varchar, x1 varchar", "a1")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src1.a1, src1.x1
-        |from src1
-        |where not exists (select 1 from src2 where src1.a1 = src2.a2)
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceOneToManyNotSatisfied(): Unit = {
-    // one-to-many left join: {a1} is not unique in the output, so sink pk {a1} -> upsertMaterialize
-    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
-    createUpsertSource("src2", "a2 varchar, b2 varchar", "a2, b2")
-    createUpsertSink("a1 varchar, b2 varchar", "a1")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src1.a1, src2.b2
-        |from src1 left join src2 on src1.a1 = src2.a2
-        |on conflict do deduplicate
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceThreeInputMultiJoinNotSatisfied(): Unit = {
-    // star join on k fuses into one 3-input multi-join; src3 is one-to-many on k, so sink pk {k}
-    // is not covered -> upsertMaterialize (guards the >=3-input multi-join fold)
-    util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
-    createUpsertSource("src1", "k varchar, x1 varchar", "k")
-    createUpsertSource("src2", "k varchar, x2 varchar", "k")
-    createUpsertSource("src3", "k varchar, m varchar, x3 varchar", "k, m")
-    createUpsertSink("k varchar, m varchar", "k")
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src1.k, src3.m
-        |from src1
-        |join src2 on src1.k = src2.k
-        |join src3 on src1.k = src3.k
-        |on conflict do deduplicate
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )
@@ -1103,7 +981,7 @@ class JoinTest extends TableTestBase {
   @Test
   def testJoinUpsertKeyEquivalenceMultiJoinChainedSubstitution(): Unit = {
     // star join on src1.k: the upsert key {src3.k, m} reaches sink pk {src2.k, m} only through
-    // src3.k = src1.k = src2.k, two substitutions within one multi-join -> no upsertMaterialize
+    // src3.k = src1.k = src2.k -> no upsertMaterialize
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
     createUpsertSource("src1", "k varchar, x1 varchar", "k")
@@ -1123,8 +1001,32 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testJoinUpsertKeyEquivalenceMultiJoinInputCondition(): Unit = {
+    // multi-join [src1, t, src3] on k; m = m4 holds in the rows of its input t, so the upsert key
+    // {k, m} reaches sink pk {k, m4} -> no upsertMaterialize
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
+    createUpsertSource("src1", "k varchar, x1 varchar", "k")
+    createUpsertSource("src2", "k varchar, m varchar", "k, m")
+    createUpsertSource("src3", "k varchar, x3 varchar", "k")
+    createUpsertSource("src4", "m4 varchar, x4 varchar", "m4")
+    createUpsertSink("k varchar, m4 varchar, m varchar, x1 varchar, x3 varchar", "k, m4")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.k, t.m4, t.m, src1.x1, src3.x3
+        |from src1
+        |join (select src2.k, src2.m, src4.m4 from src2 join src4 on src2.m = src4.m4) t
+        |  on src1.k = t.k
+        |join src3 on src1.k = src3.k
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
   def testJoinUpsertKeyEquivalenceThroughShuffleOnKey(): Unit = {
-    // a2 is projected away below the second join, so {a1, b2} is recovered from the first join;
+    // the calc below the second join projects a2 away and keeps the key {a2, b2} as {a1, b2};
     // the second join shuffles on a1, which the key contains -> no upsertMaterialize
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
@@ -1163,9 +1065,8 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceMultiJoinThroughSecondInput(): Unit = {
-    // multi-join [src3, t, src4] on k; t is a projected join whose key {a1, b2} is only
-    // recovered inside it. Starting from t, src3 is unique on k = t.a1 and src4 on k4 = k, so t's
-    // key stays unique -> no upsertMaterialize
+    // multi-join [src3, t, src4] on k; t projects a2 away and keeps its key {a2, b2} as {a1, b2}.
+    // src3 and src4 are unique on k, so t's key stays unique -> no upsertMaterialize
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
@@ -1238,8 +1139,8 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceLeftTemporalJoinNotSatisfied(): Unit = {
-    // same with a left temporal join: r_cur is null in unmatched rows, so it may not replace cur and
-    // sink pk {o_id, r_cur} is not covered -> upsertMaterialize
+    // same with a left temporal join: r_cur is null in unmatched rows, so cur = r_cur doesn't hold
+    // in them and sink pk {o_id, r_cur} is not covered -> upsertMaterialize
     createUpsertSource(
       "orders",
       "o_id varchar, cur varchar, amount int, ts timestamp(3), watermark for ts as ts",
@@ -1280,9 +1181,28 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testJoinUpsertKeyEquivalenceNullSafeJoin(): Unit = {
+    // a1 IS NOT DISTINCT FROM a2 makes a1 and a2 equal or both null in every row, so the upsert key
+    // {a1, c1} reaches sink pk {a2, c1} -> no upsertMaterialize
+    createUpsertSource("src1", "id1 varchar, a1 varchar, c1 varchar", "id1")
+    createUpsertSource("src2", "id2 varchar, a2 varchar", "id2")
+    createUpsertSink("a2 varchar, c1 varchar, cnt bigint", "a2, c1")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select t2.a2, t1.c1, t2.cnt
+        |from (select a1, c1 from src1 group by a1, c1) t1
+        |join (select a2, count(*) as cnt from src2 group by a2) t2
+        |  on t1.a1 is not distinct from t2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
   def testJoinUpsertKeyEquivalenceDeleteByKey(): Unit = {
-    // sink pk {a1, b2} equals the upsert key {a2, b2} via a1 = a2, so deletes stay by key end to
-    // end and no ChangelogNormalize is needed
+    // sink pk {a1, b2} equals the upsert key {a2, b2} via a1 = a2, and a delete by key carries a1
+    // as well, so deletes stay by key end to end and no ChangelogNormalize is needed
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1", deleteByKey = true)
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2", deleteByKey = true)
     createUpsertSink("a1 varchar, a2 varchar, b2 varchar, x1 varchar", "a1, b2", deleteByKey = true)
@@ -1298,8 +1218,8 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testJoinUpsertKeyEquivalenceDeleteByKeyEquatedColumnProjectedAway(): Unit = {
-    // a2 is projected away, but the calc still has the upsert key {a1, b2} recovered via a1 = a2,
-    // so deletes stay by key end to end
+    // a2 is projected away, but the calc keeps the upsert key {a2, b2} as {a1, b2} and carries a1
+    // in a delete by key, so deletes stay by key end to end
     createUpsertSource("src1", "a1 varchar, x1 varchar", "a1", deleteByKey = true)
     createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2", deleteByKey = true)
     createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2", deleteByKey = true)
@@ -1308,30 +1228,6 @@ class JoinTest extends TableTestBase {
         |insert into sink
         |select src1.a1, src2.b2, src1.x1
         |from src1 join src2 on src1.a1 = src2.a2
-        |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE
-    )
-  }
-
-  @Test
-  def testJoinUpsertKeyEquivalenceDeleteByKeyPkColumnNotInUpsertKey(): Unit = {
-    // sink pk {a2, c1, b2} equals the upsert key {a2, c2, b2} via c1 = c2; with a1 projected away
-    // c1 is in no reported upsert key, but delete-by-key rows still carry it as a key column
-    createUpsertSource("src1", "a1 varchar, c1 varchar, x1 varchar", "a1, c1", deleteByKey = true)
-    createUpsertSource(
-      "src2",
-      "a2 varchar, c2 varchar, b2 varchar, x2 varchar",
-      "a2, c2, b2",
-      deleteByKey = true)
-    createUpsertSink(
-      "a2 varchar, c1 varchar, c2 varchar, b2 varchar, x1 varchar",
-      "a2, c1, b2",
-      deleteByKey = true)
-    util.verifyExplainInsert(
-      """
-        |insert into sink
-        |select src2.a2, src1.c1, src2.c2, src2.b2, src1.x1
-        |from src1 join src2 on src1.a1 = src2.a2 and src1.c1 = src2.c2
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )

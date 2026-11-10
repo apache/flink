@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.`trait`.{DeleteKind, DeleteKindTraitD
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
-import org.apache.flink.table.planner.plan.utils.UpsertKeyEquivalenceUtil
+import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -30,6 +30,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
 
@@ -79,18 +80,24 @@ class StreamPhysicalCalc(
       return null
     }
 
-    // The columns of every output upsert key, including the keys recovered through an equi-join
-    // equivalence that the sink may rely on. Every such column is, by construction of
-    // FlinkRelMdUniqueKeys.getProjectUniqueKeys and UpsertKeyEquivalenceUtil, guaranteed to be a
-    // pass-through of an input field or an injective expression, and is set in a delete-by-key row
-    // (see UpsertKeyEquivalenceUtil.upsertKeyColumns).
-    val keyIndices = UpsertKeyEquivalenceUtil
-      .upsertKeyColumns(this, FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery))
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
+    val outputUpsertKeys = fmq.getUpsertKeys(this)
+    if (outputUpsertKeys == null || outputUpsertKeys.isEmpty) {
+      // no identifiable output key column: fall back to always evaluating the full projection
+      return null
+    }
+
+    // Every column in every candidate is, by construction of
+    // FlinkRelMdUniqueKeys.getProjectUniqueKeys, guaranteed to be a pass-through
+    // of an input field or an injective expression. Columns equal to a key column are
+    // pass-throughs too, and are kept because a key aligned to them needs them (see
+    // UpsertKeyUtil#getUpsertKeysAlignedTo).
+    val keyIndices = UpsertKeyUtil
+      .getEqualColumns(this, ImmutableBitSet.union(outputUpsertKeys), fmq)
       .toArray
     if (keyIndices.nonEmpty) {
       keyIndices
     } else {
-      // no identifiable output key column: fall back to always evaluating the full projection
       null
     }
   }
