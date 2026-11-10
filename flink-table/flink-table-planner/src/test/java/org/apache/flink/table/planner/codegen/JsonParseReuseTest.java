@@ -1052,6 +1052,22 @@ class JsonParseReuseTest {
         assertComputedOnce(sql);
     }
 
+    @Test
+    void testParseSharedInsideAndOutsideMemoizedValue() {
+        // b is computed inline for JSON_VALUE and passed into the method of JSON_TYPE(b), which two
+        // branches share; both must still use one parse of b
+        final String sql =
+                "SELECT JSON_VALUE(b, '$.age'), CASE WHEN a THEN JSON_TYPE(b) END, "
+                        + "CASE WHEN NOT a THEN JSON_TYPE(b) END FROM ("
+                        + "SELECT REGEXP_REPLACE(json_data, 'p', 'q') AS b, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("42", null, "object"), Row.of("30", "object", null));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
     /** One call of JSON_VALUE, of its parse and of REGEXP_REPLACE in the generated code. */
     private void assertComputedOnce(final String sql) {
         final String code = extractGeneratedCode(sql);
