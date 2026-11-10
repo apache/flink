@@ -215,7 +215,7 @@ class LocalSlicingWindowAggOperatorTest {
             harness.processWatermarkStatus(WatermarkStatus.IDLE);
             assertThat(harness.getOutput()).containsExactly(WatermarkStatus.IDLE);
         }
-    }    
+    }
 
     @Test
     void testRepeatedIdleContributionsSurviveRestoreWithoutFiringEarly() throws Exception {
