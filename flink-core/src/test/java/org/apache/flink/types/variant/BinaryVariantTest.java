@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
@@ -55,6 +56,9 @@ class BinaryVariantTest {
     // first. UTF-16 order compares E000 with the surrogate D83D and puts U+1F600 first.
     private static final String BMP_KEY = "\uE000";
     private static final String SUPPLEMENTARY_KEY = "\uD83D\uDE00";
+
+    // Version 1 with an empty key dictionary.
+    private static final String EMPTY_METADATA = "010000";
 
     private BinaryVariantBuilder builder;
 
@@ -590,6 +594,23 @@ class BinaryVariantTest {
     }
 
     @Test
+    void testGetFieldWithGetterRejectsContainerBeyondValue() {
+        final Variant valid = builder.object().add("a", builder.of((byte) 1)).build();
+        // A count of 2^30 with 4-byte ids and offsets in an 11-byte value. In int arithmetic the
+        // offset list wraps onto the id list, so id 0 and offset 0 lead to the INT1 42.
+        final Variant malformed =
+                new BinaryVariant(
+                        StringUtils.hexStringToByte("7e00000040" + "00000000" + "0c2a"),
+                        ((BinaryVariant) valid).getMetadata());
+        final VariantFieldGetter getter = new VariantFieldGetter("a");
+
+        assertThat(getter.getField(valid).getByte()).isEqualTo((byte) 1);
+        assertThatThrownBy(() -> getter.getField(malformed))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    @Test
     void testGetFieldWithGetterWhenIndexChanges() {
         final List<Variant> objects =
                 List.of(
@@ -659,6 +680,51 @@ class BinaryVariantTest {
         assertThatThrownBy(() -> BinaryVariantUtil.metadataSize(StringUtils.hexStringToByte(hex)))
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessage("MALFORMED_VARIANT");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("containersBeyondValue")
+    void testContainerListsBeyondValueAreMalformed(
+            final String reader, final String value, final Consumer<Variant> read) {
+        final Variant variant =
+                new BinaryVariant(
+                        StringUtils.hexStringToByte(value),
+                        StringUtils.hexStringToByte(EMPTY_METADATA));
+
+        assertThatThrownBy(() -> read.accept(variant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    private static Stream<Arguments> containersBeyondValue() {
+        // Each header has a 4-byte count of 2^31 - 1 fields or elements, but the value is 5 bytes.
+        final String object = "42ffffff7f";
+        final String array = "13ffffff7f";
+        final Consumer<Variant> append = v -> new BinaryVariantBuilder().array().add(v).build();
+        final Consumer<Variant> getFieldNames = Variant::getFieldNames;
+        final Consumer<Variant> getArraySize = Variant::getArraySize;
+        final Consumer<Variant> toJson = Variant::toJson;
+        return Stream.of(
+                Arguments.of("getFieldNames", object, getFieldNames),
+                Arguments.of("append object", object, append),
+                Arguments.of("toJson object", object, toJson),
+                Arguments.of("getArraySize", array, getArraySize),
+                Arguments.of("append array", array, append),
+                Arguments.of("toJson array", array, toJson),
+                // An empty container still has one offset, so without it the value is a byte short.
+                Arguments.of("empty object without its offset", "0200", getFieldNames),
+                Arguments.of("empty array without its offset", "0300", getArraySize));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"020000, {}", "030000, []"})
+    void testEmptyContainerFitsExactly(final String value, final String json) {
+        final Variant variant =
+                new BinaryVariant(
+                        StringUtils.hexStringToByte(value),
+                        StringUtils.hexStringToByte(EMPTY_METADATA));
+
+        assertThat(variant.toJson()).isEqualTo(json);
     }
 
     @Test
