@@ -66,7 +66,11 @@ class ExprCodeGenerator(
   def this(ctx: CodeGeneratorContext, nullableInput: Boolean) =
     this(ctx, nullableInput, null)
 
-  /** term of the [[ProcessFunction]]'s context, can be changed when needed */
+  /**
+   * term of the [[ProcessFunction]]'s context, can be changed when needed. It is a variable of the
+   * calling method, so a memo method can't use it: a deterministic call reading it must be listed
+   * in readsContext.
+   */
   var contextTerm = "ctx"
 
   /** information of the first input */
@@ -195,6 +199,9 @@ class ExprCodeGenerator(
 
   private val memberTerms = mutable.Map[Int, GeneratedExpression]()
 
+  // set while generating without pre-generation, memo methods or shared members
+  private var plain = false
+
   /**
    * Generates an expression from a RexNode. If objects or variables can be reused, they will be
    * added to reusable code sections internally.
@@ -204,11 +211,25 @@ class ExprCodeGenerator(
    * @return
    *   instance of GeneratedExpression
    */
+  /**
+   * Generates without pre-generation, memo methods or shared members. For code that runs for only
+   * some of the columns, e.g. the key-only projection of partial deletes.
+   */
+  def generatePlainExpression(rex: RexNode): GeneratedExpression = {
+    val saved = plain
+    plain = true
+    try {
+      rex.accept(this)
+    } finally {
+      plain = saved
+    }
+  }
+
   def generateExpression(rex: RexNode): GeneratedExpression = {
     // only for the filter and the projection columns, not for nested calls such as SEARCH
     val isCondition = rexProgram != null && (rex eq rexProgram.getCondition)
     val isProjection = rexProgram != null && rexProgram.getProjectList.exists(_ eq rex)
-    if (input1Type != null && (isCondition || isProjection)) {
+    if (input1Type != null && !plain && (isCondition || isProjection)) {
       val always = if (isCondition) conditionAlwaysEvaluatedRefs else rootAlwaysEvaluatedRefs
       // refs this expression uses that are computed for every record anyway: generate them first,
       // so a branch that needs one reuses it instead of computing its own copy
@@ -525,7 +546,8 @@ class ExprCodeGenerator(
         case Some(cached) => cached
         case None =>
           val expr =
-            if (memoizedLocalRefs.contains(idx)) memoizedCall(idx, target)
+            if (plain) target.accept(this)
+            else if (memoizedLocalRefs.contains(idx)) memoizedCall(idx, target)
             else if (sharedRefs.contains(idx)) toSharedTerms(idx, target.accept(this))
             else target.accept(this)
           ctx.addReusableLocalRefExpr(idx, expr)

@@ -1075,6 +1075,30 @@ class JsonParseReuseTest {
         assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
     }
 
+    @Test
+    void testTimeAttributesInTwoBranches() {
+        // the rowtime column is read from the row, so it may be shared; PROCTIME() reads the
+        // context
+        // and is not deterministic, so each branch computes its own
+        final String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, Instant.ofEpochMilli(1000L)),
+                                Row.of(2, Instant.ofEpochMilli(2000L))));
+        tEnv.executeSql(
+                "CREATE TABLE events (id INT, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
+                        + "WITH ('connector' = 'values', 'data-id' = '"
+                        + dataId
+                        + "', 'bounded' = 'true')");
+        final String sql =
+                "SELECT CASE WHEN id > 1 THEN TIMESTAMPDIFF(SECOND, TO_TIMESTAMP_LTZ(0, 3), ts) END, "
+                        + "CASE WHEN id > 1 THEN TIMESTAMPDIFF(SECOND, TO_TIMESTAMP_LTZ(0, 3), ts) + 1 END, "
+                        + "CASE WHEN id > 1 THEN CAST(PROCTIME() AS STRING) "
+                        + "ELSE CAST(PROCTIME() AS STRING) END IS NOT NULL FROM events";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(null, null, true), Row.of(2, 3, true));
+    }
+
     /** One call of JSON_VALUE, of its parse and of REGEXP_REPLACE in the generated code. */
     private void assertComputedOnce(final String sql) {
         final String code = extractGeneratedCode(sql);

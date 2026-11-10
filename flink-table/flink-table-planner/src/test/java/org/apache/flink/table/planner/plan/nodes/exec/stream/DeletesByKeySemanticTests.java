@@ -37,6 +37,7 @@ public class DeletesByKeySemanticTests extends SemanticTestBase {
                 DeletesByKeyPrograms.JOIN_INTO_DELETES_BY_KEY,
                 DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_EXPRESSION,
                 DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_EXPRESSION_AND_FILTER,
+                DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_SHARED_NON_KEY_VALUE,
                 DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_DUPLICATE_KEY,
                 DeletesByKeyPrograms.DELETE_BY_KEY_ASYNC_CALC_FALLS_BACK_TO_FULL_DELETE);
     }
