@@ -18,14 +18,76 @@
 
 import contextlib
 import unittest
+from unittest import mock
 
 from apache_beam.coders import StrUtf8Coder, VarIntCoder
 from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
+from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler, StateHandler
 from apache_beam.runners.worker.statecache import StateCache
 
+from pyflink.common import Time
+from pyflink.datastream.state import StateTtlConfig
 from pyflink.fn_execution.state_impl import CachingMapStateHandler, \
     InternalSynchronousMapRuntimeState, RemoteKeyedStateBackend
+
+
+class StateTtlReadCacheTests(unittest.TestCase):
+
+    @staticmethod
+    def _create_backend(cache_size=1 << 20):
+        # Only remote I/O is mocked. Both Beam caches and Flink runtime states are real.
+        remote = mock.Mock(spec=StateHandler)
+        remote.process_instruction_id.return_value = contextlib.nullcontext()
+        remote.append_raw.return_value = None
+        remote.clear.return_value = None
+        handler = GlobalCachingStateHandler(StateCache(cache_size), remote)
+        backend = RemoteKeyedStateBackend(
+            handler, StrUtf8Coder(), StrUtf8Coder(), 16, 16, 16)
+        backend.set_current_key('key')
+        return backend, handler, remote
+
+    @staticmethod
+    def _encode(value):
+        return VarIntCoder().get_impl().encode_nested(value)
+
+    def test_merge_namespaces_invalidates_ttl_read_cache(self):
+        ttl = StateTtlConfig.new_builder(Time.seconds(5)) \
+            .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+            .set_state_visibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
+            .build()
+        for config in (None, ttl):
+            for initial_target in ([], [0]):
+                with self.subTest(ttl=config, initial_target=initial_target):
+                    backend, handler, remote = self._create_backend()
+                    values = {'target': initial_target, 'source-a': [1], 'source-b': [2],
+                              'unrelated': [42]}
+                    remote.get_raw.side_effect = lambda key, continuation_token=None: (
+                        b''.join(self._encode(v)
+                                 for v in values[key.bag_user_state.window.decode()]), b'')
+                    with handler.process_instruction_id('bundle', []):
+                        state = backend.get_list_state('list', VarIntCoder(), config)
+                        for namespace in ('unrelated', 'source-a', 'source-b', 'target'):
+                            state.set_current_namespace(namespace)
+                            self.assertEqual(list(state.get()), values[namespace])
+                        self.assertEqual(list(state.get()), initial_target)
+                        self.assertEqual(remote.get_raw.call_count, 4)
+
+                        state.merge_namespaces('target', ['source-a', 'source-b'])
+                        remote.append_raw.assert_called_once()
+                        remote.clear.assert_not_called()
+                        # The remote response changes after the merge; all cached namespaces
+                        # participating in it must be read again, including an empty target.
+                        values.update({'target': initial_target + [1, 2],
+                                       'source-a': [], 'source-b': []})
+                        self.assertEqual(list(state.get()), initial_target + [1, 2])
+                        for namespace in ('source-a', 'source-b'):
+                            state.set_current_namespace(namespace)
+                            self.assertEqual(list(state.get()), [])
+                        self.assertEqual(remote.get_raw.call_count, 7)
+
+                        state.set_current_namespace('unrelated')
+                        self.assertEqual(list(state.get()), [42])
+                        self.assertEqual(remote.get_raw.call_count, 7)
 
 
 class InternalSynchronousMapRuntimeStateTests(unittest.TestCase):
