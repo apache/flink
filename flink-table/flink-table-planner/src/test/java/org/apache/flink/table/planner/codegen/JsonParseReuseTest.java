@@ -629,34 +629,38 @@ class JsonParseReuseTest {
     static Stream<Arguments> computedInputInCaseBranches() {
         return Stream.of(
                 Arguments.of(
-                        "JSON_VALUE(b, '$.type')",
-                        "JSON_VALUE(b, '$.address.city')",
+                        "JSON_VALUE(<input>, '$.type')",
+                        "JSON_VALUE(<input>, '$.address.city')",
                         "Munich",
                         "admin",
                         JSON_PARSE_PATTERN),
                 Arguments.of(
-                        "JSON_TYPE(b)",
-                        "JSON_TYPE(b, '$.roles')",
+                        "JSON_TYPE(<input>)",
+                        "JSON_TYPE(<input>, '$.roles')",
                         "array",
                         "object",
                         JSON_PARSE_PATTERN),
                 Arguments.of(
-                        "JSON_LENGTH(b)", "JSON_LENGTH(b, '$.roles')", 2, 4, JSON_PARSE_PATTERN),
+                        "JSON_LENGTH(<input>)",
+                        "JSON_LENGTH(<input>, '$.roles')",
+                        2,
+                        4,
+                        JSON_PARSE_PATTERN),
                 Arguments.of(
-                        "CAST(PARSE_JSON(b)['type'] AS STRING)",
-                        "CAST(TRY_PARSE_JSON(b)['address']['city'] AS STRING)",
+                        "CAST(PARSE_JSON(<input>)['type'] AS STRING)",
+                        "CAST(TRY_PARSE_JSON(<input>)['address']['city'] AS STRING)",
                         "Munich",
                         "admin",
                         PARSE_JSON_PATTERN),
                 Arguments.of(
-                        "JSON_TYPE(b)",
-                        "JSON_VALUE(b, '$.address.city')",
+                        "JSON_TYPE(<input>)",
+                        "JSON_VALUE(<input>, '$.address.city')",
                         "Munich",
                         "object",
                         JSON_PARSE_PATTERN),
                 Arguments.of(
-                        "CAST(JSON_LENGTH(b) AS STRING)",
-                        "JSON_QUERY(b, '$.roles')",
+                        "CAST(JSON_LENGTH(<input>) AS STRING)",
+                        "JSON_QUERY(<input>, '$.roles')",
                         "[\"user\",\"viewer\"]",
                         "4",
                         JSON_PARSE_PATTERN));
@@ -670,14 +674,14 @@ class JsonParseReuseTest {
             final Object expectedRow1,
             final Object expectedRow2,
             final Pattern parsePattern) {
-        // b = TRIM(json_data) is recomputed in each branch, under a new term each time
+        // <input> is a computed input that both branches use
         final String sql =
                 ("SELECT CASE WHEN CHARACTER_LENGTH(other_json) > 3 THEN "
                                 + firstBranch
                                 + " WHEN other_json = '{}' THEN "
                                 + secondBranch
                                 + " ELSE NULL END FROM json_src")
-                        .replace("(b", "(TRIM(BTRIM(json_data))");
+                        .replace("<input>", "TRIM(BTRIM(json_data))");
         assertThat(collect(sql))
                 .containsExactlyInAnyOrder(Row.of(expectedRow1), Row.of(expectedRow2));
         assertThat(count(parsePattern, extractGeneratedCode(sql)))
@@ -848,6 +852,9 @@ class JsonParseReuseTest {
                         + LIKE_X
                         + " AS a FROM json_src)";
         assertThat(collect(sql)).hasSize(2);
+        assertThat(extractGeneratedCode(sql))
+                .as("RAND() must not be computed in a memo method")
+                .doesNotContain("private void localRef$");
     }
 
     @Test

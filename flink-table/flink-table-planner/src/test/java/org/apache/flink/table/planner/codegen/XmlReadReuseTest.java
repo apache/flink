@@ -112,25 +112,25 @@ class XmlReadReuseTest {
     static Stream<Arguments> computedInputInCaseBranches() {
         return Stream.of(
                 Arguments.of(
-                        "CAST(PARSE_XML(x)['book']['title'] AS STRING)",
-                        "CAST(PARSE_XML(x, TRUE)['book']['title'][1] AS STRING)"),
+                        "CAST(PARSE_XML(<input>)['book']['title'] AS STRING)",
+                        "CAST(PARSE_XML(<input>, TRUE)['book']['title'][1] AS STRING)"),
                 Arguments.of(
-                        "CAST(PARSE_XML(x)['book']['title'] AS STRING)",
-                        "CAST(TRY_PARSE_XML(x, TRUE)['book']['title'][1] AS STRING)"));
+                        "CAST(PARSE_XML(<input>)['book']['title'] AS STRING)",
+                        "CAST(TRY_PARSE_XML(<input>, TRUE)['book']['title'][1] AS STRING)"));
     }
 
     @ParameterizedTest(name = "{0} | {1}")
     @MethodSource("computedInputInCaseBranches")
     void testComputedInputInDifferentCaseBranchesReadsOnce(
             final String firstBranch, final String secondBranch) {
-        // x = TRIM(xml) is recomputed in each branch, under a new term each time
+        // <input> is a computed input that both branches use
         final String sql =
                 ("SELECT CASE WHEN other_xml = '<a>1</a>' THEN "
                                 + firstBranch
                                 + " WHEN other_xml = '<a>2</a>' THEN "
                                 + secondBranch
                                 + " ELSE NULL END FROM xml_src")
-                        .replace("(x", "(TRIM(xml)");
+                        .replace("<input>", "TRIM(xml)");
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Dune"), Row.of("Emma"));
         assertThat(countReads(sql)).isOne();
     }

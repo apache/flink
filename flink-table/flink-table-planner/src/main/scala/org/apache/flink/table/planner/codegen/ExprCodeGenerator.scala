@@ -512,11 +512,7 @@ class ExprCodeGenerator(
         FlinkTypeFactory.toLogicalType(localRef.getType))
     }
     // for the general cases with a previous call to bindInput()
-    val input1Arity = input1Type match {
-      case r: RowType => r.getFieldCount
-      case _ => 1
-    }
-    if (localRef.getIndex >= input1Arity) {
+    if (localRef.getIndex >= localRefInputArity) {
       if (rexProgram == null) {
         throw new CodeGenException(s"RexLocalRef(${localRef.getIndex}) requires a RexProgram.")
       }
