@@ -45,25 +45,36 @@ function github_num_commits() {
 	return $GITHUB_NUM_COMMITS
 }
 
-# Returns 0 if the change only touches ignored paths (IGNORE_PATHS pipeline variable, newline-separated pathspec globs), e.g. a documentation-only pull request.
+# Returns 0 if the PR only touches ignored paths (IGNORE_PATHS, newline-separated gitignore-style
+# globs). Uses the PR's changed-file list from GitHub, so it is unaffected by ci-bot rebases, and
+# fails open (treats the build as regular) on any API error.
 function is_ignored_pattern_pullrequest() {
-	github_num_commits
-	GITHUB_NUM_COMMITS=$?
-	if [[ $GITHUB_NUM_COMMITS == 0 ]]; then
+	[[ $BUILD_SOURCEBRANCHNAME == ci_* ]] || return 1
+	local pr_id
+	pr_id=$(cut -f2 -d_ <<< "$BUILD_SOURCEBRANCHNAME")
+	if ! [[ "$pr_id" =~ ^[0-9]+$ ]] ; then
+		echo "ERROR: Extracted PR_ID is not a number, but this: '$pr_id'"
 		return 1
 	fi
 
-	# A diff that lists nothing after the git excludes means only ignored paths changed.
-	local exclude_pathspecs=()
-	local pattern
-	while IFS= read -r pattern; do
-		[[ -z "$pattern" ]] && continue
-		exclude_pathspecs+=(":(exclude,glob)$pattern")
-	done <<< "$IGNORE_PATHS"
+	local files
+	files=$(curl --silent "https://api.github.com/repos/apache/flink/pulls/${pr_id}/files?per_page=100" | jq -r '.[]?.filename')
+	if [[ -z "$files" ]] ; then
+		echo "INFO: Could not determine changed files for PR #${pr_id}; treating as a regular build."
+		return 1
+	fi
 
-	if [[ $(git diff --name-only HEAD..HEAD~$GITHUB_NUM_COMMITS -- . "${exclude_pathspecs[@]}") == "" ]] ; then
+	local tmp
+	tmp=$(mktemp)
+	printf '%s\n' "$IGNORE_PATHS" > "$tmp"
+	# --no-index matches tracked files too; a non-ignored file prints a line starting with "::".
+	git -c core.excludesFile="$tmp" check-ignore --no-index -n -v --stdin <<< "$files" | grep -q '^::'
+	local has_non_ignored=$?
+	rm -f "$tmp"
+
+	if (( has_non_ignored != 0 )) ; then
 		echo "INFO: Only ignored paths changed ($IGNORE_PATHS). Changed files:"
-		git diff --name-only HEAD..HEAD~$GITHUB_NUM_COMMITS
+		printf '%s\n' "$files"
 		return 0
 	fi
 	return 1
