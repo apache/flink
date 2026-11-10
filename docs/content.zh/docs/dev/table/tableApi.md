@@ -1199,7 +1199,7 @@ Currently not supported in Python Table API.
 
 #### Union
 
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 和 SQL `UNION` 子句类似。Union 两张表会删除重复记录。两张表必须具有相同的字段类型。
 
@@ -1229,6 +1229,8 @@ left.union(right)
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< query_state_warning_zh >}}
 
 #### UnionAll
 
@@ -1267,7 +1269,7 @@ left.union_all(right)
 
 #### Intersect 
 
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 和 SQL `INTERSECT` 子句类似。Intersect 返回两个表中都存在的记录。如果一条记录在一张或两张表中存在多次，则只返回一条记录，也就是说，结果表中不存在重复的记录。两张表必须具有相同的字段类型。
 
@@ -1298,9 +1300,11 @@ left.intersect(right)
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< query_state_warning_zh >}}
+
 #### IntersectAll
 
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 和 SQL `INTERSECT ALL` 子句类似。IntersectAll 返回两个表中都存在的记录。如果一条记录在两张表中出现多次，那么该记录返回的次数同该记录在两个表中都出现的次数一致，也就是说，结果表可能存在重复记录。两张表必须具有相同的字段类型。
 
@@ -1331,9 +1335,11 @@ left.intersect_all(right)
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< query_state_warning_zh >}}
+
 #### Minus 
 
-{{< label Batch  >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 和 SQL `EXCEPT` 子句类似。Minus 返回左表中存在且右表中不存在的记录。左表中的重复记录只返回一次，换句话说，结果表中没有重复记录。两张表必须具有相同的字段类型。
 
@@ -1364,8 +1370,10 @@ left.minus(right)
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< query_state_warning_zh >}}
+
 #### MinusAll
-{{< label Batch >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 和 SQL `EXCEPT ALL` 子句类似。MinusAll 返回右表中不存在的记录。在左表中出现 n 次且在右表中出现 m 次的记录，在结果表中出现 (n - m) 次，例如，也就是说结果中删掉了在右表中存在重复记录的条数的记录。两张表必须具有相同的字段类型。
 
@@ -1395,6 +1403,8 @@ left.minus_all(right)
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< query_state_warning_zh >}}
 
 #### In 
 
