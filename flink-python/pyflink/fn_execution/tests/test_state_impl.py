@@ -110,6 +110,45 @@ class StateTtlReadCacheTests(unittest.TestCase):
                 remote.get_raw.assert_called_once()
                 self.assertIs(state.get_internal_state()._state_handler, handler)
 
+    def test_merge_namespaces_invalidates_ttl_read_cache(self):
+        ttl = StateTtlConfig.new_builder(Time.seconds(5)) \
+            .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+            .set_state_visibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
+            .build()
+        for config in (None, ttl):
+            for initial_target in ([], [0]):
+                with self.subTest(ttl=config, initial_target=initial_target):
+                    backend, handler, remote = self._create_backend()
+                    values = {'target': initial_target, 'source-a': [1], 'source-b': [2],
+                              'unrelated': [42]}
+                    remote.get_raw.side_effect = lambda key, continuation_token=None: (
+                        b''.join(self._encode(v)
+                                 for v in values[key.bag_user_state.window.decode()]), b'')
+                    with handler.process_instruction_id('bundle', []):
+                        state = backend.get_list_state('list', VarIntCoder(), config)
+                        for namespace in ('unrelated', 'source-a', 'source-b', 'target'):
+                            state.set_current_namespace(namespace)
+                            self.assertEqual(list(state.get()), values[namespace])
+                        self.assertEqual(list(state.get()), initial_target)
+                        self.assertEqual(remote.get_raw.call_count, 4)
+
+                        state.merge_namespaces('target', ['source-a', 'source-b'])
+                        remote.append_raw.assert_called_once()
+                        remote.clear.assert_not_called()
+                        # The remote response changes after the merge; all cached namespaces
+                        # participating in it must be read again, including an empty target.
+                        values.update({'target': initial_target + [1, 2],
+                                       'source-a': [], 'source-b': []})
+                        self.assertEqual(list(state.get()), initial_target + [1, 2])
+                        for namespace in ('source-a', 'source-b'):
+                            state.set_current_namespace(namespace)
+                            self.assertEqual(list(state.get()), [])
+                        self.assertEqual(remote.get_raw.call_count, 7)
+
+                        state.set_current_namespace('unrelated')
+                        self.assertEqual(list(state.get()), [42])
+                        self.assertEqual(remote.get_raw.call_count, 7)
+
     def test_ttl_write_cache_policy_is_preserved(self):
         for ttl in self._ttl_configs():
             with self.subTest(ttl=ttl):
