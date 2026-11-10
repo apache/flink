@@ -26,11 +26,14 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -42,6 +45,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Each storage key is treated as a relative path under the configured {@code rootPath}.
  */
 public class FileArchiveStorage implements ArchiveStorage<File> {
+
+    private static final String TMP_SUFFIX = ".tmp";
 
     /** Root directory under which all archive files are stored. */
     private final Path rootPath;
@@ -92,7 +97,9 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
             return new ArrayList<>();
         }
         try (Stream<Path> entries = Files.list(directory)) {
-            return entries.map(Path::toFile).collect(Collectors.toList());
+            return entries.filter(p -> !p.getFileName().toString().endsWith(TMP_SUFFIX))
+                    .map(Path::toFile)
+                    .collect(Collectors.toList());
         }
     }
 
@@ -110,12 +117,20 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
             // there may be left-over directories from the previous attempt
         }
 
-        // We overwrite existing files since this may be another attempt
-        // at fetching this archive.
-        // Existing files may be incomplete/corrupt.
-        Files.deleteIfExists(target);
-
-        Files.write(target, json.getBytes(StandardCharsets.UTF_8));
+        // We overwrite existing files since this may be another attempt at fetching this archive.
+        // The content is written to a temporary sibling file and moved into place, so concurrent
+        // readers never see a missing or partially written file.
+        Path tmp = parent.resolve(target.getFileName() + "." + UUID.randomUUID() + TMP_SUFFIX);
+        try {
+            Files.write(tmp, json.getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
     }
 
     @Override
