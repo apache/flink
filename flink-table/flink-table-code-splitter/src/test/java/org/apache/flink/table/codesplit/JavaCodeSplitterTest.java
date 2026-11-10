@@ -63,6 +63,30 @@ class JavaCodeSplitterTest {
     }
 
     @Test
+    void testMultiLineStringKeepsItsLineBreaks() {
+        final String literal = "\"first\\n\\nsecond\\n\\n\\nthird\"";
+        final String code =
+                "public class TestMultiLineString {\n"
+                        + "    public void myFun(int a) {\n"
+                        + "        String s = "
+                        + literal
+                        + ";\n\n\n"
+                        + "        System.out.println(s);\n\n"
+                        + "        a += 1;\n"
+                        + "        System.out.println(a);\n"
+                        + "        a += 2;\n"
+                        + "        System.out.println(a);\n"
+                        + "    }\n"
+                        + "}\n";
+        try {
+            final String split = JavaCodeSplitter.splitImpl(code, 100, 3);
+            assertThat(split).contains(literal).doesNotContain("\n\n");
+        } finally {
+            CodeSplitUtil.getCounter().set(0L);
+        }
+    }
+
+    @Test
     @Disabled("Disabled in because of https://issues.apache.org/jira/browse/FLINK-27702")
     void testInvalidJavaCode() {
         assertThatThrownBy(

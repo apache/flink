@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -46,6 +47,9 @@ public class JavaCodeSplitter {
                     .maximumSize(300)
                     .softValues()
                     .build();
+
+    // a line break followed by lines with only spaces or tabs; one way to match, so linear
+    private static final Pattern BLANK_LINES = Pattern.compile("\n[ \t]*\n[ \t\n]*");
 
     public static String split(String code, int maxMethodLength, int maxClassMemberCount) {
         checkArgument(code != null && !code.isEmpty(), "code cannot be empty");
@@ -80,7 +84,15 @@ public class JavaCodeSplitter {
                 .map(text -> new BlockStatementRewriter(text, maxMethodLength).rewrite())
                 .map(text -> new FunctionSplitter(text, maxMethodLength).rewrite())
                 .map(text -> new MemberFieldRewriter(text, maxClassMemberCount).rewrite())
+                .map(JavaCodeSplitter::removeBlankLines)
                 .orElse(code);
+    }
+
+    /** The rewriters leave blank lines behind; a text block keeps them in its value, so skip it. */
+    private static String removeBlankLines(String code) {
+        // For now, we do not have text blocks in generated code, this is a guard for future just in
+        // case
+        return code.contains("\"\"\"") ? code : BLANK_LINES.matcher(code).replaceAll("\n");
     }
 
     private static final class SplitKey {
