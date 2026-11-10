@@ -39,6 +39,9 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
                                                                    result_type=DataTypes.INT(),
                                                                    func_type="pandas"))
         cls.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+        cls.t_env.create_temporary_system_function(
+            "pandas_count",
+            udaf(lambda o: len(o), result_type=DataTypes.BIGINT(), func_type="pandas"))
 
     def test_pandas_udaf_in_sql(self):
         sql = f"""
@@ -374,6 +377,53 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
                             "+I[2, 2.0, 9, 2.0, 4.0, 4.0, 2.0, 2.0, 4.0, 4.0]",
                             "+I[2, 2.0, 3, 2.0, 2.0, 4.0, 1.0, 2.0, 4.0, 2.0]",
                             "+I[3, 2.0, 3, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]"])
+
+    def test_over_window_range_frame_with_int_order_key(self):
+        self._check_range_frame_counts(
+            DataTypes.INT(), [-2, -1, 0, 3],
+            {"RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW": [1, 2, 3, 4],
+             "RANGE BETWEEN 1 PRECEDING AND CURRENT ROW": [1, 2, 2, 1],
+             "RANGE BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING": [3, 2, 1, 0]})
+
+    def test_over_window_range_frame_after_null_order_key(self):
+        # The NULL key sorts first and no other row is in its frame. Its lower boundary must stop
+        # at the upper one, as in the native operator, or the next rows' frames would be empty.
+        view = generate_random_table_name()
+        self.t_env.create_temporary_view(view, self.t_env.from_elements(
+            [(k,) for k in [None, -2, -1, 0, 3]],
+            DataTypes.ROW([DataTypes.FIELD("o", DataTypes.INT())])))
+        frame = "RANGE BETWEEN 1 FOLLOWING AND 3 FOLLOWING"
+        counts = []
+        for agg in ["COUNT(*)", "pandas_count(o)"]:
+            sql = f"SELECT o, {agg} OVER (ORDER BY o {frame}) FROM {view}"
+            with self.t_env.execute_sql(sql).collect() as results:
+                counts.append({row[0]: row[1] for row in results})
+        native, pandas = counts
+        self.assertEqual(native, pandas)
+        # Only the non-NULL rows are pinned: the NULL key's own frame is up to the native operator.
+        self.assertEqual({k: c for k, c in pandas.items() if k is not None},
+                         {-2: 2, -1: 1, 0: 1, 3: 0})
+
+    def test_over_window_range_frame_with_decimal_order_key(self):
+        from decimal import Decimal
+        self._check_range_frame_counts(
+            DataTypes.DECIMAL(10, 2), [Decimal(k) for k in ("-2", "-1", "0", "3")],
+            {"RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW": [1, 2, 3, 4],
+             "RANGE BETWEEN 1 PRECEDING AND CURRENT ROW": [1, 2, 2, 1],
+             "RANGE BETWEEN 2.5 PRECEDING AND CURRENT ROW": [1, 2, 3, 1]})
+
+    def _check_range_frame_counts(self, key_type, keys, expected_counts):
+        view = generate_random_table_name()
+        self.t_env.create_temporary_view(view, self.t_env.from_elements(
+            [(k,) for k in keys], DataTypes.ROW([DataTypes.FIELD("o", key_type)])))
+        # The native COUNT shows the expected frames; the pandas UDAF must see the same ones.
+        for agg in ["COUNT", "pandas_count"]:
+            windows = ", ".join(f"{agg}(o) OVER (ORDER BY o {frame})" for frame in expected_counts)
+            with self.t_env.execute_sql(f"SELECT o, {windows} FROM {view}").collect() as results:
+                rows = sorted(results, key=lambda row: row[0])
+            actual = {frame: [row[i + 1] for row in rows]
+                      for i, frame in enumerate(expected_counts)}
+            self.assertEqual(actual, expected_counts, agg)
 
 
 class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
