@@ -942,14 +942,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                     } else {
                       UpdateKindTrait.NONE
                     }
-                  if (
-                    requiredUpdateTrait == UpdateKindTrait.BEFORE_AND_AFTER
-                    && ptfAcceptsRowSemanticUpserts(process, tableArg, child)
-                  ) {
-                    // Falls back to retractions, e.g. after a filter on non-key columns
-                    this
-                      .visit(child, UpdateKindTrait.ONLY_UPDATE_AFTER)
-                      .orElse(this.visit(child, requiredUpdateTrait))
+                  // Without partition keys, row semantics would otherwise require BEFORE_AND_AFTER
+                  if (ptfAcceptsRowSemanticUpserts(process, tableArg, child)) {
+                    visitChildAttemptUpsert(child)
                   } else {
                     this.visit(child, requiredUpdateTrait)
                   }
@@ -1001,6 +996,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             s"Unsupported visit for ${rel.getClass.getSimpleName}")
 
       }
+
+    /**
+     * Requests ONLY_UPDATE_AFTER from the child and falls back to BEFORE_AND_AFTER if the child
+     * can't provide upserts, e.g. after a filter on non-key columns.
+     */
+    private def visitChildAttemptUpsert(child: StreamPhysicalRel): Option[StreamPhysicalRel] = {
+      this
+        .visit(child, UpdateKindTrait.ONLY_UPDATE_AFTER)
+        .orElse(this.visit(child, UpdateKindTrait.BEFORE_AND_AFTER))
+    }
 
     private def visitChildren(
         parent: StreamPhysicalRel,
@@ -1149,7 +1154,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
       val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
       if (sinkDefinedPks.isEmpty) {
-        return hasColumnUpsertKey(sink.getInput)
+        return hasNonEmptyUpsertKey(sink.getInput)
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
       // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
@@ -1844,16 +1849,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       process: StreamPhysicalProcessTableFunction,
       tableArg: StaticArgument,
       input: StreamPhysicalRel): Boolean = {
-    tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE) &&
-    !tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE) &&
-    getModifyKindSet(process).isInsertOnly &&
-    hasColumnUpsertKey(input)
+    val isRowSemantic = tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)
+    val isUpdatingInput =
+      tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES) && !getModifyKindSet(input).isInsertOnly
+    val requiresRetractions = tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
+    val isInsertOnlyOutput = getModifyKindSet(process).isInsertOnly
+    isRowSemantic && isUpdatingInput && !requiresRetractions && isInsertOnlyOutput &&
+    hasNonEmptyUpsertKey(input)
   }
 
   /**
    * An empty upsert key means "at most one row" (e.g. a global aggregate), not a key to match on.
    */
-  private def hasColumnUpsertKey(input: RelNode): Boolean = {
+  private def hasNonEmptyUpsertKey(input: RelNode): Boolean = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery)
     val upsertKeys = fmq.getUpsertKeys(input)
     upsertKeys != null && upsertKeys.nonEmpty && !upsertKeys.exists(_.isEmpty)

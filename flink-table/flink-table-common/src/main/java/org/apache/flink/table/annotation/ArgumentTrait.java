@@ -191,12 +191,17 @@ public enum ArgumentTrait {
      * {@link RowKind} change flag.
      *
      * <p>The changelog of the backing input table decides which kinds of changes enter the
-     * function. The function receives {+I} when the input table is append-only. The function
-     * receives {+I,+U,-D} if the input table is upserting using the same upsert key as the
-     * partition key, or if the table argument has {@link #ROW_SEMANTIC_TABLE}, the input table has
-     * an upsert key, and the function emits only inserts. Otherwise, retractions {+I,-U,+U,-D}
-     * (i.e. including {@link RowKind#UPDATE_BEFORE}) enter the function. Use {@link
-     * #REQUIRE_UPDATE_BEFORE} to enforce retractions for all updating cases.
+     * function:
+     *
+     * <ul>
+     *   <li>{+I} if the input table is append-only.
+     *   <li>{+I,+U,-D} if the input table is upserting and either the table argument has {@link
+     *       #SET_SEMANTIC_TABLE} and is partitioned by the upsert key, or the table argument has
+     *       {@link #ROW_SEMANTIC_TABLE} and the function emits only inserts.
+     *   <li>{+I,-U,+U,-D} (i.e. including {@link RowKind#UPDATE_BEFORE}) otherwise.
+     * </ul>
+     *
+     * <p>Use {@link #REQUIRE_UPDATE_BEFORE} to enforce retractions for all updating cases.
      *
      * <p>For upserting tables, if the changelog contains key-only deletions (also known as partial
      * deletions), only upsert key fields are set when a row enters the function. Non-key fields are
