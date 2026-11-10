@@ -56,6 +56,7 @@ Expressions
     row
     map_
     map_from_arrays
+    descriptor
     object_of
     row_interval
     pi
@@ -67,18 +68,24 @@ Expressions
     concat
     concat_ws
     uuid
+    uuid_v4
+    uuid_v7
     null_of
     log
     source_watermark
     if_then_else
     coalesce
+    with_all_columns
     with_columns
     without_columns
+    json
     json_string
     json_object
     json_object_agg
     json_array
     json_array_agg
+    lag
+    lead
     call
     call_sql
 
@@ -184,6 +191,7 @@ string functions
     Expression.lpad
     Expression.rpad
     Expression.overlay
+    Expression.concat
     Expression.regexp
     Expression.regexp_count
     Expression.regexp_replace
@@ -197,6 +205,8 @@ string functions
     Expression.chr
     Expression.decode
     Expression.encode
+    Expression.is_valid_utf8
+    Expression.make_valid_utf8
     Expression.left
     Expression.right
     Expression.instr
@@ -246,6 +256,8 @@ advanced type helper functions
     Expression.at
     Expression.cardinality
     Expression.element
+    Expression.array_append
+    Expression.array_prepend
     Expression.array_concat
     Expression.array_contains
     Expression.array_distinct
@@ -341,6 +353,10 @@ variant functions
 .. autosummary::
     :toctree: api/
 
+    Expression.parse_json
+    Expression.try_parse_json
+    Expression.parse_xml
+    Expression.try_parse_xml
     Expression.variant_get
     Expression.try_variant_get
 
