@@ -25,8 +25,10 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.Schema;
@@ -36,6 +38,7 @@ import org.apache.avro.util.Utf8;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -172,16 +175,19 @@ public class RowDataToAvroConverters {
                                 }
                             };
                 } else {
+                    // local-timestamp-micros above precision 3, as AvroSchemaConverter declares it
+                    final boolean micros = ((TimestampType) type).getPrecision() > 3;
                     converter =
                             new RowDataToAvroConverter() {
                                 private static final long serialVersionUID = 1L;
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object)
-                                            .toLocalDateTime()
-                                            .toInstant(ZoneOffset.UTC)
-                                            .toEpochMilli();
+                                    return toEpochLong(
+                                            ((TimestampData) object)
+                                                    .toLocalDateTime()
+                                                    .toInstant(ZoneOffset.UTC),
+                                            micros);
                                 }
                             };
                 }
@@ -190,13 +196,16 @@ public class RowDataToAvroConverters {
                 if (legacyTimestampMapping) {
                     throw new UnsupportedOperationException("Unsupported type: " + type);
                 } else {
+                    // timestamp-micros above precision 3, as AvroSchemaConverter declares it
+                    final boolean micros = ((LocalZonedTimestampType) type).getPrecision() > 3;
                     converter =
                             new RowDataToAvroConverter() {
                                 private static final long serialVersionUID = 1L;
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                    return toEpochLong(
+                                            ((TimestampData) object).toInstant(), micros);
                                 }
                             };
                 }
@@ -299,6 +308,20 @@ public class RowDataToAvroConverters {
                 return record;
             }
         };
+    }
+
+    /**
+     * The Avro long of an instant: microseconds when the column is a microsecond one, milliseconds
+     * otherwise. Computed from the whole seconds and the (never negative) nanosecond part, so it is
+     * exact before 1970 and does not overflow for the years 1 to 9999, which a nanosecond count
+     * would.
+     */
+    private static long toEpochLong(Instant instant, boolean micros) {
+        return micros
+                ? Math.addExact(
+                        Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+                        instant.getNano() / 1000L)
+                : instant.toEpochMilli();
     }
 
     private static GenericData.EnumSymbol convertToEnumSymbol(Schema enumSchema, String symbol) {

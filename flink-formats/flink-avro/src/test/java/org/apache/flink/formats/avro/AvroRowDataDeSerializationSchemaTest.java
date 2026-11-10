@@ -401,8 +401,9 @@ class AvroRowDataDeSerializationSchemaTest {
 
         assertThat(rowData.getTimestamp(2, 3).toLocalDateTime().toString())
                 .isEqualTo("2014-03-01T12:12:12.321");
+        // 123456 microseconds, not milliseconds
         assertThat(rowData.getTimestamp(3, 6).toLocalDateTime().toString())
-                .isEqualTo("1970-01-01T00:02:03.456");
+                .isEqualTo("1970-01-01T00:00:00.123456");
     }
 
     @Test

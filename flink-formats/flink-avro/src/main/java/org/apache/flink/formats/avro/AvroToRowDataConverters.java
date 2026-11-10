@@ -29,8 +29,10 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.avro.generic.GenericFixed;
@@ -128,12 +130,14 @@ public class AvroToRowDataConverters {
             case TIME_WITHOUT_TIME_ZONE:
                 return AvroToRowDataConverters::convertToTime;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return AvroToRowDataConverters::convertToTimestamp;
+                return createTimestampConverter(
+                        legacyTimestampMapping, ((TimestampType) type).getPrecision());
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 if (legacyTimestampMapping) {
                     throw new UnsupportedOperationException("Unsupported type: " + type);
                 } else {
-                    return AvroToRowDataConverters::convertToTimestamp;
+                    return createTimestampConverter(
+                            false, ((LocalZonedTimestampType) type).getPrecision());
                 }
             case CHAR:
             case VARCHAR:
@@ -211,12 +215,40 @@ public class AvroToRowDataConverters {
         };
     }
 
-    private static TimestampData convertToTimestamp(Object object) {
+    /**
+     * Creates the converter of a TIMESTAMP or TIMESTAMP_LTZ column.
+     *
+     * <p>An Avro long counts microseconds exactly where {@code AvroSchemaConverter} declares a
+     * microsecond logical type for the column, which is the non-legacy mapping with a precision
+     * above 3, and milliseconds otherwise.
+     */
+    private static AvroToRowDataConverter createTimestampConverter(
+            boolean legacyTimestampMapping, int precision) {
+        final boolean micros = !legacyTimestampMapping && precision > 3;
+        return avroObject -> convertToTimestamp(avroObject, micros);
+    }
+
+    private static TimestampData convertToTimestamp(Object object, boolean micros) {
         final long millis;
+        int nanosOfMillisecond = 0;
         if (object instanceof Long) {
-            millis = (Long) object;
+            if (micros) {
+                final long value = (Long) object;
+                // Floor, not truncate: before 1970 the remainder of a truncating division is
+                // negative, and TimestampData only accepts 0 to 999,999 nanoseconds of a
+                // millisecond.
+                millis = Math.floorDiv(value, 1000L);
+                nanosOfMillisecond = (int) Math.floorMod(value, 1000L) * 1000;
+            } else {
+                millis = (Long) object;
+            }
         } else if (object instanceof Instant) {
-            millis = ((Instant) object).toEpochMilli();
+            final Instant instant = (Instant) object;
+            if (micros) {
+                // Do not drop the microseconds the value carries, as toEpochMilli() would.
+                return TimestampData.fromInstant(instant);
+            }
+            millis = instant.toEpochMilli();
         } else if (object instanceof LocalDateTime) {
             return TimestampData.fromLocalDateTime((LocalDateTime) object);
         } else {
@@ -228,7 +260,7 @@ public class AvroToRowDataConverters {
                         "Unexpected object type for TIMESTAMP logical type. Received: " + object);
             }
         }
-        return TimestampData.fromEpochMillis(millis);
+        return TimestampData.fromEpochMillis(millis, nanosOfMillisecond);
     }
 
     private static int convertToDate(Object object) {
@@ -247,10 +279,17 @@ public class AvroToRowDataConverters {
         }
     }
 
+    /**
+     * Converts an Avro time into Flink's internal TIME, an int of milliseconds since midnight for
+     * every precision. The microseconds of a {@code time-micros} do not fit and are dropped.
+     */
     private static int convertToTime(Object object) {
         final int millis;
         if (object instanceof Integer) {
             millis = (Integer) object;
+        } else if (object instanceof Long) {
+            // time-micros as the Avro reader gives it when no logical type conversion is applied
+            millis = (int) Math.floorDiv((Long) object, 1000L);
         } else if (object instanceof LocalTime) {
             millis = ((LocalTime) object).get(ChronoField.MILLI_OF_DAY);
         } else {
