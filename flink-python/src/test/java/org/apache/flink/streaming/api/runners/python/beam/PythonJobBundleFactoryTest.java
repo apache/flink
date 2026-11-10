@@ -21,14 +21,21 @@ package org.apache.flink.streaming.api.runners.python.beam;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.sdk.fn.server.ServerFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Context;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientCalls;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ServerCalls;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,12 +48,16 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PythonJobBundleFactoryTest {
     @ParameterizedTest
@@ -325,5 +336,118 @@ class PythonJobBundleFactoryTest {
         closing.close();
         closing.fail(new IOException("server shut down"));
         assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    void testCancelledContextDoesNotBlockDataServiceInitialization() throws Exception {
+        final PythonJobBundleFactory.DataChannelFailureHandler handler =
+                new PythonJobBundleFactory.DataChannelFailureHandler();
+        final PythonJobBundleFactory.DataServerFactory factory =
+                new PythonJobBundleFactory.DataServerFactory(
+                        ServerFactory.createDefault(), handler);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
+        final GrpcDataService service =
+                GrpcDataService.create(
+                        PipelineOptionsFactory.create(),
+                        executor,
+                        OutboundObserverFactory.serverDirect());
+        final Context.CancellableContext context = Context.ROOT.withCancellation();
+        final IOException cause = new IOException("cancelled before data service initialization");
+        final Object runnerLock = new Object();
+        final CountDownLatch startingBundle = new CountDownLatch(1);
+        final CompletableFuture<Throwable> notified = new CompletableFuture<>();
+        handler.register(
+                error -> {
+                    synchronized (runnerLock) {
+                        notified.complete(error);
+                    }
+                });
+        try {
+            // Runner.process holds its monitor while starting the first bundle.
+            final Future<?> bundle =
+                    executor.submit(
+                            () -> {
+                                synchronized (runnerLock) {
+                                    startingBundle.countDown();
+                                    service.createOutboundAggregator("bundle", false);
+                                }
+                            });
+            assertThat(startingBundle.await(10, TimeUnit.SECONDS)).isTrue();
+            context.cancel(cause);
+            final Future<?> call =
+                    executor.submit(
+                            () ->
+                                    context.call(
+                                            () ->
+                                                    factory.interceptCall(
+                                                            new TestingServerCall(),
+                                                            new Metadata(),
+                                                            ServerCalls.asyncBidiStreamingCall(
+                                                                    service::data))));
+            bundle.get(10, TimeUnit.SECONDS);
+            call.get(10, TimeUnit.SECONDS);
+            assertThat(notified.get(10, TimeUnit.SECONDS)).hasCause(cause);
+        } finally {
+            handler.close();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            context.close();
+            service.close();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testStartCallFailureNotifiesRunners(boolean fatal) {
+        final PythonJobBundleFactory.DataChannelFailureHandler handler =
+                new PythonJobBundleFactory.DataChannelFailureHandler();
+        final PythonJobBundleFactory.DataServerFactory factory =
+                new PythonJobBundleFactory.DataServerFactory(
+                        ServerFactory.createDefault(), handler);
+        final AtomicReference<Throwable> notified = new AtomicReference<>();
+        handler.register(notified::set);
+        final RuntimeException exception = new IllegalStateException("data service startup failed");
+        final Error error = new AssertionError("data service startup failed");
+        final Throwable expected = fatal ? error : exception;
+
+        assertThatThrownBy(
+                        () ->
+                                factory.interceptCall(
+                                        new TestingServerCall(),
+                                        new Metadata(),
+                                        (call, headers) -> {
+                                            if (fatal) {
+                                                throw error;
+                                            }
+                                            throw exception;
+                                        }))
+                .isSameAs(expected);
+        assertThat(notified).hasValue(expected);
+    }
+
+    /** Runs the real gRPC streaming handler without transport scheduling in startup tests. */
+    private static final class TestingServerCall
+            extends ServerCall<BeamFnApi.Elements, BeamFnApi.Elements> {
+        @Override
+        public void request(int numMessages) {}
+
+        @Override
+        public void sendHeaders(Metadata headers) {}
+
+        @Override
+        public void sendMessage(BeamFnApi.Elements message) {}
+
+        @Override
+        public void close(Status status, Metadata trailers) {}
+
+        @Override
+        public boolean isCancelled() {
+            return Context.current().isCancelled();
+        }
+
+        @Override
+        public MethodDescriptor<BeamFnApi.Elements, BeamFnApi.Elements> getMethodDescriptor() {
+            return BeamFnDataGrpc.getDataMethod();
+        }
     }
 }

@@ -186,8 +186,6 @@ final class PythonJobBundleFactory implements JobBundleFactory {
                     cancelled ->
                             failureHandler.fail(
                                     Contexts.statusFromCancelled(cancelled).asRuntimeException());
-            // Context cancellation does not wait for a blocked onMessage callback to return.
-            context.addListener(cancellationListener, Runnable::run);
             final ServerCall<ReqT, RespT> monitoredCall =
                     new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
                         @Override
@@ -198,8 +196,18 @@ final class PythonJobBundleFactory implements JobBundleFactory {
                             super.close(status, trailers);
                         }
                     };
+            final ServerCall.Listener<ReqT> listener;
+            try {
+                listener = next.startCall(monitoredCall, headers);
+            } catch (RuntimeException | Error failure) {
+                failureHandler.fail(failure);
+                throw failure;
+            }
+            // An already-cancelled context invokes the listener inline. Initialize the data service
+            // first so a runner holding its lock can finish waiting for the connection.
+            context.addListener(cancellationListener, Runnable::run);
             return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(
-                    next.startCall(monitoredCall, headers)) {
+                    listener) {
                 @Override
                 public void onHalfClose() {
                     failUnexpectedCompletion();
