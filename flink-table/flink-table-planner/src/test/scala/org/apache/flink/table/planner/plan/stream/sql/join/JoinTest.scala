@@ -864,6 +864,23 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testJoinUpsertKeyEquivalenceMapNotSatisfied(): Unit = {
+    // "=" on MAP ignores the entry order, so equal maps needn't be the same key -> upsertMaterialize
+    createUpsertSource("src1", "a1 map<int, varchar>, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 map<int, varchar>, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSink("a1 map<int, varchar>, b2 varchar, x1 varchar", "a1, b2")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2
+        |on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
   def testJoinUpsertKeyEquivalenceFullOuterJoinNotSatisfied(): Unit = {
     // a full join's condition doesn't hold on padded rows; right-only rows have a1 = null, so sink
     // pk {a1, b2} is not unique -> upsertMaterialize

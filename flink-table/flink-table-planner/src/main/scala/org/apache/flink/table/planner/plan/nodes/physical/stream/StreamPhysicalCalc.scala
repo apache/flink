@@ -90,8 +90,8 @@ class StreamPhysicalCalc(
     // Every column in every candidate is, by construction of
     // FlinkRelMdUniqueKeys.getProjectUniqueKeys, guaranteed to be a pass-through
     // of an input field or an injective expression. Columns equal to a key column are
-    // pass-throughs too, and are kept because a key aligned to them needs them (see
-    // UpsertKeyUtil#getUpsertKeysAlignedTo).
+    // pass-throughs too, and are kept because a key may use them instead (see
+    // UpsertKeyUtil#getUpsertKeysUsingEqualColumns).
     val keyIndices = UpsertKeyUtil
       .getEqualColumns(this, ImmutableBitSet.union(outputUpsertKeys), fmq)
       .toArray

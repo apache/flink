@@ -23,6 +23,7 @@ import org.apache.flink.table.utils.UpsertKeyUtils;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -85,9 +86,9 @@ public class UpsertKeyUtil {
      * through an inner equi-join condition. For example, for {@code t1 JOIN t2 ON a1 = a2} and
      * columns {a1, b2}, the upsert key {a2, b2} adds {a1, b2}.
      *
-     * @return the upsert keys and the aligned ones, or null if the upsert keys are unknown
+     * @return the upsert keys and the replaced keys, or null if the upsert keys are unknown
      */
-    public static @Nullable Set<ImmutableBitSet> getUpsertKeysAlignedTo(
+    public static @Nullable Set<ImmutableBitSet> getUpsertKeysUsingEqualColumns(
             RelNode rel, ImmutableBitSet columns, RelMetadataQuery mq) {
         final FlinkRelMetadataQuery fmq = FlinkRelMetadataQuery.reuseOrCreate(mq);
         final Set<ImmutableBitSet> upsertKeys = fmq.getUpsertKeys(rel);
@@ -100,21 +101,21 @@ public class UpsertKeyUtil {
         for (int column : columns) {
             replacements.putIfAbsent(root(parents, column), column);
         }
-        final Set<ImmutableBitSet> alignedKeys = new HashSet<>(upsertKeys);
-        for (ImmutableBitSet key : upsertKeys) {
-            final ImmutableBitSet.Builder alignedKey = ImmutableBitSet.builder();
-            for (int column : key) {
-                alignedKey.set(
+        final Set<ImmutableBitSet> keys = new HashSet<>(upsertKeys);
+        for (ImmutableBitSet upsertKey : upsertKeys) {
+            final ImmutableBitSet.Builder builder = ImmutableBitSet.builder();
+            for (int column : upsertKey) {
+                builder.set(
                         columns.get(column)
                                 ? column
                                 : replacements.getOrDefault(root(parents, column), column));
             }
-            final ImmutableBitSet aligned = alignedKey.build();
-            if (columns.contains(aligned)) {
-                alignedKeys.add(aligned);
+            final ImmutableBitSet key = builder.build();
+            if (columns.contains(key)) {
+                keys.add(key);
             }
         }
-        return alignedKeys;
+        return keys;
     }
 
     /**
@@ -147,12 +148,11 @@ public class UpsertKeyUtil {
             }
             final RexNode left = ((RexCall) predicate).getOperands().get(0);
             final RexNode right = ((RexCall) predicate).getOperands().get(1);
-            // comparing different types may implicitly cast one side, which needn't be injective,
-            // and FLOAT/DOUBLE compare -0.0 = 0.0 although they are different keys
+            // comparing different types may implicitly cast one side, which needn't be injective
             if (left instanceof RexInputRef
                     && right instanceof RexInputRef
                     && SqlTypeUtil.equalSansNullability(left.getType(), right.getType())
-                    && !SqlTypeUtil.isApproximateNumeric(left.getType())) {
+                    && isEqualityByBytes(left.getType())) {
                 final int leftRoot = root(parents, ((RexInputRef) left).getIndex());
                 final int rightRoot = root(parents, ((RexInputRef) right).getIndex());
                 if (leftRoot != rightRoot) {
@@ -161,6 +161,16 @@ public class UpsertKeyUtil {
             }
         }
         return parents;
+    }
+
+    // types whose "=" is byte equality, unlike FLOAT/DOUBLE (-0.0 = 0.0), MAP, MULTISET or ROW
+    private static boolean isEqualityByBytes(RelDataType type) {
+        return SqlTypeUtil.isCharacter(type)
+                || SqlTypeUtil.isBinary(type)
+                || SqlTypeUtil.isExactNumeric(type)
+                || SqlTypeUtil.isBoolean(type)
+                || SqlTypeUtil.isDatetime(type)
+                || SqlTypeUtil.isInterval(type);
     }
 
     private static int root(Map<Integer, Integer> parents, int column) {

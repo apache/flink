@@ -1010,6 +1010,43 @@ Sink(table=[default_catalog.default_database.sink], fields=[o_id, r_cur, amount,
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinUpsertKeyEquivalenceMapNotSatisfied">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- LogicalProject(a1=[$0], b2=[$3], x1=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
++- Calc(select=[a1, b2, x1], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA,D])
+      :  +- ChangelogNormalize(key=[a1], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[a1]], changelogMode=[I,UA,D])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[a2, b2], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[a2, b2]], changelogMode=[I,UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2]]], fields=[a2, b2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a1, b2, x1])
+   +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- ChangelogNormalize(key=[a1])
+      :     +- Exchange(distribution=[hash[a1]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1])
+      +- Exchange(distribution=[hash[a2]])
+         +- ChangelogNormalize(key=[a2, b2])
+            +- Exchange(distribution=[hash[a2, b2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2]]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinUpsertKeyEquivalenceMultiJoinChainedSubstitution">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==

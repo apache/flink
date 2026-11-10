@@ -1146,16 +1146,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           !changeLogUpsertKeys.exists(_.isEmpty)
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
-      val alignedUpsertKeys = UpsertKeyUtil.getUpsertKeysAlignedTo(sink.getInput, sinkPks, fmq)
+      val upsertKeys = UpsertKeyUtil.getUpsertKeysUsingEqualColumns(sink.getInput, sinkPks, fmq)
       // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
-      if (alignedUpsertKeys == null) {
+      if (upsertKeys == null) {
         return false
       }
       val immutableCols =
         Option.apply(fmq.getImmutableColumns(sink.getInput)).getOrElse(ImmutableBitSet.of())
 
       // when input immutableCols is empty, this degrades to uk.equals(sinkPks)
-      alignedUpsertKeys.exists(
+      upsertKeys.exists(
         uk => {
           // 1. uk ⊆ sinkPks
           val isSinkPkContainsUk = sinkPks.contains(uk)
@@ -1700,7 +1700,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       if (sinkDefinedPks.nonEmpty) {
         val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
         val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-        val changeLogUpsertKeys = UpsertKeyUtil.getUpsertKeysAlignedTo(sink.getInput, sinkPks, fmq)
+        val changeLogUpsertKeys =
+          UpsertKeyUtil.getUpsertKeysUsingEqualColumns(sink.getInput, sinkPks, fmq)
         // if input is UA only, primary key != upsert key (upsert key can be null) we should
         // fallback to beforeAndAfter.
         // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,

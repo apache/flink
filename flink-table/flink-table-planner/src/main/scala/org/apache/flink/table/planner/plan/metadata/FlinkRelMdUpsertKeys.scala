@@ -77,7 +77,7 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       input,
       // a key survives the projection if each column it drops has an equal column that is kept
       () =>
-        UpsertKeyUtil.getUpsertKeysAlignedTo(
+        UpsertKeyUtil.getUpsertKeysUsingEqualColumns(
           input,
           ImmutableBitSet.of(projects.collect { case ref: RexInputRef => ref.getIndex }: _*),
           mq),

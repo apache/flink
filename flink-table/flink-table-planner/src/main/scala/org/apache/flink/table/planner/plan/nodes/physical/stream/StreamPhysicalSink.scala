@@ -147,7 +147,7 @@ class StreamPhysicalSink(
     val primaryKeys = contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
     val pks = ImmutableBitSet.of(primaryKeys: _*)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
-    val changeLogUpsertKeys = UpsertKeyUtil.getUpsertKeysAlignedTo(getInput, pks, fmq)
+    val changeLogUpsertKeys = UpsertKeyUtil.getUpsertKeysUsingEqualColumns(getInput, pks, fmq)
     changeLogUpsertKeys != null && changeLogUpsertKeys.asScala.exists(pks.contains)
   }
 
