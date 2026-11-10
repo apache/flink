@@ -71,6 +71,7 @@ import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentForm
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.TIME_MAPPING_AS_NUMBER;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
 
 /**
@@ -90,6 +91,7 @@ public class RegistryAvroFormatFactory
 
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
+        boolean timeAsNumber = formatOptions.get(TIME_MAPPING_AS_NUMBER);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -102,8 +104,8 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final Schema schema =
                         schemaString
-                                .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .map(s -> getAvroSchema(s, rowType, timeAsNumber))
+                                .orElseGet(() -> AvroSchemaConverter.convertToSchema(rowType));
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
@@ -128,6 +130,7 @@ public class RegistryAvroFormatFactory
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
+        boolean timeAsNumber = formatOptions.get(TIME_MAPPING_AS_NUMBER);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         if (!subject.isPresent()) {
@@ -144,8 +147,8 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 final Schema schema =
                         schemaString
-                                .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .map(s -> getAvroSchema(s, rowType, timeAsNumber))
+                                .orElseGet(() -> AvroSchemaConverter.convertToSchema(rowType));
                 return new AvroRowDataSerializationSchema(
                         rowType,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
@@ -177,6 +180,7 @@ public class RegistryAvroFormatFactory
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(SUBJECT);
         options.add(SCHEMA);
+        options.add(TIME_MAPPING_AS_NUMBER);
         options.add(PROPERTIES);
         options.add(SSL_KEYSTORE_LOCATION);
         options.add(SSL_KEYSTORE_PASSWORD);
@@ -195,6 +199,7 @@ public class RegistryAvroFormatFactory
                         URL,
                         SUBJECT,
                         SCHEMA,
+                        TIME_MAPPING_AS_NUMBER,
                         PROPERTIES,
                         SSL_KEYSTORE_LOCATION,
                         SSL_KEYSTORE_PASSWORD,
@@ -244,9 +249,11 @@ public class RegistryAvroFormatFactory
         return properties;
     }
 
-    private static Schema getAvroSchema(String schemaString, RowType rowType) {
+    private static Schema getAvroSchema(
+            String schemaString, RowType rowType, boolean timeAsNumber) {
         LogicalType convertedDataType =
-                AvroSchemaConverter.convertToDataType(schemaString).getLogicalType();
+                AvroSchemaConverter.convertToDataType(schemaString, true, timeAsNumber)
+                        .getLogicalType();
 
         if (convertedDataType.isNullable()) {
             convertedDataType = convertedDataType.copy(false);

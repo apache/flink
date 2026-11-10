@@ -272,6 +272,14 @@ Format Options
             <td>The schema registered or to be registered in the Confluent Schema Registry. If no schema is provided Flink converts the table schema to avro schema. The schema provided must match the table schema.</td>
         </tr>
         <tr>
+            <td><h5>avro-confluent.time-mapping.as-number</h5></td>
+            <td>optional</td>
+            <td>yes</td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Maps the Avro logical types <code>time-millis</code> and <code>time-micros</code> of the schema given with <code>avro-confluent.schema</code> to <code>INT</code> and <code>BIGINT</code> instead of <code>TIME(3)</code> and <code>TIME(6)</code>. A <code>TIME</code> holds milliseconds only, so the microseconds of a <code>time-micros</code> are lost as a <code>TIME</code> and kept as a <code>BIGINT</code>. Only applies together with <code>avro-confluent.schema</code>: without it the Avro schema is derived from the table schema, where the column type decides.</td>
+        </tr>
+        <tr>
             <td><h5>avro-confluent.subject</h5></td>
             <td>optional</td>
             <td>yes</td>

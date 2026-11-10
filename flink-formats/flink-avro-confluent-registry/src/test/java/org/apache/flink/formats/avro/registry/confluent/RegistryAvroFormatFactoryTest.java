@@ -229,6 +229,90 @@ class RegistryAvroFormatFactoryTest {
                                 null, SCHEMA.toPhysicalRowDataType()));
     }
 
+    private static final String TIME_SCHEMA_STRING =
+            "{\n"
+                    + "    \"type\": \"record\",\n"
+                    + "    \"name\": \"test_record\",\n"
+                    + "    \"fields\": [\n"
+                    + "        {\"name\": \"millis\", \"type\": [\"null\", {\"type\": \"int\", \"logicalType\": \"time-millis\"}], \"default\": null},\n"
+                    + "        {\"name\": \"micros\", \"type\": [\"null\", {\"type\": \"long\", \"logicalType\": \"time-micros\"}], \"default\": null}\n"
+                    + "    ]\n"
+                    + "}";
+
+    private static final ResolvedSchema TIME_AS_TIMES =
+            ResolvedSchema.of(
+                    Column.physical("millis", DataTypes.TIME(3)),
+                    Column.physical("micros", DataTypes.TIME(6)));
+
+    private static final ResolvedSchema TIME_AS_NUMBERS =
+            ResolvedSchema.of(
+                    Column.physical("millis", DataTypes.INT()),
+                    Column.physical("micros", DataTypes.BIGINT()));
+
+    private Map<String, String> timeSchemaOptions(boolean timeAsNumber) {
+        return getModifiedOptions(
+                opts -> {
+                    opts.put("avro-confluent.schema", TIME_SCHEMA_STRING);
+                    opts.put("avro-confluent.time-mapping.as-number", String.valueOf(timeAsNumber));
+                });
+    }
+
+    @Test
+    void testTimeLogicalTypesOfTheSchemaAreNotNumbersByDefault() {
+        final TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock)
+                        createTableSink(TIME_AS_NUMBERS, timeSchemaOptions(false));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        sinkMock.valueFormat.createRuntimeEncoder(
+                                null, TIME_AS_NUMBERS.toPhysicalRowDataType()));
+    }
+
+    @Test
+    void testTimeLogicalTypesOfTheSchemaAreTimesByDefault() {
+        // The schema is used as given. Building the Avro schema of the table first would fail,
+        // as a TIME(6) has no Avro schema.
+        final TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock)
+                        createTableSink(TIME_AS_TIMES, timeSchemaOptions(false));
+        sinkMock.valueFormat.createRuntimeEncoder(null, TIME_AS_TIMES.toPhysicalRowDataType());
+
+        final TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock)
+                        createTableSource(TIME_AS_TIMES, timeSchemaOptions(false));
+        sourceMock.valueFormat.createRuntimeDecoder(
+                ScanRuntimeProviderContext.INSTANCE, TIME_AS_TIMES.toPhysicalRowDataType());
+    }
+
+    @Test
+    void testTimeLogicalTypesOfTheSchemaAsNumbers() {
+        final TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock)
+                        createTableSink(TIME_AS_NUMBERS, timeSchemaOptions(true));
+        sinkMock.valueFormat.createRuntimeEncoder(null, TIME_AS_NUMBERS.toPhysicalRowDataType());
+
+        final TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock)
+                        createTableSource(TIME_AS_NUMBERS, timeSchemaOptions(true));
+        sourceMock.valueFormat.createRuntimeDecoder(
+                ScanRuntimeProviderContext.INSTANCE, TIME_AS_NUMBERS.toPhysicalRowDataType());
+    }
+
+    @Test
+    void testTimeColumnsDoNotMatchTheSchemaWhenItsTimesAreNumbers() {
+        final TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock)
+                        createTableSink(TIME_AS_TIMES, timeSchemaOptions(true));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        sinkMock.valueFormat.createRuntimeEncoder(
+                                null, TIME_AS_TIMES.toPhysicalRowDataType()));
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
