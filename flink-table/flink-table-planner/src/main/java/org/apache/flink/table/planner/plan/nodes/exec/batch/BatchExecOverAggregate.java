@@ -339,6 +339,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                             relBuilder,
                                             config,
                                             classLoader,
+                                            overSpec,
                                             sortSpec,
                                             group.getUpperBound(),
                                             false,
@@ -352,6 +353,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                             relBuilder,
                                             config,
                                             classLoader,
+                                            overSpec,
                                             sortSpec,
                                             group.getLowerBound(),
                                             true,
@@ -365,6 +367,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                             relBuilder,
                                             config,
                                             classLoader,
+                                            overSpec,
                                             sortSpec,
                                             group.getLowerBound(),
                                             true,
@@ -374,6 +377,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                             relBuilder,
                                             config,
                                             classLoader,
+                                            overSpec,
                                             sortSpec,
                                             group.getUpperBound(),
                                             false,
@@ -431,10 +435,15 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         return windowFrames;
     }
 
-    private GeneratedRecordComparator createBoundComparator(
+    /**
+     * Creates the comparator that finds where a RANGE frame bound falls. {@link
+     * BatchExecPythonOverAggregate} uses it too, so that pandas UDAFs get the same frames.
+     */
+    static GeneratedRecordComparator createBoundComparator(
             FlinkRelBuilder relBuilder,
             ExecNodeConfig config,
             ClassLoader classLoader,
+            OverSpec overSpec,
             SortSpec sortSpec,
             RexWindowBound windowBound,
             boolean isLowerBound,

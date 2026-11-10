@@ -30,6 +30,8 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
+import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -68,11 +70,15 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     /** The window index of the specified aggregate function belonging to. */
     private final int[] aggWindowIndex;
 
-    /** The row time index of the input data. */
-    private final int inputTimeFieldIndex;
+    /** Finds the lower bound of each bounded RANGE window; null for other windows. */
+    private final GeneratedRecordComparator[] genLowerBoundComparators;
 
-    /** The order of row time. True for ascending. */
-    private final boolean asc;
+    /** Finds the upper bound of each bounded RANGE window; null for other windows. */
+    private final GeneratedRecordComparator[] genUpperBoundComparators;
+
+    private transient RecordComparator[] lowerBoundComparators;
+
+    private transient RecordComparator[] upperBoundComparators;
 
     /** The type serializer for the forwarded fields. */
     private transient RowDataSerializer forwardedInputSerializer;
@@ -102,8 +108,8 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             long[] upperBoundary,
             boolean[] isRangeWindows,
             int[] aggWindowIndex,
-            int inputTimeFieldIndex,
-            boolean asc,
+            GeneratedRecordComparator[] genLowerBoundComparators,
+            GeneratedRecordComparator[] genUpperBoundComparators,
             GeneratedProjection inputGeneratedProjection,
             GeneratedProjection groupKeyGeneratedProjection,
             GeneratedProjection groupSetGeneratedProjection) {
@@ -120,8 +126,8 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
         this.upperBoundary = upperBoundary;
         this.isRangeWindows = isRangeWindows;
         this.aggWindowIndex = aggWindowIndex;
-        this.inputTimeFieldIndex = inputTimeFieldIndex;
-        this.asc = asc;
+        this.genLowerBoundComparators = genLowerBoundComparators;
+        this.genUpperBoundComparators = genUpperBoundComparators;
     }
 
     @Override
@@ -133,12 +139,23 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
         windowBoundaryWithDataWrapper = new DataOutputViewStreamWrapper(windowBoundaryWithDataBaos);
         boundedRangeWindowBoundaries = new ArrayList<>(lowerBoundary.length);
         boundedRangeWindowIndex = new ArrayList<>();
+        ClassLoader userCodeClassLoader = getRuntimeContext().getUserCodeClassLoader();
+        lowerBoundComparators = new RecordComparator[lowerBoundary.length];
+        upperBoundComparators = new RecordComparator[upperBoundary.length];
         for (int i = 0; i < lowerBoundary.length; i++) {
             // range window with bounded preceding or bounded following
             if (isRangeWindows[i]
                     && (lowerBoundary[i] != Long.MIN_VALUE || upperBoundary[i] != Long.MAX_VALUE)) {
                 boundedRangeWindowIndex.add(i);
                 boundedRangeWindowBoundaries.add(new ArrayList<>());
+            }
+            if (genLowerBoundComparators[i] != null) {
+                lowerBoundComparators[i] =
+                        genLowerBoundComparators[i].newInstance(userCodeClassLoader);
+            }
+            if (genUpperBoundComparators[i] != null) {
+                upperBoundComparators[i] =
+                        genUpperBoundComparators[i].newInstance(userCodeClassLoader);
             }
         }
     }
@@ -173,34 +190,41 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                 // loop every bounded range window
                 for (int j = 0; j < boundedRangeWindowIndex.size(); j++) {
                     int windowPos = boundedRangeWindowIndex.get(j);
-                    long curMills = curData.getTimestamp(inputTimeFieldIndex, 3).getMillisecond();
                     List<Integer> curWindowBoundary = boundedRangeWindowBoundaries.get(j);
+                    // A FOLLOWING lower bound can lie beyond the last row of the partition, or
+                    // beyond the upper boundary after a NULL key. As in RangeSlidingOverFrame,
+                    // the lower boundary never moves past the upper one, so find that first.
+                    int lowerBoundaryLimit = forwardedInputQueue.size();
+                    // bounded following
+                    if (upperBoundary[windowPos] != Long.MAX_VALUE) {
+                        RecordComparator upperBoundComparator = upperBoundComparators[windowPos];
+                        int curUpperBoundaryPos = upperBoundaryPos[j];
+                        while (curUpperBoundaryPos < forwardedInputQueue.size()
+                                && upperBoundComparator.compare(
+                                                forwardedInputQueue.get(curUpperBoundaryPos),
+                                                curData)
+                                        <= 0) {
+                            curUpperBoundaryPos += 1;
+                        }
+                        upperBoundaryPos[j] = curUpperBoundaryPos;
+                        lowerBoundaryLimit = curUpperBoundaryPos;
+                    }
                     // bounded preceding
                     if (lowerBoundary[windowPos] != Long.MIN_VALUE) {
+                        RecordComparator lowerBoundComparator = lowerBoundComparators[windowPos];
                         int curLowerBoundaryPos = lowerBoundaryPos[j];
-                        long lowerBoundaryTime = curMills + lowerBoundary[windowPos];
-                        while (isInCurrentOverWindow(
-                                forwardedInputQueue.get(curLowerBoundaryPos),
-                                lowerBoundaryTime,
-                                false)) {
+                        while (curLowerBoundaryPos < lowerBoundaryLimit
+                                && lowerBoundComparator.compare(
+                                                forwardedInputQueue.get(curLowerBoundaryPos),
+                                                curData)
+                                        < 0) {
                             curLowerBoundaryPos += 1;
                         }
                         lowerBoundaryPos[j] = curLowerBoundaryPos;
                         curWindowBoundary.add(curLowerBoundaryPos - lastKeyDataStartPos);
                     }
-                    // bounded following
                     if (upperBoundary[windowPos] != Long.MAX_VALUE) {
-                        int curUpperBoundaryPos = upperBoundaryPos[j];
-                        long upperBoundaryTime = curMills + upperBoundary[windowPos];
-                        while (curUpperBoundaryPos < forwardedInputQueue.size()
-                                && isInCurrentOverWindow(
-                                        forwardedInputQueue.get(curUpperBoundaryPos),
-                                        upperBoundaryTime,
-                                        true)) {
-                            curUpperBoundaryPos += 1;
-                        }
-                        upperBoundaryPos[j] = curUpperBoundaryPos;
-                        curWindowBoundary.add(curUpperBoundaryPos - lastKeyDataStartPos);
+                        curWindowBoundary.add(upperBoundaryPos[j] - lastKeyDataStartPos);
                     }
                 }
             }
@@ -350,11 +374,5 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
         return createOverWindowArrowTypeCoderInfoDescriptorProto(
                 runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
-    }
-
-    private boolean isInCurrentOverWindow(RowData data, long time, boolean includeEqual) {
-        long dataTime = data.getTimestamp(inputTimeFieldIndex, 3).getMillisecond();
-        long diff = time - dataTime;
-        return (diff > 0 && asc) || (diff == 0 && includeEqual);
     }
 }
