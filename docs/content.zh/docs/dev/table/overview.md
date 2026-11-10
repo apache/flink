@@ -57,7 +57,7 @@ Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可
 * [连接外部系统]({{< ref "docs/connectors/table/overview" >}}): 读写外部系统的连接器和格式。
 * [Table API 操作]({{< ref "docs/dev/table/tableApi" >}}): Table API 支持的操作。
 * [SQL 参考]({{< ref "docs/sql/reference/overview" >}}): SQL 支持的操作和语法。
-* [内置函数]({{< ref "docs/sql/functions/built-in-functions" >}}): Table API 和 SQL 中的内置函数。
+* [内置函数]({{< ref "docs/sql/built-in-functions" >}}): Table API 和 SQL 中的内置函数。
 * [PyFlink]({{< ref "docs/dev/python" >}}): Python 相关的 Flink 文档。
 
 {{< top >}}

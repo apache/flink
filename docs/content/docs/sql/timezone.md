@@ -1,6 +1,6 @@
 ---
 title: "Time Zone"
-weight: 6
+weight: 8
 type: docs
 aliases:
   - /docs/dev/table/timezone/
