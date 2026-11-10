@@ -42,11 +42,11 @@ A window function returns one value per row, computed from the window of rows th
 
 ### Table
 
-A table function takes scalar arguments and returns a table, with zero, one or more rows for each call. For example, the built-in [`UNNEST`]({{< ref "docs/sql/reference/queries/joins" >}}#数组展开) returns a row for each element of an array or multiset, or for each entry of a map. To call a user-defined table function, see [Table Function]({{< ref "docs/sql/reference/queries/joins" >}}#table-function) in Joins.
+A table function takes scalar arguments and returns a table, with zero, one or more rows for each call. For example, the built-in [`UNNEST`]({{< ref "docs/sql/built-in-functions/collection" >}}#table-functions) returns a row for each element of an array or multiset, or for each entry of a map. To call a user-defined table function, see [Table Function]({{< ref "docs/sql/reference/queries/joins" >}}#table-function) in Joins.
 
 ### Process Table
 
-A process table function (PTF) takes one or more tables as arguments, besides scalar arguments, and returns a table. It processes a table argument either row by row, or per set of rows that `PARTITION BY` groups. The built-in PTFs, such as `FROM_CHANGELOG`, are listed in [Process Table Functions]({{< ref "docs/sql/built-in-functions/process-table-functions" >}}). The [window table functions]({{< ref "docs/sql/built-in-functions/window" >}}#window-table-functions), such as `TUMBLE`, also take a table and assign its rows to windows.
+A process table function (PTF) takes one or more tables as arguments, besides scalar arguments, and returns a table. It processes a table argument either row by row, or per set of rows that `PARTITION BY` groups. The built-in PTFs, such as `FROM_CHANGELOG` and `ML_PREDICT`, are listed in [Process Table Functions]({{< ref "docs/sql/built-in-functions/process-table-functions" >}}). The [window table functions]({{< ref "docs/sql/built-in-functions/window" >}}#window-table-functions), such as `TUMBLE`, also take a table and assign its rows to windows.
 
 ### User-Defined
 
