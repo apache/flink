@@ -1728,7 +1728,7 @@ The changelog of the backing input table decides which kinds of changes enter th
 - `{+I}` if the input table is append-only.
 - `{+I,+U,-D}` if the input table is upserting and either:
   - the table argument has set semantics and is partitioned by the upsert key, or
-  - the table argument has row semantics and the function emits only inserts.
+  - the function emits only inserts.
 - `{+I,-U,+U,-D}` (i.e. including `RowKind.UPDATE_BEFORE`) otherwise.
 
 Use `ArgumentTrait.REQUIRE_UPDATE_BEFORE` to enforce retractions for all updating cases.

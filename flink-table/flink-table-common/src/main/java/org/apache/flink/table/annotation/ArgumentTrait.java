@@ -196,8 +196,8 @@ public enum ArgumentTrait {
      * <ul>
      *   <li>{+I} if the input table is append-only.
      *   <li>{+I,+U,-D} if the input table is upserting and either the table argument has {@link
-     *       #SET_SEMANTIC_TABLE} and is partitioned by the upsert key, or the table argument has
-     *       {@link #ROW_SEMANTIC_TABLE} and the function emits only inserts.
+     *       #SET_SEMANTIC_TABLE} and is partitioned by the upsert key, or the function emits only
+     *       inserts.
      *   <li>{+I,-U,+U,-D} (i.e. including {@link RowKind#UPDATE_BEFORE}) otherwise.
      * </ul>
      *
@@ -249,8 +249,7 @@ public enum ArgumentTrait {
      * // In both encodings, a materialized table would only contain a row for Alice.
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
-     * arguments that {@link #SUPPORT_UPDATES}.
+     * <p>Note: This trait is valid for table arguments that {@link #SUPPORT_UPDATES}.
      *
      * @see #SUPPORT_UPDATES
      */
@@ -281,8 +280,7 @@ public enum ArgumentTrait {
      * // In both encodings, a materialized table would only contain a row for Alice.
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
-     * arguments that {@link #SUPPORT_UPDATES}.
+     * <p>Note: This trait is valid for table arguments that {@link #SUPPORT_UPDATES}.
      *
      * @see #SUPPORT_UPDATES
      */

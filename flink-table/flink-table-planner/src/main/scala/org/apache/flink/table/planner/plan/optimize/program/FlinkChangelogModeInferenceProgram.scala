@@ -942,8 +942,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                     } else {
                       UpdateKindTrait.NONE
                     }
-                  // Without partition keys, row semantics would otherwise require BEFORE_AND_AFTER
-                  if (ptfAcceptsRowSemanticUpserts(process, tableArg, child)) {
+                  // Without set semantics, updating inputs would otherwise require BEFORE_AND_AFTER
+                  if (insertOnlyPtfAcceptsUpserts(process, tableArg, child)) {
                     visitChildAttemptUpsert(child)
                   } else {
                     this.visit(child, requiredUpdateTrait)
@@ -1401,11 +1401,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                   val inputArg = inputArgs.get(inputIndex)
                   val (tableArg, tableArgCall, modifyKindSet) =
                     extractPtfTableArgComponents(process, child, inputArg)
-                  val consumesUpserts = if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
+                  val consumesUpserts = if (tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                    !ptfRequiresUpdateBefore(tableArg, tableArgCall, child)
+                  } else {
                     child.getTraitSet.getTrait(
                       UpdateKindTraitDef.INSTANCE) == UpdateKindTrait.ONLY_UPDATE_AFTER
-                  } else {
-                    !ptfRequiresUpdateBefore(tableArg, tableArgCall, child)
                   }
                   if (
                     tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES)
@@ -1844,17 +1844,17 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
   }
 
-  /** Insert-only PTFs with row semantics don't need UPDATE_BEFORE if the input has a key. */
-  private def ptfAcceptsRowSemanticUpserts(
+  /** Insert-only PTFs don't need UPDATE_BEFORE for non-partitioned tables with an upsert key. */
+  private def insertOnlyPtfAcceptsUpserts(
       process: StreamPhysicalProcessTableFunction,
       tableArg: StaticArgument,
       input: StreamPhysicalRel): Boolean = {
-    val isRowSemantic = tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)
+    val isSetSemantic = tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)
+    val requiresRetractions = tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
     val isUpdatingInput =
       tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES) && !getModifyKindSet(input).isInsertOnly
-    val requiresRetractions = tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
     val isInsertOnlyOutput = getModifyKindSet(process).isInsertOnly
-    isRowSemantic && isUpdatingInput && !requiresRetractions && isInsertOnlyOutput &&
+    !isSetSemantic && !requiresRetractions && isUpdatingInput && isInsertOnlyOutput &&
     hasNonEmptyUpsertKey(input)
   }
 
