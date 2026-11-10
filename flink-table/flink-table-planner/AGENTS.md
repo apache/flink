@@ -90,7 +90,10 @@ Then:
 ### Code generation changes
 
 - Cast rules live in `functions/casting/`. Each extends `AbstractExpressionCodeGeneratorCastRule` or similar.
-- Custom call generators for functions live in `codegen/calls/` (e.g., `JsonCallGen.scala`). Simple scalar functions typically don't need these; the planner handles them uniformly through the function definition.
+- Custom call generators for functions live in `codegen/calls/` (e.g., `JsonCallGen.scala`). Simple scalar functions typically don't need these; the planner handles them uniformly through the function definition. The root [AGENTS.md](../../AGENTS.md) says when a function needs codegen.
+- A scalar function defined with `runtimeProvided()` gets its code from a case in the `BridgingSqlFunction` match of `ExprCodeGenerator.scala`, which calls a generator such as `JsonCodeGenUtils.generateParseJson`. Without that case, the call goes to `BridgingSqlFunctionCallGen`, and code generation fails with "Could not find a runtime implementation for built-in function". A case in that match takes precedence over the builder call: `IF_NULL` declares `runtimeClass(...)`, but its code comes from the `COALESCE | IF_NULL` case.
+- An aggregate defined with `runtimeProvided()` needs a case in the `BridgingSqlAggFunction` match of `AggFunctionFactory.scala` that returns its runtime class.
+- To share work between calls in one generated method, cache the generated expression in the `CodeGeneratorContext`, as `JsonCodeGenUtils.generateParseJson` does with `getReusableInputUnboxingExprs`.
 - Immutables library is used for rule configs (`@Value.Immutable`, `@Value.Enclosing`). See [README.md](README.md).
 
 **Query-controlled strings in generated code.** Generated code is compiled with Janino and executed in the job, so a query-controlled string that is embedded unescaped changes the code that runs. This includes identifiers and ROW field names (may contain `"` and `\`, and line breaks when they come from the Table API or a catalog), string literals, LIKE/regex/JSON path/format patterns, MATCH_RECOGNIZE pattern variables, and type names.
@@ -138,5 +141,5 @@ Choose test types based on what you're changing:
 - **Semantic tests** (for ExecNode/operator changes): Use `SemanticTestBase` (streaming) or `BatchSemanticTestBase` (batch) in `plan/nodes/exec/testutils/`. Extends `CommonSemanticTestBase` which implements `TableTestProgramRunner`. Prefer these over ITCase for operators and ExecNodes.
 - **Restore tests** (for stateful operators): Use `RestoreTestBase` or `BatchRestoreTestBase` in `plan/nodes/exec/testutils/`. Implements `TableTestProgramRunner`, uses `@ExtendWith(MiniClusterExtension.class)`. Required when your operator uses state. Tests savepoint creation and job restart in two phases: (1) generate compiled plans + savepoints, (2) verify recovery.
 - **Plan tests** (for optimization rules): Verify the generated execution plan using XML golden files. Used for logical and physical optimization rules.
-- **ITCase** (for built-in functions): Function tests typically use ITCase with `TestSetSpec` for end-to-end verification (e.g., `JsonFunctionsITCase`, `TimeFunctionsITCase`).
+- **ITCase** (for built-in functions): Function tests typically use ITCase with `TestSetSpec` for end-to-end verification (e.g., `JsonFunctionsITCase`, `TimeFunctionsITCase`). Add a new function's cases to the ITCase of its category instead of a new file, and test its type strategies with a unit test in `flink-table-common`. The root [AGENTS.md](../../AGENTS.md) says what each test level covers.
 - **JSON plan test regeneration:** Set `PLAN_TEST_FORCE_OVERWRITE=true` environment variable (documented in [README.md](README.md)).

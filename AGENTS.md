@@ -196,7 +196,7 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 Key separations:
 
 - **Planner vs Runtime:** The table planner generates code and execution plans; the runtime executes them. Changes to planning logic live in `flink-table-planner`; changes to runtime operators live in `flink-table-runtime` or `flink-streaming-java`.
-- **Codegen vs hand-written operators:** Per-record expression logic (casts, projections, filters, function calls) is generated at planning time by cast rules in `flink-table-planner/.../functions/casting/` and call generators in `flink-table-planner/.../codegen/calls/`, then compiled by Janino into the surrounding operator class. Operators with fixed structure (joins, aggregations, source/sink runtime) are hand-written Java in `flink-table-runtime` or `flink-streaming-java`. New scalar functions usually only need a `BuiltInFunctionDefinitions` entry plus a `BuiltInScalarFunction` subclass - the planner wires up codegen automatically. New cast behaviour or a custom call shape needs a cast rule or call generator.
+- **Codegen vs hand-written operators:** Per-record expression logic (casts, projections, filters, function calls) is generated at planning time by cast rules in `flink-table-planner/.../functions/casting/` and call generators in `flink-table-planner/.../codegen/calls/`, then compiled by Janino into the surrounding operator class. Operators with fixed structure (joins, aggregations, source/sink runtime) are hand-written Java in `flink-table-runtime` or `flink-streaming-java`. New scalar functions usually only need a `BuiltInFunctionDefinitions` entry plus a `BuiltInScalarFunction` subclass. New cast behaviour or a custom call shape needs a cast rule or call generator.
 - **API vs Implementation:** Public API surfaces (`flink-core-api`, `flink-datastream-api`, `flink-table-api-java`) are separate from implementation modules. API stability annotations control what users can depend on.
 - **ArchUnit enforcement:** `flink-architecture-tests/` contains ArchUnit tests that enforce module boundaries. New violations should be avoided; if unavoidable, follow the freeze procedure in `flink-architecture-tests/README.md`.
 
@@ -206,12 +206,50 @@ This section maps common types of Flink changes to the modules they touch and th
 
 ### Adding a new SQL built-in function
 
-1. Register in `flink-table-common` in `BuiltInFunctionDefinitions.java` (definition, input/output type strategies, runtime class reference)
-2. Implement in `flink-table-runtime` under `functions/` (extend the appropriate base class: `BuiltInScalarFunction`, `BuiltInTableFunction`, `BuiltInAggregateFunction`, or `BuiltInProcessTableFunction`)
-3. Add tests in `flink-table-planner` and `flink-table-runtime`
-4. Extend Table API support
-5. Document in `docs/`
-6. See [flink-table/flink-table-planner/AGENTS.md](flink-table/flink-table-planner/AGENTS.md) and [flink-table/flink-table-runtime/AGENTS.md](flink-table/flink-table-runtime/AGENTS.md) for detailed patterns
+A built-in function touches six modules. Each step names an example of that step done right. Don't copy a whole older function: most of them use the Calcite path, older test utilities, or test the same case at several levels.
+
+1. **Check what other engines do.** Compare the function with Spark, Snowflake, BigQuery, DuckDB, PostgreSQL and similar engines: its name, its NULL handling and the result type for each input type. Follow the closest one, and state the reason for any difference in the PR.
+2. **Define it** in `BuiltInFunctionDefinitions` in `flink-table-common`: name, kind, input and output type strategies, and how it runs, see step 3.
+   - Write the name in upper case with underscores, such as `URL_DECODE`, so that SQL and the Table API use the same name.
+   - Reuse a strategy from `InputTypeStrategies`, `TypeStrategies`, `SpecificInputTypeStrategies` or `SpecificTypeStrategies` before writing a new one.
+   - When a new strategy would repeat code that other strategies share, extract a shared abstraction instead of copying it. `ValidationOnlyInputTypeStrategy` is one: for a function that declares its arguments with `staticArguments(...)`, it fixes the argument count and signature, so a subclass only implements `inferInputTypes` to validate. The strategies of `FROM_CHANGELOG`, `TO_CHANGELOG` and `DEDUPLICATE_KEEP_FIRST` use it.
+   - Validate literal arguments in the input strategy, so that a malformed literal fails at planning time instead of on the first record.
+   - Register the function only here. Don't also add a field for it to `FlinkSqlOperatorTable`: that class registers every field by reflection, and a second operator with the same name makes compiled plans that call the function fail to restore.
+   - Every public class in `flink-table-common` and `flink-table-api-java`, nested classes included, needs a visibility annotation such as `@Internal`. ArchUnit checks this in `TableApiRules`.
+3. **Choose how it runs.** The builder call in `BuiltInFunctionDefinitions` decides:
+   - `runtimeClass("...")` is the default for scalar, table and process table functions. The class extends `BuiltInScalarFunction`, `BuiltInTableFunction` or `BuiltInProcessTableFunction` in `flink-table-runtime`, and the generated code calls its `eval` method directly. Precomputing a literal argument, such as parsing a path or compiling a pattern, is no reason for codegen. Do it once in the constructor from `SpecializedContext`, as `VariantGetFunction` does.
+   - `runtimeProvided()` on a scalar function means that the planner generates its code. Use it only when a runtime class can't do the job:
+     - Performance, when calls can share work. Each call of a runtime class runs on its own, but generated code can reuse a result across the calls in one generated method. `PARSE_JSON` and `TRY_PARSE_JSON` parse an input once for all calls on it, which a runtime class can't do.
+     - The function reads the operator context, as `CURRENT_WATERMARK` does.
+     - The function evaluates an argument only when needed. A runtime class gets every argument already evaluated. `COALESCE` and `IF_NULL` have generated code for this, although they declare `runtimeDeferred()` and `runtimeClass(...)`: a case in `ExprCodeGenerator` takes precedence over the builder call.
+   - `runtimeProvided()` on an aggregate function means that `AggFunctionFactory.scala` picks the implementation, a `BuiltInAggregateFunction` in `flink-table-runtime`. Every built-in aggregate takes this path, because the factory can choose a class from planning facts, such as a retracting variant when the input has updates. See `BITMAP_BUILD_AGG`.
+   - `runtimeDeferred()` maps the function to a Calcite `SqlOperator` in `FlinkSqlOperatorTable`. Don't use it for a new function. It remains for older functions and for syntax that the SQL parser must handle, such as `JSON_VALUE(... RETURNING ...)`.
+4. **Implement it.** See [flink-table/flink-table-runtime/AGENTS.md](flink-table/flink-table-runtime/AGENTS.md) for a runtime class and [flink-table/flink-table-planner/AGENTS.md](flink-table/flink-table-planner/AGENTS.md) for codegen.
+   - A SQL NULL argument gives NULL, unless the function defines otherwise.
+   - A `TRY_` variant returns NULL where the function would throw. Share one implementation, as `TryVariantGetFunction` does by passing a flag to `VariantGetFunction`.
+   - Throw a `ValidationException` for an error found during planning, such as in a type strategy, and a `TableRuntimeException` for an error on a record.
+   - Keep the per-record path fast, in a runtime class and in generated code alike. `eval` and the generated call run once for every record, so a small cost there multiplies.
+     - Do work that doesn't depend on the record once per query. A runtime class does it in its constructor, as `VariantGetFunction` does for a literal path. Generated code passes it in through `ctx.addReusableObject` or a reusable member, as `StringCallGen` does for a literal pattern.
+     - Cache what depends on an argument that is not a literal but rarely changes. Compare the argument with a copy of the last internal value, such as a `BinaryStringData`, whose `equals` compares bytes. A cache hit then converts nothing.
+     - Stay on internal data structures. Converting to a Java object per record, such as `StringData#toString()`, allocates and copies. Don't allocate per record what can be reused, and avoid boxing.
+     - A `TRY_` variant doesn't build the error it would have thrown. On a rejected row, `TRY_PARSE_JSON` skips the message that `PARSE_JSON` builds for its exception.
+     - Don't log in the per-record path. A log line there can fill a TaskManager's disk.
+     - When two designs differ on the per-record path, measure both and put the numbers in the PR.
+5. **Add the Table API method** in `flink-table-api-java`: on `BaseExpressions` for a call on a value, such as `$("v").variantGet("$.a")`, or on `Expressions` for a call without one, such as `uuidV4()`. `ExpressionSerializationTest` checks the SQL that a Table API call prints, so add the call there. Keep the Javadoc to a few sentences: what the call returns, and when it returns NULL or fails. Refer to the SQL function for longer rules, such as a path syntax.
+6. **Add the PyFlink method.** CI fails without it.
+   - A `BaseExpressions` method goes on `Expression` in `flink-python/pyflink/table/expression.py`. An `Expressions` method goes into `flink-python/pyflink/table/expressions.py`, with `@PublicEvolving()` like the functions around it.
+   - Name it in snake_case after the Java method, such as `variantGet` and `variant_get`. `test_expression_completeness.py` and `test_expressions_completeness.py` turn every Python name back into camelCase, and fail on a Java method without a match.
+   - Call Java through the helpers in the same file, such as `_binary_op("variantGet")`. Convert a `DataType` argument with `_to_java_data_type`.
+   - Keep the docstring as short as the Javadoc. Write SQL NULL as NULL, not None, and give an example.
+   - In `flink-python/pyflink/table/tests/test_expression.py`, assert the SQL that the expression prints, such as `"VARIANT_GET(a, '$.x')"`.
+   - List the method in `flink-python/docs/reference/pyflink.table/expressions.rst`, under its category. No test checks this list.
+7. **Test each behavior once, with the cheapest test that covers it.** An ITCase runs every case as a query on a mini cluster, so it costs the most CI time.
+   - Test the type strategies with a unit test that extends `InputTypeStrategiesTestBase` or `TypeStrategiesTestBase` in `flink-table-common`, such as `RegexpExtractInputTypeStrategyTest`. Cover every argument type the strategy accepts, including lengths and precisions such as `CHAR(33)` and `TIMESTAMP_LTZ(9)`, the inferred result type, and each validation error with its exact message. The ITCase doesn't repeat these cases.
+   - Test a helper class, such as a path parser, with a plain unit test in its module, as `SimplePathTest` does.
+   - Add the ITCase cases to the existing ITCase of the function's category in `flink-table-planner`, such as `VariantFunctionsITCase` for a VARIANT function or `CollectionFunctionsITCase` for an array function. Don't create a file for one function.
+   - In the ITCase, cover what needs a running query: results, NULL inputs and runtime errors. Add a case for each input that the implementation handles differently, not for each type that the strategy accepts. Use `testResult` to run the SQL and the Table API call against one expected value, and `testSqlRuntimeError` with the exact message. Call the Table API method, not `call("NAME")`.
+   - Don't add a case that another test already covers, directly or through a component the function reuses, such as a cast with its own tests.
+8. **Document it** in `docs/data/sql_functions.yml`: add a row with `sql`, `table` and `description` to the function's category. Add the same row to `docs/data/sql_functions_zh.yml`, in English if you don't write Chinese. Describe what a user can observe: the arguments, the result, the NULL cases and the errors. Leave out implementation details, such as class names, code generation or caching. Check every statement against the type strategies, the runtime class and the tests, and take every result in an example from running its SQL.
 
 ### Adding a new configuration option
 

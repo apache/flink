@@ -48,9 +48,14 @@ Base classes by function type:
 - **Aggregate:** Extend `BuiltInAggregateFunction` in `functions/aggregate/`
 - **Process Table Function:** Extend `BuiltInProcessTableFunction` in `functions/ptf/`
 
-All are constructed from `BuiltInFunctionDefinition#specialize(SpecializedContext)` and work on internal data structures by default.
+All work on internal data structures by default, such as `StringData`, `ArrayData` and `RowData`. Scalar, table and process table functions are constructed by `BuiltInFunctionDefinition#specialize(SpecializedContext)` from the class named in `runtimeClass(...)`. An aggregate is constructed by `AggFunctionFactory` in the planner instead.
 
-Some functions also require custom code generators in the planner (e.g., `JsonCallGen.scala` for JSON functions). Simple scalar functions typically don't need planner changes; the planner handles them uniformly through the function definition.
+- Take a `SpecializedContext` in the constructor and pass the definition to `super`, as in `super(BuiltInFunctionDefinitions.REGEXP_COUNT, context)`.
+- Precompute what a literal argument allows once, in the constructor. Check `context.getCallContext().isArgumentLiteral(i)` and read the value with `getArgumentValue(i, Class)`, as `VariantGetFunction` does for a literal path. Keep a path for an argument that is not a literal, which arrives per record in `eval`.
+- Mark a parameter or result that can be NULL with `@Nullable`, and return null for a SQL NULL input.
+- Implement a `TRY_` variant as a subclass that passes a flag, as `TryVariantGetFunction` does.
+
+Some functions also require custom code generators in the planner (e.g., `JsonCallGen.scala` for JSON functions). Simple scalar functions typically don't need planner changes; the planner handles them uniformly through the function definition. The root [AGENTS.md](../../AGENTS.md) says when a function needs codegen instead of a runtime class.
 
 ### Adding a runtime operator
 
