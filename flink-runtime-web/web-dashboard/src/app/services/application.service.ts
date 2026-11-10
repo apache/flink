@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, Observable } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -31,6 +31,7 @@ import {
 import { ApplicationExceptions } from '@flink-runtime-web/interfaces/application-exception';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND, rethrowOnlyNotFound } from './http-context';
 
 @Injectable({
   providedIn: 'root'
@@ -63,7 +64,11 @@ export class ApplicationService {
   }
 
   public loadApplication(applicationId: string): Observable<ApplicationDetail> {
-    return this.httpClient.get<ApplicationDetail>(`${this.configService.BASE_URL}/applications/${applicationId}`).pipe(
+    const url = `${this.configService.BASE_URL}/applications/${applicationId}`;
+    // A 404 means the application is gone (e.g. expired); callers handle it, so it is neither
+    // notified as a server error nor swallowed like other errors.
+    const context = new HttpContext().set(EXPECTED_NOT_FOUND, true);
+    return this.httpClient.get<ApplicationDetail>(url, { context }).pipe(
       map(data => {
         const statusCounts: JobStatus = {
           CANCELED: 0,
@@ -93,7 +98,7 @@ export class ApplicationService {
         data['status-counts'] = statusCounts;
         return data;
       }),
-      catchError(() => EMPTY)
+      catchError(rethrowOnlyNotFound)
     );
   }
 

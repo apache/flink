@@ -16,7 +16,15 @@
   ~ limitations under the License.
   -->
 
-<ng-container *ngIf="!isError">
+<nz-alert
+  *ngIf="notFound"
+  nzType="warning"
+  nzShowIcon
+  nzMessage="Application not available"
+  [nzDescription]="notFoundDescription"
+></nz-alert>
+
+<ng-container *ngIf="!isError && !notFound">
   <flink-application-status [isLoading]="isLoading"></flink-application-status>
   <div class="content">
     <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>

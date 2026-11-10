@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute, Params } from '@angular/router';
+import { BehaviorSubject, Observable, of, Subject, throwError } from 'rxjs';
 
 import { ApplicationLocalService } from '@flink-runtime-web/pages/application/application-local.service';
 import { ApplicationService, StatusService } from '@flink-runtime-web/services';
@@ -27,23 +28,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApplicationDetailComponent } from './application-detail.component';
 
 const cdr = { markForCheck: vi.fn() } as unknown as ChangeDetectorRef;
-const activatedRoute = { snapshot: { params: { id: 'app-1' } } } as unknown as ActivatedRoute;
 
 describe('ApplicationDetailComponent', () => {
   const loadApplication = vi.fn();
   const setApplicationDetail = vi.fn();
   let component: ApplicationDetailComponent;
 
+  function createComponent(
+    refresh$: Observable<boolean> = of(true),
+    params$: Observable<Params> = of({ id: 'app-1' }),
+    isHistoryServer = false
+  ): ApplicationDetailComponent {
+    return new ApplicationDetailComponent(
+      { loadApplication } as unknown as ApplicationService,
+      { setApplicationDetail } as unknown as ApplicationLocalService,
+      { refresh$, configuration: { features: { 'web-history': isHistoryServer } } } as unknown as StatusService,
+      { params: params$ } as unknown as ActivatedRoute,
+      cdr
+    );
+  }
+
   beforeEach(() => {
     loadApplication.mockReset();
     setApplicationDetail.mockReset();
-    component = new ApplicationDetailComponent(
-      { loadApplication } as unknown as ApplicationService,
-      { setApplicationDetail } as unknown as ApplicationLocalService,
-      { refresh$: of(true) } as unknown as StatusService,
-      activatedRoute,
-      cdr
-    );
+    component = createComponent();
   });
 
   it('publishes the loaded application detail to the local service', () => {
@@ -66,5 +74,51 @@ describe('ApplicationDetailComponent', () => {
     expect(component.isError).toBe(true);
     expect(component.isLoading).toBe(false);
     expect(setApplicationDetail).not.toHaveBeenCalled();
+  });
+
+  it('stops polling and reports the application as gone once it is no longer found', () => {
+    const refresh$ = new Subject<boolean>();
+    component = createComponent(refresh$);
+    loadApplication.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+    component.ngOnInit();
+    refresh$.next(true);
+    refresh$.next(true);
+    refresh$.next(true);
+
+    expect(loadApplication).toHaveBeenCalledTimes(1);
+    expect(component.notFound).toBe(true);
+    expect(component.isError).toBe(false);
+    expect(component.isLoading).toBe(false);
+  });
+
+  it('polls the new application when the ID changes after the previous one was not found', () => {
+    const refresh$ = new Subject<boolean>();
+    const params$ = new BehaviorSubject<Params>({ id: 'app-1' });
+    component = createComponent(refresh$, params$);
+    const application = { id: 'app-2' };
+    loadApplication.mockImplementation((id: string) =>
+      id === 'app-1' ? throwError(() => new HttpErrorResponse({ status: 404 })) : of(application)
+    );
+
+    component.ngOnInit();
+    refresh$.next(true);
+    params$.next({ id: 'app-2' });
+    expect(component.notFound).toBe(false);
+    expect(component.isLoading).toBe(true);
+
+    refresh$.next(true);
+
+    expect(loadApplication).toHaveBeenLastCalledWith('app-2');
+    expect(setApplicationDetail).toHaveBeenCalledWith(application);
+    expect(component.notFound).toBe(false);
+    expect(component.isLoading).toBe(false);
+  });
+
+  it('explains a missing application by the History Server archive rather than by expiry', () => {
+    expect(createComponent(of(true), of({ id: 'app-1' }), true).notFoundDescription).toBe(
+      'The History Server has no archive for this application.'
+    );
+    expect(component.notFoundDescription).toContain('expired');
   });
 });
