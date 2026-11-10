@@ -549,6 +549,81 @@ class KeySwitchWithoutStateCacheTests(unittest.TestCase):
             self.assertEqual(list(list_state.get()), [])
 
 
+class SynchronousValueRuntimeStateTests(unittest.TestCase):
+
+    @staticmethod
+    def _create_backend(cache_size, remote=None):
+        remote = remote if remote is not None else InMemoryStateHandler()
+        handler = GlobalCachingStateHandler(StateCache(1 << 20), remote)
+        backend = RemoteKeyedStateBackend(
+            handler, StrUtf8Coder(), StrUtf8Coder(), cache_size, 16, 16)
+        backend.set_current_key('key')
+        return backend, handler, remote
+
+    def test_update_none_clears_pending_and_committed_values(self):
+        for cache_size in (0, 16):
+            for committed in (False, True):
+                with self.subTest(cache_size=cache_size, committed=committed):
+                    backend, handler, remote = self._create_backend(cache_size)
+                    with handler.process_instruction_id('bundle', []):
+                        state = backend.get_value_state('value', VarIntCoder())
+                        state.update(42)
+                        if committed:
+                            backend.commit()
+
+                        state.update(None)
+                        self.assertIsNone(state.value())
+                        backend.commit()
+                        self.assertEqual(remote.values, {})
+
+                    restored, restored_handler, _ = self._create_backend(cache_size, remote)
+                    with restored_handler.process_instruction_id('next-bundle', []):
+                        self.assertIsNone(restored.get_value_state('value', VarIntCoder()).value())
+
+    def test_update_none_on_empty_state_is_repeatable(self):
+        for cache_size in (0, 16):
+            with self.subTest(cache_size=cache_size):
+                backend, handler, remote = self._create_backend(cache_size)
+                with handler.process_instruction_id('bundle', []):
+                    state = backend.get_value_state('value', VarIntCoder())
+                    for _ in range(2):
+                        state.update(None)
+                        self.assertIsNone(state.value())
+                        backend.commit()
+                        self.assertEqual(remote.values, {})
+
+    def test_update_after_none_preserves_new_value(self):
+        for cache_size in (0, 16):
+            with self.subTest(cache_size=cache_size):
+                backend, handler, remote = self._create_backend(cache_size)
+                with handler.process_instruction_id('bundle', []):
+                    state = backend.get_value_state('value', VarIntCoder())
+                    state.update(1)
+                    backend.commit()
+                    state.update(None)
+                    backend.commit()
+                    state.update(0)
+                    self.assertEqual(state.value(), 0)
+                    backend.commit()
+
+                restored, restored_handler, _ = self._create_backend(cache_size, remote)
+                with restored_handler.process_instruction_id('next-bundle', []):
+                    self.assertEqual(restored.get_value_state('value', VarIntCoder()).value(), 0)
+
+    def test_non_none_updates_preserve_zero_and_replacement(self):
+        for cache_size in (0, 16):
+            with self.subTest(cache_size=cache_size):
+                backend, handler, remote = self._create_backend(cache_size)
+                with handler.process_instruction_id('bundle', []):
+                    state = backend.get_value_state('value', VarIntCoder())
+                    for value in (42, 0, -1):
+                        state.update(value)
+                        self.assertEqual(state.value(), value)
+                        backend.commit()
+                        self.assertEqual(list(remote.values.values()),
+                                         [VarIntCoder().get_impl().encode_nested(value)])
+
+
 class InMemoryStateHandler:
 
     def __init__(self):
