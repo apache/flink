@@ -75,7 +75,7 @@ Let's start with printing 'Hello World', using the following simple query:
 SELECT 'Hello World';
 ```
 
-Running the `HELP` command lists the full set of supported SQL statements. Let's run one such command, `SHOW`, to see a full list of Flink [built-in functions]({{< ref "docs/sql/functions/built-in-functions" >}}).
+Running the `HELP` command lists the full set of supported SQL statements. Let's run one such command, `SHOW`, to see a full list of Flink [built-in functions]({{< ref "docs/sql/built-in-functions" >}}).
 
 ```sql
 SHOW FUNCTIONS;
@@ -197,7 +197,7 @@ Now that you've experienced Flink SQL, here are some paths to continue learning:
 
 - [SQL Reference]({{< ref "docs/sql/reference/overview" >}}): Complete SQL syntax and supported operations
 - [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}): Advanced SQL Client features and configuration
-- [Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}}): All available functions for SQL queries
+- [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): All available functions for SQL queries
 - [Connectors]({{< ref "docs/connectors/table/overview" >}}): Connect to Kafka, databases, filesystems, and more
 
 ### Understand Streaming Concepts

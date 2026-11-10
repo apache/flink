@@ -1,0 +1,70 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+{{/*
+  The built-in functions used to be one page with a heading per category, and links elsewhere
+  point at those headings, such as ".../built-in-functions/#string-functions". The browser never
+  sends the part after "#" to the server, so a redirect cannot handle these links. This script
+  sends each old anchor, in English and in Chinese, to the page that now holds the section. A
+  target is relative to the built-in functions section unless it starts with "docs/".
+*/}}
+{{ $base := "docs/sql/built-in-functions" }}
+{{ $moves := slice
+  (slice "comparison" "comparison-functions" "比较函数")
+  (slice "boolean" "logical-functions" "逻辑函数")
+  (slice "mathematical" "arithmetic-functions" "算术函数")
+  (slice "string-and-binary" "string-functions" "字符串函数")
+  (slice "date-and-time" "temporal-functions" "时间函数")
+  (slice "date-and-time#time-interval-and-point-unit-specifiers" "time-interval-and-point-unit-specifiers")
+  (slice "date-and-time#时间间隔单位和时间点单位标识符" "时间间隔单位和时间点单位标识符")
+  (slice "conditional" "conditional-functions" "条件函数")
+  (slice "cast" "type-conversion-functions" "类型转换函数")
+  (slice "collection" "collection-functions" "集合函数")
+  (slice "json" "json-functions" "json-函数")
+  (slice "variant" "variant-functions" "variant-函数")
+  (slice "variant#xml-to-variant" "xml-to-variant")
+  (slice "row-and-structured-types" "value-construction-functions" "值构建函数" "value-access-functions" "值获取函数")
+  (slice "aggregate#grouping-functions" "grouping-functions")
+  (slice "aggregate#分组函数" "分组函数")
+  (slice "hash" "hash-functions" "哈希函数")
+  (slice "bitmap" "bitmap-functions" "位图函数")
+  (slice "utility" "auxiliary-functions" "辅助函数")
+  (slice "aggregate" "aggregate-functions" "聚合函数")
+  (slice "bitmap#bitmap-aggregate-functions" "bitmap-aggregate-functions")
+  (slice "bitmap#位图聚合函数" "位图聚合函数")
+  (slice "process-table-functions" "table-functions")
+  (slice "docs/dev/table/functions/column-functions" "column-functions" "列函数")
+  (slice "docs/sql/named-arguments" "named-arguments")
+}}
+{{ $targets := dict }}
+{{ range $moves }}
+  {{ $target := index . 0 }}
+  {{ $url := relref $.Page (cond (hasPrefix $target "docs/") $target (printf "%s/%s" $base $target)) }}
+  {{ range after 1 . }}
+    {{ $targets = merge $targets (dict . $url) }}
+  {{ end }}
+{{ end }}
+<script>
+  (function () {
+    var targets = {{ $targets | jsonify | safeJS }};
+    var id = decodeURIComponent(window.location.hash.slice(1));
+    if (Object.prototype.hasOwnProperty.call(targets, id)) {
+      window.location.replace(targets[id]);
+    }
+  })();
+</script>

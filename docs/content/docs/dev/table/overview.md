@@ -56,7 +56,7 @@ If you are using Python, please refer to the [PyFlink documentation]({{< ref "do
 * [Connect to External Systems]({{< ref "docs/connectors/table/overview" >}}): Available connectors and formats for reading and writing data to external systems.
 * [Table API Operations]({{< ref "docs/dev/table/tableApi" >}}): Supported operations and API for the Table API.
 * [SQL Reference]({{< ref "docs/sql/reference/overview" >}}): Supported operations and syntax for SQL.
-* [Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}}): Supported functions in Table API and SQL.
+* [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): Supported functions in Table API and SQL.
 * [PyFlink]({{< ref "docs/dev/python" >}}): Python-specific Flink documentation.
 
 {{< top >}}

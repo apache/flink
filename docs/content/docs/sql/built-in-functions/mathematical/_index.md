@@ -1,8 +1,8 @@
 ---
-title: Functions
-weight: 4
+title: "Mathematical"
+weight: 11
 type: docs
-bookCollapseSection: true
+sqlFunctions: arithmetic
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,11 +23,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Functions
+# Mathematical Functions
 
-Flink SQL provides a rich set of functions for data transformation and analysis.
+Mathematical functions compute on numeric values: arithmetic operators, powers and logarithms, trigonometric functions, rounding and random numbers, such as `ROUND`, `LOG` and `RAND`.
 
-- **[Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}})**: System functions for common operations including scalar, aggregate, and table functions.
-- **[User-Defined Functions]({{< ref "docs/sql/functions/user-defined-functions" >}})**: Custom functions written in Java, Scala, or Python.
-
-{{< top >}}
+{{< sql_functions "arithmetic" >}}
