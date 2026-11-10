@@ -1,6 +1,6 @@
 ---
 title: "自定义函数"
-weight: 5
+weight: 6
 type: docs
 aliases:
   - /zh/docs/sql/functions/user-defined-functions/

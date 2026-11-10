@@ -1,6 +1,6 @@
 ---
 title: "User-Defined Functions"
-weight: 5
+weight: 6
 type: docs
 aliases:
   - /docs/sql/functions/user-defined-functions/
