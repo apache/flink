@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.runtime.functions.XmlVariantNames.SchemaPrefix;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder.FieldEntry;
 import org.apache.flink.types.variant.Variant;
@@ -46,6 +47,7 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,12 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static java.util.Map.entry;
+import static org.apache.flink.table.runtime.functions.XmlVariantNames.ATTRIBUTE_PREFIX;
+import static org.apache.flink.table.runtime.functions.XmlVariantNames.ORDER_KEY;
+import static org.apache.flink.table.runtime.functions.XmlVariantNames.TEXT_KEY;
+import static org.apache.flink.table.runtime.functions.XmlVariantNames.XSI_NIL;
+import static org.apache.flink.table.runtime.functions.XmlVariantNames.XSI_TYPE;
+import static org.apache.flink.table.runtime.functions.XmlVariantNames.parseXmlSchemaBoolean;
 import static org.apache.flink.types.variant.BinaryVariantInternalBuilder.toVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.microsSinceEpoch;
@@ -72,14 +80,6 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.nanosSinceEpoch;
  */
 @Internal
 public final class XmlToVariantParser {
-
-    private static final String ATTRIBUTE_PREFIX = "@";
-    private static final String TEXT_KEY = "$";
-    private static final String ORDER_KEY = "#";
-
-    private static final String XSI_NIL = "xsi:nil";
-    private static final String XSI_TYPE = "xsi:type";
-    private static final String XSI_NAMESPACE_DECLARATION = "xmlns:xsi";
 
     private final XMLInputFactory inputFactory = createInputFactory();
 
@@ -276,6 +276,16 @@ public final class XmlToVariantParser {
 
         private static final Pattern BEYOND_NANOSECONDS = Pattern.compile("(\\.[0-9]{9})[0-9]+");
 
+        private static final Instant LAST_INSTANT_OF_9999 =
+                Instant.parse("9999-12-31T23:59:59.999999999Z");
+
+        // https://www.w3.org/TR/xmlschema11-2/#base64Binary, without the whitespace that the type
+        // allows between characters. The length has to be a multiple of 4 as well. It isn't in
+        // LEXICAL_FORMS, since a base64Binary isn't limited to MAX_LENGTH.
+        private static final Pattern BASE64_FORM =
+                Pattern.compile("[A-Za-z0-9+/]*([AEIMQUYcgkosw048]=|[AQgw]==)?");
+        private static final Pattern XML_WHITESPACE = Pattern.compile("[ \\t\\n\\r]");
+
         private XmlSchemaTypes() {}
 
         /**
@@ -294,7 +304,7 @@ public final class XmlToVariantParser {
                         return builder -> builder.appendString(text);
                     case "boolean":
                         {
-                            final Boolean value = parseBoolean(text);
+                            final Boolean value = parseXmlSchemaBoolean(text);
                             return value == null ? null : builder -> builder.appendBoolean(value);
                         }
                     case "byte":
@@ -357,6 +367,11 @@ public final class XmlToVariantParser {
                     case "dateTime":
                         return dateTime(
                                 DateTimeFormatter.ISO_DATE_TIME.parse(truncateFraction(text)));
+                    case "base64Binary":
+                        {
+                            final byte[] value = base64Binary(text);
+                            return value == null ? null : builder -> builder.appendBinary(value);
+                        }
                     default:
                         return null;
                 }
@@ -377,30 +392,35 @@ public final class XmlToVariantParser {
             return BEYOND_NANOSECONDS.matcher(text).replaceFirst("$1");
         }
 
+        /**
+         * Returns the bytes of a base64Binary, or null if the text isn't one. The Java decoder also
+         * accepts a missing padding and unused bits that aren't zero, so the text is checked first.
+         */
+        private static @Nullable byte[] base64Binary(String text) {
+            final String characters = XML_WHITESPACE.matcher(text).replaceAll("");
+            if (characters.length() % 4 != 0 || !BASE64_FORM.matcher(characters).matches()) {
+                return null;
+            }
+            return Base64.getDecoder().decode(characters);
+        }
+
         private static boolean hasLexicalForm(String type, String text) {
             final Pattern form = LEXICAL_FORMS.get(type);
             return form == null || (text.length() <= MAX_LENGTH && form.matcher(text).matches());
         }
 
-        static @Nullable Boolean parseBoolean(String text) {
-            switch (text) {
-                case "true":
-                case "1":
-                    return true;
-                case "false":
-                case "0":
-                    return false;
-                default:
-                    return null;
-            }
-        }
-
-        private static Consumer<BinaryVariantInternalBuilder> dateTime(TemporalAccessor dateTime) {
+        private static @Nullable Consumer<BinaryVariantInternalBuilder> dateTime(
+                TemporalAccessor dateTime) {
             final boolean hasOffset = dateTime.isSupported(ChronoField.OFFSET_SECONDS);
             final Instant instant =
                     hasOffset
                             ? OffsetDateTime.from(dateTime).toInstant()
                             : LocalDateTime.from(dateTime).toInstant(ZoneOffset.UTC);
+            // An offset can move the time past the year 9999 in UTC. Like a year after 9999 in the
+            // text, it isn't typed, since Java doesn't parse such a year without a sign.
+            if (instant.isAfter(LAST_INSTANT_OF_9999)) {
+                return null;
+            }
             // Nanoseconds are kept if the timestamp is within the range of nanosecond timestamps,
             // from 1677 to 2262. Otherwise, they are dropped like in a cast.
             if (instant.getNano() % 1_000 != 0) {
@@ -449,10 +469,11 @@ public final class XmlToVariantParser {
         }
 
         void addAttribute(String name, String value) {
+            if (SchemaPrefix.isSchemaDeclaration(name, value)) {
+                // The prefixes of XML Schema are recognized without their declarations.
+                return;
+            }
             switch (name) {
-                case XSI_NAMESPACE_DECLARATION:
-                    // The xsi prefix is recognized without the declaration.
-                    break;
                 case XSI_NIL:
                     readXsiNil(value);
                     break;
@@ -469,7 +490,7 @@ public final class XmlToVariantParser {
          * value isn't a boolean, so it is kept as a regular attribute.
          */
         private void readXsiNil(String value) {
-            final Boolean nil = XmlSchemaTypes.parseBoolean(value.trim());
+            final Boolean nil = parseXmlSchemaBoolean(value.trim());
             if (nil == null) {
                 attributes.put(XSI_NIL, value);
             } else {
