@@ -588,6 +588,45 @@ public class CalcTestPrograms {
                                     + "WHERE a OR v = '1' OR CONCAT(v, 'y') = '3y'")
                     .build();
 
+    public static final TableTestProgram JSON_VALUE_IN_PROJECTION_AND_SHARED_VALUES =
+            TableTestProgram.of(
+                            "calc-json-value-in-projection-and-shared-values",
+                            "validates a value used by a projection and by values shared by branches")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("uri STRING", "response_body STRING")
+                                    .producedValues(
+                                            Row.of("1", "{\"x\":\"a\"}"),
+                                            Row.of("2", "{\"x\":\"b\"}"),
+                                            Row.of("12", "{\"x\":\"c\"}"),
+                                            Row.of("3", "{}"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "r0 STRING",
+                                            "r1 STRING",
+                                            "r2 STRING",
+                                            "r3 STRING",
+                                            "r4 STRING")
+                                    .consumedValues(
+                                            "+I[a, a1, z, a2, z]",
+                                            "+I[b, z, b1, z, b2]",
+                                            "+I[c, c1, c1, c2, c2]",
+                                            "+I[null, z, z, z, z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT v AS r0, "
+                                    + "CASE WHEN g1 THEN m1 ELSE 'z' END AS r1, "
+                                    + "CASE WHEN g2 THEN m1 ELSE 'z' END AS r2, "
+                                    + "CASE WHEN g1 THEN m2 ELSE 'z' END AS r3, "
+                                    + "CASE WHEN g2 THEN m2 ELSE 'z' END AS r4 "
+                                    + "FROM (SELECT CONCAT(v,'1') AS m1, CONCAT(v,'2') AS m2, "
+                                    + "v, g1, g2 FROM ("
+                                    + "SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') "
+                                    + "AS v, uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2 FROM t))")
+                    .build();
+
     public static final TableTestProgram COALESCE =
             TableTestProgram.of("calc-coalesce", "validates coalesce node")
                     .setupTableSource(

@@ -150,21 +150,30 @@ class ExprCodeGenerator(
                 idx => sites(idx) += 1))
         case _ =>
       }
-      val roots = rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
-      val always = roots.flatMap(alwaysEvaluatedRefs).toSet
       sites.collect {
-        case (idx, count) if count > 1 && !always(idx) && !usesContext(exprs.get(idx)) =>
+        case (idx, count) if count > 1 && !rootAlwaysEvaluatedRefs(idx) && !readsContext(idx) =>
           idx
       }.toSet
     }
   }
 
+  /**
+   * Local refs that every record evaluates, for a projection or the filter. They stay inline; a
+   * memoized method that needs one gets its value as a parameter.
+   */
+  private lazy val rootAlwaysEvaluatedRefs: Set[Int] = {
+    val roots = rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
+    roots.flatMap(alwaysEvaluatedRefs).toSet
+  }
+
   private val alwaysEvaluatedRefsCache = mutable.Map[Int, Set[Int]]()
 
-  private val usesContextCache = mutable.Map[Int, Boolean]()
+  private val referencedRefsCache = mutable.Map[Int, Set[Int]]()
 
-  // index -> memoized method name as code, with member terms
-  private val memoizedTerms = mutable.Map[Int, GeneratedExpression]()
+  private val memoizedRefs = mutable.Map[Int, MemoizedRef]()
+
+  /** Memo method of a local ref: its member terms and the local refs passed as parameters. */
+  private case class MemoizedRef(method: String, result: GeneratedExpression, params: Seq[Int])
 
   /**
    * Generates an expression from a RexNode. If objects or variables can be reused, they will be
@@ -487,12 +496,8 @@ class ExprCodeGenerator(
         case Some(cached) => cached
         case None =>
           val expr =
-            if (memoizedLocalRefs.contains(idx)) {
-              val memoized = memoizedTerms.getOrElseUpdate(idx, generateMemoizedMethod(target))
-              memoized.copy(code = s"${memoized.code}($input1Term);")
-            } else {
-              target.accept(this)
-            }
+            if (memoizedLocalRefs.contains(idx)) memoizedCall(idx, target)
+            else target.accept(this)
           ctx.addReusableLocalRefExpr(idx, expr)
           expr
       }
@@ -653,27 +658,51 @@ class ExprCodeGenerator(
     case _ => Set.empty
   }
 
-  /**
-   * Whether the expression reads the process function context, which a member method can't. Other
-   * operators reading it (PROCTIME_MATERIALIZE, CURRENT_WATERMARK) are not deterministic, so they
-   * are never memoized.
-   */
-  private def usesContext(node: RexNode): Boolean = node match {
+  /** Indices of the local refs to deterministic calls used anywhere in `node`. */
+  private def referencedRefs(node: RexNode): Set[Int] = node match {
     case ref: RexLocalRef if ref.getIndex >= localRefInputArity =>
-      usesContextCache.getOrElseUpdate(
+      referencedRefsCache.getOrElseUpdate(
         ref.getIndex,
-        usesContext(rexProgram.getExprList.get(ref.getIndex)))
-    case call: RexCall =>
-      call.getOperator == STREAMRECORD_TIMESTAMP || call.getOperands.exists(usesContext)
-    case _ => false
+        rexProgram.getExprList.get(ref.getIndex) match {
+          case call: RexCall if isDeterministicThroughProgram(call) =>
+            referencedRefs(call) + ref.getIndex
+          case _ => Set.empty
+        }
+      )
+    case call: RexCall => call.getOperands.flatMap(referencedRefs).toSet
+    case _ => Set.empty
   }
+
+  /**
+   * Whether the ref reads the process context (rowtime), which a member method can't see. The other
+   * readers (PROCTIME_MATERIALIZE, CURRENT_WATERMARK) are not deterministic, so never memoized.
+   */
+  private def readsContext(idx: Int): Boolean =
+    referencedRefs(new RexLocalRef(idx, rexProgram.getExprList.get(idx).getType)).exists {
+      i =>
+        rexProgram.getExprList.get(i) match {
+          case call: RexCall => call.getOperator == STREAMRECORD_TIMESTAMP
+          case _ => false
+        }
+    }
 
   /**
    * Generates `void localRef$N(RowData in)`, which computes the expression into members once per
    * record. The expression is generated in isolation: own local variables, own input access and an
    * empty local-ref cache, as the method can't see the variables of the calling method.
    */
-  private def generateMemoizedMethod(target: RexNode): GeneratedExpression = {
+  /** Calls the memo method of the local ref, generating the method on first use. */
+  private def memoizedCall(idx: Int, target: RexNode): GeneratedExpression = {
+    val memoized = memoizedRefs.getOrElseUpdate(idx, generateMemoizedMethod(target))
+    val args = memoized.params.flatMap {
+      param =>
+        val arg = visitLocalRef(new RexLocalRef(param, rexProgram.getExprList.get(param).getType))
+        Seq(arg.resultTerm, arg.nullTerm)
+    }
+    memoized.result.copy(code = s"${memoized.method}(${(input1Term +: args).mkString(", ")});")
+  }
+
+  private def generateMemoizedMethod(target: RexNode): MemoizedRef = {
     val resultType = FlinkTypeFactory.toLogicalType(target.getType)
     val method = newName(ctx, "localRef")
     val Seq(resultTerm, nullTerm, doneTerm, inputTerm) =
@@ -683,39 +712,52 @@ class ExprCodeGenerator(
     ctx.addReusableMember(s"boolean $doneTerm;")
     ctx.addReusablePerRecordStatement(s"$doneTerm = false;")
 
+    // refs every record computes inline anyway are passed in instead of computed again
+    val params = (referencedRefs(target).intersect(rootAlwaysEvaluatedRefs)).toSeq.sorted
+    val paramExprs = params.map {
+      param =>
+        val paramType = FlinkTypeFactory.toLogicalType(rexProgram.getExprList.get(param).getType)
+        val Seq(paramTerm, paramNullTerm) = newNames(ctx, "localRefArg", "localRefArgIsNull")
+        param -> GeneratedExpression(paramTerm, paramNullTerm, NO_CODE, paramType)
+    }
+    val signature = (s"${boxedTypeTermForType(input1Type)} $inputTerm" +: paramExprs.flatMap {
+      case (_, expr) =>
+        Seq(
+          s"${primitiveTypeTermForType(expr.resultType)} ${expr.resultTerm}",
+          s"boolean ${expr.nullTerm}")
+    }).mkString(", ")
+
     val savedInputTerm = input1Term
     input1Term = inputTerm
-    val (expr, localVariables, inputAccess, localRefs) =
+    val (expr, body) =
       try {
         ctx.inSeparateMethod(method) {
+          paramExprs.foreach { case (param, expr) => ctx.addReusableLocalRefExpr(param, expr) }
           val expr = target.accept(this)
           val inputKeys = ctx.reusableInputUnboxingExprs.keys.filter(_._1 == inputTerm).toSeq
-          val inputAccess = inputKeys.map(ctx.reusableInputUnboxingExprs(_).code).mkString("\n")
+          val inputAccess = inputKeys.map(ctx.reusableInputUnboxingExprs(_).code)
           inputKeys.foreach(ctx.reusableInputUnboxingExprs.remove)
-          val localRefs =
-            ctx.getReusableLocalRefExprBottomScope.values.map(_.code).mkString("\n")
-          (expr, ctx.reuseLocalVariableCode(method), inputAccess, localRefs)
+          val localRefs = ctx.getReusableLocalRefExprBottomScope.values.map(_.code)
+          val body = (ctx.reuseLocalVariableCode(method) +: (inputAccess ++ localRefs :+ expr.code))
+            .mkString("\n")
+          (expr, body)
         }
       } finally {
         input1Term = savedInputTerm
       }
 
-    ctx.addReusableMember(
-      s"""
-         |private void $method(${boxedTypeTermForType(input1Type)} $inputTerm) throws Exception {
-         |  if ($doneTerm) {
-         |    return;
-         |  }
-         |  $localVariables
-         |  $inputAccess
-         |  $localRefs
-         |  ${expr.code}
-         |  $resultTerm = ${expr.resultTerm};
-         |  $nullTerm = ${expr.nullTerm};
-         |  $doneTerm = true;
-         |}
-         |""".stripMargin)
-    GeneratedExpression(resultTerm, nullTerm, method, resultType)
+    ctx.addReusableMember(s"""
+                             |private void $method($signature) throws Exception {
+                             |  if ($doneTerm) {
+                             |    return;
+                             |  }
+                             |  $body
+                             |  $resultTerm = ${expr.resultTerm};
+                             |  $nullTerm = ${expr.nullTerm};
+                             |  $doneTerm = true;
+                             |}
+                             |""".stripMargin)
+    MemoizedRef(method, GeneratedExpression(resultTerm, nullTerm, NO_CODE, resultType), params)
   }
 
   private def localRefInputArity: Int = input1Type match {

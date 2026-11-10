@@ -44,6 +44,7 @@ public class MiscSemanticTests extends SemanticTestBase {
                 CalcTestPrograms.JSON_VALUE_IN_OR_AND_IFNULL,
                 CalcTestPrograms.JSON_VALUE_IN_NESTED_CASE,
                 CalcTestPrograms.JSON_VALUE_IN_FILTER_OR,
+                CalcTestPrograms.JSON_VALUE_IN_PROJECTION_AND_SHARED_VALUES,
                 WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_DECODE);
     }
 }

@@ -74,6 +74,11 @@ class JsonParseReuseTest {
 
     private static final String LIKE_X = "other_json LIKE '%x%'";
 
+    // on view t: v from response_body, g1/g2 whether uri contains 1/2
+    private static final String V_G1_G2 =
+            "SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') AS v, "
+                    + "uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2 FROM t";
+
     private StreamTableEnvironment tEnv;
 
     private static final String JSON_ROW1 =
@@ -703,10 +708,7 @@ class JsonParseReuseTest {
                         + "other_json LIKE '%y%' AS y FROM json_src)";
 
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("none"), Row.of("1"));
-        final Pattern jsonValueCall =
-                Pattern.compile(
-                        "\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
-        assertThat(count(jsonValueCall, extractGeneratedCode(sql)))
+        assertThat(count(JSON_VALUE_PATTERN, extractGeneratedCode(sql)))
                 .as("v is generated once and computed only for the branches that use it")
                 .isOne();
     }
@@ -723,10 +725,7 @@ class JsonParseReuseTest {
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("42"), Row.of("30x"));
         final String code = extractGeneratedCode(sql);
         assertThat(countJsonParse(code)).isOne();
-        final Pattern jsonValueCall =
-                Pattern.compile(
-                        "\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
-        assertThat(count(jsonValueCall, code)).as("one call each for k and v").isEqualTo(2);
+        assertThat(count(JSON_VALUE_PATTERN, code)).as("one call each for k and v").isEqualTo(2);
     }
 
     @Test
@@ -738,10 +737,7 @@ class JsonParseReuseTest {
                         + LIKE_X
                         + " AS a FROM json_src)";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munichx"), Row.of("Berlin"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -753,10 +749,7 @@ class JsonParseReuseTest {
                         + LIKE_X
                         + " AS a FROM json_src)";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("m"), Row.of("Berlin"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -767,10 +760,7 @@ class JsonParseReuseTest {
                         + EXTRACT_CITY
                         + " AS v FROM json_src)";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munich1"), Row.of("Berlin2"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -804,10 +794,7 @@ class JsonParseReuseTest {
                         + LIKE_X
                         + " AS a FROM json_src)";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(null, null), Row.of("1", "1x"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -836,10 +823,7 @@ class JsonParseReuseTest {
                         + LIKE_X
                         + " AS a FROM json_src) WHERE CASE WHEN a THEN v = '1' ELSE TRUE END";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of((String) null), Row.of("1"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -853,10 +837,7 @@ class JsonParseReuseTest {
         assertThat(collect(sql))
                 .containsExactlyInAnyOrder(
                         Row.of("Munich", "Munich!"), Row.of("Berlin", "Berlin!"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -877,10 +858,7 @@ class JsonParseReuseTest {
                         + " AS v, other_json = '{}' AS a, "
                         + "CASE WHEN other_json = '{}' THEN 'c' END AS c FROM json_src)";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(true, "c"), Row.of(true, "1"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -893,10 +871,7 @@ class JsonParseReuseTest {
                         + LIKE_X
                         + " AS a, other_json LIKE '%1%' AS b FROM json_src)";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("o", null), Row.of("1", "1x"));
-        final String code = extractGeneratedCode(sql);
-        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
-        assertThat(countJsonParse(code)).isOne();
-        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+        assertComputedOnce(sql);
     }
 
     @Test
@@ -907,10 +882,132 @@ class JsonParseReuseTest {
                         + " AS v, other_json = '{}' AS a, other_json FROM json_src) "
                         + "WHERE a OR v = '1' OR CONCAT(v, 'y') = '3y'";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("{}"), Row.of("{\"x\":1}"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInProjectionAndInMemoizedBranchValues() {
+        createUriBodyView();
+        final String sql =
+                "SELECT v AS r0, "
+                        + "CASE WHEN g1 THEN m1 ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m1 ELSE 'z' END AS r2, "
+                        + "CASE WHEN g1 THEN m2 ELSE 'z' END AS r3, "
+                        + "CASE WHEN g2 THEN m2 ELSE 'z' END AS r4 "
+                        + "FROM (SELECT CONCAT(v,'1') AS m1, CONCAT(v,'2') AS m2, v, g1, g2 FROM ("
+                        + V_G1_G2
+                        + "))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a", "a1", "z", "a2", "z"),
+                        Row.of("b", "z", "b1", "z", "b2"),
+                        Row.of("c", "c1", "c1", "c2", "c2"),
+                        Row.of(null, "z", "z", "z", "z"));
+        // v is needed by r0 and by the shared m1 and m2
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedBranchValuesBeforeTheProjectionOfTheirInput() {
+        // the branches come first, so their calls compute v before r0 does; results must not change
+        createUriBodyView();
+        final String sql =
+                "SELECT CASE WHEN g1 THEN m ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r2, v AS r0 "
+                        + "FROM (SELECT CONCAT(v,'!') AS m, v, g1, g2 FROM ("
+                        + V_G1_G2
+                        + "))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a!", "z", "a"),
+                        Row.of("z", "b!", "b"),
+                        Row.of("c!", "c!", "c"),
+                        Row.of("z", "z", null));
+    }
+
+    @Test
+    void testMemoizedBranchValueWithPrimitiveAndNullableInputs() {
+        // m needs v (nullable STRING) and n (INT, never NULL), both computed inline for r0 and r1
+        createUriBodyView();
+        final String sql =
+                "SELECT v AS r0, n AS r1, "
+                        + "CASE WHEN g1 THEN m ELSE 'z' END AS r2, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r3 "
+                        + "FROM (SELECT CONCAT(v, CAST(n AS STRING)) AS m, v, n, g1, g2 FROM ("
+                        + " SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') AS v, "
+                        + " CHAR_LENGTH(uri) AS n, uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2 "
+                        + " FROM t))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a", 1, "a1", "z"),
+                        Row.of("b", 1, "z", "b1"),
+                        Row.of("c", 2, "c2", "c2"),
+                        Row.of(null, 1, "z", "z"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedBranchValuesWithInputFromFilter() {
+        createUriBodyView();
+        final String sql =
+                "SELECT CASE WHEN g1 THEN m ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r2 "
+                        + "FROM (SELECT CONCAT(v,'!') AS m, v, g1, g2 FROM ("
+                        + V_G1_G2
+                        + ")) "
+                        + "WHERE v IS NOT NULL";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a!", "z"), Row.of("z", "b!"), Row.of("c!", "c!"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedBranchValueWithInputInItsOwnBranch() {
+        // m is shared by r1 and r2 and uses v, which r0 computes inline, in its own THEN
+        tEnv.createTemporaryView(
+                "t",
+                tEnv.fromValues(
+                                Row.of("1", "{\"x\":\"a\"}"),
+                                Row.of("2", "{\"x\":\"b\"}"),
+                                Row.of("13", "{\"x\":\"d\"}"),
+                                Row.of("23", "{\"x\":\"e\"}"),
+                                Row.of("3", "{}"))
+                        .as("uri", "response_body"));
+        final String sql =
+                "SELECT v AS r0, "
+                        + "CASE WHEN g1 THEN m ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r2 "
+                        + "FROM (SELECT CASE WHEN h THEN v ELSE 'a' END AS m, v, g1, g2, h FROM ("
+                        + " SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') AS v, "
+                        + " uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2, uri LIKE '%3%' AS h FROM t))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a", "a", "z"),
+                        Row.of("b", "z", "a"),
+                        Row.of("d", "d", "z"),
+                        Row.of("e", "z", "e"),
+                        Row.of(null, "z", "z"));
+        assertComputedOnce(sql);
+    }
+
+    /** One call of JSON_VALUE, of its parse and of REGEXP_REPLACE in the generated code. */
+    private void assertComputedOnce(final String sql) {
         final String code = extractGeneratedCode(sql);
         assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
         assertThat(countJsonParse(code)).isOne();
         assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    private void createUriBodyView() {
+        tEnv.createTemporaryView(
+                "t",
+                tEnv.fromValues(
+                                Row.of("1", "{\"x\":\"a\"}"),
+                                Row.of("2", "{\"x\":\"b\"}"),
+                                Row.of("12", "{\"x\":\"c\"}"),
+                                Row.of("3", "{}"))
+                        .as("uri", "response_body"));
     }
 
     @Test
