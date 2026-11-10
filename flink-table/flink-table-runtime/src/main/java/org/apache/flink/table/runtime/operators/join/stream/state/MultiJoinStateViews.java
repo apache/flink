@@ -169,6 +169,12 @@ public final class MultiJoinStateViews {
             }
             return reusedList;
         }
+
+        @Override
+        public @Nullable RowData getRecord(RowData joinKey, RowData record) throws Exception {
+            // the join key contains the unique key, so a record under it has the same unique key
+            return recordState.get(joinKey);
+        }
     }
 
     /**
@@ -262,6 +268,12 @@ public final class MultiJoinStateViews {
             final RowData uniqueKey = uniqueKeySelector.getKey(record);
             final RowData stateKey = getStateKey(joinKey, uniqueKey);
             recordState.remove(stateKey);
+        }
+
+        @Override
+        public @Nullable RowData getRecord(@Nullable RowData joinKey, RowData record)
+                throws Exception {
+            return recordState.get(getStateKey(joinKey, uniqueKeySelector.getKey(record)));
         }
 
         @Override
@@ -397,6 +409,12 @@ public final class MultiJoinStateViews {
                 currentCount = 0;
             }
             recordState.put(stateKey, currentCount + 1);
+        }
+
+        @Override
+        public @Nullable RowData getRecord(@Nullable RowData joinKey, RowData record) {
+            // without a unique key, no record replaces another one
+            return null;
         }
 
         @Override
