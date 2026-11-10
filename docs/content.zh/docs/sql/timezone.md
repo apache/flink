@@ -1,6 +1,6 @@
 ---
 title: "时区"
-weight: 6
+weight: 8
 type: docs
 aliases:
   - /zh/docs/dev/table/timezone/

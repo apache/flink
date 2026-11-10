@@ -1,6 +1,6 @@
 ---
 title: "Catalogs"
-weight: 5
+weight: 7
 type: docs
 aliases:
   - /zh/dev/table/catalogs.html

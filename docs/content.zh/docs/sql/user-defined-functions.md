@@ -1,9 +1,9 @@
 ---
 title: "自定义函数"
-weight: 2
+weight: 5
 type: docs
 aliases:
-  - /zh/docs/sql/user-defined-functions/
+  - /zh/docs/sql/functions/user-defined-functions/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

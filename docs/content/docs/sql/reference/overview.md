@@ -52,7 +52,7 @@ Please see the dedicated page about [data types]({{< ref "docs/sql/reference/dat
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{< ref "docs/sql/functions/built-in-functions" >}}#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{< ref "docs/sql/built-in-functions/row-and-structured-types" >}}).
 
 Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{< ref "docs/dev/table/functions/udfs" >}}).
 

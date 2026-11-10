@@ -75,7 +75,7 @@ SQL 客户端（查询编辑器）启动并运行后，就可以开始编写查�
 SELECT 'Hello World';
 ```
 
-运行 `HELP` 命令会列出所有支持的 SQL 语句。运行一个 `SHOW` 命令，来查看 Flink [内置函数]({{< ref "docs/sql/functions/built-in-functions" >}})的完整列表。
+运行 `HELP` 命令会列出所有支持的 SQL 语句。运行一个 `SHOW` 命令，来查看 Flink [内置函数]({{< ref "docs/sql/built-in-functions" >}})的完整列表。
 
 ```sql
 SHOW FUNCTIONS;
@@ -196,7 +196,7 @@ $ docker compose logs -f taskmanager
 
 - [SQL 参考]({{< ref "docs/sql/reference/overview" >}})：完整的 SQL 语法和支持的操作
 - [SQL 客户端]({{< ref "docs/sql/interfaces/sql-client" >}})：高级 SQL 客户端功能和配置
-- [内置函数]({{< ref "docs/sql/functions/built-in-functions" >}})：所有可用的 SQL 查询函数
+- [内置函数]({{< ref "docs/sql/built-in-functions" >}})：所有可用的 SQL 查询函数
 - [连接器]({{< ref "docs/connectors/table/overview" >}})：连接 Kafka、数据库、文件系统等
 
 ### 理解流式概念

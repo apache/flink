@@ -1,8 +1,8 @@
 ---
-title: Functions
-weight: 4
+title: "String & Binary"
+weight: 15
 type: docs
-bookCollapseSection: true
+sqlFunctions: string
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,11 +23,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Functions
+# String & Binary Functions
 
-Flink SQL provides a rich set of functions for data transformation and analysis.
+String and binary functions work on character strings and, for some functions, on binary strings. They concatenate, search, extract, replace, trim, pad, encode and split them, such as `CONCAT`, `SUBSTRING` and `TRIM`. Positions in a string start at 1. Functions that match a regular expression, such as `REGEXP_EXTRACT`, are in [Regular Expressions]({{< ref "docs/sql/built-in-functions/regular-expressions" >}}).
 
-- **[Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}})**: System functions for common operations including scalar, aggregate, and table functions.
-- **[User-Defined Functions]({{< ref "docs/sql/functions/user-defined-functions" >}})**: Custom functions written in Java, Scala, or Python.
-
-{{< top >}}
+{{< sql_functions "string" >}}

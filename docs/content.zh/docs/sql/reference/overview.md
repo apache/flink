@@ -53,7 +53,7 @@ under the License.
 
 通用类型与（嵌套的）复合类型 （如：POJO、tuples、rows、Scala case 类) 都可以作为行的字段。
 
-复合类型的字段任意的嵌套可被 [值访问函数]({{< ref "docs/sql/functions/built-in-functions" >}}#value-access-functions) 访问。
+复合类型的字段任意的嵌套可被 [值访问函数]({{< ref "docs/sql/built-in-functions/row-and-structured-types" >}}) 访问。
 
 通用类型将会被视为一个黑箱，且可以被 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}}) 传递或引用。
 

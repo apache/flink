@@ -1547,7 +1547,7 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 `CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
 
 `PARSE_XML` maps an XML document to an object, see
-[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions" >}}#xml-to-variant).
+[XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
@@ -1824,7 +1824,7 @@ for debugging: it never fails, but can be lossy. Both render a `TIMESTAMP_LTZ` i
 
 用于以压缩形式存储 32 位整数的位图数据类型，基于 [RoaringBitmap](https://roaringbitmap.org/) 实现。
 
-位图类型适用于高效地表示和查询大量整数集合。它支持多种内置的[标量函数]({{< ref "docs/sql/functions/built-in-functions" >}}#位图函数)和[聚合函数]({{< ref "docs/sql/functions/built-in-functions" >}}#位图聚合函数)。
+位图类型适用于高效地表示和查询大量整数集合。它支持多种内置的[标量函数]({{< ref "docs/sql/built-in-functions/bitmap" >}})和[聚合函数]({{< ref "docs/sql/built-in-functions/bitmap" >}}#位图聚合函数)。
 
 位图类型是对 SQL 标准的扩展。
 

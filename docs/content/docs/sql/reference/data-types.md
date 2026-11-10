@@ -1555,7 +1555,7 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 `CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
 
 `PARSE_XML` maps an XML document to an object, see
-[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions" >}}#xml-to-variant).
+[XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
@@ -1832,8 +1832,8 @@ for debugging: it never fails, but can be lossy. Both render a `TIMESTAMP_LTZ` i
 Data type of bitmap data that stores 32-bit integers in a compressed form using [RoaringBitmap](https://roaringbitmap.org/).
 
 The bitmap type is useful for efficiently representing and querying large sets of integers. It supports
-a variety of built-in [scalar functions]({{< ref "docs/sql/functions/built-in-functions" >}}#bitmap-functions) and
-[aggregate functions]({{< ref "docs/sql/functions/built-in-functions" >}}#bitmap-aggregate-functions).
+a variety of built-in [scalar functions]({{< ref "docs/sql/built-in-functions/bitmap" >}}) and
+[aggregate functions]({{< ref "docs/sql/built-in-functions/bitmap" >}}#bitmap-aggregate-functions).
 
 The bitmap type is an extension to the SQL standard.
 

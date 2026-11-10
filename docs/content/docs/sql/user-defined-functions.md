@@ -1,9 +1,9 @@
 ---
 title: "User-Defined Functions"
-weight: 2
+weight: 5
 type: docs
 aliases:
-  - /docs/sql/user-defined-functions/
+  - /docs/sql/functions/user-defined-functions/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
