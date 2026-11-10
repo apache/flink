@@ -33,6 +33,17 @@ public class MiscSemanticTests extends SemanticTestBase {
                 WindowRankTestPrograms.WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1,
                 CalcTestPrograms.CURRENT_WATERMARK,
                 CalcTestPrograms.COALESCE_NESTED_ROW_LEFT_JOIN,
+                CalcTestPrograms.JSON_VALUE_IN_CASE,
+                CalcTestPrograms.JSON_VALUE_LAZY_IN_CASE,
+                CalcTestPrograms.JSON_VALUE_LAZY_IN_AND,
+                CalcTestPrograms.JSON_VALUE_ACROSS_CASES,
+                CalcTestPrograms.JSON_VALUE_IN_FILTER_AND_PROJECTION,
+                CalcTestPrograms.JSON_VALUE_PER_RECORD,
+                CalcTestPrograms.JSON_VALUE_NULL_ACROSS_CASES,
+                CalcTestPrograms.JSON_VALUE_INT_ACROSS_CASES,
+                CalcTestPrograms.JSON_VALUE_IN_OR_AND_IFNULL,
+                CalcTestPrograms.JSON_VALUE_IN_NESTED_CASE,
+                CalcTestPrograms.JSON_VALUE_IN_FILTER_OR,
                 WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_DECODE);
     }
 }

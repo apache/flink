@@ -136,6 +136,30 @@ class XmlReadReuseTest {
     }
 
     @Test
+    void testComputedInputInCoalesceOperandsReadsOnce() {
+        // the first PARSE_XML path is missing, so for the second row both fallbacks run
+        final String sql =
+                "SELECT COALESCE(CASE WHEN other_xml = '<a>1</a>' THEN 'c' END, "
+                        + "CAST(PARSE_XML(TRIM(xml))['book']['missing'] AS STRING), "
+                        + "CAST(TRY_PARSE_XML(TRIM(xml), TRUE)['book']['title'][1] AS STRING)) "
+                        + "FROM xml_src";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("c"), Row.of("Emma"));
+        assertThat(countReads(sql)).isOne();
+    }
+
+    @Test
+    void testComputedInputInOrOperandsReadsOnce() {
+        // for the second row both later OR operands run
+        final String sql =
+                "SELECT other_xml FROM xml_src WHERE other_xml = '<a>1</a>' "
+                        + "OR CAST(PARSE_XML(TRIM(xml))['book']['title'] AS STRING) = 'X' "
+                        + "OR CAST(TRY_PARSE_XML(TRIM(xml), TRUE)['book']['title'][1] AS STRING) "
+                        + "= 'Emma'";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("<a>1</a>"), Row.of("<a>2</a>"));
+        assertThat(countReads(sql)).isOne();
+    }
+
+    @Test
     void testFirstCallInBranchThatIsNotTaken() {
         // The first call is never taken, so the second one has to read the document.
         final String sql =

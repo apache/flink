@@ -153,8 +153,7 @@ class ExprCodeGenerator(
       val roots = rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
       val always = roots.flatMap(alwaysEvaluatedRefs).toSet
       sites.collect {
-        case (idx, count)
-            if count > 1 && !always(idx) && !usesContext(exprs.get(idx)) =>
+        case (idx, count) if count > 1 && !always(idx) && !usesContext(exprs.get(idx)) =>
           idx
       }.toSet
     }

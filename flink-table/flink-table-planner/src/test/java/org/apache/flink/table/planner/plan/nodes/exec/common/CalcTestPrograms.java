@@ -36,6 +36,7 @@ import org.apache.flink.types.variant.VariantBuilder;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 
 /** {@link TableTestProgram}s for testing {@link StreamExecCalc} and {@link BatchExecCalc}. */
 public class CalcTestPrograms {
@@ -376,6 +377,215 @@ public class CalcTestPrograms {
                                     + "SELECT CAST(COALESCE(b.r.order_id, a.order_id) AS STRING) AS order_id_str "
                                     + "FROM orders a LEFT JOIN order_details_row b "
                                     + "ON a.order_id = b.r.order_id")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_IN_CASE =
+            TableTestProgram.of(
+                            "calc-json-value-in-case",
+                            "validates JSON_VALUE on a computed input in a CASE condition and branches")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("response_body STRING")
+                                    .producedValues(
+                                            Row.of("{\"k\":\"a\",\"v\":\"pp\"}"),
+                                            Row.of("{\"k\":\"z\",\"v\":\"pp\"}"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r STRING")
+                                    .consumedValues("+I[qq]", "+I[qqx]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t "
+                                    + "SELECT CASE WHEN k IN ('a', 'b', 'c') "
+                                    + "THEN v ELSE CONCAT(v, 'x') END AS r FROM ("
+                                    + "SELECT JSON_VALUE(REGEXP_REPLACE(response_body, 'p', 'q'), '$.k') AS k, "
+                                    + "JSON_VALUE(REGEXP_REPLACE(response_body, 'p', 'q'), '$.v') AS v "
+                                    + "FROM t)")
+                    .build();
+
+    // fails for '{}', "1" for '{"x":"1"}'
+    private static final String JSON_X =
+            "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.x' ERROR ON EMPTY)";
+
+    private static SourceTestStep jsonBodySource(final String... bodies) {
+        return SourceTestStep.newBuilder("t")
+                .addSchema("body STRING")
+                .producedValues(Arrays.stream(bodies).map(Row::of).toArray(Row[]::new))
+                .build();
+    }
+
+    public static final TableTestProgram JSON_VALUE_LAZY_IN_CASE =
+            TableTestProgram.of(
+                            "calc-json-value-lazy-in-case",
+                            "validates that a value in one CASE branch is not computed for other rows")
+                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r STRING")
+                                    .consumedValues("+I[null]", "+I[1]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body LIKE '%x%' AS a FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_LAZY_IN_AND =
+            TableTestProgram.of(
+                            "calc-json-value-lazy-in-and",
+                            "validates that a value in a later AND operand is not computed for other rows")
+                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("body STRING")
+                                    .consumedValues("+I[{\"x\":\"1\"}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT body FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body LIKE '%x%' AS a, body FROM t) "
+                                    + "WHERE a AND v = '1'")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_ACROSS_CASES =
+            TableTestProgram.of(
+                            "calc-json-value-across-cases",
+                            "validates a value shared by two CASE expressions")
+                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 STRING", "r2 STRING")
+                                    .consumedValues("+I[null, null]", "+I[1, 1x]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END, "
+                                    + "CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body LIKE '%x%' AS a FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_IN_FILTER_AND_PROJECTION =
+            TableTestProgram.of(
+                            "calc-json-value-in-filter-and-projection",
+                            "validates a value shared by the filter and the projection")
+                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}", "{\"x\":\"2\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r STRING")
+                                    .consumedValues("+I[null]", "+I[1]")
+                                    .build())
+                    .runSql(
+                            // the planner may move v = '1' first in the filter, so v must not fail
+                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END FROM (SELECT "
+                                    + "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.x' ERROR ON EMPTY)"
+                                    + " AS v, body LIKE '%x%' AS a FROM t) "
+                                    + "WHERE CASE WHEN a THEN v = '1' ELSE TRUE END")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_PER_RECORD =
+            TableTestProgram.of(
+                            "calc-json-value-per-record",
+                            "validates that a shared value is computed again for every record")
+                    .setupTableSource(jsonBodySource("{\"x\":\"1\"}", "{\"x\":\"2\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 STRING", "r2 STRING")
+                                    .consumedValues("+I[1, 1!]", "+I[2, 2!]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END, "
+                                    + "CASE WHEN b THEN CONCAT(v, '!') END FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body LIKE '%x%' AS a, body LIKE '%{%' AS b FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_NULL_ACROSS_CASES =
+            TableTestProgram.of(
+                            "calc-json-value-null-across-cases",
+                            "validates a shared value that is NULL for some records")
+                    .setupTableSource(jsonBodySource("{\"x\":\"1\"}", "{\"x\":\"1\",\"y\":\"2\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 STRING", "r2 STRING")
+                                    .consumedValues("+I[null, none]", "+I[2, 2]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END, "
+                                    + "CASE WHEN a THEN COALESCE(v, 'none') END FROM (SELECT "
+                                    + "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.y') AS v, "
+                                    + "body LIKE '%x%' AS a FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_INT_ACROSS_CASES =
+            TableTestProgram.of(
+                            "calc-json-value-int-across-cases",
+                            "validates a shared primitive value, also when it is NULL")
+                    .setupTableSource(jsonBodySource("{\"n\":1}", "{\"n\":2}", "{}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 INT", "r2 INT")
+                                    .consumedValues("+I[1, 11]", "+I[2, 12]", "+I[null, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END, "
+                                    + "CASE WHEN a THEN v + 10 END FROM (SELECT "
+                                    + "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.n' RETURNING INT) "
+                                    + "AS v, body LIKE '%{%' AS a FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_IN_OR_AND_IFNULL =
+            TableTestProgram.of(
+                            "calc-json-value-in-or-and-ifnull",
+                            "validates a value shared by a later OR operand and an IFNULL fallback")
+                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 BOOLEAN", "r2 STRING")
+                                    .consumedValues("+I[true, c]", "+I[true, 1]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a OR v = '1', IFNULL(c, v) FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body = '{}' AS a, "
+                                    + "CASE WHEN body = '{}' THEN 'c' END AS c FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_IN_NESTED_CASE =
+            TableTestProgram.of(
+                            "calc-json-value-in-nested-case",
+                            "validates a shared value used in a CASE nested in another branch")
+                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}", "{\"x\":\"2\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 STRING", "r2 STRING")
+                                    .consumedValues("+I[o, null]", "+I[1, 1x]", "+I[n, 2x]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT "
+                                    + "CASE WHEN a THEN CASE WHEN b THEN v ELSE 'n' END ELSE 'o' END, "
+                                    + "CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body LIKE '%x%' AS a, body LIKE '%1%' AS b FROM t)")
+                    .build();
+
+    public static final TableTestProgram JSON_VALUE_IN_FILTER_OR =
+            TableTestProgram.of(
+                            "calc-json-value-in-filter-or",
+                            "validates a value shared by two later OR operands of a filter")
+                    .setupTableSource(
+                            jsonBodySource("{}", "{\"x\":\"1\"}", "{\"x\":\"3\"}", "{\"x\":\"4\"}"))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("body STRING")
+                                    .consumedValues(
+                                            "+I[{}]", "+I[{\"x\":\"1\"}]", "+I[{\"x\":\"3\"}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT body FROM (SELECT "
+                                    + JSON_X
+                                    + " AS v, body = '{}' AS a, body FROM t) "
+                                    + "WHERE a OR v = '1' OR CONCAT(v, 'y') = '3y'")
                     .build();
 
     public static final TableTestProgram COALESCE =

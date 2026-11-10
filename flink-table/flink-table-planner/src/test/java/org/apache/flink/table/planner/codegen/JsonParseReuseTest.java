@@ -61,6 +61,19 @@ class JsonParseReuseTest {
             Pattern.compile(
                     "\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON_ERROR().getName()) + "\\(");
 
+    private static final Pattern JSON_VALUE_PATTERN =
+            Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
+
+    private static final Pattern REGEXP_REPLACE_PATTERN = Pattern.compile("\\bregexpReplace\\(");
+
+    private static final String EXTRACT_CITY =
+            "JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), '$.address.city')";
+
+    private static final String EXTRACT_X =
+            "JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), '$.x' ERROR ON EMPTY)";
+
+    private static final String LIKE_X = "other_json LIKE '%x%'";
+
     private StreamTableEnvironment tEnv;
 
     private static final String JSON_ROW1 =
@@ -675,19 +688,7 @@ class JsonParseReuseTest {
                         + "  SELECT CASE WHEN v = 'z' THEN v ELSE v END AS b FROM ("
                         + "   SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), "
                         + "'$.address.city') AS v FROM json_src)))";
-        System.out.println(extractGeneratedCode(sql));
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munich"), Row.of("Berlin"));
-        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
-    }
-
-    @Test
-    void testComputedJsonValueInBothCaseBranches() {
-        final String sql =
-                "SELECT CASE WHEN a THEN v ELSE CONCAT(v, 'x') END AS r FROM ("
-                        + "SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), "
-                        + "'$.address.city') AS v, other_json LIKE '%x%' AS a FROM json_src)";
-        System.out.println(extractGeneratedCode(sql));
-        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munichx"), Row.of("Berlin"));
         assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
     }
 
@@ -700,7 +701,6 @@ class JsonParseReuseTest {
                         + "SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), "
                         + "'$.x' ERROR ON EMPTY) AS v, other_json LIKE '%x%' AS a, "
                         + "other_json LIKE '%y%' AS y FROM json_src)";
-        System.out.println(extractGeneratedCode(sql));
 
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("none"), Row.of("1"));
         final Pattern jsonValueCall =
@@ -712,21 +712,205 @@ class JsonParseReuseTest {
     }
 
     @Test
-    void testComputedJsonValueAcrossCasesIsGeneratedOnce() {
-        // v fails for '{}', which takes no branch that uses it
+    void testComputedJsonValuesInConditionAndAllBranches() {
+        // k is in the condition and v in every branch, so both are computed once before the CASE
         final String sql =
-                "SELECT CASE WHEN a THEN v ELSE CAST(NULL AS STRING) END AS r1, "
-                        + "CASE WHEN b THEN CONCAT(v, 'x') ELSE CAST(NULL AS STRING) END AS r2 "
-                        + "FROM (SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), "
-                        + "'$.x' ERROR ON EMPTY) AS v, other_json LIKE '%x%' AS a, "
-                        + "other_json LIKE '%1%' AS b FROM json_src)";
-        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(null, null), Row.of("1", "1x"));
+                "SELECT CASE WHEN k IN ('Munich', 'Paris', 'Rome') THEN v ELSE CONCAT(v, 'x') END "
+                        + "AS r FROM ("
+                        + "SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), '$.address.city') "
+                        + "AS k, JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), '$.age') AS v "
+                        + "FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("42"), Row.of("30x"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code)).isOne();
         final Pattern jsonValueCall =
                 Pattern.compile(
                         "\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
-        assertThat(count(jsonValueCall, extractGeneratedCode(sql)))
-                .as("v is generated once and shared by both CASEs")
-                .isOne();
+        assertThat(count(jsonValueCall, code)).as("one call each for k and v").isEqualTo(2);
+    }
+
+    @Test
+    void testValueInBothIfBranchesIsHoisted() {
+        final String sql =
+                "SELECT IF(a, v, CONCAT(v, 'x')) FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munichx"), Row.of("Berlin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInThenAndLaterWhenIsHoisted() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v WHEN v = 'Munich' THEN 'm' ELSE 'n' END FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("m"), Row.of("Berlin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInFirstWhenIsReusedByBranches() {
+        final String sql =
+                "SELECT CASE WHEN v = 'Munich' THEN CONCAT(v, '1') ELSE CONCAT(v, '2') END "
+                        + "FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munich1"), Row.of("Berlin2"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInOneBranchStaysLazy() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of((String) null), Row.of("1"));
+    }
+
+    @Test
+    void testValueInAndStaysLazy() {
+        final String sql =
+                "SELECT other_json FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a, other_json FROM json_src) WHERE a AND v = '1'";
+        assertThat(collect(sql)).containsExactly(Row.of("{\"x\":1}"));
+    }
+
+    @Test
+    void testValueAcrossCasesIsMemoized() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v END, CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(null, null), Row.of("1", "1x"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInCoalesceAndCaseIsMemoized() {
+        final String sql =
+                "SELECT COALESCE(c, v), CASE WHEN a THEN v END FROM (SELECT "
+                        + "JSON_VALUE(other_json, '$.x') AS c, "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of("Munich", null), Row.of("1", "Berlin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).as("one for c, one for v").isEqualTo(2);
+        assertThat(countJsonParse(code)).as("one for c, one for v").isEqualTo(2);
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInFilterAndProjectionIsMemoized() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src) WHERE CASE WHEN a THEN v = '1' ELSE TRUE END";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of((String) null), Row.of("1"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testMemoizedValueIsComputedForEveryRecord() {
+        // both CASEs match on both rows, so a stale value would repeat the first row
+        final String sql =
+                "SELECT CASE WHEN json_data LIKE '%city%' THEN v END, "
+                        + "CASE WHEN json_data LIKE '%age%' THEN CONCAT(v, '!') END FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, json_data FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("Munich", "Munich!"), Row.of("Berlin", "Berlin!"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testNonDeterministicValueIsNotMemoized() {
+        final String sql =
+                "SELECT CASE WHEN a THEN r END, CASE WHEN a THEN r + 1 END FROM (SELECT "
+                        + "RAND() AS r, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).hasSize(2);
+    }
+
+    @Test
+    void testValueInOrAndIfNullIsShared() {
+        final String sql =
+                "SELECT a OR v = '1', IFNULL(c, v) FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, other_json = '{}' AS a, "
+                        + "CASE WHEN other_json = '{}' THEN 'c' END AS c FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(true, "c"), Row.of(true, "1"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInNestedCaseIsShared() {
+        final String sql =
+                "SELECT CASE WHEN a THEN CASE WHEN b THEN v ELSE 'n' END ELSE 'o' END, "
+                        + "CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a, other_json LIKE '%1%' AS b FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("o", null), Row.of("1", "1x"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInFilterOrIsShared() {
+        final String sql =
+                "SELECT other_json FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, other_json = '{}' AS a, other_json FROM json_src) "
+                        + "WHERE a OR v = '1' OR CONCAT(v, 'y') = '3y'";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("{}"), Row.of("{\"x\":1}"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
     }
 
     @Test
