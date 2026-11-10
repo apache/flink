@@ -22,6 +22,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Interval.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.Duration;
 
@@ -32,23 +34,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class StartModeTest {
 
     @Test
-    void offsetMustBeAPositiveWholeNumberOfSecondsThatFitsAnInt() {
+    void acceptsOffsetOfIntegerMaxValueSeconds() {
         assertThat(StartMode.fromNow(Duration.ofSeconds(Integer.MAX_VALUE)).getInterval())
                 .isEqualTo(Interval.of(Integer.MAX_VALUE, TimeUnit.SECOND));
+    }
 
-        assertThatThrownBy(() -> StartMode.fromNow(Duration.ZERO))
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+            delimiter = '|',
+            value = {
+                "PT0S          | The start mode offset must be positive, but was: PT0S.",
+                "PT-1S         | The start mode offset must be positive, but was: PT-1S.",
+                "PT1.5S        | The start mode offset must be a whole number of seconds, but was: PT1.5S.",
+                "PT2147483648S | The start mode offset must be at most 2147483647 seconds, but was: PT596523H14M8S."
+            })
+    void rejectsInvalidOffset(Duration offset, String expectedMessage) {
+        assertThatThrownBy(() -> StartMode.fromNow(offset))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage("The start mode offset must be positive, but was: PT0S.");
-        assertThatThrownBy(() -> StartMode.resumeOrFromNow(Duration.ofSeconds(-1)))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("The start mode offset must be positive, but was: PT-1S.");
-        assertThatThrownBy(() -> StartMode.resumeOrFromNow(Duration.ofMillis(1500)))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "The start mode offset must be a whole number of seconds, but was: PT1.5S.");
-        assertThatThrownBy(() -> StartMode.fromNow(Duration.ofSeconds(Integer.MAX_VALUE + 1L)))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "The start mode offset must be at most 2147483647 seconds, but was: PT596523H14M8S.");
+                .hasMessage(expectedMessage);
     }
 }
