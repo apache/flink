@@ -354,7 +354,13 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       rel: Aggregate,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getUniqueKeysOnAggregate(rel.getGroupSet.toArray)
+    if (Aggregate.isSimple(rel) || ignoreNulls) {
+      getUniqueKeysOnAggregate(rel.getGroupSet.toArray)
+    } else {
+      // with grouping sets, a row of a rolled-up group whose keys are all null may be
+      // identical to a row of another group, so the group keys do not form a unique key
+      ImmutableSet.of()
+    }
   }
 
   def getUniqueKeys(
