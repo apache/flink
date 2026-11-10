@@ -406,7 +406,7 @@ public class CalcTestPrograms {
 
     // fails for '{}', "1" for '{"x":"1"}'
     private static final String JSON_X =
-            "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.x' ERROR ON EMPTY)";
+            "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.x' ERROR ON ERROR)";
 
     private static SourceTestStep jsonBodySource(final String... bodies) {
         return SourceTestStep.newBuilder("t")

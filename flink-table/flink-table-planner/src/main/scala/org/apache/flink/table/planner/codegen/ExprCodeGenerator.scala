@@ -150,10 +150,15 @@ class ExprCodeGenerator(
                 idx => sites(idx) += 1))
         case _ =>
       }
-      sites.collect {
-        case (idx, count) if count > 1 && !rootAlwaysEvaluatedRefs(idx) && !readsContext(idx) =>
-          idx
+      val shared = sites.collect {
+        case (idx, count) if count > 1 && !rootAlwaysEvaluatedRefs(idx) => idx
       }.toSet
+      // needed by the projection, but by the filter only in a branch: the projection reuses what
+      // the filter computed instead of computing it again
+      val filterBranchAndProjection =
+        (conditionReferencedRefs -- conditionAlwaysEvaluatedRefs).intersect(
+          projectionReferencedRefs)
+      (shared ++ filterBranchAndProjection).filterNot(readsContext)
     }
   }
 
@@ -165,6 +170,18 @@ class ExprCodeGenerator(
     val roots = rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
     roots.flatMap(alwaysEvaluatedRefs).toSet
   }
+
+  /** Local refs every record evaluates in the filter; empty without a filter. */
+  private lazy val conditionAlwaysEvaluatedRefs: Set[Int] =
+    Option(rexProgram.getCondition).map(alwaysEvaluatedRefs).getOrElse(Set.empty)
+
+  /** Local refs used anywhere in the filter; empty without a filter. */
+  private lazy val conditionReferencedRefs: Set[Int] =
+    Option(rexProgram.getCondition).map(referencedRefs).getOrElse(Set.empty)
+
+  /** Local refs used anywhere in the projection. */
+  private lazy val projectionReferencedRefs: Set[Int] =
+    rexProgram.getProjectList.flatMap(referencedRefs).toSet
 
   private val alwaysEvaluatedRefsCache = mutable.Map[Int, Set[Int]]()
 
@@ -185,6 +202,19 @@ class ExprCodeGenerator(
    *   instance of GeneratedExpression
    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
+    // only for the filter and the projection columns, not for nested calls such as SEARCH
+    val isCondition = rexProgram != null && (rex eq rexProgram.getCondition)
+    val isProjection = rexProgram != null && rexProgram.getProjectList.exists(_ eq rex)
+    if (input1Type != null && (isCondition || isProjection)) {
+      val always = if (isCondition) conditionAlwaysEvaluatedRefs else rootAlwaysEvaluatedRefs
+      // refs this expression uses that are computed for every record anyway: generate them first,
+      // so a branch that needs one reuses it instead of computing its own copy
+      referencedRefs(rex)
+        .intersect(always)
+        .toSeq
+        .sorted
+        .foreach(i => visitLocalRef(new RexLocalRef(i, rexProgram.getExprList.get(i).getType)))
+    }
     rex.accept(this)
   }
 
@@ -693,7 +723,7 @@ class ExprCodeGenerator(
    */
   /** Calls the memo method of the local ref, generating the method on first use. */
   private def memoizedCall(idx: Int, target: RexNode): GeneratedExpression = {
-    val memoized = memoizedRefs.getOrElseUpdate(idx, generateMemoizedMethod(target))
+    val memoized = memoizedRefs.getOrElseUpdate(idx, generateMemoizedMethod(idx, target))
     val args = memoized.params.flatMap {
       param =>
         val arg = visitLocalRef(new RexLocalRef(param, rexProgram.getExprList.get(param).getType))
@@ -702,7 +732,7 @@ class ExprCodeGenerator(
     memoized.result.copy(code = s"${memoized.method}(${(input1Term +: args).mkString(", ")});")
   }
 
-  private def generateMemoizedMethod(target: RexNode): MemoizedRef = {
+  private def generateMemoizedMethod(idx: Int, target: RexNode): MemoizedRef = {
     val resultType = FlinkTypeFactory.toLogicalType(target.getType)
     val method = newName(ctx, "localRef")
     val Seq(resultTerm, nullTerm, doneTerm, inputTerm) =
@@ -712,8 +742,11 @@ class ExprCodeGenerator(
     ctx.addReusableMember(s"boolean $doneTerm;")
     ctx.addReusablePerRecordStatement(s"$doneTerm = false;")
 
-    // refs every record computes inline anyway are passed in instead of computed again
-    val params = (referencedRefs(target).intersect(rootAlwaysEvaluatedRefs)).toSeq.sorted
+    // refs computed inline anyway are passed in instead of computed again; the projection runs only
+    // for rows passing the filter, so a method the filter needs only gets the filter's refs
+    val inlineRefs =
+      if (conditionReferencedRefs(idx)) conditionAlwaysEvaluatedRefs else rootAlwaysEvaluatedRefs
+    val params = referencedRefs(target).intersect(inlineRefs).toSeq.sorted
     val paramExprs = params.map {
       param =>
         val paramType = FlinkTypeFactory.toLogicalType(rexProgram.getExprList.get(param).getType)

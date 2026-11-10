@@ -704,7 +704,7 @@ class JsonParseReuseTest {
                 "SELECT CASE WHEN a THEN v WHEN y THEN CONCAT(v, 'x') "
                         + "ELSE 'none' END AS r FROM ("
                         + "SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), "
-                        + "'$.x' ERROR ON EMPTY) AS v, other_json LIKE '%x%' AS a, "
+                        + "'$.x' ERROR ON ERROR) AS v, other_json LIKE '%x%' AS a, "
                         + "other_json LIKE '%y%' AS y FROM json_src)";
 
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("none"), Row.of("1"));
@@ -988,6 +988,67 @@ class JsonParseReuseTest {
                         Row.of("d", "d", "z"),
                         Row.of("e", "z", "e"),
                         Row.of(null, "z", "z"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testFilterDoesNotComputeProjectionValueForDroppedRows() {
+        // m is shared by two filter branches and uses v only if h; v fails for '{}' and is needed
+        // by the projection only, which never runs for the dropped row '1'
+        tEnv.createTemporaryView(
+                "t",
+                tEnv.fromValues(
+                                Row.of("1", "{}"),
+                                Row.of("13", "{\"x\":\"x\"}"),
+                                Row.of("2", "{\"x\":\"y\"}"))
+                        .as("uri", "response_body"));
+        final String sql =
+                "SELECT v FROM (SELECT v, CASE WHEN h THEN v ELSE 'a' END AS m, g1, g2 FROM ("
+                        + " SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x' "
+                        + "ERROR ON ERROR) AS v, uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2, "
+                        + "uri LIKE '%3%' AS h FROM t)) "
+                        + "WHERE CASE WHEN g1 THEN CONCAT(m, '1') = 'x1' "
+                        + "WHEN g2 THEN CONCAT(m, '2') = 'x2' ELSE FALSE END";
+        assertThat(collect(sql)).containsExactly(Row.of("x"));
+    }
+
+    @Test
+    void testValueInBranchBeforeTheColumnThatAlwaysNeedsIt() {
+        // the first column needs v only if a, the second always; the first is generated first
+        final String sql =
+                "SELECT CASE WHEN a THEN v END, v FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(null, "Munich"), Row.of("Berlin", "Berlin"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testSearchInFilterDoesNotComputeProjectionValueEarly() {
+        // the IN list becomes SEARCH, whose operand uses v only for '{"x":1}'; v fails for '{}',
+        // which the filter drops, so only the projection would need it
+        final String sql =
+                "SELECT v FROM (SELECT JSON_VALUE(other_json, '$.x' ERROR ON ERROR) AS v, "
+                        + LIKE_X
+                        + " AS h FROM json_src) "
+                        + "WHERE UPPER(CASE WHEN h THEN v ELSE 'z' END) IN ('1', 'Y', 'W')";
+        assertThat(collect(sql)).containsExactly(Row.of("1"));
+    }
+
+    @Test
+    void testValueInFilterBranchAndInProjection() {
+        // the filter needs v only if a, the projection for every row it keeps; v fails for '{}',
+        // which a drops, so the filter must stay lazy. CHAR_LENGTH keeps the planner from
+        // replacing the projected v with a constant taken from the filter
+        final String sql =
+                "SELECT v FROM (SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), '$.x' "
+                        + "ERROR ON ERROR) AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src) WHERE a AND CHAR_LENGTH(v) = 1";
+        assertThat(collect(sql)).containsExactly(Row.of("1"));
         assertComputedOnce(sql);
     }
 
