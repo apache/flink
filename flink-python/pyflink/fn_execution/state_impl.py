@@ -170,7 +170,8 @@ class SynchronousValueRuntimeState(SynchronousBagKvRuntimeState, InternalValueSt
     def update(self, value) -> None:
         self.get_internal_state()
         self._internal_state.clear()
-        self._internal_state.add(value)
+        if value is not None:
+            self._internal_state.add(value)
         self._maybe_clear_write_cache()
 
     def clear(self) -> None:
