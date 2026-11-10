@@ -187,6 +187,68 @@ A document fails to parse if it:
 
 In all of these cases, `TRY_PARSE_XML` returns `NULL`.
 
+## VARIANT to XML String
+
+The `XML_STRING` function converts a `VARIANT` into an XML string. It reverses the mapping of
+`PARSE_XML`, so `PARSE_XML(XML_STRING(v))` gives `v` for any `v` from `PARSE_XML` with the same
+`force_array`. The other way around, `XML_STRING(PARSE_XML(xml))` gives the normalized document,
+without the XML declaration, comments, and whitespace between tags, and with the attributes in the
+order of their keys. For example:
+
+```sql
+-- '<book pages="320"><title>Dune</title>This is a description<price>12.50</price>Text in between<price currency="EUR">13.50</price></book>'
+XML_STRING(PARSE_XML('
+  <book pages="320">
+    <title>Dune</title>
+    This is a description
+    <price>12.50</price>
+    Text in between
+    <price currency="EUR">13.50</price>
+  </book>'))
+```
+
+`XML_STRING` writes a `VARIANT` by the following rules:
+
+- `@` fields are written as attributes, `$` fields as text, and the other fields as child elements.
+- The content of an element is written in the order of its `#` field. Content without a position in
+  the `#` field follows in the order of its keys, so without a `#` field, all content is written in
+  key order.
+- Each item of an array is written as an element or a text, so an empty array writes nothing.
+- An empty string is written as `<a></a>`. A `NULL`, and a `$` field with `NULL`, are written with
+  `xsi:nil="true"`, for example `<a xsi:nil="true"/>` and `<a id="1" xsi:nil="true"/>`.
+- A scalar other than a string gets the matching `xsi:type` from the table above with the `xs`
+  prefix, for example `<a xsi:type="xs:int">5</a>`. A `DECIMAL` gets `xs:decimal`, and a
+  `TIMESTAMP_LTZ` gets `xs:dateTime` and is written in UTC, for example `2026-09-30T10:30:00Z`.
+  Like in `PARSE_XML`, only the text of an element without child elements is typed.
+- `NaN` and infinity are written as `NaN`, `INF`, and `-INF`, like in XML Schema. `PARSE_XML` reads
+  them back as strings, like dates and timestamps after the year 9999.
+- XML Schema has no type for a `UUID`, so it is written as text without `xsi:type`, and reads back
+  as a `STRING`.
+- If the result uses the `xsi` or `xs` prefix, the root element declares it as
+  `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"` or
+  `xmlns:xs="http://www.w3.org/2001/XMLSchema"`, unless the `VARIANT` declares the prefix on the
+  root element itself, for example with an `@xmlns:xs` field.
+- `<`, `>`, and `&` are escaped, and so is `"` in attribute values. Tabs and line breaks in
+  attribute values, and carriage returns in text, are written as character references such as
+  `&#10;`, since an XML parser would read them back as spaces and line feeds.
+
+`XML_STRING` fails if the `VARIANT` has no XML representation, which is the case if:
+
+- it isn't an object with a single field for the root element, or the root element is an array,
+- a key isn't an XML name that `PARSE_XML` accepts, for example `1a` or `a b`, apart from the `@`
+  prefix of an attribute,
+- a string has a character that [XML 1.0 doesn't allow](https://www.w3.org/TR/xml/#charsets), for
+  example the control character `U+0000`,
+- an array directly contains another array, for example `{"r":{"a":[["x"]]}}`,
+- an `@` field holds an object, an array, or `NULL`,
+- a `$` field holds an object,
+- a `$` field with `NULL` isn't the only content of its element, or an element has an `@xsi:nil`
+  field that is `true` and content,
+- a `#` field isn't an object, doesn't have one integer position for each item of a key, or has a
+  position more than once,
+- an element would need two `xsi:type` or two `xsi:nil` attributes, for example
+  `{"a":{"$":5,"@xsi:type":"T"}}`, where the `5` needs `xsi:type="xs:int"` as well.
+
 ## Variant paths
 
 `VARIANT_GET` and `TRY_VARIANT_GET` take a path that names one place in a Variant. A path starts

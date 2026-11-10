@@ -24,7 +24,8 @@ import java.util.List;
 
 /**
  * The keys, attribute names, and namespace prefixes of the mapping between XML and variants, and
- * the boolean values of XML Schema, used by {@link XmlToVariantParser}.
+ * the boolean values of XML Schema, shared by {@link XmlToVariantParser} and {@link
+ * VariantToXmlWriter}.
  */
 final class XmlVariantNames {
 
@@ -56,7 +57,8 @@ final class XmlVariantNames {
 
     /**
      * The prefixes for XML Schema. {@code PARSE_XML} drops their declarations with the namespaces
-     * of XML Schema, and keeps declarations with other namespaces.
+     * of XML Schema, and keeps declarations with other namespaces. {@code XML_STRING} uses the
+     * prefixes for xsi:nil and xsi:type, and declares them on the root element if needed.
      */
     enum SchemaPrefix {
         XSI("xsi", "http://www.w3.org/2001/XMLSchema-instance"),
