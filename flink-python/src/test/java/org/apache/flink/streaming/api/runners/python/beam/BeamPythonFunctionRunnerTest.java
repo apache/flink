@@ -26,6 +26,7 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.memory.SharedResources;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateHandler;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateStore;
@@ -36,6 +37,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
@@ -45,6 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -69,6 +73,121 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BeamPythonFunctionRunnerTest {
+
+    @Test
+    void testFailureNotificationAfterResourceCloseIsIgnored() throws Exception {
+        try (MockEnvironment environment = MockEnvironment.builder().build()) {
+            final TestingBeamPythonFunctionRunner runner =
+                    new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+            setField(runner, "environment", environment);
+            setField(runner, "resourceCloseCompletion", CompletableFuture.completedFuture(null));
+            runner.onDataChannelFailure(new IOException("late cancellation callback"));
+            assertThat(environment.getActualExternalFailureCause()).isEmpty();
+        }
+    }
+
+    @Test
+    void testDataRpcFailureUnblocksResultAndBeamCompletion() throws Exception {
+        try (MockEnvironment environment = MockEnvironment.builder().build()) {
+            environment.setExpectedExternalFailureCause(RuntimeException.class);
+            final TestingBeamPythonFunctionRunner runner =
+                    new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+            setField(runner, "environment", environment);
+            runner.resultBuffer = new LinkedBlockingQueue<>();
+            final BeamFnDataInboundObserver inbound =
+                    BeamFnDataInboundObserver.forConsumers(
+                            Collections.emptyList(), Collections.emptyList());
+            final CountDownLatch closing = new CountDownLatch(1);
+            final RemoteBundle bundle =
+                    new TestingRemoteBundle(
+                            createStateRequestHandler(new AtomicBoolean()), new AtomicBoolean()) {
+                        @Override
+                        public void close() throws Exception {
+                            closing.countDown();
+                            inbound.awaitCompletion();
+                        }
+                    };
+            setField(runner, "remoteBundle", bundle);
+            setField(runner, "bundleStarted", true);
+            final ExecutorService executor = Executors.newFixedThreadPool(2);
+            try {
+                final Future<?> flush =
+                        executor.submit(
+                                () -> {
+                                    runner.flush();
+                                    return null;
+                                });
+                final Future<?> result = executor.submit(runner::takeResult);
+                assertThat(closing.await(5, TimeUnit.SECONDS)).isTrue();
+                final IOException cause = new IOException("data RPC terminated");
+                runner.onDataChannelFailure(cause);
+                assertThatThrownBy(() -> flush.get(5, TimeUnit.SECONDS)).hasRootCause(cause);
+                assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).hasRootCause(cause);
+                assertThat(environment.getActualExternalFailureCause())
+                        .hasValueSatisfying(error -> assertThat(error).hasCause(cause));
+            } finally {
+                executor.shutdownNow();
+                assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+            }
+        }
+    }
+
+    @Test
+    void testDataRpcFailureBeforeFlushPreservesFirstCause() throws Exception {
+        try (MockEnvironment environment = MockEnvironment.builder().build()) {
+            environment.setExpectedExternalFailureCause(RuntimeException.class);
+            final TestingBeamPythonFunctionRunner runner =
+                    new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+            setField(runner, "environment", environment);
+            runner.resultBuffer = new LinkedBlockingQueue<>();
+            final AtomicBoolean bundleClosed = new AtomicBoolean();
+            final RemoteBundle bundle =
+                    new TestingRemoteBundle(
+                            createStateRequestHandler(new AtomicBoolean()), bundleClosed);
+            setField(runner, "remoteBundle", bundle);
+            setField(runner, "bundleStarted", true);
+            final IOException first = new IOException("first failure");
+            runner.onDataChannelFailure(first);
+            runner.onDataChannelFailure(new IOException("secondary failure"));
+            assertThatThrownBy(runner::flush).hasCause(first);
+            assertThatThrownBy(runner::takeResult).hasCause(first);
+            assertThatThrownBy(runner::pollResult).hasCause(first);
+            assertThat(bundleClosed).isFalse();
+            assertThat(environment.getActualExternalFailureCause())
+                    .hasValueSatisfying(error -> assertThat(error).hasCause(first));
+        }
+    }
+
+    @Test
+    void testDataRpcFailureFailsIdleRunnersSharingWorker() throws Exception {
+        try (MockEnvironment firstEnvironment = MockEnvironment.builder().build();
+                MockEnvironment secondEnvironment = MockEnvironment.builder().build()) {
+            firstEnvironment.setExpectedExternalFailureCause(RuntimeException.class);
+            secondEnvironment.setExpectedExternalFailureCause(RuntimeException.class);
+            final PythonJobBundleFactory.DataChannelFailureHandler handler =
+                    new PythonJobBundleFactory.DataChannelFailureHandler();
+            final TestingBeamPythonFunctionRunner first =
+                    new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+            final TestingBeamPythonFunctionRunner second =
+                    new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+            setField(first, "environment", firstEnvironment);
+            setField(second, "environment", secondEnvironment);
+            first.resultBuffer = new LinkedBlockingQueue<>();
+            second.resultBuffer = new LinkedBlockingQueue<>();
+            handler.register(first::onDataChannelFailure);
+            handler.register(second::onDataChannelFailure);
+            final IOException cause = new IOException("shared data RPC terminated");
+
+            handler.fail(cause);
+            first.onDataChannelFailure(new IOException("secondary failure"));
+            second.onDataChannelFailure(new IOException("secondary failure"));
+
+            assertThat(firstEnvironment.getActualExternalFailureCause())
+                    .hasValueSatisfying(error -> assertThat(error).hasCause(cause));
+            assertThat(secondEnvironment.getActualExternalFailureCause())
+                    .hasValueSatisfying(error -> assertThat(error).hasCause(cause));
+        }
+    }
 
     @Test
     void testCloseDrainsStateHandlerAfterStoppingOwnedRequestProduction() throws Exception {
