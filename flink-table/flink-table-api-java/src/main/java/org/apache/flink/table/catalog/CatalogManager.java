@@ -348,7 +348,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 throw new ValidationException(
                         String.format(
                                 "Invalid default start mode '%s'. "
-                                        + "Only parameterless start modes are supported as defaults."));
+                                        + "Only parameterless start modes are supported as defaults.",
+                                startModeKind));
             }
 
             final StartMode startMode = StartMode.of(startModeKind);

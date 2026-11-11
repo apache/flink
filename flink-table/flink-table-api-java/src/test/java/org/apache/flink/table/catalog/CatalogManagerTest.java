@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.MaterializedTableConfigOptions;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.listener.AlterConnectionEvent;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
@@ -293,6 +294,28 @@ class CatalogManagerTest {
         assertThatThrownBy(() -> catalogManager.dropDatabase("default", "dummy", false, false))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Cannot drop a database which is currently in use.");
+    }
+
+    @Test
+    void testInvalidDefaultStartMode() {
+        final Configuration config = new Configuration();
+        config.set(
+                MaterializedTableConfigOptions.MATERIALIZED_TABLE_DEFAULT_START_MODE,
+                StartMode.StartModeKind.FROM_TIMESTAMP);
+        final CatalogManager.Builder builder =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(getClass().getClassLoader())
+                                        .config(config)
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .build());
+
+        assertThatThrownBy(builder::build)
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Invalid default start mode 'FROM_TIMESTAMP'. "
+                                + "Only parameterless start modes are supported as defaults.");
     }
 
     @Test
