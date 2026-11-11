@@ -40,8 +40,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Utility for upsertKey which represented as a Set of {@link
@@ -180,5 +182,39 @@ public class UpsertKeyUtil {
             root = parent;
         }
         return root;
+    }
+
+    /**
+     * Returns whether {@code fieldRefs} is fully contained in some single upsert key. Returns
+     * {@code false} when {@code upsertKeys} is null or empty.
+     */
+    public static boolean isContainedInAnyUpsertKey(
+            @Nullable Set<ImmutableBitSet> upsertKeys, ImmutableBitSet fieldRefs) {
+        return upsertKeys != null && upsertKeys.stream().anyMatch(uk -> uk.contains(fieldRefs));
+    }
+
+    /**
+     * Remaps top-level column indices through a {@link
+     * org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec#getProjectedFields()}
+     * mapping. Returns empty when any original index has no top-level entry (column dropped or only
+     * nested sub-fields kept).
+     */
+    public static Optional<ImmutableBitSet> remapFieldRefsThroughProjection(
+            ImmutableBitSet originalRefs, int[][] projectedFields) {
+        ImmutableBitSet.Builder builder = ImmutableBitSet.builder();
+        for (int origIdx : originalRefs.toArray()) {
+            OptionalInt newIdx =
+                    IntStream.range(0, projectedFields.length)
+                            .filter(
+                                    i ->
+                                            projectedFields[i].length == 1
+                                                    && projectedFields[i][0] == origIdx)
+                            .findFirst();
+            if (!newIdx.isPresent()) {
+                return Optional.empty();
+            }
+            builder.set(newIdx.getAsInt());
+        }
+        return Optional.of(builder.build());
     }
 }
