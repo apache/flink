@@ -1,0 +1,154 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "ARRAY<INT NOT NULL>"
+            }, {
+              "name" : "m",
+              "dataType" : "MAP<VARCHAR(2147483647), INT NOT NULL>"
+            }, {
+              "name" : "r",
+              "dataType" : "ROW<`f` INT NOT NULL>"
+            }, {
+              "name" : "e",
+              "dataType" : "ARRAY<INT NOT NULL>"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`a` ARRAY<INT NOT NULL>, `m` MAP<VARCHAR(2147483647), INT NOT NULL>, `r` ROW<`f` INT NOT NULL>, `e` ARRAY<INT NOT NULL>>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, m, r, e])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$ITEM$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "ARRAY<INT NOT NULL>"
+      }, {
+        "kind" : "LITERAL",
+        "value" : 2,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$ITEM$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "MAP<VARCHAR(2147483647), INT NOT NULL>"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "k",
+        "type" : "CHAR(1) NOT NULL"
+      } ],
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$ITEM$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "ROW<`f` INT NOT NULL>"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "f",
+        "type" : "CHAR(1) NOT NULL"
+      } ],
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$ELEMENT$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "ARRAY<INT NOT NULL>"
+      } ],
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`EXPR$0` INT, `EXPR$1` INT, `EXPR$2` INT, `EXPR$3` INT>",
+    "description" : "Calc(select=[ITEM(a, 2) AS EXPR$0, ITEM(m, 'k') AS EXPR$1, ITEM(r, 'f') AS EXPR$2, ELEMENT(e) AS EXPR$3])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a2",
+              "dataType" : "INT"
+            }, {
+              "name" : "mk",
+              "dataType" : "INT"
+            }, {
+              "name" : "rf",
+              "dataType" : "INT"
+            }, {
+              "name" : "e1",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "MAP",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`EXPR$0` INT, `EXPR$1` INT, `EXPR$2` INT, `EXPR$3` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
