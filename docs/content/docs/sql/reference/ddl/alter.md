@@ -416,6 +416,9 @@ compatible for the insertion.
 The column-level `IF NOT EXISTS` does not suppress an error for a missing table.
 Use `ALTER TABLE IF EXISTS` to skip an alteration when the table is missing.
 
+If a column named `IF` immediately follows `ADD`, enclose the name in backticks,
+for example, ``ALTER TABLE MyTable ADD `if` INT``.
+
 The following examples illustrate the usage of the `ADD` statements.
 
 ```sql

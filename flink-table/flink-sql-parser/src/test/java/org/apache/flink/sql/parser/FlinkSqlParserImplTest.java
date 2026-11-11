@@ -708,6 +708,24 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterTableAddColumnNamedIfRequiresQuoting() {
+        sql("alter table t1 add if ^int^")
+                .fails("(?s).*Encountered \"int\" at line 1, column 23\\.\\n.*");
+        sql("alter table t1 add `if` int")
+                .withConfig(c -> c.withQuoting(Quoting.BACK_TICK))
+                .ok("ALTER TABLE `T1` ADD (\n" + "  `if` INTEGER\n" + ")");
+    }
+
+    @Test
+    void testAlterTableAddComputedColumnNamedIfRequiresQuoting() {
+        sql("alter table t1 add if ^as^ id + 1")
+                .fails("(?s).*Encountered \"as\" at line 1, column 23\\.\\n.*");
+        sql("alter table t1 add `if` as id + 1")
+                .withConfig(c -> c.withQuoting(Quoting.BACK_TICK))
+                .ok("ALTER TABLE `T1` ADD (\n" + "  `if` AS (`ID` + 1)\n" + ")");
+    }
+
+    @Test
     void testAlterTableAddSingleColumn() {
         sql("alter table if exists t1 add new_column int not null")
                 .ok(
