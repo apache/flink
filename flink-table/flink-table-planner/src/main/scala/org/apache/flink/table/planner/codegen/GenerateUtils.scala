@@ -420,7 +420,6 @@ object GenerateUtils {
     new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new LocalZonedTimestampType(3))
   }
 
-  /** Reads `contextTerm`; see ExprCodeGenerator.readsContext for memo methods. */
   def generateRowtimeAccess(
       ctx: CodeGeneratorContext,
       contextTerm: String,

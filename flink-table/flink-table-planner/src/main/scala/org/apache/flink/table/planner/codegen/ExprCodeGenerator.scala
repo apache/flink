@@ -66,11 +66,7 @@ class ExprCodeGenerator(
   def this(ctx: CodeGeneratorContext, nullableInput: Boolean) =
     this(ctx, nullableInput, null)
 
-  /**
-   * term of the [[ProcessFunction]]'s context, can be changed when needed. It is a variable of the
-   * calling method, so a memo method can't use it: a deterministic call reading it must be listed
-   * in readsContext.
-   */
+  /** term of the [[ProcessFunction]]'s context, can be changed when needed */
   var contextTerm = "ctx"
 
   /** information of the first input */
@@ -145,34 +141,58 @@ class ExprCodeGenerator(
     } else {
       val exprs = rexProgram.getExprList
       val sites = mutable.Map[Int, Int]().withDefaultValue(0)
-      exprs.foreach {
-        case call: RexCall =>
+      val inRepeatedBranch = mutable.Set[Int]()
+      exprs.zipWithIndex.foreach {
+        case (call: RexCall, k) =>
           val always = alwaysEvaluatedRefs(call)
-          conditionalOperandIndices(call).foreach(
+          conditionalOperandIndices(call).foreach {
             i =>
-              (alwaysEvaluatedRefs(call.getOperands.get(i)) -- always).foreach(
-                idx => sites(idx) += 1))
+              val guarded = alwaysEvaluatedRefs(call.getOperands.get(i)) -- always
+              guarded.foreach(idx => sites(idx) += 1)
+              // a call emitted at several uses repeats its branches too
+              if (emittedSeveralTimes(k)) inRepeatedBranch ++= guarded
+          }
         case _ =>
       }
-      val usedInSeveralBranches = sites.collect {
-        case (idx, count) if count > 1 && !rootAlwaysEvaluatedRefs(idx) => idx
-      }.toSet
+      val usedInSeveralBranches =
+        (sites.collect { case (idx, count) if count > 1 => idx } ++ inRepeatedBranch).toSet
+          .filterNot(rootAlwaysEvaluatedRefs)
       // needed by the projection, but by the filter only in a branch: the projection reuses what
       // the filter computed instead of computing it again
       val filterBranchAndProjection =
         (conditionReferencedRefs -- conditionAlwaysEvaluatedRefs).intersect(
           projectionReferencedRefs)
-      (usedInSeveralBranches ++ filterBranchAndProjection).filterNot(readsContext)
+      usedInSeveralBranches ++ filterBranchAndProjection
     }
   }
 
   /**
-   * Local refs that every record evaluates, for a projection or the filter. They stay inline; a
-   * memoized method that needs one reads it from members.
+   * Local refs that the filter evaluates for every record, or the projection for every record it
+   * keeps. Unless memoized, they stay inline; a memoized method that needs one reads it from
+   * members.
    */
-  private lazy val rootAlwaysEvaluatedRefs: Set[Int] = {
-    val roots = rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
-    roots.flatMap(alwaysEvaluatedRefs).toSet
+  private lazy val rootAlwaysEvaluatedRefs: Set[Int] = roots.flatMap(alwaysEvaluatedRefs).toSet
+
+  /** The projection columns and the filter. */
+  private lazy val roots: Seq[RexNode] =
+    rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
+
+  /** Non-shareable calls whose code is emitted more than once: generated anew at each use. */
+  private lazy val emittedSeveralTimes: Set[Int] = {
+    def emittedAtEachUse(expr: RexNode) = expr.isInstanceOf[RexCall] && !isShareable(expr)
+    val exprs = rexProgram.getExprList
+    val count = mutable.Map[Int, Int]().withDefaultValue(0)
+    def use(node: RexNode, times: Int): Unit = node match {
+      case ref: RexLocalRef => count(ref.getIndex) += times
+      case call: RexCall => call.getOperands.foreach(use(_, times))
+      case access: RexFieldAccess => use(access.getReferenceExpr, times)
+      case _ =>
+    }
+    roots.foreach(use(_, 1))
+    (exprs.size - 1 to localRefInputArity by -1).foreach {
+      k => use(exprs.get(k), if (emittedAtEachUse(exprs.get(k))) count(k) else 1)
+    }
+    count.collect { case (k, c) if c > 1 && emittedAtEachUse(exprs.get(k)) => k }.toSet
   }
 
   /** Local refs every record evaluates in the filter; empty without a filter. */
@@ -197,23 +217,22 @@ class ExprCodeGenerator(
   /** Local refs computed inline whose result memo methods read from members. */
   private lazy val sharedRefs: Set[Int] = memoizedLocalRefs.flatMap(memoInlineRefs)
 
+  /** Input fields memo methods use: read once by the calling code and shared through members. */
+  private lazy val memoInputFields: Set[Int] = memoizedLocalRefs.flatMap(inputFieldsOf)
+
+  private val sharedInputFields = mutable.Set[Int]()
+
+  private val inputFieldsCache = mutable.Map[Int, Set[Int]]()
+
   private val memberTerms = mutable.Map[Int, GeneratedExpression]()
 
-  // set while generating without pre-generation, memo methods or shared members
+  // set while generating without pre-generation, memo methods or shared local refs
   private var plain = false
 
   /**
-   * Generates an expression from a RexNode. If objects or variables can be reused, they will be
-   * added to reusable code sections internally.
-   *
-   * @param rex
-   *   Calcite row expression
-   * @return
-   *   instance of GeneratedExpression
-   */
-  /**
-   * Generates without pre-generation, memo methods or shared members. For code that runs for only
-   * some of the columns, e.g. the key-only projection of partial deletes.
+   * Generates without pre-generation, memo methods or shared local refs; input fields may still be
+   * read from their members. For code that runs for only some of the columns, e.g. the key-only
+   * projection of partial deletes.
    */
   def generatePlainExpression(rex: RexNode): GeneratedExpression = {
     val saved = plain
@@ -225,8 +244,17 @@ class ExprCodeGenerator(
     }
   }
 
+  /**
+   * Generates an expression from a RexNode. If objects or variables can be reused, they will be
+   * added to reusable code sections internally.
+   *
+   * @param rex
+   *   Calcite row expression
+   * @return
+   *   instance of GeneratedExpression
+   */
   def generateExpression(rex: RexNode): GeneratedExpression = {
-    // only for the filter and the projection columns, not for nested calls such as SEARCH
+    // only for the filter and the projection columns, not for nested nodes
     val isCondition = rexProgram != null && (rex eq rexProgram.getCondition)
     val isProjection = rexProgram != null && rexProgram.getProjectList.exists(_ eq rex)
     if (input1Type != null && !plain && (isCondition || isProjection)) {
@@ -458,10 +486,7 @@ class ExprCodeGenerator(
         FlinkTypeFactory.toLogicalType(inputRef.getType))
     }
     // for the general cases with a previous call to bindInput()
-    val input1Arity = input1Type match {
-      case r: RowType => r.getFieldCount
-      case _ => 1
-    }
+    val input1Arity = localRefInputArity
     // if inputRef index is within size of input1 we work with input1, input2 otherwise
     val input = if (inputRef.getIndex < input1Arity) {
       (input1Type, input1Term)
@@ -561,6 +586,12 @@ class ExprCodeGenerator(
         full.literalValue)
     }
 
+    if (memoInputFields.contains(localRef.getIndex)) {
+      // a no-op in a memo method: the caller shared all the fields the method reads
+      shareInputField(localRef.getIndex)
+      return memberTermsOf(localRef.getIndex)
+    }
+
     generateInputAccess(
       ctx,
       input1Type,
@@ -568,6 +599,36 @@ class ExprCodeGenerator(
       localRef.getIndex,
       nullableInput,
       deepCopy = true)
+  }
+
+  /** Input fields the memoized local ref reads, directly or through the refs it uses. */
+  private def inputFieldsOf(idx: Int): Set[Int] = {
+    def walk(node: RexNode): Set[Int] = node match {
+      case ref: RexLocalRef if ref.getIndex < localRefInputArity => Set(ref.getIndex)
+      case ref: RexLocalRef =>
+        inputFieldsCache.getOrElseUpdate(
+          ref.getIndex,
+          walk(rexProgram.getExprList.get(ref.getIndex)))
+      case call: RexCall => call.getOperands.flatMap(walk).toSet
+      case access: RexFieldAccess => walk(access.getReferenceExpr)
+      case _ => Set.empty
+    }
+    walk(rexProgram.getExprList.get(idx))
+  }
+
+  /** Lets the read of an input field, emitted once per record, also fill the field's members. */
+  private def shareInputField(idx: Int): Unit = {
+    if (sharedInputFields.add(idx)) {
+      val field =
+        generateInputAccess(ctx, input1Type, input1Term, idx, nullableInput, deepCopy = true)
+      val member = memberTermsOf(idx)
+      val read = ctx.getReusableInputUnboxingExprs(input1Term, idx).get
+      read.code = s"""
+                     |${read.code}
+                     |${member.resultTerm} = ${field.resultTerm};
+                     |${member.nullTerm} = ${field.nullTerm};
+                     |""".stripMargin
+    }
   }
 
   def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
@@ -621,11 +682,7 @@ class ExprCodeGenerator(
     }
 
     if (call.getKind == SqlKind.SEARCH) {
-      return generateSearch(
-        ctx,
-        generateExpression(call.getOperands.get(0)),
-        rexProgram,
-        call.getOperands)
+      return generateSearch(ctx, call.getOperands.get(0).accept(this), rexProgram, call.getOperands)
     }
 
     // convert operands and help giving untyped NULL literals a type
@@ -676,18 +733,17 @@ class ExprCodeGenerator(
     case _ => Set.empty
   }
 
-  /** Indices of the local refs to calls that are evaluated on every execution path of `node`. */
+  /** Indices of the local refs to shareable calls evaluated on every execution path of `node`. */
   private def alwaysEvaluatedRefs(node: RexNode): Set[Int] = node match {
     case ref: RexLocalRef if ref.getIndex >= localRefInputArity =>
       alwaysEvaluatedRefsCache.getOrElseUpdate(
         ref.getIndex, {
-          rexProgram.getExprList.get(ref.getIndex) match {
-            case call: RexCall if isDeterministicThroughProgram(call) && !isJsonCall(call) =>
-              alwaysEvaluatedRefs(call) + ref.getIndex
-            case _ => Set.empty
-          }
+          val expr = rexProgram.getExprList.get(ref.getIndex)
+          if (isShareable(expr)) alwaysEvaluatedRefs(expr) + ref.getIndex
+          else alwaysEvaluatedRefs(expr)
         }
       )
+    case access: RexFieldAccess => alwaysEvaluatedRefs(access.getReferenceExpr)
     case call: RexCall if call.getKind == SqlKind.CASE || call.getOperator == IF =>
       // when_i + (then_i intersect rest), from ELSE backwards; no recursion for large CASEs
       val ops = call.getOperands.toIndexedSeq
@@ -705,55 +761,49 @@ class ExprCodeGenerator(
     case _ => Set.empty
   }
 
-  /** Indices of the local refs to deterministic calls used anywhere in `node`. */
+  /** Indices of the local refs to shareable calls used anywhere in `node`. */
   private def referencedRefs(node: RexNode): Set[Int] = node match {
     case ref: RexLocalRef if ref.getIndex >= localRefInputArity =>
       referencedRefsCache.getOrElseUpdate(
-        ref.getIndex,
-        rexProgram.getExprList.get(ref.getIndex) match {
-          case call: RexCall if isDeterministicThroughProgram(call) && !isJsonCall(call) =>
-            referencedRefs(call) + ref.getIndex
-          case _ => Set.empty
+        ref.getIndex, {
+          val expr = rexProgram.getExprList.get(ref.getIndex)
+          if (isShareable(expr)) referencedRefs(expr) + ref.getIndex else referencedRefs(expr)
         }
       )
+    case access: RexFieldAccess => referencedRefs(access.getReferenceExpr)
     case call: RexCall => call.getOperands.flatMap(referencedRefs).toSet
     case _ => Set.empty
   }
 
-  /**
-   * Whether the ref reads the process context (rowtime), which a member method can't see. The other
-   * readers (PROCTIME_MATERIALIZE, CURRENT_WATERMARK) are not deterministic, so never memoized.
-   */
-  private def readsContext(idx: Int): Boolean =
-    (referencedRefs(rexProgram.getExprList.get(idx)) + idx).exists(isStreamRecordTimestamp)
+  /** Whether the ref's result can be shared: JSON(...) is generated only by its parent. */
+  private def isShareable(expr: RexNode): Boolean = expr match {
+    case call: RexCall => isDeterministicThroughProgram(call) && !isJsonCall(call)
+    case _ => false
+  }
 
   /** JSON(...) is generated only by its JSON_OBJECT or JSON_ARRAY, see generateJsonCall. */
   private def isJsonCall(call: RexCall): Boolean =
     JsonGenerateUtils.isOneOfFunctionDefinitions(call, BuiltInFunctionDefinitions.JSON)
 
-  private def isStreamRecordTimestamp(idx: Int): Boolean = rexProgram.getExprList.get(idx) match {
-    case call: RexCall => call.getOperator == STREAMRECORD_TIMESTAMP
-    case _ => false
-  }
-
   /** Calls the memo method of the local ref, generating the method on first use. */
   private def memoizedCall(idx: Int, target: RexNode): GeneratedExpression = {
     val method = memoizedRefs.getOrElseUpdate(idx, generateMemoizedMethod(idx, target))
-    memberTermsOf(idx).copy(code = s"$method($input1Term);")
+    memberTermsOf(idx).copy(code = s"$method();")
   }
 
   /**
    * Local refs a memo method reads from members instead of computing them again: those the calling
-   * code computes inline anyway. The projection runs only for rows passing the filter, so a method
-   * the filter needs only reads the filter's refs.
+   * code computes inline anyway. A method the filter needs reads only the filter's refs: a ref it
+   * uses that only the projection always computes is memoized (filterBranchAndProjection).
    */
-  private def memoInlineRefs(idx: Int): Set[Int] = {
-    val inlineRefs =
-      if (conditionReferencedRefs(idx)) conditionAlwaysEvaluatedRefs else rootAlwaysEvaluatedRefs
-    referencedRefs(rexProgram.getExprList.get(idx)).intersect(inlineRefs) -- memoizedLocalRefs
-  }
+  private def memoInlineRefs(idx: Int): Set[Int] =
+    referencedRefs(rexProgram.getExprList.get(idx))
+      .intersect(rootAlwaysEvaluatedRefs) -- memoizedLocalRefs
 
-  /** Members holding the value of a memoized or shared local ref, the same in every method. */
+  /**
+   * Members holding the value of a memoized or shared local ref, or of a shared input field, the
+   * same in every method.
+   */
   private def memberTermsOf(idx: Int): GeneratedExpression =
     memberTerms.getOrElseUpdate(
       idx, {
@@ -777,42 +827,34 @@ class ExprCodeGenerator(
   }
 
   /**
-   * Generates `void localRef$N(RowData in)`, which computes the expression into members once per
-   * record. The expression is generated in isolation: own local variables, own input access and an
-   * empty local-ref cache, as the method can't see the variables of the calling method.
+   * Generates `void localRef$N()`, which computes the expression into members once per record. The
+   * expression is generated in isolation: own local variables and an empty local-ref cache, as the
+   * method can't see the variables of the calling method.
    */
   private def generateMemoizedMethod(idx: Int, target: RexNode): String = {
     val result = memberTermsOf(idx)
     val method = newName(ctx, "localRef")
-    val Seq(doneTerm, inputTerm) = newNames(ctx, "localRefDone", "localRefIn")
+    val doneTerm = newName(ctx, "localRefDone")
     ctx.addReusableMember(s"boolean $doneTerm;")
     ctx.addReusablePerRecordStatement(s"$doneTerm = false;")
 
     // refs the calling code computes inline anyway are read from their members
     val shared = memoInlineRefs(idx).toSeq.map(i => i -> memberTermsOf(i))
 
-    val savedInputTerm = input1Term
-    input1Term = inputTerm
-    val (expr, body) =
-      try {
-        ctx.inSeparateMethod(method) {
-          shared.foreach { case (i, expr) => ctx.addReusableLocalRefExpr(i, expr) }
-          val expr = target.accept(this)
-          val inputKeys = ctx.reusableInputUnboxingExprs.keys.filter(_._1 == inputTerm).toSeq
-          val inputAccess = inputKeys.map(ctx.reusableInputUnboxingExprs(_).code)
-          inputKeys.foreach(ctx.reusableInputUnboxingExprs.remove)
-          val localRefs = ctx.getReusableLocalRefExprBottomScope.values.map(_.code)
-          val body = (ctx.reuseLocalVariableCode(method) +: (inputAccess ++ localRefs :+ expr.code))
-            .mkString("\n")
-          (expr, body)
-        }
-      } finally {
-        input1Term = savedInputTerm
-      }
+    // read by the calling code; the method reads them from their members
+    inputFieldsOf(idx).foreach(shareInputField)
+
+    val (expr, body) = ctx.inSeparateMethod(method) {
+      shared.foreach { case (i, expr) => ctx.addReusableLocalRefExpr(i, expr) }
+      val expr = target.accept(this)
+      val localRefs = ctx.getReusableLocalRefExprBottomScope.values.map(_.code)
+      val body = (ctx.reuseLocalVariableCode(method) +: (localRefs.toSeq :+ expr.code))
+        .mkString("\n")
+      (expr, body)
+    }
 
     ctx.addReusableMember(s"""
-                             |private void $method(
-                             |    ${boxedTypeTermForType(input1Type)} $inputTerm) throws Exception {
+                             |private void $method() throws Exception {
                              |  if ($doneTerm) {
                              |    return;
                              |  }
@@ -839,6 +881,11 @@ class ExprCodeGenerator(
 
   private def visitOperandInScopedCache(operand: RexNode): GeneratedExpression = {
     ctx.pushLocalRefScope()
+    if (rexProgram != null && input1Type != null && !plain) {
+      // refs the operand needs on every path: generate them first, so all uses inside it reuse them
+      alwaysEvaluatedRefs(operand).toSeq.sorted
+        .foreach(i => visitLocalRef(new RexLocalRef(i, rexProgram.getExprList.get(i).getType)))
+    }
     val (operandExpr, scopedBodies) = {
       val expr = operand.accept(this)
       val popped = ctx.popLocalRefScope()

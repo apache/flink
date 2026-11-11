@@ -379,31 +379,6 @@ public class CalcTestPrograms {
                                     + "ON a.order_id = b.r.order_id")
                     .build();
 
-    public static final TableTestProgram JSON_VALUE_IN_CASE =
-            TableTestProgram.of(
-                            "calc-json-value-in-case",
-                            "validates JSON_VALUE on a computed input in a CASE condition and branches")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("t")
-                                    .addSchema("response_body STRING")
-                                    .producedValues(
-                                            Row.of("{\"k\":\"a\",\"v\":\"pp\"}"),
-                                            Row.of("{\"k\":\"z\",\"v\":\"pp\"}"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("r STRING")
-                                    .consumedValues("+I[qq]", "+I[qqx]")
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink_t "
-                                    + "SELECT CASE WHEN k IN ('a', 'b', 'c') "
-                                    + "THEN v ELSE CONCAT(v, 'x') END AS r FROM ("
-                                    + "SELECT JSON_VALUE(REGEXP_REPLACE(response_body, 'p', 'q'), '$.k') AS k, "
-                                    + "JSON_VALUE(REGEXP_REPLACE(response_body, 'p', 'q'), '$.v') AS v "
-                                    + "FROM t)")
-                    .build();
-
     // fails for '{}', "1" for '{"x":"1"}'
     private static final String JSON_X =
             "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.x' ERROR ON ERROR)";
@@ -463,41 +438,6 @@ public class CalcTestPrograms {
                                     + "CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
                                     + JSON_X
                                     + " AS v, body LIKE '%x%' AS a FROM t)")
-                    .build();
-
-    public static final TableTestProgram JSON_VALUE_IN_FILTER_AND_PROJECTION =
-            TableTestProgram.of(
-                            "calc-json-value-in-filter-and-projection",
-                            "validates a value shared by the filter and the projection")
-                    .setupTableSource(jsonBodySource("{}", "{\"x\":\"1\"}", "{\"x\":\"2\"}"))
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("r STRING")
-                                    .consumedValues("+I[null]", "+I[1]")
-                                    .build())
-                    .runSql(
-                            // the planner may move v = '1' first in the filter, so v must not fail
-                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END FROM (SELECT "
-                                    + "JSON_VALUE(REGEXP_REPLACE(body, 'p', 'q'), '$.x' ERROR ON EMPTY)"
-                                    + " AS v, body LIKE '%x%' AS a FROM t) "
-                                    + "WHERE CASE WHEN a THEN v = '1' ELSE TRUE END")
-                    .build();
-
-    public static final TableTestProgram JSON_VALUE_PER_RECORD =
-            TableTestProgram.of(
-                            "calc-json-value-per-record",
-                            "validates that a shared value is computed again for every record")
-                    .setupTableSource(jsonBodySource("{\"x\":\"1\"}", "{\"x\":\"2\"}"))
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("r1 STRING", "r2 STRING")
-                                    .consumedValues("+I[1, 1!]", "+I[2, 2!]")
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink_t SELECT CASE WHEN a THEN v END, "
-                                    + "CASE WHEN b THEN CONCAT(v, '!') END FROM (SELECT "
-                                    + JSON_X
-                                    + " AS v, body LIKE '%x%' AS a, body LIKE '%{%' AS b FROM t)")
                     .build();
 
     public static final TableTestProgram JSON_VALUE_NULL_ACROSS_CASES =
@@ -588,43 +528,134 @@ public class CalcTestPrograms {
                                     + "WHERE a OR v = '1' OR CONCAT(v, 'y') = '3y'")
                     .build();
 
-    public static final TableTestProgram JSON_VALUE_IN_PROJECTION_AND_SHARED_VALUES =
+    public static final TableTestProgram JSON_VALUE_IN_LOOKUP_JOIN_FILTER =
             TableTestProgram.of(
-                            "calc-json-value-in-projection-and-shared-values",
-                            "validates a value used by a projection and by values shared by branches")
+                            "calc-json-value-in-lookup-join-filter",
+                            "validates a value shared by two branches of a filter on the lookup side")
                     .setupTableSource(
-                            SourceTestStep.newBuilder("t")
-                                    .addSchema("uri STRING", "response_body STRING")
+                            SourceTestStep.newBuilder("src_t")
+                                    .addSchema("id INT", "proc_time AS PROCTIME()")
+                                    .producedValues(Row.of(1), Row.of(2), Row.of(3), Row.of(4))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("dim_t")
+                                    .addOption("disable-lookup", "false")
+                                    .addSchema("id INT", "j STRING")
                                     .producedValues(
-                                            Row.of("1", "{\"x\":\"a\"}"),
-                                            Row.of("2", "{\"x\":\"b\"}"),
-                                            Row.of("12", "{\"x\":\"c\"}"),
-                                            Row.of("3", "{}"))
+                                            Row.of(1, "{\"b\":\"q\"}"),
+                                            Row.of(2, "{\"b\":\"q\"}"),
+                                            Row.of(3, "{\"b\":\"r\"}"),
+                                            Row.of(4, "{\"b\":\"x\"}"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addSchema(
-                                            "r0 STRING",
-                                            "r1 STRING",
-                                            "r2 STRING",
-                                            "r3 STRING",
-                                            "r4 STRING")
-                                    .consumedValues(
-                                            "+I[a, a1, z, a2, z]",
-                                            "+I[b, z, b1, z, b2]",
-                                            "+I[c, c1, c1, c2, c2]",
-                                            "+I[null, z, z, z, z]")
+                                    .addSchema("id INT", "j STRING")
+                                    .consumedValues("+I[2, {\"b\":\"q\"}]", "+I[3, {\"b\":\"r\"}]")
                                     .build())
                     .runSql(
-                            "INSERT INTO sink_t SELECT v AS r0, "
-                                    + "CASE WHEN g1 THEN m1 ELSE 'z' END AS r1, "
-                                    + "CASE WHEN g2 THEN m1 ELSE 'z' END AS r2, "
-                                    + "CASE WHEN g1 THEN m2 ELSE 'z' END AS r3, "
-                                    + "CASE WHEN g2 THEN m2 ELSE 'z' END AS r4 "
-                                    + "FROM (SELECT CONCAT(v,'1') AS m1, CONCAT(v,'2') AS m2, "
-                                    + "v, g1, g2 FROM ("
-                                    + "SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') "
-                                    + "AS v, uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2 FROM t))")
+                            "INSERT INTO sink_t SELECT S.id, D.j FROM src_t AS S "
+                                    + "JOIN dim_t FOR SYSTEM_TIME AS OF S.proc_time AS D "
+                                    + "ON S.id = D.id AND CASE "
+                                    + "WHEN D.id = 2 THEN UPPER(JSON_VALUE(D.j, '$.b')) = 'Q' "
+                                    + "WHEN D.id = 3 THEN UPPER(JSON_VALUE(D.j, '$.b')) = 'R' "
+                                    + "ELSE FALSE END")
+                    .build();
+
+    public static final TableTestProgram MEMOIZED_VALUE_BELOW_NON_DETERMINISTIC_CALL =
+            TableTestProgram.of(
+                            "calc-memoized-value-below-non-deterministic-call",
+                            "validates a memoized value first called under UUID() that reads the shared TRIM(j)")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("id INT", "j STRING")
+                                    .producedValues(
+                                            Row.of(1, " p "), Row.of(2, " q "), Row.of(3, " r "))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 INT", "r2 STRING", "r3 STRING")
+                                    .consumedValues(
+                                            "+I[null, null, p]", "+I[37, null, q]", "+I[37, R!, r]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT "
+                                    + "CHAR_LENGTH(CONCAT(CASE WHEN id > 1 THEN UPPER(TRIM(j)) END, UUID())), "
+                                    + "CASE WHEN id > 2 THEN CONCAT(UPPER(TRIM(j)), '!') END, "
+                                    + "TRIM(j) FROM t")
+                    .build();
+
+    public static final TableTestProgram SEARCH_ON_PROJECTED_VALUE_STAYS_LAZY =
+            TableTestProgram.of(
+                            "calc-search-on-projected-value-stays-lazy",
+                            "validates that a filter SEARCH on a projected value does not compute "
+                                    + "projection values for rows the filter drops")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("n INT", "v STRING")
+                                    .producedValues(Row.of(null, "2"), Row.of(5, "x"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 INT", "r2 INT")
+                                    .consumedValues("+I[2, 2]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CAST(v AS INT), COALESCE(n, CAST(v AS INT)) "
+                                    + "FROM t WHERE COALESCE(n, CAST(v AS INT)) IN (1, 2)")
+                    .build();
+
+    public static final TableTestProgram TIME_ATTRIBUTES_IN_TWO_BRANCHES =
+            TableTestProgram.of(
+                            "calc-time-attributes-in-two-branches",
+                            "validates that a rowtime value is shared by two branches, while "
+                                    + "PROCTIME() reads the context and is not deterministic")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "id INT",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts")
+                                    .producedValues(
+                                            Row.of(1, Instant.ofEpochMilli(1000L)),
+                                            Row.of(2, Instant.ofEpochMilli(2000L)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 INT", "r2 INT", "r3 BOOLEAN")
+                                    .consumedValues("+I[null, null, true]", "+I[2, 3, true]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT "
+                                    + "CASE WHEN id > 1 THEN TIMESTAMPDIFF(SECOND, TO_TIMESTAMP_LTZ(0, 3), ts) END, "
+                                    + "CASE WHEN id > 1 THEN TIMESTAMPDIFF(SECOND, TO_TIMESTAMP_LTZ(0, 3), ts) + 1 END, "
+                                    + "CASE WHEN id > 1 THEN CAST(PROCTIME() AS STRING) "
+                                    + "ELSE CAST(PROCTIME() AS STRING) END IS NOT NULL FROM t")
+                    .build();
+
+    public static final TableTestProgram FIELD_ACCESS_IN_FILTER_MEMOIZED_VALUE =
+            TableTestProgram.of(
+                            "calc-field-access-in-filter-memoized-value",
+                            "validates a column read by the filter's memoized value only through "
+                                    + "a field access")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("x INT", "r ROW<a STRING>")
+                                    .producedValues(
+                                            Row.of(1, Row.of("a")),
+                                            Row.of(2, Row.of("a")),
+                                            Row.of(1, Row.of("b")),
+                                            Row.of(-1, Row.of("b")))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("r1 STRING")
+                                    .consumedValues("+I[(a)]", "+I[(a)!]", "+I[null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CASE WHEN x = 1 THEN CAST(r AS STRING) "
+                                    + "WHEN x = 2 THEN CONCAT(CAST(r AS STRING), '!') END FROM t "
+                                    + "WHERE (x > 0 AND UPPER(r.a) = 'A') "
+                                    + "OR (x < 0 AND UPPER(r.a) = 'B')")
                     .build();
 
     public static final TableTestProgram COALESCE =

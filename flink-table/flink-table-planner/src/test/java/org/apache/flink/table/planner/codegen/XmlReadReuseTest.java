@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.codegen;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.runtime.functions.SqlXmlUtils;
 import org.apache.flink.types.Row;
 
@@ -30,6 +31,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -156,6 +158,33 @@ class XmlReadReuseTest {
                         + "OR CAST(TRY_PARSE_XML(TRIM(xml), TRUE)['book']['title'][1] AS STRING) "
                         + "= 'Emma'";
         assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("<a>1</a>"), Row.of("<a>2</a>"));
+        assertThat(countReads(sql)).isOne();
+    }
+
+    @Test
+    void testRawColumnReadInsideAndOutsideMemoizedValue() {
+        final String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, "<book><title>Dune</title></book>"),
+                                Row.of(2, "<book><title>Emma</title></book>"),
+                                Row.of(3, "<book><title>Ubik</title></book>")));
+        tEnv.executeSql(
+                "CREATE TABLE t (id INT, x STRING) WITH ('connector' = 'values', 'data-id' = '"
+                        + dataId
+                        + "', 'bounded' = 'true')");
+        final String title = "CAST(PARSE_XML(x)['book']['title'] AS STRING)";
+        final String sql =
+                "SELECT "
+                        + title
+                        + ", CASE WHEN id > 1 THEN UPPER(CAST(TRY_PARSE_XML(x, TRUE)['book']['title'][1] AS STRING)) END"
+                        + ", CASE WHEN id > 2 THEN UPPER(CAST(TRY_PARSE_XML(x, TRUE)['book']['title'][1] AS STRING)) END"
+                        + " FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("Dune", null, null),
+                        Row.of("Emma", "EMMA", null),
+                        Row.of("Ubik", "UBIK", "UBIK"));
         assertThat(countReads(sql)).isOne();
     }
 
