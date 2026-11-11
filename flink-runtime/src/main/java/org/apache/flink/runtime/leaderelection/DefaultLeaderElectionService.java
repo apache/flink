@@ -517,10 +517,17 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         }
 
         if (confirmedLeaderInformation.isEmpty()) {
+            // No confirmed leader information for this component yet (e.g. leadership was
+            // (re-)acquired but the asynchronous confirmation hasn't completed). Leave the external
+            // storage untouched instead of deleting it: a pending confirmation will overwrite any
+            // stale value, whereas deleting here would drop the leader information permanently if
+            // the confirmation never completes.
             LOG.trace(
-                    "Leader information changed while there's no confirmation available by the contender for component '{}', yet. Changed leader information {} will be reset.",
+                    "Leader information for component '{}' changed while no confirmation is available yet (issued leader session ID: {}). Leaving the external storage untouched. Changed leader information: {}.",
                     componentId,
+                    issuedLeaderSessionID,
                     LeaderElectionUtils.convertToString(externallyChangedLeaderInformation));
+            return;
         } else if (externallyChangedLeaderInformation.isEmpty()) {
             LOG.debug(
                     "Re-writing leader information ({}) for component '{}' to overwrite the empty leader information in the external storage.",
