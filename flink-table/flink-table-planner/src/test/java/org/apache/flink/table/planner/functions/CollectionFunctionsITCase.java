@@ -1886,18 +1886,28 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_ELEMENT)
                         .onFieldsWithData(
-                                new Integer[] {1}, new Integer[] {1, 2}, new float[] {4.0F}, null)
+                                new Integer[] {1},
+                                new Integer[] {1, 2},
+                                new float[] {4.0F},
+                                null,
+                                new int[] {1})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.FLOAT()),
-                                DataTypes.ARRAY(DataTypes.INT()))
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()))
                         .testResult($("f0").element(), "ELEMENT(f0)", 1, DataTypes.INT())
                         .testSqlRuntimeError(
                                 "ELEMENT(f1)",
                                 TableRuntimeException.class,
                                 "Array has more than one element.")
                         .testResult($("f2").element(), "ELEMENT(f2)", 4.0F, DataTypes.FLOAT())
-                        .testResult($("f3").element(), "ELEMENT(f3)", null, DataTypes.INT()));
+                        .testResult($("f3").element(), "ELEMENT(f3)", null, DataTypes.INT())
+                        .testResult(
+                                $("f4").arrayRemove(1).element(),
+                                "ELEMENT(ARRAY_REMOVE(f4, 1))",
+                                null,
+                                DataTypes.INT()));
     }
 }

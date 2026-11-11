@@ -851,14 +851,14 @@ class ExprCodeGenerator(
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
-            generateArrayElementAt(ctx, array, index)
+            generateArrayElementAt(ctx, array, index, resultType)
 
           case LogicalTypeRoot.MAP =>
             val key = operands(1)
-            generateMapGet(ctx, operands.head, key)
+            generateMapGet(ctx, operands.head, key, resultType)
 
           case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
-            generateDot(ctx, operands)
+            generateDot(ctx, operands, resultType)
 
           case LogicalTypeRoot.VARIANT =>
             val key = operands(1)
@@ -883,10 +883,10 @@ class ExprCodeGenerator(
       case ELEMENT =>
         val array = operands.head
         requireArray(array)
-        generateArrayElement(ctx, array)
+        generateArrayElement(ctx, array, resultType)
 
       case DOT =>
-        generateDot(ctx, operands)
+        generateDot(ctx, operands, resultType)
 
       case PROCTIME =>
         // attribute is proctime indicator.
