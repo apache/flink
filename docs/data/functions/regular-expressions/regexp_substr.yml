@@ -1,0 +1,82 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP_SUBSTR
+summary: Returns the first substring of a string that matches a Java regular expression.
+
+syntax:
+  sql: REGEXP_SUBSTR(str, regex)
+  java: $("str").regexpSubstr(regex)
+  python: col("str").regexp_substr(regex)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+
+returns:
+  description: The text of the first match of `regex` in `str`.
+  nulls: Returns NULL if any argument is NULL, if `regex` doesn't match, or if `regex` doesn't compile.
+  type: "`STRING`, nullable."
+
+notes:
+  - The function returns the whole match. To get a group of the match, use `REGEXP_EXTRACT`.
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A `regex` that doesn't compile returns NULL, even a literal one.
+
+see_also:
+  - {name: REGEXP_EXTRACT, ref: regular-expressions/regexp-extract}
+  - {name: REGEXP_INSTR, ref: regular-expressions/regexp-instr}
+  - {name: REGEXP_EXTRACT_ALL, ref: regular-expressions/regexp-extract-all}
+
+examples:
+  - title: Return the first match
+    description: "Return the first number of each string. The last row has none:"
+    sql: |
+      SELECT note, REGEXP_SUBSTR(note, '\d+') AS first_number
+      FROM (VALUES ('order 17, refund 4'), ('42 items'), ('none')) AS t(note);
+    result: |
+      | note               | first_number |
+      |--------------------|--------------|
+      | order 17, refund 4 | 17           |
+      | 42 items           | 42           |
+      | none               | NULL         |
+
+  - title: An invalid regular expression
+    description: "A regex that doesn't compile returns NULL, even a literal one:"
+    sql: |
+      SELECT REGEXP_SUBSTR('order 17', '(') AS invalid_regex;
+    result: |
+      | invalid_regex |
+      |---------------|
+      | NULL          |
+
+  - title: NULL arguments
+    description: "A NULL argument returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_SUBSTR(CAST(NULL AS STRING), '\d+') AS null_str,
+        REGEXP_SUBSTR('order 17', CAST(NULL AS STRING)) AS null_regex;
+    result: |
+      | null_str | null_regex |
+      |----------|------------|
+      | NULL     | NULL       |

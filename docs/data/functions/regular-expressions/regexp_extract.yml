@@ -1,0 +1,128 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP_EXTRACT
+summary: Returns the substring that a group of a Java regular expression captures in the first match.
+
+syntax:
+  sql: REGEXP_EXTRACT(str, regex [, extractIndex])
+  java: |
+    $("str").regexpExtract(regex)
+    $("str").regexpExtract(regex, extractIndex)
+  python: |
+    col("str").regexp_extract(regex)
+    col("str").regexp_extract(regex, extract_index)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+  - name: extractIndex
+    type: TINYINT, SMALLINT, INT
+    required: false
+    default: "`0`"
+    description: The capturing group to return, starting at 1. `0` returns the whole match.
+
+returns:
+  description: The text that group `extractIndex` matched in the first match of `regex` in `str`. With `extractIndex` `0` or omitted, the text of the whole match.
+  nulls: Returns NULL if any argument is NULL, if `regex` doesn't match, if `extractIndex` is out of range, if group `extractIndex` takes no part in the match, such as the optional group in `'(x)?b'`, or if a `regex` that isn't a literal doesn't compile.
+  type: "`STRING`, nullable."
+
+notes:
+  - Only the first match of `regex` in `str` counts. To get the group from every match, use `REGEXP_EXTRACT_ALL`.
+  - Groups are numbered from 1, in the order of their opening parentheses. `extractIndex` is out of range when it is negative or greater than the number of groups in `regex`.
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A literal `regex` that doesn't compile fails the statement at planning time. For any other `regex`, such as a column, the function returns NULL if it doesn't compile, and the job keeps running.
+
+see_also:
+  - {name: REGEXP_EXTRACT_ALL, ref: regular-expressions/regexp-extract-all}
+  - {name: REGEXP_SUBSTR, ref: regular-expressions/regexp-substr}
+  - {name: REGEXP_REPLACE, ref: regular-expressions/regexp-replace}
+
+examples:
+  - title: Extract a capturing group
+    description: "Return the first and the second group of the first match:"
+    sql: |
+      SELECT
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 1) AS group_1,
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2) AS group_2;
+    result: |
+      | group_1 | group_2 |
+      |---------|---------|
+      | the     | bar     |
+
+  - title: Extract the whole match
+    description: "With `extractIndex` `0` or omitted, the function returns the whole match:"
+    sql: |
+      SELECT
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 0) AS index_0,
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)') AS omitted;
+    result: |
+      | index_0   | omitted   |
+      |-----------|-----------|
+      | foothebar | foothebar |
+
+  - title: Extract from each row of a table
+    description: "Extract the order number from each ID. The last row doesn't match, so its result is NULL:"
+    sql: |
+      SELECT id, REGEXP_EXTRACT(id, 'order-(\d+)', 1) AS order_number
+      FROM (VALUES ('order-17'), ('order-4'), ('refund-2')) AS t(id);
+    result: |
+      | id       | order_number |
+      |----------|--------------|
+      | order-17 | 17           |
+      | order-4  | 4            |
+      | refund-2 | NULL         |
+
+  - title: No match or a group out of range
+    description: "A regex that doesn't match and an `extractIndex` that is out of range both return NULL:"
+    sql: |
+      SELECT
+        REGEXP_EXTRACT('foothebar', 'foo([\d]+)', 1) AS no_match,
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 3) AS index_3,
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', -1) AS index_negative;
+    result: |
+      | no_match | index_3 | index_negative |
+      |----------|---------|----------------|
+      | NULL     | NULL    | NULL           |
+
+  - title: NULL arguments
+    description: "A NULL argument returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_EXTRACT(CAST(NULL AS STRING), 'foo(.*?)(bar)', 2) AS null_str,
+        REGEXP_EXTRACT('foothebar', CAST(NULL AS STRING), 2) AS null_regex,
+        REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', CAST(NULL AS INT)) AS null_index;
+    result: |
+      | null_str | null_regex | null_index |
+      |----------|------------|------------|
+      | NULL     | NULL       | NULL       |
+
+  - title: An invalid regular expression from a column
+    description: "The same regex read from a column returns NULL, and the query keeps running:"
+    sql: |
+      SELECT REGEXP_EXTRACT(str, re) AS extracted
+      FROM (VALUES ('foothebar', '(')) AS t(str, re);
+    result: |
+      | extracted |
+      |-----------|
+      | NULL      |

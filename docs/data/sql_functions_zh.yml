@@ -606,76 +606,25 @@ string:
 regex:
   - sql: REGEXP(str, regex)
     table: str.regexp(regex)
-    description: |
-      Returns `TRUE` if any substring of str matches the Java regular expression regex, otherwise `FALSE`.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime, or an empty regex, makes the function return `FALSE` rather than `NULL`.
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-
-      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
+    page: regexp
   - sql: REGEXP_COUNT(str, regex)
     table: str.regexpCount(regex)
-    description: |
-      返回字符串 str 匹配正则表达式模式 regex 的次数。regex 必须是一个 Java 正则表达式。
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      返回一个 `INTEGER` 表示匹配成功的次数。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
+    page: regexp-count
   - sql: REGEXP_EXTRACT(str, regex[, extractIndex])
     table: str.regexpExtract(regex[, extractIndex])
-    description: |
-      Returns the substring in str captured by the group at position extractIndex of the Java regular expression regex.
-
-      extractIndex starts from 1, and 0 means matching the whole regex. It defaults to 0 when not specified and must not exceed the number of capturing groups in regex.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
-
-      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2) returns "bar".
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <INTEGER>`
-
-      Returns a `STRING` representation of the captured substring. `NULL` if any of the arguments are `NULL`, if extractIndex exceeds the number of capturing groups, if there is no match, or if a non-literal regex is invalid.
+    page: regexp-extract
   - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
     table: str.regexpExtractAll(regex[, extractIndex])
-    description: |
-      提取字符串 str 中与正则表达式 regex 匹配且与 extractIndex 组对应的所有子串。
-      
-      regex 可以包含多个组。extractIndex 用于指示要提取哪个正则组，索引从 1 开始，也作为未指定时的默认值。0 表示匹配整个正则表达式。
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
-      
-      返回一个 `ARRAY<STRING>`，表示所有匹配的子串。如果任何参数为 `NULL`或非法，则返回 `NULL`。
+    page: regexp-extract-all
   - sql: REGEXP_INSTR(str, regex)
     table: str.regexpInstr(regex)
-    description: |
-      返回 str 中第一个匹配 regex 的子字符串的索引。
-      
-      结果索引从 1 开始，如果匹配失败则返回 0。
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      返回一个 `INTEGER` 表示 str 中第一个匹配 regex 的子字符串索引。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
+    page: regexp-instr
   - sql: REGEXP_REPLACE(str, regex, replacement)
     table: str.regexpReplace(regex, replacement)
-    description: |
-      Returns a version of str with every substring that matches the Java regular expression regex replaced by replacement.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
-
-      E.g. REGEXP_REPLACE('foobar', 'oo|ar', '') returns "fb".
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, replacement <CHAR | VARCHAR>`
-
-      Returns a `STRING`. `NULL` if any of the arguments are `NULL`, or if a non-literal regex is invalid.
+    page: regexp-replace
   - sql: REGEXP_SUBSTR(str, regex)
-    table: str.regexpSubStr(regex)
-    description: |
-      返回 str 中第一个匹配 regex 的子字符串。
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      返回一个 `STRING` 表示 str 中第一个匹配 regex 的子字符串。如果任何参数为 `NULL` 或 regex 非法或匹配失败，则返回 `NULL`。
+    table: str.regexpSubstr(regex)
+    page: regexp-substr
 
 temporal:
   - sql: DATE string
