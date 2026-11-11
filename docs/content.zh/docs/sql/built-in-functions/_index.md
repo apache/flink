@@ -1,6 +1,6 @@
 ---
 title: "内置函数"
-weight: 4
+weight: 5
 type: docs
 bookCollapseSection: true
 aliases:
@@ -35,29 +35,6 @@ Flink Table API & SQL 为用户提供了一组内置的数据转换函数。本�
 <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">创建一个 Jira issue</a>并详细
 说明。
 
-[All Functions]({{< ref "docs/sql/built-in-functions/all-functions" >}}) lists every built-in function from A to Z.
-
-## Kinds of Functions
-
-### Scalar
-
-A scalar function returns one value per call, usually one value per row, such as `UPPER` or `DATE_FORMAT`. Most categories hold scalar functions, such as [String and Binary]({{< ref "docs/sql/built-in-functions/string-and-binary" >}}) and [Date and Time]({{< ref "docs/sql/built-in-functions/date-and-time" >}}).
-
-### Aggregate
-
-An aggregate function returns one value for a group of rows, such as `SUM` or `COUNT`. See [Aggregate]({{< ref "docs/sql/built-in-functions/aggregate" >}}) and the [bitmap aggregate functions]({{< ref "docs/sql/built-in-functions/bitmap" >}}#位图聚合函数). Aggregate functions also work over an [OVER window]({{< ref "docs/sql/reference/queries/over-agg" >}}).
-
-### Window
-
-A window function returns one value per row, computed from the window of rows that an `OVER` clause defines, such as `ROW_NUMBER` or `LAG`. See [Window]({{< ref "docs/sql/built-in-functions/window" >}}).
-
-### Table
-
-A table function returns a table. The built-in ones are [process table functions]({{< ref "docs/sql/built-in-functions/process-table-functions" >}}), such as `FROM_CHANGELOG`, and [window table functions]({{< ref "docs/sql/built-in-functions/window" >}}#window-table-functions), such as `TUMBLE`.
-
-### User-Defined
-
-Besides the built-in functions, you can write your own. See [User-Defined Functions]({{< ref "docs/sql/user-defined-functions" >}}) and [Named Arguments]({{< ref "docs/sql/named-arguments" >}}). Built-in functions are system functions without a namespace. For catalog and temporary functions and how Flink resolves a function name, see [Functions]({{< ref "docs/dev/table/functions/overview" >}}) in the Table API docs.
-
+[All Functions]({{< ref "docs/sql/built-in-functions/all-functions" >}}) lists every built-in function from A to Z. [Function Basics]({{< ref "docs/sql/function-basics" >}}) explains the kinds of functions and calling behavior.
 
 {{< built_in_functions_legacy_anchors >}}
