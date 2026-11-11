@@ -55,6 +55,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.table.catalog.StartMode.StartModeKind.FROM_TIMESTAMP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -301,7 +302,7 @@ class CatalogManagerTest {
         final Configuration config = new Configuration();
         config.set(
                 MaterializedTableConfigOptions.MATERIALIZED_TABLE_DEFAULT_START_MODE,
-                StartMode.StartModeKind.FROM_TIMESTAMP);
+                FROM_TIMESTAMP);
         final CatalogManager.Builder builder =
                 CatalogManagerMocks.preparedCatalogManager()
                         .catalogStoreHolder(
