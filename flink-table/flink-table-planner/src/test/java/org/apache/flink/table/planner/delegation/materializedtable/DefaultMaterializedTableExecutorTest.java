@@ -444,14 +444,14 @@ class DefaultMaterializedTableExecutorTest {
                         .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
                         .tableOptions("partition.fields.hour.date-formatter", "HH")
                         .errorMessage(
-                                "The scheduler time must not be null during the periodic refresh of the materialized table `catalog`.`database`.`table`."),
+                                "The scheduler time must not be null during the periodic refresh of the materialized table 'catalog.database.table'."),
                 TestSpec.create()
                         .schedulerTime("2024-01-01")
                         .freshness(IntervalFreshness.ofDay(1))
                         .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
                         .tableOptions("partition.fields.hour.date-formatter", "HH")
                         .errorMessage(
-                                "Failed to parse a valid partition value for the field 'day' in materialized table `catalog`.`database`.`table` using the scheduler time '2024-01-01' based on the date format 'yyyy-MM-dd HH:mm:ss'."));
+                                "Failed to parse a valid partition value for the field 'day' in materialized table 'catalog.database.table' using the scheduler time '2024-01-01' based on the date format 'yyyy-MM-dd HH:mm:ss'."));
     }
 
     @Test

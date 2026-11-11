@@ -195,8 +195,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                     .execute(operationCtx);
             throw new TableException(
                     String.format(
-                            "Failed to submit continuous refresh job for materialized table %s.",
-                            materializedTableIdentifier),
+                            "Failed to submit continuous refresh job for materialized table '%s'.",
+                            materializedTableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -222,8 +222,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                     .execute(operationCtx);
             throw new TableException(
                     String.format(
-                            "Failed to create refresh workflow for materialized table %s.",
-                            materializedTableIdentifier),
+                            "Failed to create refresh workflow for materialized table '%s'.",
+                            materializedTableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -265,9 +265,9 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             suspendMaterializedTable(materializedTableIdentifier, catalogMaterializedTable);
             throw new TableException(
                     String.format(
-                            "Failed to start the continuous refresh job when converting table %s to a materialized table. "
+                            "Failed to start the continuous refresh job when converting table '%s' to a materialized table. "
                                     + "The table was converted and left in SUSPENDED status; resume it once the issue is resolved.",
-                            materializedTableIdentifier),
+                            materializedTableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -289,9 +289,9 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             suspendMaterializedTable(materializedTableIdentifier, catalogMaterializedTable);
             throw new TableException(
                     String.format(
-                            "Failed to create the refresh workflow when converting table %s to a materialized table. "
+                            "Failed to create the refresh workflow when converting table '%s' to a materialized table. "
                                     + "The table was converted and left in SUSPENDED status; resume it once the issue is resolved.",
-                            materializedTableIdentifier),
+                            materializedTableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -355,8 +355,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (RefreshStatus.INITIALIZING == materializedTable.getRefreshStatus()) {
             throw new TableException(
                     String.format(
-                            "Materialized table %s is being initialized and does not support suspend operation.",
-                            tableIdentifier));
+                            "Materialized table '%s' is being initialized and does not support suspend operation.",
+                            tableIdentifier.asSummaryString()));
         }
 
         if (RefreshMode.CONTINUOUS == materializedTable.getRefreshMode()) {
@@ -376,8 +376,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             if (RefreshStatus.SUSPENDED == materializedTable.getRefreshStatus()) {
                 throw new TableException(
                         String.format(
-                                "Materialized table %s continuous refresh job has been suspended, jobId is %s.",
-                                tableIdentifier, refreshHandler.getJobId()));
+                                "Materialized table '%s' continuous refresh job has been suspended, jobId is %s.",
+                                tableIdentifier.asSummaryString(), refreshHandler.getJobId()));
             }
 
             String savepointPath =
@@ -400,8 +400,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to suspend the continuous refresh job for materialized table %s.",
-                            tableIdentifier),
+                            "Failed to suspend the continuous refresh job for materialized table '%s'.",
+                            tableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -411,8 +411,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (RefreshStatus.SUSPENDED == materializedTable.getRefreshStatus()) {
             throw new TableException(
                     String.format(
-                            "Materialized table %s refresh workflow has been suspended.",
-                            tableIdentifier));
+                            "Materialized table '%s' refresh workflow has been suspended.",
+                            tableIdentifier.asSummaryString()));
         }
 
         WorkflowScheduler<? extends RefreshHandler> workflowScheduler =
@@ -440,8 +440,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to suspend the refresh workflow for materialized table %s.",
-                            tableIdentifier),
+                            "Failed to suspend the refresh workflow for materialized table '%s'.",
+                            tableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -456,8 +456,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (RefreshStatus.INITIALIZING == catalogMaterializedTable.getRefreshStatus()) {
             throw new TableException(
                     String.format(
-                            "Materialized table %s is being initialized and does not support resume operation.",
-                            tableIdentifier));
+                            "Materialized table '%s' is being initialized and does not support resume operation.",
+                            tableIdentifier.asSummaryString()));
         }
 
         if (RefreshMode.CONTINUOUS == catalogMaterializedTable.getRefreshMode()) {
@@ -485,14 +485,14 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             if (!jobStatus.isGloballyTerminalState()) {
                 throw new TableException(
                         String.format(
-                                "Materialized table %s continuous refresh job has been resumed, jobId is %s.",
-                                tableIdentifier, refreshHandler.getJobId()));
+                                "Materialized table '%s' continuous refresh job has been resumed, jobId is %s.",
+                                tableIdentifier.asSummaryString(), refreshHandler.getJobId()));
             }
             // an ACTIVATED handler never carries a savepoint, so only a configured path keeps state
             if (operationCtx.getTableConfig().getOptional(SAVEPOINT_PATH).isEmpty()) {
                 LOG.warn(
-                        "Materialized table {} is ACTIVATED, but its continuous refresh job {} has already reached {}. Starting a new refresh job without restoring state; to restore a savepoint instead, set 'execution.state-recovery.path' to it before RESUME, and unset it afterwards (RESET in SQL).",
-                        tableIdentifier,
+                        "Materialized table '{}' is ACTIVATED, but its continuous refresh job {} has already reached {}. Starting a new refresh job without restoring state; to restore a savepoint instead, set 'execution.state-recovery.path' to it before RESUME, and unset it afterwards (RESET in SQL).",
+                        tableIdentifier.asSummaryString(),
                         refreshHandler.getJobId(),
                         jobStatus);
             }
@@ -507,8 +507,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to resume the continuous refresh job for materialized table %s.",
-                            tableIdentifier),
+                            "Failed to resume the continuous refresh job for materialized table '%s'.",
+                            tableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -521,8 +521,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (RefreshStatus.ACTIVATED == catalogMaterializedTable.getRefreshStatus()) {
             throw new TableException(
                     String.format(
-                            "Materialized table %s refresh workflow has been resumed.",
-                            tableIdentifier));
+                            "Materialized table '%s' refresh workflow has been resumed.",
+                            tableIdentifier.asSummaryString()));
         }
 
         WorkflowScheduler<? extends RefreshHandler> workflowScheduler =
@@ -549,8 +549,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to resume the refresh workflow for materialized table %s.",
-                            tableIdentifier),
+                            "Failed to resume the refresh workflow for materialized table '%s'.",
+                            tableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -648,8 +648,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
 
         try {
             LOG.info(
-                    "Starting refresh of the materialized table {}, statement: {}",
-                    materializedTableIdentifier,
+                    "Starting refresh of the materialized table '{}', statement: {}",
+                    materializedTableIdentifier.asSummaryString(),
                     insertStatement);
             final RefreshJobResult result =
                     jobSubmitter.submitRefreshJob(customConfig, insertStatement);
@@ -673,8 +673,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to refresh the materialized table %s.",
-                            materializedTableIdentifier),
+                            "Failed to refresh the materialized table '%s'.",
+                            materializedTableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -689,8 +689,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (scheduleTime == null) {
             throw new ValidationException(
                     String.format(
-                            "The scheduler time must not be null during the periodic refresh of the materialized table %s.",
-                            materializedTableIdentifier));
+                            "The scheduler time must not be null during the periodic refresh of the materialized table '%s'.",
+                            materializedTableIdentifier.asSummaryString()));
         }
 
         Set<String> partitionFields =
@@ -715,9 +715,9 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             if (partFiledValue == null) {
                 throw new TableException(
                         String.format(
-                                "Failed to parse a valid partition value for the field '%s' in materialized table %s using the scheduler time '%s' based on the date format '%s'.",
+                                "Failed to parse a valid partition value for the field '%s' in materialized table '%s' using the scheduler time '%s' based on the date format '%s'.",
                                 partField,
-                                materializedTableIdentifier.asSerializableString(),
+                                materializedTableIdentifier.asSummaryString(),
                                 scheduleTime,
                                 SCHEDULE_TIME_DATE_FORMATTER_DEFAULT));
             }
@@ -815,8 +815,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } else {
             throw new TableException(
                     String.format(
-                            "Materialized table %s is being initialized and does not support alter operation.",
-                            tableIdentifier));
+                            "Materialized table '%s' is being initialized and does not support alter operation.",
+                            tableIdentifier.asSummaryString()));
         }
 
         return TABLE_RESULT_OK;
@@ -857,8 +857,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                     deserializeContinuousHandler(
                             suspendMaterializedTable.getSerializedRefreshHandler());
             LOG.warn(
-                    "Failed to start the continuous refresh job for materialized table {} using new query {}, rollback to origin query {} with savepoint {}.",
-                    tableIdentifier,
+                    "Failed to start the continuous refresh job for materialized table '{}' using new query {}, rollback to origin query {} with savepoint {}.",
+                    tableIdentifier.asSummaryString(),
                     op.getNewTable().getExpandedQuery(),
                     suspendMaterializedTable.getExpandedQuery(),
                     suspendedRefreshHandler.getRestorePath().orElse(null),
@@ -877,8 +877,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
 
             throw new TableException(
                     String.format(
-                            "Failed to start the continuous refresh job using new query %s when altering materialized table %s select query.",
-                            op.getNewTable().getExpandedQuery(), tableIdentifier),
+                            "Failed to start the continuous refresh job using new query %s when altering materialized table '%s' select query.",
+                            op.getNewTable().getExpandedQuery(), tableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -940,14 +940,14 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (!tableExists) {
             if (dropMaterializedTableOperation.isIfExists()) {
                 LOG.info(
-                        "Materialized table {} does not exists, skip the drop operation.",
-                        tableIdentifier);
+                        "Materialized table '{}' does not exists, skip the drop operation.",
+                        tableIdentifier.asSummaryString());
                 return TABLE_RESULT_OK;
             } else {
                 throw new ValidationException(
                         String.format(
-                                "Materialized table with identifier %s does not exist.",
-                                tableIdentifier));
+                                "Materialized table with identifier '%s' does not exist.",
+                                tableIdentifier.asSummaryString()));
             }
         }
 
@@ -965,8 +965,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } else if (RefreshStatus.INITIALIZING == refreshStatus) {
             throw new ValidationException(
                     String.format(
-                            "Current refresh status of materialized table %s is initializing, skip the drop operation.",
-                            tableIdentifier.asSerializableString()));
+                            "Current refresh status of materialized table '%s' is initializing, skip the drop operation.",
+                            tableIdentifier.asSummaryString()));
         }
 
         dropMaterializedTableOperation.execute(operationCtx);
@@ -980,9 +980,9 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                 deserializeContinuousHandler(materializedTable.getSerializedRefreshHandler());
         if (refreshJobController.getJobStatus(refreshHandler).isTerminalState()) {
             LOG.info(
-                    "No need to cancel the continuous refresh job {} for materialized table {} as it is not currently running.",
+                    "No need to cancel the continuous refresh job {} for materialized table '{}' as it is not currently running.",
                     refreshHandler.getJobId(),
-                    tableIdentifier);
+                    tableIdentifier.asSummaryString());
             return;
         }
 
@@ -998,16 +998,18 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (!jobStatus.isTerminalState()) {
             throw new TableException(
                     String.format(
-                            "Failed to drop the materialized table %s because the continuous refresh job %s could not be canceled."
+                            "Failed to drop the materialized table '%s' because the continuous refresh job %s could not be canceled."
                                     + " The current status of the continuous refresh job is %s.",
-                            tableIdentifier, refreshHandler.getJobId(), jobStatus),
+                            tableIdentifier.asSummaryString(),
+                            refreshHandler.getJobId(),
+                            jobStatus),
                     cancelFailure);
         }
         LOG.warn(
-                "An exception occurred while canceling the continuous refresh job {} for materialized table {},"
+                "An exception occurred while canceling the continuous refresh job {} for materialized table '{}',"
                         + " but since the job is in a terminal state, skip the cancel operation.",
                 refreshHandler.getJobId(),
-                tableIdentifier,
+                tableIdentifier.asSummaryString(),
                 cancelFailure);
     }
 
@@ -1029,8 +1031,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to delete the refresh workflow for materialized table %s.",
-                            tableIdentifier),
+                            "Failed to delete the refresh workflow for materialized table '%s'.",
+                            tableIdentifier.asSummaryString()),
                     e);
         }
     }
@@ -1063,8 +1065,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (MATERIALIZED_TABLE != resolvedCatalogBaseTable.getTableKind()) {
             throw new ValidationException(
                     String.format(
-                            "Table %s is not a materialized table, does not support materialized table related operation.",
-                            tableIdentifier));
+                            "Table '%s' is not a materialized table, does not support materialized table related operation.",
+                            tableIdentifier.asSummaryString()));
         }
 
         return (ResolvedCatalogMaterializedTable) resolvedCatalogBaseTable;
