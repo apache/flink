@@ -249,6 +249,10 @@ XML_STRING(PARSE_XML('
 - an element would need two `xsi:type` or two `xsi:nil` attributes, for example
   `{"a":{"$":5,"@xsi:type":"T"}}`, where the `5` needs `xsi:type="xs:int"` as well.
 
+`XML_STRING` also fails if the XML string would be longer than 16,777,216 characters. A key is
+stored once in a `VARIANT`, but written for each item of its array, so a small `VARIANT` can give a
+long XML string.
+
 ## Variant paths
 
 `VARIANT_GET` and `TRY_VARIANT_GET` take a path that names one place in a Variant. A path starts

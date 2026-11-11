@@ -1549,7 +1549,8 @@ variant:
         Attribute values, and text next to child elements, aren't typed and read back as strings.
       - If the XML string uses the `xsi` or `xs` prefix, the root element declares it.
 
-      If the Variant has no XML representation, an error is thrown.
+      If the Variant has no XML representation, or the XML string would be longer than 16,777,216
+      characters, an error is thrown.
 
       ```sql
       -- '<book pages="320"><title>Dune</title><price>12.50</price></book>'

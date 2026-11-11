@@ -53,6 +53,7 @@ import static org.apache.flink.table.runtime.functions.XmlVariantNames.TEXT_KEY;
 import static org.apache.flink.table.runtime.functions.XmlVariantNames.XSI_NIL;
 import static org.apache.flink.table.runtime.functions.XmlVariantNames.XSI_TYPE;
 import static org.apache.flink.table.runtime.functions.XmlVariantNames.parseXmlSchemaBoolean;
+import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIME_FORMATTER;
@@ -133,10 +134,21 @@ public final class VariantToXmlWriter {
     private String writeDocument(String rootName, Variant root) {
         writeElement(rootName, root);
         while (!openElements.isEmpty()) {
+            checkLength();
             writeNextContent(openElements.peek());
         }
         insertIntoRootTag(rootName, schemaPrefixDeclarations(root));
+        checkLength();
         return output.toString();
+    }
+
+    private void checkLength() {
+        if (output.length() > SIZE_LIMIT) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The XML string is longer than the maximum of %d characters.",
+                            SIZE_LIMIT));
+        }
     }
 
     /**

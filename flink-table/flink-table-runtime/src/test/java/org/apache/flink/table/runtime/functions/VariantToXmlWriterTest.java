@@ -37,6 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -361,6 +362,22 @@ class VariantToXmlWriterTest {
                             "{\"a\":{\"#\":{\"x\":\"0\"},\"b\":\"y\"}}",
                             "The '#' field of the element 'a' has a position of type STRING for 'x', "
                                     + "but a position must be an integer."));
+        }
+
+        @Test
+        void testLongerThanMaxLength() throws IOException {
+            // A key is stored once, but written for each item of its array, which would give
+            // about 3 billion characters.
+            final Variant repeatedKey =
+                    parseJson(
+                            String.format(
+                                    "{\"r\":{\"%s\":[%s]}}",
+                                    "k".repeat(1000),
+                                    String.join(",", Collections.nCopies(3_000_000, "null"))));
+            assertThatThrownBy(() -> VariantToXmlWriter.write(repeatedKey))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage(
+                            "The XML string is longer than the maximum of 16777216 characters.");
         }
     }
 
