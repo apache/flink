@@ -2,6 +2,7 @@
 title: "位图"
 weight: 2
 type: docs
+bookCollapseSection: true
 sqlFunctions: [bitmap, bitmapagg]
 ---
 <!--

@@ -2,6 +2,7 @@
 title: "Boolean"
 weight: 3
 type: docs
+bookCollapseSection: true
 sqlFunctions: logical
 ---
 <!--

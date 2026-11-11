@@ -2,6 +2,7 @@
 title: "聚合"
 weight: 1
 type: docs
+bookCollapseSection: true
 sqlFunctions: [aggregate, grouping]
 ---
 <!--
