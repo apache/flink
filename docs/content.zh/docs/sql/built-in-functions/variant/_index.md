@@ -108,11 +108,10 @@ listed below, or the text isn't a valid value of the type, the text stays a `STR
 is kept as an attribute. For example, `<a xsi:type="int">5</a>` maps to `{"a":5}`, and
 `<a xsi:type="int">five</a>` maps to `{"a":{"$":"five","@xsi:type":"int"}}`. The text has to be in
 the lexical form that XML Schema defines for the type, so `1e5` isn't a `decimal`, `1f` isn't a
-`float`, and `12:30` isn't a `time`. Years after 9999 and the time `24:00:00` stay a `STRING` as well,
-and so does a `dateTime` whose offset moves it past the year 9999 in UTC.
-This checks the year in the text, not the year in UTC. For example, `9999-12-31T23:00:00-08:00`
-maps to a `TIMESTAMP_LTZ`, although it is `10000-01-01 07:00:00` in UTC, and
-`10000-01-01T00:00:00+14:00` stays a `STRING`, although it is `9999-12-31 10:00:00` in UTC.
+`float`, and `12:30` isn't a `time`. Years after 9999 and the time `24:00:00` stay a `STRING` as well.
+For a `dateTime` with an offset, this checks both the year in the text and the year in UTC. So
+`10000-01-01T00:00:00+14:00` stays a `STRING`, and so does `9999-12-31T23:00:00-08:00`, which is
+`10000-01-01 07:00:00` in UTC.
 
 | `xsi:type`                   | Stored `VARIANT` kind                        |
 |------------------------------|----------------------------------------------|
