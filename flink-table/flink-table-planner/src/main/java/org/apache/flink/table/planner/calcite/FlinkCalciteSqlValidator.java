@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
+import org.apache.flink.table.planner.plan.optimize.ComparableTypeValidator;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.inference.StaticArgument;
@@ -170,6 +171,13 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             }
         }
         super.validateLiteral(literal);
+    }
+
+    @Override
+    public void validateCall(final SqlCall call, final SqlValidatorScope scope) {
+        super.validateCall(call, scope);
+        // the conversion to a plan simplifies a comparison of an expression with itself away
+        ComparableTypeValidator.validateComparison(call, this, scope);
     }
 
     @Override

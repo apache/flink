@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -142,30 +143,32 @@ class ComparableTypeValidatorTest {
                                         + "(PARTITION BY id ORDER BY v) AS rn FROM t) WHERE rn <= 3",
                                 "An expression of type VARIANT cannot be used as an ORDER BY key "
                                         + "of an OVER window"),
-                        Arguments.of("SELECT t.id FROM t JOIN u ON t.v = u.v", EQUALS),
+                        Arguments.of("SELECT t.id FROM t JOIN u ON t.v = t.v", EQUALS),
                         Arguments.of("SELECT t.id FROM t JOIN u USING (v)", EQUALS),
                         Arguments.of("SELECT id FROM t WHERE v = PARSE_JSON('1')", EQUALS),
+                        Arguments.of("SELECT PARSE_JSON('1') = PARSE_JSON('1')", EQUALS),
                         Arguments.of("SELECT id FROM t WHERE v <> v", COMPARISON + " '<>'"),
                         Arguments.of(
                                 "SELECT id FROM t WHERE v < v",
                                 COMPARISON + " '<', because the type has no order."),
                         Arguments.of(
                                 "SELECT id FROM t WHERE v BETWEEN PARSE_JSON('1') AND PARSE_JSON('2')",
-                                COMPARISON),
-                        // the SQL converter expands IS [NOT] DISTINCT FROM into =
+                                COMPARISON
+                                        + " 'BETWEEN ASYMMETRIC', because the type has no order."),
                         Arguments.of(
                                 "SELECT id FROM t WHERE v IS DISTINCT FROM PARSE_JSON('1')",
-                                EQUALS),
+                                COMPARISON + " 'IS DISTINCT FROM'"),
                         Arguments.of(
                                 "SELECT id FROM t WHERE v IS NOT DISTINCT FROM PARSE_JSON('1')",
-                                EQUALS),
+                                COMPARISON + " 'IS NOT DISTINCT FROM'"),
                         Arguments.of(
                                 "SELECT id FROM t WHERE r = r",
                                 "An expression of type ROW<`x` VARIANT> cannot be used in a comparison "
                                         + "with '='"),
                         Arguments.of(
                                 "SELECT id FROM t WHERE v IN (PARSE_JSON('1'), PARSE_JSON('2'))",
-                                EQUALS),
+                                COMPARISON + " 'IN'"),
+                        Arguments.of("SELECT v IN (NULL, v) FROM t", COMPARISON + " 'IN'"),
                         Arguments.of(
                                 "SELECT id FROM t WHERE v IN (SELECT v FROM u)",
                                 COMPARISON + " 'IN'"),
@@ -174,9 +177,13 @@ class ComparableTypeValidatorTest {
                         Arguments.of(
                                 "SELECT id FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.v = t.v)",
                                 EQUALS),
+                        Arguments.of("SELECT CASE v WHEN v THEN 1 END FROM t", EQUALS),
+                        Arguments.of("SELECT NULLIF(v, v) FROM t", EQUALS),
+                        Arguments.of("SELECT COUNT(*) FILTER (WHERE v = v) FROM t", EQUALS),
                         Arguments.of(
-                                "SELECT CASE v WHEN PARSE_JSON('1') THEN 1 END FROM t", EQUALS),
-                        Arguments.of("SELECT NULLIF(v, PARSE_JSON('1')) FROM t", EQUALS),
+                                "SELECT SUM(CASE WHEN v = v THEN 1 ELSE 0 END) FILTER (WHERE id > 0) "
+                                        + "FROM t",
+                                EQUALS),
                         Arguments.of(
                                 "SELECT ARRAY_CONTAINS(a, v) FROM t",
                                 ARRAY_ELEMENT
@@ -223,7 +230,7 @@ class ComparableTypeValidatorTest {
                                         + "of a table argument"));
         // batch mode does not apply watermarks
         final Stream<Arguments> streamingOnly =
-                inMode(STREAMING, Arguments.of("SELECT id FROM w", EQUALS));
+                inMode(STREAMING, Arguments.of("SELECT id FROM w", ARRAY_ELEMENT));
         return Stream.concat(bothModes, streamingOnly);
     }
 
@@ -239,7 +246,8 @@ class ComparableTypeValidatorTest {
                 Arguments.of("SELECT a[1], v['k'] FROM t"),
                 Arguments.of(
                         "SELECT v FROM t WHERE v IS DISTINCT FROM NULL "
-                                + "OR v IS NOT DISTINCT FROM NULL"));
+                                + "OR v IS NOT DISTINCT FROM NULL"),
+                Arguments.of("SELECT id FROM t WHERE (id, id) IN (SELECT id, id FROM u)"));
     }
 
     private static Stream<Arguments> rejectedJoinsPerBatchStrategy() {
@@ -341,6 +349,17 @@ class ComparableTypeValidatorTest {
         assertThatCode(() -> env.explainSql(sql)).doesNotThrowAnyException();
     }
 
+    @Test
+    void testRejectedComputedColumn() {
+        final TableEnvironment env = createEnvironment(STREAMING);
+        assertThatThrownBy(
+                        () ->
+                                env.executeSql(
+                                        "CREATE TABLE c (v VARIANT, b AS v = v) "
+                                                + "WITH ('connector' = 'values')"))
+                .satisfies(anyCauseMatches(ValidationException.class, EQUALS));
+    }
+
     @ParameterizedTest(name = "[{index}] {1} only: {0}")
     @MethodSource("rejectedJoinsPerBatchStrategy")
     void testRejectedJoinPerBatchStrategy(final String sql, final String disabledOperators) {
@@ -403,14 +422,16 @@ class ComparableTypeValidatorTest {
                                     + ") WITH ('connector' = 'values', 'bounded' = '%s')",
                             table, mode == BATCH));
         }
+        // a comparison in the watermark would already fail at CREATE TABLE
         env.executeSql(
                 String.format(
                         "CREATE TABLE w ("
                                 + "id INT, "
                                 + "v VARIANT, "
+                                + "a ARRAY<VARIANT>, "
                                 + "ts TIMESTAMP(3), "
                                 + "WATERMARK FOR ts AS "
-                                + "CASE WHEN v = PARSE_JSON('1') THEN ts ELSE ts - INTERVAL '1' SECOND END"
+                                + "CASE WHEN ARRAY_CONTAINS(a, v) THEN ts ELSE ts - INTERVAL '1' SECOND END"
                                 + ") WITH ('connector' = 'values', 'bounded' = '%s')",
                         mode == BATCH));
         env.createTemporarySystemFunction("f", PartitionedFunction.class);
