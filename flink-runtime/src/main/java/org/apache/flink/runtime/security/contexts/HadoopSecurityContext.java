@@ -37,6 +37,15 @@ public class HadoopSecurityContext implements SecurityContext {
         this.ugi = Preconditions.checkNotNull(ugi, "UGI passed cannot be null");
     }
 
+    /**
+     * Returns the user this context runs secured actions as. This is the UGI all Hadoop clients
+     * created through {@link #runSecured(Callable)} are bound to, so it is also the UGI refreshed
+     * delegation tokens have to be added to.
+     */
+    public UserGroupInformation getHadoopUser() {
+        return ugi;
+    }
+
     public <T> T runSecured(final Callable<T> securedCallable) throws Exception {
         return ugi.doAs((PrivilegedExceptionAction<T>) securedCallable::call);
     }

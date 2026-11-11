@@ -21,11 +21,16 @@ package org.apache.flink.runtime.security.token.hadoop;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
+import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.contexts.HadoopSecurityContext;
+import org.apache.flink.runtime.security.contexts.SecurityContext;
 
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /** Hadoop delegation token receiver base class. */
 @Internal
@@ -44,10 +49,21 @@ public abstract class HadoopDelegationTokenReceiver implements DelegationTokenRe
         }
         Credentials credentials = HadoopDelegationTokenConverter.deserialize(tokens);
 
-        log.info("Updating delegation tokens for current user");
+        log.info("Updating delegation tokens for Hadoop user");
         dumpAllTokens(credentials);
-        UserGroupInformation.getCurrentUser().addCredentials(credentials);
-        log.info("Updated delegation tokens for current user successfully");
+        final UserGroupInformation target = getTargetUser();
+        target.addCredentials(credentials);
+        log.info("Updated delegation tokens for user: {}", target.getUserName());
+    }
+
+    private UserGroupInformation getTargetUser() throws IOException {
+        // A pooled worker's current user may be an inherited Subject; prefer the UGI used by
+        // clients created through SecurityContext.runSecured().
+        final SecurityContext context = SecurityUtils.getInstalledContext();
+        if (context instanceof HadoopSecurityContext) {
+            return ((HadoopSecurityContext) context).getHadoopUser();
+        }
+        return UserGroupInformation.getLoginUser();
     }
 
     private void dumpAllTokens(Credentials credentials) {
