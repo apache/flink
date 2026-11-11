@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: UUID_V4
+summary: Returns a random version 4 UUID.
+
+syntax:
+  sql: UUID_V4()
+  java: uuidV4()
+  python: uuid_v4()
+
+returns:
+  description: A new random RFC 9562 version 4 UUID, generated with a cryptographically strong random number generator.
+  type: "`UUID NOT NULL`."
+
+notes:
+  - The function returns a new value for every call and every row. To use one value twice, compute it in a subquery.
+  - The result has the `UUID` type. Cast it to `STRING` for its 36-character text, or to `BINARY(16)` for its bytes. Both casts convert back without loss.
+
+see_also:
+  - {name: UUID_V7, ref: utility/uuid-v7}
+  - {name: UUID, ref: utility/uuid}
+
+examples:
+  - title: The type and the version
+    description: "The 15th character of the text is the version:"
+    sql: |
+      SELECT
+        TYPEOF(UUID_V4()) AS result_type,
+        SUBSTRING(CAST(UUID_V4() AS STRING), 15, 1) AS version;
+    result: |
+      | result_type   | version |
+      |---------------|---------|
+      | UUID NOT NULL | 4       |
+
+  - title: A new value for every row
+    description: "Four rows get four different values:"
+    sql: |
+      SELECT COUNT(DISTINCT CAST(id AS STRING)) AS distinct_ids, COUNT(*) AS row_count
+      FROM (SELECT UUID_V4() AS id FROM (VALUES (1), (2), (3), (4)) AS t(x));
+    result: |
+      | distinct_ids | row_count |
+      |--------------|-----------|
+      | 4            | 4         |
+
+  - title: Convert to bytes and back
+    description: "Both casts convert back to the same value:"
+    sql: |
+      SELECT
+        CAST(CAST(id AS BINARY(16)) AS UUID) = id AS bytes_round_trip,
+        CAST(CAST(id AS STRING) AS UUID) = id AS string_round_trip
+      FROM (SELECT UUID_V4() AS id);
+    result: |
+      | bytes_round_trip | string_round_trip |
+      |------------------|-------------------|
+      | TRUE             | TRUE              |

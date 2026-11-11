@@ -1957,48 +1957,25 @@ bitmapagg:
       返回一个 `BIGINT`。
 
 utility:
+  - table: ANY.as(NAME1, NAME2, ...)
+    page: as
+  - table: callSql(STRING)
+    page: call-sql
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
-    description: 返回当前数据库。
-
-  - sql: TYPEOF(input) | TYPEOF(input, force_serializable)
-    table: call("TYPEOF", input) | call("TYPEOF", input, force_serializable)
-    description: |
-      返回输入表达式的数据类型的字符串表示。默认情况下返回的字符串是一个摘要字符串，可能会为了可读性而省略某些细节。
-      如果 force_serializable 设置为 TRUE，则字符串表示可以持久化保存在 catalog 中的完整数据类型。
-      请注意，特别是匿名的内联数据类型没有可序列化的字符串表示。在这种情况下返回 `NULL`。
-  - sql: UUID()
-    table: uuid()
-    description: |
-      根据 RFC 9562 类型 4（伪随机生成）UUID，返回 UUID（通用唯一标识符）字符串。
-      例如“3d3c68f7-f608-473f-b60c-b0c44ad4cc4e”，UUID 是使用加密强的伪随机数生成器生成的。
-  - sql: UUID_V4()
-    table: uuidV4()
-    description: |
-      Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a
-      cryptographically strong pseudo random number generator. Compared to UUID(), this
-      function returns a value of the UUID data type.
-  - sql: UUID_V7()
-    table: uuidV7()
-    description: |
-      Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current
-      timestamp and a random component. Compared to UUID(), this function returns a value
-      of the UUID data type.
+    page: current-database
   - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
     table: descriptor(STRING1, STRING2, ...)
-    description: |
-      Returns a literal describing an arbitrary, unvalidated list of column names. Passing a list of columns
-      can be useful for parameterizing a function. In particular, it enables declaring the `on_time` argument
-      for process table functions (PTFs).
-      ```sql
-      f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
-      ```
-  - table: callSql(STRING)
-    description: |
-      对 SQL 表达式的调用。
-      
-      给定的字符串在规划期间被解析并转换为 Table API 表达式。只在运行时计算翻译后的表达式。
-      目前，调用仅限于简单的标量表达式。不支持调用聚合函数或表值函数。子查询也是不允许的。
-      例如 `table.select(callSql("UPPER(myColumn)").substring(3))`
-  - table: ANY.as(NAME1, NAME2, ...)
-    description: 指定 ANY（字段）的名称。如果表达式扩展为多个字段，则可以指定额外的名称。
+    page: descriptor
+  - sql: TYPEOF(input) | TYPEOF(input, force_serializable)
+    table: call("TYPEOF", input) | call("TYPEOF", input, force_serializable)
+    page: typeof
+  - sql: UUID()
+    table: uuid()
+    page: uuid
+  - sql: UUID_V4()
+    table: uuidV4()
+    page: uuid-v4
+  - sql: UUID_V7()
+    table: uuidV7()
+    page: uuid-v7

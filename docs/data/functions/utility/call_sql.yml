@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: callSql
+summary: Evaluates a SQL expression in the Table API.
+
+syntax:
+  java: callSql("UPPER(name)")
+  python: call_sql("UPPER(name)")
+
+arguments:
+  - name: sqlExpression
+    type: String
+    required: true
+    description: A scalar SQL expression over the columns of the input table.
+
+returns:
+  description: The value of `sqlExpression` for each row.
+  type: The type of `sqlExpression`.
+
+notes:
+  - The string is parsed when the Table API operation that uses it is created, such as a call to `select`. An expression that doesn't parse or doesn't validate fails there.
+  - Aggregates and subqueries aren't supported.
+  - The result is an expression like any other, so you can call Table API methods on it, such as `callSql("UPPER(name)").substring(2, 3)`.
+
+examples:
+  - title: Use SQL inside a Table API query
+    description: "Append `!` to a column with the SQL `||` operator:"
+    java: |
+      table.select(callSql("name || '!'"));
+    python: |
+      table.select(call_sql("name || '!'"))
+
+  - title: Combine SQL with Table API calls
+    description: "Concatenate two SQL calls with the Table API and take a substring:"
+    java: |
+      table.select(callSql("UPPER(name)").concat(callSql("LOWER(name)")).substring(2, 20));
+    python: |
+      table.select(call_sql("UPPER(name)").concat(call_sql("LOWER(name)")).substring(2, 20))

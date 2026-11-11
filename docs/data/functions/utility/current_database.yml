@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: CURRENT_DATABASE
+summary: Returns the name of the current database.
+
+syntax:
+  sql: CURRENT_DATABASE()
+  java: currentDatabase()
+  python: current_database()
+
+returns:
+  description: The name of the current database of the session, such as `default_database` in a new session.
+  type: "`STRING NOT NULL`."
+
+notes:
+  - The name is read once, when the query is translated, so every row of a query gets the same value. A later `USE` doesn't change it for a query that already runs.
+  - A view returns the current database of the query that reads it, not the database in which the view was created.
+
+examples:
+  - title: The database of a new session
+    description: "A new session starts in `default_database`:"
+    sql: |
+      SELECT CURRENT_DATABASE() AS db;
+    result: |
+      | db               |
+      |------------------|
+      | default_database |
+
+  - title: After switching the database
+    description: "`USE` changes the current database:"
+    sql: |
+      CREATE DATABASE sales;
+      USE sales;
+      SELECT CURRENT_DATABASE() AS db;
+    result: |
+      | db    |
+      |-------|
+      | sales |
+
+  - title: A view reads the current database of the query
+    description: "The view was created in `d1`, but the query runs in `d2`:"
+    sql: |
+      CREATE DATABASE d1;
+      CREATE VIEW d1.whoami AS SELECT CURRENT_DATABASE() AS db;
+      CREATE DATABASE d2;
+      USE d2;
+      SELECT db FROM d1.whoami;
+    result: |
+      | db |
+      |----|
+      | d2 |

@@ -1867,45 +1867,29 @@ bitmapagg:
       Returns a `BIGINT`.
 
 utility:
+  - table: ANY.as(NAME1, NAME2, ...)
+    page: as
+  - table: callSql(STRING)
+    page: call-sql
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
-    description: Return the current database.
-
+    page: current-database
+  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
+    table: descriptor(STRING1, STRING2, ...)
+    page: descriptor
   - sql: |
       TYPEOF(input)
       TYPEOF(input, force_serializable)
     table: |
       call("TYPEOF", input)
       call("TYPEOF", input, force_serializable)
-    description: Returns the string representation of the input expression's data type. By default, the returned string is a summary string that might omit certain details for readability. If force_serializable is set to TRUE, the string represents a full data type that could be persisted in a catalog. Note that especially anonymous, inline data types have no serializable string representation. In this case, NULL is returned.
+    page: typeof
   - sql: UUID()
     table: uuid()
-    description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 9562 version 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
+    page: uuid
   - sql: UUID_V4()
     table: uuidV4()
-    description: Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a cryptographically strong pseudo random number generator. Compared to UUID(), this function returns a value of the UUID data type.
+    page: uuid-v4
   - sql: UUID_V7()
     table: uuidV7()
-    description: Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp and a random component. Compared to UUID(), this function returns a value of the UUID data type.
-  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
-    table: descriptor(STRING1, STRING2, ...)
-    description: |
-      Returns a literal describing an arbitrary, unvalidated list of column names. Passing a list of columns
-      can be useful for parameterizing a function. In particular, it enables declaring the `on_time` argument
-      for process table functions (PTFs).
-
-      ```sql
-      f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
-      ```
-  - table: callSql(STRING)
-    description: |
-      A call to a SQL expression.
-
-      The given string is parsed and translated into a Table API expression during planning. Only the translated expression is evaluated during runtime.
-
-      Currently, calls are limited to simple scalar expressions. Calls to aggregate or table-valued functions are not supported. Sub-queries are also not allowed.
-
-      E.g. table.select(callSql("UPPER(myColumn)").substring(3))
-
-  - table: ANY.as(NAME1, NAME2, ...)
-    description: Specifies a name for ANY (a field). Additional names can be specified if the expression expands to multiple fields.
+    page: uuid-v7

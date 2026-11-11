@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: as
+summary: Gives an expression a column name in the Table API.
+
+syntax:
+  java: |
+    $("expression").as("name")
+    $("expression").as("name1", "name2")
+  python: |
+    col("expression").alias("name")
+    col("expression").alias("name1", "name2")
+
+arguments:
+  - name: name
+    type: String
+    required: true
+    description: The column name.
+  - name: extraNames
+    type: String
+    required: false
+    description: More names, for an expression that produces several columns.
+
+returns:
+  description: The same expression under the given name, like `AS` in SQL.
+  type: The type of the expression.
+
+notes:
+  - Several names apply only where an expression produces several columns, such as a table function in `joinLateral` or a table aggregate. The number of names must then match the number of columns.
+  - In `select`, an expression produces one column, even one of type `ROW`, so names after the first are ignored.
+  - Only the outermost name counts. In `$("n").as("a").plus(1)`, the name `a` is dropped.
+  - "`map` and `flatMap` don't accept a renamed call. Rename their result with `Table.as` instead."
+
+examples:
+  - title: Rename a column
+    description: "Name the result of a calculation:"
+    java: |
+      table.select($("price").times(2).as("double_price"));
+    python: |
+      table.select((col("price") * 2).alias("double_price"))
+
+  - title: Name the columns of a table function
+    description: "The table function `SplitFunction`, `split` in Python, returns two columns, so it gets two names:"
+    java: |
+      table.joinLateral(call(SplitFunction.class, $("s")).as("word", "length"));
+    python: |
+      table.join_lateral(split(col("s")).alias("word", "length"))

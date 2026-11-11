@@ -53,7 +53,7 @@ notes:
 
 see_also:
   - {name: TRY_CAST, ref: cast/try-cast}
-  - {name: TYPEOF, ref: utility}
+  - {name: TYPEOF, ref: utility/typeof}
 
 examples:
   - title: Convert strings to other types
