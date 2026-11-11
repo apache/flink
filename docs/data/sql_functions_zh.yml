@@ -891,20 +891,10 @@ conditional:
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
-    description: |
-      返回 value 被转换为类型 type 的新值。CAST错误会抛出异常并导致作业失败。为了处理错误，在使用可能失败的 CAST 操作时，例如 STRING 转换为 INT，建议使用 TRY_CAST 替代。
-      如果开启了 "table.exec.legacy-cast-behaviour"，CAST 行为将变得与 TRY_CAST 一致。
-
-      例如, CAST('42' AS INT) 返回 42; CAST(NULL AS STRING) 返回字符串类型的 `NULL`; CAST('non-number' AS INT) 抛出异常且作业失败。
-
-      The result is nullable if the input may be null. In the Table API, the top-level nullability of TYPE is ignored, while the nullability of nested types, such as the element type of an array, is taken from TYPE.
-
-      Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character U+FFFD for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
+    page: cast
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
-    description: |
-      TRY_CAST 行为与 CAST 相似, 但在遇到错误时 TRY_CAST 会返回 NULL 而不是使作业失败。
-      例如：TRY_CAST('42' AS INT) 返回 42; TRY_CAST(NULL AS STRING) 返回字符串类型的 `NULL`; TRY_CAST('non-number' AS INT) 返回 INT 类型的 `NULL`; COALESCE(TRY_CAST('non-number' AS INT), 0) 返回 INT 类型的 0。
+    page: try-cast
 
 collection:
   - sql: ARRAY '[' value1 [, value2 ]* ']'

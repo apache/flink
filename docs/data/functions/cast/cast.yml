@@ -1,0 +1,109 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: CAST
+summary: Converts a value to another data type, and fails the job if the value doesn't convert.
+
+syntax:
+  sql: CAST(value AS type)
+  java: |
+    $("value").cast(DataTypes.INT())
+    $("value").cast(DataTypes.of("INT"))
+  python: col("value").cast(DataTypes.INT())
+
+arguments:
+  - name: value
+    type: Any type
+    required: true
+    description: The value to convert.
+  - name: type
+    type: A data type
+    required: true
+    description: The target type, such as `INT` or `DECIMAL(10, 2)`. The [casting table]({{< ref "docs/sql/reference/data-types" >}}#casting) lists the types that each type can be cast to.
+
+returns:
+  description: "`value` converted to `type`."
+  nulls: Returns NULL if `value` is NULL.
+  type: "`type`. NOT NULL if `value` is NOT NULL, except for a cast from `VARIANT` to another type, which is always nullable."
+
+notes:
+  - A type pair that the casting table doesn't allow fails the statement at planning time, such as `BOOLEAN` to `DATE`.
+  - A value that doesn't convert, such as `'abc'` to `INT`, fails the job at runtime. To get NULL instead, use `TRY_CAST`.
+  - Casting to `CHAR(n)` cuts the result to `n` characters, whatever the source type, and pads a shorter one with spaces. `CAST(12345 AS CHAR(3))` returns `123`. Casting to `VARCHAR(n)` only cuts. `BINARY(n)` cuts and pads with zero bytes, and `VARBINARY(n)` only cuts.
+  - Casting bytes to a string fails the job if the bytes aren't valid UTF-8. To get NULL instead, use `TRY_CAST`, or repair the bytes first with `MAKE_VALID_UTF8`. Setting `table.exec.legacy-bytes-to-string-cast` to `true` replaces each invalid sequence with U+FFFD in every query of the session.
+  - Casts to an integer type don't check the range. An integer or a `DECIMAL` that doesn't fit wraps around, so `CAST(300 AS TINYINT)` returns `44`. A fraction is truncated toward zero.
+  - For a `DECIMAL` target, extra digits after the point are rounded half away from zero, so `CAST(-1.25 AS DECIMAL(2, 1))` returns `-1.3`. A number that still doesn't fit the precision returns NULL.
+  - A cast from `VARIANT` doesn't convert the stored value. A `VARIANT` that holds a string fails the job when cast to `INT`. Cast it to `STRING` first, then to `INT`. See [VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}).
+  - In SQL, the target type can't be `NOT NULL` at the top level.
+  - The option `table.exec.legacy-cast-behaviour` changes how `CAST` fails and formats values. See [legacy casting]({{< ref "docs/sql/reference/data-types" >}}#legacy-casting).
+
+see_also:
+  - {name: TRY_CAST, ref: cast/try-cast}
+  - {name: TYPEOF, ref: utility}
+
+examples:
+  - title: Convert strings to other types
+    description: "Parse strings into a number, a decimal and a date, and format a number as a string. Spaces around a number are ignored:"
+    sql: |
+      SELECT
+        CAST('42' AS INT) AS int_value,
+        CAST(' 7 ' AS INT) AS padded_int,
+        CAST('19.99' AS DECIMAL(10, 2)) AS decimal_value,
+        CAST('2024-01-15' AS DATE) AS date_value,
+        CAST(42 AS STRING) AS string_value;
+    result: |
+      | int_value | padded_int | decimal_value | date_value | string_value |
+      |-----------|------------|---------------|------------|--------------|
+      | 42        | 7          | 19.99         | 2024-01-15 | 42           |
+
+  - title: Cast a column
+    description: "A NULL value stays NULL:"
+    sql: |
+      SELECT id, CAST(amount AS DECIMAL(10, 2)) AS amount
+      FROM (VALUES ('a', '19.99'), ('b', '5'), ('c', CAST(NULL AS STRING))) AS t(id, amount);
+    result: |
+      | id | amount |
+      |----|--------|
+      | a  | 19.99  |
+      | b  | 5.00   |
+      | c  | NULL   |
+
+  - title: Cut and pad character strings
+    description: "`CHAR(n)` cuts and pads with spaces. `VARCHAR(n)` only cuts. The brackets show the padding:"
+    sql: |
+      SELECT
+        s,
+        CONCAT('[', CAST(s AS CHAR(3)), ']') AS char_3,
+        CONCAT('[', CAST(s AS VARCHAR(3)), ']') AS varchar_3
+      FROM (VALUES ('abcdef'), ('ab')) AS t(s);
+    result: |
+      | s      | char_3 | varchar_3 |
+      |--------|--------|-----------|
+      | abcdef | [abc]  | [abc]     |
+      | ab     | [ab ]  | [ab]      |
+
+  - title: The result type follows the input's nullability
+    description: "A NOT NULL input gives a NOT NULL result:"
+    sql: |
+      SELECT
+        TYPEOF(CAST(s AS INT)) AS not_null_input,
+        TYPEOF(CAST(NULLIF(s, '') AS INT)) AS nullable_input
+      FROM (VALUES ('1')) AS t(s);
+    result: |
+      | not_null_input | nullable_input |
+      |----------------|----------------|
+      | INT NOT NULL   | INT            |

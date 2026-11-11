@@ -1,0 +1,110 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TRY_CAST
+summary: Converts a value to another data type, and returns NULL if the value doesn't convert.
+
+syntax:
+  sql: TRY_CAST(value AS type)
+  java: |
+    $("value").tryCast(DataTypes.INT())
+    $("value").tryCast(DataTypes.of("INT"))
+  python: col("value").try_cast(DataTypes.INT())
+
+arguments:
+  - name: value
+    type: Any type
+    required: true
+    description: The value to convert.
+  - name: type
+    type: A data type
+    required: true
+    description: The target type, such as `INT` or `DECIMAL(10, 2)`. The [casting table]({{< ref "docs/sql/reference/data-types" >}}#casting) lists the types that each type can be cast to.
+
+returns:
+  description: "`value` converted to `type`, like `CAST`."
+  nulls: Returns NULL if `value` is NULL, if `CAST` returns NULL for it, or if it doesn't convert, where `CAST` fails the job.
+  type: "`type`, always nullable."
+
+notes:
+  - A type pair that the casting table doesn't allow still fails the statement at planning time, as with `CAST`.
+  - "`TRY_CAST` catches only the errors of its own conversion. An error in `value`, such as a nested `CAST` that fails, still fails the job."
+  - If one element of an array, a map or a row doesn't convert, the whole value is NULL.
+  - Casts between numeric types don't fail, so `TRY_CAST` doesn't return NULL for them. `TRY_CAST(300 AS TINYINT)` wraps around to `44`, while `TRY_CAST('300' AS TINYINT)` returns NULL.
+  - The result is nullable even when the cast can't fail. Wrap it in `COALESCE` with a default to get a NOT NULL value.
+  - The option `table.exec.legacy-cast-behaviour` doesn't change which values return NULL.
+
+see_also:
+  - {name: CAST, ref: cast/cast}
+  - {name: COALESCE, ref: conditional/coalesce}
+
+examples:
+  - title: Return NULL for values that don't convert
+    description: "`'abc'` isn't a number, so its result is NULL:"
+    sql: |
+      SELECT s, TRY_CAST(s AS INT) AS int_value
+      FROM (VALUES ('42'), ('abc'), (CAST(NULL AS STRING))) AS t(s);
+    result: |
+      | s    | int_value |
+      |------|-----------|
+      | 42   | 42        |
+      | abc  | NULL      |
+      | NULL | NULL      |
+
+  - title: Replace failed conversions with a default
+    description: "`COALESCE` turns the NULL into `0`:"
+    sql: |
+      SELECT s, COALESCE(TRY_CAST(s AS INT), 0) AS int_value
+      FROM (VALUES ('42'), ('abc')) AS t(s);
+    result: |
+      | s   | int_value |
+      |-----|-----------|
+      | 42  | 42        |
+      | abc | 0         |
+
+  - title: Keep only the rows that convert
+    description: "`'2024-02-30'` isn't a valid date either, so the filter drops it:"
+    sql: |
+      SELECT s
+      FROM (VALUES ('2024-01-15'), ('not a date'), ('2024-02-30')) AS t(s)
+      WHERE TRY_CAST(s AS DATE) IS NOT NULL;
+    result: |
+      | s          |
+      |------------|
+      | 2024-01-15 |
+
+  - title: The result is always nullable
+    description: "`CAST` of a NOT NULL value is NOT NULL, `TRY_CAST` isn't:"
+    sql: |
+      SELECT
+        TYPEOF(CAST('42' AS INT)) AS cast_type,
+        TYPEOF(TRY_CAST('42' AS INT)) AS try_cast_type;
+    result: |
+      | cast_type    | try_cast_type |
+      |--------------|---------------|
+      | INT NOT NULL | INT           |
+
+  - title: An element that doesn't convert
+    description: "The second array has an element that isn't a number, so the whole array is NULL:"
+    sql: |
+      SELECT TRY_CAST(a AS ARRAY<INT>) AS int_array
+      FROM (VALUES (ARRAY['1', '2']), (ARRAY['1', 'x'])) AS t(a);
+    result: |
+      | int_array |
+      |-----------|
+      | [1, 2]    |
+      | NULL      |
