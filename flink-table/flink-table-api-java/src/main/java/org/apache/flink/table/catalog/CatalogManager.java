@@ -140,6 +140,13 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     private DefaultSchemaResolver schemaResolver;
     private Parser parser;
 
+    /**
+     * Views resolved while an outermost view resolution is in progress; {@code null} otherwise.
+     * Resolving a view parses its query, which looks up each referenced view several times, so
+     * without reuse the cost grows exponentially with the nesting depth of views.
+     */
+    private @Nullable Map<ViewResolutionKey, ResolvedCatalogView> viewResolutionCache;
+
     // The name of the built-in catalog
     private final String builtInCatalogName;
 
@@ -2435,6 +2442,39 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return new ResolvedCatalogView(view, queryOperation.getResolvedSchema());
         }
 
+        // Without an identifier the query is parsed against the current catalog/database, which
+        // can differ between lookups of the same view.
+        if (viewIdentifier == null) {
+            return resolveCatalogViewQuery(view, null);
+        }
+
+        final boolean outermost = viewResolutionCache == null;
+        if (outermost) {
+            viewResolutionCache = new HashMap<>();
+        }
+        try {
+            final ViewResolutionKey key = new ViewResolutionKey(viewIdentifier, view);
+            final ResolvedCatalogView cached = viewResolutionCache.get(key);
+            if (cached != null) {
+                return cached;
+            }
+            // Not computeIfAbsent: resolving the view recursively adds the views it references.
+            final ResolvedCatalogView resolved = resolveCatalogViewQuery(view, viewIdentifier);
+            viewResolutionCache.put(key, resolved);
+            return resolved;
+        } finally {
+            if (outermost) {
+                viewResolutionCache = null;
+            }
+        }
+    }
+
+    /**
+     * Resolves a {@link CatalogView} by parsing and validating its expanded query, so that the
+     * resolved schema keeps the query's time attributes.
+     */
+    private ResolvedCatalogView resolveCatalogViewQuery(
+            CatalogView view, @Nullable ObjectIdentifier viewIdentifier) {
         final ResolvedSchema resolvedSchema = view.getUnresolvedSchema().resolve(schemaResolver);
         final List<Operation> parse;
         try {
@@ -2595,5 +2635,36 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                         databaseName,
                                         newDatabase,
                                         ignoreIfNotExists)));
+    }
+
+    /**
+     * Identifies a view definition whose resolution can be reused. The unresolved schema is left
+     * out because it may hold {@code UnresolvedDataType}s, which have no value equality.
+     */
+    private static final class ViewResolutionKey {
+        private final ObjectIdentifier identifier;
+        private final String expandedQuery;
+
+        private ViewResolutionKey(ObjectIdentifier identifier, CatalogView view) {
+            this.identifier = identifier;
+            this.expandedQuery = view.getExpandedQuery();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final ViewResolutionKey that = (ViewResolutionKey) o;
+            return identifier.equals(that.identifier) && expandedQuery.equals(that.expandedQuery);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(identifier, expandedQuery);
+        }
     }
 }
