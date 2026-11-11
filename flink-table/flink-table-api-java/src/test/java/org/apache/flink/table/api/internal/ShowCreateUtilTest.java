@@ -54,6 +54,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -165,7 +166,7 @@ class ShowCreateUtilTest {
                         null,
                         List.of(),
                         null,
-                        StartMode.of(StartModeKind.FROM_BEGINNING),
+                        StartMode.fromBeginning(),
                         IntervalFreshness.ofMinute(2),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1",
@@ -210,7 +211,7 @@ class ShowCreateUtilTest {
                         null,
                         List.of(),
                         null,
-                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(3, TimeUnit.MINUTE)),
+                        StartMode.fromNow(Duration.ofMinutes(3)),
                         IntervalFreshness.ofMinute(1),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1",
@@ -490,7 +491,7 @@ class ShowCreateUtilTest {
                         null,
                         List.of(),
                         null,
-                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(3, TimeUnit.MINUTE)),
+                        StartMode.fromNow(Duration.ofMinutes(3)),
                         IntervalFreshness.ofMinute(1),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1",
@@ -510,7 +511,7 @@ class ShowCreateUtilTest {
                         null,
                         List.of(),
                         null,
-                        StartMode.of(StartModeKind.FROM_BEGINNING),
+                        StartMode.fromBeginning(),
                         IntervalFreshness.ofMinute(1),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1",
@@ -532,8 +533,7 @@ class ShowCreateUtilTest {
                         null,
                         List.of(),
                         null,
-                        StartMode.of(
-                                StartModeKind.FROM_TIMESTAMP, Instant.ofEpochSecond(1740000000)),
+                        StartMode.fromTimestamp(Instant.ofEpochSecond(1740000000)),
                         IntervalFreshness.ofMinute(1),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1",
@@ -604,7 +604,7 @@ class ShowCreateUtilTest {
                 createResolvedMaterializedWithOptions(
                         ONE_COLUMN_SCHEMA,
                         Map.of("connector", "kafka", "secret.key", "mysecret"),
-                        StartMode.of(StartModeKind.FROM_BEGINNING),
+                        StartMode.fromBeginning(),
                         IntervalFreshness.ofMinute(2),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1"),

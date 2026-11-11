@@ -183,6 +183,6 @@ class CatalogPropertiesUtilTest {
                         resolvedSchema,
                         RefreshMode.CONTINUOUS,
                         IntervalFreshness.ofHour(123),
-                        StartMode.of(StartMode.StartModeKind.FROM_BEGINNING)));
+                        StartMode.fromBeginning()));
     }
 }

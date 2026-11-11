@@ -28,7 +28,6 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.StartMode;
-import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ColumnPosition;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
@@ -68,7 +67,7 @@ class MaterializedTableChangeHandlerTest {
                 .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
                 .refreshMode(RefreshMode.CONTINUOUS)
                 .refreshStatus(RefreshStatus.INITIALIZING)
-                .startMode(StartMode.of(StartModeKind.FROM_BEGINNING));
+                .startMode(StartMode.fromBeginning());
     }
 
     @Test

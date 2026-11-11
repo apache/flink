@@ -30,7 +30,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.StartMode;
-import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 
@@ -171,14 +170,14 @@ class AlterMaterializedTableChangeOperationValidationTest {
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
                         .refreshMode(RefreshMode.CONTINUOUS)
                         .refreshStatus(RefreshStatus.INITIALIZING)
-                        .startMode(StartMode.of(StartModeKind.FROM_BEGINNING))
+                        .startMode(StartMode.fromBeginning())
                         .build();
         return new ResolvedCatalogMaterializedTable(
                 origin,
                 resolvedSchema,
                 RefreshMode.CONTINUOUS,
                 IntervalFreshness.ofSecond(60),
-                StartMode.of(StartModeKind.FROM_BEGINNING));
+                StartMode.fromBeginning());
     }
 
     static AlterMaterializedTableChangeOperation operation(
