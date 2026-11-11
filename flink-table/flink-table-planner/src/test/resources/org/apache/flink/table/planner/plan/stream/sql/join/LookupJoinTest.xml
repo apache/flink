@@ -1532,6 +1532,32 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftJoinWithNonKeyConditionOnUpsertInput">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U LEFT JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D ON U.id = D.id AND U.age > D.age]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.UsersSink], fields=[id, name])
++- LogicalProject(id=[$0], name=[$4])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 2}])
+      :- LogicalProject(id=[$0], age=[$1], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      +- LogicalFilter(condition=[AND(=($cor0.id, $0), >($cor0.age, $2))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, Profiles]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.UsersSink], fields=[id, name], changelogMode=[NONE])
++- Calc(select=[id, name], changelogMode=[I,UA,D])
+   +- LookupJoin(table=[default_catalog.default_database.Profiles], joinType=[LeftOuterJoin], lookup=[id=id], joinCondition=[>(age, age0)], select=[id, age, id0, name, age0], upsertKey=[[0]], changelogMode=[I,UA,D])
+      +- DropUpdateBefore(changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[id, age], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultipleJoinHintsWithDifferentTableAlias">
     <Resource name="sql">
       <![CDATA[

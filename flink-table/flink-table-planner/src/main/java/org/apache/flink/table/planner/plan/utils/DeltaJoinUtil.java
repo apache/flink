@@ -940,10 +940,11 @@ public class DeltaJoinUtil {
     @VisibleForTesting
     protected static boolean isFilterOnOneSetOfUpsertKeys(
             RexNode filter, @Nullable Set<ImmutableBitSet> upsertKeys) {
-        ImmutableBitSet refs =
+        ImmutableBitSet fieldRefIndices =
                 ImmutableBitSet.of(
                         RexNodeExtractor.extractRefInputFields(Collections.singletonList(filter)));
-        return UpsertKeyUtil.isContainedInAnyUpsertKey(upsertKeys, refs);
+        return upsertKeys != null
+                && upsertKeys.stream().anyMatch(uk -> uk.contains(fieldRefIndices));
     }
 
     private static boolean areInputTableScansSupported(StreamPhysicalJoin join) {

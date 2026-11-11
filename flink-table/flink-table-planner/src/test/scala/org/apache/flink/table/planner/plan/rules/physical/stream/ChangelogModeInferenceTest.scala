@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeIn
 import org.apache.flink.table.planner.utils.ImmutableColConstraintTestUtils.addImmutableColConstraint
 import org.apache.flink.table.planner.utils.TableTestBase
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
@@ -438,6 +439,77 @@ class ChangelogModeInferenceTest extends TableTestBase {
     // filter references: {name}
     // upsert key {id} does not contain {name}, so UB cannot be dropped
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterPushedDownWithoutUpsertKey(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB',
+                               | 'filterable-fields' = 'name'
+                               |)
+                               |""".stripMargin)
+
+    // without upsert keys the pushed filter is kept in a Calc too, so UB cannot be dropped
+    util.verifyRelPlan("select * from src where name <> 'Tom'", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterPushedDownOnPartOfUpsertKey(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | score int,
+                               | name string,
+                               | id int,
+                               | primary key (name, id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB',
+                               | 'filterable-fields' = 'name'
+                               |)
+                               |""".stripMargin)
+
+    // upsert key {name, id} contains {name}, so the filter is only pushed and UB can be dropped
+    util.verifyRelPlan("select * from src where name <> 'Tom'", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterPushedDownOnDeletesByKeyWithoutUpdates(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,D',
+                               | 'source.produces-delete-by-key' = 'true',
+                               | 'filterable-fields' = 'name'
+                               |)
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |create table snk (
+                               | name string,
+                               | score int,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false',
+                               | 'sink.supports-delete-by-key' = 'true'
+                               |)
+                               |""".stripMargin)
+
+    // a delete by key has no name to filter on, and no ChangelogNormalize provides full deletes
+    assertThatThrownBy(
+      () => util.verifyRelPlanInsert("insert into snk select * from src where name <> 'Tom'"))
+      .hasMessageContaining(
+        "Can't generate a valid execution plan for the given query because of a changelog " +
+          "mismatch: an operator cannot produce the changelog its consumer requires.")
   }
 
   @Test

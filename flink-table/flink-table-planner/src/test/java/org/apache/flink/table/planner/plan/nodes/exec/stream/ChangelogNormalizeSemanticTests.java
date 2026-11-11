@@ -37,6 +37,11 @@ public class ChangelogNormalizeSemanticTests extends SemanticTestBase {
                 ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_NO_FILTER,
                 ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_NO_FILTER,
                 ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_NON_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_KEY_FILTER);
+                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_PUSHED_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_PUSHED_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_PUSHED_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms
+                        .DUPLICATE_RETRACT_SOURCE_WITH_PUSHED_NON_KEY_FILTER);
     }
 }
