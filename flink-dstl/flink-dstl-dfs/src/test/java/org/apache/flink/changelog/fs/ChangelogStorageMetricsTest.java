@@ -18,6 +18,7 @@ package org.apache.flink.changelog.fs;
  */
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.fs.Path;
@@ -30,6 +31,9 @@ import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,10 +41,13 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -187,24 +194,29 @@ public class ChangelogStorageMetricsTest {
                         Integer.MAX_VALUE,
                         TaskChangelogRegistry.NO_OP,
                         TestLocalRecoveryConfig.disabled());
+        MailboxExecutor mailboxExecutor = createMailboxExecutor();
         FsStateChangelogWriter[] writers = new FsStateChangelogWriter[numWriters];
         for (int i = 0; i < numWriters; i++) {
             writers[i] =
                     storage.createWriter(
-                            Integer.toString(i), EMPTY_KEY_GROUP_RANGE, new SyncMailboxExecutor());
+                            Integer.toString(i), EMPTY_KEY_GROUP_RANGE, mailboxExecutor);
         }
 
         try {
             for (int upload = 0; upload < numUploads; upload++) {
+                List<CompletableFuture<?>> uploadFutures = new ArrayList<>();
                 for (int writer = 0; writer < numWriters; writer++) {
                     // with all thresholds on MAX and manually triggered executor, this shouldn't
                     // cause actual uploads
                     SequenceNumber from = writers[writer].nextSequenceNumber();
                     writers[writer].append(0, new byte[] {0, 1, 2, 3});
-                    writers[writer].persist(from, 1L);
+                    uploadFutures.add(writers[writer].persist(from, 1L));
                 }
                 // now the uploads should be grouped and executed at once
                 scheduler.triggerScheduledTasks();
+                for (CompletableFuture<?> uploadFuture : uploadFutures) {
+                    awaitUploadCompletion(uploadFuture, mailboxExecutor);
+                }
             }
             assertThat(metrics.getUploadBatchSizes().getStatistics().getMin())
                     .isEqualTo(numWriters);
@@ -242,13 +254,14 @@ public class ChangelogStorageMetricsTest {
                         Integer.MAX_VALUE,
                         TaskChangelogRegistry.NO_OP,
                         TestLocalRecoveryConfig.disabled());
-        FsStateChangelogWriter writer = createWriter(storage);
+        MailboxExecutor mailboxExecutor = createMailboxExecutor();
+        FsStateChangelogWriter writer = createWriter(storage, mailboxExecutor);
 
         try {
             for (int upload = 0; upload < numUploads; upload++) {
                 SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0, 1, 2, 3});
-                writer.persist(from, 1L).get();
+                awaitUploadCompletion(writer.persist(from, 1L), mailboxExecutor);
             }
         } finally {
             storage.close();
@@ -287,13 +300,14 @@ public class ChangelogStorageMetricsTest {
                         Integer.MAX_VALUE,
                         TaskChangelogRegistry.NO_OP,
                         TestLocalRecoveryConfig.disabled());
-        FsStateChangelogWriter writer = createWriter(storage);
+        MailboxExecutor mailboxExecutor = createMailboxExecutor();
+        FsStateChangelogWriter writer = createWriter(storage, mailboxExecutor);
 
         try {
             for (int upload = 0; upload < numUploads; upload++) {
                 SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0, 1, 2, 3});
-                writer.persist(from, 1L).get();
+                awaitUploadCompletion(writer.persist(from, 1L), mailboxExecutor);
             }
         } finally {
             storage.close();
@@ -460,6 +474,33 @@ public class ChangelogStorageMetricsTest {
     }
 
     private FsStateChangelogWriter createWriter(FsStateChangelogStorage storage) {
-        return storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE, new SyncMailboxExecutor());
+        return createWriter(storage, new SyncMailboxExecutor());
+    }
+
+    private FsStateChangelogWriter createWriter(
+            FsStateChangelogStorage storage, MailboxExecutor mailboxExecutor) {
+        return storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE, mailboxExecutor);
+    }
+
+    /**
+     * Creates a mailbox bound to the test thread.
+     *
+     * <p>{@link FsStateChangelogWriter} is not thread-safe: upload completion callbacks are
+     * submitted to this executor and expected to run on the task thread. A {@link
+     * SyncMailboxExecutor} would instead run them inline on the uploader thread, racing with the
+     * test thread's next {@code persist} call (FLINK-34224). Tests with asynchronous uploads must
+     * therefore drain the mailbox via {@link #awaitUploadCompletion}.
+     */
+    private static MailboxExecutor createMailboxExecutor() {
+        return new MailboxExecutorImpl(
+                new TaskMailboxImpl(), 0, StreamTaskActionExecutor.IMMEDIATE);
+    }
+
+    private static void awaitUploadCompletion(
+            CompletableFuture<?> uploadFuture, MailboxExecutor mailboxExecutor) throws Exception {
+        while (!uploadFuture.isDone()) {
+            mailboxExecutor.yield();
+        }
+        uploadFuture.get();
     }
 }
