@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.functions.table.lookup;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.ThreadSafeSimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
@@ -73,9 +73,9 @@ public class CachingAsyncLookupFunction extends AsyncLookupFunction {
         cacheMetricGroup =
                 new InternalCacheMetricGroup(
                         context.getMetricGroup(), LOOKUP_CACHE_METRIC_GROUP_NAME);
-        loadCounter = new ThreadSafeSimpleCounter();
+        loadCounter = new ThreadSafeSimpleMonotonicCounter();
         cacheMetricGroup.loadCounter(loadCounter);
-        numLoadFailuresCounter = new ThreadSafeSimpleCounter();
+        numLoadFailuresCounter = new ThreadSafeSimpleMonotonicCounter();
         cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
 
         cache.open(cacheMetricGroup);

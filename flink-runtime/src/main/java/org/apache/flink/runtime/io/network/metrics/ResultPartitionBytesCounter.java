@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.metrics;
 
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ public class ResultPartitionBytesCounter {
     public ResultPartitionBytesCounter(int numSubpartitions) {
         this.subpartitionBytes = new ArrayList<>();
         for (int i = 0; i < numSubpartitions; ++i) {
-            subpartitionBytes.add(new SimpleCounter());
+            subpartitionBytes.add(new SimpleMonotonicCounter());
         }
     }
 

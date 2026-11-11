@@ -19,9 +19,10 @@
 package org.apache.flink.metrics.util;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.UpDownCounter;
 
 /** A dummy {@link Counter} implementation. */
-public class TestCounter implements Counter {
+public class TestCounter implements UpDownCounter {
     private long countValue;
 
     public TestCounter() {

@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.Input;
@@ -62,7 +62,7 @@ class ChainingOutput<T>
         } else {
             // Uses a dummy counter here to avoid checking the existence of numRecordsOut on the
             // per-record path.
-            this.numRecordsOut = new SimpleCounter();
+            this.numRecordsOut = new SimpleMonotonicCounter();
         }
         this.numRecordsIn = curOperatorMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
         this.outputTag = outputTag;
