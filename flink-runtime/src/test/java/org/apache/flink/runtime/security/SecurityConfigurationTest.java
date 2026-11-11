@@ -19,12 +19,17 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.PipelineOptions;
 
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_KEYTAB;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_PRINCIPAL;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -71,5 +76,39 @@ class SecurityConfigurationTest {
                         () -> new SecurityConfiguration(configuration));
         assertTrue(e.getMessage().contains("nonexistingkeytab.file"));
         assertTrue(e.getMessage().contains("doesn't exist"));
+    }
+
+    @Test
+    public void securityRelevantConfigChangesShouldAffectEquality() {
+        final String[] securityRelevantKeys = {
+            "security.test.option",
+            "zookeeper.sasl.test.option",
+            "flink.hadoop.test.option",
+            "fs.hdfs.test.option",
+            CoreOptions.TMP_DIRS.key()
+        };
+
+        for (String key : securityRelevantKeys) {
+            final Configuration baseConfiguration = new Configuration();
+            final Configuration changedConfiguration = new Configuration();
+            changedConfiguration.setString(key, "value");
+
+            assertNotEquals(
+                    new SecurityConfiguration(baseConfiguration),
+                    new SecurityConfiguration(changedConfiguration),
+                    key);
+        }
+    }
+
+    @Test
+    public void unrelatedConfigChangesShouldNotAffectEquality() {
+        final Configuration baseConfiguration = new Configuration();
+        final Configuration changedConfiguration = new Configuration();
+        changedConfiguration.setString(PipelineOptions.JARS.key(), "file:///tmp/job.jar");
+        changedConfiguration.setString(DeploymentOptions.TARGET.key(), "embedded");
+
+        assertEquals(
+                new SecurityConfiguration(baseConfiguration),
+                new SecurityConfiguration(changedConfiguration));
     }
 }

@@ -39,6 +39,8 @@ public class SecurityUtils {
 
     private static List<SecurityModule> installedModules = null;
 
+    private static SecurityConfiguration installedConfiguration = null;
+
     public static SecurityContext getInstalledContext() {
         return installedContext;
     }
@@ -51,11 +53,21 @@ public class SecurityUtils {
      * Installs a process-wide security configuration.
      *
      * <p>Applies the configuration using the available security modules (i.e. Hadoop, JAAS).
+     *
+     * <p>Installing an equal configuration again is a no-op.
      */
-    public static void install(SecurityConfiguration config) throws Exception {
+    public static synchronized void install(SecurityConfiguration config) throws Exception {
+        // Re-installing would log in again and replace the Hadoop login user, leaving components
+        // created under the previous context on a UGI that no longer receives delegation tokens.
+        if (config.equals(installedConfiguration)) {
+            LOG.info("Security configuration is already installed, skipping re-installation.");
+            return;
+        }
+
         // Install the security modules first before installing the security context
         installModules(config);
         installContext(config);
+        installedConfiguration = config;
     }
 
     static void installModules(SecurityConfiguration config) throws Exception {
@@ -129,6 +141,7 @@ public class SecurityUtils {
             installedModules = null;
         }
 
+        installedConfiguration = null;
         installedContext = new NoOpSecurityContext();
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 
@@ -28,7 +29,10 @@ import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_RELOGIN_PERIOD;
 import static org.apache.flink.configuration.SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES;
@@ -39,6 +43,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The global security configuration.
  *
  * <p>See {@link SecurityOptions} for corresponding configuration options.
+ *
+ * <p>Equality intentionally covers the options consumed by the bundled security modules. Custom
+ * module factories that consume other options cannot rely on installation idempotency.
  */
 public class SecurityConfiguration {
 
@@ -50,6 +57,8 @@ public class SecurityConfiguration {
     private final List<String> securityModuleFactories;
 
     private final Configuration flinkConfig;
+
+    private final Map<String, String> securityRelevantFlinkConfig;
 
     private final boolean isZkSaslDisable;
 
@@ -90,6 +99,7 @@ public class SecurityConfiguration {
             List<String> securityContextFactory,
             List<String> securityModuleFactories) {
         this.flinkConfig = checkNotNull(flinkConf);
+        this.securityRelevantFlinkConfig = extractSecurityRelevantConfig(flinkConf);
         this.isZkSaslDisable = flinkConf.get(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
         this.keytab = flinkConf.get(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
         this.principal = flinkConf.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
@@ -147,6 +157,26 @@ public class SecurityConfiguration {
         return zkLoginContextName;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SecurityConfiguration that = (SecurityConfiguration) o;
+        return securityRelevantFlinkConfig.equals(that.securityRelevantFlinkConfig)
+                && securityModuleFactories.equals(that.securityModuleFactories)
+                && securityContextFactory.equals(that.securityContextFactory);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                securityRelevantFlinkConfig, securityModuleFactories, securityContextFactory);
+    }
+
     private void validate() {
         if (StringUtils.isBlank(keytab) != StringUtils.isBlank(principal)) {
             throw new IllegalConfigurationException(
@@ -172,5 +202,26 @@ public class SecurityConfiguration {
         }
 
         return Arrays.asList(value.trim().replaceAll("(\\s*,+\\s*)+", ",").split(","));
+    }
+
+    private static Map<String, String> extractSecurityRelevantConfig(Configuration flinkConfig) {
+        final Map<String, String> result = new HashMap<>();
+        for (Map.Entry<String, String> entry : flinkConfig.toMap().entrySet()) {
+            if (isSecurityRelevantConfigKey(entry.getKey())) {
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return result;
+    }
+
+    private static boolean isSecurityRelevantConfigKey(String key) {
+        // Keep this in sync with the options consumed by the bundled security modules:
+        // JaasModule (security.*, io.tmp.dirs), ZookeeperModule (zookeeper.sasl.*) and
+        // HadoopModule (flink.hadoop.*, fs.hdfs.*).
+        return key.startsWith("security.")
+                || key.startsWith("zookeeper.sasl.")
+                || key.startsWith("flink.hadoop.")
+                || key.startsWith("fs.hdfs.")
+                || key.equals(CoreOptions.TMP_DIRS.key());
     }
 }
