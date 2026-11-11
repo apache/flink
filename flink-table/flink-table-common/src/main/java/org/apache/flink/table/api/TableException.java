@@ -19,6 +19,10 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.errors.FlinkError;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import javax.annotation.Nullable;
 
 /**
  * General Exception for all errors during table handling.
@@ -27,7 +31,9 @@ import org.apache.flink.annotation.PublicEvolving;
  * yet. Usually, this exception does not indicate a fault of the user.
  */
 @PublicEvolving
-public class TableException extends RuntimeException {
+public class TableException extends FlinkRuntimeException {
+
+    private static final long serialVersionUID = 1087959503413835823L;
 
     public TableException(String message, Throwable cause) {
         super(message, cause);
@@ -35,5 +41,23 @@ public class TableException extends RuntimeException {
 
     public TableException(String message) {
         super(message);
+    }
+
+    /**
+     * Creates an exception for the given error, such as a {@link TableError}.
+     *
+     * @see FlinkRuntimeException#FlinkRuntimeException(FlinkError, Object...)
+     */
+    public TableException(FlinkError error, Object... arguments) {
+        super(error, arguments);
+    }
+
+    /**
+     * Creates an exception for the given error, such as a {@link TableError}, with a cause.
+     *
+     * @see FlinkRuntimeException#FlinkRuntimeException(FlinkError, Throwable, Object...)
+     */
+    public TableException(FlinkError error, @Nullable Throwable cause, Object... arguments) {
+        super(error, cause, arguments);
     }
 }
