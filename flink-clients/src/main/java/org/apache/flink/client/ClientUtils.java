@@ -149,6 +149,13 @@ public enum ClientUtils {
     /**
      * This method blocks until the job status is not INITIALIZING anymore.
      *
+     * <p><b>Only call this when the origin of {@code jobResultSupplier}'s result is trusted</b>
+     * (for example, Application Mode or a per-job {@code MiniCluster}, where this process itself
+     * produced the {@link JobResult}). {@link SerializedThrowable#deserializeError} can run
+     * arbitrary code if the bytes it deserializes did not originate from a trusted source. A {@code
+     * jobResultSupplier} backed by a remote JobManager (for example any {@code RestClusterClient})
+     * should use {@link #waitUntilSafeJobInitializationFinished} instead.
+     *
      * @param jobStatusSupplier supplier returning the job status.
      * @param jobResultSupplier supplier returning the job result. This will only be called if the
      *     job reaches the FAILED state.
@@ -184,6 +191,76 @@ public enum ClientUtils {
             ExceptionUtils.checkInterrupted(throwable);
             throw new RuntimeException("Error while waiting for job to be initialized", throwable);
         }
+    }
+
+    /**
+     * Like {@link #waitUntilJobInitializationFinished}, but never deserializes the failure cause:
+     * only {@code jobResultSupplier}'s safe, text-only fields are used to detect and rebuild a
+     * {@link JobInitializationException}.
+     *
+     * <p>The robust choice when the origin of {@code jobResultSupplier}'s result isn't known to be
+     * trustworthy - for example, one backed by a remote JobManager via {@code RestClusterClient}. A
+     * caller that needs the original exception object back must call {@link
+     * SerializedThrowable#deserializeError} explicitly on the returned exception's cause, and only
+     * when it separately trusts whoever produced that result.
+     *
+     * @param jobStatusSupplier supplier returning the job status.
+     * @param jobResultSupplier supplier returning the job result. This will only be called if the
+     *     job reaches the FAILED state.
+     * @throws JobInitializationException If the initialization failed
+     */
+    public static void waitUntilSafeJobInitializationFinished(
+            SupplierWithException<JobStatus, Exception> jobStatusSupplier,
+            SupplierWithException<JobResult, Exception> jobResultSupplier)
+            throws JobInitializationException {
+        LOG.debug("Wait until job initialization is finished");
+        WaitStrategy waitStrategy = new ExponentialWaitStrategy(50, 2000);
+        try {
+            JobStatus status = jobStatusSupplier.get();
+            long attempt = 0;
+            while (status == JobStatus.INITIALIZING) {
+                Thread.sleep(waitStrategy.sleepTime(attempt++));
+                status = jobStatusSupplier.get();
+            }
+            if (status == JobStatus.FAILED) {
+                JobResult result = jobResultSupplier.get();
+                Optional<SerializedThrowable> throwable = result.getSerializedThrowable();
+                // Checked via the safe class-name field, not deserializeError(): this result may
+                // come from a remote JobManager (e.g. when submitting through a shared session
+                // cluster), and JobInitializationException is the one, fixed, Flink-internal
+                // type we ever need to reconstruct here.
+                if (throwable.isPresent()
+                        && JobInitializationException.class
+                                .getName()
+                                .equals(throwable.get().getOriginalErrorClassName())) {
+                    throw new JobInitializationException(
+                            result.getJobId(),
+                            stripOriginalClassNamePrefix(throwable.get()),
+                            throwable.get().getCause());
+                }
+            }
+        } catch (JobInitializationException initializationException) {
+            throw initializationException;
+        } catch (Throwable throwable) {
+            ExceptionUtils.checkInterrupted(throwable);
+            throw new RuntimeException("Error while waiting for job to be initialized", throwable);
+        }
+    }
+
+    /**
+     * {@link SerializedThrowable#getMessage()} always returns {@code "<originalClassName>:
+     * <originalMessage>"} (see {@link SerializedThrowable}'s class Javadoc), whereas the original
+     * exception's own {@code getMessage()} did not carry that prefix. Strips it back off so the
+     * reconstructed {@link JobInitializationException} carries the same message the original
+     * exception had.
+     */
+    private static String stripOriginalClassNamePrefix(SerializedThrowable throwable) {
+        String message = throwable.getMessage();
+        String prefix = throwable.getOriginalErrorClassName() + ": ";
+        if (message != null && message.startsWith(prefix)) {
+            return message.substring(prefix.length());
+        }
+        return message;
     }
 
     /**
