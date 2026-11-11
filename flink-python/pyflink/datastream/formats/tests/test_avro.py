@@ -25,7 +25,7 @@ from avro.io import DatumReader
 from py4j.java_gateway import JavaObject, java_import
 
 from pyflink.datastream import MapFunction
-from pyflink.datastream.connectors.file_system import FileSink
+from pyflink.datastream.connectors.file_system import BucketAssigner, FileSink
 from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInfo, \
     AvroBulkWriters, AvroInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
@@ -143,14 +143,15 @@ class FileSinkAvroWritersTests(PyFlinkUTTestCase):
 
     def _build_avro_job(self, schema, objects):
         ds = self.env.from_collection(objects)
+        # Default hourly buckets would split the records if the job crossed an hour boundary.
         sink = FileSink.for_bulk_format(
             self.avro_dir_name, AvroBulkWriters.for_generic_record(schema)
-        ).build()
+        ).with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()).build()
         ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)).sink_to(sink)
 
     def _read_avro_file(self) -> List[dict]:
         records = []
-        for file in glob.glob(os.path.join(os.path.join(self.avro_dir_name, '**/*'))):
+        for file in glob.glob(os.path.join(self.avro_dir_name, '*')):
             for record in DataFileReader(open(file, 'rb'), DatumReader()):
                 records.append(record)
         return records
