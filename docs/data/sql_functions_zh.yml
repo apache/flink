@@ -1544,8 +1544,9 @@ variant:
       - Fields with an `@` prefix are written as attributes, the `$` field as text, and the other
         fields as child elements, in the order that the `#` field records.
       - A Variant NULL is written with `xsi:nil="true"`.
-      - A value other than a string or a UUID gets an `xsi:type` attribute, e.g.
-        `xsi:type="xs:int"`, so that it reads back as the same type.
+      - The text of an element without child elements gets an `xsi:type` attribute if it isn't a
+        string or a UUID, e.g. `xsi:type="xs:int"`, so that it reads back as the same type.
+        Attribute values, and text next to child elements, aren't typed and read back as strings.
       - If the XML string uses the `xsi` or `xs` prefix, the root element declares it.
 
       If the Variant has no XML representation, an error is thrown.
