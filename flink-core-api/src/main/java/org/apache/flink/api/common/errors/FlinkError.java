@@ -34,7 +34,8 @@ import java.util.regex.Pattern;
  *
  * <p>Each component declares its errors in one enum that implements this interface, with one
  * constant per error. Implementations must be enums, because exceptions keep their error when they
- * are serialized and {@link FlinkThrowable#is(FlinkError)} compares errors by identity.
+ * are serialized and {@link FlinkThrowable#is(FlinkError)} compares errors by identity. Exceptions
+ * reject errors that aren't enum constants.
  *
  * <p>The name, category, attributes and parameters of an error are part of the API. The message
  * template can change between versions.

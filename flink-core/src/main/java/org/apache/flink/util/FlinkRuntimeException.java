@@ -19,12 +19,31 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.errors.FlinkError;
+import org.apache.flink.api.common.errors.FlinkThrowable;
 
-/** Base class of all Flink-specific unchecked exceptions. */
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Base class of all Flink-specific unchecked exceptions.
+ *
+ * <p>An exception created from a {@link FlinkError} carries the error and its arguments, see {@link
+ * FlinkThrowable}.
+ */
 @Public
-public class FlinkRuntimeException extends RuntimeException {
+public class FlinkRuntimeException extends RuntimeException implements FlinkThrowable {
 
     private static final long serialVersionUID = 193141189399279147L;
+
+    private final @Nullable FlinkError error;
+
+    // Null without an error, and when deserialized from a stream without this field.
+    private final @Nullable Map<String, Object> errorArgs;
 
     /**
      * Creates a new Exception with the given message and null as the cause.
@@ -33,6 +52,8 @@ public class FlinkRuntimeException extends RuntimeException {
      */
     public FlinkRuntimeException(String message) {
         super(message);
+        this.error = null;
+        this.errorArgs = null;
     }
 
     /**
@@ -42,6 +63,8 @@ public class FlinkRuntimeException extends RuntimeException {
      */
     public FlinkRuntimeException(Throwable cause) {
         super(cause);
+        this.error = null;
+        this.errorArgs = null;
     }
 
     /**
@@ -52,5 +75,50 @@ public class FlinkRuntimeException extends RuntimeException {
      */
     public FlinkRuntimeException(String message, Throwable cause) {
         super(message, cause);
+        this.error = null;
+        this.errorArgs = null;
+    }
+
+    /**
+     * Creates a new exception for the given error, with the formatted template of the error as the
+     * message and null as the cause.
+     *
+     * @param error The error
+     * @param arguments The arguments for the parameters of the error, in declaration order
+     * @throws IllegalArgumentException if the error isn't an enum constant or the arguments don't
+     *     match the parameters of the error
+     */
+    @PublicEvolving
+    public FlinkRuntimeException(FlinkError error, Object... arguments) {
+        this(error, null, arguments);
+    }
+
+    /**
+     * Creates a new exception for the given error, with the formatted template of the error as the
+     * message and the given cause.
+     *
+     * @param error The error
+     * @param cause The exception that caused this exception
+     * @param arguments The arguments for the parameters of the error, in declaration order
+     * @throws IllegalArgumentException if the error isn't an enum constant or the arguments don't
+     *     match the parameters of the error
+     */
+    @PublicEvolving
+    public FlinkRuntimeException(FlinkError error, @Nullable Throwable cause, Object... arguments) {
+        super(FlinkThrowableUtils.formatMessage(error, cause, arguments), cause);
+        this.error = Preconditions.checkNotNull(error);
+        this.errorArgs = FlinkThrowableUtils.toArgumentMap(error, arguments);
+    }
+
+    @PublicEvolving
+    @Override
+    public Optional<FlinkError> getError() {
+        return Optional.ofNullable(error);
+    }
+
+    @PublicEvolving
+    @Override
+    public Map<String, Object> getErrorArgs() {
+        return errorArgs == null ? Collections.emptyMap() : errorArgs;
     }
 }
