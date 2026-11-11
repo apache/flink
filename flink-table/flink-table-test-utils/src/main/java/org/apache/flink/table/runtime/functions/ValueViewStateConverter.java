@@ -19,8 +19,11 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.DataType;
 
 /**
  * Converter for ValueView state.
@@ -32,9 +35,12 @@ import org.apache.flink.table.data.conversion.DataStructureConverter;
 class ValueViewStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> valueConverter;
+    private final TypeSerializer<Object> valueSerializer;
 
-    ValueViewStateConverter(DataStructureConverter<Object, Object> valueConverter) {
+    ValueViewStateConverter(
+            DataType valueType, DataStructureConverter<Object, Object> valueConverter) {
         this.valueConverter = valueConverter;
+        this.valueSerializer = InternalSerializers.create(valueType.getLogicalType());
     }
 
     @Override
@@ -57,5 +63,11 @@ class ValueViewStateConverter implements StateConverter {
     public Object createNewInternalState() {
         // An empty value view is represented by a null internal value.
         return null;
+    }
+
+    @Override
+    public Object copyInternal(Object internal) {
+        // Unlike the other converters, an empty view is a null internal value.
+        return internal == null ? null : valueSerializer.copy(internal);
     }
 }
