@@ -189,6 +189,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
+							<attach>false</attach>
 							<includes>
 								<include>org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java</include>
 							</includes>
@@ -208,6 +209,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
+							<attach>false</attach>
 							<includes>
 								<include>org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java</include>
 							</includes>
@@ -227,6 +229,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
+							<attach>false</attach>
 							<includes>
 								<include>org/apache/flink/runtime/webmonitor/handlers/utils/EagerSinkProgram.java</include>
 							</includes>
@@ -246,6 +249,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
+							<attach>false</attach>
 							<includes>
 								<include>org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java</include>
 							</includes>
@@ -260,6 +264,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
+							<attach>false</attach>
 							<includes>
 								<include>org/apache/flink/runtime/webmonitor/handlers/utils/OutputTestProgram.java</include>
 							</includes>
