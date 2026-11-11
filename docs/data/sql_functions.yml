@@ -739,50 +739,29 @@ conditional:
         (WHEN value2_1 [, value2_2 ]* THEN result_2)*
         (ELSE result_z)
       END
-    description: Returns resultX when the first time value is contained in (valueX_1, valueX_2, ...). When no value matches, returns result_z if it is provided and returns NULL otherwise.
+    page: case
   - sql: |
       CASE 
         WHEN condition1 THEN result1
         (WHEN condition2 THEN result2)*
         (ELSE result_z)
       END
-    description: Returns resultX when the first conditionX is met. When no condition is met, returns result_z if it is provided and returns NULL otherwise.
-  - sql: NULLIF(value1, value2)
-    description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
+    page: case
   - sql: COALESCE(value1 [, value2]*)
-    table: coalesce(value1, [, value2]*)
-    description: |
-      Returns the first argument that is not NULL.
-
-      If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
-      The return type is nullable if all arguments are nullable as well.
-
-      ```sql
-      -- Returns 'default'
-      COALESCE(NULL, 'default')
-
-      -- Returns the first non-null value among f0 and f1,
-      -- or 'default' if f0 and f1 are both NULL
-      COALESCE(f0, f1, 'default')
-      ```
+    table: coalesce(value1 [, value2]*)
+    page: coalesce
+  - sql: GREATEST(value1[, value2]*)
+    page: greatest
   - sql: IF(condition, true_value, false_value)
-    description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
+    table: BOOLEAN.then(VALUE1, VALUE2)
+    page: if
   - sql: IFNULL(input, null_replacement)
     table: input.ifNull(nullReplacement)
-    description: |
-      Returns null_replacement if input is NULL; otherwise input is returned. 
-
-      Compared to COALESCE or CASE WHEN, this function returns a data type that is very specific in terms of nullability. The returned type is the common type of both arguments but only nullable if the null_replacement is nullable.
-
-      The function allows to pass nullable columns into a function or table that is declared with a NOT NULL constraint.
-
-      E.g., IFNULL(nullable_column, 5) returns never NULL.
-  - table: BOOLEAN.?(VALUE1, VALUE2)
-    description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
-  - sql: GREATEST(value1[, value2]*)
-    description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
+    page: ifnull
   - sql: LEAST(value1[, value2]*)
-    description: Returns the least value of the list of arguments. Returns NULL if any argument is NULL.
+    page: least
+  - sql: NULLIF(value1, value2)
+    page: nullif
 
 conversion:
   - sql: CAST(value AS type)

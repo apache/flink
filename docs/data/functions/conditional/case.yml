@@ -1,0 +1,116 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: CASE
+summary: Returns the result of the first branch whose condition holds.
+
+syntax:
+  sql: |
+    CASE value WHEN value1 [, value2]* THEN result1 [WHEN ... THEN ...]* [ELSE result_else] END
+    CASE WHEN condition1 THEN result1 [WHEN ... THEN ...]* [ELSE result_else] END
+
+arguments:
+  - name: value
+    type: Any type that `=` can compare with each WHEN value
+    required: false
+    description: In the first form, the value that each WHEN compares with its values.
+  - name: value1, value2, ...
+    type: The type of `value`, or one comparable with it
+    required: false
+    description: In the first form, the values of a WHEN. The branch is taken if `value` equals one of them.
+  - name: condition1, ...
+    type: BOOLEAN
+    required: false
+    description: In the second form, the condition of a WHEN.
+  - name: result1, ..., result_else
+    type: Any type. All results must have a common type
+    required: true
+    description: The value of a branch. `ELSE` gives the value when no WHEN applies.
+
+returns:
+  description: The result of the first WHEN that applies, or `result_else` if none does.
+  nulls: Returns NULL if no WHEN applies and there is no `ELSE`, or if the chosen result is NULL.
+  type: The common type of all results, such as `BIGINT` for `INT` and `BIGINT` results, or `VARCHAR(5)` for `CHAR(2)` and `VARCHAR(5)`. Nullable if a result is nullable or there is no `ELSE`.
+
+notes:
+  - The WHEN branches are checked in order, and only the result of the chosen branch is evaluated.
+  - A NULL condition counts as not met. In the first form, a NULL `value` matches no WHEN, because `NULL = x` is never true. To test for NULL, use the second form with `WHEN value IS NULL`.
+
+see_also:
+  - {name: IF, ref: conditional/if}
+  - {name: COALESCE, ref: conditional/coalesce}
+  - {name: NULLIF, ref: conditional/nullif}
+
+examples:
+  - title: Map values to labels
+    description: "Compare a value with the values of each WHEN. A WHEN can list several values:"
+    sql: |
+      SELECT n,
+        CASE n WHEN 1 THEN 'one' WHEN 2, 3 THEN 'few' ELSE 'many' END AS label
+      FROM (VALUES (1), (3), (7)) AS t(n);
+    result: |
+      | n | label |
+      |---|-------|
+      | 1 | one   |
+      | 3 | few   |
+      | 7 | many  |
+
+  - title: Put values into ranges
+    description: "Check a condition in each WHEN. The first one that holds wins:"
+    sql: |
+      SELECT score,
+        CASE WHEN score >= 90 THEN 'A' WHEN score >= 75 THEN 'B' ELSE 'C' END AS grade
+      FROM (VALUES (95), (80), (60)) AS t(score);
+    result: |
+      | score | grade |
+      |-------|-------|
+      | 95    | A     |
+      | 80    | B     |
+      | 60    | C     |
+
+  - title: No branch applies and there is no ELSE
+    description: "The result is NULL:"
+    sql: |
+      SELECT CASE WHEN n > 10 THEN 'big' END AS size
+      FROM (VALUES (3)) AS t(n);
+    result: |
+      | size |
+      |------|
+      | NULL |
+
+  - title: Test for NULL
+    description: "A NULL value matches no WHEN of the first form. The second form can test it with `IS NULL`:"
+    sql: |
+      SELECT
+        CASE n WHEN 1 THEN 'one' ELSE 'other' END AS first_form,
+        CASE WHEN n IS NULL THEN 'missing' ELSE 'present' END AS second_form
+      FROM (VALUES (CAST(NULL AS INT))) AS t(n);
+    result: |
+      | first_form | second_form |
+      |------------|-------------|
+      | other      | missing     |
+
+  - title: Only the chosen branch is evaluated
+    description: "The division doesn't run for the row with `0`:"
+    sql: |
+      SELECT d, CASE WHEN d <> 0 THEN 100 / d ELSE -1 END AS ratio
+      FROM (VALUES (4), (0)) AS t(d);
+    result: |
+      | d | ratio |
+      |---|-------|
+      | 4 | 25    |
+      | 0 | -1    |

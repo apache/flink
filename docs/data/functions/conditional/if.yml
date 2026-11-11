@@ -1,0 +1,100 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IF
+summary: Returns one of two values, depending on a condition.
+
+syntax:
+  sql: IF(condition, true_value, false_value)
+  java: |
+    $("condition").then(trueValue, falseValue)
+    ifThenElse($("condition"), trueValue, falseValue)
+  python: |
+    col("condition").then(true_value, false_value)
+    if_then_else(col("condition"), true_value, false_value)
+
+arguments:
+  - name: condition
+    type: BOOLEAN
+    required: true
+    description: The condition to check.
+  - name: true_value
+    type: Any type
+    required: true
+    description: The result if `condition` is `TRUE`.
+  - name: false_value
+    type: A type that has a common type with `true_value`
+    required: true
+    description: The result if `condition` is `FALSE` or NULL.
+
+returns:
+  description: "`true_value` if `condition` is `TRUE`, else `false_value`."
+  nulls: Returns NULL if the chosen value is NULL.
+  type: For numeric, character string and binary values, their common type. For other values, the type of `true_value`. Nullable if any argument is nullable.
+
+notes:
+  - Only the chosen value is evaluated.
+  - A NULL `condition` counts as `FALSE`, so the function returns `false_value`.
+  - For `ARRAY`, `MAP`, `ROW` or `VARIANT` values, use `CASE`. `CASE` also keeps the larger precision of two `TIME` or `TIMESTAMP` values, where `IF` uses the precision of `true_value`.
+  - The Table API calls accept any two types with a common type, including `ARRAY`, `MAP` and `ROW`, and keep the larger precision of two `TIMESTAMP` values.
+
+see_also:
+  - {name: CASE, ref: conditional/case}
+  - {name: COALESCE, ref: conditional/coalesce}
+
+examples:
+  - title: Choose between two values
+    description: "Label each amount:"
+    sql: |
+      SELECT amount, IF(amount > 100, 'large', 'small') AS size
+      FROM (VALUES (250), (40)) AS t(amount);
+    result: |
+      | amount | size  |
+      |--------|-------|
+      | 250    | large |
+      | 40     | small |
+
+  - title: A NULL condition
+    description: "A NULL condition returns `false_value`:"
+    sql: |
+      SELECT IF(CAST(NULL AS BOOLEAN), 'yes', 'no') AS answer;
+    result: |
+      | answer |
+      |--------|
+      | no     |
+
+  - title: Mixed numeric types
+    description: "An `INT` and a `DECIMAL` value give a `DECIMAL` result:"
+    sql: |
+      SELECT IF(b, 1, 2.5) AS val, TYPEOF(IF(b, 1, 2.5)) AS val_type
+      FROM (VALUES (TRUE)) AS t(b);
+    result: |
+      | val | val_type                |
+      |-----|-------------------------|
+      | 1.0 | DECIMAL(11, 1) NOT NULL |
+
+  - title: TIMESTAMP values with different precisions
+    description: "`IF` uses the precision of `true_value` and drops the milliseconds. `CASE` keeps them:"
+    sql: |
+      SELECT
+        IF(b, TIMESTAMP '2026-01-01 12:30:45', TIMESTAMP '2026-01-01 12:30:45.123') AS with_if,
+        CASE WHEN b THEN TIMESTAMP '2026-01-01 12:30:45' ELSE TIMESTAMP '2026-01-01 12:30:45.123' END AS with_case
+      FROM (VALUES (FALSE)) AS t(b);
+    result: |
+      | with_if             | with_case               |
+      |---------------------|-------------------------|
+      | 2026-01-01 12:30:45 | 2026-01-01 12:30:45.123 |
