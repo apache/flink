@@ -58,7 +58,6 @@ import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
-import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -194,6 +193,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
+    private transient volatile RuntimeException dataChannelFailure;
+    private transient Runnable unregisterDataChannelFailure;
+    private transient Thread closingThread;
+    private transient boolean closing;
+
     private transient Thread shutdownHook;
 
     private transient Environment environment;
@@ -236,6 +240,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @Override
     public void open(ReadableConfig config) throws Exception {
         this.bundleStarted = false;
+        this.dataChannelFailure = null;
+        this.closing = false;
         this.resultBuffer = new LinkedBlockingQueue<>();
         this.reusableResultTuple = new Tuple3<>();
 
@@ -334,6 +340,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public void close() throws Exception {
+        synchronized (this) {
+            closing = true;
+            if (unregisterDataChannelFailure != null) {
+                unregisterDataChannelFailure.run();
+                unregisterDataChannelFailure = null;
+            }
+        }
         try {
             if (jobBundleFactory != null) {
                 jobBundleFactory.close();
@@ -394,6 +407,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     /** Checks whether to invoke startBundle. */
     private void checkInvokeStartBundle() {
+        checkDataChannelFailure();
         if (!bundleStarted) {
             startBundle();
             bundleStarted = true;
@@ -420,6 +434,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public Tuple3<String, byte[], Integer> pollResult() throws Exception {
+        checkDataChannelFailure();
         Tuple2<String, byte[]> result = resultBuffer.poll();
         if (result == null) {
             return null;
@@ -432,7 +447,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public Tuple3<String, byte[], Integer> takeResult() throws Exception {
+        checkDataChannelFailure();
         Tuple2<String, byte[]> result = resultBuffer.take();
+        checkDataChannelFailure();
         reusableResultTuple.f0 = result.f0;
         reusableResultTuple.f1 = result.f1;
         reusableResultTuple.f2 = result.f1.length;
@@ -455,12 +472,45 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         resultBuffer.add(Tuple2.of(null, new byte[0]));
     }
 
+    @VisibleForTesting
+    void onDataChannelFailure(Throwable cause) {
+        final RuntimeException failure;
+        synchronized (this) {
+            if (closing || dataChannelFailure != null) {
+                return;
+            }
+            failure = new RuntimeException("Python data RPC failed for task " + taskName, cause);
+            dataChannelFailure = failure;
+            notifyNoMoreResults();
+            if (closingThread != null) {
+                closingThread.interrupt();
+            }
+        }
+        environment.failExternally(failure);
+    }
+
+    private void checkDataChannelFailure() {
+        final RuntimeException failure = dataChannelFailure;
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
     private void finishBundle() {
         try {
+            synchronized (this) {
+                checkDataChannelFailure();
+                closingThread = Thread.currentThread();
+            }
             remoteBundle.close();
+            checkDataChannelFailure();
         } catch (Throwable t) {
+            checkDataChannelFailure();
             throw new RuntimeException("Failed to close remote bundle", t);
         } finally {
+            synchronized (this) {
+                closingThread = null;
+            }
             remoteBundle = null;
             mainInputReceiver = null;
             timerInputReceiver = null;
@@ -673,7 +723,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             // It loads classes using service loader under context classloader in Beam,
             // make sure the classloader used to load SPI classes is the same as the class
             // loader of the current class.
-            return DefaultJobBundleFactory.create(
+            return PythonJobBundleFactory.create(
                     JobInfo.create(
                             taskName,
                             taskName,
@@ -690,7 +740,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             // It loads classes using service loader under context classloader in Beam,
             // make sure the classloader used to load SPI classes is the same as the class
             // loader of the current class.
-            return jobBundleFactory.forStage(createExecutableStage(environment));
+            if (jobBundleFactory instanceof PythonJobBundleFactory) {
+                unregisterDataChannelFailure =
+                        ((PythonJobBundleFactory) jobBundleFactory)
+                                .registerFailureListener(this::onDataChannelFailure);
+            }
+            checkDataChannelFailure();
+            final StageBundleFactory factory =
+                    jobBundleFactory.forStage(createExecutableStage(environment));
+            checkDataChannelFailure();
+            return factory;
         } catch (Throwable e) {
             throw new RuntimeException(environmentManager.getBootLog(), e);
         }
