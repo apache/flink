@@ -63,12 +63,12 @@ class HadoopGSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITC
     @Test
     @Override
     @Disabled("This test is not meaningful. GSRecoverableWriter#cleanupRecoverableState is no-op.")
-    public void testCleanupRecoverableState() {}
+    protected void testCleanupRecoverableState() {}
 
     @Test
     @Override
     @Disabled("This test assumes one file for state, but GSRecoverableWriter uses multiple files.")
-    public void testCallingDeleteObjectTwiceDoesNotThroughException() {}
+    protected void testCallingDeleteObjectTwiceDoesNotThroughException() {}
 
     @Override
     protected String getLocalTmpDir() throws Exception {
