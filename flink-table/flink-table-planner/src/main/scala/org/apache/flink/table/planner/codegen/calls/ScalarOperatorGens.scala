@@ -1530,12 +1530,22 @@ object ScalarOperatorGens {
       resultType: LogicalType,
       elements: Seq[GeneratedExpression],
       greatest: Boolean = true): GeneratedExpression = {
-    val Seq(result, tmpResult, cur, nullTerm) =
-      newNames(ctx, "result", "tmpResult", "cur", "nullTerm")
+    val Seq(result, tmpResult, nullTerm) =
+      newNames(ctx, "result", "tmpResult", "nullTerm")
     val widerType = toScala(findCommonType(elements.map(element => element.resultType)))
       .orElse(throw new CodeGenException(s"Unable to find common type for $elements."))
     val boxedResultTypeTerm = boxedTypeTermForType(widerType.get)
     val primitiveResultTypeTerm = primitiveTypeTermForType(widerType.get)
+    val isPrimitive = primitiveResultTypeTerm != boxedResultTypeTerm
+    val tmpTypeTerm = if (isPrimitive) primitiveResultTypeTerm else boxedResultTypeTerm
+    val tmpInit = if (isPrimitive) primitiveDefaultValue(widerType.get) else "null"
+    val op = if (greatest) "<" else ">"
+    // float/double/boolean keep compare() for NaN, -0.0 and boolean ordering
+    def replaceCondition(value: String): String = primitiveResultTypeTerm match {
+      case "byte" | "short" | "int" | "long" => s"$tmpResult $op $value"
+      case _ if isPrimitive => s"$boxedResultTypeTerm.compare($tmpResult, $value) $op 0"
+      case _ => s"$tmpResult.compareTo($value) $op 0"
+    }
 
     def castIfNumeric(t: GeneratedExpression): String = {
       if (isNumeric(widerType.get)) {
@@ -1548,18 +1558,24 @@ object ScalarOperatorGens {
     val elementsCode = elements.zipWithIndex
       .map {
         case (element, index) =>
+          val casted = castIfNumeric(element)
+          val (castCode, value) =
+            if (casted == element.resultTerm) ("", casted)
+            else {
+              val castTerm = newName(ctx, "casted")
+              (s"$tmpTypeTerm $castTerm = $casted;", castTerm)
+            }
+          val assign =
+            if (index == 0) s"$tmpResult = $value;"
+            else s"if (${replaceCondition(value)}) { $tmpResult = $value; }"
           s"""
-             | ${element.code}
-             | ${if (index == 0) s"$tmpResult = ${castIfNumeric(elements.head)};" else ""}
              | if (!$nullTerm) {
-             |   $boxedResultTypeTerm $cur = ${castIfNumeric(element)};
+             |   ${element.code}
              |   if (${element.nullTerm}) {
              |     $nullTerm = true;
              |   } else {
-             |     int compareResult = $tmpResult.compareTo($cur);
-             |     if (($greatest && compareResult < 0) || (compareResult > 0 && !$greatest)) {
-             |       $tmpResult = $cur;
-             |     }
+             |     $castCode
+             |     $assign
              |   }
              | }
        """.stripMargin
@@ -1568,7 +1584,7 @@ object ScalarOperatorGens {
 
     val code =
       s"""
-         | $boxedResultTypeTerm $tmpResult;
+         | $tmpTypeTerm $tmpResult = $tmpInit;
          | $primitiveResultTypeTerm $result = ${primitiveDefaultValue(widerType.get)};
          | boolean $nullTerm = false;
          | $elementsCode
