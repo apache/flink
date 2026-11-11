@@ -1723,10 +1723,15 @@ SELECT * FROM f(table_arg => TABLE UpdatingTable)
 If updates should be supported, ensure that the data type of the table argument is chosen in a way that it can encode
 changes. In other words: choose a `Row` type that exposes the `RowKind` change flag.
 
-The changelog of the backing input table decides which kinds of changes enter the function. The function receives `{+I}`
-when the input table is append-only. The function receives `{+I,+U,-D}` if the input table is upserting using the same
-upsert key as the partition key. Otherwise, retractions `{+I,-U,+U,-D}` (i.e. including `RowKind.UPDATE_BEFORE`) enter
-the function. Use `ArgumentTrait.REQUIRE_UPDATE_BEFORE` to enforce retractions for all updating cases.
+The changelog of the backing input table decides which kinds of changes enter the function:
+
+- `{+I}` if the input table is append-only.
+- `{+I,+U,-D}` if the input table is upserting and either:
+  - the table argument has set semantics and is partitioned by the upsert key, or
+  - the function emits only inserts.
+- `{+I,-U,+U,-D}` (i.e. including `RowKind.UPDATE_BEFORE`) otherwise.
+
+Use `ArgumentTrait.REQUIRE_UPDATE_BEFORE` to enforce retractions for all updating cases.
 
 For upserting tables, if the changelog contains key-only deletions (also known as partial deletions), only upsert key
 fields are set when a row enters the function. Non-key fields are set to `null`, regardless of `NOT NULL` constraints.

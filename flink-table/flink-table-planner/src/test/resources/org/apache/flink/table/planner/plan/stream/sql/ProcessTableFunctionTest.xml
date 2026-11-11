@@ -155,8 +155,8 @@ LogicalProject(name=[$0], EXPR$0=[$1])
 ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DEFAULT(), DEFAULT())], uid=[f], select=[name,EXPR$0], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) EXPR$0)], changelogMode=[I])
 :- Exchange(distribution=[hash[name]], changelogMode=[I])
 :  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
-+- Exchange(distribution=[broadcast], changelogMode=[I,UB,UA])
-   +- GroupAggregate(groupBy=[name], select=[name, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
++- Exchange(distribution=[broadcast], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[name], select=[name, COUNT(*) AS EXPR$1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[name]], changelogMode=[I])
          +- Calc(select=[name], changelogMode=[I])
             +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
@@ -613,6 +613,76 @@ LogicalProject(out=[$0])
       <![CDATA[
 ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Values(tuples=[[{  }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertInputWithRowSemantics">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE t_upsert_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+   +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t_upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[EXPR$0], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, t_upsert_source]], fields=[name, score], changelogMode=[I,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertInputWithRowSemanticsFilteredOnNonKeyColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE v)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+   +- LogicalProject(name=[$0], EXPR$1=[$1])
+      +- LogicalProject(name=[$0], EXPR$1=[$1])
+         +- LogicalFilter(condition=[>($1, 1)])
+            +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+               +- LogicalProject(name=[$0])
+                  +- LogicalProject(name=[$0], score=[$1])
+                     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[EXPR$0], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)], changelogMode=[I])
++- Calc(select=[name, EXPR$1], where=[>(EXPR$1, 1)], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[name], select=[name, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[name]], changelogMode=[I])
+         +- Calc(select=[name], changelogMode=[I])
+            +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertInputWithRowSemanticsWithoutUpsertKey">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE v)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+   +- LogicalProject(score=[$0])
+      +- LogicalProject(score=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, t_upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[EXPR$0], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)], changelogMode=[I])
++- Calc(select=[score], changelogMode=[I,UB,UA,D])
+   +- ChangelogNormalize(key=[name], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[name]], changelogMode=[I,UA,PD])
+         +- TableSourceScan(table=[[default_catalog, default_database, t_upsert_source]], fields=[name, score], changelogMode=[I,UA,PD])
 ]]>
     </Resource>
   </TestCase>
