@@ -439,9 +439,13 @@ public class FineGrainedSlotManager implements SlotManager {
                         () ->
                                 mainThreadExecutor.execute(
                                         () -> {
-                                            declareNeededResources();
-                                            Preconditions.checkNotNull(declareNeededResourceFuture)
-                                                    .complete(null);
+                                            try {
+                                                declareNeededResources();
+                                            } finally {
+                                                Preconditions.checkNotNull(
+                                                                declareNeededResourceFuture)
+                                                        .complete(null);
+                                            }
                                         }),
                         declareNeededResourceDelay.toMillis(),
                         TimeUnit.MILLISECONDS);
@@ -632,9 +636,12 @@ public class FineGrainedSlotManager implements SlotManager {
                         () ->
                                 mainThreadExecutor.execute(
                                         () -> {
-                                            checkResourceRequirements();
-                                            Preconditions.checkNotNull(requirementsCheckFuture)
-                                                    .complete(null);
+                                            try {
+                                                checkResourceRequirements();
+                                            } finally {
+                                                Preconditions.checkNotNull(requirementsCheckFuture)
+                                                        .complete(null);
+                                            }
                                         }),
                         requirementsCheckDelay.toMillis(),
                         TimeUnit.MILLISECONDS);
