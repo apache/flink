@@ -429,6 +429,24 @@ class MaterializedTableTableApiITCase {
                                 USERS_SHOPS.asSummaryString()));
     }
 
+    @Test
+    void testCreateMaterializedTableInFullModeFails() {
+        // 1 hour is above the default 30-minute threshold, so AUTOMATIC resolves to FULL
+        assertThatThrownBy(
+                        () ->
+                                usersShopsQuery()
+                                        .materializeInto("users_shops", Duration.ofHours(1))
+                                        .execute())
+                .isInstanceOf(TableException.class)
+                .hasMessage(
+                        "The workflow scheduler must be configured when creating materialized table in full refresh mode."
+                                + " Without one, only the continuous refresh mode is supported."
+                                + " If the refresh mode is not declared, use a freshness below"
+                                + " 'materialized-table.refresh-mode.freshness-threshold'."
+                                + " Otherwise declare the continuous refresh mode.");
+        assertThat(catalog.tableExists(USERS_SHOPS.toObjectPath())).isFalse();
+    }
+
     // --------------------------------------------------------------------------------------------
     // CREATE OR ALTER MATERIALIZED TABLE
     // --------------------------------------------------------------------------------------------
