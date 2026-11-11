@@ -19,6 +19,7 @@
 package org.apache.flink.fs.gs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
@@ -41,7 +42,11 @@ class HadoopGSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITC
     @BeforeAll
     static void setup() throws IOException {
         GSTestCredentials.assumeCredentialsAvailable();
-        FileSystem.initialize(new Configuration(), null);
+        // The smallest chunk size GCS accepts, so each 7 MiB component of the *WithMultiPart
+        // tests is uploaded in several chunks instead of one (the default is 16 MiB).
+        final Configuration config = new Configuration();
+        config.set(GSFileSystemOptions.WRITER_CHUNK_SIZE, MemorySize.parse("256kb"));
+        FileSystem.initialize(config, null);
         basePath = new Path(GSTestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
         assertThat(basePath.getFileSystem().exists(basePath)).isFalse();
         bigDataChunk = createBigDataChunk(BIG_CHUNK_DATA_PATTERN, 7L << 20);
