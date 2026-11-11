@@ -2,6 +2,7 @@
 title: "Window"
 weight: 18
 type: docs
+bookCollapseSection: true
 sqlFunctions: window
 markdownFunctions: true
 ---

@@ -1,0 +1,30 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+{{/*
+  Highlights a SQL code block like the default renderer does. A block with a `function` attribute,
+  such as the examples on a built-in function page, also marks each call of that function.
+*/}}
+{{- $html := transform.Highlight (print .Inner "\n") .Type .Options -}}
+{{- with .Attributes.function -}}
+  {{- if findRE `^\w+$` . -}}
+    {{- $html = replaceRE (printf `(?i)<span class="k">(%s)</span>` .) `<span class="k function-self">${1}</span>` $html -}}
+    {{- $html = replaceRE (printf `(?i)<span class="n">(%s)</span>(<span class="p">\()` .) `<span class="n function-self">${1}</span>${2}` $html -}}
+  {{- end -}}
+{{- end -}}
+{{- $html | safeHTML -}}

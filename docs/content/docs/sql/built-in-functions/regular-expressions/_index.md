@@ -2,6 +2,7 @@
 title: "Regular Expressions"
 weight: 13
 type: docs
+bookCollapseSection: true
 sqlFunctions: regex
 ---
 <!--

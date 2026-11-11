@@ -308,3 +308,24 @@ pre.chroma code {
         columns: 2 20rem;
     }
 }
+
+.markdown .function-summary {
+    font-size: 1.25em;
+    line-height: 1.4;
+    margin: 0.5em 0;
+}
+
+.markdown .function-category {
+    font-size: 0.875em;
+    color: #6f7377;
+    margin-top: 0;
+}
+
+.markdown .function-see-also dd {
+    margin-inline-start: 2em;
+}
+
+.markdown .chroma .function-self {
+    color: #734591;
+    font-weight: bold;
+}
