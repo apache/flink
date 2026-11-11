@@ -166,6 +166,12 @@ public class DefaultSchedulerTest {
 
     private ScheduledExecutorService scheduledExecutorService;
 
+    /**
+     * Future executor that runs the deployment callbacks inline on the test thread instead of
+     * racing it from another thread (FLINK-40793).
+     */
+    private ScheduledExecutorService futureExecutor;
+
     private Configuration configuration;
 
     private TestRestartBackoffTimeStrategy testRestartBackoffTimeStrategy;
@@ -188,6 +194,7 @@ public class DefaultSchedulerTest {
     void setUp() {
         executor = Executors.newSingleThreadExecutor();
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        futureExecutor = new DirectScheduledExecutorService();
 
         configuration = new Configuration();
 
@@ -212,6 +219,10 @@ public class DefaultSchedulerTest {
         if (scheduledExecutorService != null) {
             ExecutorUtils.gracefulShutdown(
                     TIMEOUT_MS, TimeUnit.MILLISECONDS, scheduledExecutorService);
+        }
+
+        if (futureExecutor != null) {
+            ExecutorUtils.gracefulShutdown(TIMEOUT_MS, TimeUnit.MILLISECONDS, futureExecutor);
         }
 
         if (executor != null) {
@@ -2246,11 +2257,7 @@ public class DefaultSchedulerTest {
             final ComponentMainThreadExecutor mainThreadExecutor,
             final Collection<FailureEnricher> failureEnrichers) {
         return new DefaultSchedulerBuilder(
-                        jobGraph,
-                        mainThreadExecutor,
-                        executor,
-                        scheduledExecutorService,
-                        taskRestartExecutor)
+                        jobGraph, mainThreadExecutor, executor, futureExecutor, taskRestartExecutor)
                 .setLogger(LOG)
                 .setJobMasterConfiguration(configuration)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
