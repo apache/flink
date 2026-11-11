@@ -290,8 +290,8 @@ class MaterializedTableTableApiITCase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Failed to submit continuous refresh job for materialized table %s.",
-                                USERS_SHOPS.asSerializableString()));
+                                "Failed to submit continuous refresh job for materialized table '%s'.",
+                                USERS_SHOPS.asSummaryString()));
 
         assertThat(catalog.tableExists(USERS_SHOPS.toObjectPath())).isFalse();
     }
@@ -619,8 +619,8 @@ class MaterializedTableTableApiITCase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Materialized table %s continuous refresh job has been suspended",
-                                USERS_SHOPS));
+                                "Materialized table '%s' continuous refresh job has been suspended",
+                                USERS_SHOPS.asSummaryString()));
 
         tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops RESUME");
 
@@ -628,8 +628,8 @@ class MaterializedTableTableApiITCase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Materialized table %s continuous refresh job has been resumed",
-                                USERS_SHOPS));
+                                "Materialized table '%s' continuous refresh job has been resumed",
+                                USERS_SHOPS.asSummaryString()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -664,8 +664,8 @@ class MaterializedTableTableApiITCase {
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Materialized table with identifier %s does not exist.",
-                                USERS_SHOPS.asSerializableString()));
+                                "Materialized table with identifier '%s' does not exist.",
+                                USERS_SHOPS.asSummaryString()));
 
         tEnv.executeSql("DROP MATERIALIZED TABLE IF EXISTS users_shops");
 
@@ -674,9 +674,9 @@ class MaterializedTableTableApiITCase {
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Table %s is not a materialized table, does not support materialized table related operation.",
+                                "Table '%s' is not a materialized table, does not support materialized table related operation.",
                                 ObjectIdentifier.of(CATALOG, DATABASE, "datagenSource")
-                                        .asSerializableString()));
+                                        .asSummaryString()));
     }
 
     // --------------------------------------------------------------------------------------------

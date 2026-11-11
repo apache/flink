@@ -494,8 +494,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .cause()
                 .hasMessageContaining(
                         String.format(
-                                "Failed to submit continuous refresh job for materialized table %s.",
-                                userShopsIdentifier.asSerializableString()));
+                                "Failed to submit continuous refresh job for materialized table '%s'.",
+                                userShopsIdentifier.asSummaryString()));
 
         // verify the materialized table is not created
         assertThatThrownBy(() -> getTable(userShopsIdentifier))
@@ -848,8 +848,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Materialized table %s continuous refresh job has been suspended",
-                                userShopsIdentifier));
+                                "Materialized table '%s' continuous refresh job has been suspended",
+                                userShopsIdentifier.asSummaryString()));
 
         // resume materialized table
         String alterMaterializedTableResumeDDL = "ALTER MATERIALIZED TABLE users_shops RESUME";
@@ -870,8 +870,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Materialized table %s continuous refresh job has been resumed",
-                                userShopsIdentifier));
+                                "Materialized table '%s' continuous refresh job has been resumed",
+                                userShopsIdentifier.asSummaryString()));
     }
 
     @Test
@@ -979,8 +979,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Materialized table %s refresh workflow has been suspended.",
-                                userShopsIdentifier));
+                                "Materialized table '%s' refresh workflow has been suspended.",
+                                userShopsIdentifier.asSummaryString()));
 
         // resume materialized table
         String alterMaterializedTableResumeDDL =
@@ -1002,8 +1002,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
-                                "Materialized table %s refresh workflow has been resumed.",
-                                userShopsIdentifier));
+                                "Materialized table '%s' refresh workflow has been resumed.",
+                                userShopsIdentifier.asSummaryString()));
     }
 
     @Test
@@ -1577,8 +1577,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Materialized table with identifier %s does not exist.",
-                                userShopsIdentifier.asSerializableString()));
+                                "Materialized table with identifier '%s' does not exist.",
+                                userShopsIdentifier.asSummaryString()));
 
         String dropNonExistMaterializedTableDDL2 = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
         OperationHandle dropNonExistMaterializedTableHandle2 =
@@ -1593,8 +1593,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Table %s is not a materialized table, does not support materialized table related operation.",
-                                getObjectIdentifier("datagenSource").asSerializableString()));
+                                "Table '%s' is not a materialized table, does not support materialized table related operation.",
+                                getObjectIdentifier("datagenSource").asSummaryString()));
     }
 
     @Test
@@ -1876,8 +1876,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "The scheduler time must not be null during the periodic refresh of the materialized table %s.",
-                                objectIdentifier.asSerializableString()));
+                                "The scheduler time must not be null during the periodic refresh of the materialized table '%s'.",
+                                objectIdentifier.asSummaryString()));
 
         // refresh the materialized table with invalid schedule time
         String invalidTime = "20240103 00:00:00.000";
@@ -1899,8 +1899,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(TableException.class)
                 .hasMessage(
                         String.format(
-                                "Failed to parse a valid partition value for the field 'ds' in materialized table %s using the scheduler time '20240103 00:00:00.000' based on the date format 'yyyy-MM-dd HH:mm:ss'.",
-                                objectIdentifier.asSerializableString()));
+                                "Failed to parse a valid partition value for the field 'ds' in materialized table '%s' using the scheduler time '20240103 00:00:00.000' based on the date format 'yyyy-MM-dd HH:mm:ss'.",
+                                objectIdentifier.asSummaryString()));
     }
 
     @Test
