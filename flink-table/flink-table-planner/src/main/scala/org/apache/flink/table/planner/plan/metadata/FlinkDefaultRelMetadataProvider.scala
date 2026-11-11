@@ -45,7 +45,7 @@ object FlinkDefaultRelMetadataProvider {
       RelMdColumnOrigins.SOURCE,
       RelMdMaxRowCount.SOURCE,
       RelMdMinRowCount.SOURCE,
-      RelMdPredicates.SOURCE,
+      FlinkRelMdPredicates.SOURCE,
       FlinkRelMdCollation.SOURCE,
       RelMdExplainVisibility.SOURCE,
       FlinkRelMdWindowProperties.SOURCE,

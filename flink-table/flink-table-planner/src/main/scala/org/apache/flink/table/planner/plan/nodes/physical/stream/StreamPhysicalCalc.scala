@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.`trait`.{DeleteKind, DeleteKindTraitD
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
+import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -29,6 +30,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
 
@@ -78,9 +80,8 @@ class StreamPhysicalCalc(
       return null
     }
 
-    val outputUpsertKeys = FlinkRelMetadataQuery
-      .reuseOrCreate(cluster.getMetadataQuery)
-      .getUpsertKeys(this)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
+    val outputUpsertKeys = fmq.getUpsertKeys(this)
     if (outputUpsertKeys == null || outputUpsertKeys.isEmpty) {
       // no identifiable output key column: fall back to always evaluating the full projection
       return null
@@ -88,12 +89,12 @@ class StreamPhysicalCalc(
 
     // Every column in every candidate is, by construction of
     // FlinkRelMdUniqueKeys.getProjectUniqueKeys, guaranteed to be a pass-through
-    // of an input field or an injective expression.
-    val keyIndices = outputUpsertKeys
-      .flatMap(bitSet => bitSet.map(_.intValue()))
-      .toSet
+    // of an input field or an injective expression. Columns equal to a key column are
+    // pass-throughs too, and are kept because a key may use them instead (see
+    // UpsertKeyUtil#getUpsertKeysUsingEqualColumns).
+    val keyIndices = UpsertKeyUtil
+      .getEqualColumns(this, ImmutableBitSet.union(outputUpsertKeys), fmq)
       .toArray
-      .sorted
     if (keyIndices.nonEmpty) {
       keyIndices
     } else {
