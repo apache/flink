@@ -1,0 +1,50 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: CUME_DIST
+summary: Returns the fraction of rows in the partition that come before or tie with the current row.
+
+syntax:
+  sql: CUME_DIST() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+
+returns:
+  description: The number of rows that come before the current row or are its peers, by the `ORDER BY` of the window, divided by the number of rows in the partition. The value is greater than 0 and at most 1.
+  type: "`DOUBLE NOT NULL`."
+
+notes:
+  - Peers, rows with equal `ORDER BY` values, get the same value, and they count for each other.
+  - The window needs an `ORDER BY`.
+  - Not supported in streaming mode.
+
+see_also:
+  - {name: PERCENT_RANK, ref: window/percent-rank}
+  - {name: NTILE, ref: window/ntile}
+
+examples:
+  - title: The cumulative distribution
+    description: "Bob and Cid tie, so both count each other:"
+    sql: |
+      SELECT name, score, CUME_DIST() OVER (ORDER BY score DESC) AS dist
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      ORDER BY dist, name;
+    result: |
+      | name | score | dist |
+      |------|-------|------|
+      | Ann  | 90    | 0.25 |
+      | Bob  | 85    | 0.75 |
+      | Cid  | 85    | 0.75 |
+      | Dee  | 70    | 1.0  |

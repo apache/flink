@@ -1,0 +1,64 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: ROW_NUMBER
+summary: Numbers the rows of each partition, starting at 1.
+
+syntax:
+  sql: ROW_NUMBER() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+
+returns:
+  description: The position of the current row in its partition, by the `ORDER BY` of the window, starting at 1. Every row gets its own number, also when rows tie.
+  type: "`BIGINT NOT NULL`."
+
+notes:
+  - Rows with equal `ORDER BY` values, called peers, get their numbers in an undefined order. Add columns to the `ORDER BY` to make it unique.
+  - The window needs an `ORDER BY` and can't have a frame clause, such as `ROWS BETWEEN 1 PRECEDING AND CURRENT ROW`.
+  - "In streaming mode, `ROW_NUMBER` runs in three forms: a [Top-N]({{< ref \"docs/sql/reference/queries/topn\" >}}) query that filters the number with an upper bound, such as `rn <= 3`, a [deduplication]({{< ref \"docs/sql/reference/queries/deduplication\" >}}) query that keeps `rn = 1` ordered by a time attribute, and a plain column ordered by one ascending column. A filter without an upper bound, such as `rn > 1`, fails at planning time."
+
+see_also:
+  - {name: RANK, ref: window/rank}
+  - {name: DENSE_RANK, ref: window/dense-rank}
+  - {name: NTILE, ref: window/ntile}
+
+examples:
+  - title: Number the rows
+    description: "The name breaks the tie between Bob and Cid, so the numbers are the same in every run:"
+    sql: |
+      SELECT name, score, ROW_NUMBER() OVER (ORDER BY score DESC, name) AS rn
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      ORDER BY rn;
+    result: |
+      | name | score | rn |
+      |------|-------|----|
+      | Ann  | 90    | 1  |
+      | Bob  | 85    | 2  |
+      | Cid  | 85    | 3  |
+      | Dee  | 70    | 4  |
+
+  - title: Keep the best row of each partition
+    description: "Keep the top scorer of each team:"
+    sql: |
+      SELECT team, name, score
+      FROM (VALUES ('red', 'Ann', 90), ('red', 'Bob', 85), ('red', 'Cid', 70), ('blue', 'Eve', 95), ('blue', 'Fay', 80)) AS t(team, name, score)
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY team ORDER BY score DESC) = 1
+      ORDER BY team;
+    result: |
+      | team | name | score |
+      |------|------|-------|
+      | blue | Eve  | 95    |
+      | red  | Ann  | 90    |

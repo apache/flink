@@ -1855,32 +1855,26 @@ aggregate:
       如果 percentage 是数字，返回类型为 `DOUBLE`；如果 percentage 是数组，返回类型为 `ARRAY<DOUBLE>`。 如果 percentage 是空数组，则返回 `NULL`。
 
 window:
-  - sql: RANK()
-    description: 返回值在一组值中的排名。结果是 1 加上分区顺序中当前行之前或等于当前行的行数。排名在序列中不一定连续。
+  - sql: CUME_DIST()
+    page: cume-dist
   - sql: DENSE_RANK()
-    description: |
-      返回值在一组值中的排名。结果是一加先前分配的等级值。与函数 rank 不同，dense_rank 不会在排名序列中产生间隙。
-  - sql: ROW_NUMBER()
-    description: |
-      在窗口分区内根据 rows 的排序为每一行分配一个唯一的序列号，从 1 开始。ROW_NUMBER 和 RANK 相似。ROW_NUMBER 按
-      顺序对所有行进行编号（例如 1，2，3，4，5）。RANK 为等值 row 提供相同的序列值（例如 1，2，2，4，5）。
-  - sql: LEAD(expression [, offset] [, default])
-    table: lead(expression [, offset] [, default])
-    description: 返回窗口中当前行之后第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
+    page: dense-rank
   - sql: LAG(expression [, offset] [, default])
     table: lag(expression [, offset] [, default])
-    description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
-  - sql: CUME_DIST()
-    description: 返回值在一组值的累积分布。结果是小于或等于当前行的值的行数除以窗口分区的总行数。
-  - sql: PERCENT_RANK()
-    description: 返回值在一组值的百分比排名。结果是当前行在窗口分区中的排名减 1，然后除以窗口分区的总行数减 1。如果窗口分区的总行数为 1，则该函数返回 0。
+    page: lag
+  - sql: LEAD(expression [, offset] [, default])
+    table: lead(expression [, offset] [, default])
+    page: lead
   - sql: NTILE(n)
-    description: |
-      将窗口分区中的所有数据按照顺序划分为 n 个分组，返回分配给各行数据的分组编号（从 1 开始，最大为 n）。
-      如果不能均匀划分为 n 个分组，则剩余值从第 1 个分组开始，为每一分组分配一个。
-      比如某个窗口分区有 6 行数据，划分为 4 个分组，则各行的分组编号为：1，1，2，2，3，4。
-  - table: NUMERIC.rows
-    description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。
+    page: ntile
+  - sql: PERCENT_RANK()
+    page: percent-rank
+  - sql: RANK()
+    page: rank
+  - sql: ROW_NUMBER()
+    page: row-number
+  - table: rowInterval(LONG)
+    page: row-interval
 
 bitmapagg:
   - sql: BITMAP_AND_AGG(bitmap)

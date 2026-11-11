@@ -1,0 +1,80 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: RANK
+summary: Returns the rank of each row within its partition, with gaps after ties.
+
+syntax:
+  sql: RANK() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+
+returns:
+  description: One plus the number of rows that come before the current row in its partition, by the `ORDER BY` of the window. Rows with equal `ORDER BY` values, called peers, get the same rank, and the next rank skips the numbers they used, such as `1, 2, 2, 4`.
+  type: "`BIGINT NOT NULL`."
+
+notes:
+  - The window needs an `ORDER BY` and can't have a frame clause, such as `ROWS BETWEEN 1 PRECEDING AND CURRENT ROW`.
+  - Not supported in streaming mode. Use `ROW_NUMBER` instead.
+  - To keep the rows with the best ranks, filter on the rank in `QUALIFY` or in an outer query. Unlike `ROW_NUMBER`, the result keeps all peers of the last rank.
+
+see_also:
+  - {name: DENSE_RANK, ref: window/dense-rank}
+  - {name: ROW_NUMBER, ref: window/row-number}
+  - {name: PERCENT_RANK, ref: window/percent-rank}
+
+examples:
+  - title: Rank with ties
+    description: "Bob and Cid tie for second place, so the next rank is 4:"
+    sql: |
+      SELECT name, score, RANK() OVER (ORDER BY score DESC) AS rnk
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      ORDER BY rnk, name;
+    result: |
+      | name | score | rnk |
+      |------|-------|-----|
+      | Ann  | 90    | 1   |
+      | Bob  | 85    | 2   |
+      | Cid  | 85    | 2   |
+      | Dee  | 70    | 4   |
+
+  - title: Rank within each partition
+    description: "The ranks start at 1 in each team:"
+    sql: |
+      SELECT team, name, score, RANK() OVER (PARTITION BY team ORDER BY score DESC) AS rnk
+      FROM (VALUES ('red', 'Ann', 90), ('red', 'Bob', 85), ('red', 'Cid', 70), ('blue', 'Eve', 95), ('blue', 'Fay', 80)) AS t(team, name, score)
+      ORDER BY team, rnk;
+    result: |
+      | team | name | score | rnk |
+      |------|------|-------|-----|
+      | blue | Eve  | 95    | 1   |
+      | blue | Fay  | 80    | 2   |
+      | red  | Ann  | 90    | 1   |
+      | red  | Bob  | 85    | 2   |
+      | red  | Cid  | 70    | 3   |
+
+  - title: Keep the top two, with ties
+    description: "`QUALIFY` keeps both players who tie for second place:"
+    sql: |
+      SELECT name, score
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      QUALIFY RANK() OVER (ORDER BY score DESC) <= 2
+      ORDER BY score DESC, name;
+    result: |
+      | name | score |
+      |------|-------|
+      | Ann  | 90    |
+      | Bob  | 85    |
+      | Cid  | 85    |

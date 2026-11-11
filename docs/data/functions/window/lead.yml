@@ -1,0 +1,105 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LEAD
+summary: Returns a value from a row after the current row in its partition.
+
+syntax:
+  sql: LEAD(expression [, offset [, default]]) OVER ([PARTITION BY expression [, ...]] [ORDER BY expression [ASC | DESC] [, ...]])
+  java: |
+    lead($("expression"))
+    lead($("expression"), offset)
+    lead($("expression"), offset, defaultValue)
+  python: |
+    lead(col("expression"))
+    lead(col("expression"), offset)
+    lead(col("expression"), offset, default)
+
+arguments:
+  - name: expression
+    type: Any type
+    required: true
+    description: The value to read from the other row.
+  - name: offset
+    type: An integer
+    required: false
+    default: "`1`"
+    description: How many rows after the current row to look. `0` returns the value of the current row. A negative offset looks the other way, so `LEAD(x, -1)` returns the same as `LAG(x, 1)` in batch mode.
+  - name: default
+    type: The type of `expression`
+    required: false
+    default: NULL
+    description: The value to return if there is no row at that offset. It is evaluated on the current row. Give it the type of `expression`, such as `CAST(0 AS BIGINT)` for a `BIGINT` expression.
+
+returns:
+  description: The value of `expression` in the row that comes `offset` rows after the current row in its partition, by the `ORDER BY` of the window.
+  nulls: Returns NULL if that row has a NULL value, or if there is no such row and `default` is NULL or omitted.
+  type: The type of `expression`. NOT NULL if `default` is NOT NULL.
+
+notes:
+  - The window can't have a frame clause, such as `ROWS BETWEEN 1 PRECEDING AND CURRENT ROW`.
+  - Without an `ORDER BY`, the order of the rows is undefined.
+  - Not supported in streaming mode.
+  - "`expression` can't be an `ARRAY`, `MAP`, `ROW` or `VARIANT` value."
+
+see_also:
+  - {name: LAG, ref: window/lag}
+  - {name: ROW_NUMBER, ref: window/row-number}
+
+examples:
+  - title: Compare each row with its neighbor
+    description: "Return the score of the row after each row:"
+    sql: |
+      SELECT name, score, LEAD(score) OVER (ORDER BY score DESC, name) AS neighbor_score
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      ORDER BY score DESC, name;
+    result: |
+      | name | score | neighbor_score |
+      |------|-------|----------------|
+      | Ann  | 90    | 85             |
+      | Bob  | 85    | 85             |
+      | Cid  | 85    | 70             |
+      | Dee  | 70    | NULL           |
+
+  - title: An offset and a default
+    description: "Look two rows after, and return `0` where there is no such row:"
+    sql: |
+      SELECT name, score, LEAD(score, 2, 0) OVER (ORDER BY score DESC, name) AS two_away
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      ORDER BY score DESC, name;
+    result: |
+      | name | score | two_away |
+      |------|-------|----------|
+      | Ann  | 90    | 85       |
+      | Bob  | 85    | 70       |
+      | Cid  | 85    | 0        |
+      | Dee  | 70    | 0        |
+
+  - title: Within each partition
+    description: "The rows of one team don't see the rows of another:"
+    sql: |
+      SELECT team, name, score, LEAD(name) OVER (PARTITION BY team ORDER BY score DESC) AS neighbor
+      FROM (VALUES ('red', 'Ann', 90), ('red', 'Bob', 85), ('red', 'Cid', 70), ('blue', 'Eve', 95), ('blue', 'Fay', 80)) AS t(team, name, score)
+      ORDER BY team, score DESC;
+    result: |
+      | team | name | score | neighbor |
+      |------|------|-------|----------|
+      | blue | Eve  | 95    | Fay      |
+      | blue | Fay  | 80    | NULL     |
+      | red  | Ann  | 90    | Bob      |
+      | red  | Bob  | 85    | Cid      |
+      | red  | Cid  | 70    | NULL     |

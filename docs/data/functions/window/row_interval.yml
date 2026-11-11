@@ -1,0 +1,64 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: rowInterval
+summary: Creates a number of rows for the bounds of a Table API window.
+
+syntax:
+  java: rowInterval(10L)
+  python: row_interval(10)
+
+arguments:
+  - name: rows
+    type: Long in Java, int in Python
+    required: true
+    description: The number of rows. It must be greater than 0.
+
+returns:
+  description: A row count, which a window reads as a number of rows instead of a time interval.
+  type: "`BIGINT NOT NULL`."
+
+notes:
+  - Use it for the `preceding` bound of an over window, and for the size of a row-count `Tumble` or `Slide` window. A `following` bound of rows fails in streaming mode.
+  - In Java, the argument is a `Long`, such as `rowInterval(10L)`.
+  - An over window with a row bound runs in batch and streaming mode when it is ordered by a processing-time attribute.
+  - A row-count `Tumble` or `Slide` window runs in streaming mode only, on a processing-time attribute. It emits a result only for full windows.
+
+examples:
+  - title: The rows before the current row
+    description: "Sum the current row and the two rows before it:"
+    java: |
+      table
+          .window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(2L)).as("w"))
+          .select($("a"), $("b").sum().over($("w")));
+    python: |
+      table \
+          .over_window(Over.partition_by(col("a")).order_by(col("proctime")).preceding(row_interval(2)).alias("w")) \
+          .select(col("a"), col("b").sum.over(col("w")))
+
+  - title: A window of a fixed number of rows
+    description: "Group every 10 rows of each key:"
+    java: |
+      table
+          .window(Tumble.over(rowInterval(10L)).on($("proctime")).as("w"))
+          .groupBy($("a"), $("w"))
+          .select($("a"), $("b").sum());
+    python: |
+      table \
+          .window(Tumble.over(row_interval(10)).on(col("proctime")).alias("w")) \
+          .group_by(col("a"), col("w")) \
+          .select(col("a"), col("b").sum)

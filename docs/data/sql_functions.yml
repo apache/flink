@@ -1768,29 +1768,26 @@ aggregate:
       Returns a `DOUBLE` if percentage is numeric, or an `ARRAY<DOUBLE>` if percentage is an array. `NULL` if percentage is an empty array.
 
 window:
-  - sql: RANK()
-    description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
+  - sql: CUME_DIST()
+    page: cume-dist
   - sql: DENSE_RANK()
-    description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
-  - sql: ROW_NUMBER()
-    description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
-  - sql: LEAD(expression [, offset] [, default])
-    table: lead(expression [, offset] [, default])
-    description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
+    page: dense-rank
   - sql: LAG(expression [, offset] [, default])
     table: lag(expression [, offset] [, default])
-    description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
-  - sql: CUME_DIST()
-    description: Return the cumulative distribution of a value in a group of values. The result is the number of rows preceding or equal to the current row in the ordering of the partition divided by the number of rows in the window partition.
-  - sql: PERCENT_RANK()
-    description: Return the percentage ranking of a value in a group of values. The result is the rank value minus one, divided by the number of rows in the partition minus one. If the partition only contains one row, the function will return 0.
+    page: lag
+  - sql: LEAD(expression [, offset] [, default])
+    table: lead(expression [, offset] [, default])
+    page: lead
   - sql: NTILE(n)
-    description: |
-      Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
-      If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
-      For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
-  - table: NUMERIC.rows
-    description: Creates a NUMERIC interval of rows (commonly used in window creation).
+    page: ntile
+  - sql: PERCENT_RANK()
+    page: percent-rank
+  - sql: RANK()
+    page: rank
+  - sql: ROW_NUMBER()
+    page: row-number
+  - table: rowInterval(LONG)
+    page: row-interval
 
 bitmapagg:
   - sql: BITMAP_AND_AGG(bitmap)
