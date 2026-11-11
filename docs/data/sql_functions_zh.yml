@@ -864,49 +864,29 @@ conditional:
         (WHEN value2_1 [, value2_2 ]* THEN result_2)*
         (ELSE result_z)
       END
-    description: |
-      当值 value 第一次满足在 (valueX_1, valueX_2, ...) 中时，返回对应的结果 resultX。当没有匹配到时，如果提供了 result_z 则返回 result_z，
-      否则返回 `NULL`。
+    page: case
   - sql: |
       CASE
         WHEN condition1 THEN result1
         (WHEN condition2 THEN result2)*
         (ELSE result_z)
       END
-    description: 满足第一个条件 X 时返回 resultX。当不满足任何条件时，如果提供了 result_z 则返回 result_z，否则返回 `NULL`。
-  - sql: NULLIF(value1, value2)
-    description: |
-      如果 value1 等于 value2 返回 `NULL`；否则返回 value1。例如 `NULLIF(5, 5)` 返回 `NULL`；`NULLIF(5, 0)` 返回 5。
+    page: case
   - sql: COALESCE(value1, value2 [, value3]*)
-    description: ｜
-      从 value1, value2, ... 返回第一个不为 `NULL` 的值。例如 `COALESCE(3, 5, 3)` 返回 3。
-      如果所有参数为 `NULL`，返回 `NULL`。返回类型是所有参数的限制最最少的通用类型，如果所有参数是可空的类型，返回类型也是可空的类型。
-      
-      ```sql
-      -- 返回 'default'
-      COALESCE(NULL, 'default')
-      
-      -- 返回 f0，f1中第一个非空的值，如果 f0 和 f1 都是 NULL，则返回 'default'
-      COALESCE(f0, f1, 'default')
-      ```
+    table: coalesce(value1 [, value2]*)
+    page: coalesce
+  - sql: GREATEST(value1[, value2]*)
+    page: greatest
   - sql: IF(condition, true_value, false_value)
-    description: 如果满足条件，返回 true_value，否则返回 false_value。例如 `IF(5 > 3, 5, 3)` 返回 5。
+    table: BOOLEAN.then(VALUE1, VALUE2)
+    page: if
   - sql: IFNULL(input, null_replacement)
     table: input.ifNull(nullReplacement)
-    description: |
-      如果输入为 `NULL`，则返回 null_replacement；否则返回 input。
-      
-      与 COALESCE 或 CASE WHEN 相比，此函数返回的数据类型在是否为空方面非常明确。返回的类型是两个参数的公共类型，但只有在 null_replacement 可为空时才能为可空类型。
-      该函数允许将可空的列传递到使用 NOT NULL 约束声明的函数或表中。
-      
-      例如 `IFNULL(nullable_column, 5)` 一定不返回 `NULL`。
-  - table: BOOLEAN.?(VALUE1, VALUE2)
-    description: |
-      如果 BOOLEAN 计算结果为 TRUE，则返回 VALUE1；否则返回 VALUE2。例如 `(42 > 5).?('A', 'B')` 返回 `"A"`。
-  - sql: GREATEST(value1[, value2]*)
-    description: 返回所有输入参数的最大值，如果输入参数中包含 NULL，则返回 NULL。
+    page: ifnull
   - sql: LEAST(value1[, value2]*)
-    description: 返回所有输入参数的最小值，如果输入参数中包含 NULL，则返回 NULL。
+    page: least
+  - sql: NULLIF(value1, value2)
+    page: nullif
 
 conversion:
   - sql: CAST(value AS type)
