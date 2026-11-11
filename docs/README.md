@@ -16,11 +16,13 @@ Both methods require you to execute commands in the directory of this module (`d
 
 #### Using Hugo Docker image:
 
+The image tag pins the same Hugo version as `setup_hugo.sh`. An older Hugo can't build the docs.
+
 ```sh
 $ git submodule update --init --recursive
 $ ./setup_docs.sh
-$ docker pull jakejarvis/hugo-extended:latest
-$ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
+$ docker pull hugomods/hugo:exts-0.126.3
+$ docker run -v $(pwd):/src -p 1313:1313 hugomods/hugo:exts-0.126.3 hugo server --buildDrafts --buildFuture --bind 0.0.0.0
 ```
 
 #### Local Hugo installation:
