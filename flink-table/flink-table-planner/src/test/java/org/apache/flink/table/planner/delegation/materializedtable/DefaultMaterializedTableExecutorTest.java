@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableConfig;
@@ -30,14 +31,19 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.materializedtable.MaterializedTableJobSubmitter;
@@ -50,6 +56,7 @@ import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -67,10 +74,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /** Test for {@link DefaultMaterializedTableExecutor}. */
 class DefaultMaterializedTableExecutorTest {
@@ -85,7 +94,10 @@ class DefaultMaterializedTableExecutorTest {
                     + "\n REFRESH_MODE = CONTINUOUS"
                     + "\n AS SELECT k, v FROM datagen_source";
 
-    private final GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(CATALOG, DATABASE);
+    private static final String ALTER_MATERIALIZED_TABLE_QUERY =
+            "ALTER MATERIALIZED TABLE my_mt AS SELECT k, v FROM datagen_source WHERE k > 0";
+
+    private final FailingCatalog catalog = new FailingCatalog(CATALOG, DATABASE);
 
     @Test
     void testGetManuallyRefreshStatement() {
@@ -470,6 +482,283 @@ class DefaultMaterializedTableExecutorTest {
     }
 
     @Test
+    void createCancelsARefreshJobItCouldNotRecord() {
+        final JobClientMock job = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final TableEnvironment tableEnv = createTableEnvironment(new ScriptedJobSubmitter(job));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql(CREATE_MATERIALIZED_TABLE))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to submit continuous refresh job")
+                .cause()
+                .hasMessageContaining(job.getJobID().toHexString())
+                .hasMessageEndingWith("The job was cancelled.");
+        assertThat(job.isCancelRequested()).isTrue();
+        assertThat(catalog.tableExists(new ObjectPath(DATABASE, "my_mt"))).isFalse();
+    }
+
+    @Test
+    void createReportsATableItCouldNotDropAfterAFailedStart() {
+        final JobClientMock job = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final TableEnvironment tableEnv = createTableEnvironment(new ScriptedJobSubmitter(job));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+        catalog.failNextDropTable();
+
+        final Throwable createFailure =
+                catchThrowable(() -> tableEnv.executeSql(CREATE_MATERIALIZED_TABLE));
+
+        assertThat(createFailure)
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("and dropping the table failed as well")
+                .hasRootCauseMessage("injected drop failure");
+        assertThat(createFailure.getSuppressed())
+                .singleElement()
+                .satisfies(
+                        startFailure ->
+                                assertThat(startFailure)
+                                        .hasMessageEndingWith("The job was cancelled."));
+        assertThat(catalog.tableExists(new ObjectPath(DATABASE, "my_mt"))).isTrue();
+    }
+
+    @Test
+    void createReportsARefreshJobItCouldNotRecordAndCancel() {
+        final JobClientMock uncancellableJob = uncancellableJob();
+        final TableEnvironment tableEnv =
+                createTableEnvironment(new ScriptedJobSubmitter(uncancellableJob));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        final Throwable createFailure =
+                catchThrowable(() -> tableEnv.executeSql(CREATE_MATERIALIZED_TABLE));
+
+        assertThat(createFailure)
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to submit continuous refresh job")
+                .hasMessageContaining(uncancelledJobHint(uncancellableJob))
+                .hasRootCauseMessage("injected cancel failure");
+        final Throwable unrecordedJobFailure = createFailure.getCause();
+        assertThat(unrecordedJobFailure)
+                .hasMessageContaining(uncancellableJob.getJobID().toHexString())
+                .hasMessageContaining("and cancelling it failed as well")
+                .hasMessageContaining("must be cancelled manually");
+        assertThat(unrecordedJobFailure.getSuppressed())
+                .singleElement()
+                .satisfies(
+                        catalogFailure ->
+                                assertThat(catalogFailure)
+                                        .hasRootCauseMessage("injected alter failure"));
+        assertThat(catalog.tableExists(new ObjectPath(DATABASE, "my_mt"))).isFalse();
+    }
+
+    @Test
+    void suspendNamesTheSavepointWhenTheCatalogWriteFails() throws Exception {
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING)));
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.SUSPENDED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER MATERIALIZED TABLE my_mt SUSPEND"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(SAVEPOINT_DIRECTORY + "/savepoint-1")
+                .hasMessageContaining("'execution.state-recovery.path'");
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.ACTIVATED);
+    }
+
+    @Test
+    void resumeCancelsARefreshJobItCouldNotRecord() throws Exception {
+        final JobClientMock resumedJob = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING), resumedJob));
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        tableEnv.executeSql("ALTER MATERIALIZED TABLE my_mt SUSPEND");
+        final String savepoint =
+                getRefreshHandler(catalog, new ObjectPath(DATABASE, "my_mt"))
+                        .getRestorePath()
+                        .orElseThrow();
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER MATERIALIZED TABLE my_mt RESUME"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to resume the continuous refresh job")
+                .cause()
+                .hasMessageContaining("The job was cancelled.")
+                .hasMessageContaining("To restore savepoint " + savepoint);
+        assertThat(resumedJob.isCancelRequested()).isTrue();
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void resumeNamesARefreshJobItCouldNotRecordAndCancel() {
+        final JobClientMock resumedJob = uncancellableJob();
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING), resumedJob));
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        tableEnv.executeSql("ALTER MATERIALIZED TABLE my_mt SUSPEND");
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER MATERIALIZED TABLE my_mt RESUME"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to resume the continuous refresh job")
+                .hasMessageContaining(uncancelledJobHint(resumedJob));
+    }
+
+    @Test
+    void convertCancelsARefreshJobItCouldNotRecord() throws Exception {
+        final JobClientMock job = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final TableEnvironment tableEnv = createTableEnvironment(new ScriptedJobSubmitter(job));
+        tableEnv.executeSql("CREATE TABLE my_mt (k INT, v BIGINT) WITH ('connector' = 'values')");
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        CREATE_MATERIALIZED_TABLE.replace(
+                                                "CREATE MATERIALIZED",
+                                                "CREATE OR ALTER MATERIALIZED")))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to start the continuous refresh job when converting")
+                .cause()
+                .hasMessageEndingWith("The job was cancelled.");
+        assertThat(job.isCancelRequested()).isTrue();
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void alterCancelsTheNewRefreshJobBeforeRestartingTheOldOne() throws Exception {
+        final JobClientMock newJob = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final JobClientMock restartedJob = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final ScriptedJobSubmitter jobSubmitter =
+                new ScriptedJobSubmitter(
+                        new JobClientMock(new JobID(), JobStatus.RUNNING), newJob, restartedJob);
+        final TableEnvironment tableEnv = createTableEnvironment(jobSubmitter);
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        final String oldQuery = getMaterializedTable().getExpandedQuery();
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql(ALTER_MATERIALIZED_TABLE_QUERY))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Failed to start the continuous refresh job using new query");
+        assertThat(newJob.isCancelRequested()).isTrue();
+        assertThat(getMaterializedTable().getExpandedQuery()).isEqualTo(oldQuery);
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.ACTIVATED);
+        assertThat(getRefreshHandler(catalog, new ObjectPath(DATABASE, "my_mt")).getJobId())
+                .isEqualTo(restartedJob.getJobID().toHexString());
+        assertThat(jobSubmitter.lastExecutionConfig.get(StateRecoveryOptions.SAVEPOINT_PATH))
+                .isEqualTo(SAVEPOINT_DIRECTORY + "/savepoint-1");
+    }
+
+    @Test
+    void alterDoesNotRestartTheOldJobWhenTheNewOneCannotBeCancelled() throws Exception {
+        final ScriptedJobSubmitter jobSubmitter =
+                new ScriptedJobSubmitter(
+                        new JobClientMock(new JobID(), JobStatus.RUNNING), uncancellableJob());
+        final TableEnvironment tableEnv = createTableEnvironment(jobSubmitter);
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        final String oldQuery = getMaterializedTable().getExpandedQuery();
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql(ALTER_MATERIALIZED_TABLE_QUERY))
+                .isInstanceOf(TableException.class)
+                .hasMessageEndingWith(
+                        " The table was rolled back to its previous query and left in SUSPENDED status, because the new refresh job could not be cancelled. Cancel that job, then RESUME the table.")
+                .cause()
+                .hasMessageContaining("and cancelling it failed as well");
+        assertThat(jobSubmitter.submissions).isEqualTo(2);
+        assertThat(getMaterializedTable().getExpandedQuery()).isEqualTo(oldQuery);
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void alterReportsAFailedRollbackAfterTheNewJobCannotBeCancelled() throws Exception {
+        final JobClientMock newJob = uncancellableJob();
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING), newJob));
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        final String oldQuery = getMaterializedTable().getExpandedQuery();
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.SUSPENDED));
+
+        final Throwable alterFailure =
+                catchThrowable(() -> tableEnv.executeSql(ALTER_MATERIALIZED_TABLE_QUERY));
+
+        assertThat(alterFailure)
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Rolling back to the previous query failed as well")
+                .hasMessageContaining(uncancelledJobHint(newJob))
+                .hasRootCauseMessage("injected alter failure");
+        assertThat(alterFailure.getSuppressed())
+                .singleElement()
+                .satisfies(
+                        restartFailure ->
+                                assertThat(restartFailure)
+                                        .hasMessageContaining("and cancelling it failed as well"));
+        assertThat(getMaterializedTable().getExpandedQuery()).isNotEqualTo(oldQuery);
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void alterDoesNotRestartTheOldJobWhenTheRollbackFails() throws Exception {
+        final JobClientMock newJob = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final ScriptedJobSubmitter jobSubmitter =
+                new ScriptedJobSubmitter(new JobClientMock(new JobID(), JobStatus.RUNNING), newJob);
+        final TableEnvironment tableEnv = createTableEnvironment(jobSubmitter);
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        final String oldQuery = getMaterializedTable().getExpandedQuery();
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.SUSPENDED));
+
+        assertThatThrownBy(() -> tableEnv.executeSql(ALTER_MATERIALIZED_TABLE_QUERY))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("Rolling back to the previous query failed as well")
+                .hasRootCauseMessage("injected alter failure");
+        assertThat(newJob.isCancelRequested()).isTrue();
+        assertThat(jobSubmitter.submissions).isEqualTo(2);
+        assertThat(getMaterializedTable().getExpandedQuery()).isNotEqualTo(oldQuery);
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void alterLeavesTheRolledBackTableSuspendedWhenTheOldJobCannotRestart() throws Exception {
+        final JobClientMock newJob = new JobClientMock(new JobID(), JobStatus.RUNNING);
+        final JobClientMock restartedJob = uncancellableJob();
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING),
+                                newJob,
+                                restartedJob));
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+        final String oldQuery = getMaterializedTable().getExpandedQuery();
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+        catalog.failNextAlterTable(hasRefreshStatus(RefreshStatus.ACTIVATED));
+
+        final Throwable alterFailure =
+                catchThrowable(() -> tableEnv.executeSql(ALTER_MATERIALIZED_TABLE_QUERY));
+
+        assertThat(alterFailure)
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "The table was rolled back to its previous query, but restarting its refresh job failed as well")
+                .hasMessageContaining(uncancelledJobHint(restartedJob));
+        assertThat(alterFailure.getSuppressed())
+                .singleElement()
+                .satisfies(
+                        newJobFailure ->
+                                assertThat(newJobFailure)
+                                        .hasMessageEndingWith("The job was cancelled."));
+        assertThat(newJob.isCancelRequested()).isTrue();
+        assertThat(getMaterializedTable().getExpandedQuery()).isEqualTo(oldQuery);
+        assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
     void createRecordsTheClusterIdOfAKubernetesSessionTarget() throws Exception {
         final TableEnvironment tableEnv =
                 createTableEnvironment(
@@ -490,6 +779,8 @@ class DefaultMaterializedTableExecutorTest {
         final Configuration rootConfiguration = new Configuration();
         rootConfiguration.set(DeploymentOptions.TARGET, "remote");
         rootConfiguration.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, SAVEPOINT_DIRECTORY);
+        rootConfiguration.set(
+                TableConfigOptions.MATERIALIZED_TABLE_CONVERSION_FROM_TABLE_ENABLED, true);
 
         final StreamExecutionEnvironment executionEnvironment =
                 new StreamExecutionEnvironment(rootConfiguration);
@@ -550,10 +841,75 @@ class DefaultMaterializedTableExecutorTest {
                 DefaultMaterializedTableExecutorTest.class.getClassLoader());
     }
 
+    private CatalogMaterializedTable getMaterializedTable() throws Exception {
+        return (CatalogMaterializedTable) catalog.getTable(new ObjectPath(DATABASE, "my_mt"));
+    }
+
+    private static JobClientMock uncancellableJob() {
+        return new JobClientMock(new JobID(), JobStatus.RUNNING)
+                .withCancelRequest(
+                        () ->
+                                FutureUtils.completedExceptionally(
+                                        new RuntimeException("injected cancel failure")));
+    }
+
+    private static String uncancelledJobHint(JobClient job) {
+        return "The refresh job "
+                + job.getJobID().toHexString()
+                + " could not be cancelled and may still be running.";
+    }
+
+    private static Predicate<CatalogBaseTable> hasRefreshStatus(RefreshStatus refreshStatus) {
+        return table ->
+                table instanceof CatalogMaterializedTable
+                        && ((CatalogMaterializedTable) table).getRefreshStatus() == refreshStatus;
+    }
+
+    /** Fails selected catalog writes once each, so tests can observe rejected catalog writes. */
+    private static final class FailingCatalog extends GenericInMemoryCatalog {
+
+        private final Deque<Predicate<CatalogBaseTable>> failingAlterMatchers = new ArrayDeque<>();
+        private boolean failNextDrop;
+
+        private FailingCatalog(String name, String defaultDatabase) {
+            super(name, defaultDatabase);
+        }
+
+        private void failNextAlterTable(Predicate<CatalogBaseTable> newTableMatches) {
+            failingAlterMatchers.add(newTableMatches);
+        }
+
+        private void failNextDropTable() {
+            this.failNextDrop = true;
+        }
+
+        @Override
+        public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists)
+                throws TableNotExistException {
+            if (failNextDrop) {
+                failNextDrop = false;
+                throw new CatalogException("injected drop failure");
+            }
+            super.dropTable(tablePath, ignoreIfNotExists);
+        }
+
+        @Override
+        public void alterTable(
+                ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
+                throws TableNotExistException {
+            if (!failingAlterMatchers.isEmpty() && failingAlterMatchers.peek().test(newTable)) {
+                failingAlterMatchers.poll();
+                throw new CatalogException("injected alter failure");
+            }
+            super.alterTable(tablePath, newTable, ignoreIfNotExists);
+        }
+    }
+
     private static final class ScriptedJobSubmitter implements MaterializedTableJobSubmitter {
 
         private final Deque<JobClient> jobClients;
         private int submissions;
+        private Configuration lastExecutionConfig;
         private TableConfig tableConfig;
 
         private ScriptedJobSubmitter(JobClient... jobClients) {
@@ -564,6 +920,7 @@ class DefaultMaterializedTableExecutorTest {
         public RefreshJobResult submitRefreshJob(
                 Configuration executionConfig, String insertStatement) {
             submissions++;
+            lastExecutionConfig = executionConfig;
             final JobClient jobClient = jobClients.poll();
             if (jobClient == null) {
                 throw new IllegalStateException(

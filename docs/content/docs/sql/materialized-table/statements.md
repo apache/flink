@@ -81,6 +81,8 @@ AS <select_statement>
 }
 ```
 
+In continuous mode, if the refresh job starts but the catalog cannot record it, CREATE cancels the job and drops the table. If the job cannot be cancelled either, the error names it, so you can cancel it before you run CREATE again.
+
 ## PRIMARY KEY
 
 `PRIMARY KEY` defines an optional list of columns that uniquely identifies each row within the table. The column as the primary key must be non-null.
@@ -673,6 +675,8 @@ ALTER MATERIALIZED TABLE my_materialized_table RESUME;
 ALTER MATERIALIZED TABLE my_materialized_table RESUME WITH ('sink.parallelism'='10');
 ```
 
+In continuous mode, if the refresh job starts but the catalog cannot record it, the job is cancelled. If the job cannot be cancelled either, the error names it, so you can cancel it before you retry.
+
 ## SET
 
 ```
@@ -781,6 +785,8 @@ The modification process depends on the refresh mode of the materialized table:
 3. Start a new refresh job to refresh the materialized table:
    - The new refresh job starts from the beginning and does not restore from the previous state.
    - The starting offset of the data source is determined by the connector’s default implementation or the [dynamic hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options) specified in the query.
+
+If the new refresh job starts but the catalog cannot record it, the job is cancelled and the old job restarts from its savepoint. If that cancel fails, the table is rolled back and left SUSPENDED instead of restarting the old job.
 
 **Example:**
 

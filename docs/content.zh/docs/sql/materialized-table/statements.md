@@ -81,6 +81,8 @@ AS <select_statement>
 }
 ```
 
+In continuous mode, if the refresh job starts but the catalog cannot record it, CREATE cancels the job and drops the table. If the job cannot be cancelled either, the error names it, so you can cancel it before you run CREATE again.
+
 ## PRIMARY KEY
 
 `PRIMARY KEY` 定义了一组可选的列，用于唯一标识表中的每一行。主键列必须非空。
@@ -673,6 +675,8 @@ ALTER MATERIALIZED TABLE my_materialized_table RESUME;
 ALTER MATERIALIZED TABLE my_materialized_table RESUME WITH ('sink.parallelism'='10');
 ```
 
+In continuous mode, if the refresh job starts but the catalog cannot record it, the job is cancelled. If the job cannot be cancelled either, the error names it, so you can cancel it before you retry.
+
 ## SET
 
 ```
@@ -780,6 +784,8 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statemen
 3. 启动新的流式作业以刷新物化表：
    - 新的流式作业会从头开始，而不会从之前的流式作业状态恢复。
    - 数据源的起始位点会由到连接器的默认实现或查询中设置的 [dynamic hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options) 决定。
+
+If the new refresh job starts but the catalog cannot record it, the job is cancelled and the old job restarts from its savepoint. If that cancel fails, the table is rolled back and left SUSPENDED instead of restarting the old job.
 
 **示例：**
 
