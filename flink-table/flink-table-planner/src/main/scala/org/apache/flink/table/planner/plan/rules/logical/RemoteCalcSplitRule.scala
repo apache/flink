@@ -392,7 +392,7 @@ class RemoteCalcPushConditionRule(callFinder: RemoteCallFinder)
  * functions in the projection. This rule exists to keep implementations as simple as possible and
  * ensures that it only needs to handle the Remote function execution.
  */
-class RemoteCalcRewriteProjectionRule protected (description: String, callFinder: RemoteCallFinder)
+class RemoteCalcRewriteProjectionRule(description: String, callFinder: RemoteCallFinder)
   extends RemoteCalcSplitRuleBase(description, callFinder) {
 
   def this(callFinder: RemoteCallFinder) = {

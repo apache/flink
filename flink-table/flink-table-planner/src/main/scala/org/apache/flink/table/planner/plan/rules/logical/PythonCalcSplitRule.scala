@@ -70,7 +70,18 @@ object PythonCalcSplitRule {
   val EXPAND_PROJECT: RelOptRule = new RemoteCalcExpandProjectRule(callFinder)
   val PUSH_CONDITION: RelOptRule = new RemoteCalcPushConditionRule(callFinder)
   val REWRITE_PROJECT: RelOptRule = new RemoteCalcRewriteProjectionRule(callFinder)
-  val REORDER_PROJECT: RelOptRule = new RemoteCalcReorderProjectionRule(callFinder)
+
+  /**
+   * Restores the Python calc projection layout after async splitting. Python operators emit
+   * forwarded input fields before function results. Async splitting can disrupt the order
+   * established by [[REWRITE_PROJECT]], so this second pass restores it and adds an upper calc to
+   * preserve the original output order.
+   *
+   * A distinct description prevents FlinkRuleSetProgram from de-duplicating this second pass with
+   * [[REWRITE_PROJECT]].
+   */
+  val REORDER_PROJECT: RelOptRule =
+    new RemoteCalcRewriteProjectionRule("RemoteCalcReorderProjectionRule", callFinder)
   val PROJECTION_CSE: RelOptRule =
     RemoteCalcProjectionCseRule.Config.DEFAULT.withRemoteCallFinder(callFinder).toRule()
 }

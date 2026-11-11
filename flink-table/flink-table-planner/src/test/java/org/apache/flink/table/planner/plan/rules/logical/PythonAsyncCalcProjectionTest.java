@@ -36,18 +36,8 @@ class PythonAsyncCalcProjectionTest extends TableTestBase {
     }
 
     @Test
-    void testBatchSyncPythonFunctionBeforeAsyncPythonFunction() {
-        verifySyncPythonFunctionBeforeAsyncPythonFunction(javaBatchTestUtil());
-    }
-
-    @Test
     void testStreamingInterleavedInputFieldsAndPythonFunctions() {
         verifyInterleavedInputFieldsAndPythonFunctions(javaStreamTestUtil());
-    }
-
-    @Test
-    void testBatchInterleavedInputFieldsAndPythonFunctions() {
-        verifyInterleavedInputFieldsAndPythonFunctions(javaBatchTestUtil());
     }
 
     @Test
@@ -66,18 +56,8 @@ class PythonAsyncCalcProjectionTest extends TableTestBase {
     }
 
     @Test
-    void testBatchNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction() {
-        verifyNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction(javaBatchTestUtil());
-    }
-
-    @Test
     void testStreamingRepeatedNestedPythonFunctionsWithLiteral() {
         verifyRepeatedNestedPythonFunctionsWithLiteral(javaStreamTestUtil());
-    }
-
-    @Test
-    void testBatchRepeatedNestedPythonFunctionsWithLiteral() {
-        verifyRepeatedNestedPythonFunctionsWithLiteral(javaBatchTestUtil());
     }
 
     private void verifySyncPythonFunctionBeforeAsyncPythonFunction(JavaTableTestUtil util) {

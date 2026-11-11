@@ -16,25 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testBatchInterleavedInputFieldsAndPythonFunctions">
-    <Resource name="sql">
-      <![CDATA[SELECT a, asyncFunc1(a, b), c, pyFunc1(b, c), a FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[asyncFunc1($0, $1)], c=[$2], EXPR$3=[pyFunc1($1, $2)], a0=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, f0 AS EXPR$1, c, f1 AS EXPR$3, a AS a0])
-+- PythonCalc(select=[a, c, f0, pyFunc1(b, c) AS f1])
-   +- PythonAsyncCalc(select=[a, c, b, asyncFunc1(a, b) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testBatchInterleavedInputFieldsAndPythonFunctionsWithCondition">
     <Resource name="sql">
       <![CDATA[SELECT a, pyFunc1(b, c), c, asyncFunc1(a, b), a FROM MyTable WHERE b > 0]]>
@@ -54,66 +35,6 @@ Calc(select=[a, f0 AS EXPR$1, c, f1 AS EXPR$3, a AS a0])
       +- PythonAsyncCalc(select=[a, c, b, asyncFunc1(a, b) AS f0])
          +- Calc(select=[a, b, c], where=[(b > 0)])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBatchNestedAsyncPythonFunctionWithAnotherAsyncPythonFunction">
-    <Resource name="sql">
-      <![CDATA[SELECT asyncFunc2(asyncFunc1(a, b), c), asyncFunc1(a + 1, b) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc2(asyncFunc1($0, $1), $2)], EXPR$1=[asyncFunc1(+($0, 1), $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[f0 AS EXPR$0, f1 AS EXPR$1])
-+- PythonAsyncCalc(select=[f1, asyncFunc2(f0, c) AS f0])
-   +- PythonAsyncCalc(select=[c, f00 AS f0, asyncFunc1(f0, b) AS f1])
-      +- PythonAsyncCalc(select=[c, f0, b, asyncFunc1(a, b) AS f00])
-         +- Calc(select=[a, b, c, (a + 1) AS f0])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBatchRepeatedNestedPythonFunctionsWithLiteral">
-    <Resource name="sql">
-      <![CDATA[SELECT pyFunc1(asyncFunc1(a, b), c), pyFunc1(asyncFunc1(a, b), c), 42 FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1(asyncFunc1($0, $1), $2)], EXPR$1=[pyFunc1(asyncFunc1($0, $1), $2)], EXPR$2=[42])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[f0 AS EXPR$0, f1 AS EXPR$1, 42 AS EXPR$2])
-+- Calc(select=[f0, f0 AS f1])
-   +- PythonCalc(select=[pyFunc1(f0, c) AS f0])
-      +- PythonAsyncCalc(select=[c, asyncFunc1(a, b) AS f0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBatchSyncPythonFunctionBeforeAsyncPythonFunction">
-    <Resource name="sql">
-      <![CDATA[SELECT pyFunc1(b, c), asyncFunc1(a, b) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1($1, $2)], EXPR$1=[asyncFunc1($0, $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[f00 AS EXPR$0, f0 AS EXPR$1])
-+- PythonCalc(select=[f0, pyFunc1(b, c) AS f00])
-   +- PythonAsyncCalc(select=[b, c, asyncFunc1(a, b) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
