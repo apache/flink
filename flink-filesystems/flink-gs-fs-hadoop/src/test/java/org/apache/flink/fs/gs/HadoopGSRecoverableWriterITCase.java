@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterITCase;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,13 @@ class HadoopGSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITC
         assertThat(basePath.getFileSystem().exists(basePath)).isFalse();
         bigDataChunk = createBigDataChunk(BIG_CHUNK_DATA_PATTERN, 7L << 20);
         skipped = false;
+    }
+
+    @AfterAll
+    static void cleanUpTemporaryObjects() {
+        if (!skipped) {
+            GSTestCredentials.deleteTemporaryObjects(basePath);
+        }
     }
 
     @Test

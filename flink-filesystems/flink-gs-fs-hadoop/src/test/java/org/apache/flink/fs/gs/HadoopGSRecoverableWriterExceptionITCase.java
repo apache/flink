@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterExceptionITCase;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
@@ -44,6 +45,13 @@ class HadoopGSRecoverableWriterExceptionITCase
         basePath = new Path(GSTestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
         assertThat(basePath.getFileSystem().exists(basePath)).isFalse();
         skipped = false;
+    }
+
+    @AfterAll
+    static void cleanUpTemporaryObjects() {
+        if (!skipped) {
+            GSTestCredentials.deleteTemporaryObjects(basePath);
+        }
     }
 
     @Override
