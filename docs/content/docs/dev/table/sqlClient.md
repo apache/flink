@@ -404,7 +404,7 @@ R Refresh                                    - Dec Refresh
 ```
 
 The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
-The displaying content will be influenced by the query execution type (`execution.type`).
+The displaying content will be influenced by the query execution type (`execution.runtime-mode`).
 
 ```text
 SET 'sql-client.execution.result-mode' = 'tableau';
@@ -862,7 +862,7 @@ Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 +-----------------------------------------+
 ```
 
-The savepoint path could be specified with [execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 
+The savepoint path could be specified with [execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#execution-checkpointing-savepoint-dir) 
 either in the cluster configuration or session configuration (the latter would take precedence).
 
 For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).

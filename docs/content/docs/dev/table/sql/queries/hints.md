@@ -127,7 +127,7 @@ if multiple hint values are provided for the same key, Flink will use the value 
 in the query. For instance, consider the following SQL query with conflicting 'max-attempts' values in the LOOKUP hint:
 
 ```sql
-SELECT /*+ LOOKUP('table'='D', 'max-attempts'='3', 'max-attempts'='4') */ * FROM t1 T JOIN t2 AS OF T.proctime AS D ON T.id = D.id;
+SELECT /*+ LOOKUP('table'='D', 'max-attempts'='3', 'max-attempts'='4') */ * FROM t1 T JOIN t2 FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id;
 ```
 
 In this case, Flink will resolve the conflict by selecting the last specified value for 'max-attempts'. 
@@ -648,15 +648,15 @@ SELECT /*+ BROADCAST(t1, t2, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 O
 -- Conflict in Different Join Hints Strategies Case
 
 -- The first Join Hint (BROADCAST(t1)) will be chosen, and t1 will be the broadcast table.
-SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+SELECT /*+ BROADCAST(t1), SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
 
 -- Although BROADCAST is first one hint, but it doesn't support full outer join,
 -- so the following SHUFFLE_HASH(t1) will be chosen, and t1 will be the join build side.
-SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
+SELECT /*+ BROADCAST(t1), SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
 
 -- Although there are two Join Hints were defined, but all of them are neither support non-equivalent join,
 -- so only nested loop join can be applied.
-SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
+SELECT /*+ BROADCAST(t1), SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
 ```
 
 ### State TTL Hints
@@ -676,7 +676,8 @@ CREATE TABLE orders (
   o_orderkey INT,
   o_custkey INT,
   o_status BOOLEAN,
-  o_totalprice DOUBLE
+  o_totalprice DOUBLE,
+  o_shippriority INT
 ) WITH (...);
 
 CREATE TABLE lineitem (

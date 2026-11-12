@@ -308,6 +308,21 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
             fetchers.get(fetcherIndex).addSplits(splitsForFetcher);
         });
     }
+
+    @Override
+    public void removeSplits(List<SplitT> splitsToRemove) {
+        // Remove the splits from the fetchers that own them.
+        Map<Integer, List<SplitT>> splitsByFetcherIndex = new HashMap<>();
+        splitsToRemove.forEach(split -> {
+            int ownerFetcherIndex = split.hashCode() % numFetchers;
+            splitsByFetcherIndex
+                    .computeIfAbsent(ownerFetcherIndex, s -> new ArrayList<>())
+                    .add(split);
+        });
+        splitsByFetcherIndex.forEach((fetcherIndex, splitsForFetcher) -> {
+            fetchers.get(fetcherIndex).removeSplits(splitsForFetcher);
+        });
+    }
 }
 ```
 {{< /tab >}}

@@ -97,13 +97,13 @@ tableConfig.set("table.exec.mini-batch.size", "5000")
 ```python
 # instantiate table environment
 configuration = Configuration()
-configuration.set("table.exec.mini-batch.enabled", "true")
-configuration.set("table.exec.mini-batch.allow-latency", "5 s")
-configuration.set("table.exec.mini-batch.size", "5000")
+configuration.set_string("table.exec.mini-batch.enabled", "true")
+configuration.set_string("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set_string("table.exec.mini-batch.size", "5000")
 settings = EnvironmentSettings.new_instance() \
-...     .in_streaming_mode() \
-...     .with_configuration(configuration) \
-...     .build()
+    .in_streaming_mode() \
+    .with_configuration(configuration) \
+    .build()
 
 t_env = TableEnvironment.create(settings)
 

@@ -44,10 +44,10 @@ SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
 
 ```sql
 --use timestamp constant expression
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
+SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00';
 
 --use expression with functions that can be reduced to a timestamp constant
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
+SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY;
 ```
 
 ## Limitation

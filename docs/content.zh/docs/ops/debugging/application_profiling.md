@@ -63,7 +63,7 @@ env.java.opts.all: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG
 
 ```yaml
 taskmanager.debug.memory.log: true
-taskmanager.debug.memory.log-interval: 10000 // 10s interval
+taskmanager.debug.memory.log-interval: 10000 # 10s interval
 ```
 
 如果你想了解更详细的 GC 统计数据，可以通过以下方式激活 JVM 的 GC 日志记录：

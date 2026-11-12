@@ -100,12 +100,12 @@ thus mutate the produced runtime implementation.
 ### Runtime
 
 Once the logical planning is complete, the planner will obtain the _runtime implementation_ from the table
-connector. Runtime logic is implemented in Flink's core connector interfaces such as `InputFormat` or `SourceFunction`.
+connector. Runtime logic is implemented in Flink's core connector interfaces such as `Source` or `Sink`.
 
 Those interfaces are grouped by another level of abstraction as subclasses of `ScanRuntimeProvider`,
 `LookupRuntimeProvider`, and `SinkRuntimeProvider`.
 
-For example, both `OutputFormatProvider` (providing `org.apache.flink.api.common.io.OutputFormat`) and `SinkFunctionProvider` (providing `org.apache.flink.streaming.api.functions.sink.SinkFunction`) are concrete instances of `SinkRuntimeProvider`
+For example, both `SinkV2Provider` (providing `org.apache.flink.api.connector.sink2.Sink`) and `OutputFormatProvider` (providing `org.apache.flink.api.common.io.OutputFormat`) are concrete instances of `SinkRuntimeProvider`
 that the planner can handle.
 
 {{< top >}}
@@ -432,7 +432,7 @@ In particular, it shows how to
 - implement and discover custom formats,
 - and use provided utilities such as data structure converters and the `FactoryUtil`.
 
-The table source uses a simple single-threaded `SourceFunction` to open a socket that listens for incoming
+The table source uses a simple single-threaded `Source` to open a socket that listens for incoming
 bytes. The raw bytes are decoded into rows by a pluggable format. The format expects a changelog flag
 as the first column.
 
@@ -632,21 +632,24 @@ are shipped to the cluster.
 
 The `SocketDynamicTableSource` is used during planning. In our example, we don't implement any of the
 available ability interfaces. Therefore, the main logic can be found in `getScanRuntimeProvider(...)`
-where we instantiate the required `SourceFunction` and its `DeserializationSchema` for runtime. Both
+where we instantiate the required `Source` and its `DeserializationSchema` for runtime. Both
 instances are parameterized to return internal data structures (i.e. `RowData`).
 
 ```java
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
-public class SocketDynamicTableSource implements ScanTableSource {
+public final class SocketDynamicTableSource implements ScanTableSource {
 
   private final String hostname;
   private final int port;
@@ -676,25 +679,34 @@ public class SocketDynamicTableSource implements ScanTableSource {
 
   @Override
   public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+    return new DataStreamScanProvider() {
+      @Override
+      public DataStream<RowData> produceDataStream(
+          ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+        final DeserializationSchema<RowData> deserializer =
+            decodingFormat.createRuntimeDecoder(
+                runtimeProviderContext, producedDataType);
 
-    // create runtime classes that are shipped to the cluster
+        final SocketSource socketSource =
+            new SocketSource(hostname, port, byteDelimiter, deserializer);
 
-    final DeserializationSchema<RowData> deserializer = decodingFormat.createRuntimeDecoder(
-      runtimeProviderContext,
-      producedDataType);
+        return execEnv.fromSource(
+                socketSource, WatermarkStrategy.noWatermarks(), "SocketSource")
+            // SocketSource can only work with a parallelism of 1.
+            .setParallelism(1);
+      }
 
-    final SourceFunction<RowData> sourceFunction = new SocketSourceFunction(
-      hostname,
-      port,
-      byteDelimiter,
-      deserializer);
-
-    return SourceFunctionProvider.of(sourceFunction, false);
+      @Override
+      public boolean isBounded() {
+        return false;
+      }
+    };
   }
 
   @Override
   public DynamicTableSource copy() {
-    return new SocketDynamicTableSource(hostname, port, byteDelimiter, decodingFormat, producedDataType);
+    return new SocketDynamicTableSource(
+        hostname, port, byteDelimiter, decodingFormat, producedDataType);
   }
 
   @Override
@@ -763,7 +775,7 @@ public class ChangelogCsvFormat implements DecodingFormat<DeserializationSchema<
 
 ### Runtime
 
-For completeness, this section illustrates the runtime logic for both `SourceFunction` and `DeserializationSchema`.
+For completeness, this section illustrates the runtime logic for both `Source` and `DeserializationSchema`.
 
 **ChangelogCsvDeserializer**
 
@@ -845,35 +857,54 @@ public class ChangelogCsvDeserializer implements DeserializationSchema<RowData> 
 }
 ```
 
-**SocketSourceFunction**
+**SocketSource**
 
-The `SocketSourceFunction` opens a socket and consumes bytes. It splits records by the given byte
+The `SocketSource` opens a socket and consumes bytes. It splits records by the given byte
 delimiter (`\n` by default) and delegates the decoding to a pluggable `DeserializationSchema`. The
-source function can only work with a parallelism of 1.
+source is not fault-tolerant and can only work with a parallelism of 1.
 
 ```java
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-public class SocketSourceFunction extends RichSourceFunction<RowData> implements ResultTypeQueryable<RowData> {
+public final class SocketSource
+    implements Source<RowData, SocketSource.DummySplit, SocketSource.DummyCheckpoint>,
+        ResultTypeQueryable<RowData> {
 
   private final String hostname;
   private final int port;
   private final byte byteDelimiter;
   private final DeserializationSchema<RowData> deserializer;
 
-  private volatile boolean isRunning = true;
-  private Socket currentSocket;
-
-  public SocketSourceFunction(String hostname, int port, byte byteDelimiter, DeserializationSchema<RowData> deserializer) {
+  public SocketSource(
+      String hostname,
+      int port,
+      byte byteDelimiter,
+      DeserializationSchema<RowData> deserializer) {
     this.hostname = hostname;
     this.port = port;
     this.byteDelimiter = byteDelimiter;
@@ -886,41 +917,177 @@ public class SocketSourceFunction extends RichSourceFunction<RowData> implements
   }
 
   @Override
-  public void run(SourceContext<RowData> ctx) throws Exception {
-    while (isRunning) {
-      // open and consume from socket
-      try (final Socket socket = new Socket()) {
-        currentSocket = socket;
-        socket.connect(new InetSocketAddress(hostname, port), 0);
-        try (InputStream stream = socket.getInputStream()) {
-          ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-          int b;
-          while ((b = stream.read()) >= 0) {
-            // buffer until delimiter
-            if (b != byteDelimiter) {
-              buffer.write(b);
-            }
-            // decode and emit record
-            else {
-              ctx.collect(deserializer.deserialize(buffer.toByteArray()));
-              buffer.reset();
-            }
-          }
-        }
-      } catch (Throwable t) {
-        t.printStackTrace(); // print and continue
-      }
-      Thread.sleep(1000);
-    }
+  public Boundedness getBoundedness() {
+    return Boundedness.CONTINUOUS_UNBOUNDED;
   }
 
   @Override
-  public void cancel() {
-    isRunning = false;
-    try {
-      currentSocket.close();
-    } catch (Throwable t) {
-      // ignore
+  public SplitEnumerator<DummySplit, DummyCheckpoint> createEnumerator(
+      SplitEnumeratorContext<DummySplit> enumContext) throws Exception {
+    // The socket itself implicitly represents the only split and the enumerator is not
+    // utilized.
+    return null;
+  }
+
+  @Override
+  public SplitEnumerator<DummySplit, DummyCheckpoint> restoreEnumerator(
+      SplitEnumeratorContext<DummySplit> enumContext, DummyCheckpoint checkpoint)
+      throws Exception {
+    // This source is not fault-tolerant.
+    return null;
+  }
+
+  @Override
+  public SimpleVersionedSerializer<DummySplit> getSplitSerializer() {
+    return new NoOpDummySplitSerializer();
+  }
+
+  @Override
+  public SimpleVersionedSerializer<DummyCheckpoint> getEnumeratorCheckpointSerializer() {
+    // This source is not fault-tolerant.
+    return null;
+  }
+
+  @Override
+  public SourceReader<RowData, DummySplit> createReader(SourceReaderContext readerContext)
+      throws Exception {
+    Preconditions.checkState(
+        readerContext.currentParallelism() == 1,
+        "SocketSource can only work with a parallelism of 1.");
+    deserializer.open(
+        new DeserializationSchema.InitializationContext() {
+          @Override
+          public MetricGroup getMetricGroup() {
+            return readerContext.metricGroup().addGroup("deserializer");
+          }
+
+          @Override
+          public UserCodeClassLoader getUserCodeClassLoader() {
+            return readerContext.getUserCodeClassLoader();
+          }
+        });
+    return new SocketReader();
+  }
+
+  public static class DummySplit implements SourceSplit {
+    @Override
+    public String splitId() {
+      return "dummy";
+    }
+  }
+
+  public static class DummyCheckpoint {}
+
+  private class SocketReader implements SourceReader<RowData, DummySplit> {
+
+    private Socket socket;
+    private ByteArrayOutputStream buffer;
+    private InputStream stream;
+    int b;
+
+    @Override
+    public void start() {
+      while (socket == null) {
+        try {
+          socket = new Socket();
+          socket.connect(new InetSocketAddress(hostname, port), 0);
+          buffer = new ByteArrayOutputStream();
+          stream = socket.getInputStream();
+        } catch (Throwable t) {
+          socket = null;
+          try {
+            System.err.printf(
+                "Cannot connect to %s:%d. Retrying in 5 seconds...%n",
+                hostname, port);
+            Thread.sleep(5000);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+    }
+
+    @Override
+    public InputStatus pollNext(ReaderOutput<RowData> output) throws Exception {
+      while ((b = stream.read()) >= 0) {
+        // buffer until delimiter
+        if (b != byteDelimiter) {
+          buffer.write(b);
+        }
+        // decode and emit record
+        else {
+          try {
+            output.collect(deserializer.deserialize(buffer.toByteArray()));
+          } catch (Exception e) {
+            System.err.printf(
+                "Malformed data row: %s. A valid sample: INSERT|Alice|12%n",
+                buffer.toString());
+          }
+          buffer.reset();
+          return InputStatus.MORE_AVAILABLE;
+        }
+      }
+      return InputStatus.END_OF_INPUT;
+    }
+
+    @Override
+    public List<DummySplit> snapshotState(long checkpointId) {
+      // This source is not fault-tolerant.
+      return Collections.emptyList();
+    }
+
+    @Override
+    public CompletableFuture<Void> isAvailable() {
+      // Not used. The socket is read in a blocking manner until it is closed.
+      return null;
+    }
+
+    @Override
+    public void addSplits(List<DummySplit> splits) {
+      // Ignored. The socket itself implicitly represents the only split.
+    }
+
+    @Override
+    public void notifyNoMoreSplits() {
+      // Ignored. The socket itself implicitly represents the only split.
+    }
+
+    @Override
+    public void close() throws Exception {
+      try {
+        buffer.close();
+      } catch (Throwable t) {
+        // ignore
+      }
+
+      try {
+        stream.close();
+      } catch (Throwable t) {
+        // ignore
+      }
+
+      try {
+        socket.close();
+      } catch (Throwable t) {
+        // ignore
+      }
+    }
+  }
+
+  private static class NoOpDummySplitSerializer implements SimpleVersionedSerializer<DummySplit> {
+    @Override
+    public int getVersion() {
+      return 0;
+    }
+
+    @Override
+    public byte[] serialize(DummySplit split) throws IOException {
+      return new byte[0];
+    }
+
+    @Override
+    public DummySplit deserialize(int version, byte[] serialized) throws IOException {
+      return new DummySplit();
     }
   }
 }

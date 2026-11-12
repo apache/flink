@@ -103,7 +103,7 @@ STOP JOB '<job_id>' [WITH SAVEPOINT] [WITH DRAIN]
 
 **WITH SAVEPOINT**
 在作业停止之前执行 Savepoin。 Savepoint 的路径可以通过集群配置的
-[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 指定，
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#execution-checkpointing-savepoint-dir) 指定，
 或者通过 `SET` 语句指定（后者有更高优先级）。
 
 **WITH DRAIN**

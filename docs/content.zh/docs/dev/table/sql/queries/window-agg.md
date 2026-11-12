@@ -335,7 +335,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
 
 ```sql
 CREATE TABLE Orders (
-  user       BIGINT,
+  `user`     BIGINT,
   product    STRING,
   amount     INT,
   order_time TIMESTAMP(3),

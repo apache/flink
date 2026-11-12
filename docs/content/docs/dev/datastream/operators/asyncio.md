@@ -154,14 +154,14 @@ DataStream<Tuple2<String, String>> resultStream =
 {{< tab "Python" >}}
 
 ```python
-from typing import List
+from typing import List, Tuple
 
 from pyflink.common import Time, Types
 from pyflink.datastream import AsyncFunction, AsyncDataStream, async_retry_predicates
 from pyflink.datastream.functions import RuntimeContext, AsyncRetryStrategy
 
 
-class AsyncDatabaseRequest(AsyncFunction[str, (str, str)]):
+class AsyncDatabaseRequest(AsyncFunction[str, Tuple[str, str]]):
 
     def __init__(self, host, port, credentials):
         self._host = host
@@ -176,7 +176,7 @@ class AsyncDatabaseRequest(AsyncFunction[str, (str, str)]):
         if self._client:
             self._client.close()
 
-    async def async_invoke(self, value: str) -> List[(str, str)]:
+    async def async_invoke(self, value: str) -> List[Tuple[str, str]]:
         try:
             # issue the asynchronous request
             result = await self._client.query(value)

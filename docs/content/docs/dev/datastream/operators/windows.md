@@ -205,19 +205,19 @@ input = ...  # type: DataStream
 # tumbling event-time windows
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .<windowed transformation>(<window function>)
 
 # tumbling processing-time windows
 input \
     .key_by(<key selector>) \
-    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
     .<windowed transformation>(<window function>)
 
 # daily tumbling event-time windows offset by -8 hours.
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8))) \
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -282,19 +282,19 @@ input = ...  # type: DataStream
 # sliding event-time windows
 input \
     .key_by(<key selector>) \
-    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
+    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
     .<windowed transformation>(<window function>)
 
 # sliding processing-time windows
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
+    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
     .<windowed transformation>(<window function>)
 
 # sliding processing-time windows offset by -8 hours
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8))) \
+    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -371,7 +371,7 @@ class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
 # event-time session windows with static gap
 input \
     .key_by(<key selector>) \
-    .window(EventTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
+    .window(EventTimeSessionWindows.with_gap(Time.minutes(10))) \
     .<windowed transformation>(<window function>)
 
 # event-time session windows with dynamic gap
@@ -383,7 +383,7 @@ input \
 # processing-time session windows with static gap
 input \
     .key_by(<key selector>) \
-    .window(ProcessingTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
+    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10))) \
     .<windowed transformation>(<window function>)
 
 # processing-time session windows with dynamic gap
@@ -769,7 +769,7 @@ input = ...  # type: DataStream
 
 input \
     .key_by(lambda v: v[0]) \
-    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5))) \
+    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
     .process(MyProcessWindowFunction())
 
 # ...
@@ -927,7 +927,7 @@ private static class MyProcessWindowFunction
 ```python
 input = ...  # type: DataStream
 
-input
+input \
     .key_by(<key selector>) \
     .window(<window assigner>) \
     .aggregate(AverageAggregate(),
@@ -1355,11 +1355,11 @@ input = ...  # type: DataStream
 
 results_per_key = input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .reduce(Summer())
 
 global_results = results_per_key \
-    .window_all(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
     .process(TopKWindowFunction())
 ```
 {{< /tab >}}

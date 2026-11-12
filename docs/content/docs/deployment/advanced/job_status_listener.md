@@ -74,8 +74,8 @@ private static class TestingJobStatusChangedListener implements JobStatusChanged
 
 ### Configuration
 
-Flink components loads JobStatusChangedListener plugins at startup. To make sure your JobStatusChangedListeners are loaded all class names should be defined as part of [execution.job-status-changed-listeners]({{< ref "docs/deployment/config#execution.job-status-changed-listeners" >}}).
+Flink components loads JobStatusChangedListener plugins at startup. To make sure your JobStatusChangedListeners are loaded all class names should be defined as part of [execution.job-status-changed-listeners]({{< ref "docs/deployment/config#execution-job-status-changed-listeners" >}}).
   If this configuration is empty, NO enrichers will be started. Example:
-```
-    execution.job-status-changed-listeners = org.apache.flink.test.execution.TestingJobStatusChangedListenerFactory
+```yaml
+execution.job-status-changed-listeners: org.apache.flink.test.execution.TestingJobStatusChangedListenerFactory
 ```

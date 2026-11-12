@@ -79,7 +79,7 @@ created for an job/application and will contain the job/application's jar files.
 
 对于用户代码的类加载，您可以通过调整Flink的[`classloader.resolve-order`]({{< ref "docs/deployment/config" >}}#classloader-resolve-order)配置将ClassLoader解析顺序还原至Java的默认模式（从Flink默认的`child-first`调整为`parent-first`）。
 
-请注意由于有些类在Flink内核与插件或用户代码间共享，它们总是以*parent-first*方式进行解析的。这些类相关的包通过[`classloader.parent-first-patterns.default`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-default)和[`classloader.parent-first-patterns.additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns.additional)进行配置。如果需要新添加*parent-first* 方式的包，请调整`classloader.parent-first-patterns.additional` 配置选项。
+请注意由于有些类在Flink内核与插件或用户代码间共享，它们总是以*parent-first*方式进行解析的。这些类相关的包通过[`classloader.parent-first-patterns.default`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-default)和[`classloader.parent-first-patterns.additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional)进行配置。如果需要新添加*parent-first* 方式的包，请调整`classloader.parent-first-patterns.additional` 配置选项。
 
 
 ## 避免用户代码的动态类加载

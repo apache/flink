@@ -528,7 +528,8 @@ CREATE TABLE Orders_in_file (
 PARTITIONED BY (`user`) 
 WITH ( 
     'connector' = 'filesystem',
-    'path' = '...'
+    'path' = '...',
+    'format' = 'json'
 );
 
 -- A corresponding table we want to store in kafka

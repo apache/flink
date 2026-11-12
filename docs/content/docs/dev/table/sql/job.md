@@ -104,7 +104,7 @@ Stop the specified job.
 
 **WITH SAVEPOINT**
 Perform a savepoint right before stopping the job. The savepoint path could be specified with
-[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) either in
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#execution-checkpointing-savepoint-dir) either in
 the cluster configuration or via `SET` statements (the latter would take precedence).
 
 **WITH DRAIN**

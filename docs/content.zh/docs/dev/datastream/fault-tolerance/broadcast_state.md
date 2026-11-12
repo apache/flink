@@ -164,26 +164,26 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> {
 class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, OUT]):
 
     @abstractmethod
-    def process_element(value: IN1, ctx: ReadOnlyContext):
+    def process_element(self, value: IN1, ctx: ReadOnlyContext):
         pass
     
     @abstractmethod
-    def process_broadcast_element(value: IN2, ctx: Context):
+    def process_broadcast_element(self, value: IN2, ctx: Context):
         pass
 ```
 
 ```python
-class KeyedBroadcastProcessFunction(BaseBrodcastProcessFunction, Generic[KEY, IN1, IN2, OUT]):
+class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, IN1, IN2, OUT]):
 
     @abstractmethod
-    def process_element(value: IN1, ctx: ReadOnlyContext):
+    def process_element(self, value: IN1, ctx: ReadOnlyContext):
         pass
     
     @abstractmethod
-    def process_broadcast_element(value: IN2, ctx: Context):
+    def process_broadcast_element(self, value: IN2, ctx: Context):
         pass
     
-    def on_timer(timestamp: int, ctx: OnTimerContext):
+    def on_timer(self, timestamp: int, ctx: OnTimerContext):
         pass
 ```
 {{< /tab >}}
