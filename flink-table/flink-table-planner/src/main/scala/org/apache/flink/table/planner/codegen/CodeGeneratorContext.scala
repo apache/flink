@@ -1194,6 +1194,25 @@ class CodeGeneratorContext(
     getReusableLocalRefExprBottomScope.values.map(_.code).mkString("\n")
   }
 
+  /**
+   * Runs `body` for the separate method `methodName`: its local variables go to that method and it
+   * starts with an empty local-ref cache. Both are restored afterwards.
+   */
+  def inSeparateMethod[T](methodName: String)(body: => T): T = {
+    val savedMethod = currentMethodNameForLocalVariables
+    val savedScopes = localRefScopes.toList
+    startNewLocalVariableStatement(methodName)
+    localRefScopes.clear()
+    localRefScopes += mutable.LinkedHashMap.empty
+    try {
+      body
+    } finally {
+      currentMethodNameForLocalVariables = savedMethod
+      localRefScopes.clear()
+      localRefScopes ++= savedScopes
+    }
+  }
+
   /** Pushes a new, empty local-ref cache scope onto the scope stack. */
   def pushLocalRefScope(): Unit = {
     localRefScopes.append(mutable.LinkedHashMap.empty)

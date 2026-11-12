@@ -32,14 +32,17 @@ import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,11 +60,29 @@ class JsonParseReuseTest {
             Pattern.compile(
                     "\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON_ERROR().getName()) + "\\(");
 
+    private static final Pattern JSON_VALUE_PATTERN =
+            Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
+
+    static final String LIKE_X = "other_json LIKE '%x%'";
+
+    private static final Pattern REGEXP_REPLACE_PATTERN = Pattern.compile("\\bregexpReplace\\(");
+
+    private static final String EXTRACT_CITY =
+            "JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), '$.address.city')";
+
+    private static final String EXTRACT_X =
+            "JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), '$.x' ERROR ON EMPTY)";
+
+    // on view t: v from response_body, g1/g2 whether uri contains 1/2
+    private static final String SELECT_VALUE_AND_URI_FLAGS =
+            "SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') AS v, "
+                    + "uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2 FROM t";
+
     private StreamTableEnvironment tEnv;
 
-    private static final String JSON_ROW1 =
+    static final String JSON_ROW1 =
             "{\"type\":\"account\",\"age\":42,\"address\":{\"city\":\"Munich\"},\"roles\":[\"user\",\"viewer\"]}";
-    private static final String JSON_ROW2 =
+    static final String JSON_ROW2 =
             "{\"type\":\"admin\",\"age\":30,\"address\":{\"city\":\"Berlin\"},\"roles\":[\"admin\"]}";
 
     @BeforeEach
@@ -93,12 +114,7 @@ class JsonParseReuseTest {
     }
 
     private static int count(final Pattern pattern, final String code) {
-        final Matcher m = pattern.matcher(code);
-        int count = 0;
-        while (m.find()) {
-            count++;
-        }
-        return count;
+        return GeneratedCodeTestUtils.countMatches(pattern, code);
     }
 
     private List<String> generatedClassCodes(final String sql) {
@@ -106,7 +122,7 @@ class JsonParseReuseTest {
     }
 
     private String extractGeneratedCode(final String sql) {
-        return String.join("", generatedClassCodes(sql));
+        return GeneratedCodeTestUtils.generatedCode(tEnv, sql);
     }
 
     @Test
@@ -279,6 +295,22 @@ class JsonParseReuseTest {
         final String code = extractGeneratedCode(sql);
         assertThat(countJsonParse(code))
                 .as("Calls on the same input share one parse even across a CASE boundary")
+                .isOne();
+    }
+
+    @Test
+    void testCallsInDifferentCaseBranchesShareParse() {
+        // each row takes a different branch, conditions on an unrelated column keep both branches
+        final String sql =
+                "SELECT CASE WHEN CHARACTER_LENGTH(other_json) > 3 "
+                        + "THEN JSON_VALUE(json_data, '$.type') "
+                        + "WHEN other_json = '{}' THEN JSON_VALUE(json_data, '$.address.city') "
+                        + "ELSE CAST(NULL AS STRING) END FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("Munich"), Row.of("admin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code))
+                .as("Calls in different CASE branches on the same input share one parse")
                 .isOne();
     }
 
@@ -586,6 +618,623 @@ class JsonParseReuseTest {
         assertThat(countParseJson(extractGeneratedCode(sql)))
                 .as("same input and allowDuplicateKeys should parse once")
                 .isOne();
+    }
+
+    static Stream<Arguments> computedInputInCaseBranches() {
+        return Stream.of(
+                Arguments.of(
+                        "JSON_VALUE(<input>, '$.type')",
+                        "JSON_VALUE(<input>, '$.address.city')",
+                        "Munich",
+                        "admin",
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "JSON_TYPE(<input>)",
+                        "JSON_TYPE(<input>, '$.roles')",
+                        "array",
+                        "object",
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "JSON_LENGTH(<input>)",
+                        "JSON_LENGTH(<input>, '$.roles')",
+                        2,
+                        4,
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "CAST(PARSE_JSON(<input>)['type'] AS STRING)",
+                        "CAST(TRY_PARSE_JSON(<input>)['address']['city'] AS STRING)",
+                        "Munich",
+                        "admin",
+                        PARSE_JSON_PATTERN),
+                Arguments.of(
+                        "JSON_TYPE(<input>)",
+                        "JSON_VALUE(<input>, '$.address.city')",
+                        "Munich",
+                        "object",
+                        JSON_PARSE_PATTERN),
+                Arguments.of(
+                        "CAST(JSON_LENGTH(<input>) AS STRING)",
+                        "JSON_QUERY(<input>, '$.roles')",
+                        "[\"user\",\"viewer\"]",
+                        "4",
+                        JSON_PARSE_PATTERN));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("computedInputInCaseBranches")
+    void testComputedInputInDifferentCaseBranchesSharesParse(
+            final String firstBranch,
+            final String secondBranch,
+            final Object expectedRow1,
+            final Object expectedRow2,
+            final Pattern parsePattern) {
+        // <input> is a computed input that both branches use
+        final String sql =
+                ("SELECT CASE WHEN CHARACTER_LENGTH(other_json) > 3 THEN "
+                                + firstBranch
+                                + " WHEN other_json = '{}' THEN "
+                                + secondBranch
+                                + " ELSE NULL END FROM json_src")
+                        .replace("<input>", "TRIM(BTRIM(json_data))");
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(expectedRow1), Row.of(expectedRow2));
+        assertThat(count(parsePattern, extractGeneratedCode(sql)))
+                .as("Calls on the same computed input in different CASE branches share one parse")
+                .isOne();
+    }
+
+    @Test
+    void testParseSharedInsideAndOutsideMemoizedValue() {
+        // b is computed inline for JSON_VALUE and read from its member by the memo method of
+        // JSON_TYPE(b), which two branches share; both must still use one parse of b
+        final String sql =
+                "SELECT JSON_VALUE(b, '$.age'), CASE WHEN a THEN JSON_TYPE(b) END, "
+                        + "CASE WHEN NOT a THEN JSON_TYPE(b) END FROM ("
+                        + "SELECT REGEXP_REPLACE(json_data, 'p', 'q') AS b, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("42", null, "object"), Row.of("30", "object", null));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testParseOfRawColumnSharedInsideAndOutsideMemoizedValue() {
+        createIdJsonTable(
+                Row.of(1, "{\"a\":\"x\",\"b\":\"p\"}"),
+                Row.of(2, "{\"a\":\"y\",\"b\":\"q\"}"),
+                Row.of(3, "{\"a\":\"z\",\"b\":\"r\"}"));
+        final String sql =
+                "SELECT JSON_VALUE(j, '$.a'), "
+                        + "CASE WHEN id > 1 THEN UPPER(JSON_VALUE(j, '$.b')) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(JSON_VALUE(j, '$.b')) END FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("x", null, null), Row.of("y", "Q", null), Row.of("z", "R", "R"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testMemoizedValueOnNullRawColumn() {
+        createIdJsonTable(Row.of(2, null), Row.of(3, "{\"a\":\"z\",\"b\":\"r\"}"));
+        final String sql =
+                "SELECT JSON_VALUE(j, '$.a'), "
+                        + "CASE WHEN id > 1 THEN UPPER(JSON_VALUE(j, '$.b')) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(JSON_VALUE(j, '$.b')) END FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(null, null, null), Row.of("z", "R", "R"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testRawColumnReadOnlyInsideTwoMemoizedValues() {
+        // j is used only inside the memo methods of UPPER(...) and LOWER(...)
+        createIdJsonTable(
+                Row.of(1, "{\"a\":\"X\",\"b\":\"p\"}"),
+                Row.of(2, "{\"a\":\"Y\",\"b\":\"q\"}"),
+                Row.of(3, "{\"a\":\"Z\",\"b\":\"r\"}"));
+        final String sql =
+                "SELECT CASE WHEN id > 1 THEN UPPER(JSON_VALUE(j, '$.b')) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(JSON_VALUE(j, '$.b')) END, "
+                        + "CASE WHEN id > 1 THEN LOWER(JSON_VALUE(j, '$.a')) END, "
+                        + "CASE WHEN id > 2 THEN LOWER(JSON_VALUE(j, '$.a')) END FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of(null, null, null, null),
+                        Row.of("Q", null, "y", null),
+                        Row.of("R", "R", "z", "z"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testRawColumnInNestedMemoizedValues() {
+        // CONCAT(u, '!') is memoized and uses the memoized u = UPPER(JSON_VALUE(j, '$.b'))
+        createIdJsonTable(
+                Row.of(1, "{\"b\":\"p\"}"), Row.of(2, "{\"b\":\"q\"}"), Row.of(3, "{\"b\":\"r\"}"));
+        final String sql =
+                "SELECT CASE WHEN id > 1 THEN u END, CASE WHEN id > 2 THEN u END, "
+                        + "CASE WHEN id > 1 THEN CONCAT(u, '!') END, "
+                        + "CASE WHEN id > 2 THEN CONCAT(u, '!') END "
+                        + "FROM (SELECT UPPER(JSON_VALUE(j, '$.b')) AS u, id FROM t)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of(null, null, null, null),
+                        Row.of("Q", null, "Q!", null),
+                        Row.of("R", "R", "R!", "R!"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testMemoizedValueOnArrayRawColumn() {
+        final String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, new String[] {"{\"b\":\"p\"}"}),
+                                Row.of(2, new String[] {"{\"b\":\"q\"}"}),
+                                Row.of(3, new String[] {"{\"b\":\"r\"}"})));
+        tEnv.executeSql(
+                "CREATE TABLE ta (id INT, a ARRAY<STRING>) WITH ('connector' = 'values', "
+                        + "'data-id' = '"
+                        + dataId
+                        + "', 'bounded' = 'true')");
+        final String sql =
+                "SELECT CASE WHEN id > 1 THEN UPPER(JSON_VALUE(a[1], '$.b')) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(JSON_VALUE(a[1], '$.b')) END FROM ta";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(null, null), Row.of("Q", null), Row.of("R", "R"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testParseJsonOfRawColumnInsideAndOutsideMemoizedValue() {
+        createIdJsonTable(
+                Row.of(1, "{\"a\":\"x\",\"b\":\"p\"}"),
+                Row.of(2, "{\"a\":\"y\",\"b\":\"q\"}"),
+                Row.of(3, "{\"a\":\"z\",\"b\":\"r\"}"));
+        final String sql =
+                "SELECT CAST(PARSE_JSON(j)['a'] AS STRING), "
+                        + "CASE WHEN id > 1 THEN UPPER(CAST(TRY_PARSE_JSON(j)['b'] AS STRING)) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(CAST(TRY_PARSE_JSON(j)['b'] AS STRING)) END "
+                        + "FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("x", null, null), Row.of("y", "Q", null), Row.of("z", "R", "R"));
+        assertThat(countParseJson(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testNestedCaseOverComputedJsonValue() {
+        final String sql =
+                "SELECT CASE WHEN c = 'z' THEN c ELSE c END AS c FROM ("
+                        + " SELECT CASE WHEN b = 'z' THEN b ELSE b END AS c FROM ("
+                        + "  SELECT CASE WHEN v = 'z' THEN v ELSE v END AS b FROM ("
+                        + "   SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), "
+                        + "'$.address.city') AS v FROM json_src)))";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munich"), Row.of("Berlin"));
+        assertThat(countJsonParse(extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testComputedJsonValueNotInEveryCaseBranchStaysLazy() {
+        // v fails for '{}'; that row takes the ELSE branch, so v must not be evaluated for it
+        final String sql =
+                "SELECT CASE WHEN a THEN v WHEN y THEN CONCAT(v, 'x') "
+                        + "ELSE 'none' END AS r FROM ("
+                        + "SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), "
+                        + "'$.x' ERROR ON ERROR) AS v, other_json LIKE '%x%' AS a, "
+                        + "other_json LIKE '%y%' AS y FROM json_src)";
+
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("none"), Row.of("1"));
+        assertThat(count(JSON_VALUE_PATTERN, extractGeneratedCode(sql)))
+                .as("v is generated once and computed only for the branches that use it")
+                .isOne();
+    }
+
+    @Test
+    void testComputedJsonValuesInConditionAndAllBranches() {
+        // k is in the condition and v in every branch, so both are computed once before the CASE
+        final String sql =
+                "SELECT CASE WHEN k IN ('Munich', 'Paris', 'Rome') THEN v ELSE CONCAT(v, 'x') END "
+                        + "AS r FROM ("
+                        + "SELECT JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), '$.address.city') "
+                        + "AS k, JSON_VALUE(REGEXP_REPLACE(json_data, 'p', 'q'), '$.age') AS v "
+                        + "FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("42"), Row.of("30x"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(JSON_VALUE_PATTERN, code)).as("one call each for k and v").isEqualTo(2);
+    }
+
+    @Test
+    void testValueInBothIfBranchesIsHoisted() {
+        final String sql =
+                "SELECT IF(a, v, CONCAT(v, 'x')) FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munichx"), Row.of("Berlin"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInThenAndLaterWhenIsHoisted() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v WHEN v = 'Munich' THEN 'm' ELSE 'n' END FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("m"), Row.of("Berlin"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInFirstWhenIsReusedByBranches() {
+        final String sql =
+                "SELECT CASE WHEN v = 'Munich' THEN CONCAT(v, '1') ELSE CONCAT(v, '2') END "
+                        + "FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("Munich1"), Row.of("Berlin2"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueAcrossCasesIsMemoized() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v END, CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(null, null), Row.of("1", "1x"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInCoalesceAndCaseIsMemoized() {
+        final String sql =
+                "SELECT COALESCE(c, v), CASE WHEN a THEN v END FROM (SELECT "
+                        + "JSON_VALUE(other_json, '$.x') AS c, "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of("Munich", null), Row.of("1", "Berlin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).as("one for c, one for v").isEqualTo(2);
+        assertThat(countJsonParse(code)).as("one for c, one for v").isEqualTo(2);
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    @Test
+    void testValueInFilterAndProjectionIsMemoized() {
+        final String sql =
+                "SELECT CASE WHEN a THEN v END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src) WHERE CASE WHEN a THEN v = '1' ELSE TRUE END";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of((String) null), Row.of("1"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedValueIsComputedForEveryRecord() {
+        // both CASEs match on both rows, so a stale value would repeat the first row
+        final String sql =
+                "SELECT CASE WHEN json_data LIKE '%city%' THEN v END, "
+                        + "CASE WHEN json_data LIKE '%age%' THEN CONCAT(v, '!') END FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, json_data FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("Munich", "Munich!"), Row.of("Berlin", "Berlin!"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInBranchOfNonDeterministicValueUsedTwice() {
+        // both columns are one CASE ref, generated anew at each use because of UUID()
+        createIdJsonTable(Row.of(2, "{\"b\":\"p\"}"), Row.of(3, "{\"b\":\"q\"}"));
+        final String nonDeterministic =
+                "CASE WHEN id > 1 THEN UPPER(JSON_VALUE(j, '$.b')) ELSE UUID() END";
+        final String sql = "SELECT " + nonDeterministic + ", " + nonDeterministic + " FROM t";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("P", "P"), Row.of("Q", "Q"));
+        assertThat(count(JSON_VALUE_PATTERN, extractGeneratedCode(sql))).isOne();
+    }
+
+    @Test
+    void testValueInOrAndIfNullIsShared() {
+        final String sql =
+                "SELECT a OR v = '1', IFNULL(c, v) FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, other_json = '{}' AS a, "
+                        + "CASE WHEN other_json = '{}' THEN 'c' END AS c FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of(true, "c"), Row.of(true, "1"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInNestedCaseIsShared() {
+        final String sql =
+                "SELECT CASE WHEN a THEN CASE WHEN b THEN v ELSE 'n' END ELSE 'o' END, "
+                        + "CASE WHEN a THEN CONCAT(v, 'x') END FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a, other_json LIKE '%1%' AS b FROM json_src)";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("o", null), Row.of("1", "1x"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInInnerCaseAndAfterItInTheSameBranch() {
+        // the THEN of g always needs v: in both branches of the inner CASE and after it
+        final String sql =
+                "SELECT CASE WHEN g THEN CONCAT(CASE WHEN a THEN v ELSE CONCAT(v, 'x') END, v) END "
+                        + "FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a, json_data LIKE '%city%' AS g FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of("MunichxMunich"), Row.of("BerlinBerlin"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInFilterOrIsShared() {
+        final String sql =
+                "SELECT other_json FROM (SELECT "
+                        + EXTRACT_X
+                        + " AS v, other_json = '{}' AS a, other_json FROM json_src) "
+                        + "WHERE a OR v = '1' OR CONCAT(v, 'y') = '3y'";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("{}"), Row.of("{\"x\":1}"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInProjectionAndInMemoizedBranchValues() {
+        createUriBodyView();
+        final String sql =
+                "SELECT v AS r0, "
+                        + "CASE WHEN g1 THEN m1 ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m1 ELSE 'z' END AS r2, "
+                        + "CASE WHEN g1 THEN m2 ELSE 'z' END AS r3, "
+                        + "CASE WHEN g2 THEN m2 ELSE 'z' END AS r4 "
+                        + "FROM (SELECT CONCAT(v,'1') AS m1, CONCAT(v,'2') AS m2, v, g1, g2 FROM ("
+                        + SELECT_VALUE_AND_URI_FLAGS
+                        + "))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a", "a1", "z", "a2", "z"),
+                        Row.of("b", "z", "b1", "z", "b2"),
+                        Row.of("c", "c1", "c1", "c2", "c2"),
+                        Row.of(null, "z", "z", "z", "z"));
+        // v is needed by r0 and by the shared m1 and m2
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedBranchValuesBeforeTheProjectionOfTheirInput() {
+        // the branches come first: r1 computes v, which r0 always needs, before calling the memo
+        // method of m, which reads v from its member; results must not change
+        createUriBodyView();
+        final String sql =
+                "SELECT CASE WHEN g1 THEN m ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r2, v AS r0 "
+                        + "FROM (SELECT CONCAT(v,'!') AS m, v, g1, g2 FROM ("
+                        + SELECT_VALUE_AND_URI_FLAGS
+                        + "))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a!", "z", "a"),
+                        Row.of("z", "b!", "b"),
+                        Row.of("c!", "c!", "c"),
+                        Row.of("z", "z", null));
+    }
+
+    @Test
+    void testMemoizedBranchValueWithPrimitiveAndNullableInputs() {
+        // m needs v (nullable STRING) and n (INT, never NULL), both computed inline for r0 and r1
+        createUriBodyView();
+        final String sql =
+                "SELECT v AS r0, n AS r1, "
+                        + "CASE WHEN g1 THEN m ELSE 'z' END AS r2, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r3 "
+                        + "FROM (SELECT CONCAT(v, CAST(n AS STRING)) AS m, v, n, g1, g2 FROM ("
+                        + " SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') AS v, "
+                        + " CHAR_LENGTH(uri) AS n, uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2 "
+                        + " FROM t))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a", 1, "a1", "z"),
+                        Row.of("b", 1, "z", "b1"),
+                        Row.of("c", 2, "c2", "c2"),
+                        Row.of(null, 1, "z", "z"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedBranchValuesWithInputFromFilter() {
+        createUriBodyView();
+        final String sql =
+                "SELECT CASE WHEN g1 THEN m ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r2 "
+                        + "FROM (SELECT CONCAT(v,'!') AS m, v, g1, g2 FROM ("
+                        + SELECT_VALUE_AND_URI_FLAGS
+                        + ")) "
+                        + "WHERE v IS NOT NULL";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a!", "z"), Row.of("z", "b!"), Row.of("c!", "c!"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedBranchValueWithInputInItsOwnBranch() {
+        // m is shared by r1 and r2 and uses v, which r0 computes inline, in its own THEN
+        tEnv.createTemporaryView(
+                "t",
+                tEnv.fromValues(
+                                Row.of("1", "{\"x\":\"a\"}"),
+                                Row.of("2", "{\"x\":\"b\"}"),
+                                Row.of("13", "{\"x\":\"d\"}"),
+                                Row.of("23", "{\"x\":\"e\"}"),
+                                Row.of("3", "{}"))
+                        .as("uri", "response_body"));
+        final String sql =
+                "SELECT v AS r0, "
+                        + "CASE WHEN g1 THEN m ELSE 'z' END AS r1, "
+                        + "CASE WHEN g2 THEN m ELSE 'z' END AS r2 "
+                        + "FROM (SELECT CASE WHEN h THEN v ELSE 'a' END AS m, v, g1, g2, h FROM ("
+                        + " SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x') AS v, "
+                        + " uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2, uri LIKE '%3%' AS h FROM t))";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("a", "a", "z"),
+                        Row.of("b", "z", "a"),
+                        Row.of("d", "d", "z"),
+                        Row.of("e", "z", "e"),
+                        Row.of(null, "z", "z"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testFilterDoesNotComputeProjectionValueForDroppedRows() {
+        // m is shared by two filter branches and uses v only if h; v fails for '{}' and is needed
+        // by the projection only, which never runs for the dropped row '1'
+        tEnv.createTemporaryView(
+                "t",
+                tEnv.fromValues(
+                                Row.of("1", "{}"),
+                                Row.of("13", "{\"x\":\"x\"}"),
+                                Row.of("2", "{\"x\":\"y\"}"))
+                        .as("uri", "response_body"));
+        final String sql =
+                "SELECT v FROM (SELECT v, CASE WHEN h THEN v ELSE 'a' END AS m, g1, g2 FROM ("
+                        + " SELECT JSON_VALUE(REGEXP_REPLACE(response_body,'p','q'),'$.x' "
+                        + "ERROR ON ERROR) AS v, uri LIKE '%1%' AS g1, uri LIKE '%2%' AS g2, "
+                        + "uri LIKE '%3%' AS h FROM t)) "
+                        + "WHERE CASE WHEN g1 THEN CONCAT(m, '1') = 'x1' "
+                        + "WHEN g2 THEN CONCAT(m, '2') = 'x2' ELSE FALSE END";
+        assertThat(collect(sql)).containsExactly(Row.of("x"));
+    }
+
+    @Test
+    void testValueInBranchBeforeTheColumnThatAlwaysNeedsIt() {
+        // the first column needs v only if a, the second always; the first is generated first
+        final String sql =
+                "SELECT CASE WHEN a THEN v END, v FROM (SELECT "
+                        + EXTRACT_CITY
+                        + " AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src)";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of(null, "Munich"), Row.of("Berlin", "Berlin"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testValueInFilterBranchAndInProjection() {
+        // the filter needs v only if a, the projection for every row it keeps; v fails for '{}',
+        // which a drops, so the filter must stay lazy. CHAR_LENGTH keeps the planner from
+        // replacing the projected v with a constant taken from the filter
+        final String sql =
+                "SELECT v FROM (SELECT JSON_VALUE(REGEXP_REPLACE(other_json, 'p', 'q'), '$.x' "
+                        + "ERROR ON ERROR) AS v, "
+                        + LIKE_X
+                        + " AS a FROM json_src) WHERE a AND CHAR_LENGTH(v) = 1";
+        assertThat(collect(sql)).containsExactly(Row.of("1"));
+        assertComputedOnce(sql);
+    }
+
+    @Test
+    void testMemoizedValueOnPrimitiveRawColumn() {
+        createIdJsonTable(
+                Row.of(1, "{\"b\":\"p\"}"), Row.of(2, "{\"b\":\"q\"}"), Row.of(3, "{\"b\":\"r\"}"));
+        final String sql =
+                "SELECT id, "
+                        + "CASE WHEN id > 1 THEN CONCAT(JSON_VALUE(j, '$.b'), CAST(id * 10 AS STRING)) END, "
+                        + "CASE WHEN id > 2 THEN CONCAT(JSON_VALUE(j, '$.b'), CAST(id * 10 AS STRING)) END "
+                        + "FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of(1, null, null), Row.of(2, "q20", null), Row.of(3, "r30", "r30"));
+    }
+
+    @Test
+    void testMemoizedValuesSurviveCodeSplitting() {
+        tEnv.getConfig().set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 1);
+        createIdJsonTable(
+                Row.of(1, "{\"a\":\"x\",\"b\":\"p\"}"),
+                Row.of(2, "{\"a\":\"y\",\"b\":\"q\"}"),
+                Row.of(3, "{\"a\":\"z\",\"b\":\"r\"}"));
+        final String sql =
+                "SELECT JSON_VALUE(j, '$.a'), "
+                        + "CASE WHEN id > 1 THEN UPPER(JSON_VALUE(j, '$.b')) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(JSON_VALUE(j, '$.b')) END FROM t";
+        // the split code is compiled, so correct results show that it still works
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("x", null, null), Row.of("y", "Q", null), Row.of("z", "R", "R"));
+    }
+
+    @Test
+    void testMemoizedValueInBatchMode() {
+        final TableEnvironment bEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        final String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, "{\"a\":\"x\",\"b\":\"p\"}"),
+                                Row.of(2, "{\"a\":\"y\",\"b\":\"q\"}"),
+                                Row.of(3, "{\"a\":\"z\",\"b\":\"r\"}")));
+        bEnv.executeSql(
+                "CREATE TABLE t (id INT, j STRING) WITH ('connector' = 'values', 'data-id' = '"
+                        + dataId
+                        + "', 'bounded' = 'true')");
+        final String sql =
+                "SELECT JSON_VALUE(j, '$.a'), "
+                        + "CASE WHEN id > 1 THEN UPPER(JSON_VALUE(j, '$.b')) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(JSON_VALUE(j, '$.b')) END FROM t";
+        final List<Row> rows = new ArrayList<>();
+        bEnv.executeSql(sql).collect().forEachRemaining(rows::add);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("x", null, null), Row.of("y", "Q", null), Row.of("z", "R", "R"));
+    }
+
+    private void createIdJsonTable(final Row... rows) {
+        final String dataId = TestValuesTableFactory.registerData(Arrays.asList(rows));
+        tEnv.executeSql(
+                "CREATE TABLE t (id INT, j STRING) WITH ('connector' = 'values', 'data-id' = '"
+                        + dataId
+                        + "', 'bounded' = 'true')");
+    }
+
+    /** One call of JSON_VALUE, of its parse and of REGEXP_REPLACE in the generated code. */
+    private void assertComputedOnce(final String sql) {
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_VALUE_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+        assertThat(count(REGEXP_REPLACE_PATTERN, code)).isOne();
+    }
+
+    private void createUriBodyView() {
+        tEnv.createTemporaryView(
+                "t",
+                tEnv.fromValues(
+                                Row.of("1", "{\"x\":\"a\"}"),
+                                Row.of("2", "{\"x\":\"b\"}"),
+                                Row.of("12", "{\"x\":\"c\"}"),
+                                Row.of("3", "{}"))
+                        .as("uri", "response_body"));
     }
 
     @Test
