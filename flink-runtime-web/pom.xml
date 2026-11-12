@@ -124,6 +124,10 @@ under the License.
 	<profiles>
 		<profile>
 			<id>skip-webui-build</id>
+			<properties>
+				<!-- The lint and test:ci executions set their own skip, which overrides the plugin-level skip below -->
+				<skipNodeJSTests>true</skipNodeJSTests>
+			</properties>
 			<build>
 				<pluginManagement>
 					<plugins>
