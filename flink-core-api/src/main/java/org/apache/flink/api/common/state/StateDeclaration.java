@@ -59,7 +59,7 @@ public interface StateDeclaration extends Serializable {
         REDISTRIBUTABLE,
 
         /**
-         * States are guranteed to be identical in different partitions, thus redistribution is not
+         * States are guaranteed to be identical in different partitions, thus redistribution is not
          * a problem.
          */
         IDENTICAL

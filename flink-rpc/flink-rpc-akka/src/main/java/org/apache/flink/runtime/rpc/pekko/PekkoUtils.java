@@ -492,7 +492,7 @@ class PekkoUtils {
      * @param externalAddress optional tuple of external address and port to be reachable at. If
      *     null is given, then a Pekko config for local actor system will be returned
      * @param bindAddress optional tuple of bind address and port to be used locally. If null is
-     *     given, wildcard IP address and the external port wil be used. Takes effect only if
+     *     given, wildcard IP address and the external port will be used. Takes effect only if
      *     externalAddress is not null.
      * @param executorConfig config defining the used executor by the default dispatcher
      * @return Pekko config

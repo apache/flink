@@ -651,7 +651,7 @@ public class AsyncWaitOperator<IN, OUT>
         private final ResultFuture<OUT> resultFuture;
 
         /**
-         * A guard against ill-written AsyncFunction. Additional (parallel) invokations of {@link
+         * A guard against ill-written AsyncFunction. Additional (parallel) invocations of {@link
          * #complete(Collection)} or {@link #completeExceptionally(Throwable)} will be ignored. This
          * guard also helps for cases where proper results and timeouts happen at the same time.
          */

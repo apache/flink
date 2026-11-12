@@ -153,7 +153,7 @@ public class Bucket<IN, BucketID> {
 
     private void commitRecoveredPendingFiles(final BucketState<BucketID> state) throws IOException {
 
-        // we commit pending files for checkpoints that precess the last successful one, from which
+        // we commit pending files for checkpoints that precede the last successful one, from which
         // we are recovering
         for (List<InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverables :
                 state.getPendingFileRecoverablesPerCheckpoint().values()) {

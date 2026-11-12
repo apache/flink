@@ -690,7 +690,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
     }
 
     /**
-     * Physically delte the meta of the node, including the node level index, the node key, and
+     * Physically delete the meta of the node, including the node level index, the node key, and
      * reduce the total size of the skip list.
      *
      * @param node node to remove.

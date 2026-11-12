@@ -38,7 +38,7 @@ import java.util.Objects;
  * <p>On the first arriving element a configurable processing-time timeout will be set. Using {@link
  * #of(AsyncTrigger, Duration, boolean, boolean)}, you can also re-new the timer for each arriving
  * element by specifying {@code resetTimerOnNewRecord} and you can specify whether {@link
- * AsyncTrigger#clear(Window, AsyncTrigger.TriggerContext)} should be called on timout via {@code
+ * AsyncTrigger#clear(Window, AsyncTrigger.TriggerContext)} should be called on timeout via {@code
  * shouldClearOnTimeout}.
  *
  * @param <T> The type of elements on which this trigger can operate.

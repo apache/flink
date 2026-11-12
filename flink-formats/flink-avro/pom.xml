@@ -208,7 +208,7 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<!--Remove the AvroExternalJarProgram code from the test-classes directory since it musn't be in the
+			<!--Remove the AvroExternalJarProgram code from the test-classes directory since it mustn't be in the
 			classpath when running the tests to actually test whether the user code class loader
 			is properly used.-->
 			<plugin>

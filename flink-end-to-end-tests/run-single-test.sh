@@ -17,7 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-# This can be used to run a single test in the context of a test runnner
+# This can be used to run a single test in the context of a test runner
 # Usage: ./run-single-test.sh [skip] test-scripts/my-test-case.sh
 
 # IMPORTANT:

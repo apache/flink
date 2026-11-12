@@ -696,7 +696,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * Gets the configured local DB storage paths, or null, if none were configured.
      *
      * <p>Under these directories on the TaskManager, RocksDB stores its SST files and metadata
-     * files. These directories do not need to be persistent, they can be ephermeral, meaning that
+     * files. These directories do not need to be persistent, they can be ephemeral, meaning that
      * they are lost on a machine failure, because state in RocksDB is persisted in checkpoints.
      *
      * <p>If nothing is configured, these directories default to the TaskManager's local temporary

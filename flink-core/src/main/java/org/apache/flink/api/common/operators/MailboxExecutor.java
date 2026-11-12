@@ -342,7 +342,7 @@ public interface MailboxExecutor {
 
     /**
      * Return if operator/function should interrupt a longer computation and return from the
-     * currently processed elemenent/watermark, for example in order to let Flink perform a
+     * currently processed element/watermark, for example in order to let Flink perform a
      * checkpoint.
      *
      * @return whether operator/function should interrupt its computation.

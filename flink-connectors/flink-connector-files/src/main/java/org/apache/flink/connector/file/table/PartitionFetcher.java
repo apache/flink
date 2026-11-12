@@ -67,7 +67,7 @@ public interface PartitionFetcher<P> extends Serializable {
          * A comparable partition value that can compare order by using its comparator.
          *
          * @param <P> The type of partition value.
-         * @param <T> The tye of the partition offset, the partition offset is comparable.
+         * @param <T> The type of the partition offset, the partition offset is comparable.
          */
         interface ComparablePartitionValue<P, T extends Comparable<T>> extends Serializable {
 

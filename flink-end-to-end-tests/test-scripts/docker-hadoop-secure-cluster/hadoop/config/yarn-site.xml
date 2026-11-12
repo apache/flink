@@ -184,7 +184,7 @@ under the License.
     <value>file:///hadoop-data/nm-log-dirs</value>
   </property>
   <!-- 
-    This allows running the tests also in low disk space environments. YARN is quite aggresive with 
+    This allows running the tests also in low disk space environments. YARN is quite aggressive with 
     blacklisting nodes on low memory: https://issues.apache.org/jira/browse/FLINK-16136
   -->
   <property>
