@@ -2351,6 +2351,14 @@ def to_arrow_type(data_type: DataType, *, allow_nested=False, allow_nested_rows=
         else:
             return pa.timestamp('ns')
     elif isinstance(data_type, MapType):
+        # Pandas conversion applies the session time zone to top level TIMESTAMP_LTZ columns only.
+        # With nested rows allowed, reject zoned timestamps in map keys and values like in array
+        # elements and row fields. Callers that do not allow nested rows keep their map handling.
+        if allow_nested_rows and not allow_nested:
+            for role, child_type in (('key', data_type.key_type), ('value', data_type.value_type)):
+                if type(child_type) == LocalZonedTimestampType:
+                    raise ValueError("%s is not supported to be used as the %s type of MapType." %
+                                     (child_type, role))
         key_type = to_arrow_type(data_type.key_type, allow_nested=allow_nested,
                                  allow_nested_rows=allow_nested_rows)
         value_type = to_arrow_type(data_type.value_type, allow_nested=allow_nested,

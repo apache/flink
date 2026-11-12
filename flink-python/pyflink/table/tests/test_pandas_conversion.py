@@ -215,14 +215,24 @@ class PandasConversionITTests(PandasConversionTestBase):
                 self.assertEqual(expected, self.to_python(value))
 
     def test_to_pandas_still_rejects_nested_local_zoned_timestamps(self):
-        for query in [
-            "SELECT ARRAY[TO_TIMESTAMP_LTZ(1712910900000, 3)] AS `value`",
-            "SELECT ROW(TO_TIMESTAMP_LTZ(1712910900000, 3)) AS `value`",
+        timestamp = 'TO_TIMESTAMP_LTZ(1712910900000, 3)'
+        for expression in [
+            'ARRAY[%s]' % timestamp,
+            'ROW(%s)' % timestamp,
+            "MAP['key', %s]" % timestamp,
+            "CAST(MAP[%s, 'value'] AS MAP<TIMESTAMP_LTZ(3) NOT NULL, STRING>)" % timestamp,
+            "CAST(ARRAY[ROW(MAP['key', %s])] AS "
+            "ARRAY<ROW<`m` MAP<STRING NOT NULL, TIMESTAMP_LTZ(3)>>>)" % timestamp,
         ]:
-            with self.subTest(query=query):
-                table = self.t_env.sql_query(query)
-                with self.assertRaisesRegex((ValueError, TypeError), "not supported"):
-                    table.to_pandas()
+            with self.subTest(expression=expression):
+                query = ('SELECT %s AS ltz, %s AS payload FROM (VALUES (1)) AS t(x)'
+                         % (timestamp, expression))
+                with self.assertRaisesRegex((ValueError, TypeError),
+                                            'is not supported to be used as the'):
+                    self.t_env.sql_query(query).to_pandas()
+                # Empty results have nothing to convert, so they keep working.
+                result = self.t_env.sql_query(query + ' WHERE FALSE').to_pandas()
+                self.assertEqual(['ltz', 'payload'], result.columns.tolist())
 
     def test_empty_to_pandas_with_timestamps(self):
         original_timezone = self.t_env.get_config().get_local_timezone()
