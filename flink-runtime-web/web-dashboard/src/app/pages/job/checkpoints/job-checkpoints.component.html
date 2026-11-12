@@ -384,11 +384,7 @@
     </nz-table>
 
     <nz-collapse>
-      <nz-collapse-panel
-        [nzHeader]="'Percentiles'"
-        [nzActive]="moreDetailsPanel.active"
-        [nzDisabled]="moreDetailsPanel.disabled"
-      >
+      <nz-collapse-panel [nzHeader]="'Percentiles'" [nzActive]="moreDetailsPanel.active">
         <nz-table
           *ngIf="checkPointStats"
           class="no-border small"

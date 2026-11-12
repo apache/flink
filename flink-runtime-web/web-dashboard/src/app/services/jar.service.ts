@@ -50,7 +50,7 @@ export class JarService {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
     const req = new HttpRequest('POST', `${this.configService.BASE_URL}/jars/upload`, formData, {
-      reportProgress: true
+      reportUploadProgress: true
     });
     return this.httpClient.request(req);
   }

@@ -22,7 +22,7 @@ import { RouterLinkWithHref } from '@angular/router';
 
 import { TableAggregatedMetricsComponent } from '@flink-runtime-web/components/table-aggregated-metrics/table-aggregated-metrics.component';
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
-import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 
@@ -35,7 +35,7 @@ export interface JobOverviewTaskManagersTableAction {
   templateUrl: './taskmanagers-table-action.component.html',
   styleUrls: ['./taskmanagers-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLinkWithHref]
+  imports: [NgIf, NzDropdownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLinkWithHref]
 })
 export class TaskmanagersTableActionComponent implements JobOverviewTaskManagersTableAction {
   @Input() taskManager?: VertexTaskManagerDetail;

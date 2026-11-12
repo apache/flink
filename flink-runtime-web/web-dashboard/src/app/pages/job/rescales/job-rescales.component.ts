@@ -157,7 +157,7 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
     this.refresh$.complete();
   }
 
-  public moreDetailsPanel = { active: false, disabled: false };
+  public moreDetailsPanel = { active: false };
 
   public refresh(): void {
     const expandedUuids = Array.from(this.expandedRowsSet);
