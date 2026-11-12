@@ -17,45 +17,14 @@
 ################################################################################
 import datetime
 import decimal
-import unittest
 
 from pandas.testing import assert_frame_equal
 
 from pyflink.common import Row
-from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
     PyFlinkStreamTableTestCase
-
-
-class NestedPandasConversionTests(unittest.TestCase):
-
-    def test_to_pandas_with_nested_rows(self) -> None:
-        table_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-
-        for query, expected in [
-            ("SELECT `value` FROM (VALUES (CAST(ARRAY[ROW(1, 2), ROW(2, 2)] AS "
-             "ARRAY<ROW<`a` INT, `b` INT>>))) AS `t`(`value`)",
-             [{'a': 1, 'b': 2}, {'a': 2, 'b': 2}]),
-            ("SELECT CAST(ROW(ROW(1)) AS ROW<`outer` ROW<`inner` INT>>) AS `value`",
-             {'outer': {'inner': 1}}),
-        ]:
-            with self.subTest(query=query):
-                value = table_env.sql_query(query).to_pandas().to_dict('records')[0]['value']
-                self.assertEqual(expected, value.tolist() if hasattr(value, 'tolist') else value)
-
-    def test_to_pandas_still_rejects_nested_local_zoned_timestamps(self) -> None:
-        table_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-
-        for query in [
-            "SELECT ARRAY[TO_TIMESTAMP_LTZ(1712910900000, 3)] AS `value`",
-            "SELECT ROW(TO_TIMESTAMP_LTZ(1712910900000, 3)) AS `value`",
-        ]:
-            with self.subTest(query=query):
-                table = table_env.sql_query(query)
-                with self.assertRaisesRegex((ValueError, TypeError), "not supported"):
-                    table.to_pandas()
 
 
 class PandasConversionTestBase(object):
@@ -221,15 +190,39 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_to_pandas_with_nested_types(self):
         import pandas as pd
 
-        for expression, error in [('ARRAY[ROW(1)]', ValueError), ('ROW(ROW(1))', TypeError)]:
+        for expression, expected in [('ARRAY[ROW(1)]', [{'EXPR$0': 1}]),
+                                     ('ROW(ROW(1))', {'EXPR$0': {'EXPR$0': 1}})]:
             with self.subTest(expression=expression):
                 query = 'SELECT 1 AS a, %s AS payload FROM (VALUES (1)) AS t(x)' % expression
                 result = self.t_env.sql_query(query + ' WHERE FALSE').to_pandas()
-                expected = pd.DataFrame({'a': pd.Series(dtype='int32'),
-                                         'payload': pd.Series(dtype='object')})
-                assert_frame_equal(result, expected)
-                with self.assertRaisesRegex(error, 'ROW is not supported'):
-                    self.t_env.sql_query(query).to_pandas()
+                expected_empty = pd.DataFrame({'a': pd.Series(dtype='int32'),
+                                               'payload': pd.Series(dtype='object')})
+                assert_frame_equal(result, expected_empty)
+                result = self.t_env.sql_query(query).to_pandas()
+                self.assertEqual([1], result['a'].tolist())
+                self.assertEqual(expected, self.to_python(result['payload'].iloc[0]))
+
+    def test_to_pandas_with_nested_rows(self):
+        for query, expected in [
+            ("SELECT `value` FROM (VALUES (CAST(ARRAY[ROW(1, 2), ROW(2, 2)] AS "
+             "ARRAY<ROW<`a` INT, `b` INT>>))) AS `t`(`value`)",
+             [{'a': 1, 'b': 2}, {'a': 2, 'b': 2}]),
+            ("SELECT CAST(ROW(ROW(1)) AS ROW<`outer` ROW<`inner` INT>>) AS `value`",
+             {'outer': {'inner': 1}}),
+        ]:
+            with self.subTest(query=query):
+                value = self.t_env.sql_query(query).to_pandas().to_dict('records')[0]['value']
+                self.assertEqual(expected, self.to_python(value))
+
+    def test_to_pandas_still_rejects_nested_local_zoned_timestamps(self):
+        for query in [
+            "SELECT ARRAY[TO_TIMESTAMP_LTZ(1712910900000, 3)] AS `value`",
+            "SELECT ROW(TO_TIMESTAMP_LTZ(1712910900000, 3)) AS `value`",
+        ]:
+            with self.subTest(query=query):
+                table = self.t_env.sql_query(query)
+                with self.assertRaisesRegex((ValueError, TypeError), "not supported"):
+                    table.to_pandas()
 
     def test_empty_to_pandas_with_timestamps(self):
         original_timezone = self.t_env.get_config().get_local_timezone()
@@ -352,6 +345,11 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.assertTrue((expected_field == result_field).all())
         else:
             self.assertTrue(expected_field == result_field)
+
+    @staticmethod
+    def to_python(value):
+        # Array columns are collected as numpy arrays, while row columns are collected as dicts.
+        return value.tolist() if hasattr(value, 'tolist') else value
 
 
 class BatchPandasConversionTests(PandasConversionTests,
