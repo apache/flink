@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.api.common.functions.{AbstractRichFunction, OpenContext, RichFunction}
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.{DataTypes, TableException}
+import org.apache.flink.table.api.{DataTypes, TableException, ValidationException}
 import org.apache.flink.table.api.Expressions.callSql
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{GenericRowData, RawValueData, StringData}
@@ -586,6 +586,9 @@ object BridgingFunctionGenUtil {
    * Returns the shared [[UdfMetrics]] handle term when metrics are enabled for this call, else
    * [[None]]. Acquiring the term registers the handle member and its `open()` registration exactly
    * once per UDF name in the current context.
+   *
+   * The sample interval is validated here as well as in `UdfMetrics#register`, so an invalid value
+   * rejects the query at submission instead of failing every time the operator opens.
    */
   private def udfMetricsTermIfEnabled(
       ctx: CodeGeneratorContext,
@@ -595,6 +598,12 @@ object BridgingFunctionGenUtil {
         ctx.tableConfig
           .get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL)
           .intValue()
+      if (sampleInterval < 1) {
+        throw new ValidationException(
+          s"UDF metric sample interval must be >= 1, but was $sampleInterval. Set '" +
+            ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL.key() +
+            "' to 1 or more.")
+      }
       Some(ctx.addReusableUdfMetrics(name, sampleInterval))
     case _ => None
   }
