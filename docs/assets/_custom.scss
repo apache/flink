@@ -104,7 +104,21 @@ aside.book-menu nav {
 
     a.active {
         font-weight: bold;
-        color: var(--body-font-color);
+        color: #734591;
+        position: relative;
+        display: inline-block;
+    }
+
+    // A bar in the purple of the Flink logo marks the current page.
+    a.active::before {
+        content: "";
+        position: absolute;
+        left: -0.5rem;
+        top: 0.1em;
+        bottom: 0.1em;
+        width: 3px;
+        border-radius: 2px;
+        background: #bf73f2;
     }
 }
 
@@ -326,6 +340,11 @@ pre.chroma code {
 }
 
 .markdown .chroma .function-self {
+    color: #8a3143;
+    font-weight: bold;
+}
+
+.chroma .sql-type {
     color: #734591;
     font-weight: bold;
 }
