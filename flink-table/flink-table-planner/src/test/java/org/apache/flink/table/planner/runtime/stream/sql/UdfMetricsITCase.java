@@ -53,7 +53,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -83,17 +86,17 @@ class UdfMetricsITCase {
     // span is measurably non-zero.
     private static final long ASYNC_DELAY_MILLIS = 5;
 
-    // Matches the processing-time metric of any UDF, for asserting that none is registered.
+    // Matches the processing-time metric of any UDF.
     private static final String ANY_PROCESSING_TIME_PATTERN = "\\.udf\\..*\\.udfProcessingTime";
     private static final String ANY_EXCEPTION_COUNT_PATTERN = "\\.udf\\..*\\.udfExceptionCount";
 
     /** The metric identifier group is {@code <operator>.udf.<udfName>}. */
     private static String processingTimePattern(String udfName) {
-        return "\\.udf\\." + udfName + "\\.udfProcessingTime";
+        return "\\.udf\\." + Pattern.quote(udfName) + "\\.udfProcessingTime";
     }
 
     private static String exceptionCountPattern(String udfName) {
-        return "\\.udf\\." + udfName + "\\.udfExceptionCount";
+        return "\\.udf\\." + Pattern.quote(udfName) + "\\.udfExceptionCount";
     }
 
     /** Doubles an int; the metered sync scalar path. */
@@ -364,6 +367,43 @@ class UdfMetricsITCase {
     }
 
     @Test
+    void testFunctionNameSpellingsShareOneLowerCaseGroup() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("MixedCaseUdf", IntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "a INT, b INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT mixedCaseUdf(id), MIXEDCASEUDF(id) FROM src");
+
+        // Function names are case-insensitive, so both spellings call one function and feed one
+        // group named after the lower-case name: 2 evals per row.
+        assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).hasSize(1);
+        assertThat(histogram(jobId, processingTimePattern("mixedcaseudf")).getCount())
+                .isEqualTo(2L * SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testInlineFunctionKeepsClassBasedGroupName() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        TableResult result =
+                tEnv.from("src").select(call(IntDoubler.class, $("id"))).executeInsert("sink");
+        JobID jobId = result.getJobClient().get().getJobID();
+        result.await();
+
+        // An inline function is not called by name, so its generated name keeps the class name's
+        // case instead of being lower-cased.
+        String groupName = "*" + IntDoubler.class.getName() + "*";
+        assertThat(histogram(jobId, processingTimePattern(groupName)).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
     void testDistinctFunctionsGetSeparateHandles() throws Exception {
         StreamTableEnvironment tEnv = createTableEnv(true);
         tEnv.createTemporarySystemFunction("doubleudf", IntDoubler.class);
@@ -521,6 +561,25 @@ class UdfMetricsITCase {
                                 + "LATERAL TABLE(asynctableudf(id)) AS T(x)");
 
         // eval is called once per input row (it completes two rows); one sample each.
+        assertThat(histogram(jobId, processingTimePattern("asynctableudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testAsyncTableGroupNameIsLowerCase() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("AsyncTableUdf", AsyncDuplicateRows.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT x FROM src, "
+                                + "LATERAL TABLE(ASYNCTABLEUDF(id)) AS T(x)");
+
+        // An async table function call is generated apart from the scalar one, so its group name
+        // is lower-cased on that path as well.
         assertThat(histogram(jobId, processingTimePattern("asynctableudf")).getCount())
                 .isEqualTo(SOURCE_ROWS.size());
     }
