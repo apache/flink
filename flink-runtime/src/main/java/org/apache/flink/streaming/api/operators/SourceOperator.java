@@ -24,7 +24,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.RichSourceReaderContext;
@@ -82,6 +81,10 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -205,9 +208,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private long lastSnapshotTriggerTimestamp = NO_SNAPSHOT_YET;
 
     @VisibleForTesting
-    static final ListStateDescriptor<Tuple3<Integer, Integer, Double>> DYNAMIC_RATE_STATE_DESC =
-            new ListStateDescriptor<>(
-                    "DynamicRateLimit", Types.TUPLE(Types.INT, Types.INT, Types.DOUBLE));
+    static final ListStateDescriptor<byte[]> DYNAMIC_RATE_STATE_DESC =
+            new ListStateDescriptor<>("DynamicRateLimit", BytePrimitiveArraySerializer.INSTANCE);
 
     /**
      * Holds this subtask's index, the parallelism and its last dynamic rate limit, so that a
@@ -784,7 +786,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         readerState = new SimpleVersionedListState<>(rawState, splitSerializer);
         if (dynamicRateLimitParams.isEnabled()) {
             dynamicRateState =
-                    context.getOperatorStateStore().getUnionListState(DYNAMIC_RATE_STATE_DESC);
+                    new SimpleVersionedListState<>(
+                            context.getOperatorStateStore()
+                                    .getUnionListState(DYNAMIC_RATE_STATE_DESC),
+                            DynamicRateStateSerializer.INSTANCE);
             restoredDynamicRate =
                     clampRestoredRate(
                             restoreDynamicRate(
@@ -806,6 +811,46 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
         sourceReader.notifyCheckpointComplete(checkpointId);
+    }
+
+    /**
+     * Serializes an entry of the dynamic rate state with a version, so that the layout can evolve
+     * without breaking the restore of older checkpoints.
+     */
+    @VisibleForTesting
+    static final class DynamicRateStateSerializer
+            implements SimpleVersionedSerializer<Tuple3<Integer, Integer, Double>> {
+
+        static final DynamicRateStateSerializer INSTANCE = new DynamicRateStateSerializer();
+
+        static final int VERSION = 1;
+
+        @Override
+        public int getVersion() {
+            return VERSION;
+        }
+
+        @Override
+        public byte[] serialize(Tuple3<Integer, Integer, Double> state) throws IOException {
+            final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (DataOutputStream out = new DataOutputStream(bytes)) {
+                out.writeInt(state.f0);
+                out.writeInt(state.f1);
+                out.writeDouble(state.f2);
+            }
+            return bytes.toByteArray();
+        }
+
+        @Override
+        public Tuple3<Integer, Integer, Double> deserialize(int version, byte[] serialized)
+                throws IOException {
+            if (version != VERSION) {
+                throw new IOException("Unrecognized version of the dynamic rate state: " + version);
+            }
+            try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(serialized))) {
+                return Tuple3.of(in.readInt(), in.readInt(), in.readDouble());
+            }
+        }
     }
 
     private void snapshotDynamicRate() throws Exception {
