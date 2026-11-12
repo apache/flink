@@ -310,7 +310,9 @@ public class AdaptiveGraphManager
                         hasHybridResultPartition,
                         hashes,
                         legacyHashes,
-                        defaultSlotSharingGroup);
+                        defaultSlotSharingGroup,
+                        // not applied incrementally, see AdaptiveExecutionHandlerFactory
+                        Collections.emptyMap());
 
         createOperatorChainInfos(streamNodes, jobVertexBuildContext);
 

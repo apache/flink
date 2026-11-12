@@ -53,7 +53,11 @@ public class JobVertexForwardGroup implements ForwardGroup<JobVertexID> {
                         .map(JobVertex::getParallelism)
                         .collect(Collectors.toSet());
 
-        checkState(configuredParallelisms.size() <= 1);
+        checkState(
+                configuredParallelisms.size() <= 1,
+                "The job vertices %s of a forward group must have the same parallelism, found %s.",
+                jobVertexIds,
+                configuredParallelisms);
         if (configuredParallelisms.size() == 1) {
             this.parallelism = configuredParallelisms.iterator().next();
         }
