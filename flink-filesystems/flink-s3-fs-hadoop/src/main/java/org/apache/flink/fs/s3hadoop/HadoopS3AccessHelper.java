@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.s3a.S3ADataBlocks;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
 import org.apache.hadoop.fs.s3a.impl.PutObjectOptions;
+import org.apache.hadoop.io.MD5Hash;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
@@ -36,9 +37,12 @@ import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -89,6 +93,16 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         }
     }
 
+    /**
+     * Content-MD5 for an upload, so that S3 rejects bytes that arrive corrupted. The SDK v2 client
+     * neither sends nor checks one, and the writer cannot use S3A's part checksums.
+     */
+    private static String contentMd5(File file) throws IOException {
+        try (InputStream in = new FileInputStream(file)) {
+            return Base64.getEncoder().encodeToString(MD5Hash.digest(in).getDigest());
+        }
+    }
+
     /** Follows the directory marker policy for the key, like {@link S3AFileSystem} does. */
     private PutObjectOptions putOptions(String key) {
         return s3a.getDirectoryMarkerPolicy().keepDirectoryMarkers(s3a.keyToQualifiedPath(key))
@@ -110,6 +124,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         UploadPartRequest request =
                 writeHelper
                         .newUploadPartRequestBuilder(key, uploadId, partNumber, false, length)
+                        .contentMD5(contentMd5(inputFile))
                         .build();
         RequestBody body = RequestBody.fromFile(inputFile);
         return writeHelper.uploadPart(request, body, null);
@@ -119,7 +134,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     public PutObjectResponse putObject(String key, File inputFile) throws IOException {
         final PutObjectOptions options = putOptions(key);
         software.amazon.awssdk.services.s3.model.PutObjectRequest request =
-                writeHelper.createPutObjectRequest(key, inputFile.length(), options);
+                writeHelper.createPutObjectRequest(key, inputFile.length(), options).toBuilder()
+                        .contentMD5(contentMd5(inputFile))
+                        .build();
         try (S3ADataBlocks.BlockUploadData uploadData =
                 new S3ADataBlocks.BlockUploadData(inputFile, () -> true)) {
             return writeHelper.putObject(request, options, uploadData, null);
