@@ -43,6 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserializationSchema {
 
+    private final JsonParserToRowDataConverters converters;
+
     /**
      * Runtime converter that converts {@link JsonParser}s into objects of Flink SQL internal data
      * structures.
@@ -66,10 +68,16 @@ public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserial
             TimestampFormat timestampFormat,
             @Nullable String[][] projectedFields) {
         super(rowType, resultTypeInfo, failOnMissingField, ignoreParseErrors, timestampFormat);
-        this.runtimeConverter =
+        this.converters =
                 new JsonParserToRowDataConverters(
-                                failOnMissingField, ignoreParseErrors, timestampFormat)
-                        .createConverter(projectedFields, checkNotNull(rowType));
+                        failOnMissingField, ignoreParseErrors, timestampFormat);
+        this.runtimeConverter = converters.createConverter(projectedFields, checkNotNull(rowType));
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        super.open(context);
+        converters.setParseErrorListener(getParseErrorListener());
     }
 
     @Override
@@ -100,7 +108,10 @@ public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserial
                 throw new IOException(
                         format("Failed to deserialize JSON '%s'.", new String(message)), t);
             }
+            markParseError();
             logParseErrorIfDebugEnabled(message, t);
+        } finally {
+            finishMessage();
         }
     }
 
