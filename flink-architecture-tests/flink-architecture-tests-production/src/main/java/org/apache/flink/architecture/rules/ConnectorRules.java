@@ -58,6 +58,14 @@ public class ConnectorRules {
                 .as("are enclosed in public classes");
     }
 
+    static DescribedPredicate<JavaClass> areAllowedDependencies() {
+        return areFlinkClassesThatResideOutsideOfConnectorPackagesAndArePublic()
+                .or(JavaClass.Predicates.resideOutsideOfPackages("org.apache.flink.."))
+                .or(JavaClass.Predicates.resideInAnyPackage(CONNECTOR_PACKAGES))
+                .or(JavaClass.Predicates.resideInAnyPackage(UTIL_PACKAGES))
+                .onResultOf(JavaClass::getBaseComponentType);
+    }
+
     @ArchTest
     public static final ArchRule CONNECTOR_CLASSES_ONLY_DEPEND_ON_PUBLIC_API =
             freeze(
@@ -65,17 +73,7 @@ public class ConnectorRules {
                             .and()
                             .areNotAnnotatedWith(Deprecated.class)
                             .should()
-                            .onlyDependOnClassesThat(
-                                    areFlinkClassesThatResideOutsideOfConnectorPackagesAndArePublic()
-                                            .or(
-                                                    JavaClass.Predicates.resideOutsideOfPackages(
-                                                            "org.apache.flink.."))
-                                            .or(
-                                                    JavaClass.Predicates.resideInAnyPackage(
-                                                            CONNECTOR_PACKAGES))
-                                            .or(
-                                                    JavaClass.Predicates.resideInAnyPackage(
-                                                            UTIL_PACKAGES)))
+                            .onlyDependOnClassesThat(areAllowedDependencies())
                             .as(
                                     "Connector production code must depend only on public API when outside of connector packages"));
 }
