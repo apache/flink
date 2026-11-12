@@ -50,7 +50,7 @@ wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path
 // WASB SSL encrypted access
 wasbs://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>
 
-// ABFS unecrypted access
+// ABFS unencrypted access
 abfs://<your-container>@$<your-azure-account>.dfs.core.windows.net/<object-path>
 
 // ABFS SSL encrypted access

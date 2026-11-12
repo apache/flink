@@ -340,7 +340,7 @@ TableSourceScan(..., cumulative cost ={1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 netw
 
 **CHANGELOG_MODE**
 
-Specify `CHANGELOG_MODE` will inform the optimizer to attach the changelog mode (see more details at [Dynamic Tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)) of each physical rel node to the ouptput.
+Specify `CHANGELOG_MODE` will inform the optimizer to attach the changelog mode (see more details at [Dynamic Tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)) of each physical rel node to the output.
 
 ```text
 == Optimized Physical Plan ==

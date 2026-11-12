@@ -575,7 +575,7 @@ docker compose scale taskmanager=2
 
 **请求**
 ```bash
-curl "localhost:8081/jobs/<jod-id>/metrics?get=lastCheckpointSize"
+curl "localhost:8081/jobs/<job-id>/metrics?get=lastCheckpointSize"
 ```
 **预期响应 (结果已格式化且去除了占位符)**
 ```json
@@ -592,7 +592,7 @@ REST API 不仅可以用于查询指标，还可以用于获取正在运行中�
 **请求**
 ```bash
 # 可以从结果中获取感兴趣的 vertex-id
-curl localhost:8081/jobs/<jod-id>
+curl localhost:8081/jobs/<job-id>
 ```
 
 **预期响应 (结果已格式化)**

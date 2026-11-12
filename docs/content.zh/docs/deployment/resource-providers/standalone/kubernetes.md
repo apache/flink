@@ -45,7 +45,7 @@ under the License.
 
 ### 准备
 
-本指南假设存在一个 Kubernets 的运行环境。你可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernets 集群的 node 节点信息。
+本指南假设存在一个 Kubernetes 的运行环境。你可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernetes 集群的 node 节点信息。
 
 如果你想在本地运行 Kubernetes，建议使用 [MiniKube](https://minikube.sigs.k8s.io/docs/start/)。
 
@@ -156,7 +156,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 <a name="accessing-flink-in-kubernetes"></a>
 
-### 在 Kubernets 上访问 Flink
+### 在 Kubernetes 上访问 Flink
 
 接下来可以访问 Flink UI 页面并通过不同的方式提交作业：
 
@@ -207,7 +207,7 @@ flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 
 ### 高可用的 Standalone Kubernetes
 
-对于在 Kubernetes 上实现HA，可以参考当前的 [Kubernets 高可用服务]({{< ref "docs/deployment/ha/overview" >}})。
+对于在 Kubernetes 上实现HA，可以参考当前的 [Kubernetes 高可用服务]({{< ref "docs/deployment/ha/overview" >}})。
 
 <a name="kubernetes-high-availability-services"></a>
 

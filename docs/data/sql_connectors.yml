@@ -95,7 +95,7 @@ maxwell:
 ogg-json:
     name: Ogg
     maven: flink-json
-    catagory: format
+    category: format
     builtin: true
 
 csv:

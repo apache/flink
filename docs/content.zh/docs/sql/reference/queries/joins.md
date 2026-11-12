@@ -472,7 +472,7 @@ Because every probe-side row is joined against the final, complete build side, t
 Lookup Join
 --------------
 
-lookup join 通常用于使用从外部系统查询的数据来丰富表。join 要求一个表具有处理时间属性，另一个表由查找源连接器（lookup source connnector）支持。
+lookup join 通常用于使用从外部系统查询的数据来丰富表。join 要求一个表具有处理时间属性，另一个表由查找源连接器（lookup source connector）支持。
 
 lookup join 和上面的 [处理时间 Temporal Join](#processing-time-temporal-join) 语法相同，右表使用查找源连接器支持。
 
