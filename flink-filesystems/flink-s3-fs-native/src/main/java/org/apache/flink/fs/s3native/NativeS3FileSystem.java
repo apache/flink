@@ -31,8 +31,10 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3ObjectOperations;
 import org.apache.flink.fs.s3native.writer.NativeS3RecoverableWriter;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -57,6 +59,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -75,8 +79,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       {@code closeAsync()} sets the flag. In this case, the operation either completes normally
  *       (the underlying clients have not been torn down yet) or fails with an {@link IOException}
  *       from the AWS SDK, which callers are already expected to handle.
- *   <li>The {@link #closeAsync()} teardown sequence (bulkCopyHelper, transferManager, asyncClient,
- *       syncClient) provides a natural grace period bounded by the configurable close timeout.
+ *   <li>The {@link #closeAsync()} teardown sequence (part upload pool, bulkCopyHelper,
+ *       transferManager, asyncClient, syncClient) provides a natural grace period bounded by the
+ *       configurable close timeout.
  * </ul>
  *
  * <p>A thread-pool-routed approach would provide stricter guarantees but introduces latency
@@ -110,6 +115,8 @@ class NativeS3FileSystem extends FileSystem
     private final int maxConcurrentUploadsPerStream;
     private final String localTmpDir;
 
+    private final ExecutorService uploadThreadPool;
+
     @Nullable private final NativeS3BulkCopyHelper bulkCopyHelper;
     private final boolean useAsyncOperations;
     private final int readBufferSize;
@@ -139,6 +146,15 @@ class NativeS3FileSystem extends FileSystem
         this.localTmpDir = localTmpDir;
         this.s3uploadPartSize = s3uploadPartSize;
         this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
+        this.uploadThreadPool =
+                Executors.newCachedThreadPool(
+                        new ExecutorThreadFactory(
+                                "s3-native-part-upload",
+                                (thread, error) ->
+                                        LOG.error(
+                                                "Uncaught exception in S3 part upload thread {}",
+                                                thread.getName(),
+                                                error)));
         this.useAsyncOperations = useAsyncOperations;
         this.readBufferSize = readBufferSize;
         this.fsCloseTimeout = fsCloseTimeout;
@@ -543,7 +559,11 @@ class NativeS3FileSystem extends FileSystem
             throw new UnsupportedOperationException("Recoverable writer not available");
         }
         return NativeS3RecoverableWriter.writer(
-                s3AccessHelper, localTmpDir, s3uploadPartSize, maxConcurrentUploadsPerStream);
+                s3AccessHelper,
+                uploadThreadPool,
+                localTmpDir,
+                s3uploadPartSize,
+                maxConcurrentUploadsPerStream);
     }
 
     @Override
@@ -553,8 +573,13 @@ class NativeS3FileSystem extends FileSystem
         }
 
         LOG.info("Starting async close of Native S3 FileSystem for bucket: {}", bucketName);
+        // Part uploads use the S3 client, so they have to finish before it is closed. Uploads
+        // that are still running after the timeout are interrupted. The timeout below only covers
+        // closing the client, so that slow uploads cannot make the close future time out.
         CompletableFuture<Void> closeFuture =
-                CompletableFuture.runAsync(
+                ExecutorUtils.nonBlockingShutdown(
+                                fsCloseTimeout.toMillis(), TimeUnit.MILLISECONDS, uploadThreadPool)
+                        .thenRun(
                                 () ->
                                         LOG.info(
                                                 "Native S3 FileSystem closed for bucket: {}",
@@ -573,8 +598,10 @@ class NativeS3FileSystem extends FileSystem
                                                                 LOG.debug(
                                                                         "S3 client provider closed");
                                                             }
-                                                        }))
-                        .orTimeout(fsCloseTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                                                        })
+                                                .orTimeout(
+                                                        fsCloseTimeout.toMillis(),
+                                                        TimeUnit.MILLISECONDS))
                         .whenComplete(
                                 (result, error) -> {
                                     if (error != null) {
