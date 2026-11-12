@@ -77,12 +77,11 @@ counts.execute().print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-The Scala Table API is enabled by importing `org.apache.flink.table.api._`, `org.apache.flink.api.scala._`, and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
+The Scala Table API is enabled by importing `org.apache.flink.table.api._` and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
 
 The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dollar character (`$`).
 
 ```scala
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 
@@ -332,9 +331,11 @@ val table = tEnv.fromValues(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from decimal import Decimal
+
 table = t_env.from_elements(
-  [(1, 'ABC'), (2, 'ABCDE')],
-  schema=DataTypes.Row([DataTypes.FIELD('id', DataTypes.DECIMAL(10, 2)),
+  [(Decimal(1), 'ABC'), (Decimal(2), 'ABCDE')],
+  schema=DataTypes.ROW([DataTypes.FIELD('id', DataTypes.DECIMAL(10, 2)),
                         DataTypes.FIELD('name', DataTypes.STRING())]))
 ```
 {{< /tab >}}
@@ -500,7 +501,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import concat
+from pyflink.table.expressions import col, concat
 
 orders = t_env.from_path("Orders")
 result = orders.add_columns(concat(col("c"), 'sunny'))
@@ -531,7 +532,7 @@ val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import concat
+from pyflink.table.expressions import col, concat
 
 orders = t_env.from_path("Orders")
 result = orders.add_or_replace_columns(concat(col("c"), 'sunny').alias('desc'))
@@ -665,7 +666,7 @@ from pyflink.table.window import Tumble
 from pyflink.table.expressions import lit, col
 
 orders = t_env.from_path("Orders")
-result = orders.window(Tumble.over(lit(5).minutes).on(col('rowtime')).alias("w")) \ 
+result = orders.window(Tumble.over(lit(5).minutes).on(col('rowtime')).alias("w")) \
                .group_by(col('a'), col('w')) \
                .select(col('a'), col('w').start, col('w').end, col('b').sum.alias('d'))
 ```
@@ -825,7 +826,7 @@ Table orders = tEnv.from("Orders");
 
 // Use distinct aggregation for user-defined aggregate functions
 tEnv.createTemporarySystemFunction("myUdagg", MyUdagg.class);
-orders.groupBy("users")
+orders.groupBy($("users"))
     .select(
         $("users"),
         call("myUdagg", $("points")).distinct().as("myDistinctResult")
@@ -1003,7 +1004,7 @@ val result = left.join(right)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, lit
 
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
@@ -2067,7 +2068,7 @@ Note: Currently, all aggregation functions in the same select() call must be com
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy($("a")).orderBy("proctime").preceding(UNBOUNDED_RANGE).as("w"));
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_ROW).as("w"));
@@ -2354,7 +2355,7 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         return TypeInference.newBuilder()
-                .typedArguments(DataTypes.INT())
+                .staticArguments(StaticArgument.scalar("value", DataTypes.INT(), false))
                 .accumulatorTypeStrategy(
                         TypeStrategies.explicit(
                                 DataTypes.STRUCTURED(
@@ -2404,7 +2405,7 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
 
   override def getTypeInference(typeFactory: DataTypeFactory): TypeInference =
     TypeInference.newBuilder
-      .typedArguments(DataTypes.INT)
+      .staticArguments(StaticArgument.scalar("value", DataTypes.INT, false))
       .accumulatorTypeStrategy(
         TypeStrategies.explicit(
           DataTypes.STRUCTURED(
@@ -2430,6 +2431,7 @@ Performs an aggregate operation with a python [general aggregate function]({{< r
 from pyflink.common import Row
 from pyflink.table import DataTypes
 from pyflink.table.udf import AggregateFunction, udaf
+from pyflink.table.expressions import col
 
 class CountAndSumAggregateFunction(AggregateFunction):
 

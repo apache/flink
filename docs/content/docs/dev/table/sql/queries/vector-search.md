@@ -99,7 +99,7 @@ FROM TABLE(VECTOR_SEARCH(
   TABLE vector_table,
   ARRAY[10, 20],
   DESCRIPTOR(index_column),
-  10,
+  10
 ));
 ```
 

@@ -213,7 +213,7 @@ Data Sources
 {{< tabs "8104e62c-db79-40b0-8519-0063e9be791f" >}}
 {{< tab "Java" >}}
 
-Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你仍然可以通过实现 `SourceFunction` 接口编写自定义的非并行 source，也可以通过实现 `ParallelSourceFunction` 接口或者继承 `RichParallelSourceFunction` 类编写自定义的并行 sources。
+Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.fromSource(source, watermarkStrategy, sourceName)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source，不过你仍然可以通过实现 [Source API]({{< ref "docs/dev/datastream/sources" >}}) 编写自定义的 source。
 
 通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
@@ -251,7 +251,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
 自定义：
 
-- `addSource` - 关联一个新的 source function。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
+- `fromSource` - 关联一个基于 Source API 实现的 source。例如，你可以使用 `fromSource(KafkaSource.builder()...build(), watermarkStrategy, "Kafka Source")` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -361,7 +361,7 @@ Flink 通过提供 IDE 内本地调试、注入测试数据和收集结果数据
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-DataStream<String> lines = env.addSource(/* some source */);
+DataStream<String> lines = env.fromSource(mySource, WatermarkStrategy.noWatermarks(), "My Source");
 // 构建你的程序
 
 env.execute();
@@ -389,14 +389,16 @@ DataStream<Integer> myInts = env.fromData(1, 2, 3, 4, 5);
 List<Tuple2<String, Integer>> data = ...
 DataStream<Tuple2<String, Integer>> myTuples = env.fromData(data);
 
-// 从迭代器创建一个 DataStream
-Iterator<Long> longIt = ...
-DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
+// 从生成函数创建一个 DataStream
+DataStream<Long> myLongs = env.fromSource(
+    new DataGeneratorSource<>(index -> index, 1000, Types.LONG),
+    WatermarkStrategy.noWatermarks(),
+    "Generator Source");
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 目前，集合 data source 要求数据类型和迭代器实现 `Serializable`。此外，集合 data sources 不能并行执行（parallelism = 1）。
+**注意：** 集合 data source 不能并行执行（parallelism = 1）。
 
 <a name="iterator-data-sink"></a>
 

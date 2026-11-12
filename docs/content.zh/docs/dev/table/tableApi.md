@@ -76,12 +76,11 @@ counts.execute().print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Scala 的 Table API 通过引入 `org.apache.flink.table.api._`、`org.apache.flink.api.scala._` 和 `org.apache.flink.table.api.bridge.scala._`（开启数据流的桥接支持）来使用。
+Scala 的 Table API 通过引入 `org.apache.flink.table.api._` 和 `org.apache.flink.table.api.bridge.scala._`（开启数据流的桥接支持）来使用。
 
 下面的例子展示了如何创建一个 Scala 的 Table API 程序。通过 Scala 的带美元符号（`$`）的字符串插值来实现表字段引用。
 
 ```scala
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 
@@ -330,9 +329,11 @@ val table = tEnv.fromValues(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from decimal import Decimal
+
 table = t_env.from_elements(
-  [(1, 'ABC'), (2, 'ABCDE')],
-  schema=DataTypes.Row([DataTypes.FIELD('id', DataTypes.DECIMAL(10, 2)),
+  [(Decimal(1), 'ABC'), (Decimal(2), 'ABCDE')],
+  schema=DataTypes.ROW([DataTypes.FIELD('id', DataTypes.DECIMAL(10, 2)),
                         DataTypes.FIELD('name', DataTypes.STRING())]))
 ```
 {{< /tab >}}
@@ -501,7 +502,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import concat
+from pyflink.table.expressions import col, concat
 
 orders = t_env.from_path("Orders")
 result = orders.add_columns(concat(col("c"), 'sunny'))
@@ -532,7 +533,7 @@ val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import concat
+from pyflink.table.expressions import col, concat
 
 orders = t_env.from_path("Orders")
 result = orders.add_or_replace_columns(concat(col("c"), 'sunny').alias('desc'))
@@ -826,7 +827,7 @@ Table orders = tEnv.from("Orders");
 
 // 对用户定义的聚合函数使用互异（互不相同、去重）聚合
 tEnv.createTemporarySystemFunction("myUdagg", MyUdagg.class);
-orders.groupBy("users")
+orders.groupBy($("users"))
     .select(
         $("users"),
         call("myUdagg", $("points")).distinct().as("myDistinctResult")
@@ -1004,7 +1005,7 @@ val result = left.join(right)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, lit
 
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
@@ -2068,7 +2069,7 @@ table = input.over_window([w: OverWindow].alias("w"))
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // 无界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
-.window(Over.partitionBy($("a")).orderBy("proctime").preceding(UNBOUNDED_RANGE).as("w"));
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // 无界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_ROW).as("w"));
@@ -2355,7 +2356,7 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         return TypeInference.newBuilder()
-                .typedArguments(DataTypes.INT())
+                .staticArguments(StaticArgument.scalar("value", DataTypes.INT(), false))
                 .accumulatorTypeStrategy(
                         TypeStrategies.explicit(
                                 DataTypes.STRUCTURED(
@@ -2405,7 +2406,7 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
 
   override def getTypeInference(typeFactory: DataTypeFactory): TypeInference =
     TypeInference.newBuilder
-      .typedArguments(DataTypes.INT)
+      .staticArguments(StaticArgument.scalar("value", DataTypes.INT, false))
       .accumulatorTypeStrategy(
         TypeStrategies.explicit(
           DataTypes.STRUCTURED(
@@ -2431,6 +2432,7 @@ val table = input
 from pyflink.common import Row
 from pyflink.table import DataTypes
 from pyflink.table.udf import AggregateFunction, udaf
+from pyflink.table.expressions import col
 
 class CountAndSumAggregateFunction(AggregateFunction):
 

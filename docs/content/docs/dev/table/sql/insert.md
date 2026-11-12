@@ -217,36 +217,36 @@ and decide how to process the partial updates.
 
 ```sql
 -- Creates a partitioned table
-CREATE TABLE country_page_view (user STRING, cnt INT, date STRING, country STRING)
-PARTITIONED BY (date, country)
-WITH (...)
+CREATE TABLE country_page_view (`user` STRING, cnt INT, `date` STRING, country STRING)
+PARTITIONED BY (`date`, country)
+WITH (...);
 
 -- Appends rows into the static partition (date='2019-8-30', country='China')
-INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+INSERT INTO country_page_view PARTITION (`date`='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
   
 -- Key word EXECUTE can be added at the beginning of Insert to indicate explicitly that we are going to execute the statement,
 -- it is equivalent to Statement without the key word. 
-EXECUTE INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+EXECUTE INSERT INTO country_page_view PARTITION (`date`='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
 
 -- Appends rows into partition (date, country), where date is static partition with value '2019-8-30',
 -- country is dynamic partition whose value is dynamic determined by each row.
-INSERT INTO country_page_view PARTITION (date='2019-8-30')
+INSERT INTO country_page_view PARTITION (`date`='2019-8-30')
   SELECT user, cnt, country FROM page_view_source;
 
 -- Overwrites rows into static partition (date='2019-8-30', country='China')
-INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30', country='China')
+INSERT OVERWRITE country_page_view PARTITION (`date`='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
 
 -- Overwrites rows into partition (date, country), where date is static partition with value '2019-8-30',
 -- country is dynamic partition whose value is dynamic determined by each row.
-INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30')
+INSERT OVERWRITE country_page_view PARTITION (`date`='2019-8-30')
   SELECT user, cnt, country FROM page_view_source;
 
 -- Appends rows into the static partition (date='2019-8-30', country='China')
 -- the column cnt is set to NULL
-INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China') (user)
+INSERT INTO country_page_view PARTITION (`date`='2019-8-30', country='China') (`user`)
   SELECT user FROM page_view_source;
 ```
 

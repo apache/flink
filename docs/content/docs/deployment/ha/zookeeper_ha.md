@@ -75,7 +75,7 @@ The *cluster-id ZooKeeper node*, under which all required coordination data for 
 
 Configure high availability mode and ZooKeeper quorum in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}):
 
-```bash
+```yaml
 high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
@@ -89,7 +89,7 @@ high-availability.storageDir: hdfs:///flink/recovery
 
 If ZooKeeper is running in secure mode with Kerberos, you can override the following configurations in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) as necessary:
 
-```bash
+```yaml
 # default is "zookeeper". If the ZooKeeper quorum is configured
 # with a different service name then it can be supplied here.
 

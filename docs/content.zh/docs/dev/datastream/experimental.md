@@ -64,7 +64,7 @@ DataStreamSource<Integer> source = ...;
 DataStreamUtils.reinterpretAsKeyedStream(source, (in) -> in, TypeInformation.of(Integer.class))
     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(1)))
     .reduce((a, b) -> a + b)
-    .addSink(new DiscardingSink<>());
+    .sinkTo(new DiscardingSink<>());
 env.execute();
 ```
 

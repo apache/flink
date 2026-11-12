@@ -552,9 +552,9 @@ string:
   - sql: CHR(integer)
     table: INT.chr()
     description: |
-      返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将整数 integer 对 255 取模数，
+      返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将整数 integer 对 256 取模数，
       并返回模数的 CHR。如果整数为 `NULL`，则返回 `NULL`。例如 `chr(97)` 返回 `a`，`chr(353)` 返回 `a`，
-      `ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
+      `chr(CAST(NULL AS INT))` 返回 `NULL`。
   - sql: DECODE(binary, string)
     table: BINARY.decode(STRING)
     description: |

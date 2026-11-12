@@ -213,7 +213,7 @@ A sample section in the configuration file could look as follows:
 
 ```yaml
 # The backend that will be used to store operator state checkpoints
-state.backend: hashmap
+state.backend.type: hashmap
 
 # Directory for storing checkpoints
 execution.checkpointing.dir: hdfs://namenode:40010/flink/checkpoints
@@ -468,7 +468,7 @@ env.enableChangelogStateBackend(true);
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
-env.enable_changelog_statebackend(true)
+env.enable_changelog_state_backend(True)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -500,7 +500,7 @@ Resuming from both savepoints and checkpoints is supported:
 ### Limitations
  - At most one concurrent checkpoint
  - As of Flink 1.15, only `filesystem` changelog implementation is available
-- [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
+- [NO_CLAIM]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}}) mode not supported
 
 ## Migrating from Legacy Backends
 
@@ -515,7 +515,7 @@ The legacy `MemoryStateBackend` is equivalent to using [`HashMapStateBackend`](#
 #### Configuration using Flink configuration file
 
 ```yaml
-state.backend: hashmap
+state.backend.type: hashmap
 
 # Optional, Flink will automatically default to JobManagerCheckpointStorage
 # when no checkpoint directory is specified.
@@ -550,7 +550,7 @@ The legacy `FsStateBackend` is equivalent to using [`HashMapStateBackend`](#the-
 #### Configuration using Flink configuration file
 
 ```yaml
-state.backend: hashmap
+state.backend.type: hashmap
 execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
@@ -587,7 +587,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 
 # Advanced FsStateBackend configurations, such as write buffer size
 # can be set manually by using CheckpointingOptions.
-config.set_string('state.storage.fs.write-buffer-size', '4096');
+config.set_string('execution.checkpointing.write-buffer-size', '4096');
 env.configure(config);
 ```
 {{< /tab >}}
@@ -600,7 +600,7 @@ The legacy `RocksDBStateBackend` is equivalent to using [`EmbeddedRocksDBStateBa
 #### Configuration using Flink configuration file
 
 ```yaml
-state.backend: rocksdb
+state.backend.type: rocksdb
 execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
@@ -639,7 +639,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 # If you manually passed FsStateBackend into the RocksDBStateBackend constructor
 # to specify advanced checkpointing configurations such as write buffer size,
 # you can achieve the same results by using CheckpointingOptions.
-config.set_string('state.storage.fs.write-buffer-size', '4096');
+config.set_string('execution.checkpointing.write-buffer-size', '4096');
 env.configure(config);
 ```
 {{< /tab >}}

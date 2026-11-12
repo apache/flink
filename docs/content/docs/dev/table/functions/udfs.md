@@ -563,6 +563,7 @@ The following example implemented in Java illustrates the potential of a custom 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.Row;
 
@@ -586,7 +587,9 @@ public static class LiteralFunction extends ScalarFunction {
     return TypeInference.newBuilder()
       // specify typed arguments
       // parameters will be casted implicitly to those types if necessary
-      .typedArguments(DataTypes.STRING(), DataTypes.STRING())
+      .staticArguments(
+          StaticArgument.scalar("s", DataTypes.STRING(), false),
+          StaticArgument.scalar("type", DataTypes.STRING(), false))
       // specify a strategy for the result data type of the function
       .outputTypeStrategy(callContext -> {
         if (!callContext.isArgumentLiteral(1) || callContext.isArgumentNull(1)) {
@@ -1295,7 +1298,7 @@ The number of outstanding calls to `eval` may be configured by [`table.exec.asyn
 While calls to an `AsyncTableFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
 
 #### Error Handling
-The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-table.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-table-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) expires (including all retry attempts), the job will fail.
+The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) will be waited, and the function call will be retried. If the call has been retried [`table.exec.async-table.max-retries`]({{< ref "docs/dev/table/config#table-exec-async-table-max-retries" >}}) times or if the timeout [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) expires (including all retry attempts), the job will fail.
 
 The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
 

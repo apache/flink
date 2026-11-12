@@ -260,10 +260,9 @@ Data Sources
 {{< tab "Java" >}}
 
 Sources are where your program reads its input from. You can attach a source to your program by
-using `StreamExecutionEnvironment.addSource(sourceFunction)`. Flink comes with a number of pre-implemented
-source functions, but you can always write your own custom sources by implementing the `SourceFunction`
-for non-parallel sources, or by implementing the `ParallelSourceFunction` interface or extending the
-`RichParallelSourceFunction` for parallel sources.
+using `StreamExecutionEnvironment.fromSource(source, watermarkStrategy, sourceName)`. Flink comes with a
+number of pre-implemented sources, but you can always write your own custom source by implementing the
+[Source API]({{< ref "docs/dev/datastream/sources" >}}).
 
 There are several predefined stream sources accessible from the `StreamExecutionEnvironment`:
 
@@ -305,8 +304,8 @@ Collection-based:
 
 Custom:
 
-- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({{< ref "docs/connectors/datastream/overview" >}}) for more details.
+- `fromSource` - Attach a source built on the Source API. For example, to read from Apache Kafka you can use
+    `fromSource(KafkaSource.builder()...build(), watermarkStrategy, "Kafka Source")`. See [connectors]({{< ref "docs/connectors/datastream/overview" >}}) for more details.
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -430,7 +429,7 @@ A LocalEnvironment is created and used as follows:
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-DataStream<String> lines = env.addSource(/* some source */);
+DataStream<String> lines = env.fromSource(mySource, WatermarkStrategy.noWatermarks(), "My Source");
 // build your program
 
 env.execute();
@@ -452,22 +451,22 @@ Collection data sources can be used as follows:
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 // Create a DataStream from a list of elements
-DataStream<Integer> myInts = env.fromElements(1, 2, 3, 4, 5);
+DataStream<Integer> myInts = env.fromData(1, 2, 3, 4, 5);
 
 // Create a DataStream from any Java collection
 List<Tuple2<String, Integer>> data = ...
-DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
+DataStream<Tuple2<String, Integer>> myTuples = env.fromData(data);
 
-// Create a DataStream from an Iterator
-Iterator<Long> longIt = ...;
-DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
+// Create a DataStream from a generator function
+DataStream<Long> myLongs = env.fromSource(
+    new DataGeneratorSource<>(index -> index, 1000, Types.LONG),
+    WatermarkStrategy.noWatermarks(),
+    "Generator Source");
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-**Note:** Currently, the collection data source requires that data types and iterators implement
-`Serializable`. Furthermore, collection data sources can not be executed in parallel (
-parallelism = 1).
+**Note:** Collection data sources cannot be executed in parallel (parallelism = 1).
 
 ### Iterator Data Sink
 
