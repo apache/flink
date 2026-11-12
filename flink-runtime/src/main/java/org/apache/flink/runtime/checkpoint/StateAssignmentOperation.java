@@ -355,16 +355,18 @@ public class StateAssignmentOperation {
     }
 
     public void reDistributeResultSubpartitionStates(TaskStateAssignment assignment) {
+        // Runs before the short-circuit, which only looks at the output operator and would drop
+        // in-flight data of a chained operator silently.
+        checkForUnsupportedToplogyChanges(
+                assignment.oldState,
+                OperatorSubtaskState::getResultSubpartitionState,
+                assignment.outputOperatorID);
+
         // FLINK-31963: We can skip this phase if there is no output state AND downstream has no
         // input states
         if (!assignment.hasOutputState() && !assignment.hasDownstreamInputStates()) {
             return;
         }
-
-        checkForUnsupportedToplogyChanges(
-                assignment.oldState,
-                OperatorSubtaskState::getResultSubpartitionState,
-                assignment.outputOperatorID);
 
         final OperatorState outputState = assignment.oldState.get(assignment.outputOperatorID);
         final List<List<ResultSubpartitionStateHandle>> outputOperatorState =
@@ -407,16 +409,18 @@ public class StateAssignmentOperation {
     }
 
     public void reDistributeInputChannelStates(TaskStateAssignment stateAssignment) {
+        // Runs before the short-circuit, which only looks at the input operator and would drop
+        // in-flight data of a chained operator silently.
+        checkForUnsupportedToplogyChanges(
+                stateAssignment.oldState,
+                OperatorSubtaskState::getInputChannelState,
+                stateAssignment.inputOperatorID);
+
         // FLINK-31963: We can skip this phase only if there is no input state AND upstream has no
         // output states
         if (!stateAssignment.hasInputState() && !stateAssignment.hasUpstreamOutputStates()) {
             return;
         }
-
-        checkForUnsupportedToplogyChanges(
-                stateAssignment.oldState,
-                OperatorSubtaskState::getInputChannelState,
-                stateAssignment.inputOperatorID);
 
         final ExecutionJobVertex executionJobVertex = stateAssignment.executionJobVertex;
         final List<IntermediateResult> inputs = executionJobVertex.getInputs();
