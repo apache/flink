@@ -61,8 +61,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Manager for delegation tokens in a Flink cluster.
  *
- * <p>When delegation token renewal is enabled, this manager will make sure long-running apps can
- * run without interruption while accessing secured services. It periodically contacts all the
+ * <p>When delegation tokens are enabled, this manager will make sure long-running apps can run
+ * without interruption while accessing secured services. It periodically contacts all the
  * configured secure services to obtain delegation tokens, updates the receivers of the local JVM
  * and hands the tokens to the attached listener to be distributed to the rest of the application.
  *
@@ -97,9 +97,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private final long renewalRetryMaxBackoff;
 
+    /**
+     * The backoff of the next retry of a failed obtain. It doubles with every retry up to the
+     * maximum and is reset by a successful obtain.
+     */
     @VisibleForTesting long currentRetryBackoff;
 
-    @VisibleForTesting long lastKnownNextRenewal = Long.MAX_VALUE;
+    /** The earliest expiry of the tokens of the last successful obtain. */
+    @VisibleForTesting long lastKnownExpiry = Long.MAX_VALUE;
 
     @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
 
@@ -286,16 +291,21 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @Override
     public void obtainDelegationTokens(DelegationTokenContainer container) throws Exception {
         LOG.info("Obtaining delegation tokens");
-        obtainDelegationTokensAndGetNextRenewal(container);
+        obtainDelegationTokensAndGetExpiry(container);
         LOG.info("Delegation tokens obtained successfully");
     }
 
-    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+    /**
+     * Obtains the tokens of the providers which require them, adds them to the container and
+     * returns their expiry: the earliest {@code validUntil} of the obtained tokens, empty if no
+     * provider reports one.
+     */
+    protected Optional<Long> obtainDelegationTokensAndGetExpiry(
             DelegationTokenContainer container) {
         return delegationTokenProviders.values().stream()
                 .map(
                         p -> {
-                            Optional<Long> nr = Optional.empty();
+                            Optional<Long> validUntil = Optional.empty();
                             try {
                                 if (p.delegationTokensRequired()) {
                                     LOG.debug(
@@ -305,7 +315,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                             p.obtainDelegationTokens();
                                     checkNotNull(t, "Obtained delegation tokens must not be null");
                                     container.addToken(p.serviceName(), t.getTokens());
-                                    nr = t.getValidUntil();
+                                    validUntil = t.getValidUntil();
                                     LOG.debug(
                                             "Obtained delegation token for service {} successfully",
                                             p.serviceName());
@@ -321,9 +331,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                         e);
                                 throw new FlinkRuntimeException(e);
                             }
-                            return nr;
+                            return validUntil;
                         })
-                .flatMap(nr -> nr.map(Stream::of).orElseGet(Stream::empty))
+                .flatMap(validUntil -> validUntil.map(Stream::of).orElseGet(Stream::empty))
                 .min(Long::compare);
     }
 
@@ -390,29 +400,29 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * obtain.
      */
     private void obtainDistributeAndScheduleNext() throws Exception {
-        LOG.info("Starting tokens update task");
+        LOG.info("Obtaining and distributing delegation tokens");
         DelegationTokenContainer container = new DelegationTokenContainer();
-        Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
+        Optional<Long> expiry = obtainDelegationTokensAndGetExpiry(container);
 
         if (container.hasTokens()) {
             delegationTokenReceiverRepository.onNewTokensObtained(container);
             storeAndDeliverLatestTokens(InstantiationUtil.serializeObject(container));
         } else {
-            LOG.warn("No tokens obtained so skipping notifications");
+            LOG.warn("No tokens obtained so skipping the update of the receivers and the delivery");
         }
 
-        if (nextRenewal.isPresent()) {
-            lastKnownNextRenewal = nextRenewal.get();
+        if (expiry.isPresent()) {
+            lastKnownExpiry = expiry.get();
             currentRetryBackoff = renewalRetryInitialBackoff;
-            long renewalDelay = calculateRenewalDelay(clock, nextRenewal.get());
-            if (scheduleNextObtainIfRunning(renewalDelay)) {
+            long obtainDelay = calculateObtainDelay(clock, expiry.get());
+            if (scheduleNextObtainIfRunning(obtainDelay)) {
                 LOG.info(
-                        "Tokens update task started with {} delay",
-                        TimeUtils.formatWithHighestUnit(Duration.ofMillis(renewalDelay)));
+                        "Next delegation token obtain scheduled with {} delay",
+                        TimeUtils.formatWithHighestUnit(Duration.ofMillis(obtainDelay)));
             }
         } else {
             LOG.warn(
-                    "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
+                    "Next delegation token obtain not scheduled because either no tokens were obtained or none of the tokens specified its expiry");
         }
     }
 
@@ -437,9 +447,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 tokens = latestTokens;
             }
             if (currentListener != null && tokens != null) {
-                LOG.info("Notifying listener about new tokens");
+                LOG.info("Delivering the latest tokens to the listener");
                 currentListener.onNewTokensObtained(tokens);
-                LOG.info("Listener notified successfully");
+                LOG.info("Latest tokens delivered to the listener successfully");
             }
         }
     }
@@ -468,10 +478,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             // Ignore, may happen if shutting down.
             LOG.debug("Interrupted", e);
         } catch (Exception e) {
-            long delay = calculateRetryDelay(clock);
+            long delay = calculateNextRetryDelay(clock);
             scheduleNextObtainIfRunning(delay);
             LOG.warn(
-                    "Failed to update tokens, will try again in {}",
+                    "Failed to obtain and distribute tokens, will try again in {}",
                     TimeUtils.formatWithHighestUnit(Duration.ofMillis(delay)),
                     e);
         }
@@ -486,12 +496,16 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         }
     }
 
+    /**
+     * Returns the delay of the next retry of a failed obtain and advances the backoff for the retry
+     * after it.
+     */
     @VisibleForTesting
-    long calculateRetryDelay(Clock clock) {
+    long calculateNextRetryDelay(Clock clock) {
         long nowMillis = clock.millis();
         long effectiveMax;
-        if (lastKnownNextRenewal != Long.MAX_VALUE) {
-            long remaining = lastKnownNextRenewal - nowMillis;
+        if (lastKnownExpiry != Long.MAX_VALUE) {
+            long remaining = lastKnownExpiry - nowMillis;
             // If a failure occurs close to token expiry there may not be enough time for the
             // normal exponential backoff to complete before the token becomes invalid. Capping
             // each retry delay to one third of the remaining valid window ensures a retry always
@@ -509,22 +523,22 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     }
 
     @VisibleForTesting
-    long calculateRenewalDelay(Clock clock, long nextRenewal) {
+    long calculateObtainDelay(Clock clock, long expiry) {
         long now = clock.millis();
-        long renewalDelay = Math.round(tokensRenewalTimeRatio * (nextRenewal - now));
+        long obtainDelay = Math.round(tokensRenewalTimeRatio * (expiry - now));
         LOG.debug(
-                "Calculated delay on renewal is {}, based on next renewal {} and the ratio {}, and current time {}",
-                renewalDelay,
-                nextRenewal,
+                "Calculated obtain delay is {}, based on expiry {}, the ratio {} and the current time {}",
+                obtainDelay,
+                expiry,
                 tokensRenewalTimeRatio,
                 now);
-        return renewalDelay;
+        return obtainDelay;
     }
 
     /** Stops obtaining tokens and releases the attached listener. */
     @Override
     public void stop() {
-        LOG.info("Stopping credential renewal");
+        LOG.info("Stopping to obtain delegation tokens");
 
         synchronized (stateLock) {
             state = State.STOPPED;
@@ -532,7 +546,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         }
         cancelScheduledObtain();
 
-        LOG.info("Stopped credential renewal");
+        LOG.info("Stopped obtaining delegation tokens");
     }
 
     /** Lifecycle of the manager, tokens are obtained while it is running. */

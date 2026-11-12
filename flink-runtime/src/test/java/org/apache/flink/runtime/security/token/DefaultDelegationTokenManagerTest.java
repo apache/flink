@@ -188,7 +188,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void calculateRenewalDelayShouldConsiderRenewalRatio() {
+    public void calculateObtainDelayShouldConsiderTheTimeRatio() {
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
         configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 0.5);
@@ -196,11 +196,11 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
         Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
-        assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));
+        assertEquals(50, delegationTokenManager.calculateObtainDelay(constantClock, 200));
     }
 
     @Test
-    public void calculateRetryDelayShouldDoubleOnConsecutiveFailures() {
+    public void calculateNextRetryDelayShouldDoubleOnConsecutiveFailures() {
         long initialMs = Duration.ofSeconds(10).toMillis();
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
@@ -210,9 +210,9 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
-        long delay1 = manager.calculateRetryDelay(clock);
-        long delay2 = manager.calculateRetryDelay(clock);
-        long delay3 = manager.calculateRetryDelay(clock);
+        long delay1 = manager.calculateNextRetryDelay(clock);
+        long delay2 = manager.calculateNextRetryDelay(clock);
+        long delay3 = manager.calculateNextRetryDelay(clock);
 
         // Each delay should be within [0, 2 * initial * 2^(n-1)] accounting for ±50% jitter.
         assertTrue(delay1 >= 0 && delay1 <= initialMs * 2);
@@ -223,7 +223,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void calculateRetryDelayShouldResetAfterSuccess() {
+    public void calculateNextRetryDelayShouldResetAfterSuccess() {
         long initialMs = Duration.ofSeconds(10).toMillis();
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
@@ -234,18 +234,18 @@ public class DefaultDelegationTokenManagerTest {
 
         // Ramp up the backoff via two failures.
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
-        manager.calculateRetryDelay(clock);
-        manager.calculateRetryDelay(clock);
+        manager.calculateNextRetryDelay(clock);
+        manager.calculateNextRetryDelay(clock);
         // Simulate success: reset currentRetryBackoff (as a successful obtain would).
         manager.currentRetryBackoff = initialMs;
 
-        long delayAfterReset = manager.calculateRetryDelay(clock);
+        long delayAfterReset = manager.calculateNextRetryDelay(clock);
         assertTrue(delayAfterReset >= 0 && delayAfterReset <= initialMs * 2);
         assertEquals(initialMs * 2, manager.currentRetryBackoff);
     }
 
     @Test
-    public void calculateRetryDelayShouldCapToTtlBound() {
+    public void calculateNextRetryDelayShouldCapToTtlBound() {
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
         configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, Duration.ofSeconds(10));
@@ -256,9 +256,9 @@ public class DefaultDelegationTokenManagerTest {
         // Simulate a failure close to token expiry (30 s remaining). The delay must be capped
         // so that the retry happens while the token is still valid (at most 30 s / 3 = 10 s).
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
-        manager.lastKnownNextRenewal = Duration.ofSeconds(30).toMillis();
+        manager.lastKnownExpiry = Duration.ofSeconds(30).toMillis();
 
-        long delay = manager.calculateRetryDelay(clock);
+        long delay = manager.calculateNextRetryDelay(clock);
 
         // Delay must not exceed the TTL cap (30 s / 3 = 10 s), with jitter the max is 10 s.
         assertTrue(delay <= Duration.ofSeconds(10).toMillis());

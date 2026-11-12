@@ -23,9 +23,9 @@ import org.apache.flink.annotation.Internal;
 /**
  * Manager for delegation tokens in a Flink cluster.
  *
- * <p>When delegation token renewal is enabled, this manager will make sure long-running apps can
- * run without interruption while accessing secured services. It must contact all the configured
- * secure services to obtain delegation tokens to be distributed to the rest of the application.
+ * <p>When delegation tokens are enabled, this manager will make sure long-running apps can run
+ * without interruption while accessing secured services. It must contact all the configured secure
+ * services to obtain delegation tokens to be distributed to the rest of the application.
  */
 @Internal
 public interface DelegationTokenManager {
