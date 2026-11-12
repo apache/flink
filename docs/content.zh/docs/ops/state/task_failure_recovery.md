@@ -152,14 +152,14 @@ restart-strategy.exponential-delay.attempts-before-reset-backoff: 10
 {{< tabs "e433f119-50e2-4eae-9977-7e6e44acab61" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Duration.ofMillis(1),
-  Duration.ofMillis(1000),
-  1.1, // exponential multiplier
-  Duration.ofMillis(2000), // 重置延迟时间到初始值的阈值
-  0.1 // jitter
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF, Duration.ofMillis(1));
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF, Duration.ofMillis(1000));
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 1.1); // exponential multiplier
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD, Duration.ofMillis(2000)); // 重置延迟时间到初始值的阈值
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.1); // jitter
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

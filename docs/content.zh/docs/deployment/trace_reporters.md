@@ -45,11 +45,11 @@ Example reporter configuration that specifies multiple reporters:
 ```yaml
 traces.reporters: otel,my_other_otel
 
-traces.reporter.otel.factory.class: org.apache.flink.common.metrics.OpenTelemetryTraceReporterFactory
+traces.reporter.otel.factory.class: org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory
 traces.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
 traces.reporter.otel.scope.variables.additional: region:eu-west-1,environment:local,flink_runtime:1.17.1
 
-traces.reporter.my_other_otel.factory.class: org.apache.flink.common.traces.OpenTelemetryTraceReporterFactory
+traces.reporter.my_other_otel.factory.class: org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory
 traces.reporter.my_other_otel.exporter.endpoint: http://196.168.0.1:31337
 ```
 

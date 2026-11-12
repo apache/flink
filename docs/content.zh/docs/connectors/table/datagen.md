@@ -71,7 +71,7 @@ CREATE TABLE Orders (
     price        DECIMAL(32,2),
     buyer        ROW<first_name STRING, last_name STRING>,
     order_time   TIMESTAMP(3)
-) WITH (...)
+) WITH (...);
 
 -- create a bounded mock table
 CREATE TEMPORARY TABLE GenOrders
@@ -79,7 +79,7 @@ WITH (
     'connector' = 'datagen',
     'number-of-rows' = '10'
 )
-LIKE Orders (EXCLUDING ALL)
+LIKE Orders (EXCLUDING ALL);
 ```
 
 此外，对于可变长度类型（varchar、string、varbinary 和 bytes），您可以指定是否生成可变长度的数据。

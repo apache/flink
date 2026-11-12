@@ -100,7 +100,7 @@ env.enableCheckpointing(1000);
 // advanced options:
 
 // set mode to exactly-once (this is the default)
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 
 // make sure 500 ms of progress happen between checkpoints
 env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);

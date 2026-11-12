@@ -44,9 +44,9 @@ To make proper use of savepoints, it's important to understand the differences b
 It is **highly recommended** that you specify operator IDs via the **`uid(String)`** method. These IDs are used to scope the state of each operator.
 
 ```java
-DataStream<String> stream = env.
+DataStream<String> stream = env
   // Stateful source (e.g. Kafka) with ID
-  .addSource(new StatefulSource())
+  .fromSource(new StatefulSource(), WatermarkStrategy.noWatermarks(), "Stateful Source")
   .uid("source-id") // ID for the source operator
   .shuffle()
   // Stateful mapper with ID
@@ -242,7 +242,7 @@ same snapshot.
 
 In order to make sure Flink does not depend on any of the files from that snapshot,
 it will force the first (successful) checkpoint to be a full checkpoint as opposed to an incremental one. 
-This only makes a difference for `state.backend: rocksdb`, because all other state backends always take full checkpoints.
+This only makes a difference for `state.backend.type: rocksdb`, because all other state backends always take full checkpoints.
 
 Once the first full checkpoint completes, all subsequent checkpoints will be taken as usual/configured.
 Consequently, once a checkpoint succeeds you can manually delete the original snapshot. You can not do
@@ -321,7 +321,7 @@ execution.checkpointing.savepoint-dir: hdfs:///flink/savepoints
 {{< /tab >}}
 {{< tab "Java" >}}
 ```java
-env.setDefaultSavepointDir("hdfs:///flink/savepoints");
+env.setDefaultSavepointDirectory("hdfs:///flink/savepoints");
 ```
 {{< /tab >}}
 {{< /tabs >}}

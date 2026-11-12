@@ -128,11 +128,12 @@ Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
 ```java
 TableEnvironment tableEnv = ...;
 
-// Create a HiveCatalog 
-Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
-
-// Register the catalog
-tableEnv.registerCatalog("myhive", catalog);
+// Create and register a HiveCatalog
+tableEnv.createCatalog(
+    "myhive",
+    CatalogDescriptor.of(
+        "myhive",
+        Configuration.fromMap(Map.of("type", "hive", "hive-conf-dir", "<path_of_hive_conf>"))));
 
 // Create a catalog database
 tableEnv.executeSql("CREATE DATABASE mydb WITH (...)");
@@ -208,20 +209,24 @@ Users can use Java, Scala or Python to create catalog tables programmatically.
 {{< tabs "62adb189-5538-46e1-87d2-76753cfcc13c" >}}
 {{< tab "Java" >}}
 ```java
+import java.util.List;
+import java.util.Map;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.catalog.*;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 
 TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
-// Create a HiveCatalog 
-Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
-
-// Register the catalog
-tableEnv.registerCatalog("myhive", catalog);
+// Create and register a HiveCatalog
+tableEnv.createCatalog(
+    "myhive",
+    CatalogDescriptor.of(
+        "myhive",
+        Configuration.fromMap(Map.of("type", "hive", "hive-conf-dir", "<path_of_hive_conf>"))));
+Catalog catalog = tableEnv.getCatalog("myhive").get();
 
 // Create a catalog database 
-catalog.createDatabase("mydb", new CatalogDatabaseImpl(...));
+catalog.createDatabase("mydb", new CatalogDatabaseImpl(...), false);
 
 // Create a catalog table
 final Schema schema = Schema.newBuilder()
@@ -376,13 +381,13 @@ catalog.dropTable(new ObjectPath("mydb", "mytable"), false);
 catalog.alterTable(new ObjectPath("mydb", "mytable"), CatalogTable.newBuilder()...build(), false);
 
 // rename table
-catalog.renameTable(new ObjectPath("mydb", "mytable"), "my_new_table");
+catalog.renameTable(new ObjectPath("mydb", "mytable"), "my_new_table", false);
 
 // get table
-catalog.getTable("mytable");
+catalog.getTable(new ObjectPath("mydb", "mytable"));
 
 // check if a table exist or not
-catalog.tableExists("mytable");
+catalog.tableExists(new ObjectPath("mydb", "mytable"));
 
 // list tables in a database
 catalog.listTables("mydb");
@@ -392,17 +397,16 @@ catalog.listTables("mydb");
 ```python
 from pyflink.table import *
 from pyflink.table.catalog import CatalogBaseTable, ObjectPath
-from pyflink.table.descriptors import Kafka
 
 table_schema = TableSchema.builder() \
     .field("name", DataTypes.STRING()) \
     .field("age", DataTypes.INT()) \
     .build()
 
-table_properties = Kafka() \
-    .version("0.11") \
-    .start_from_earlist() \
-    .to_properties()
+table_properties = {
+    "connector": "kafka",
+    "scan.startup.mode": "earliest-offset"
+}
 
 catalog_table = CatalogBaseTable.create_table(schema=table_schema, properties=table_properties, comment="my comment")
 
@@ -416,13 +420,13 @@ catalog.drop_table(ObjectPath("mydb", "mytable"), False)
 catalog.alter_table(ObjectPath("mydb", "mytable"), catalog_table, False)
 
 # rename table
-catalog.rename_table(ObjectPath("mydb", "mytable"), "my_new_table")
+catalog.rename_table(ObjectPath("mydb", "mytable"), "my_new_table", False)
 
 # get table
-catalog.get_table("mytable")
+catalog.get_table(ObjectPath("mydb", "mytable"))
 
 # check if a table exist or not
-catalog.table_exists("mytable")
+catalog.table_exists(ObjectPath("mydb", "mytable"))
 
 # list tables in a database
 catalog.list_tables("mydb")
@@ -448,10 +452,10 @@ catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogViewImpl(...), 
 catalog.renameTable(new ObjectPath("mydb", "myview"), "my_new_view", false);
 
 // get view
-catalog.getTable("myview");
+catalog.getTable(new ObjectPath("mydb", "myview"));
 
 // check if a view exist or not
-catalog.tableExists("mytable");
+catalog.tableExists(new ObjectPath("mydb", "myview"));
 
 // list views in a database
 catalog.listViews("mydb");
@@ -487,10 +491,10 @@ catalog.alter_table(ObjectPath("mydb", "mytable"), catalog_table, False)
 catalog.rename_table(ObjectPath("mydb", "myview"), "my_new_view", False)
 
 # get view
-catalog.get_table("myview")
+catalog.get_table(ObjectPath("mydb", "myview"))
 
 # check if a view exist or not
-catalog.table_exists("mytable")
+catalog.table_exists(ObjectPath("mydb", "myview"))
 
 # list views in a database
 catalog.list_views("mydb")
@@ -591,10 +595,10 @@ catalog.dropFunction(new ObjectPath("mydb", "myfunc"), false);
 catalog.alterFunction(new ObjectPath("mydb", "myfunc"), new CatalogFunctionImpl(...), false);
 
 // get function
-catalog.getFunction("myfunc");
+catalog.getFunction(new ObjectPath("mydb", "myfunc"));
 
 // check if a function exist or not
-catalog.functionExists("myfunc");
+catalog.functionExists(new ObjectPath("mydb", "myfunc"));
 
 // list functions in a database
 catalog.listFunctions("mydb");
@@ -616,10 +620,10 @@ catalog.drop_function(ObjectPath("mydb", "myfunc"), False)
 catalog.alter_function(ObjectPath("mydb", "myfunc"), catalog_function, False)
 
 # get function
-catalog.get_function("myfunc")
+catalog.get_function(ObjectPath("mydb", "myfunc"))
 
 # check if a function exist or not
-catalog.function_exists("myfunc")
+catalog.function_exists(ObjectPath("mydb", "myfunc"))
 
 # list functions in a database
 catalog.list_functions("mydb")
@@ -638,12 +642,21 @@ Users can also register additional catalogs into an existing Flink session.
 {{< tabs "5e227696-2cad-4def-91ab-9d0d7158abf6" >}}
 {{< tab "Java/Scala" >}}
 ```java
-tableEnv.registerCatalog(new CustomCatalog("myCatalog"));
+tableEnv.createCatalog(
+    "myCatalog",
+    CatalogDescriptor.of(
+        "myCatalog",
+        Configuration.fromMap(Map.of("type", "generic_in_memory"))));
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-t_env.register_catalog(catalog)
+from pyflink.common import Configuration
+from pyflink.table.catalog import CatalogDescriptor
+
+conf = Configuration()
+conf.set_string("type", "generic_in_memory")
+t_env.create_catalog("myCatalog", CatalogDescriptor.of("myCatalog", conf))
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
@@ -984,7 +997,7 @@ public class CustomCatalogStoreFactory implements CatalogStoreFactory {
     
     @Override
     public CatalogStore createCatalogStore() {
-        return new CustomCatalogStore();
+        return new CustomCatalogStore(client);
     }
 
     @Override
@@ -1006,7 +1019,7 @@ public class CustomCatalogStoreFactory implements CatalogStoreFactory {
     
     public Set<ConfigOption<?>> requiredOptions() {
         // define the required options
-        Set<ConfigOption> options = new HashSet();
+        Set<ConfigOption<?>> options = new HashSet<>();
         options.add(OPTION_1);
         options.add(OPTION_2);
         
@@ -1021,9 +1034,9 @@ public class CustomCatalogStoreFactory implements CatalogStoreFactory {
 
 public class CustomCatalogStore extends AbstractCatalogStore {
 
-    private Client client;
+    private CustomClient client;
     
-    public CustomCatalogStore(Client client) {
+    public CustomCatalogStore(CustomClient client) {
         this.client = client;
     }
 

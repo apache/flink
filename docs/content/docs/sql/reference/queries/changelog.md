@@ -241,13 +241,13 @@ Two `error_handling` modes are supported. The job can either fail upon an invali
 -- Fail on unknown op codes (default behavior)
 SELECT * FROM FROM_CHANGELOG(
   input => TABLE cdc_stream
-)
+);
 
 -- Silently skip rows with NULL or unknown op codes
 SELECT * FROM FROM_CHANGELOG(
   input => TABLE cdc_stream,
   error_handling => 'SKIP'
-)
+);
 ```
 
 #### Table API
@@ -423,12 +423,12 @@ The planner requires fully-populated DELETE rows on the input. For upsert source
 -- Upsert source: -D[id:5, name: null] (key-only).
 -- ChangelogNormalize calculates the full pre-image from state.
 -- Output: +I[op:'DELETE', id:5, name:'Alice']
-SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source);
 
 -- Retract source: -D[id:5, name:'Alice'] (full pre-image).
 -- No ChangelogNormalize inserted; the input row is passed through unchanged.
 -- Output: +I[op:'DELETE', id:5, name:'Alice']
-SELECT * FROM TO_CHANGELOG(input => TABLE retract_source)
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source);
 ```
 
 **Set semantics** (`PARTITION BY`):
@@ -437,12 +437,12 @@ SELECT * FROM TO_CHANGELOG(input => TABLE retract_source)
 -- Upsert source: -D[id:5, name: null] (key-only).
 -- ChangelogNormalize calculates the full pre-image from state.
 -- Output: +I[id:5, op:'DELETE', name:'Alice']
-SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id);
 
 -- Retract source: -D[id:5, name:'Alice'] (full pre-image).
 -- No ChangelogNormalize inserted; the input row is passed through unchanged.
 -- Output: +I[id:5, op:'DELETE', name:'Alice']
-SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id);
 ```
 
 ##### `produces_full_deletes => false`
@@ -458,11 +458,11 @@ The planner skips `ChangelogNormalize` and the function emits partial DELETE row
 ```sql
 -- Upsert source with PRIMARY KEY (id): -D[id:5] (key-only).
 -- Output: +I[op:'DELETE', id:5, name:null]
-SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source, produces_full_deletes => false)
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source, produces_full_deletes => false);
 
 -- Retract source with PRIMARY KEY (id): -D[id:5, name:'Alice'] (full pre-image).
 -- Output: +I[op:'DELETE', id:5, name:null]
-SELECT * FROM TO_CHANGELOG(input => TABLE retract_source, produces_full_deletes => false)
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source, produces_full_deletes => false);
 ```
 
 **Set semantics** (`PARTITION BY`): the function preserves the partition key and nulls every non-partition-key column on DELETE rows. The key used as the partition-key column should be the unique key that will be used as the record identifier. This matches the shape expected by upsert sinks such as Kafka compacted topics.
@@ -473,14 +473,14 @@ SELECT * FROM TO_CHANGELOG(input => TABLE retract_source, produces_full_deletes 
 SELECT * FROM TO_CHANGELOG(
   input => TABLE upsert_source PARTITION BY id,
   produces_full_deletes => false
-)
+);
 
 -- Retract source: -D[id:5, name:'Alice'] (full pre-image).
 -- Output: +I[id:5, op:'DELETE', name:null]
 SELECT * FROM TO_CHANGELOG(
   input => TABLE retract_source PARTITION BY id,
   produces_full_deletes => false
-)
+);
 ```
 
 #### Partitioning by a key

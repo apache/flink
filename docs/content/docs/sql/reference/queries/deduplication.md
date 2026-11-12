@@ -53,7 +53,7 @@ The following examples show how to specify SQL queries with Deduplication on str
 ```sql
 CREATE TABLE Orders (
   order_id  STRING,
-  user        STRING,
+  `user`      STRING,
   product     STRING,
   num         BIGINT,
   proctime AS PROCTIME()

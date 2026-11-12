@@ -337,7 +337,7 @@ CREATE TEMPORARY TABLE chat_messages (
   message_id STRING,
   user_id BIGINT,
   message_text STRING,
-  timestamp TIMESTAMP(3)
+  `timestamp` TIMESTAMP(3)
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'chat',
@@ -350,7 +350,7 @@ SELECT
   message_id,
   user_id,
   bot_response,
-  timestamp
+  `timestamp`
 FROM ML_PREDICT(
   TABLE chat_messages,
   MODEL conversation_model,
@@ -412,7 +412,7 @@ Access a secured Triton server with authentication:
 -- Register model with authentication
 CREATE MODEL secure_model
 INPUT (data STRING)
-OUTPUT (result STRING)
+OUTPUT (`result` STRING)
 WITH (
   'provider' = 'triton',
   'endpoint' = 'https://secure-triton:8000/v2/models',
@@ -421,7 +421,7 @@ WITH (
   'custom-headers' = '{"X-API-Key": "your-api-key", "X-Client-ID": "flink-job-123"}'
 );
 
-SELECT id, result
+SELECT id, `result`
 FROM ML_PREDICT(
   TABLE sensitive_data,
   MODEL secure_model,
@@ -635,7 +635,7 @@ FROM ML_PREDICT(...)
 Configure sufficient memory and network buffers for high-throughput scenarios:
 ```yaml
 taskmanager.memory.managed.size: 2gb
-taskmanager.network.memory.fraction: 0.2
+taskmanager.memory.network.fraction: 0.2
 ```
 
 ## Error Handling

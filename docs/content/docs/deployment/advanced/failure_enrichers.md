@@ -91,8 +91,8 @@ public class CustomEnricher implements FailureEnricher {
 
 The JobManager loads FailureEnricher plugins at startup. To make sure your FailureEnrichers are loaded all class names should be defined as part of [jobmanager.failure-enrichers configuration]({{< ref "docs/deployment/config#jobmanager-failure-enrichers" >}}).
   If this configuration is empty, NO enrichers will be started. Example:
-```
-    jobmanager.failure-enrichers = org.apache.flink.test.plugin.jar.failure.CustomEnricher
+```yaml
+jobmanager.failure-enrichers: org.apache.flink.test.plugin.jar.failure.CustomEnricher
 ```
 
 ### Validation

@@ -48,8 +48,8 @@ under the License.
 
 ### 配置调优
 考虑到不同作业的差异，为了让预测执行获得更好的效果，你可以调优下列调度器配置项：
-- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-max-concurrent-e)
-- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-block-slow-node)
+- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-max-concurrent-executions)
+- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-block-slow-node-duration)
 
 你也可以通过下列配置项来对慢任务检测器进行调优：
 - [`slow-task-detector.check-interval`]({{< ref "docs/deployment/config" >}}#slow-task-detector-check-interval)

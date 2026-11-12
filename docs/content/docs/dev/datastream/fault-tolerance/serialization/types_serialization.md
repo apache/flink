@@ -58,7 +58,7 @@ tuple can be accessed directly using the field's name as `tuple.f4`, or using th
 to the Scala tuples, but it is more consistent with Java's general indexing.
 
 ```java
-DataStream<Tuple2<String, Integer>> wordCounts = env.fromElements(
+DataStream<Tuple2<String, Integer>> wordCounts = env.fromData(
     new Tuple2<String, Integer>("hello", 1),
     new Tuple2<String, Integer>("world", 2));
 
@@ -115,7 +115,7 @@ public class WordWithCount {
     }
 }
 
-DataStream<WordWithCount> wordCounts = env.fromElements(
+DataStream<WordWithCount> wordCounts = env.fromData(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2));
 

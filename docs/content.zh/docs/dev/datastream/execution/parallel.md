@@ -63,11 +63,11 @@ env.execute("Word Count Example");
 env = StreamExecutionEnvironment.get_execution_environment()
 
 text = [...]
-word_counts = text
+word_counts = text \
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1])) \
     .set_parallelism(5)
 word_counts.print()
@@ -103,11 +103,11 @@ env = StreamExecutionEnvironment.get_execution_environment()
 env.set_parallelism(3)
 
 text = [...]
-word_counts = text
+word_counts = text \
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1]))
 word_counts.print()
 
@@ -125,32 +125,27 @@ env.execute("Word Count Example")
 
     ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
 
+通过 [REST API]({{< ref "docs/ops/rest_api" >}}) 提交 JAR 时，可以在 `/jars/:jarid/run` 请求体中设置 `parallelism` 字段。
 
-在客户端程序中，可以通过如下方式指定并行度：
+在向执行环境传入自定义配置的程序中（例如将作业提交到远程集群），可以在该配置中设置 `parallelism.default`：
 
 {{< tabs "59257013-dbf1-41d8-a719-72ace65f63ff" >}}
 {{< tab "Java" >}}
 ```java
+Configuration config = new Configuration();
+config.set(CoreOptions.DEFAULT_PARALLELISM, 10);
 
-try {
-    PackagedProgram program = new PackagedProgram(file, args);
-    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123");
-    Configuration config = new Configuration();
-
-    Client client = new Client(jobManagerAddress, config, program.getUserCodeClassLoader());
-
-    // set the parallelism to 10 here
-    client.run(program, 10, true);
-
-} catch (ProgramInvocationException e) {
-    e.printStackTrace();
-}
-
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+// or, to submit to a remote cluster:
+// StreamExecutionEnvironment.createRemoteEnvironment("localhost", 8081, config, "/path/to/job.jar");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-Python API 中尚不支持该特性。
+config = Configuration()
+config.set_integer("parallelism.default", 10)
+
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}

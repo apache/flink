@@ -125,7 +125,7 @@ dataStream.keyBy(value -> value.f0);
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
-data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result of KeySelector
+data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) # Key by the result of KeySelector
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -180,7 +180,7 @@ dataStream
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -203,7 +203,7 @@ dataStream
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.window_all(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -372,7 +372,7 @@ Cogroups two data streams on a given key and a common window.
 {{< tab "Java" >}}
 ```java
 dataStream.coGroup(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
 ```
@@ -459,8 +459,8 @@ class MyCoFlatMapFunction(CoFlatMapFunction):
     def flat_map2(self, value):
         yield value[0] + 1
         
-connectedStreams.map(MyCoMapFunction())
-connectedStreams.flat_map(MyCoFlatMapFunction())
+connected_streams.map(MyCoMapFunction())
+connected_streams.flat_map(MyCoFlatMapFunction())
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -471,13 +471,14 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 Cache the intermediate result of the transformation. Currently, only jobs that run with batch 
 execution mode are supported. The cache intermediate result is generated lazily at the first time 
 the intermediate result is computed so that the result can be reused by later jobs. If the cache is 
-lost, it will be recomputed using the original transformations.
+lost, it will be recomputed using the original transformations. In Java, `cache()` is defined on
+`SingleOutputStreamOperator`, which transformations and sources return, and on side outputs.
 
 {{< tabs cache >}}
 {{< tab "Java" >}}
 ```java
 DataStream<Integer> dataStream = //...
-CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+CachedDataStream<Integer> cachedDataStream = dataStream.map(i -> i + 1).cache();
 cachedDataStream.print(); // Do anything with the cachedDataStream
 ...
 env.execute(); // Execute and create cache.

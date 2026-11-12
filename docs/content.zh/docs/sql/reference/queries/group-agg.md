@@ -125,7 +125,7 @@ FROM (VALUES
     ('supplier2', 'product3', 3),
     ('supplier2', 'product4', 4))
 AS Products(supplier_id, product_id, rating)
-GROUP BY CUBE (supplier_id, rating, product_id)
+GROUP BY CUBE (supplier_id, rating, product_id);
 
 SELECT supplier_id, rating, product_id, COUNT(*)
 FROM (VALUES
@@ -143,7 +143,7 @@ GROUP BY GROUPING SETS (
     (              product_id         ),
     (                          rating ),
     (                                 )
-)
+);
 ```
 
 ## HAVING

@@ -53,7 +53,7 @@ QUALIFY ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [as
 ```sql
 CREATE TABLE Orders (
   order_id  STRING,
-  user        STRING,
+  `user`      STRING,
   product     STRING,
   num         BIGINT,
   proctime AS PROCTIME()

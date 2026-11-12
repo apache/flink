@@ -110,7 +110,7 @@ from pyflink.table import *
 table_env = ... # see "Create a TableEnvironment" section
 
 # Create a source table
-table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
+table_env.execute_sql("""CREATE TEMPORARY TABLE SourceTable (
   f0 STRING
 ) WITH (
   'connector' = 'datagen',
@@ -119,7 +119,7 @@ table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
 """)
 
 # Create a sink table
-table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
+table_env.execute_sql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
 
 # Create a Table from a Table API query
 table1 = table_env.from_path("SourceTable").select(...)
@@ -218,16 +218,6 @@ StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = StreamTableEnvironment.create(env)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 from pyflink.datastream import StreamExecutionEnvironment
@@ -319,7 +309,7 @@ table_env = ... # see "Create a TableEnvironment" section
 proj_table = table_env.from_path("X").select(...)
 
 # register the Table projTable as table "projectedTable"
-table_env.register_table("projectedTable", proj_table)
+table_env.create_temporary_view("projectedTable", proj_table)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -518,7 +508,7 @@ val revenue = orders
 
 **Note:** The Scala Table API uses Scala String interpolation that starts with a dollar sign (`$`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import
 * `org.apache.flink.table.api._` - for implicit expression conversions 
-* `org.apache.flink.api.scala._` and `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
+* `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
@@ -775,10 +765,10 @@ pipeline.execute()
 table_env = ... # see "Create a TableEnvironment" section
 
 # create a TableSink
-schema = Schema.new_builder()
-    .column("a", DataTypes.INT())
-    .column("b", DataTypes.STRING())
-    .column("c", DataTypes.BIGINT())
+schema = Schema.new_builder() \
+    .column("a", DataTypes.INT()) \
+    .column("b", DataTypes.STRING()) \
+    .column("c", DataTypes.BIGINT()) \
     .build()
     
 table_env.create_temporary_table("CsvSinkTable", TableDescriptor.for_connector("filesystem")
@@ -1020,8 +1010,8 @@ The following code shows an example and the corresponding output for given `Tabl
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-DataStream<Tuple2<Integer, String>> stream1 = env.fromElements(new Tuple2<>(1, "hello"));
-DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "hello"));
+DataStream<Tuple2<Integer, String>> stream1 = env.fromData(new Tuple2<>(1, "hello"));
+DataStream<Tuple2<Integer, String>> stream2 = env.fromData(new Tuple2<>(1, "hello"));
 
 // explain Table API
 Table table1 = tEnv.fromDataStream(stream1, $("count"), $("word"));
@@ -1031,20 +1021,6 @@ Table table = table1
   .unionAll(table2);
 
 System.out.println(table.explain());
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = StreamTableEnvironment.create(env)
-
-val table1 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
-val table2 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
-val table = table1
-  .where($"word".like("F%"))
-  .unionAll(table2)
-
-println(table.explain())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1186,9 +1162,9 @@ println(explanation)
 settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings=settings)
 
-schema = Schema.new_builder()
-    .column("count", DataTypes.INT())
-    .column("word", DataTypes.STRING())
+schema = Schema.new_builder() \
+    .column("count", DataTypes.INT()) \
+    .column("word", DataTypes.STRING()) \
     .build()
 
 t_env.create_temporary_table("MySource1", TableDescriptor.for_connector("filesystem")

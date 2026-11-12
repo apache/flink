@@ -264,7 +264,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
 }
 
 // this can be used in a streaming program like this (assuming we have a StreamExecutionEnvironment env)
-env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
+env.fromData(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
         .keyBy(value -> value.f0)
         .enableAsyncState()
         .flatMap(new CountWindowAverage())
@@ -555,56 +555,40 @@ the following redistribution schemes are defined:
     your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC
     framesize or out-of-memory errors.
 
-Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
-to buffer elements before sending them to the outside world. It demonstrates
-the basic even-split redistribution list state:
+Below is an example of a `MapFunction` that uses `CheckpointedFunction` to count the elements each
+parallel instance has seen. It demonstrates the basic even-split redistribution list state:
 
-{{< tabs "5b99663c-1801-486c-a085-ce66882a2k49" >}}
+{{< tabs "c27e5b18-94af-4d03-8e6c-2f1a7b9d0e54" >}}
 {{< tab "Java" >}}
 ```java
-public class BufferingSink
-        implements SinkFunction<Tuple2<String, Integer>>,
-                   CheckpointedFunction {
+public class CountingMap
+        implements MapFunction<String, Tuple2<String, Long>>, CheckpointedFunction {
 
-    private final int threshold;
+    private transient ListState<Long> checkpointedCount;
 
-    private transient ListState<Tuple2<String, Integer>> checkpointedState;
-
-    private List<Tuple2<String, Integer>> bufferedElements;
-
-    public BufferingSink(int threshold) {
-        this.threshold = threshold;
-        this.bufferedElements = new ArrayList<>();
-    }
+    private long count;
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
-        bufferedElements.add(value);
-        if (bufferedElements.size() >= threshold) {
-            for (Tuple2<String, Integer> element: bufferedElements) {
-                // send it to the sink
-            }
-            bufferedElements.clear();
-        }
+    public Tuple2<String, Long> map(String value) {
+        count++;
+        return Tuple2.of(value, count);
     }
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.update(bufferedElements);
+        checkpointedCount.update(Collections.singletonList(count));
     }
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-        ListStateDescriptor<Tuple2<String, Integer>> descriptor =
-            new ListStateDescriptor<>(
-                "buffered-elements",
-                TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+        ListStateDescriptor<Long> descriptor =
+            new ListStateDescriptor<>("count", Long.class);
 
-        checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+        checkpointedCount = context.getOperatorStateStore().getListState(descriptor);
 
         if (context.isRestored()) {
-            for (Tuple2<String, Integer> element : checkpointedState.get()) {
-                bufferedElements.add(element);
+            for (Long partialCount : checkpointedCount.get()) {
+                count += partialCount;
             }
         }
     }
@@ -613,7 +597,117 @@ public class BufferingSink
 {{< /tab >}}
 {{< /tabs >}}
 
-The `initializeState` method takes as argument a `FunctionInitializationContext`. This is used to initialize
+When a job is restored with a different parallelism, an instance can receive the counts of several
+former instances, so `initializeState()` adds them up.
+
+A sink does not implement `CheckpointedFunction`. It keeps its operator state in its writer instead:
+the sink implements `SupportsWriterState`, and the writer, a `StatefulSinkWriter`, returns its state as a
+list from `snapshotState()`. Flink stores that list with even-split redistribution and passes the recovered
+elements to `restoreWriter()`. Below is an example of a sink that buffers elements before sending them to
+the outside world:
+
+{{< tabs "5b99663c-1801-486c-a085-ce66882a2k49" >}}
+{{< tab "Java" >}}
+```java
+public class BufferingSink
+        implements Sink<Tuple2<String, Integer>>,
+                   SupportsWriterState<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+    private final int threshold;
+
+    public BufferingSink(int threshold) {
+        this.threshold = threshold;
+    }
+
+    @Override
+    public BufferingWriter createWriter(WriterInitContext context) {
+        return new BufferingWriter(threshold, Collections.emptyList());
+    }
+
+    @Override
+    public BufferingWriter restoreWriter(
+            WriterInitContext context, Collection<Tuple2<String, Integer>> recoveredState) {
+        return new BufferingWriter(threshold, recoveredState);
+    }
+
+    @Override
+    public SimpleVersionedSerializer<Tuple2<String, Integer>> getWriterStateSerializer() {
+        return new BufferedElementSerializer();
+    }
+}
+
+public class BufferingWriter
+        implements StatefulSinkWriter<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+    private final int threshold;
+
+    private final List<Tuple2<String, Integer>> bufferedElements;
+
+    public BufferingWriter(int threshold, Collection<Tuple2<String, Integer>> recoveredState) {
+        this.threshold = threshold;
+        this.bufferedElements = new ArrayList<>(recoveredState);
+    }
+
+    @Override
+    public void write(Tuple2<String, Integer> value, Context context) {
+        bufferedElements.add(value);
+        if (bufferedElements.size() >= threshold) {
+            send();
+        }
+    }
+
+    @Override
+    public void flush(boolean endOfInput) {
+        // on a checkpoint, the buffered elements go into the writer state instead
+        if (endOfInput) {
+            send();
+        }
+    }
+
+    private void send() {
+        for (Tuple2<String, Integer> element: bufferedElements) {
+            // send it to the sink
+        }
+        bufferedElements.clear();
+    }
+
+    @Override
+    public List<Tuple2<String, Integer>> snapshotState(long checkpointId) {
+        return new ArrayList<>(bufferedElements);
+    }
+
+    @Override
+    public void close() {}
+}
+
+public class BufferedElementSerializer
+        implements SimpleVersionedSerializer<Tuple2<String, Integer>> {
+
+    @Override
+    public int getVersion() {
+        return 1;
+    }
+
+    @Override
+    public byte[] serialize(Tuple2<String, Integer> element) throws IOException {
+        DataOutputSerializer out = new DataOutputSerializer(32);
+        out.writeUTF(element.f0);
+        out.writeInt(element.f1);
+        return out.getCopyOfBuffer();
+    }
+
+    @Override
+    public Tuple2<String, Integer> deserialize(int version, byte[] serialized) throws IOException {
+        DataInputDeserializer in = new DataInputDeserializer(serialized);
+        return Tuple2.of(in.readUTF(), in.readInt());
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+In a function that implements `CheckpointedFunction`, the `initializeState` method takes as argument a
+`FunctionInitializationContext`. This is used to initialize
 the non-keyed state "containers". These are a container of type `ListState` where the non-keyed state objects
 are going to be stored upon checkpointing.
 
@@ -625,12 +719,15 @@ about the type of the value that the state holds:
 {{< tabs "e75410d8-4ea2-48e7-a7ef-249ece2a9997" >}}
 {{< tab "Java" >}}
 ```java
-ListStateDescriptor<Tuple2<String, Integer>> descriptor =
-    new ListStateDescriptor<>(
-        "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+private transient ListState<Long> checkpointedCount;
 
-checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+@Override
+public void initializeState(FunctionInitializationContext context) throws Exception {
+    ListStateDescriptor<Long> descriptor =
+        new ListStateDescriptor<>("count", Long.class);
+
+    checkpointedCount = context.getOperatorStateStore().getListState(descriptor);
+}
 ```
 
 {{< /tab >}}
@@ -644,9 +741,8 @@ it simply implies that the basic even-split redistribution scheme will be used.
 After initializing the container, we use the `isRestored()` method of the context to check if we are
 recovering after a failure. If this is `true`, *i.e.* we are recovering, the restore logic is applied.
 
-As shown in the code of the modified `BufferingSink`, this `ListState` recovered during state
-initialization is kept in a class variable for future use in `snapshotState()`. There the `ListState` is cleared
-of all objects included by the previous checkpoint, and is then filled with the new ones we want to checkpoint.
+Keep the `ListState` in a field for later use in `snapshotState()`. There, update it with the objects
+you want to checkpoint, which replaces the objects included by the previous checkpoint.
 
 As a side note, the keyed state can also be initialized in the `initializeState()` method. This can be done
 using the provided `FunctionInitializationContext`.

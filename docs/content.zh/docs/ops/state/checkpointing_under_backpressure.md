@@ -82,10 +82,10 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 {{< /tab >}}
 {{< /tabs >}}
 
-或者在 `flink-conf.yml` 配置文件中增加配置：
+或者在 `config.yaml` 配置文件中增加配置：
 
-```
-execution.checkpointing.unaligned: true
+```yaml
+execution.checkpointing.unaligned.enabled: true
 ```
 
 ### 对齐 Checkpoint 的超时
@@ -97,9 +97,9 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 ```
 
-或是在 `flink-conf.yml` 配置文件中配置：
+或是在 `config.yaml` 配置文件中配置：
 
-```
+```yaml
 execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
@@ -176,7 +176,7 @@ Key仍然存在。
 以下描述的操作是最后采取的手段，因为它们将会导致数据的丢失。
 {{< /hint >}}
 为了防止 In-flight 数据损坏，或者由于其他原因导致作业应该在没有 In-flight 数据的情况下恢复，可以使用
-[recover-without-channel-state.checkpoint-id]({{< ref "docs/deployment/config" >}}#execution-checkpointing-recover-without-channel-state-checkpoint)
+[execution.state-recovery.without-channel-state.checkpoint-id]({{< ref "docs/deployment/config" >}}#execution-state-recovery-without-channel-state-checkpoint-id)
 属性。该属性需要指定一个 Checkpoint Id，对它来说 In-flight 中的数据将会被忽略。除非已经持久化的 In-flight 数据内部的损坏导致无
 法恢复的情况，否则不要设置该属性。只有在重新部署作业后该属性才会生效，这就意味着只有启用 [externalized checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}#enabling-and-configuring-checkpointing)  
 时，此操作才有意义。

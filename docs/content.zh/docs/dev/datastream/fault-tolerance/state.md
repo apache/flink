@@ -131,8 +131,11 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
     @Override
     public void flatMap(Tuple2<Long, Long> input, Collector<Tuple2<Long, Long>> out) throws Exception {
 
-        // access the state value
+        // access the state value, which is null if nothing was set yet
         Tuple2<Long, Long> currentSum = sum.value();
+        if (currentSum == null) {
+            currentSum = Tuple2.of(0L, 0L);
+        }
 
         // update the count
         currentSum.f0 += 1;
@@ -155,14 +158,13 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
         ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
                 new ValueStateDescriptor<>(
                         "average", // the state name
-                        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}), // type information
-                        Tuple2.of(0L, 0L)); // default value of the state, if nothing was set
+                        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {})); // type information
         sum = getRuntimeContext().getState(descriptor);
     }
 }
 
 // this can be used in a streaming program like this (assuming we have a StreamExecutionEnvironment env)
-env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
+env.fromData(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
         .keyBy(value -> value.f0)
         .flatMap(new CountWindowAverage())
         .print();
@@ -309,7 +311,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Duration.ofSeconds(1)) \
+  .new_builder(Time.seconds(1)) \
   .disable_cleanup_in_background() \
   .build()
 ```
@@ -341,7 +343,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Duration.ofSeconds(1)) \
+  .new_builder(Time.seconds(1)) \
   .cleanup_full_snapshot() \
   .build()
 ```
@@ -376,7 +378,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Duration.ofSeconds(1)) \
+  .new_builder(Time.seconds(1)) \
   .cleanup_incrementally(10, True) \
   .build()
 ```
@@ -506,54 +508,39 @@ void initializeState(FunctionInitializationContext context) throws Exception;
   - **Union redistribution:** 每个算子保存一个列表形式的状态集合。整个状态由所有的列表拼接而成。当作业恢复或重新分配时，每个算子都将获得所有的状态数据。
     Do not use this feature if your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC framesize or out-of-memory errors.
 
-下面的例子中的 `SinkFunction` 在 `CheckpointedFunction` 中进行数据缓存，然后统一发送到下游，这个例子演示了列表状态数据的 event-split redistribution。 
+下面的例子中，`MapFunction` 通过 `CheckpointedFunction` 统计每个并行实例处理过的元素个数，展示了基本的 even-split redistribution list state 的用法：
 
-{{< tabs "03fecab3-b48b-4d06-86ed-8769708ae7ca" >}}
+{{< tabs "6a1d9e42-3c8b-4f57-b2e0-91c4d7a8f3b6" >}}
 {{< tab "Java" >}}
 ```java
-public class BufferingSink
-        implements SinkFunction<Tuple2<String, Integer>>,
-                   CheckpointedFunction {
+public class CountingMap
+        implements MapFunction<String, Tuple2<String, Long>>, CheckpointedFunction {
 
-    private final int threshold;
+    private transient ListState<Long> checkpointedCount;
 
-    private transient ListState<Tuple2<String, Integer>> checkpointedState;
-
-    private List<Tuple2<String, Integer>> bufferedElements;
-
-    public BufferingSink(int threshold) {
-        this.threshold = threshold;
-        this.bufferedElements = new ArrayList<>();
-    }
+    private long count;
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
-        bufferedElements.add(value);
-        if (bufferedElements.size() >= threshold) {
-            for (Tuple2<String, Integer> element: bufferedElements) {
-                // send it to the sink
-            }
-            bufferedElements.clear();
-        }
+    public Tuple2<String, Long> map(String value) {
+        count++;
+        return Tuple2.of(value, count);
     }
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.update(bufferedElements);
+        checkpointedCount.update(Collections.singletonList(count));
     }
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-        ListStateDescriptor<Tuple2<String, Integer>> descriptor =
-            new ListStateDescriptor<>(
-                "buffered-elements",
-                TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+        ListStateDescriptor<Long> descriptor =
+            new ListStateDescriptor<>("count", Long.class);
 
-        checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+        checkpointedCount = context.getOperatorStateStore().getListState(descriptor);
 
         if (context.isRestored()) {
-            for (Tuple2<String, Integer> element : checkpointedState.get()) {
-                bufferedElements.add(element);
+            for (Long partialCount : checkpointedCount.get()) {
+                count += partialCount;
             }
         }
     }
@@ -562,7 +549,111 @@ public class BufferingSink
 {{< /tab >}}
 {{< /tabs >}}
 
-`initializeState` 方法接收一个 `FunctionInitializationContext` 参数，会用来初始化 non-keyed state 的 "容器"。这些容器是一个 `ListState`
+当作业以不同的并发度恢复时，一个实例可能会收到之前多个实例的计数，所以 `initializeState()` 会把它们加起来。
+
+Sink 不实现 `CheckpointedFunction`，而是把 operator state 保存在它的 writer 中：sink 实现 `SupportsWriterState`，writer（一个 `StatefulSinkWriter`）在 `snapshotState()` 中以列表形式返回状态。Flink 使用 even-split redistribution 保存这个列表，并把恢复的元素传给 `restoreWriter()`。下面的例子中的 sink 会先缓存数据，然后统一发送到外部系统：
+
+{{< tabs "03fecab3-b48b-4d06-86ed-8769708ae7ca" >}}
+{{< tab "Java" >}}
+```java
+public class BufferingSink
+        implements Sink<Tuple2<String, Integer>>,
+                   SupportsWriterState<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+    private final int threshold;
+
+    public BufferingSink(int threshold) {
+        this.threshold = threshold;
+    }
+
+    @Override
+    public BufferingWriter createWriter(WriterInitContext context) {
+        return new BufferingWriter(threshold, Collections.emptyList());
+    }
+
+    @Override
+    public BufferingWriter restoreWriter(
+            WriterInitContext context, Collection<Tuple2<String, Integer>> recoveredState) {
+        return new BufferingWriter(threshold, recoveredState);
+    }
+
+    @Override
+    public SimpleVersionedSerializer<Tuple2<String, Integer>> getWriterStateSerializer() {
+        return new BufferedElementSerializer();
+    }
+}
+
+public class BufferingWriter
+        implements StatefulSinkWriter<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+    private final int threshold;
+
+    private final List<Tuple2<String, Integer>> bufferedElements;
+
+    public BufferingWriter(int threshold, Collection<Tuple2<String, Integer>> recoveredState) {
+        this.threshold = threshold;
+        this.bufferedElements = new ArrayList<>(recoveredState);
+    }
+
+    @Override
+    public void write(Tuple2<String, Integer> value, Context context) {
+        bufferedElements.add(value);
+        if (bufferedElements.size() >= threshold) {
+            send();
+        }
+    }
+
+    @Override
+    public void flush(boolean endOfInput) {
+        // on a checkpoint, the buffered elements go into the writer state instead
+        if (endOfInput) {
+            send();
+        }
+    }
+
+    private void send() {
+        for (Tuple2<String, Integer> element: bufferedElements) {
+            // send it to the sink
+        }
+        bufferedElements.clear();
+    }
+
+    @Override
+    public List<Tuple2<String, Integer>> snapshotState(long checkpointId) {
+        return new ArrayList<>(bufferedElements);
+    }
+
+    @Override
+    public void close() {}
+}
+
+public class BufferedElementSerializer
+        implements SimpleVersionedSerializer<Tuple2<String, Integer>> {
+
+    @Override
+    public int getVersion() {
+        return 1;
+    }
+
+    @Override
+    public byte[] serialize(Tuple2<String, Integer> element) throws IOException {
+        DataOutputSerializer out = new DataOutputSerializer(32);
+        out.writeUTF(element.f0);
+        out.writeInt(element.f1);
+        return out.getCopyOfBuffer();
+    }
+
+    @Override
+    public Tuple2<String, Integer> deserialize(int version, byte[] serialized) throws IOException {
+        DataInputDeserializer in = new DataInputDeserializer(serialized);
+        return Tuple2.of(in.readUTF(), in.readInt());
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+在实现了 `CheckpointedFunction` 的函数中，`initializeState` 方法接收一个 `FunctionInitializationContext` 参数，会用来初始化 non-keyed state 的 "容器"。这些容器是一个 `ListState`
 用于在 checkpoint 时保存 non-keyed state 对象。
 
 注意这些状态是如何初始化的，和 keyed state 类似，`StateDescriptor` 会包括状态名字、以及状态类型相关信息。
@@ -571,12 +662,15 @@ public class BufferingSink
 {{< tabs "9f372f5f-ad80-4b2c-a318-fcbdb19c7d2a" >}}
 {{< tab "Java" >}}
 ```java
-ListStateDescriptor<Tuple2<String, Integer>> descriptor =
-    new ListStateDescriptor<>(
-        "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+private transient ListState<Long> checkpointedCount;
 
-checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+@Override
+public void initializeState(FunctionInitializationContext context) throws Exception {
+    ListStateDescriptor<Long> descriptor =
+        new ListStateDescriptor<>("count", Long.class);
+
+    checkpointedCount = context.getOperatorStateStore().getListState(descriptor);
+}
 ```
 
 {{< /tab >}}
@@ -587,69 +681,13 @@ checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 
 当初始化好状态对象后，我们通过 `isRestored()` 方法判断是否从之前的故障中恢复回来，如果该方法返回 `true` 则表示从故障中进行恢复，会执行接下来的恢复逻辑。
 
-正如代码所示，`BufferingSink` 中初始化时，恢复回来的 `ListState` 的所有元素会添加到一个局部变量中，供下次 `snapshotState()` 时使用。
-然后清空 `ListState`，再把当前局部变量中的所有元素写入到 checkpoint 中。
+将 `ListState` 保存在一个成员变量中，供之后的 `snapshotState()` 使用。在 `snapshotState()` 中用需要 checkpoint 的对象更新它，这会替换上一次 checkpoint 中包含的对象。
 
 另外，我们同样可以在 `initializeState()` 方法中使用 `FunctionInitializationContext` 初始化 keyed state。
 
-### 带状态的 Source Function
+### 带状态的 Source
 
-带状态的数据源比其他的算子需要注意更多东西。为了保证更新状态以及输出的原子性（用于支持 exactly-once 语义），用户需要在发送数据前获取数据源的全局锁。
-
-{{< tabs "0d664c7a-c695-4306-b562-e0cb36ae9efa" >}}
-{{< tab "Java" >}}
-```java
-public static class CounterSource
-        extends RichParallelSourceFunction<Long>
-        implements CheckpointedFunction {
-
-    /**  current offset for exactly once semantics */
-    private Long offset = 0L;
-
-    /** flag for job cancellation */
-    private volatile boolean isRunning = true;
-    
-    /** 存储 state 的变量. */
-    private ListState<Long> state;
-     
-    @Override
-    public void run(SourceContext<Long> ctx) {
-        final Object lock = ctx.getCheckpointLock();
-
-        while (isRunning) {
-            // output and state update are atomic
-            synchronized (lock) {
-                ctx.collect(offset);
-                offset += 1;
-            }
-        }
-    }
-
-    @Override
-    public void cancel() {
-        isRunning = false;
-    }
-
-    @Override
-    public void initializeState(FunctionInitializationContext context) throws Exception {
-        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
-            "state",
-            LongSerializer.INSTANCE));
-            
-        // 从我们已保存的状态中恢复 offset 到内存中，在进行任务恢复的时候也会调用此初始化状态的方法
-        for (Long l : state.get()) {
-            offset = l;
-        }
-    }
-
-    @Override
-    public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        state.update(Collections.singletonList(offset));
-    }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
+基于 [Source API]({{< ref "docs/internals/sources" >}}#sourcereader) 实现的数据源不需要同步数据发送和状态更新。任务线程依次调用 `SourceReader` 的 `pollNext()` 和 `snapshotState()`，二者不会同时执行。把 reader 的状态（例如当前 offset）保存在 `snapshotState()` 返回的 split 中。
 
 希望订阅 checkpoint 成功消息的算子，可以参考 `org.apache.flink.api.common.state.CheckpointListener` 接口。
 

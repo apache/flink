@@ -51,10 +51,10 @@ AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
 DataStream<User> usersDS = env.createInput(users);
 ```
 
-注意，`User` 是一个通过 Avro schema生成的 POJO 类。Flink 还允许选择 POJO 中字符串类型的键。例如：
+注意，`User` 是一个通过 Avro schema生成的 POJO 类。你可以通过 key selector 按这些 POJO 的某个字段对流进行 key 分区。例如：
 
 ```java
-usersDS.keyBy("name");
+usersDS.keyBy(user -> user.getName());
 ```
 
 

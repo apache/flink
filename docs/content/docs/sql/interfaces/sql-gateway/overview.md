@@ -148,8 +148,8 @@ $ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
         "kubernetes.container.image.ref": "'${FLINK_IMAGE_NAME}'",
         "jobmanager.memory.process.size": "1000m",
         "taskmanager.memory.process.size": "1000m",
-        "kubernetes.jobmanager.cpu": 0.5,
-        "kubernetes.taskmanager.cpu": 0.5,
+        "kubernetes.jobmanager.cpu.amount": 0.5,
+        "kubernetes.taskmanager.cpu.amount": 0.5,
         "kubernetes.rest-service.exposed.type": "NodePort"
     }
 }'
@@ -236,13 +236,13 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.plan-cache.size</h5></td>
             <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
-            <td>Plan cache size, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
+            <td>Plan cache size, it takes effect iff `sql-gateway.session.plan-cache.enabled` is true.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.plan-cache.ttl</h5></td>
             <td style="word-wrap: break-word;">1 hour</td>
             <td>Duration</td>
-            <td>TTL for plan cache, it controls how long will the cache expire after write, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
+            <td>TTL for plan cache, it controls how long will the cache expire after write, it takes effect iff `sql-gateway.session.plan-cache.enabled` is true.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.keepalive-time</h5></td>

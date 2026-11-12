@@ -980,7 +980,7 @@ DEFINE
   C as C.price > 20
 ```
 
-<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({{< ref "docs/dev/table/config" >}}#idle-state-retention-time)。为此，可能需要使用 `WITHIN` [子句](#time-constraint)。
+<span class="label label-danger">注意</span> 请注意，`MATCH_RECOGNIZE` 子句未使用配置的 [state retention time]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。为此，可能需要使用 `WITHIN` [子句](#time-constraint)。
 
 <a name="known-limitations"></a>
 

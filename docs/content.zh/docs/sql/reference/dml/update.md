@@ -151,10 +151,10 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 # 注册一个 "Orders" 表
-table_env.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)");
+table_env.execute_sql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)");
 # 插入原始数据
-table_env.executeSql("insert into Orders values ('Lili', 'Apple', 1), ('Jessica', 'Banana', 1)").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.execute_sql("insert into Orders values ('Lili', 'Apple', 1), ('Jessica', 'Banana', 1)").wait();
+table_env.execute_sql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # |                           user |                        product |      amount |
 # +--------------------------------+--------------------------------+-------------+
@@ -163,8 +163,8 @@ table_env.executeSql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # 2 rows in set
 # 更新所有的amount字段
-table_env.executeSql("UPDATE Orders SET `amount` = `amount` * 2").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.execute_sql("UPDATE Orders SET `amount` = `amount` * 2").wait();
+table_env.execute_sql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # |                           user |                        product |      amount |
 # +--------------------------------+--------------------------------+-------------+
@@ -173,8 +173,8 @@ table_env.executeSql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # 2 rows in set
 # 根据where条件更新
-table_env.executeSql("UPDATE Orders SET `product` = 'Orange' WHERE `user` = 'Lili'").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.execute_sql("UPDATE Orders SET `product` = 'Orange' WHERE `user` = 'Lili'").wait();
+table_env.execute_sql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # |                           user |                        product |      amount |
 # +--------------------------------+--------------------------------+-------------+
