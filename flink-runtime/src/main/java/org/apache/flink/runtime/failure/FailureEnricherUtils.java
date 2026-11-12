@@ -157,7 +157,7 @@ public class FailureEnricherUtils {
                         .flatMap(
                                 entry -> {
                                     LOG.warn(
-                                            "Following enrichers have have registered duplicate output key [%s] and will be ignored: {}.",
+                                            "Following enrichers have registered duplicate output key [%s] and will be ignored: {}.",
                                             entry.getValue().stream()
                                                     .map(Class::getName)
                                                     .collect(Collectors.joining(", ")));
