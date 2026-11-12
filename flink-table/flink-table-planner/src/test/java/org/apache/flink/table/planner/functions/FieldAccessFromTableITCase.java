@@ -42,10 +42,6 @@ class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                // for a nullable structured type we should enforce nullable for all inner fields,
-                // that is to say, not null is invalid for inner fields in such cases, more details
-                // see FLINK-31830
-
                 // Actually in case of SQL it does not use the GET method, but
                 // a custom logic for accessing nested fields of a Table.
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.GET)
@@ -64,26 +60,35 @@ class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
                                 null,
                                 singletonMap("nested", 1),
                                 null,
-                                Row.of(1))
+                                Row.of(1),
+                                null,
+                                null)
                         .andDataTypes(
                                 ARRAY(BIGINT().nullable()).nullable(),
                                 ARRAY(BIGINT().notNull()).notNull(),
                                 MAP(STRING(), BIGINT().nullable()).nullable(),
                                 MAP(STRING(), BIGINT().notNull()).notNull(),
                                 ROW(FIELD("nested", BIGINT().nullable())).nullable(),
-                                ROW(FIELD("nested", BIGINT().notNull())).notNull())
+                                ROW(FIELD("nested", BIGINT().notNull())).notNull(),
+                                ARRAY(BIGINT().notNull()).nullable(),
+                                ROW(FIELD("nested", BIGINT().notNull())).nullable())
                         // accessing elements of MAP or ARRAY is a runtime operations,
                         // we do not know about the size or contents during the inference
                         // therefore the results are always nullable
                         .testResult($("f0").at(1), "f0[1]", null, BIGINT().nullable())
                         .testResult($("f1").at(1), "f1[1]", 1L, BIGINT().nullable())
+                        .testResult($("f1").at(2), "f1[2]", null, BIGINT().nullable())
+                        .testResult($("f6").at(1), "f6[1]", null, BIGINT().nullable())
                         .testResult($("f2").at("nested"), "f2['nested']", null, BIGINT().nullable())
                         .testResult($("f3").at("nested"), "f3['nested']", 1L, BIGINT().nullable())
+                        .testResult($("f3").at("other"), "f3['other']", null, BIGINT().nullable())
 
                         // we know all the fields of a type up front, therefore we can
                         // derive more accurate types during the inference
                         .testResult(
                                 $("f4").get("nested"), "f4['nested']", null, BIGINT().nullable())
-                        .testResult($("f5").get("nested"), "f5['nested']", 1L, BIGINT().notNull()));
+                        .testResult($("f5").get("nested"), "f5['nested']", 1L, BIGINT().notNull())
+                        .testResult(
+                                $("f7").get("nested"), "f7['nested']", null, BIGINT().nullable()));
     }
 }
