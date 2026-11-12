@@ -54,8 +54,7 @@ class FlinkTokenStreamRewriterTest {
     private static final int SEEDS = 100_000;
     private static final int CHUNKS = 8;
     // a different range of seeds each run, a failure reports its seed
-    private static final long OFFSET =
-            ThreadLocalRandom.current().nextLong(Long.MAX_VALUE - SEEDS);
+    private static final long OFFSET = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE - SEEDS);
 
     @ParameterizedTest
     @MethodSource("chunks")
@@ -163,7 +162,8 @@ class FlinkTokenStreamRewriterTest {
         rewriter.delete(tokens.get(eof - 5), tokens.get(eof - 2)); // merges with the first delete
 
         assertThat(rewriter.getText())
-                .isEqualTo("class A { int a = 1; void f(int x) { if (x > 0) { a = x; } else { return; E");
+                .isEqualTo(
+                        "class A { int a = 1; void f(int x) { if (x > 0) { a = x; } else { return; E");
     }
 
     @Test
