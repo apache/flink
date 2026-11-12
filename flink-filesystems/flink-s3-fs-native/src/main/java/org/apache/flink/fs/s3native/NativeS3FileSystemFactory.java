@@ -132,7 +132,13 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
             ConfigOptions.key("s3.upload.max.concurrent.uploads")
                     .intType()
                     .defaultValue(Runtime.getRuntime().availableProcessors())
-                    .withDescription("Maximum number of concurrent part uploads per stream");
+                    .withDescription(
+                            "Maximum number of concurrent part uploads per stream. All streams of "
+                                    + "a file system together upload at most half as many parts "
+                                    + "at a time as 's3.connection.max' allows (or "
+                                    + "'s3.crt.max-concurrency' when s3.crt.enabled is true), so "
+                                    + "that other requests, such as checkpoint writes, still get "
+                                    + "a connection.");
 
     public static final ConfigOption<String> ENTROPY_INJECT_KEY_OPTION =
             ConfigOptions.key("s3.entropy.key")
@@ -763,6 +769,12 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
         }
         S3ClientProvider clientProvider = clientProviderBuilder.build();
 
+        // The part uploads of all streams share one pool. It may only use half of the requests
+        // the client can have in flight, so that uploads cannot delay the other requests of the
+        // file system, such as checkpoint writes, by taking every connection.
+        final int maxUploadThreads =
+                Math.max(1, (crtEnabled ? crtMaxConcurrency : maxConnections) / 2);
+
         NativeS3BulkCopyHelper bulkCopyHelper = null;
         if (bulkCopyEnabled) {
             bulkCopyHelper =
@@ -781,6 +793,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                 localTmpDirectory,
                 s3minPartSize,
                 maxConcurrentUploads,
+                maxUploadThreads,
                 bulkCopyHelper,
                 useAsyncOperations,
                 readBufferSize,

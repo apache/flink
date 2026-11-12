@@ -256,6 +256,20 @@ class NativeS3FileSystemFactoryTest {
     }
 
     @Test
+    void testUploadThreadsLeaveHalfOfTheClientConcurrencyToOtherRequests() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.MAX_CONNECTIONS, 10);
+        assertThat(createFs(config).getMaxUploadThreads()).isEqualTo(5);
+
+        config.set(NativeS3FileSystemFactory.MAX_CONNECTIONS, 1);
+        assertThat(createFs(config).getMaxUploadThreads()).isOne();
+
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.CRT_MAX_CONCURRENCY, 64);
+        assertThat(createFs(config).getMaxUploadThreads()).isEqualTo(32);
+    }
+
+    @Test
     void testInvalidMaxConnectionsThrowsException() {
         Configuration config = baseConfig();
         config.set(NativeS3FileSystemFactory.MAX_CONNECTIONS, 0);
