@@ -21,11 +21,9 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -38,23 +36,18 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
-import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKEN_PROVIDER_ENABLED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -85,11 +78,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDelegationTokenManager.class);
 
-    private final Configuration configuration;
-
     private final Clock clock;
-
-    @Nullable private final PluginManager pluginManager;
 
     private final double tokensRenewalTimeRatio;
 
@@ -106,7 +95,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     /** The earliest expiry of the tokens of the last successful obtain. */
     @VisibleForTesting long lastKnownExpiry = Long.MAX_VALUE;
 
-    @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
+    private final DelegationTokenProviderRepository delegationTokenProviderRepository;
 
     private final DelegationTokenReceiverRepository delegationTokenReceiverRepository;
 
@@ -159,87 +148,23 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor,
             Clock clock) {
-        this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
-        this.pluginManager = pluginManager;
+        checkNotNull(configuration, "Flink configuration must not be null");
         this.tokensRenewalTimeRatio = configuration.get(DELEGATION_TOKENS_RENEWAL_TIME_RATIO);
         this.renewalRetryInitialBackoff =
                 configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF).toMillis();
         this.renewalRetryMaxBackoff =
                 configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF).toMillis();
         this.currentRetryBackoff = renewalRetryInitialBackoff;
-        this.delegationTokenProviders = loadProviders();
+        this.delegationTokenProviderRepository =
+                new DelegationTokenProviderRepository(configuration, pluginManager);
         this.delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, pluginManager);
         this.scheduledExecutor = scheduledExecutor;
         this.ioExecutor = ioExecutor;
         this.clock = checkNotNull(clock, "Clock must not be null");
         checkProviderAndReceiverConsistency(
-                delegationTokenProviders,
+                delegationTokenProviderRepository.delegationTokenProviders,
                 delegationTokenReceiverRepository.delegationTokenReceivers);
-        Set<String> warnings = new HashSet<>();
-        checkSamePrefixedProviders(delegationTokenProviders, warnings);
-        for (String warning : warnings) {
-            LOG.warn(warning);
-        }
-    }
-
-    private Map<String, DelegationTokenProvider> loadProviders() {
-        LOG.info("Loading delegation token providers");
-
-        Map<String, DelegationTokenProvider> providers = new HashMap<>();
-        Consumer<DelegationTokenProvider> loadProvider =
-                (provider) -> {
-                    try {
-                        if (isProviderEnabled(configuration, provider.serviceName())) {
-                            provider.init(configuration);
-                            LOG.info(
-                                    "Delegation token provider {} loaded and initialized",
-                                    provider.serviceName());
-                            checkState(
-                                    !providers.containsKey(provider.serviceName()),
-                                    "Delegation token provider with service name "
-                                            + provider.serviceName()
-                                            + " has multiple implementations");
-                            providers.put(provider.serviceName(), provider);
-                        } else {
-                            LOG.info(
-                                    "Delegation token provider {} is disabled so not loaded",
-                                    provider.serviceName());
-                        }
-                    } catch (Exception | NoClassDefFoundError e) {
-                        // The intentional general rule is that if a provider's init method throws
-                        // exception
-                        // then stop the workload
-                        LOG.error(
-                                "Failed to initialize delegation token provider {}",
-                                provider.serviceName(),
-                                e);
-                        throw new FlinkRuntimeException(e);
-                    }
-                };
-        ServiceLoader.load(DelegationTokenProvider.class).iterator().forEachRemaining(loadProvider);
-        if (pluginManager != null) {
-            pluginManager.load(DelegationTokenProvider.class).forEachRemaining(loadProvider);
-        }
-
-        LOG.info("Delegation token providers loaded successfully");
-
-        return providers;
-    }
-
-    static boolean isProviderEnabled(Configuration configuration, String serviceName) {
-        return SecurityOptions.forProvider(configuration, serviceName)
-                .get(DELEGATION_TOKEN_PROVIDER_ENABLED);
-    }
-
-    @VisibleForTesting
-    boolean isProviderLoaded(String serviceName) {
-        return delegationTokenProviders.containsKey(serviceName);
-    }
-
-    @VisibleForTesting
-    boolean isReceiverLoaded(String serviceName) {
-        return delegationTokenReceiverRepository.isReceiverLoaded(serviceName);
     }
 
     @VisibleForTesting
@@ -269,22 +194,6 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         LOG.info("Provider and receiver instances are consistent");
     }
 
-    @VisibleForTesting
-    static void checkSamePrefixedProviders(
-            Map<String, DelegationTokenProvider> providers, Set<String> warnings) {
-        Set<String> providerPrefixes = new HashSet<>();
-        for (String name : providers.keySet()) {
-            String[] split = name.split("-");
-            if (!providerPrefixes.add(split[0])) {
-                String msg =
-                        String.format(
-                                "Multiple providers loaded with the same prefix: %s. This might lead to unintended consequences, please consider using only one of them.",
-                                split[0]);
-                warnings.add(msg);
-            }
-        }
-    }
-
     /**
      * Obtains new tokens in a one-time fashion and leaves it up to the caller to distribute them.
      */
@@ -302,39 +211,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      */
     protected Optional<Long> obtainDelegationTokensAndGetExpiry(
             DelegationTokenContainer container) {
-        return delegationTokenProviders.values().stream()
-                .map(
-                        p -> {
-                            Optional<Long> validUntil = Optional.empty();
-                            try {
-                                if (p.delegationTokensRequired()) {
-                                    LOG.debug(
-                                            "Obtaining delegation token for service {}",
-                                            p.serviceName());
-                                    DelegationTokenProvider.ObtainedDelegationTokens t =
-                                            p.obtainDelegationTokens();
-                                    checkNotNull(t, "Obtained delegation tokens must not be null");
-                                    container.addToken(p.serviceName(), t.getTokens());
-                                    validUntil = t.getValidUntil();
-                                    LOG.debug(
-                                            "Obtained delegation token for service {} successfully",
-                                            p.serviceName());
-                                } else {
-                                    LOG.debug(
-                                            "Service {} does not need to obtain delegation token",
-                                            p.serviceName());
-                                }
-                            } catch (Exception e) {
-                                LOG.error(
-                                        "Failed to obtain delegation token for provider {}",
-                                        p.serviceName(),
-                                        e);
-                                throw new FlinkRuntimeException(e);
-                            }
-                            return validUntil;
-                        })
-                .flatMap(validUntil -> validUntil.map(Stream::of).orElseGet(Stream::empty))
-                .min(Long::compare);
+        return delegationTokenProviderRepository.obtainDelegationTokensAndGetExpiry(container);
     }
 
     /**
