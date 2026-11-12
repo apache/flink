@@ -159,11 +159,11 @@ tableResult2.print()
 ```python
 table_env = StreamTableEnvironment.create(...)
 
-t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
-t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
+table_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
+table_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
 
 # explain SELECT statement through TableEnvironment.explain_sql()
-explanation1 = t_env.explain_sql(
+explanation1 = table_env.explain_sql(
     "SELECT `count`, COUNT(word) FROM (" 
     "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
@@ -171,7 +171,7 @@ explanation1 = t_env.explain_sql(
 print(explanation1)
 
 # explain SELECT statement through TableEnvironment.execute_sql()
-table_result = t_env.execute_sql(
+table_result = table_env.execute_sql(
     "EXPLAIN PLAN FOR "
     "SELECT `count`, COUNT(word) FROM (" 
     "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
@@ -179,7 +179,7 @@ table_result = t_env.execute_sql(
     "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`")
 table_result.print()
 
-table_result2 = t_env.execute_sql(
+table_result2 = table_env.execute_sql(
     "EXPLAIN ESTIMATED_COST, CHANGELOG_MODE, PLAN_ADVICE, JSON_EXECUTION_PLAN "
     "SELECT `count`, COUNT(word) FROM (" 
     "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "

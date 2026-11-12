@@ -74,7 +74,7 @@ An example of sorting the records by the first element of tuple in each subtask 
 ```java
 DataStream<Tuple2<Integer, Integer>> dataStream = //...
 PartitionWindowedStream<Tuple2<Integer, Integer>> partitionWindowedDataStream = dataStream.fullWindowPartition();
-DataStream<Integer> resultStream = partitionWindowedDataStream.sortPartition(0, Order.ASCENDING);
+DataStream<Tuple2<Integer, Integer>> resultStream = partitionWindowedDataStream.sortPartition(0, Order.ASCENDING);
 ```
 
 ## Aggregate

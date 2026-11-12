@@ -75,7 +75,7 @@ If you want to better understand the memory and GC behaviour of your application
 
 ```yaml
 taskmanager.debug.memory.log: true
-taskmanager.debug.memory.log-interval: 10000 // 10s interval
+taskmanager.debug.memory.log-interval: 10000 # 10s interval
 ```
 
 If you are interested in more detailed GC statistics, then you can activate the JVM's GC logging via:

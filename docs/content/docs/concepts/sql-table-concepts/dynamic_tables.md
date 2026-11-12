@@ -86,7 +86,7 @@ In the following, we will explain the concepts of dynamic tables and continuous 
 
 ```sql
 CREATE TABLE clicks (
-  user  VARCHAR,     -- the name of the user
+  `user` VARCHAR,     -- the name of the user
   url   VARCHAR,     -- the URL that was accessed by the user
   cTime TIMESTAMP(3) -- the time when the URL was accessed
 ) WITH (...);

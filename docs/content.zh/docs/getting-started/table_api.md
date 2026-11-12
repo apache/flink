@@ -515,6 +515,7 @@ public static Table report(Table transactions) {
 {{< tab "Python" >}}
 
 ```python
+from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 from datetime import datetime
 

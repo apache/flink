@@ -374,12 +374,12 @@ counter = getRuntimeContext()
 ```python
 
 counter = runtime_context \
-    .get_metric_group() \
+    .get_metrics_group() \
     .add_group("my_metrics") \
     .counter("my_counter")
 
 counter = runtime_context \
-    .get_metric_group() \
+    .get_metrics_group() \
     .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 
@@ -457,8 +457,8 @@ counter = getRuntimeContext()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-counter = runtime_context
-    .get_metric_group() \
+counter = runtime_context \
+    .get_metrics_group() \
     .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 ```
@@ -2414,7 +2414,7 @@ purposes.
 ## State access latency tracking
 
 Flink also allows to track the keyed state access latency for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
-To enable this feature you must set the `state.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
+To enable this feature you must set the `state.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-latency-tracking-options).
 
 Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.latency-track.sample-interval`.
 This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
@@ -2428,7 +2428,7 @@ It is recommended to only use them for debugging purposes.
 ## State key/value size tracking
 
 Flink also allows to track the keyed state key/value size for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
-To enable this feature you must set the `state.size-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-size-tracking-options).
+To enable this feature you must set the `state.size-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-size-tracking-options).
 
 Once tracking keyed state key/value size is enabled, Flink will sample the state size every `N` access, in which `N` is defined by `state.size-track.sample-interval`.
 This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.

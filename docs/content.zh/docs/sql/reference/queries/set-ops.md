@@ -47,7 +47,7 @@ Flink SQL> (SELECT s FROM t1) UNION (SELECT s FROM t2);
 
 Flink SQL> (SELECT s FROM t1) UNION ALL (SELECT s FROM t2);
 +---+
-|  c|
+|  s|
 +---+
 |  c|
 |  a|
@@ -127,8 +127,8 @@ WHERE product IN (
 ```sql
 SELECT user, amount
 FROM Orders
-WHERE product EXISTS (
-    SELECT product FROM NewProducts
+WHERE EXISTS (
+    SELECT product FROM NewProducts WHERE NewProducts.product = Orders.product
 )
 ```
 

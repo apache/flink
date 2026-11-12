@@ -89,7 +89,7 @@ Before we go any further, let's look at what a stateful process function looks l
 ```java
 private static class StatefulFunction implements OneInputStreamProcessFunction<Long, Long> {
     // Step1: Defining the state in the form of `StateDeclaration`.
-    static final StateDeclaration.ListStateDeclaration<Long> LIST_STATE_DECLARATION =
+    static final ListStateDeclaration<Long> LIST_STATE_DECLARATION =
             StateDeclarations.listStateBuilder("example-list-state", TypeDescriptors.LONG).build();
      
     // Step2: Declaring the state in `ProcessFunction#usesStates`
@@ -99,7 +99,7 @@ private static class StatefulFunction implements OneInputStreamProcessFunction<L
     }
     
     @Override
-    public void processRecord(Long record, Collector<Long> output, RuntimeContext ctx)
+    public void processRecord(Long record, Collector<Long> output, PartitionedContext<Long> ctx)
             throws Exception {
         // Step3: Getting and updating state via `StateManager`.
         ListState<Long> state =

@@ -120,7 +120,7 @@ hintName '(' optionKey '=' optionVal [, optionKey '=' optionVal ]* ')'
 对于下面的例子，包含同相同 key 的查询提示 'max-attempts'：
 
 ```sql
-SELECT /*+ LOOKUP('table'='D', 'max-attempts'='3', 'max-attempts'='4') */ * FROM t1 T JOIN t2 AS OF T.proctime AS D ON T.id = D.id;
+SELECT /*+ LOOKUP('table'='D', 'max-attempts'='3', 'max-attempts'='4') */ * FROM t1 T JOIN t2 FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id;
 ```
 
 在这个例子里，Flink 会选择 'max-attempts' = '4' 的查询提示覆盖 'max-attempts' = '3' 的提示，
@@ -596,13 +596,13 @@ SELECT /*+ BROADCAST(t1, t2, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 O
 -- 不同联接提示间产生冲突
 
 -- BROADCAST(t1) 会被选择，且 t1 会被作为需 broadcast 的表。
-SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+SELECT /*+ BROADCAST(t1), SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
 
 -- 尽管先指定的是 BROADCAST 策略。但是，因为 BROADCAST 不支持 Full Outer Join。所以，后一种策略会被选择。
-SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
+SELECT /*+ BROADCAST(t1), SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
 
 -- 由于指定的两种联接提示都不支持不等值的联接条件。所以，只能使用支持非等值联接条件的 nested loop join。
-SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
+SELECT /*+ BROADCAST(t1), SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
 ```
 ### 状态生命周期提示
 
@@ -617,7 +617,8 @@ CREATE TABLE orders (
   o_orderkey INT,
   o_custkey INT,
   o_status BOOLEAN,
-  o_totalprice DOUBLE
+  o_totalprice DOUBLE,
+  o_shippriority INT
 ) WITH (...);
 
 CREATE TABLE lineitem (

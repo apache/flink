@@ -335,7 +335,7 @@ The following examples show how to specify SQL queries with group windows on str
 
 ```sql
 CREATE TABLE Orders (
-  user       BIGINT,
+  `user`     BIGINT,
   product    STRING,
   amount     INT,
   order_time TIMESTAMP(3),

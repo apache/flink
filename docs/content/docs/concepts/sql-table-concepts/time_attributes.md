@@ -150,7 +150,7 @@ CREATE TABLE user_actions (
 ) WITH (
   'scan.watermark.idle-timeout'='1min',
   ...
-).
+);
 ```
 
 Or you can use the `OPTIONS` hint:
@@ -177,7 +177,7 @@ user_action_time TIMESTAMP(3),
 'scan.watermark.alignment.max-drift'='1min',
 'scan.watermark.alignment.update-interval'='1s',
 ...
-).
+);
 ```
 
 Of course, you can also still use the `OPTIONS` hint.
@@ -200,67 +200,39 @@ There are three parameters :
 
 ### During DataStream-to-Table Conversion
 
-When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{< ref "docs/concepts/time" >}}) must have already been assigned in the `DataStream` being converted. During the conversion, Flink always derives rowtime attribute as TIMESTAMP WITHOUT TIME ZONE, because DataStream doesn't have time zone notion, and treats all event time values as in UTC.
+When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{< ref "docs/concepts/time" >}}) must have already been assigned in the `DataStream` being converted. With the `.rowtime` expression, Flink derives the rowtime attribute as TIMESTAMP WITHOUT TIME ZONE, because DataStream doesn't have time zone notion, and treats all event time values as in UTC.
 
 There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream`, the timestamp is either (1) appended as a new column, or it
 (2) replaces an existing column.
 
 In either case, the event time timestamp field will hold the value of the `DataStream` event time timestamp.
 
+In Java, declare the event time attribute in the `Schema` that you pass to `fromDataStream`: the `rowtime`
+metadata column holds the timestamp of each stream record as `TIMESTAMP_LTZ(3)`, and `SOURCE_WATERMARK()` reuses
+the watermarks of the `DataStream`. The two options above use the expression-based conversion, which is
+deprecated in Java. See [DataStream API Integration]({{< ref "docs/dev/table/data_stream_api" >}}) for details.
+
 {{< tabs "5c2b6c52-59ae-4da5-94ec-1dfa18eab4e7" >}}
 {{< tab "Java" >}}
 ```java
-
-// Option 1:
-
 // extract timestamp and assign watermarks based on knowledge of the stream
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
-// declare an additional logical field as an event time attribute
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime());
-
-
-// Option 2:
-
-// extract timestamp from first field, and assign watermarks based on knowledge of the stream
-DataStream<Tuple3<Long, String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
-
-// the first field has been used for timestamp extraction, and is no longer necessary
-// replace first field with a logical event time attribute
-Table table = tEnv.fromDataStream(stream, $("user_action_time").rowtime(), $("user_name"), $("data"));
+// declare an additional column that holds the timestamp of each stream record as an
+// event time attribute, and use the watermarks of the DataStream
+Table table = tEnv.fromDataStream(
+        stream,
+        Schema.newBuilder()
+            .columnByMetadata("user_action_time", DataTypes.TIMESTAMP_LTZ(3), "rowtime")
+            .watermark("user_action_time", "SOURCE_WATERMARK()")
+            .build());
 
 // Usage:
 
-WindowedTable windowedTable = table.window(Tumble
+GroupWindowedTable windowedTable = table.window(Tumble
        .over(lit(10).minutes())
        .on($("user_action_time"))
        .as("userActionWindow"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-// Option 1:
-
-// extract timestamp and assign watermarks based on knowledge of the stream
-val stream: DataStream[(String, String)] = inputStream.assignTimestampsAndWatermarks(...)
-
-// declare an additional logical field as an event time attribute
-val table = tEnv.fromDataStream(stream, $"user_name", $"data", $"user_action_time".rowtime)
-
-
-// Option 2:
-
-// extract timestamp from first field, and assign watermarks based on knowledge of the stream
-val stream: DataStream[(Long, String, String)] = inputStream.assignTimestampsAndWatermarks(...)
-
-// the first field has been used for timestamp extraction, and is no longer necessary
-// replace first field with a logical event time attribute
-val table = tEnv.fromDataStream(stream, $"user_action_time".rowtime, $"user_name", $"data")
-
-// Usage:
-
-val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -321,28 +293,24 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 The processing time attribute is defined with the `.proctime` property during schema definition. The time attribute must only extend the physical schema by an additional logical field. Thus, it is only definable at the end of the schema definition.
 
+In Java, declare it as a computed column `PROCTIME()` in the `Schema` that you pass to `fromDataStream`.
+
 {{< tabs "8578fd8f-2b8c-43dc-ba11-a83f505ce7cf" >}}
 {{< tab "Java" >}}
 ```java
 DataStream<Tuple2<String, String>> stream = ...;
 
-// declare an additional logical field as a processing time attribute
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime());
+// declare an additional column as a processing time attribute
+Table table = tEnv.fromDataStream(
+        stream,
+        Schema.newBuilder()
+            .columnByExpression("user_action_time", "PROCTIME()")
+            .build());
 
-WindowedTable windowedTable = table.window(
+GroupWindowedTable windowedTable = table.window(
         Tumble.over(lit(10).minutes())
             .on($("user_action_time"))
             .as("userActionWindow"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val stream: DataStream[(String, String)] = ...
-
-// declare an additional logical field as a processing time attribute
-val table = tEnv.fromDataStream(stream, $"UserActionTimestamp", $"user_name", $"data", $"user_action_time".proctime)
-
-val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
