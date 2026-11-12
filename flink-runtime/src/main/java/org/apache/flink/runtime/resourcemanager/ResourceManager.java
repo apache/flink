@@ -281,7 +281,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     new ResourceEventListenerImpl(),
                     blocklistHandler::isBlockedTaskManager);
 
-            delegationTokenManager.start(this);
+            delegationTokenManager.attachListener(this);
 
             initialize();
         } catch (Exception e) {
@@ -331,7 +331,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         try {
-            delegationTokenManager.stop();
+            delegationTokenManager.detachListener(this);
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }

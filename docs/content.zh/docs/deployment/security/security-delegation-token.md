@@ -187,6 +187,16 @@ on an external renewal service (like YARN). That way, Flink's renewal feature ca
 resource managers that are not DT-aware, such as Kubernetes, as long as the application has
 long-lived credentials.
 
+## Delegation Tokens and High Availability
+
+Every JobManager process, including a standby JobManager, obtains delegation tokens when it starts and
+keeps obtaining new ones for as long as it runs. A standby needs valid tokens too: when it becomes the
+leader, it reads the data to recover from right away, and the storage holding that data may require
+them. Only the current leader distributes the tokens to the TaskManagers.
+
+This means that standby JobManagers contact the configured token services as well, so the number of
+tokens issued at every renewal interval grows with the number of JobManagers.
+
 ## Delegation Tokens and Proxy Users
 
 "Proxy users" is Hadoop-speak for impersonation. It allows user A to impersonate user B when

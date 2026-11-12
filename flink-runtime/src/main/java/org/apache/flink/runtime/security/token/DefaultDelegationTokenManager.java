@@ -63,8 +63,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>When delegation token renewal is enabled, this manager will make sure long-running apps can
  * run without interruption while accessing secured services. It periodically contacts all the
- * configured secure services to obtain delegation tokens to be distributed to the rest of the
- * application.
+ * configured secure services to obtain delegation tokens, updates the receivers of the local JVM
+ * and hands the tokens to the attached listener to be distributed to the rest of the application.
+ *
+ * <p>Tokens are obtained for the lifetime of the process ({@link #start()} to {@link #stop()}) and
+ * not for its leadership, so a standby JobManager keeps its local receivers fresh and does not take
+ * over with aged tokens. A listener is attached for the duration of a leader session only.
+ *
+ * <p>The manager never renews a token, even where the service supports it. It obtains new tokens
+ * before the old ones expire, so it works the same way for every service.
  */
 @Internal
 public class DefaultDelegationTokenManager implements DelegationTokenManager {
@@ -79,6 +86,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDelegationTokenManager.class);
 
     private final Configuration configuration;
+
+    private final Clock clock;
 
     @Nullable private final PluginManager pluginManager;
 
@@ -100,19 +109,51 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @Nullable private final ExecutorService ioExecutor;
 
-    private final Object tokensUpdateFutureLock = new Object();
+    private final Object stateLock = new Object();
 
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("stateLock")
+    private State state = State.CREATED;
+
+    @GuardedBy("stateLock")
     @Nullable
-    private ScheduledFuture<?> tokensUpdateFuture;
+    private ScheduledFuture<?> scheduledObtain;
 
-    @Nullable private Listener listener;
+    @GuardedBy("stateLock")
+    @Nullable
+    private Listener listener;
+
+    /** The newest tokens in the form the listener receives them. */
+    @GuardedBy("stateLock")
+    @Nullable
+    private byte[] latestTokens;
+
+    /**
+     * Serializes the listener callbacks so that a listener never sees older tokens after newer
+     * ones, and lets {@link #detachListener(Listener)} wait for the one in progress. Never acquired
+     * while holding {@link #stateLock}.
+     */
+    private final Object deliveryLock = new Object();
 
     public DefaultDelegationTokenManager(
             Configuration configuration,
             @Nullable PluginManager pluginManager,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor) {
+        this(
+                configuration,
+                pluginManager,
+                scheduledExecutor,
+                ioExecutor,
+                Clock.systemDefaultZone());
+    }
+
+    @VisibleForTesting
+    DefaultDelegationTokenManager(
+            Configuration configuration,
+            @Nullable PluginManager pluginManager,
+            @Nullable ScheduledExecutor scheduledExecutor,
+            @Nullable ExecutorService ioExecutor,
+            Clock clock) {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
         this.pluginManager = pluginManager;
         this.tokensRenewalTimeRatio = configuration.get(DELEGATION_TOKENS_RENEWAL_TIME_RATIO);
@@ -126,6 +167,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 new DelegationTokenReceiverRepository(configuration, pluginManager);
         this.scheduledExecutor = scheduledExecutor;
         this.ioExecutor = ioExecutor;
+        this.clock = checkNotNull(clock, "Clock must not be null");
         checkProviderAndReceiverConsistency(
                 delegationTokenProviders,
                 delegationTokenReceiverRepository.delegationTokenReceivers);
@@ -248,20 +290,6 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         LOG.info("Delegation tokens obtained successfully");
     }
 
-    @Override
-    public void obtainDelegationTokens() throws Exception {
-        LOG.info("Obtaining delegation tokens");
-        DelegationTokenContainer container = new DelegationTokenContainer();
-        obtainDelegationTokensAndGetNextRenewal(container);
-        LOG.info("Delegation tokens obtained successfully");
-
-        if (container.hasTokens()) {
-            delegationTokenReceiverRepository.onNewTokensObtained(container);
-        } else {
-            LOG.warn("No tokens obtained so skipping notifications");
-        }
-    }
-
     protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
             DelegationTokenContainer container) {
         return delegationTokenProviders.values().stream()
@@ -300,70 +328,148 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     }
 
     /**
-     * Creates a re-occurring task which obtains new tokens and automatically distributes them to
-     * task managers.
+     * Starts obtaining tokens for the lifetime of the process: obtains tokens inline, propagates
+     * them to the local JVM receivers and schedules the next obtain. A failure of the first obtain
+     * is not retried but thrown, because the process may need the tokens right away (e.g.
+     * BlobServer).
      */
     @Override
-    public void start(Listener listener) throws Exception {
+    public void start() throws Exception {
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
-        this.listener = checkNotNull(listener, "Listener must not be null");
-        synchronized (tokensUpdateFutureLock) {
-            checkState(tokensUpdateFuture == null, "Manager is already started");
+        synchronized (stateLock) {
+            checkState(
+                    state == State.CREATED,
+                    "The delegation token manager can only be started once, current state: %s",
+                    state);
+            state = State.RUNNING;
         }
 
-        startTokensUpdate();
+        try {
+            obtainDistributeAndScheduleNext();
+        } catch (Throwable t) {
+            stop();
+            throw t;
+        }
     }
 
-    @VisibleForTesting
-    void startTokensUpdate() {
-        try {
-            LOG.info("Starting tokens update task");
-            DelegationTokenContainer container = new DelegationTokenContainer();
-            Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
-
-            if (container.hasTokens()) {
-                delegationTokenReceiverRepository.onNewTokensObtained(container);
-
-                LOG.info("Notifying listener about new tokens");
-                checkNotNull(listener, "Listener must not be null");
-                listener.onNewTokensObtained(InstantiationUtil.serializeObject(container));
-                LOG.info("Listener notified successfully");
-            } else {
-                LOG.warn("No tokens obtained so skipping notifications");
+    @Override
+    public void attachListener(Listener listener) throws Exception {
+        checkNotNull(listener, "Listener must not be null");
+        synchronized (stateLock) {
+            checkState(
+                    state == State.RUNNING,
+                    "The delegation token manager must be running to attach a listener, current state: %s",
+                    state);
+            if (this.listener != null && this.listener != listener) {
+                LOG.warn("Replacing the attached delegation token listener");
             }
+            this.listener = listener;
+            LOG.info("Delegation token listener attached");
+        }
+        deliverLatestTokens();
+    }
 
-            if (nextRenewal.isPresent()) {
-                lastKnownNextRenewal = nextRenewal.get();
-                currentRetryBackoff = renewalRetryInitialBackoff;
-                long renewalDelay =
-                        calculateRenewalDelay(Clock.systemDefaultZone(), nextRenewal.get());
-                synchronized (tokensUpdateFutureLock) {
-                    tokensUpdateFuture =
-                            scheduledExecutor.schedule(
-                                    () -> ioExecutor.execute(this::startTokensUpdate),
-                                    renewalDelay,
-                                    TimeUnit.MILLISECONDS);
+    @Override
+    public void detachListener(Listener listener) {
+        checkNotNull(listener, "Listener must not be null");
+        // Waits for the delivery in progress, so that no callback runs once this method returns.
+        synchronized (deliveryLock) {
+            synchronized (stateLock) {
+                if (this.listener == listener) {
+                    this.listener = null;
+                    LOG.info("Delegation token listener detached");
                 }
+            }
+        }
+    }
+
+    /**
+     * One obtain: gets new tokens from the providers, updates the local JVM receivers, stores the
+     * tokens as the latest ones, delivers them to the attached listener and schedules the next
+     * obtain.
+     */
+    private void obtainDistributeAndScheduleNext() throws Exception {
+        LOG.info("Starting tokens update task");
+        DelegationTokenContainer container = new DelegationTokenContainer();
+        Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
+
+        if (container.hasTokens()) {
+            delegationTokenReceiverRepository.onNewTokensObtained(container);
+            storeAndDeliverLatestTokens(InstantiationUtil.serializeObject(container));
+        } else {
+            LOG.warn("No tokens obtained so skipping notifications");
+        }
+
+        if (nextRenewal.isPresent()) {
+            lastKnownNextRenewal = nextRenewal.get();
+            currentRetryBackoff = renewalRetryInitialBackoff;
+            long renewalDelay = calculateRenewalDelay(clock, nextRenewal.get());
+            if (scheduleNextObtainIfRunning(renewalDelay)) {
                 LOG.info(
                         "Tokens update task started with {} delay",
                         TimeUtils.formatWithHighestUnit(Duration.ofMillis(renewalDelay)));
-            } else {
-                LOG.warn(
-                        "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
             }
+        } else {
+            LOG.warn(
+                    "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
+        }
+    }
+
+    private void storeAndDeliverLatestTokens(byte[] serializedTokens) throws Exception {
+        synchronized (stateLock) {
+            latestTokens = serializedTokens;
+        }
+        deliverLatestTokens();
+    }
+
+    /**
+     * Hands the newest tokens to the attached listener. Every delivery reads them while it holds
+     * the delivery lock, so a delivery which was waiting for another one does not hand over tokens
+     * which are older than the ones the other one handed over.
+     */
+    private void deliverLatestTokens() throws Exception {
+        synchronized (deliveryLock) {
+            final Listener currentListener;
+            final byte[] tokens;
+            synchronized (stateLock) {
+                currentListener = listener;
+                tokens = latestTokens;
+            }
+            if (currentListener != null && tokens != null) {
+                LOG.info("Notifying listener about new tokens");
+                currentListener.onNewTokensObtained(tokens);
+                LOG.info("Listener notified successfully");
+            }
+        }
+    }
+
+    /** Returns whether the next obtain was scheduled, it is not if the manager is not running. */
+    private boolean scheduleNextObtainIfRunning(long delayMillis) {
+        synchronized (stateLock) {
+            if (state != State.RUNNING) {
+                LOG.info(
+                        "Next delegation token obtain is not scheduled, the manager is not running");
+                return false;
+            }
+            scheduledObtain =
+                    scheduledExecutor.schedule(
+                            () -> ioExecutor.execute(this::runScheduledObtainAndRetryOnFailure),
+                            delayMillis,
+                            TimeUnit.MILLISECONDS);
+            return true;
+        }
+    }
+
+    private void runScheduledObtainAndRetryOnFailure() {
+        try {
+            obtainDistributeAndScheduleNext();
         } catch (InterruptedException e) {
             // Ignore, may happen if shutting down.
             LOG.debug("Interrupted", e);
         } catch (Exception e) {
-            long delay = calculateRetryDelay(Clock.systemDefaultZone());
-            synchronized (tokensUpdateFutureLock) {
-                tokensUpdateFuture =
-                        scheduledExecutor.schedule(
-                                () -> ioExecutor.execute(this::startTokensUpdate),
-                                delay,
-                                TimeUnit.MILLISECONDS);
-            }
+            long delay = calculateRetryDelay(clock);
+            scheduleNextObtainIfRunning(delay);
             LOG.warn(
                     "Failed to update tokens, will try again in {}",
                     TimeUtils.formatWithHighestUnit(Duration.ofMillis(delay)),
@@ -371,12 +477,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         }
     }
 
-    @VisibleForTesting
-    void stopTokensUpdate() {
-        synchronized (tokensUpdateFutureLock) {
-            if (tokensUpdateFuture != null) {
-                tokensUpdateFuture.cancel(true);
-                tokensUpdateFuture = null;
+    private void cancelScheduledObtain() {
+        synchronized (stateLock) {
+            if (scheduledObtain != null) {
+                scheduledObtain.cancel(true);
+                scheduledObtain = null;
             }
         }
     }
@@ -416,13 +521,24 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         return renewalDelay;
     }
 
-    /** Stops re-occurring token obtain task. */
+    /** Stops obtaining tokens and releases the attached listener. */
     @Override
     public void stop() {
         LOG.info("Stopping credential renewal");
 
-        stopTokensUpdate();
+        synchronized (stateLock) {
+            state = State.STOPPED;
+            listener = null;
+        }
+        cancelScheduledObtain();
 
         LOG.info("Stopped credential renewal");
+    }
+
+    /** Lifecycle of the manager, tokens are obtained while it is running. */
+    private enum State {
+        CREATED,
+        RUNNING,
+        STOPPED
     }
 }

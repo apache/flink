@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
+import org.apache.flink.runtime.security.token.RecordingDelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 
 import org.assertj.core.util.Sets;
@@ -61,8 +62,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 class ResourceManagerServiceImplTest {
 
     private static final HeartbeatServices heartbeatServices = new TestingHeartbeatServices();
-    private static final DelegationTokenManager delegationTokenManager =
-            new NoOpDelegationTokenManager();
     private static final ClusterInformation clusterInformation =
             new ClusterInformation("localhost", 1234);
     private static final MetricRegistry metricRegistry = TestingMetricRegistry.builder().build();
@@ -71,6 +70,7 @@ class ResourceManagerServiceImplTest {
     private static TestingHighAvailabilityServices haService;
     private static TestingFatalErrorHandler fatalErrorHandler;
 
+    private DelegationTokenManager delegationTokenManager = new NoOpDelegationTokenManager();
     private TestingResourceManagerFactory.Builder rmFactoryBuilder;
     private TestingLeaderElection leaderElection;
 
@@ -136,6 +136,34 @@ class ResourceManagerServiceImplTest {
                         metricRegistry,
                         "localhost",
                         ForkJoinPool.commonPool());
+    }
+
+    @Test
+    void leaderSessions_attachAndDetachTheirResourceManagerAsTokenListener() throws Exception {
+        final RecordingDelegationTokenManager tokenManager = new RecordingDelegationTokenManager();
+        delegationTokenManager = tokenManager;
+        createAndStartResourceManager();
+
+        leaderElection.isLeader(UUID.randomUUID()).join();
+        final ResourceManager<?> firstSession = resourceManagerService.getLeaderResourceManager();
+
+        assertThat(tokenManager.attachedListeners()).containsExactly(firstSession);
+        assertThat(tokenManager.detachedListeners()).isEmpty();
+
+        revokeLeadership();
+
+        assertThat(tokenManager.attachedListeners()).containsExactly(firstSession);
+        assertThat(tokenManager.detachedListeners()).containsExactly(firstSession);
+
+        leaderElection.isLeader(UUID.randomUUID()).join();
+        final ResourceManager<?> secondSession = resourceManagerService.getLeaderResourceManager();
+
+        assertThat(secondSession).isNotSameAs(firstSession);
+        assertThat(tokenManager.attachedListeners()).containsExactly(firstSession, secondSession);
+        assertThat(tokenManager.detachedListeners()).containsExactly(firstSession);
+        // Obtaining the tokens belongs to the process, a leader session must not end it.
+        assertThat(tokenManager.startCalls()).isZero();
+        assertThat(tokenManager.stopCalls()).isZero();
     }
 
     @Test

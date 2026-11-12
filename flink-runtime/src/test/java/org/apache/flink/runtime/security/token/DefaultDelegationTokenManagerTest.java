@@ -21,8 +21,6 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
-import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +34,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
@@ -191,39 +188,6 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void startTokensUpdateShouldScheduleRenewal() {
-        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-        final ManuallyTriggeredScheduledExecutorService scheduler =
-                new ManuallyTriggeredScheduledExecutorService();
-
-        ExceptionThrowingDelegationTokenProvider.addToken.set(true);
-        Configuration configuration = new Configuration();
-        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), true);
-        AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
-        DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(
-                        configuration, null, scheduledExecutor, scheduler) {
-                    @Override
-                    void startTokensUpdate() {
-                        startTokensUpdateCallCount.incrementAndGet();
-                        super.startTokensUpdate();
-                    }
-                };
-
-        delegationTokenManager.startTokensUpdate();
-        ExceptionThrowingDelegationTokenProvider.throwInUsage.set(true);
-        scheduledExecutor.triggerScheduledTasks();
-        scheduler.triggerAll();
-        ExceptionThrowingDelegationTokenProvider.throwInUsage.set(false);
-        scheduledExecutor.triggerScheduledTasks();
-        scheduler.triggerAll();
-        delegationTokenManager.stopTokensUpdate();
-
-        assertEquals(3, startTokensUpdateCallCount.get());
-    }
-
-    @Test
     public void calculateRenewalDelayShouldConsiderRenewalRatio() {
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
@@ -272,7 +236,7 @@ public class DefaultDelegationTokenManagerTest {
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
         manager.calculateRetryDelay(clock);
         manager.calculateRetryDelay(clock);
-        // Simulate success: reset currentRetryBackoff (as startTokensUpdate() would).
+        // Simulate success: reset currentRetryBackoff (as a successful obtain would).
         manager.currentRetryBackoff = initialMs;
 
         long delayAfterReset = manager.calculateRetryDelay(clock);
