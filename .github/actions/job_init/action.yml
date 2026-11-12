@@ -71,8 +71,14 @@ runs:
     - name: "Set JDK version to ${{ inputs.jdk_version }}"
       shell: bash
       run: |
-        echo "JAVA_HOME=$JAVA_HOME_${{ inputs.jdk_version }}_X64" >> "${GITHUB_ENV}"
-        echo "PATH=$JAVA_HOME_${{ inputs.jdk_version }}_X64/bin:$PATH" >> "${GITHUB_ENV}"
+        JDK_HOME="$JAVA_HOME_${{ inputs.jdk_version }}_X64"
+        if [ -z "${JDK_HOME}" ] && [ "${{ inputs.jdk_version }}" = "8" ]; then
+          sudo apt-get update
+          sudo apt-get install -y openjdk-8-jdk-headless
+          JDK_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        fi
+        echo "JAVA_HOME=${JDK_HOME}" >> "${GITHUB_ENV}"
+        echo "PATH=${JDK_HOME}/bin:$PATH" >> "${GITHUB_ENV}"
 
     - name: "Determine cache namespace (PR base | branch | tag)"
       id: cache-ns
