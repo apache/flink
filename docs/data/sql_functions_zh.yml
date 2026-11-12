@@ -960,7 +960,9 @@ conditional:
     description: 返回所有输入参数的最小值，如果输入参数中包含 NULL，则返回 NULL。
 
 conversion:
-  - sql: CAST(value AS type)
+  - sql: |
+      CAST(value AS type)
+      value::type
     table: ANY.cast(TYPE)
     description: |
       返回 value 被转换为类型 type 的新值。CAST错误会抛出异常并导致作业失败。为了处理错误，在使用可能失败的 CAST 操作时，例如 STRING 转换为 INT，建议使用 TRY_CAST 替代。
@@ -971,6 +973,8 @@ conversion:
       The result is nullable if the input may be null. In the Table API, the top-level nullability of TYPE is ignored, while the nullability of nested types, such as the element type of an array, is taken from TYPE.
 
       Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character U+FFFD for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
+
+      `value::type` is the infix cast operator, a shorthand for `CAST(value AS type)`. It binds tighter than arithmetic and comparison operators, so `a::INT + 1` means `CAST(a AS INT) + 1`. To access a field or element of the result, put the cast in parentheses, e.g., `(r::VARIANT)['id']`.
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
     description: |
