@@ -866,8 +866,6 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testAppendOnlyInputWithoutOnConflict(): Unit = {
-    util.tableEnv.getConfig
-      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(false))
     util.addTable(s"""
                      |CREATE TABLE sinkWithPk (
                      |  `a` INT,
@@ -885,8 +883,6 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testUpdatingInputWithoutOnConflict(): Unit = {
-    util.tableEnv.getConfig
-      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(false))
     util.addTable(s"""
                      |CREATE TABLE updatingSinkWithPk (
                      |  `id` INT,
@@ -910,6 +906,8 @@ class TableSinkTest extends TableTestBase {
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
       ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(true))
     util.addTable(s"""
                      |CREATE TABLE sinkWithPkForcedMaterialize (
                      |  `id` INT,
@@ -961,11 +959,6 @@ class TableSinkTest extends TableTestBase {
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
       ExecutionConfigOptions.UpsertMaterialize.FORCE)
-    // This test covers what FORCE materializes, not ON CONFLICT enforcement. The input is append
-    // only and carries no upsert key, so the clause would otherwise be required, exactly as it
-    // already is under AUTO in testAppendOnlyInputWithoutOnConflict.
-    util.tableEnv.getConfig
-      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(false))
     util.addTable(s"""
                      |CREATE TABLE forcedSink (
                      |  `a` INT,
