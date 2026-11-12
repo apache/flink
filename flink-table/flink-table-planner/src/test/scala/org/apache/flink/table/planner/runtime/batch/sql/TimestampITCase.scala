@@ -178,9 +178,9 @@ class TimestampITCase extends BatchTestBase {
   @Test
   def testLeadLagOn(): Unit = {
     checkResult(
-      "SELECT b, d, lag(d) OVER (PARTITION BY b ORDER BY d), " +
+      "SELECT b, d, LAG(d) OVER (PARTITION BY b ORDER BY d), " +
         "LEAD(d) OVER (PARTITION BY b ORDER BY d), " +
-        "h, lag(h) OVER (PARTITION BY b ORDER BY h), " +
+        "h, LAG(h) OVER (PARTITION BY b ORDER BY h), " +
         "LEAD(h) OVER (PARTITION BY b ORDER BY h) FROM T",
       Seq(
         row(
