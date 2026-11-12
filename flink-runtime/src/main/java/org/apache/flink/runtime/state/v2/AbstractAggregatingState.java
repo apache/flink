@@ -38,7 +38,7 @@ import java.util.List;
  *
  * @param <K> The type of key the state is associated to.
  * @param <IN> The type of the values that are added into the state.
- * @param <ACC> TThe type of the accumulator (intermediate aggregation state).
+ * @param <ACC> The type of the accumulator (intermediate aggregation state).
  * @param <OUT> The type of the values that are returned from the state.
  */
 public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedState<K, N, ACC>

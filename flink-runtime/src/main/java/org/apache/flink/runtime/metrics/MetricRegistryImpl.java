@@ -339,7 +339,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     /**
      * Returns the rpc service that the {@link MetricQueryService} runs in.
      *
-     * @return rpc service of hte MetricQueryService
+     * @return rpc service of the MetricQueryService
      */
     @Nullable
     public RpcService getMetricQueryServiceRpcService() {

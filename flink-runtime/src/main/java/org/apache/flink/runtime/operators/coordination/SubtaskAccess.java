@@ -76,7 +76,7 @@ interface SubtaskAccess {
     boolean isStillRunning();
 
     /**
-     * Triggers a failover for the subtaks execution attempt that this access instance is bound to.
+     * Triggers a failover for the subtask execution attempt that this access instance is bound to.
      */
     void triggerTaskFailover(Throwable cause);
 

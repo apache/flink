@@ -208,7 +208,7 @@ public class TaskStatsRequestCoordinator<T, V> {
 
     /**
      * A pending task stats request, which collects samples from individual tasks and completes the
-     * response future upon gathering all of of them.
+     * response future upon gathering all of them.
      *
      * <p>Has to be accessed in lock scope.
      *

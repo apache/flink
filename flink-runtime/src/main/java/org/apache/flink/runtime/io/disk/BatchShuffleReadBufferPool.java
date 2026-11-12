@@ -61,7 +61,7 @@ public class BatchShuffleReadBufferPool {
      */
     private static final Duration WAITING_TIME = Duration.ofSeconds(2);
 
-    /** Total direct memory size in bytes can can be allocated and used by this buffer pool. */
+    /** Total direct memory size in bytes that can be allocated and used by this buffer pool. */
     private final long totalBytes;
 
     /** The number of total buffers in this buffer pool. */

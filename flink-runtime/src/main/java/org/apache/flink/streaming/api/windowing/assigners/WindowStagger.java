@@ -47,8 +47,8 @@ public enum WindowStagger {
 
     /**
      * When the first event is received in the window operator, take the difference between the
-     * start of the window and current procesing time as the offset. This way, windows are staggered
-     * based on when each parallel operator receives the first event.
+     * start of the window and current processing time as the offset. This way, windows are
+     * staggered based on when each parallel operator receives the first event.
      */
     NATURAL {
         @Override

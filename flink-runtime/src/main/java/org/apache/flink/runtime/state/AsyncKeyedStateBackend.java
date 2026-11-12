@@ -133,7 +133,7 @@ public interface AsyncKeyedStateBackend<K>
      * priority queue could be stored on different locations, e.g ForSt state-backend could store
      * that on JVM heap if configuring HEAP as the time-service factory.
      *
-     * @return returns ture if safe to reuse the key-values from the state-backend.
+     * @return returns true if safe to reuse the key-values from the state-backend.
      */
     default boolean isSafeToReuseKVState() {
         return false;

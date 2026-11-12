@@ -98,7 +98,7 @@ public class MailboxMetricsController {
     }
 
     /**
-     * Indicates if latency mesurement has been started.
+     * Indicates if latency measurement has been started.
      *
      * @return True if latency measurement has been started.
      */

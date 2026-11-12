@@ -208,7 +208,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         this(new Configuration());
         // unfortunately, StreamExecutionEnvironment always (implicitly) had a public constructor.
         // This constructor is not useful because the execution environment cannot be used for
-        // execution. We're keeping this to appease the binary compatibiliy checks.
+        // execution. We're keeping this to appease the binary compatibility checks.
     }
 
     /**
