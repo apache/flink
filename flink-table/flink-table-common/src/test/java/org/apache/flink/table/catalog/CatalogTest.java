@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.api.common.errors.FlinkThrowable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableError;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.ConnectionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.ConnectionNotExistException;
@@ -41,6 +43,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -737,10 +740,7 @@ public abstract class CatalogTest {
 
         assertThatThrownBy(() -> catalog.createTable(path1, createTable(), false))
                 .isInstanceOf(TableAlreadyExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.t1 already exists in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_ALREADY_EXISTS, path1));
     }
 
     @Test
@@ -763,20 +763,14 @@ public abstract class CatalogTest {
 
         assertThatThrownBy(() -> catalog.getTable(nonExistObjectPath))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.nonexist does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, nonExistObjectPath));
     }
 
     @Test
     public void testGetTable_TableNotExistException_NoDb() {
         assertThatThrownBy(() -> catalog.getTable(nonExistObjectPath))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.nonexist does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, nonExistObjectPath));
     }
 
     @Test
@@ -795,10 +789,7 @@ public abstract class CatalogTest {
     public void testDropTable_TableNotExistException() {
         assertThatThrownBy(() -> catalog.dropTable(nonExistDbPath, false))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) non.exist does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, nonExistDbPath));
     }
 
     @Test
@@ -871,10 +862,7 @@ public abstract class CatalogTest {
     public void testAlterTable_TableNotExistException() {
         assertThatThrownBy(() -> catalog.alterTable(nonExistDbPath, createTable(), false))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) non.exist does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, nonExistDbPath));
     }
 
     @Test
@@ -905,10 +893,7 @@ public abstract class CatalogTest {
 
         assertThatThrownBy(() -> catalog.renameTable(path1, t2, false))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.t1 does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, path1));
     }
 
     @Test
@@ -926,10 +911,7 @@ public abstract class CatalogTest {
 
         assertThatThrownBy(() -> catalog.renameTable(path1, t2, false))
                 .isInstanceOf(TableAlreadyExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.t2 already exists in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_ALREADY_EXISTS, path3));
     }
 
     @Test
@@ -986,10 +968,7 @@ public abstract class CatalogTest {
 
         assertThatThrownBy(() -> catalog.createTable(path1, createView(), false))
                 .isInstanceOf(TableAlreadyExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.t1 already exists in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_ALREADY_EXISTS, path1));
     }
 
     @Test
@@ -1040,10 +1019,7 @@ public abstract class CatalogTest {
     public void testAlterView_TableNotExistException() throws Exception {
         assertThatThrownBy(() -> catalog.alterTable(nonExistDbPath, createTable(), false))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) non.exist does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, nonExistDbPath));
     }
 
     @Test
@@ -1285,10 +1261,7 @@ public abstract class CatalogTest {
                                 catalog.createPartition(
                                         path1, createPartitionSpec(), createPartition(), false))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        String.format(
-                                "Table (or view) %s does not exist in Catalog %s.",
-                                path1.getFullName(), TEST_CATALOG_NAME));
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, path1));
     }
 
     @Test
@@ -1640,10 +1613,7 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
         assertThatThrownBy(() -> catalog.getTableStatistics(path1))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) db1.t1 does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(hasTableError(TableError.TABLE_OR_VIEW_NOT_FOUND, path1));
     }
 
     @Test
@@ -1713,10 +1683,10 @@ public abstract class CatalogTest {
                                         CatalogTableStatistics.UNKNOWN,
                                         false))
                 .isInstanceOf(TableNotExistException.class)
-                .hasMessage(
-                        "Table (or view) default.nonexist does not exist in Catalog "
-                                + TEST_CATALOG_NAME
-                                + ".");
+                .satisfies(
+                        hasTableError(
+                                TableError.TABLE_OR_VIEW_NOT_FOUND,
+                                new ObjectPath(catalog.getDefaultDatabase(), "nonexist")));
     }
 
     @Test
@@ -1972,5 +1942,18 @@ public abstract class CatalogTest {
 
     protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
         CatalogTestUtil.checkEquals(cs1, cs2);
+    }
+
+    private static ThrowingConsumer<Throwable> hasTableError(TableError error, ObjectPath path) {
+        return e -> {
+            final FlinkThrowable flinkThrowable = (FlinkThrowable) e;
+            assertThat(flinkThrowable.getError()).contains(error);
+            assertThat(flinkThrowable.<ObjectIdentifier>getErrorArg("objectName"))
+                    .isEqualTo(
+                            ObjectIdentifier.of(
+                                    TEST_CATALOG_NAME,
+                                    path.getDatabaseName(),
+                                    path.getObjectName()));
+        };
     }
 }

@@ -132,7 +132,7 @@ create view v1 as select * from orders;
 # test create duplicate view
 create view v1 as select * from orders;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.catalog.exceptions.TableAlreadyExistException: Table (or view) default_database.v1 already exists in Catalog default_catalog.
+org.apache.flink.table.catalog.exceptions.TableAlreadyExistException: Table or view `default_catalog`.`default_database`.`v1` already exists. Choose a different name or drop the existing object. SQLSTATE: 42P07
 !error
 
 # test show create a permanent view
@@ -395,7 +395,7 @@ drop view v1;
 # test drop invalid table
 drop view non_exist;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: View with identifier 'default_catalog.default_database.non_exist' does not exist.
+org.apache.flink.table.api.ValidationException: View `default_catalog`.`default_database`.`non_exist` does not exist. Check the name and the current catalog and database. SQLSTATE: 42P01
 !error
 
 # ===== test playing with keyword identifiers =====
