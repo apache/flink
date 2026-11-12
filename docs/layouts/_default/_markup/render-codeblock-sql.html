@@ -17,8 +17,10 @@ specific language governing permissions and limitations
 under the License.
 */}}
 {{/*
-  Highlights a SQL code block like the default renderer does. A block with a `function` attribute,
-  such as the examples on a built-in function page, also marks each call of that function.
+  Highlights a SQL code block like the default renderer does, with two changes. The highlighter
+  tags SQL types in three different ways and doesn't know Flink's own types, such as STRING, so every
+  type name in upper case gets the same class. A block with a `function` attribute, such as the
+  examples on a built-in function page, also marks each call of that function.
 */}}
 {{- $html := transform.Highlight (print .Inner "\n") .Type .Options -}}
 {{- with .Attributes.function -}}
@@ -27,4 +29,8 @@ under the License.
     {{- $html = replaceRE (printf `(?i)<span class="n">(%s)</span>(<span class="p">\()` .) `<span class="n function-self">${1}</span>${2}` $html -}}
   {{- end -}}
 {{- end -}}
+{{- $types := `ARRAY|BIGINT|BINARY|BITMAP|BOOLEAN|BYTES|CHAR|DATE|DEC|DECIMAL|DOUBLE|FLOAT|INT|INTEGER|INTERVAL|MAP|MULTISET|NUMERIC|RAW|REAL|ROW|SMALLINT|STRING|TIME|TIMESTAMP|TIMESTAMP_LTZ|TINYINT|VARBINARY|VARCHAR|VARIANT` -}}
+{{- $html = replaceRE (printf `<span class="(?:n|nb|k)">(%s)</span>` $types) `<span class="sql-type">${1}</span>` $html -}}
+{{- /* TIME in TIMESTAMP WITH LOCAL TIME ZONE is part of the type's keywords, not a type. */ -}}
+{{- $html = replaceRE `(LOCAL</span><span class="w">\s+</span>)<span class="sql-type">TIME</span>` `${1}<span class="k">TIME</span>` $html -}}
 {{- $html | safeHTML -}}
