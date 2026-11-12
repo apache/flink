@@ -74,7 +74,7 @@ class AggsHandlerCodeGenerator(
   private var windowAssignerTerm: String = _
   private var shiftTimeZone: ZoneId = _
 
-  /** Aggregates informations */
+  /** Aggregates information */
   private var accTypeInfo: RowType = _
   private var aggBufferSize: Int = _
 

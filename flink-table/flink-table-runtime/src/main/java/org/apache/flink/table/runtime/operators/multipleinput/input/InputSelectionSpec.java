@@ -35,7 +35,7 @@ public class InputSelectionSpec implements Serializable {
      */
     private final int multipleInputId;
 
-    /** The read order for current input in multple operator. */
+    /** The read order for current input in multiple operator. */
     private final int readOrder;
 
     public InputSelectionSpec(int multipleInputId, int readOrder) {

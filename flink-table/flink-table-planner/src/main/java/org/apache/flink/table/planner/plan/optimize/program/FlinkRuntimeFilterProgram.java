@@ -401,7 +401,7 @@ public class FlinkRuntimeFilterProgram implements FlinkOptimizeProgram<BatchOpti
      * @param filterHasBenefit Whether it has benefit to inject the filter at the current position.
      *     We believe that only if the filter goes through an Exchange, Join or Agg is beneficial,
      *     otherwise there is no benefit. We should inject the filter only if it has benefit.
-     * @return the new probe side wit runtime filter
+     * @return the new probe side with runtime filter
      */
     private static RelNode tryPushDownProbeAndInjectRuntimeFilter(
             RelNode rel,

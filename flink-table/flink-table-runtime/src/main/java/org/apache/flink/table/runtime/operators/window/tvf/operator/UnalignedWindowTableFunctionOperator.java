@@ -303,7 +303,7 @@ public class UnalignedWindowTableFunctionOperator extends WindowTableFunctionOpe
     }
 
     /**
-     * In case this leads to a value greated than {@link Long#MAX_VALUE} then a cleanup time of
+     * In case this leads to a value greater than {@link Long#MAX_VALUE} then a cleanup time of
      * {@link Long#MAX_VALUE} is returned.
      */
     private long getCleanupTime(TimeWindow window) {

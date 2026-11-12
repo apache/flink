@@ -283,7 +283,7 @@ class ExpressionReducer(
             val ops = call.getOperands
             val divisor = ops.get(ops.size() - 1)
 
-            // according to BuiltInFunctionDefinitions, the DEVIDE's second op must be numeric
+            // according to BuiltInFunctionDefinitions, the DIVIDE's second op must be numeric
             assert(RexUtil.isDeterministic(divisor))
             // The divisor may itself be an unreduced constant expression, e.g. 1 / (2 + 3),
             // in which case it is evaluated together with the division below.

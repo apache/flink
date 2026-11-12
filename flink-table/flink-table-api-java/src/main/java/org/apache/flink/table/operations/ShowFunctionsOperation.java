@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 
 /**
  * Operation to describe a SHOW FUNCTIONS statement. The full syntax for SHOW FUNCTIONS is as
- * followings:
+ * follows:
  *
  * <pre>{@code
  * SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)

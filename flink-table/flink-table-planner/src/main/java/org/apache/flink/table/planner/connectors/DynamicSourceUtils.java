@@ -626,7 +626,7 @@ public final class DynamicSourceUtils {
             // get the previous scan context
             RowLevelModificationScanContext scanContext =
                     RowLevelModificationContextUtils.getScanContext();
-            // pass the previous scan context to current table soruce and
+            // pass the previous scan context to current table source and
             // get a new scan context
             RowLevelModificationScanContext newScanContext =
                     modificationScan.applyRowLevelModificationScan(

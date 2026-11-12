@@ -102,7 +102,7 @@ public class SortSpec {
         return fieldSpecs.length;
     }
 
-    /** Gets fields types of sort fields accoording to input type. */
+    /** Gets fields types of sort fields according to input type. */
     public LogicalType[] getFieldTypes(RowType input) {
         return Stream.of(fieldSpecs)
                 .map(field -> input.getTypeAt(field.fieldIndex))

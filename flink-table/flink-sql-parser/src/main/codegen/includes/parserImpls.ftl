@@ -2669,7 +2669,7 @@ SqlTypeNameSpec SqlBitmapTypeName() :
 /**
 * Parse a "name1 type1 [ NULL | NOT NULL] [ comment ]
 * [, name2 type2 [ NULL | NOT NULL] [ comment ] ]* ..." list.
-* The comment and NULL syntax doest not belong to standard SQL.
+* The comment and NULL syntax does not belong to standard SQL.
 */
 void ExtendedFieldNameTypeCommaList(
         List<SqlIdentifier> fieldNames,

@@ -46,8 +46,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
 /**
- * Operation to describe a SHOW COLUMNS statement. The full syntax for SHOW COLUMNS is as
- * followings:
+ * Operation to describe a SHOW COLUMNS statement. The full syntax for SHOW COLUMNS is as follows:
  *
  * <pre>{@code
  * SHOW COLUMNS [ ( FROM | IN ) [catalog_name.]database_name.]table [ [NOT] (LIKE | ILIKE)

@@ -29,7 +29,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * SHOW TABLES sql call. The full syntax for show functions is as followings:
+ * SHOW TABLES sql call. The full syntax for show functions is as follows:
  *
  * <pre>{@code
  * SHOW ( VIEWS | [ MATERIALIZED ]TABLES ) [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE

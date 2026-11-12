@@ -23,7 +23,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 
-/** Mange the lifecycle of the {@link Session}. */
+/** Manage the lifecycle of the {@link Session}. */
 public interface SessionManager {
 
     /** Create the {@link SessionManager} with the default configuration. */

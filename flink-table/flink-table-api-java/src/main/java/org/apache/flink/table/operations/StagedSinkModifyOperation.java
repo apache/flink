@@ -33,10 +33,10 @@ import java.util.Map;
  * statement.
  *
  * <p>StagedSinkModifyOperation is an extension of SinkModifyOperation in the atomic CTAS/RTAS
- * scenario. Whiling checking whether the corresponding sink support atomic CTAS/RTAS or not, we
- * will need to get DynamicTableSink firstly and check whether it implements {@link SupportsStaging}
- * and then call the method {@link SupportsStaging#applyStaging}. We maintain the DynamicTableSink
- * in this operation so that we can reuse this DynamicTableSink instead of creating a new
+ * scenario. While checking whether the corresponding sink support atomic CTAS/RTAS or not, we will
+ * need to get DynamicTableSink firstly and check whether it implements {@link SupportsStaging} and
+ * then call the method {@link SupportsStaging#applyStaging}. We maintain the DynamicTableSink in
+ * this operation so that we can reuse this DynamicTableSink instead of creating a new
  * DynamicTableSink during translating the operation again which is error-prone.
  */
 @Internal
