@@ -49,6 +49,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -205,7 +206,8 @@ public abstract class CommonSemanticTestBase implements TableTestProgramRunner {
             options.put("bounded", "true");
         }
         // Enforce per-record watermarks for testing
-        if (sourceTestStep.schemaComponents.stream().anyMatch(c -> c.startsWith("WATERMARK FOR"))) {
+        if (sourceTestStep.schemaComponents.stream()
+                .anyMatch(c -> c.toUpperCase(Locale.ROOT).startsWith("WATERMARK FOR"))) {
             options.put("disable-lookup", "true");
             options.put("enable-watermark-push-down", "true");
             options.put("scan.watermark.emit.strategy", "on-event");
