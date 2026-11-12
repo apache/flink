@@ -51,6 +51,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -272,6 +273,13 @@ abstract class AsyncStateTimeIntervalJoin
                 rowTime + (isLeft ? leftRelativeSize : rightRelativeSize);
         final boolean thisOuter = isOuter(isLeft);
         final boolean otherOuter = isOuter(!isLeft);
+        final long earlyFireTime =
+                earlyFireEnabled && thisOuter
+                        ? (earlyFireCrossDomain
+                                        ? ctx.timerService().currentProcessingTime()
+                                        : rowTime)
+                                + earlyFireDelay
+                        : 0L;
         final boolean[] emitted = {false};
 
         // Check if we need to join the current row against cached rows of the other input.
@@ -383,7 +391,7 @@ abstract class AsyncStateTimeIntervalJoin
                         // Operator time of the other stream has not exceeded the upper window bound
                         // of the current row. Put it into the cache, since later coming records
                         // from the other stream are expected to be joined with it.
-                        return cacheRow(row, rowTime, emitted[0], ctx, isLeft);
+                        return cacheRow(row, rowTime, earlyFireTime, emitted[0], ctx, isLeft);
                     }
                     if (!emitted[0] && thisOuter) {
                         // Emit a null padding result if the row is not cached and successfully
@@ -395,7 +403,12 @@ abstract class AsyncStateTimeIntervalJoin
     }
 
     private StateFuture<Void> cacheRow(
-            RowData row, long rowTime, boolean emitted, Context ctx, boolean isLeft) {
+            RowData row,
+            long rowTime,
+            long earlyFireTime,
+            boolean emitted,
+            Context ctx,
+            boolean isLeft) {
         final MapState<Long, List<Tuple2<RowData, Boolean>>> cache =
                 isLeft ? leftCache : rightCache;
         // The cleanup timer of the cache is recorded in the timer state of the other stream.
@@ -421,7 +434,9 @@ abstract class AsyncStateTimeIntervalJoin
                             return emitted
                                     ? appended
                                     : appended.thenCompose(
-                                            ignored2 -> scheduleEarlyFire(ctx, rowTime, isLeft));
+                                            ignored2 ->
+                                                    scheduleEarlyFire(
+                                                            ctx, rowTime, earlyFireTime, isLeft));
                         })
                 .thenCompose(ignored -> timerState.asyncValue())
                 .thenCompose(
@@ -543,21 +558,24 @@ abstract class AsyncStateTimeIntervalJoin
      * Register the early-fire timer for an unmatched outer row. For the natural pairing the timer
      * shares the cleanup domain and fires at {@code bucketKey + earlyFireDelay}, recoverable later
      * as {@code timestamp - earlyFireDelay}. For the cross-domain case the timer is a
-     * processing-time timer at {@code currentProcessingTime() + earlyFireDelay}, and the event-time
-     * bucket key is recorded in the schedule under that firing time so it can be recovered when the
-     * processing-time timer fires.
+     * processing-time timer at {@code firingTime}, the processing time when {@link #processElement}
+     * started plus {@code earlyFireDelay}, and the event-time bucket key is recorded once in the
+     * schedule under that firing time so it can be recovered when the processing-time timer fires.
      */
-    private StateFuture<Void> scheduleEarlyFire(Context ctx, long bucketKey, boolean isLeft) {
+    private StateFuture<Void> scheduleEarlyFire(
+            Context ctx, long bucketKey, long firingTime, boolean isLeft) {
         if (!earlyFireCrossDomain) {
-            registerTimer(ctx, bucketKey + earlyFireDelay);
+            registerTimer(ctx, firingTime);
             return StateFutureUtils.completedVoidFuture();
         }
         final MapState<Long, List<Long>> schedule =
                 isLeft ? leftEarlyFireSchedule : rightEarlyFireSchedule;
-        final long firingTime = ctx.timerService().currentProcessingTime() + earlyFireDelay;
         return schedule.asyncGet(firingTime)
                 .thenCompose(
                         buckets -> {
+                            if (buckets != null && buckets.contains(bucketKey)) {
+                                return StateFutureUtils.completedVoidFuture();
+                            }
                             final List<Long> bucketList =
                                     buckets == null ? new ArrayList<>(1) : buckets;
                             bucketList.add(bucketKey);
@@ -586,7 +604,9 @@ abstract class AsyncStateTimeIntervalJoin
                                 return StateFutureUtils.completedVoidFuture();
                             }
                             StateFuture<Void> fired = StateFutureUtils.completedVoidFuture();
-                            for (long bucketKey : buckets) {
+                            // Deduplicate in case a restored synchronous schedule recorded a bucket
+                            // more than once.
+                            for (long bucketKey : new LinkedHashSet<>(buckets)) {
                                 fired =
                                         fired.thenCompose(
                                                 ignored -> earlyFire(bucketKey, padLeft, out));
