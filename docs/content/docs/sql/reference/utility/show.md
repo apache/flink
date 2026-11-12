@@ -387,7 +387,7 @@ table_env.execute_sql("SHOW TABLES").print()
 # |   my_table |
 # +------------+
 # show create table
-table_env.executeSql("SHOW CREATE TABLE my_table").print()
+table_env.execute_sql("SHOW CREATE TABLE my_table").print()
 # CREATE TABLE `default_catalog`.`default_db`.`my_table` (
 #   ...
 # ) WITH (
@@ -1104,7 +1104,7 @@ CREATE MODEL my_model
 INPUT(text STRING)
 OUTPUT(response STRING)
 WITH (
-  'provider' = 'openai',
+  'provider' = 'openai'
 );
 ```
 

@@ -82,7 +82,7 @@ These components check the metadata during restore and adapt accordingly.
 
 ```java
 ValueStateDescriptor<String> descriptor = new ValueStateDescriptor<>("user-state", String.class);
-descriptor.enableTimeToLive(StateTtlConfig.newBuilder(Time.hours(1)).build());
+descriptor.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofHours(1)).build());
 ```
 
 If this descriptor replaces an earlier one without TTL, the state will be restored successfully in Flink 2.2.0+ and TTL will be enforced going forward.

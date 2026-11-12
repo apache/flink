@@ -775,7 +775,7 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    state.backend.local-recovery: true
+    execution.state-recovery.from-local: true
     process.taskmanager.working-dir: /pv
 ---
 apiVersion: v1

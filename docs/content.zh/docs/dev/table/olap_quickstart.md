@@ -175,8 +175,8 @@ Session Cluster 和 SQL Gateway 都依赖连接器来获取表的元信息同时
 | [jobmanager.scheduler]({{< ref "docs/deployment/config#jobmanager-scheduler" >}})                                       | Default           | Default |
 | [jobmanager.execution.failover-strategy]({{< ref "docs/deployment/config#jobmanager-execution-failover-strategy-1" >}}) | region            | full    |
 | [restart-strategy.type]({{< ref "docs/deployment/config#restart-strategy-type" >}})                                     | (none)            | disable |
-| [jobstore.type]({{< ref "docs/deployment/config#jobstore-type" >}})                                                     | File              | Memory  |
-| [jobstore.max-capacity]({{< ref "docs/deployment/config#jobstore-max-capacity" >}})                                     | Integer.MAX_VALUE | 500     |
+| [completed-application-store.type]({{< ref "docs/deployment/config#completed-application-store-type" >}})               | File              | Memory  |
+| [completed-application-store.max-capacity]({{< ref "docs/deployment/config#completed-application-store-max-capacity" >}}) | Integer.MAX_VALUE | 500     |
 
 
 #### 网络参数

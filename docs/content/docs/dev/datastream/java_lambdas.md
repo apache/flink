@@ -45,7 +45,7 @@ The following example illustrates how to implement a simple, inline `map()` func
 The types of input `i` and output parameters of the `map()` function need not to be declared as they are inferred by the Java compiler.
 
 ```java
-env.fromElements(1, 2, 3)
+env.fromData(1, 2, 3)
 // returns the squared i
 .map(i -> i*i)
 .print();
@@ -67,7 +67,7 @@ org.apache.flink.api.common.functions.InvalidTypesException: The generic type pa
 In this case, the type information needs to be *specified explicitly*, otherwise the output will be treated as type `Object` which leads to unefficient serialization.
 
 ```java
-DataStream<Integer> input = env.fromElements(1, 2, 3);
+DataStream<Integer> input = env.fromData(1, 2, 3);
 
 // collector type must be declared
 input.flatMap((Integer number, Collector<String> out) -> {
@@ -89,7 +89,7 @@ Similar problems occur when using a `map()` function with a generic return type.
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-env.fromElements(1, 2, 3)
+env.fromData(1, 2, 3)
     .map(i -> Tuple2.of(i, i))    // no information about fields of Tuple2
     .print();
 ```
@@ -101,13 +101,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 // use the explicit ".returns(...)"
-env.fromElements(1, 2, 3)
+env.fromData(1, 2, 3)
     .map(i -> Tuple2.of(i, i))
     .returns(Types.TUPLE(Types.INT, Types.INT))
     .print();
 
 // use a class instead
-env.fromElements(1, 2, 3)
+env.fromData(1, 2, 3)
     .map(new MyTuple2Mapper())
     .print();
 
@@ -119,7 +119,7 @@ public static class MyTuple2Mapper implements MapFunction<Integer, Tuple2<Intege
 }
 
 // use an anonymous class instead
-env.fromElements(1, 2, 3)
+env.fromData(1, 2, 3)
     .map(new MapFunction<Integer, Tuple2<Integer, Integer>>() {
         @Override
         public Tuple2<Integer, Integer> map(Integer i) {
@@ -129,7 +129,7 @@ env.fromElements(1, 2, 3)
     .print();
 
 // or in this example use a tuple subclass instead
-env.fromElements(1, 2, 3)
+env.fromData(1, 2, 3)
     .map(i -> new DoubleTuple(i, i))
     .print();
 

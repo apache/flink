@@ -92,7 +92,7 @@ env.enableCheckpointing(1000);
 // 高级选项：
 
 // 设置模式为精确一次 (这是默认值)
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 
 // 确认 checkpoints 之间的时间会进行 500 ms
 env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);

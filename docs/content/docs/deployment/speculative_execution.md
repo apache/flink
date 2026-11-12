@@ -54,8 +54,8 @@ Note that currently only [Adaptive Batch Scheduler]({{< ref "docs/deployment/ela
 
 ### Tuning Configuration
 To make speculative execution work better for different jobs, you can tune below configuration options of the scheduler:
-- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-max-concurrent-e)
-- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-block-slow-node)
+- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-max-concurrent-executions)
+- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-block-slow-node-duration)
 
 You can also tune below configuration options of the slow task detector:
 - [`slow-task-detector.check-interval`]({{< ref "docs/deployment/config" >}}#slow-task-detector-check-interval)

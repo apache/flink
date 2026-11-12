@@ -650,7 +650,7 @@ You can customize the Flink image in several ways:
     ENV VAR_NAME value
     ```
 
-**Commands for building**:
+    **Commands for building**:
 
     ```sh
     $ docker build --tag custom_flink_image .

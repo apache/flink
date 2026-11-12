@@ -292,7 +292,7 @@ Flink SQL> CREATE TABLE Orders (
 > `sold_month` BIGINT,
 > `sold_day` BIGINT  
 > ) PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`)
-> ) with (
+> with (
 > ...
 > );
 [INFO] Table has been created.

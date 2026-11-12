@@ -548,7 +548,8 @@ CREATE TABLE Orders_in_file (
 PARTITIONED BY (`user`) 
 WITH ( 
     'connector' = 'filesystem',
-    'path' = '...'
+    'path' = '...',
+    'format' = 'json'
 );
 
 -- 对应存储在 kafka 的源表
