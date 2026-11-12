@@ -74,6 +74,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -555,7 +556,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         // This is in sync with SemanticTestBase and is a better default for time-based testing
         // because processing-time watermark emission would otherwise lead to flaky tests.
         // Restore tests that fail with this setting can override it in the test program.
-        if (sourceTestStep.schemaComponents.stream().anyMatch(c -> c.startsWith("WATERMARK FOR"))) {
+        if (sourceTestStep.schemaComponents.stream()
+                .anyMatch(c -> c.toUpperCase(Locale.ROOT).startsWith("WATERMARK FOR"))) {
             options.put("disable-lookup", "true");
             options.put("enable-watermark-push-down", "true");
             options.put("scan.watermark.emit.strategy", "on-event");
