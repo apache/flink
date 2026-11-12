@@ -489,6 +489,86 @@ public final class DeletesByKeyPrograms {
                                     + "FROM source_t WHERE CAST(id AS STRING) <> '0'")
                     .build();
 
+    public static final TableTestProgram DELETE_BY_KEY_DELETE_BY_KEY_WITH_SHARED_NON_KEY_VALUE =
+            TableTestProgram.of(
+                            "delete-by-key-delete-by-key-with-shared-non-key-value",
+                            "A non-key value used by every row (c) and shared by two CASEs (a, b)."
+                                    + " It must not be computed for a delete-by-key row, whose"
+                                    + " non-key column is missing.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "body STRING NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "ab"),
+                                            Row.ofKind(RowKind.INSERT, 2, "abc"),
+                                            // Delete by key: NOT NULL body column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, "abcd"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "id STRING PRIMARY KEY NOT ENFORCED",
+                                            "a INT",
+                                            "b INT",
+                                            "c INT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, 2, null, 2]",
+                                            "+I[2, 3, 4, 3]",
+                                            "-D[1, null, null, null]",
+                                            "+U[2, 4, 5, 4]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CAST(id AS STRING), "
+                                    + "CASE WHEN id > 0 THEN CHAR_LENGTH(body) END, "
+                                    + "CASE WHEN id > 1 THEN CHAR_LENGTH(body) + 1 END, "
+                                    + "CHAR_LENGTH(body) FROM source_t")
+                    .build();
+
+    public static final TableTestProgram DELETE_BY_KEY_DELETE_BY_KEY_WITH_MEMOIZED_NON_KEY_VALUE =
+            TableTestProgram.of(
+                            "delete-by-key-delete-by-key-with-memoized-non-key-value",
+                            "A non-key value shared by two CASEs only, so it gets a memo method"
+                                    + " reading the non-key column. It must not be computed for a"
+                                    + " delete-by-key row, whose non-key column is missing.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "body STRING NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "ab"),
+                                            Row.ofKind(RowKind.INSERT, 2, "abc"),
+                                            // Delete by key: NOT NULL body column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, "abcd"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "id STRING PRIMARY KEY NOT ENFORCED", "a INT", "b INT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, 2, null]",
+                                            "+I[2, 3, 4]",
+                                            "-D[1, null, null]",
+                                            "+U[2, 4, 5]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT CAST(id AS STRING), "
+                                    + "CASE WHEN id > 0 THEN CHAR_LENGTH(body) END, "
+                                    + "CASE WHEN id > 1 THEN CHAR_LENGTH(body) + 1 END FROM source_t")
+                    .build();
+
     public static final TableTestProgram DELETE_BY_KEY_DELETE_BY_KEY_WITH_DUPLICATE_KEY =
             TableTestProgram.of(
                             "delete-by-key-delete-by-key-with-duplicate-key",
