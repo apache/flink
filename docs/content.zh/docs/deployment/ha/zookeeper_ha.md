@@ -70,7 +70,7 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 
 在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中配置高可用模式和 ZooKeeper 复制组（quorum）:
 
-```bash
+```yaml
 high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
@@ -84,7 +84,7 @@ high-availability.storageDir: hdfs:///flink/recovery
 
 如果 ZooKeeper 使用 Kerberos 以安全模式运行，必要时可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中覆盖以下配置:
 
-```bash
+```yaml
 # 默认配置为 "zookeeper". 如果 ZooKeeper quorum 配置了不同的服务名称，
 # 那么可以替换到这里。
 

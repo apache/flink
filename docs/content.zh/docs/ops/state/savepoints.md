@@ -42,9 +42,9 @@ Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault
 **强烈建议**你按照本节所述调整你的程序，以便将来能够升级你的程序。主要通过 **`uid(String)`** 方法手动指定算子 ID 。这些 ID 将用于恢复每个算子的状态。
 
 ```java
-DataStream<String> stream = env.
+DataStream<String> stream = env
   // Stateful source (e.g. Kafka) with ID
-  .addSource(new StatefulSource())
+  .fromSource(new StatefulSource(), WatermarkStrategy.noWatermarks(), "Stateful Source")
   .uid("source-id") // ID for the source operator
   .shuffle()
   // Stateful mapper with ID
@@ -208,7 +208,7 @@ $ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
 
 在 *NO_CLAIM* 模式下，Flink 不会接管快照的所有权。它会将快照的文件置于用户的控制之中，并且永远不会删除其中的任何文件。该模式下可以从同一个快照上启动多个作业。
 
-为保证 Flink 不会依赖于该快照的任何文件，它会强制第一个（成功的） checkpoint 为全量 checkpoint 而不是增量的。这仅对`state.backend: rocksdb` 有影响，因为其他 backend 总是创建全量 checkpoint。
+为保证 Flink 不会依赖于该快照的任何文件，它会强制第一个（成功的） checkpoint 为全量 checkpoint 而不是增量的。这仅对`state.backend.type: rocksdb` 有影响，因为其他 backend 总是创建全量 checkpoint。
 
 一旦第一个全量的 checkpoint 完成后，所有后续的 checkpoint 会照常创建。所以，一旦一个 checkpoint 成功制作，就可以删除原快照。在此之前不能删除原快照，因为没有任何完成的 checkpoint，Flink 会在故障时尝试从初始的快照恢复。
 

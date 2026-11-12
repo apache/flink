@@ -73,10 +73,10 @@ private static class TestingJobStatusChangedListener implements JobStatusChanged
 
 ### 配置
 
-Flink 组件在启动时加载 JobStatusChangedListener 插件。为确保加载 JobStatusChangedListener 的所有实现，所有类名都应定义在 [execution.job-status-changed-listeners]({{< ref "docs/deployment/config#execution.job-status-changed-listeners" >}}).
+Flink 组件在启动时加载 JobStatusChangedListener 插件。为确保加载 JobStatusChangedListener 的所有实现，所有类名都应定义在 [execution.job-status-changed-listeners]({{< ref "docs/deployment/config#execution-job-status-changed-listeners" >}}).
 如果此配置为空，则不会启动任何监听器。例如
-```
-    execution.job-status-changed-listeners = org.apache.flink.test.execution.TestingJobStatusChangedListenerFactory
+```yaml
+execution.job-status-changed-listeners: org.apache.flink.test.execution.TestingJobStatusChangedListenerFactory
 ```
 
 {{< top >}}

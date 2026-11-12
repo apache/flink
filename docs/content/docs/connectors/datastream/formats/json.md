@@ -70,12 +70,13 @@ KafkaSink<SomePojo> source  =
 
 Both schemas have constructors that accept a `SerializableSupplier<ObjectMapper>`, acting a factory for object mappers.
 With this factory you gain full control over the created mapper, and can enable/disable various Jackson features or register modules to extend the set of supported types or add additional functionality.
+The `ObjectMapper` is Flink's shaded Jackson (`org.apache.flink.shaded.jackson2.com.fasterxml.jackson`), so features and modules have to come from the same shaded package.
 
 ```java
 JsonSerializationSchema<SomeClass> jsonFormat=new JsonSerializationSchema<>(
     () -> new ObjectMapper()
-        .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS))
-        .registerModule(new ParameterNamesModule());
+        .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+        .registerModule(new JavaTimeModule()));
 ```
 
 ## Python

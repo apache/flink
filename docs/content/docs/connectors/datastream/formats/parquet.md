@@ -178,7 +178,7 @@ final DataStream<RowData> stream =
 row_type = DataTypes.ROW([
     DataTypes.FIELD('f7', DataTypes.DOUBLE()),
     DataTypes.FIELD('f4', DataTypes.INT()),
-    DataTypes.FIELD('f99', DataTypes.VARCHAR()),
+    DataTypes.FIELD('f99', DataTypes.STRING()),
 ])
 source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
     row_type=row_type,

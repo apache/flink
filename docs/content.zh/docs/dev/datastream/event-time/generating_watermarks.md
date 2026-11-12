@@ -106,9 +106,13 @@ WatermarkStrategy \
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<MyEvent> stream = env.readFile(
-        myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
-        FilePathFilter.createDefaultFilter(), typeInfo);
+FileSource<MyEvent> fileSource = FileSource
+        .forRecordStreamFormat(myFormat, myFilePath)
+        .monitorContinuously(Duration.ofMillis(100))
+        .build();
+
+DataStream<MyEvent> stream = env.fromSource(
+        fileSource, WatermarkStrategy.noWatermarks(), "File Source");
 
 DataStream<MyEvent> withTimestampsAndWatermarks = stream
         .filter( event -> event.severity() == WARNING )
@@ -118,7 +122,7 @@ withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
         .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
         .reduce( (a, b) -> a.add(b) )
-        .addSink(...);
+        .sinkTo(...);
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -136,7 +140,7 @@ with_timestamp_and_watermarks = stream \
 
 with_timestamp_and_watermarks \
     .key_by(lambda e: e.get_group()) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(10))) \
     .reduce(lambda a, b: a.add(b)) \
     .add_sink(...)
 ```
@@ -410,12 +414,12 @@ DataStream<String> stream = env.fromSource(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-kafka_source = KafkaSource.builder()
-    .set_bootstrap_servers(brokers)
-    .set_topics("my-topic")
-    .set_group_id("my-group")
-    .set_starting_offsets(KafkaOffsetsInitializer.earliest())
-    .set_value_only_deserializer(SimpleStringSchema())
+kafka_source = KafkaSource.builder() \
+    .set_bootstrap_servers(brokers) \
+    .set_topics("my-topic") \
+    .set_group_id("my-group") \
+    .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
+    .set_value_only_deserializer(SimpleStringSchema()) \
     .build()
 
 stream = env.from_source(

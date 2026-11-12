@@ -123,7 +123,7 @@ dataStream.keyBy(value -> value.f0);
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
-data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result of KeySelector
+data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) # Key by the result of KeySelector
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -177,7 +177,7 @@ dataStream
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -200,7 +200,7 @@ dataStream
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.window_all(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -369,7 +369,7 @@ Python 中尚不支持此特性。
 {{< tab "Java" >}}
 ```java
 dataStream.coGroup(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
 ```
@@ -456,8 +456,8 @@ class MyCoFlatMapFunction(CoFlatMapFunction):
     def flat_map2(self, value):
         yield value[0] + 1
         
-connectedStreams.map(MyCoMapFunction())
-connectedStreams.flat_map(MyCoFlatMapFunction())
+connected_streams.map(MyCoMapFunction())
+connected_streams.flat_map(MyCoFlatMapFunction())
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -466,13 +466,14 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 #### DataStream &rarr; CachedDataStream
 
 把算子的结果缓存起来。目前只支持批执行模式下运行的作业。算子的结果在算子第一次执行的时候会被缓存起来，之后的
-作业中会复用该算子缓存的结果。如果算子的结果丢失了，它会被原来的算子重新计算并缓存。
+作业中会复用该算子缓存的结果。如果算子的结果丢失了，它会被原来的算子重新计算并缓存。在 Java 中，`cache()` 定义在
+`SingleOutputStreamOperator`（转换操作和 source 的返回类型）以及 side output 上。
 
 {{< tabs cache >}}
 {{< tab "Java" >}}
 ```java
 DataStream<Integer> dataStream = //...
-CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+CachedDataStream<Integer> cachedDataStream = dataStream.map(i -> i + 1).cache();
 cachedDataStream.print(); // Do anything with the cachedDataStream
 ...
 env.execute(); // Execute and create cache.

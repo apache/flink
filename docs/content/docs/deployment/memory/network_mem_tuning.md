@@ -82,24 +82,21 @@ If your subtask has multiple different inputs or it has a single but unioned inp
 
 #### Buffer size and number of buffers
 
-Currently, buffer debloating only caps at the maximal used buffer size. The actual buffer size and the number of buffers remain unchanged. This means that the debloating mechanism cannot reduce the memory usage of your job. You would have to manually reduce either the amount or the size of the buffers. 
-
-Furthermore, if you want to reduce the amount of buffered in-flight data below what buffer debloating currently allows, you might want to manually configure the number of buffers.
+Currently, buffer debloating only caps at the maximal used buffer size. The actual buffer size and the number of buffers remain unchanged. This means that the debloating mechanism cannot reduce the memory usage of your job. You would have to manually reduce the size of the buffers.
 
 #### High parallelism
 
-Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200) using the default configuration. 
-If you observe reduced throughput or higher than expected checkpointing times 
-we suggest increasing the number of floating buffers (`taskmanager.network.memory.floating-buffers-per-gate`) from the default value to at least the number equal to the parallelism.
+Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200).
+If you observe reduced throughput or higher than expected checkpointing times, consider disabling buffer debloating for that job.
 
 The actual value of parallelism from which the problem occurs is various from job to job but normally it should be more than a couple of hundreds.
 
 ## Network buffer lifecycle
  
 Flink has several local buffer pools - one for the output stream and one for each input gate. 
-The target size of each buffer pool is calculated by the following formula.
+The target size of each buffer pool is calculated by the following formula, with 2 exclusive buffers per channel and 8 floating buffers per gate.
 
-`#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
+`#channels * 2 + 8`
 
 The size of the buffer can be configured by setting `taskmanager.memory.segment-size`.
 
@@ -121,14 +118,13 @@ In general, a smaller threshold leads to less chance of the "insufficient number
 
 Unlike the input buffer pool, the output buffer pool has only one type of buffer which it shares among all subpartitions.
 
-In order to avoid excessive data skew, the number of buffers for each subpartition is limited by the `taskmanager.network.memory.max-buffers-per-channel` setting.
+In order to avoid excessive data skew, the number of buffers for each subpartition is limited to 10.
 
-Unlike the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
+Unlike the input buffer pool, the amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
 
 #### Overdraft buffers
 
-For each output subtask can also request up to `taskmanager.network.memory.max-overdraft-buffers-per-gate`
-(by default 5) extra overdraft buffers. Those buffers are only used, if the subtask is backpressured
+Each output subtask can also request up to 20 extra overdraft buffers. Those buffers are only used if the subtask is backpressured
 by downstream subtasks and the subtask requires more than a single network buffer to finish what its
 currently doing. This can happen in situations like:
 - Serializing very large records, that do not fit into a single network buffer.
@@ -139,8 +135,7 @@ example `WindowOperator`'s triggers).
 Without overdraft buffers in such situations Flink subtask thread would block on the backpressure,
 preventing for example unaligned checkpoints from completing. To mitigate this, the overdraft
 buffers concept has been added. Those overdraft buffers are strictly optional and Flink can
-gradually make progress using only regular buffers, which means `0` is an acceptable configuration
-for the `taskmanager.network.memory.max-overdraft-buffers-per-gate`.
+gradually make progress using only regular buffers.
 
 {{< hint warning >}}
 This feature only takes effect for `Pipelined Shuffle`.
@@ -148,13 +143,13 @@ This feature only takes effect for `Pipelined Shuffle`.
 
 ## The number of in-flight buffers 
 
-The default settings for exclusive buffers and floating buffers should be sufficient for the maximum throughput.  If the minimum of in-flight data needs to be set, the exclusive buffers can be set to `0` and the memory segment size can be decreased.
+The number of exclusive buffers and floating buffers is sufficient for the maximum throughput. If the minimum of in-flight data needs to be set, the memory segment size can be decreased.
 
 ### Selecting the buffer size
 
 The buffer collects records in order to optimize network overhead when sending the data portion to the next subtask. The next subtask should receive all parts of the record before consuming it. 
 
-If the buffer size is too small, or the buffers are flushed too frequently (`execution.buffer-timeout` configuration parameter), this can lead to decreased throughput 
+If the buffer size is too small, or the buffers are flushed too frequently (`execution.buffer-timeout.interval` configuration parameter), this can lead to decreased throughput 
 since the per-buffer overhead are significantly higher then per-record overheads in the Flink's runtime.
 
 As a rule of thumb, we don't recommend thinking about increasing the buffer size, or the buffer timeout unless you can observe a network bottleneck in your real life workload
@@ -164,19 +159,17 @@ If the buffer size is too large, this can lead to:
 - high memory usage
 - huge checkpoint data (for unaligned checkpoints)
 - long checkpoint time (for aligned checkpoints)
-- inefficient use of allocated memory with a small `execution.buffer-timeout` because flushed buffers would only be sent partially filled 
+- inefficient use of allocated memory with a small `execution.buffer-timeout.interval` because flushed buffers would only be sent partially filled 
 
 ### Selecting the buffer count
 
-The number of buffers is configured by the `taskmanager.network.memory.buffers-per-channel` and `taskmanager.network.memory.floating-buffers-per-gate` settings. 
-
-For best throughput, we recommend using the default values for the number of exclusive
-and floating buffers(except you have one of [limit cases]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#limitations)). If the amount of in-flight data is causing issues, enabling
+Since Flink 2.0, the number of buffers is not configurable: Flink uses 2 exclusive buffers per channel and 8 floating buffers per gate.
+If the amount of in-flight data is causing issues, enabling
 [buffer debloating]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism) is recommended. 
 
-You can tune the number of network buffers manually, but consider the following: 
+The following explains how these numbers relate to throughput: 
 
-1. You should adjust the number of buffers according to your expected throughput (in `bytes/second`).
+1. The number of buffers needed depends on your expected throughput (in `bytes/second`).
 Assigning credits and sending buffers takes some time (around two roundtrip messages between two nodes). The latency also depends on your network.
 
 Using the buffer roundtrip time (around `1ms` in a healthy local network), [the buffer size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-segment-size), and the expected throughput, you can calculate the number of buffers required to sustain the throughput by using this formula:
@@ -187,18 +180,16 @@ For example, with an expected throughput of `320MB/s`, roundtrip latency of `1ms
 ```
 number_of_buffers = 320MB/s * 1ms / 32KB = 10
 ```
-2. The purpose of floating buffers is to handle data skew scenarios. Ideally, the number of floating buffers (default: 8) and the exclusive buffers (default: 2) that belong to that channel should be able to saturate the network throughput. But this is not always feasible or necessary. It is very rare that only a single channel among all the subtasks in the task manager is being used.
+2. The purpose of floating buffers is to handle data skew scenarios. Ideally, the number of floating buffers (8) and the exclusive buffers (2) that belong to that channel should be able to saturate the network throughput. But this is not always feasible or necessary. It is very rare that only a single channel among all the subtasks in the task manager is being used.
 
 3. The purpose of exclusive buffers is to provide a fluent throughput. While one buffer is in transit, the other is being filled up. With high throughput setups, the number of exclusive buffers is the main factor that defines the amount of in-flight data Flink uses.
-
-In the case of backpressure in low throughput setups, you should consider reducing the number of [exclusive buffers]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel).
 
 ## Summary
 
 Memory configuration tuning for the network in Flink can be simplified by enabling the buffer debloating mechanism. You may have to tune it. 
 
-If this does not work, you can disable the buffer debloating mechanism and manually configure the memory segment size and the number of buffers. For this second scenario, we recommend:
+If this does not work, you can disable the buffer debloating mechanism and manually configure the memory segment size. For this second scenario, we recommend:
 - using the default values for max throughput
-- reducing the memory segment size and/or number of exclusive buffers to speed up checkpointing and reduce the memory consumption of the network stack
+- reducing the memory segment size to speed up checkpointing and reduce the memory consumption of the network stack
 
 {{< top >}}

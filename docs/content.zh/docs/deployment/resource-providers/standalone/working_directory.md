@@ -54,7 +54,7 @@ If not explicitly configured, then it will be a random value containing the host
 Flink processes will use the working directory to store the following artifacts:
 
 * Blobs stored by the `BlobServer` and `BlobCache`
-* Local state if `state.backend.local-recovery` is enabled
+* Local state if `execution.state-recovery.from-local` is enabled
 * RocksDB's working directory
 
 ## Local Recovery Across Process Restarts
@@ -62,13 +62,13 @@ Flink processes will use the working directory to store the following artifacts:
 The working directory can be used to enable local recovery across process restarts ([FLIP-201](https://cwiki.apache.org/confluence/x/wJuqCw)).
 This means that Flink does not have to recover state information from remote storage. 
 
-In order to use this feature, local recovery has to be enabled via `state.backend.local-recovery`.
+In order to use this feature, local recovery has to be enabled via `execution.state-recovery.from-local`.
 Moreover, the TaskManager processes need to get a deterministic resource id assigned via `taskmanager.resource-id`.
 Last but not least, a failed TaskManager process needs to be restarted with the same working directory.
 
-```bash
+```yaml
 process.working-dir: /path/to/working/dir/base
-state.backend.local-recovery: true
+execution.state-recovery.from-local: true
 taskmanager.resource-id: TaskManager_1 # important: Change for every TaskManager process
 ```
 

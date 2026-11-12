@@ -84,8 +84,7 @@ Adaptive Batch Scheduler 将会在调度 Source 节点之前调用上述接口�
 
 ### 性能调优
 
-1. 建议使用 [Sort Shuffle](https://flink.apache.org/2021/10/26/sort-shuffle-part1.html) 并且设置 [`taskmanager.network.memory.buffers-per-channel`]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel) 为 `0`。 这会解耦并行度与需要的网络内存，对于大规模作业，这样可以降低遇到 "Insufficient number of network buffers" 错误的可能性。
-2. 建议将 [`execution.batch.adaptive.auto-parallelism.max-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-max-parallelism) 设置为最坏情况下预期需要的并行度。不建议配置太大的值，否则可能会影响性能。这个配置项会影响上游任务产出的 subpartition 的数量，过多的 subpartition 可能会影响 hash shuffle 的性能，或者由于小包影响网络传输的性能。
+1. 建议将 [`execution.batch.adaptive.auto-parallelism.max-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-max-parallelism) 设置为最坏情况下预期需要的并行度。不建议配置太大的值，否则可能会影响性能。这个配置项会影响上游任务产出的 subpartition 的数量，过多的 subpartition 可能会由于小包影响网络传输的性能。
 
 ## 自动均衡数据分发
 

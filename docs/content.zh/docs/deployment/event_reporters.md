@@ -49,7 +49,7 @@ events.reporter.otel.factory.class: org.apache.flink.events.otel.OpenTelemetryEv
 events.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
 events.reporter.otel.scope.variables.additional: region:eu-west-1,environment:local,flink_runtime:1.17.1
 
-events.reporter.my_other_otel.factory.class: org.apache.flink.common.events.OpenTelemetryEventReporterFactory
+events.reporter.my_other_otel.factory.class: org.apache.flink.events.otel.OpenTelemetryEventReporterFactory
 events.reporter.my_other_otel.exporter.endpoint: http://196.168.0.1:31337
 ```
 

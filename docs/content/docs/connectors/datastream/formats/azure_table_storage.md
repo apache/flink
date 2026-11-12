@@ -69,11 +69,12 @@ Paste the following code:
 
 ```java
 import java.util.Map;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataStream;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.hadoopcompatibility.mapreduce.HadoopInputFormat;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import com.microsoft.hadoop.azure.AzureTableConfiguration;

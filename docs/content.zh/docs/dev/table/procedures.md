@@ -350,15 +350,16 @@ class OverloadedProcedure extends Procedure {
 {{< tabs "d2132879-26dc-45ba-8daa-365733a738e0" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
 
-public static class NamedParameterProcedure extends Procedure {
+public static class NamedParameterProcedure implements Procedure {
 
-  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, @ArgumentHint(name = "a", isOption = true) Integer a, @ArgumentHint(name = "b") Integer b) {
+  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, @ArgumentHint(name = "a") Integer a, @ArgumentHint(name = "b", isOptional = true) Integer b) {
     return new Integer[] {a + (b == null ? 0 : b)};
   }
 }
@@ -376,7 +377,7 @@ import scala.annotation.varargs
 
 class NamedParameterProcedure extends Procedure {
 
-  def call(context: ProcedureContext, @ArgumentHint(name = "param1", isOptional = true) a: Integer, @ArgumentHint(name = "param2") b: Integer): Array[Integer] = {
+  def call(context: ProcedureContext, @ArgumentHint(name = "param1") a: Integer, @ArgumentHint(name = "param2", isOptional = true) b: Integer): Array[Integer] = {
     Array(a + (if (b == null) 0 else b))
   }
 }
@@ -389,13 +390,14 @@ class NamedParameterProcedure extends Procedure {
 {{< tabs "5c682030-fdbd-485c-9961-b402971e14d4" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
 
-public static class NamedParameterProcedure extends Procedure {
+public static class NamedParameterProcedure implements Procedure {
     
   @ProcedureHint(
     arguments = {
@@ -440,6 +442,7 @@ class NamedParameterProcedure extends Procedure {
 {{< tabs "64db1ce1-1251-4cc4-a7d8-13b5664f9019" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
@@ -452,7 +455,7 @@ import org.apache.flink.types.Row;
     @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)
   }
 )
-public static class NamedParameterProcedure extends Procedure {
+public static class NamedParameterProcedure implements Procedure {
 
   public @DataTypeHint("INT") Integer[] call(ProcedureContext context, Integer a, Integer b) {
     return new Integer[] {a + (b == null ? 0 : b)};
@@ -588,17 +591,29 @@ class CatalogWithBuiltInProcedure(name: String) extends GenericInMemoryCatalog(n
 {{< tab "Java" >}}
 ```java
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
+import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.util.CloseableIterator;
 
 // 首先实现一个存储过程
 public static class GenerateSequenceProcedure implements Procedure {
 
-  public long[] call(ProcedureContext context, int n) {
+  public long[] call(ProcedureContext context, int n) throws Exception {
+    StreamExecutionEnvironment env = context.getExecutionEnvironment();
     long[] sequenceN = new long[n];
     int i = 0;
     try (CloseableIterator<Long> result = env.fromSequence(0, n - 1).executeAndCollect()) {
@@ -613,9 +628,16 @@ public static class GenerateSequenceProcedure implements Procedure {
 // 自定义一个 Catalog，并返回该存储过程
 public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
 
+  private static final Map<ObjectPath, Procedure> PROCEDURE_MAP = new HashMap<>();
+
   static {
     PROCEDURE_MAP.put(ObjectPath.fromString("system.generate_n"), new GenerateSequenceProcedure());
   }
+
+  public CatalogWithBuiltInProcedure(String name) {
+    super(name);
+  }
+
   // 省略一些方法
   // ...  
   @Override
@@ -628,9 +650,37 @@ public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
   }
 }
 
+// and a factory, so that the catalog can be created from its 'type' option. Register the
+// factory in META-INF/services/org.apache.flink.table.factories.Factory.
+public static class CatalogWithBuiltInProcedureFactory implements CatalogFactory {
+
+  @Override
+  public String factoryIdentifier() {
+    return "catalog_with_procedures";
+  }
+
+  @Override
+  public Set<ConfigOption<?>> requiredOptions() {
+    return Collections.emptySet();
+  }
+
+  @Override
+  public Set<ConfigOption<?>> optionalOptions() {
+    return Collections.emptySet();
+  }
+
+  @Override
+  public Catalog createCatalog(Context context) {
+    return new CatalogWithBuiltInProcedure(context.getName());
+  }
+}
+
 TableEnvironment tEnv = TableEnvironment.create(...);
 // 注册这个 Catalog
-tEnv.registerCatalog("my_catalog", new CatalogWithBuiltInProcedure());
+tEnv.createCatalog(
+    "my_catalog",
+    CatalogDescriptor.of(
+        "my_catalog", Configuration.fromMap(Map.of("type", "catalog_with_procedures"))));
 // 通过 Call 语句调用该存储过程
 tEnv.executeSql("call my_catalog.`system`.generate_n(5)");
 

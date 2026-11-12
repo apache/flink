@@ -140,7 +140,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 
     @Override
-    public OptionsFactory configure(ReadableConfig configuration) {
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
         return this;
     }
 }
@@ -231,7 +231,7 @@ Task 本地状态始终被视为次要副本，checkpoint 状态始终以分布�
 
 ### 配置 task 本地恢复
 
-Task 本地恢复 *默认禁用*，可以通过 Flink 的 CheckpointingOptions.LOCAL_RECOVERY 配置中指定的键 state.backend.local-recovery 来启用。 此设置的值可以是 *true* 以启用或 *false*（默认）以禁用本地恢复。
+Task 本地恢复 *默认禁用*，可以通过 Flink 的 StateRecoveryOptions.LOCAL_RECOVERY 配置中指定的键 execution.state-recovery.from-local 来启用。 此设置的值可以是 *true* 以启用或 *false*（默认）以禁用本地恢复。
 
 注意，[unaligned checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints) 目前不支持 task 本地恢复。
 

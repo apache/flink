@@ -239,7 +239,7 @@ env.createTable(
 // Call the PTF in Table API and pass the watermarked time column
 env.from("Names")
   .partitionBy($("name"))
-  .process(GreetingWithCatchingUp.class, descriptor("ts").asArgument("on_time"))
+  .process(GreetingWithFollowUp.class, descriptor("ts").asArgument("on_time"))
   .execute()
   .print();
 
@@ -1378,7 +1378,7 @@ The result will look similar to:
 | op |                           name |                       customer |                         EXPR$0 |
 +----+--------------------------------+--------------------------------+--------------------------------+
 | +I |                            Bob |                            Bob | Hello Bob, let me know if I... |
-| +I |                          Alice |                          Alice | Hello Alice, here to buy Pr... |
+| +I |                          Alice |                          Alice | Hello Alice, here to buy mi... |
 | +I |                            Bob |                            Bob | Hello Bob, let me know if I... |
 +----+--------------------------------+--------------------------------+--------------------------------+
 ```
@@ -2152,7 +2152,7 @@ CREATE VIEW Checkouts AS SELECT * FROM CheckoutProcessor(
   on_time => DESCRIPTOR(ts),
   reminderInterval => INTERVAL '1' DAY,
   timeoutInterval => INTERVAL '2' DAY, uid => 'cart-processor'
-)
+);
 
 EXECUTE STATEMENT SET
 BEGIN
