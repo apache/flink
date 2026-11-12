@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.s3native.writer;
 
+import org.apache.flink.core.fs.BackPressuringExecutor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
@@ -31,8 +32,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Recoverable writer for S3 using multipart uploads for exactly-once semantics. */
@@ -41,6 +44,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3RecoverableWriter.class);
 
     private final NativeS3ObjectOperations s3AccessHelper;
+    private final Executor uploadThreadPool;
     private final String localTmpDir;
     private final long userDefinedMinPartSize;
     private final int maxConcurrentUploadsPerStream;
@@ -48,17 +52,24 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
 
     private NativeS3RecoverableWriter(
             NativeS3ObjectOperations s3AccessHelper,
+            Executor uploadThreadPool,
             String localTmpDir,
             long userDefinedMinPartSize,
             int maxConcurrentUploadsPerStream) {
+        checkArgument(
+                maxConcurrentUploadsPerStream > 0,
+                "maxConcurrentUploadsPerStream must be positive, but was %s",
+                maxConcurrentUploadsPerStream);
         this.s3AccessHelper = checkNotNull(s3AccessHelper);
+        this.uploadThreadPool = checkNotNull(uploadThreadPool);
         this.localTmpDir = checkNotNull(localTmpDir);
         this.userDefinedMinPartSize = userDefinedMinPartSize;
         this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
 
         LOG.debug(
-                "Created S3 recoverable writer - minPartSize: {} bytes, tmpDir: {}",
+                "Created S3 recoverable writer - minPartSize: {} bytes, maxConcurrentUploadsPerStream: {}, tmpDir: {}",
                 userDefinedMinPartSize,
+                maxConcurrentUploadsPerStream,
                 localTmpDir);
     }
 
@@ -72,7 +83,12 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
         LOG.debug("Started multipart upload - key: {}, uploadId: {}", key, uploadId);
 
         return new NativeS3RecoverableFsDataOutputStream(
-                s3AccessHelper, key, uploadId, localTmpDir, userDefinedMinPartSize);
+                s3AccessHelper,
+                limitedExecutor(),
+                key,
+                uploadId,
+                localTmpDir,
+                userDefinedMinPartSize);
     }
 
     @Override
@@ -115,6 +131,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
                     s3recoverable.incompleteObjectLength());
             return new NativeS3RecoverableFsDataOutputStream(
                     s3AccessHelper,
+                    limitedExecutor(),
                     s3recoverable.getObjectName(),
                     s3recoverable.uploadId(),
                     localTmpDir,
@@ -240,6 +257,10 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
         LOG.debug("Closing S3 recoverable writer");
     }
 
+    private Executor limitedExecutor() {
+        return new BackPressuringExecutor(uploadThreadPool, maxConcurrentUploadsPerStream);
+    }
+
     private void checkNotClosed() {
         if (closed.get()) {
             throw new IllegalStateException("RecoverableWriter has been closed");
@@ -248,11 +269,16 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
 
     public static NativeS3RecoverableWriter writer(
             NativeS3ObjectOperations s3AccessHelper,
+            Executor uploadThreadPool,
             String localTmpDir,
             long userDefinedMinPartSize,
             int maxConcurrentUploadsPerStream) {
 
         return new NativeS3RecoverableWriter(
-                s3AccessHelper, localTmpDir, userDefinedMinPartSize, maxConcurrentUploadsPerStream);
+                s3AccessHelper,
+                uploadThreadPool,
+                localTmpDir,
+                userDefinedMinPartSize,
+                maxConcurrentUploadsPerStream);
     }
 }

@@ -27,6 +27,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -38,15 +41,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class FakeNativeS3Operations extends NativeS3ObjectOperations {
 
     final Map<String, byte[]> committedObjects = new HashMap<>();
-    final Map<String, Map<Integer, byte[]>> openMultipartUploads = new HashMap<>();
+    final Map<String, Map<Integer, byte[]>> openMultipartUploads = new ConcurrentHashMap<>();
 
     /** Standalone objects written with {@link #putObject}, such as the persisted tail objects. */
     final Map<String, byte[]> objects = new HashMap<>();
 
-    boolean failUploadPart = false;
-    boolean deletePartFileAfterUpload = false;
+    volatile boolean failUploadPart = false;
+    volatile boolean deletePartFileAfterUpload = false;
     int abortAttempts = 0;
-    int uploadPartAttempts = 0;
+    final AtomicInteger uploadPartAttempts = new AtomicInteger();
+
+    /** If set, part uploads do not finish before the latch is counted down. */
+    volatile CountDownLatch uploadPartGate;
+
+    final AtomicInteger inFlightUploads = new AtomicInteger();
+    final AtomicInteger maxInFlightUploads = new AtomicInteger();
 
     private final AtomicInteger uploadIdSeq = new AtomicInteger();
 
@@ -57,7 +66,7 @@ final class FakeNativeS3Operations extends NativeS3ObjectOperations {
     @Override
     public String startMultiPartUpload(String key) {
         String uploadId = "U" + uploadIdSeq.incrementAndGet();
-        openMultipartUploads.put(uploadId, new HashMap<>());
+        openMultipartUploads.put(uploadId, new ConcurrentHashMap<>());
         return uploadId;
     }
 
@@ -65,7 +74,35 @@ final class FakeNativeS3Operations extends NativeS3ObjectOperations {
     public UploadPartResult uploadPart(
             String key, String uploadId, int partNumber, File file, long length)
             throws IOException {
-        uploadPartAttempts++;
+        maxInFlightUploads.accumulateAndGet(inFlightUploads.incrementAndGet(), Math::max);
+        try {
+            awaitUploadPartGate();
+            return doUploadPart(uploadId, partNumber, file, length);
+        } finally {
+            inFlightUploads.decrementAndGet();
+        }
+    }
+
+    private void awaitUploadPartGate() throws IOException {
+        final CountDownLatch gate = uploadPartGate;
+        if (gate == null) {
+            return;
+        }
+        try {
+            // Fail instead of hanging forever if a test never opens the gate, e.g. because the
+            // stream unexpectedly uploads synchronously on the writing thread.
+            if (!gate.await(30, TimeUnit.SECONDS)) {
+                throw new IOException("the part upload gate was not opened");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted while waiting for the part upload gate", e);
+        }
+    }
+
+    private UploadPartResult doUploadPart(String uploadId, int partNumber, File file, long length)
+            throws IOException {
+        uploadPartAttempts.incrementAndGet();
         if (failUploadPart) {
             throw new IOException("injected uploadPart failure for uploadId: " + uploadId);
         }
