@@ -206,6 +206,11 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
         return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
 
+    public Optional<Boolean> getEnableServiceLinks() {
+        return flinkConfig.getOptional(
+                KubernetesConfigOptions.KUBERNETES_POD_SERVICE_LINKS_ENABLED);
+    }
+
     /**
      * Gets the map of PVC names to their mount paths.
      *
