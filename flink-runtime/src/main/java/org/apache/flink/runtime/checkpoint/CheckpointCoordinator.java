@@ -1796,9 +1796,10 @@ public class CheckpointCoordinator {
                 return OptionalLong.empty();
             }
 
+            // the restore properties are claim-mode placeholders, so report the persisted ones
             statsTracker.reportRestoredCheckpoint(
                     latest.getCheckpointID(),
-                    latest.getProperties(),
+                    latest.getRestoredProperties().orElse(latest.getProperties()),
                     latest.getExternalPointer(),
                     latest.getStateSize());
 

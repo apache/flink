@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -53,6 +54,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -1273,5 +1277,71 @@ class CheckpointCoordinatorRestoringTest {
         assertThat(checked.get())
                 .as("The finished states should be checked when job is restored on startup")
                 .isTrue();
+    }
+
+    static Stream<Arguments> savepointFormatsAndClaimModes() {
+        return Stream.of(SavepointFormatType.values())
+                .flatMap(
+                        format ->
+                                Stream.of(RecoveryClaimMode.values())
+                                        .map(claimMode -> Arguments.of(format, claimMode)));
+    }
+
+    /** The restored savepoint's real format is reported in every claim mode. */
+    @ParameterizedTest(name = "{0} savepoint restored with {1}")
+    @MethodSource("savepointFormatsAndClaimModes")
+    void testRestoredSavepointReportsItsRealFormat(
+            SavepointFormatType format, RecoveryClaimMode claimMode) throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        final ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        final String savepointPointer = takeSavepoint(graph, jobVertexID, format);
+
+        final CheckpointStatsTracker statsTracker =
+                new DefaultCheckpointStatsTracker(
+                        10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+        final CheckpointCoordinator restoreCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointStatsTracker(statsTracker)
+                        .build(graph);
+
+        restoreCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(savepointPointer, false, claimMode),
+                graph.getAllVertices(),
+                getClass().getClassLoader());
+
+        final CheckpointProperties restored =
+                statsTracker.createSnapshot().getLatestRestoredCheckpoint().getProperties();
+        assertThat(restored.isSavepoint()).isTrue();
+        assertThat(((SavepointType) restored.getCheckpointType()).getFormatType())
+                .isEqualTo(format);
+    }
+
+    private String takeSavepoint(
+            ExecutionGraph graph, JobVertexID jobVertexID, SavepointFormatType format)
+            throws Exception {
+        final CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(graph);
+        final File savepointPath = TempDirUtils.newFolder(tmpFolder);
+        final CompletableFuture<CompletedCheckpoint> savepointFuture =
+                coordinator.triggerSavepoint("file://" + savepointPath.getAbsolutePath(), format);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        final long pendingSavepointId =
+                coordinator.getPendingCheckpoints().keySet().stream().findFirst().get();
+        coordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(
+                        graph.getJobID(),
+                        graph.getJobVertex(jobVertexID)
+                                .getTaskVertices()[0]
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        pendingSavepointId),
+                "localhost");
+        assertThat(savepointFuture).isDone();
+        return savepointFuture.get().getExternalPointer();
     }
 }
