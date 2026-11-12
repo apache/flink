@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableError;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.MaterializedTableConfigOptions;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -58,6 +59,7 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.table.catalog.StartMode.StartModeKind.FROM_TIMESTAMP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -317,6 +319,41 @@ class CatalogManagerTest {
                 .hasMessage(
                         "Invalid default start mode 'FROM_TIMESTAMP'. "
                                 + "Only parameterless start modes are supported as defaults.");
+    }
+
+    @Test
+    void testDropMissingTable() {
+        final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        final ObjectIdentifier identifier =
+                ObjectIdentifier.of(
+                        CatalogManagerMocks.DEFAULT_CATALOG,
+                        CatalogManagerMocks.DEFAULT_DATABASE,
+                        "t");
+
+        assertThatThrownBy(() -> catalogManager.dropTable(identifier, false))
+                .hasMessage(
+                        "Table `default_catalog`.`default_database`.`t` does not exist. "
+                                + "Check the name and the current catalog and database. "
+                                + "SQLSTATE: 42P01")
+                .isInstanceOfSatisfying(
+                        ValidationException.class,
+                        e -> assertTableError(e, TableError.TABLE_NOT_FOUND, identifier));
+        assertThatThrownBy(() -> catalogManager.dropView(identifier, false))
+                .isInstanceOfSatisfying(
+                        ValidationException.class,
+                        e -> assertTableError(e, TableError.VIEW_NOT_FOUND, identifier));
+        assertThatThrownBy(() -> catalogManager.dropMaterializedTable(identifier, false))
+                .isInstanceOfSatisfying(
+                        ValidationException.class,
+                        e ->
+                                assertTableError(
+                                        e, TableError.MATERIALIZED_TABLE_NOT_FOUND, identifier));
+    }
+
+    private static void assertTableError(
+            ValidationException e, TableError error, ObjectIdentifier identifier) {
+        assertThat(e.getError()).contains(error);
+        assertThat(e.getErrorArgs()).containsExactly(entry("objectName", identifier));
     }
 
     @Test

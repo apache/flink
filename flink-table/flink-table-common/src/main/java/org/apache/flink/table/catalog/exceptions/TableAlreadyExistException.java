@@ -19,19 +19,28 @@
 package org.apache.flink.table.catalog.exceptions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableError;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.util.FlinkException;
 
-/** Exception for trying to create a table (or view) that already exists. */
+/**
+ * Exception for trying to create a table (or view) that already exists.
+ *
+ * <p>The exception carries {@link TableError#TABLE_OR_VIEW_ALREADY_EXISTS}.
+ */
 @PublicEvolving
-public class TableAlreadyExistException extends Exception {
+public class TableAlreadyExistException extends FlinkException {
 
-    private static final String MSG = "Table (or view) %s already exists in Catalog %s.";
+    private static final long serialVersionUID = 8007516829092595106L;
 
     public TableAlreadyExistException(String catalogName, ObjectPath tablePath) {
         this(catalogName, tablePath, null);
     }
 
     public TableAlreadyExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
-        super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+        super(
+                TableError.TABLE_OR_VIEW_ALREADY_EXISTS,
+                cause,
+                CatalogExceptionUtils.toObjectIdentifier(catalogName, tablePath));
     }
 }
