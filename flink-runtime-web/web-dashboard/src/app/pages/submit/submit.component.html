@@ -65,44 +65,42 @@
               <form nz-form [nzLayout]="'inline'" [formGroup]="validateForm">
                 <nz-form-item>
                   <nz-form-control>
-                    <nz-input-group [nzPrefix]="apiTemplate">
+                    <nz-input-wrapper>
+                      <i nz-icon nzInputPrefix nzType="deployment-unit" nzTheme="outline"></i>
                       <input formControlName="entryClass" nz-input placeholder="Entry Class" />
-                    </nz-input-group>
-                    <ng-template #apiTemplate>
-                      <i nz-icon nzType="deployment-unit" nzTheme="outline"></i>
-                    </ng-template>
+                    </nz-input-wrapper>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
-                    <nz-input-group [nzPrefix]="loginTemplate">
+                    <nz-input-wrapper>
+                      <i nz-icon nzInputPrefix nzType="login"></i>
                       <input formControlName="parallelism" nz-input placeholder="Parallelism" />
-                    </nz-input-group>
-                    <ng-template #loginTemplate><i nz-icon nzType="login"></i></ng-template>
+                    </nz-input-wrapper>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
-                    <nz-input-group [nzPrefix]="settingTemplate">
+                    <nz-input-wrapper>
+                      <i nz-icon nzInputPrefix nzType="setting"></i>
                       <input
                         formControlName="programArgs"
                         nz-input
                         placeholder="Program Arguments"
                       />
-                    </nz-input-group>
-                    <ng-template #settingTemplate><i nz-icon nzType="setting"></i></ng-template>
+                    </nz-input-wrapper>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
-                    <nz-input-group [nzPrefix]="folderTemplate">
+                    <nz-input-wrapper>
+                      <i nz-icon nzInputPrefix nzType="folder"></i>
                       <input
                         formControlName="savepointPath"
                         nz-input
                         placeholder="Savepoint Path"
                       />
-                    </nz-input-group>
-                    <ng-template #folderTemplate><i nz-icon nzType="folder"></i></ng-template>
+                    </nz-input-wrapper>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>

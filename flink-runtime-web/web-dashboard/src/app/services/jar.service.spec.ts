@@ -72,7 +72,7 @@ describe('JarService', () => {
       const req = httpClient.request.mock.calls[0][0] as HttpRequest<FormData>;
       expect(req.method).toBe('POST');
       expect(req.url).toBe(`${configService.BASE_URL}/jars/upload`);
-      expect(req.reportProgress).toBe(true);
+      expect(req.reportUploadProgress).toBe(true);
       const uploaded = (req.body as FormData).get('jarfile') as File;
       expect(uploaded).toBeInstanceOf(File);
       expect(uploaded.name).toBe(file.name);

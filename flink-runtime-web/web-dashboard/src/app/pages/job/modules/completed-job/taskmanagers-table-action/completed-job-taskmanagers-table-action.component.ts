@@ -26,7 +26,7 @@ import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobOverviewTaskManagersTableAction } from '@flink-runtime-web/pages/job/overview/taskmanagers/table-action/taskmanagers-table-action.component';
 import { TaskManagerService } from '@flink-runtime-web/services';
-import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 
@@ -35,7 +35,7 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
   templateUrl: './completed-job-taskmanagers-table-action.component.html',
   styleUrls: ['./completed-job-taskmanagers-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent]
+  imports: [NgIf, NzDropdownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent]
 })
 export class CompletedJobTaskmanagersTableActionComponent
   implements OnInit, OnDestroy, JobOverviewTaskManagersTableAction
