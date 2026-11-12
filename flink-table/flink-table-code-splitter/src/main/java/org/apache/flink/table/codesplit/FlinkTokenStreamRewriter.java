@@ -41,6 +41,8 @@ import java.util.Set;
  *
  * <p>Unlike {@code TokenStreamRewriter}, {@link #getText} does not change the recorded edits, so
  * repeated calls match its first call, and nothing is printed to stdout on merged deletes.
+ * Overlapping replaces throw on the edit rather than in {@link #getText}, leaving the rewriter
+ * partly updated.
  */
 final class FlinkTokenStreamRewriter {
 
@@ -58,6 +60,8 @@ final class FlinkTokenStreamRewriter {
     // starts of merged deletes with inserts TokenStreamRewriter keeps apart, it fails on these in
     // getText unless a later insert there combines with them
     private final Set<Integer> orphanInserts = new HashSet<>();
+    // number of leading inserts at an index combined by a later insert there, emitted in order
+    private final int[] combinedCount;
 
     FlinkTokenStreamRewriter(CommonTokenStream tokens) {
         tokens.fill();
@@ -67,6 +71,7 @@ final class FlinkTokenStreamRewriter {
         this.replaceText = new String[size];
         this.coveredBy = new int[size];
         this.inserts = new ArrayList<>(Collections.nCopies(size + 1, null));
+        this.combinedCount = new int[size + 1];
         Arrays.fill(replaceStop, -1);
         Arrays.fill(coveredBy, -1);
     }
@@ -109,23 +114,28 @@ final class FlinkTokenStreamRewriter {
         }
         inserts.get(index).add(new Insert(text, after));
         if (orphanInserts.remove(index)) {
-            Insert combined = new Insert(combine(inserts.get(index)), after);
-            inserts.set(index, new ArrayList<>(Collections.singletonList(combined)));
+            combinedCount[index] = inserts.get(index).size();
         }
     }
 
     private void replace(int start, int stop, String text) {
+        if (start > stop || start < 0 || stop >= size) {
+            throw new IllegalArgumentException(
+                    String.format("replace: range invalid: %d..%d(size=%d)", start, stop, size));
+        }
         // as in TokenStreamRewriter, earlier inserts at start become part of the replace text
         if (inserts.get(start) != null) {
             StringBuilder sb = new StringBuilder();
             appendInsertsReversed(sb, start);
             text = text == null ? sb.toString() : sb.append(text).toString();
             inserts.set(start, null);
+            combinedCount[start] = 0;
             orphanInserts.remove(start);
         }
         // only inserts inside this range are dropped, not inside a delete it merges with
         for (int i = start + 1; i <= stop; i++) {
             inserts.set(i, null);
+            combinedCount[i] = 0;
             if (!orphanInserts.isEmpty()) {
                 orphanInserts.remove(i);
             }
@@ -179,7 +189,7 @@ final class FlinkTokenStreamRewriter {
         int i = start;
         while (i <= stop) {
             if (replaceStop[i] != -1) {
-                appendInsertsReversed(sb, i);
+                appendInsertsBeforeReplace(sb, i);
                 if (replaceText[i] != null) {
                     sb.append(replaceText[i]);
                 }
@@ -194,6 +204,11 @@ final class FlinkTokenStreamRewriter {
             }
         }
         if (stop == size - 1) {
+            // TokenStreamRewriter appends inserts at EOF that a replace jumped over
+            int eofReplace = coveredBy[size - 1];
+            if (eofReplace >= start && eofReplace != size - 1) {
+                appendInserts(sb, size - 1);
+            }
             appendInserts(sb, size);
         }
         return sb.toString();
@@ -218,6 +233,21 @@ final class FlinkTokenStreamRewriter {
             }
         }
         return combined.toString();
+    }
+
+    /** Inserts after the combined ones in reverse order, then the combined ones in order. */
+    private void appendInsertsBeforeReplace(StringBuilder sb, int index) {
+        List<Insert> list = inserts.get(index);
+        if (list == null) {
+            return;
+        }
+        int combined = combinedCount[index];
+        for (int j = list.size() - 1; j >= combined; j--) {
+            sb.append(list.get(j).text);
+        }
+        if (combined > 0) {
+            sb.append(combine(list.subList(0, combined)));
+        }
     }
 
     private void appendInsertsReversed(StringBuilder sb, int index) {
