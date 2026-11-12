@@ -32,7 +32,7 @@ import java.nio.file.Path;
 /**
  * Tests how GET requests react to corrupt files when downloaded via a {@link BlobServer}.
  *
- * <p>Successful GET requests are tested in conjunction wit the PUT requests.
+ * <p>Successful GET requests are tested in conjunction with the PUT requests.
  */
 class BlobServerCorruptionTest {
 

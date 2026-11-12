@@ -84,7 +84,7 @@ class CombineTaskExternalITCase extends DriverTestBase<GroupReduceFunction<Recor
             expSum += i;
         }
 
-        // wee need to do the final aggregation manually in the test, because the
+        // we need to do the final aggregation manually in the test, because the
         // combiner is not guaranteed to do that
         final HashMap<IntValue, IntValue> aggMap = new HashMap<>();
         for (Record record : this.outList) {
@@ -139,7 +139,7 @@ class CombineTaskExternalITCase extends DriverTestBase<GroupReduceFunction<Recor
             expSum += i;
         }
 
-        // wee need to do the final aggregation manually in the test, because the
+        // we need to do the final aggregation manually in the test, because the
         // combiner is not guaranteed to do that
         final HashMap<IntValue, IntValue> aggMap = new HashMap<>();
         for (Record record : this.outList) {

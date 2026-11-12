@@ -1124,7 +1124,7 @@ public class StreamTaskTest {
     }
 
     /**
-     * Tests exeptions is thrown by triggering checkpoint if operators are closed. This was
+     * Tests exceptions are thrown by triggering checkpoint if operators are closed. This was
      * initially implemented for FLINK-16383. However after FLINK-2491 operators lifecycle has
      * changed and now we: (1) redefined close() to dispose(). After closing operators, there should
      * be no opportunity to invoke anything on the task. close() mentioned in FLINK-16383 is now

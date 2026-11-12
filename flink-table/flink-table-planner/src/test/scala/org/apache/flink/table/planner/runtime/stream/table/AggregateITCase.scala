@@ -519,7 +519,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     // Use the result precision/scale calculated for sum and don't override with the one calculated
-    // for plus(), which result in loosing a decimal digit.
+    // for plus(), which result in losing a decimal digit.
     val expected = List("1.03520274,12345.03520274865300000000,12.34567890123456700000,2.22222222")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }
@@ -544,7 +544,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     // Use the result precision/scale calculated for sum and don't override with the one calculated
-    // for plus()/minus(), which result in loosing a decimal digit.
+    // for plus()/minus(), which result in losing a decimal digit.
     val expected = List("1.03520274,12345.03520274865300000000,12.34567890123456700000,2.22222222")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }
@@ -569,7 +569,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
-    // with the one calculated for plus()/minus(), which result in loosing a decimal digit.
+    // with the one calculated for plus()/minus(), which result in losing a decimal digit.
     val expected = List("0.51760137,6172.51760137432650000000,6.17283945061728350000,1.66666667")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }

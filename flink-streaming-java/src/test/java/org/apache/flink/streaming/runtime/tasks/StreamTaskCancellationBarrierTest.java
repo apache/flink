@@ -48,7 +48,7 @@ import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 class StreamTaskCancellationBarrierTest {
 
     /**
-     * This test verifies (for onw input tasks) that the Stream tasks react the following way to
+     * This test verifies (for one input tasks) that the Stream tasks react the following way to
      * receiving a checkpoint cancellation barrier: - send a "decline checkpoint" notification out
      * (to the JobManager) - emit a cancellation barrier downstream.
      */

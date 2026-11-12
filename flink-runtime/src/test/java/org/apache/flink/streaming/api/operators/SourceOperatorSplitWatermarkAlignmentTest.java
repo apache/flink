@@ -611,7 +611,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         assertThat(sourceReader.getPausedSplits()).containsExactly("0");
         assertOutput(actualOutput, Arrays.asList(5));
 
-        // Triggerring the next idleness periodic check
+        // Triggering the next idleness periodic check
         // which marks the split idle while paused.
         processingTimeService.advance(autoWatermarkIntervalMillis + marginMillis); // t=1400
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isTrue();

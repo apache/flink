@@ -108,7 +108,7 @@ public class TestBaseUtils {
             boolean inOrderOfFiles)
             throws IOException {
 
-        checkArgument(resultPath != null, "resultPath cannot be be null");
+        checkArgument(resultPath != null, "resultPath cannot be null");
 
         final BufferedReader[] readers =
                 getResultReader(resultPath, excludePrefixes, inOrderOfFiles);

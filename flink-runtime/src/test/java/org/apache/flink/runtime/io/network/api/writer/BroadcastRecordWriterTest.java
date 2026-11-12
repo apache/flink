@@ -98,7 +98,7 @@ class BroadcastRecordWriterTest {
         assertThat(2 * numberOfRecords).isEqualTo(numberOfCreatedBuffers);
 
         for (int i = 0; i < numberOfSubpartitions; i++) {
-            // every subpartition would queue the number of above crated buffers
+            // every subpartition would queue the number of above created buffers
             assertThat(partition.getNumberOfQueuedBuffers(i)).isEqualTo(numberOfRecords + 1);
 
             final int excessRandomRecords = i < numberOfRecords % numberOfSubpartitions ? 1 : 0;

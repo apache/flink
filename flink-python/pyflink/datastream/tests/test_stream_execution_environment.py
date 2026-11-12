@@ -601,7 +601,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         nodes = eval(env.get_execution_plan())['nodes']
 
-        # The StreamGraph should be as bellow:
+        # The StreamGraph should be as below:
         # Source: From Collection -> _stream_key_by_map_operator ->
         # Plus Two Map -> Add From File Map -> Sink: Test Sink.
 

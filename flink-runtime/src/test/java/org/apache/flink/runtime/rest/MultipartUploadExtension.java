@@ -136,7 +136,7 @@ public class MultipartUploadExtension implements CustomExtension {
 
         this.setFileUploadVerifier(
                 (request, restfulGateway) -> {
-                    // the default verifier checks for identiy (i.e. same name and content) of all
+                    // the default verifier checks for identity (i.e. same name and content) of all
                     // uploaded files
                     assertUploadedFilesEqual(request, getFilesToUpload());
                 });

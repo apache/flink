@@ -458,7 +458,7 @@ class PrioritizedOperatorSubtaskStateTest {
 
     /**
      * Creates a deep copy of the first state object in the given collection, or null if the
-     * collection is empy.
+     * collection is empty.
      */
     private static <T extends StateObject> StateObjectCollection<T> deepCopyFirstElement(
             StateObjectCollection<T> original) {
@@ -470,7 +470,7 @@ class PrioritizedOperatorSubtaskStateTest {
 
     /**
      * Creates a deep copy of the first state object in the given collection, or null if the
-     * collection is empy.
+     * collection is empty.
      */
     private static <T extends StateObject> StateObjectCollection<T> deepCopy(
             StateObjectCollection<T> original) {

@@ -321,7 +321,7 @@ public class DataSourceTaskTest extends TaskTestBase {
         public Record readRecord(Record target, byte[] record, int offset, int numBytes) {
 
             if (this.cnt == 10) {
-                throw new RuntimeException("Excpected Test Exception.");
+                throw new RuntimeException("Expected Test Exception.");
             }
 
             this.cnt++;

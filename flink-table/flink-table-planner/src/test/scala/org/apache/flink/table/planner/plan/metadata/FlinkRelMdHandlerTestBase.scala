@@ -861,7 +861,7 @@ class FlinkRelMdHandlerTestBase {
   //  select a, b, c, rowtime
   //  ROW_NUMBER() over (partition by b, c order by rowtime desc) rn from TemporalTable3
   // ) t where rn <= 1
-  // canbe merged into rank
+  // can be merged into rank
   protected lazy val (streamRowTimeDeduplicateFirstRow, streamRowTimeDeduplicateLastRow) = {
     buildFirstRowAndLastRowDeduplicateNode(true)
   }
