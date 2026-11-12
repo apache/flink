@@ -266,9 +266,9 @@ public class ExampleIntegrationTest {
         CollectSink.values.clear();
 
         // create a stream of custom elements and apply transformations
-        env.fromElements(1L, 21L, 22L)
+        env.fromData(1L, 21L, 22L)
                 .map(new IncrementMapFunction())
-                .addSink(new CollectSink());
+                .sinkTo(new CollectSink());
 
         // execute
         env.execute();
@@ -278,14 +278,25 @@ public class ExampleIntegrationTest {
     }
 
     // create a testing sink
-    private static class CollectSink implements SinkFunction<Long> {
+    private static class CollectSink implements Sink<Long> {
 
         // must be static
         public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public void invoke(Long value, SinkFunction.Context context) throws Exception {
-            values.add(value);
+        public SinkWriter<Long> createWriter(WriterInitContext context) {
+            return new SinkWriter<Long>() {
+                @Override
+                public void write(Long value, Context context) {
+                    values.add(value);
+                }
+
+                @Override
+                public void flush(boolean endOfInput) {}
+
+                @Override
+                public void close() {}
+            };
         }
     }
 }

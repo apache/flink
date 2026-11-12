@@ -350,15 +350,16 @@ The following three examples show how to use `@ArgumentHint` in different scopes
 {{< tabs "5d205654-30da-11ee-be56-0242ac120003" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
 
-public static class NamedParameterProcedure extends Procedure {
+public static class NamedParameterProcedure implements Procedure {
 
-  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, @ArgumentHint(name = "a", isOption = true) Integer a, @ArgumentHint(name = "b") Integer b) {
+  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, @ArgumentHint(name = "a") Integer a, @ArgumentHint(name = "b", isOptional = true) Integer b) {
     return new Integer[] {a + (b == null ? 0 : b)};
   }
 }
@@ -376,7 +377,7 @@ import scala.annotation.varargs
 
 class NamedParameterProcedure extends Procedure {
 
-  def call(context: ProcedureContext, @ArgumentHint(name = "param1", isOptional = true) a: Integer, @ArgumentHint(name = "param2") b: Integer): Array[Integer] = {
+  def call(context: ProcedureContext, @ArgumentHint(name = "param1") a: Integer, @ArgumentHint(name = "param2", isOptional = true) b: Integer): Array[Integer] = {
     Array(a + (if (b == null) 0 else b))
   }
 }
@@ -388,13 +389,14 @@ class NamedParameterProcedure extends Procedure {
 {{< tabs "5d205654-30da-11ee-be56-0242ac120004" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
 
-public static class NamedParameterProcedure extends Procedure {
+public static class NamedParameterProcedure implements Procedure {
 
   @ProcedureHint(
     arguments = {
@@ -439,6 +441,7 @@ class NamedParameterProcedure extends Procedure {
 {{< tabs "5d205654-30da-11ee-be56-0242ac120005" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
@@ -451,7 +454,7 @@ import org.apache.flink.types.Row;
     @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)
   }
 )
-public static class NamedParameterProcedure extends Procedure {
+public static class NamedParameterProcedure implements Procedure {
 
   public @DataTypeHint("INT") Integer[] call(ProcedureContext context, Integer a, Integer b) {
     return new Integer[] {a + (b == null ? 0 : b)};
@@ -589,17 +592,29 @@ The following example shows how to provide a procedure in a `Catalog` and call i
 {{< tab "Java" >}}
 ```java
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
+import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.util.CloseableIterator;
 
 // first implement a procedure
 public class GenerateSequenceProcedure implements Procedure {
 
-  public long[] call(ProcedureContext context, int n) {
+  public long[] call(ProcedureContext context, int n) throws Exception {
+    StreamExecutionEnvironment env = context.getExecutionEnvironment();
     long[] sequenceN = new long[n];
     int i = 0;
     try (CloseableIterator<Long> result = env.fromSequence(0, n - 1).executeAndCollect()) {
@@ -612,11 +627,18 @@ public class GenerateSequenceProcedure implements Procedure {
 }
 
 // then provide the procedure in a custom catalog
-public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog { 
+public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
+
+  private static final Map<ObjectPath, Procedure> PROCEDURE_MAP = new HashMap<>();
 
   static {
     PROCEDURE_MAP.put(ObjectPath.fromString("system.generate_n"), new GenerateSequenceProcedure());
   }
+
+  public CatalogWithBuiltInProcedure(String name) {
+    super(name);
+  }
+
   // emit some methods
   // ...  
   @Override
@@ -629,9 +651,37 @@ public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
   }
 }
 
+// and a factory, so that the catalog can be created from its 'type' option. Register the
+// factory in META-INF/services/org.apache.flink.table.factories.Factory.
+public static class CatalogWithBuiltInProcedureFactory implements CatalogFactory {
+
+  @Override
+  public String factoryIdentifier() {
+    return "catalog_with_procedures";
+  }
+
+  @Override
+  public Set<ConfigOption<?>> requiredOptions() {
+    return Collections.emptySet();
+  }
+
+  @Override
+  public Set<ConfigOption<?>> optionalOptions() {
+    return Collections.emptySet();
+  }
+
+  @Override
+  public Catalog createCatalog(Context context) {
+    return new CatalogWithBuiltInProcedure(context.getName());
+  }
+}
+
 TableEnvironment tEnv = TableEnvironment.create(...);
 // register the catalog
-tEnv.registerCatalog("my_catalog", new CatalogWithBuiltInProcedure());
+tEnv.createCatalog(
+    "my_catalog",
+    CatalogDescriptor.of(
+        "my_catalog", Configuration.fromMap(Map.of("type", "catalog_with_procedures"))));
 // call the procedure with CALL statement
 tEnv.executeSql("call my_catalog.`system`.generate_n(5)");
 

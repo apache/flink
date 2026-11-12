@@ -174,7 +174,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 
     @Override
-    public OptionsFactory configure(ReadableConfig configuration) {
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
         return this;
     }
 }
@@ -294,8 +294,8 @@ that the task-local state is an in-memory consisting of heap objects, and not st
 
 ### Configuring task-local recovery
 
-Task-local recovery is *deactivated by default* and can be activated through Flink's configuration with the key `state.backend.local-recovery` as specified
-in `CheckpointingOptions.LOCAL_RECOVERY`. The value for this setting can either be *true* to enable or *false* (default) to disable local recovery.
+Task-local recovery is *deactivated by default* and can be activated through Flink's configuration with the key `execution.state-recovery.from-local` as specified
+in `StateRecoveryOptions.LOCAL_RECOVERY`. The value for this setting can either be *true* to enable or *false* (default) to disable local recovery.
 
 Note that [unaligned checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints) currently do not support task-local recovery.
 

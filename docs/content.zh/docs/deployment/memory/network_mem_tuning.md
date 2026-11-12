@@ -38,7 +38,7 @@ Flink 中每条消息都会被放到*网络缓冲（network buffer）* 中，并
 在[对齐的 checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 中，checkpoint barrier 会跟着网络缓冲数据在 job graph 中流动。
 缓冲数据越多，checkpoint barrier 流动的时间就越长。在[非对齐的 checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing) 中，缓冲数据越多，checkpoint 就会越大，因为这些数据都会被持久化到 checkpoint 中。
 
-## 缓冲消胀机制（Buffer Debloating）
+## 缓冲消胀机制（Buffer Debloating） {#the-buffer-debloating-mechanism}
 
 之前，配置缓冲数据量的唯一方法是指定缓冲区的数量和大小。然而，因为每次部署的不同很难配置一组完美的参数。
 Flink 1.14 新引入的缓冲消胀机制尝试通过自动调整缓冲数据量到一个合理值来解决这个问题。
@@ -79,24 +79,21 @@ Flink 1.14 新引入的缓冲消胀机制尝试通过自动调整缓冲数据量
 
 #### 缓冲区的尺寸和个数
 
-当前，缓冲消胀仅在使用的缓冲区大小上设置上限。实际的缓冲区大小和个数保持不变。这意味着缓冲消胀机制不会减少作业的内存使用。您应该手动减少缓冲区的大小或者个数。
-
-此外，如果您想减少缓冲数据量使其低于缓冲消胀当前允许的量，您可能需要手动的设置缓冲区的个数。
+当前，缓冲消胀仅在使用的缓冲区大小上设置上限。实际的缓冲区大小和个数保持不变。这意味着缓冲消胀机制不会减少作业的内存使用。您应该手动减少缓冲区的大小。
 
 #### High parallelism
 
-Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200) using the default configuration.
-If you observe reduced throughput or higher than expected checkpointing times
-we suggest increasing the number of floating buffers (`taskmanager.network.memory.floating-buffers-per-gate`) from the default value to at least the number equal to the parallelism.
+Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200).
+If you observe reduced throughput or higher than expected checkpointing times, consider disabling buffer debloating for that job.
 
 The actual value of parallelism from which the problem occurs is various from job to job but normally it should be more than a couple of hundreds.
 
 ## 网络缓冲生命周期
  
 Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
-每个缓冲区池的目标缓冲区数由下面的公式计算得到。
+每个缓冲区池的目标缓冲区数由下面的公式计算得到，其中每个通道有 2 个独占缓冲区，每个 gate 有 8 个流动缓冲区。
 
-`#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
+`#channels * 2 + 8`
 
 每个缓冲区（Buffer）的大小可以通过 `taskmanager.memory.segment-size` 来设置。
 
@@ -116,22 +113,20 @@ Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
 
 不像输入缓冲区池，输出缓冲区池只有一种类型的缓冲区被所有的 subpartitions 共享。
 
-为了避免过多的数据倾斜，每个 subpartition 的缓冲区数量可以通过 `taskmanager.network.memory.max-buffers-per-channel` 来限制。
+为了避免过多的数据倾斜，每个 subpartition 的缓冲区数量被限制为 10 个。
 
-不同于输入缓冲区池，这里配置的独占缓冲区和流动缓冲区只被当作推荐值。如果没有足够的缓冲区，每个输出 subpartition 可以只使用一个独占缓冲区而没有流动缓冲区。
+不同于输入缓冲区池，这里的独占缓冲区和流动缓冲区数量只被当作推荐值。如果没有足够的缓冲区，每个输出 subpartition 可以只使用一个独占缓冲区而没有流动缓冲区。
 
 #### 透支缓冲区（Overdraft buffers）
 
-另外，每个 subtask 输出数据时可以至多请求 `taskmanager.network.memory.max-overdraft-buffers-per-gate`
-（默认 5）个额外的透支缓冲区（overdraft buffers）。只有当前 subtask 被下游 subtasks 反压且当前 subtask 需要
+另外，每个 subtask 输出数据时可以至多请求 20 个额外的透支缓冲区（overdraft buffers）。只有当前 subtask 被下游 subtasks 反压且当前 subtask 需要
 请求超过 1 个网络缓冲区（network buffer）才能完成当前的操作时，透支缓冲区才会被使用。可能发生在以下情况：
 - 序列化非常大的 records，不能放到单个网络缓冲区中。
 - 类似 flat map 的算子，即：处理单个 record 时可能会生产多个 records。
 - 周期性地或某些事件触发产生大量 records 的算子（例如：`WindowOperator` 的触发）。
 
 在这些情况下，如果没有透支缓冲区，Flink 的 subtask 线程会被阻塞在反压，从而阻止例如 Unaligned Checkpoint 的完成。
-为了缓解这种情况，增加了透支缓冲区的概念。这些透支缓冲区是可选的，Flink 可以仅仅使用常规的缓冲区逐渐取得进展，也就是
-说 `0` 是 `taskmanager.network.memory.max-overdraft-buffers-per-gate` 可以接受的配置值。
+为了缓解这种情况，增加了透支缓冲区的概念。这些透支缓冲区是可选的，Flink 可以仅仅使用常规的缓冲区逐渐取得进展。
 
 {{< hint warning >}}
 该特性只对`Pipelined Shuffle`生效。
@@ -139,13 +134,13 @@ Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
 
 ## 缓冲区的数量
 
-独占缓冲区和流动缓冲区的默认配置应该足以应对最大吞吐。如果想要最小化缓冲数据量，那么可以将独占缓冲区设置为 `0`，同时减小内存段的大小。
+独占缓冲区和流动缓冲区的数量足以应对最大吞吐。如果想要最小化缓冲数据量，可以减小内存段的大小。
 
 ### 选择缓冲区的大小
 
 在往下游 subtask 发送数据部分时，缓冲区通过汇集 record 来优化网络开销。下游 subtask 应该在接收到完整的 record 后才开始处理它。
 
-If the buffer size is too small, or the buffers are flushed too frequently (`execution.buffer-timeout` configuration parameter), this can lead to decreased throughput
+If the buffer size is too small, or the buffers are flushed too frequently (`execution.buffer-timeout.interval` configuration parameter), this can lead to decreased throughput
 since the per-buffer overhead are significantly higher then per-record overheads in the Flink's runtime.
 
 As a rule of thumb, we don't recommend thinking about increasing the buffer size, or the buffer timeout unless you can observe a network bottleneck in your real life workload
@@ -155,17 +150,16 @@ As a rule of thumb, we don't recommend thinking about increasing the buffer size
 - 内存使用高
 - 大量的 checkpoint 数据量（针对非对齐的 checkpoints）
 - 漫长的 checkpoint 时间（针对对齐的 checkpoints）
-- `execution.buffer-timeout` 较小时内存分配使用率会比较低，因为缓冲区还没被塞满数据就被发送下去了。
+- `execution.buffer-timeout.interval` 较小时内存分配使用率会比较低，因为缓冲区还没被塞满数据就被发送下去了。
 
 ### 选择缓冲区的数量
 
-缓冲区的数量是通过 `taskmanager.network.memory.buffers-per-channel` 和 `taskmanager.network.memory.floating-buffers-per-gate` 来配置的。
+从 Flink 2.0 开始，缓冲区的数量不再可配置：Flink 为每个通道使用 2 个独占缓冲区，为每个 gate 使用 8 个流动缓冲区。
+如果缓冲数据量存在问题，建议打开[缓冲消胀]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism)。
 
-为了最好的吞吐率，我们建议使用独占缓冲区和流动缓冲区的默认值(except you have one of [limit cases]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#limitations))。如果缓冲数据量存在问题，更建议打开[缓冲消胀]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism)。
+下面说明这些数量与吞吐量的关系：
 
-您可以人工地调整网络缓冲区的个数，但是需要注意：
-
-1. 您应该根据期待的吞吐量（单位 `bytes/second`）来调整缓冲区的数量。协调数据传输量（大约两个节点之间的两个往返消息）。延迟也取决于您的网络。
+1. 所需的缓冲区数量取决于您期待的吞吐量（单位 `bytes/second`）。协调数据传输量（大约两个节点之间的两个往返消息）。延迟也取决于您的网络。
 
 使用 buffer 往返时间（大概 `1ms` 在正常的本地网络中），[缓冲区大小]({{< ref "docs/deployment/config" >}}#taskmanager-memory-segment-size)和期待的吞吐，您可以通过下面的公式计算维持吞吐所需要的缓冲区数量：
 ```
@@ -175,18 +169,16 @@ number_of_buffers = expected_throughput * buffer_roundtrip / buffer_size
 ```
 number_of_buffers = 320MB/s * 1ms / 32KB = 10
 ```
-2. 流动缓冲区的目的是为了处理数据倾斜。理想情况下，流动缓冲区的数量（默认8个）和每个通道独占缓冲区的数量（默认2个）能够使网络吞吐量饱和。但这并不总是可行和必要的。所有 subtask 中只有一个通道被使用也是非常罕见的。
+2. 流动缓冲区的目的是为了处理数据倾斜。理想情况下，流动缓冲区的数量（8个）和每个通道独占缓冲区的数量（2个）能够使网络吞吐量饱和。但这并不总是可行和必要的。所有 subtask 中只有一个通道被使用也是非常罕见的。
 
 3. 独占缓冲区的目的是提供一个流畅的吞吐量。当一个缓冲区在传输数据时，另一个缓冲区被填充。当吞吐量比较高时，独占缓冲区的数量是决定 Flink 中缓冲数据的主要因素。
-
-当低吞吐量下出现反压时，您应该考虑减少[独占缓冲区]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel)。
 
 ## 总结
 
 可以通过开启缓冲消胀机制来简化 Flink 网络的内存配置调整。您也可能需要调整它。
 
-如果这不起作用，您可以关闭缓冲消胀机制并且人工地配置内存段的大小和缓冲区个数。针对第二种场景，我们推荐：
+如果这不起作用，您可以关闭缓冲消胀机制并且人工地配置内存段的大小。针对第二种场景，我们推荐：
 - 使用默认值以获得最大吞吐
-- 减少内存段大小、独占缓冲区的数量来加快 checkpoint 并减少网络栈消耗的内存量
+- 减少内存段大小来加快 checkpoint 并减少网络栈消耗的内存量
 
 {{< top >}}

@@ -43,10 +43,10 @@ SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
  
 ```sql
 --使用时间常量
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
+SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00';
 
 --使用可以转换为时间常量的时间表达式
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
+SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY;
 ```
 
 ## 限制

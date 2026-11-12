@@ -81,7 +81,7 @@ written along with the state bytes. This is abstracted a `TypeSerializerSnapshot
 ```java
 public interface TypeSerializerSnapshot<T> {
     int getCurrentVersion();
-    void writeSnapshot(DataOuputView out) throws IOException;
+    void writeSnapshot(DataOutputView out) throws IOException;
     void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
     TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializerSnapshot<T> oldSerializerSnapshot);
     TypeSerializer<T> restoreSerializer();
@@ -237,13 +237,11 @@ the final compatibility result taking into account the compatibility of all nest
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used, using Flink's `MapSerializer` as an example:
 
 ```java
-public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer> {
+public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer<K, V>> {
 
     private static final int CURRENT_VERSION = 1;
 
-    public MapSerializerSnapshot() {
-        super(MapSerializer.class);
-    }
+    public MapSerializerSnapshot() {}
 
     public MapSerializerSnapshot(MapSerializer<K, V> mapSerializer) {
         super(mapSerializer);
@@ -255,14 +253,14 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
     }
 
     @Override
-    protected MapSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+    protected MapSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
         TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
         TypeSerializer<V> valueSerializer = (TypeSerializer<V>) nestedSerializers[1];
         return new MapSerializer<>(keySerializer, valueSerializer);
     }
 
     @Override
-    protected TypeSerializer<?>[] getNestedSerializers(MapSerializer outerSerializer) {
+    protected TypeSerializer<?>[] getNestedSerializers(MapSerializer<K, V> outerSerializer) {
         return new TypeSerializer<?>[] { outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer() };
     }
 }
@@ -298,15 +296,13 @@ that do have outer snapshot information, using Flink's `GenericArraySerializer` 
 
 
 ```java
-public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer> {
+public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer<C>> {
 
     private static final int CURRENT_VERSION = 1;
 
     private Class<C> componentClass;
 
-    public GenericArraySerializerSnapshot() {
-        super(GenericArraySerializer.class);
-    }
+    public GenericArraySerializerSnapshot() {}
 
     public GenericArraySerializerSnapshot(GenericArraySerializer<C> genericArraySerializer) {
         super(genericArraySerializer);
@@ -331,21 +327,24 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
     @Override 
     protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
             TypeSerializerSnapshot<C[]> oldSerializerSnapshot) {
-        GenericArraySerializerSnapshot<C[]> oldGenericArraySerializerSnapshot = 
-                (GenericArraySerializerSnapshot<C[]>) oldSerializerSnapshot;
+        if (!(oldSerializerSnapshot instanceof GenericArraySerializerSnapshot)) {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+        GenericArraySerializerSnapshot<C> oldGenericArraySerializerSnapshot =
+                (GenericArraySerializerSnapshot<C>) oldSerializerSnapshot;
         return (this.componentClass == oldGenericArraySerializerSnapshot.componentClass) 
                 ? OuterSchemaCompatibility.COMPATIBLE_AS_IS 
                 : OuterSchemaCompatibility.INCOMPATIBLE;
     }
 
     @Override
-    protected GenericArraySerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+    protected GenericArraySerializer<C> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
         TypeSerializer<C> componentSerializer = (TypeSerializer<C>) nestedSerializers[0];
         return new GenericArraySerializer<>(componentClass, componentSerializer);
     }
 
     @Override
-    protected TypeSerializer<?>[] getNestedSerializers(GenericArraySerializer outerSerializer) {
+    protected TypeSerializer<?>[] getNestedSerializers(GenericArraySerializer<C> outerSerializer) {
         return new TypeSerializer<?>[] { outerSerializer.getComponentSerializer() };
     }
 }

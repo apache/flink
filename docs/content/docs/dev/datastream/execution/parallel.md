@@ -69,11 +69,11 @@ env.execute("Word Count Example");
 env = StreamExecutionEnvironment.get_execution_environment()
 
 text = [...]
-word_counts = text 
+word_counts = text \
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1])) \
     .set_parallelism(5)
 word_counts.print()
@@ -115,11 +115,11 @@ env = StreamExecutionEnvironment.get_execution_environment()
 env.set_parallelism(3)
 
 text = [...]
-word_counts = text
+word_counts = text \
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1]))
 word_counts.print()
 
@@ -139,32 +139,29 @@ example:
 
     ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
 
+When you submit a JAR through the [REST API]({{< ref "docs/ops/rest_api" >}}), set the `parallelism`
+field in the body of the `/jars/:jarid/run` request.
 
-In a client program, the parallelism is set as follows:
+In a program that passes its own configuration to the execution environment, for example to submit
+the job to a remote cluster, set `parallelism.default` in that configuration:
 
 {{< tabs "54c4adac-7461-40e9-b85c-69bbc0b3a36d" >}}
 {{< tab "Java" >}}
 ```java
+Configuration config = new Configuration();
+config.set(CoreOptions.DEFAULT_PARALLELISM, 10);
 
-try {
-    PackagedProgram program = new PackagedProgram(file, args);
-    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123");
-    Configuration config = new Configuration();
-
-    Client client = new Client(jobManagerAddress, config, program.getUserCodeClassLoader());
-
-    // set the parallelism to 10 here
-    client.run(program, 10, true);
-
-} catch (ProgramInvocationException e) {
-    e.printStackTrace();
-}
-
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+// or, to submit to a remote cluster:
+// StreamExecutionEnvironment.createRemoteEnvironment("localhost", 8081, config, "/path/to/job.jar");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-Still not supported in Python API.
+config = Configuration()
+config.set_integer("parallelism.default", 10)
+
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}

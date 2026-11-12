@@ -70,17 +70,17 @@ Returns all rows in the qualified Cartesian product (i.e., all combined rows tha
 SELECT *
 FROM Orders
 LEFT JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 
 SELECT *
 FROM Orders
 RIGHT JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 
 SELECT *
 FROM Orders
 FULL OUTER JOIN Product
-ON Orders.product_id = Product.id
+ON Orders.product_id = Product.id;
 ```
 
 ### Multiple Regular Joins
@@ -156,12 +156,12 @@ CREATE TABLE orders (
 CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
-    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
+    update_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
     WATERMARK FOR update_time AS update_time - INTERVAL '15' SECOND,
     PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
    'connector' = 'kafka',
-   'value.format' = 'debezium-json',
+   'value.format' = 'debezium-json'
    /* ... */
 );
 

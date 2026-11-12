@@ -70,7 +70,7 @@ from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
 config = Configuration()
-config.set_string('execution.buffer-timeout', '1 min')
+config.set_string('execution.buffer-timeout.interval', '1 min')
 env_settings = EnvironmentSettings \
     .new_instance() \
     .in_streaming_mode() \
@@ -93,16 +93,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 // create a streaming TableEnvironment from a StreamExecutionEnvironment
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-
-// create a streaming TableEnvironment from a StreamExecutionEnvironment
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = StreamTableEnvironment.create(env)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

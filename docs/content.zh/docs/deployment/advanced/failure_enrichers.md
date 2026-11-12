@@ -91,8 +91,8 @@ public class CustomEnricher implements FailureEnricher {
 JobManager 在启动时加载 FailureEnricher 插件。 为了确保您的 FailureEnrichers 已加载，所有类名都应该定义在 [jobmanager.failure-enrichers 配置]({{< ref "docs/deployment/config#jobmanager-failure-enrichers" >}}) 中。
 如果此配置为空，则不会启动任何 Enricher。 示例：
 
-```
-    jobmanager.failure-enrichers = org.apache.flink.test.plugin.jar.failure.CustomEnricher
+```yaml
+jobmanager.failure-enrichers: org.apache.flink.test.plugin.jar.failure.CustomEnricher
 ```
 
 ### 验证

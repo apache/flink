@@ -242,8 +242,8 @@ table
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-table
-    .group_by(with_columns(range_(1, 3)))
+table \
+    .group_by(with_columns(range_(1, 3))) \
     .select(with_columns(range_('a', 'b')), myUDAgg(myUDF(with_columns(range_(5, 20)))))
 ```
 {{< /tab >}}
