@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy
+import org.apache.flink.table.planner.plan.logical.{SessionWindowSpec, TimeAttributeWindowingStrategy}
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTableFunction
@@ -52,10 +52,15 @@ class StreamPhysicalWindowTableFunction(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    // only session windows request a distribution (partitioned by the PARTITION BY clause)
+    val inputProperty = windowing.getWindow match {
+      case _: SessionWindowSpec => InputProperty.fromInput(getInput)
+      case _ => InputProperty.DEFAULT
+    }
     new StreamExecWindowTableFunction(
       unwrapTableConfig(this),
       windowing,
-      InputProperty.DEFAULT,
+      inputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

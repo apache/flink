@@ -76,7 +76,7 @@ class StreamPhysicalPythonGroupWindowAggregate(
       namedWindowProperties.toArray,
       generateUpdateBefore,
       needRetraction,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

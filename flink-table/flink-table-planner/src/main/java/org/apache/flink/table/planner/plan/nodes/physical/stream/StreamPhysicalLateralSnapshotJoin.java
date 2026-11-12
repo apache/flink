@@ -152,8 +152,8 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
                 stateTtlMs,
-                InputProperty.DEFAULT,
-                InputProperty.DEFAULT,
+                InputProperty.fromInput(getLeft()),
+                InputProperty.fromInput(getRight()),
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
                 getRelDetailedDescription());
     }

@@ -295,7 +295,7 @@
     },
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "SINGLETON"
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0

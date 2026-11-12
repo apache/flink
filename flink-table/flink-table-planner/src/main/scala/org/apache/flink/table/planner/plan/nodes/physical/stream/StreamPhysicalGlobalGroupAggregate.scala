@@ -131,7 +131,7 @@ class StreamPhysicalGlobalGroupAggregate(
       needRetraction,
       indexOfCountStar.map(Integer.valueOf).orNull,
       StateTtlHint.getStateTtlFromHintOnSingleRel(hints),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

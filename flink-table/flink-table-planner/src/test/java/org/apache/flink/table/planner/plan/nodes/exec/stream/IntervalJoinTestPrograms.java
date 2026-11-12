@@ -116,6 +116,55 @@ public class IntervalJoinTestPrograms {
                                     + " WHERE o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
                     .build();
 
+    static final TableTestProgram INTERVAL_JOIN_EVENT_TIME_WITHOUT_EQUI_KEYS =
+            TableTestProgram.of(
+                            "interval-join-event-time-without-equi-keys",
+                            "validates interval join using event time without equi-join keys")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addSchema(ORDERS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:02]",
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:05]",
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:06]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:02]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:06]",
+                                            "+I[3, 2020-04-15 08:00:03, 2020-04-15 08:00:05]",
+                                            "+I[3, 2020-04-15 08:00:03, 2020-04-15 08:00:06]",
+                                            "+I[4, 2020-04-15 08:00:04, 2020-04-15 08:00:05]",
+                                            "+I[4, 2020-04-15 08:00:04, 2020-04-15 08:00:06]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:05]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]")
+                                    .consumedAfterRestore(
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:15]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:15]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:15]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o\n"
+                                    + " JOIN shipments_t s\n"
+                                    + " ON o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts;")
+                    .build();
+
     static final TableTestProgram INTERVAL_JOIN_PROC_TIME =
             TableTestProgram.of(
                             "interval-join-proc-time",

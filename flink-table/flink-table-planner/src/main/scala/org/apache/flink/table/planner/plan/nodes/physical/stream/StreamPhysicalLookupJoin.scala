@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -121,7 +121,7 @@ class StreamPhysicalLookupJoin(
       retryOptions.orNull,
       inputChangelogMode,
       getUpsertKey.orElse(null),
-      InputProperty.DEFAULT,
+      deriveInputProperty(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription,
       preferCustomShuffle)

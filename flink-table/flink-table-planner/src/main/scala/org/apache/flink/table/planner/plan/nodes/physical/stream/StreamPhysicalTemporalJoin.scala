@@ -121,8 +121,8 @@ class StreamPhysicalTemporalJoin(
       leftTimeAttributeInputRef,
       rightRowTimeAttributeInputRef.orElse(
         StreamExecTemporalJoin.FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE),
-      InputProperty.DEFAULT,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getLeft),
+      InputProperty.fromInput(getRight),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

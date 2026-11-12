@@ -98,7 +98,7 @@ class StreamPhysicalGroupAggregate(
       generateUpdateBefore,
       needRetraction,
       StateTtlHint.getStateTtlFromHintOnSingleRel(hints),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }
