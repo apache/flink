@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
@@ -28,6 +29,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -50,11 +52,19 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the MetricFetcher. */
 class MetricFetcherTest {
+
+    private static final long RETRY_INTERVAL_MILLIS = 10L;
+    private static final int RETRY_ATTEMPTS = 3000;
+
     @Test
     void testUpdate() {
         final Duration timeout = Duration.ofSeconds(10L);
@@ -114,8 +124,121 @@ class MetricFetcherTest {
         }
     }
 
+    @Test
+    void testUpdateRemovesMetricsThatAreNoLongerReported() throws Exception {
+        final JobID jobID = new JobID();
+        final ResourceID tmRID = ResourceID.generate();
+        final AtomicReference<MetricDumpSerialization.MetricSerializationResult> tmMetricsAnswer =
+                new AtomicReference<>(createRequestDumpAnswer(tmRID, jobID, true));
+
+        final MetricFetcher fetcher =
+                createMetricFetcherWithServiceGateways(
+                        jobID, tmRID, Duration.ofSeconds(10L), 1L, 0, null, tmMetricsAnswer::get);
+
+        fetcher.update();
+        final Supplier<MetricStore.TaskMetricStore> taskStore =
+                () -> fetcher.getMetricStore().getTaskMetricStore(jobID.toString(), "taskid");
+        assertThat(taskStore.get().metrics).containsKeys("2.abc.tc", "2.opname.abc.oc");
+
+        // the TaskManager no longer reports the operator counter
+        tmMetricsAnswer.set(createRequestDumpAnswer(tmRID, jobID, false));
+        waitUntilCondition(
+                () -> {
+                    fetcher.update();
+                    return !taskStore.get().metrics.containsKey("2.opname.abc.oc");
+                },
+                RETRY_INTERVAL_MILLIS,
+                RETRY_ATTEMPTS);
+
+        assertThat(taskStore.get().metrics).containsKey("2.abc.tc");
+        assertThat(taskStore.get().getSubtaskMetricStore(2).getAttemptsMetricStore(0).metrics)
+                .containsOnlyKeys("abc.tc");
+    }
+
+    @Test
+    void testUpdateKeepsMetricsOfIncompleteDump() throws Exception {
+        // the operator counter is missing because the TaskManager could not serialize it
+        assertUpdateKeepsMetricsOfDump(
+                reducedDump ->
+                        new MetricDumpSerialization.MetricSerializationResult(
+                                reducedDump.serializedCounters,
+                                reducedDump.serializedGauges,
+                                reducedDump.serializedMeters,
+                                reducedDump.serializedHistograms,
+                                reducedDump.numCounters,
+                                reducedDump.numGauges,
+                                reducedDump.numMeters,
+                                reducedDump.numHistograms,
+                                true));
+    }
+
+    @Test
+    void testUpdateKeepsMetricsOfDumpThatCannotBeFullyDeserialized() throws Exception {
+        // the dump claims one more counter than it contains, so deserializing the last one fails
+        assertUpdateKeepsMetricsOfDump(
+                reducedDump ->
+                        new MetricDumpSerialization.MetricSerializationResult(
+                                reducedDump.serializedCounters,
+                                reducedDump.serializedGauges,
+                                reducedDump.serializedMeters,
+                                reducedDump.serializedHistograms,
+                                reducedDump.numCounters + 1,
+                                reducedDump.numGauges,
+                                reducedDump.numMeters,
+                                reducedDump.numHistograms));
+    }
+
+    /**
+     * Fetches a complete dump first and then a dump without the operator counter, modified by the
+     * given function, and asserts that the second fetch did not remove the operator counter.
+     */
+    private void assertUpdateKeepsMetricsOfDump(
+            Function<
+                            MetricDumpSerialization.MetricSerializationResult,
+                            MetricDumpSerialization.MetricSerializationResult>
+                    modifyReducedDump)
+            throws Exception {
+        final JobID jobID = new JobID();
+        final ResourceID tmRID = ResourceID.generate();
+        final AtomicReference<MetricDumpSerialization.MetricSerializationResult> tmMetricsAnswer =
+                new AtomicReference<>(createRequestDumpAnswer(tmRID, jobID, true));
+        // incremented once per fetch
+        final AtomicInteger fetches = new AtomicInteger();
+
+        final MetricFetcher fetcher =
+                createMetricFetcherWithServiceGateways(
+                        jobID,
+                        tmRID,
+                        Duration.ofSeconds(10L),
+                        1L,
+                        0,
+                        fetches,
+                        tmMetricsAnswer::get);
+
+        fetcher.update();
+        final Supplier<MetricStore.TaskMetricStore> taskStore =
+                () -> fetcher.getMetricStore().getTaskMetricStore(jobID.toString(), "taskid");
+        assertThat(taskStore.get().metrics).containsKeys("2.abc.tc", "2.opname.abc.oc");
+
+        tmMetricsAnswer.set(modifyReducedDump.apply(createRequestDumpAnswer(tmRID, jobID, false)));
+        waitUntilCondition(
+                () -> {
+                    fetcher.update();
+                    return fetches.get() >= 2;
+                },
+                RETRY_INTERVAL_MILLIS,
+                RETRY_ATTEMPTS);
+
+        assertThat(taskStore.get().metrics).containsKeys("2.abc.tc", "2.opname.abc.oc");
+    }
+
     private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(
             ResourceID tmRID, JobID jobID) {
+        return createRequestDumpAnswer(tmRID, jobID, true);
+    }
+
+    private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(
+            ResourceID tmRID, JobID jobID, boolean includeOperatorCounter) {
         Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
         Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
         Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
@@ -129,12 +252,14 @@ class MetricFetcherTest {
         c2.inc(2);
         c3.inc(3);
 
-        counters.put(
-                c1,
-                new Tuple2<>(
-                        new QueryScopeInfo.OperatorQueryScopeInfo(
-                                jobID.toString(), "taskid", 2, 0, "opname", "abc"),
-                        "oc"));
+        if (includeOperatorCounter) {
+            counters.put(
+                    c1,
+                    new Tuple2<>(
+                            new QueryScopeInfo.OperatorQueryScopeInfo(
+                                    jobID.toString(), "taskid", 2, 0, "opname", "abc"),
+                            "oc"));
+        }
         counters.put(
                 c2,
                 new Tuple2<>(
@@ -269,6 +394,24 @@ class MetricFetcherTest {
             long updateInterval,
             long waitTimeBeforeReturnMetricResults,
             @Nullable AtomicInteger requestMetricQueryServiceGatewaysCounter) {
+        return createMetricFetcherWithServiceGateways(
+                jobID,
+                tmRID,
+                timeout,
+                updateInterval,
+                waitTimeBeforeReturnMetricResults,
+                requestMetricQueryServiceGatewaysCounter,
+                () -> createRequestDumpAnswer(tmRID, jobID));
+    }
+
+    private MetricFetcher createMetricFetcherWithServiceGateways(
+            JobID jobID,
+            ResourceID tmRID,
+            Duration timeout,
+            long updateInterval,
+            long waitTimeBeforeReturnMetricResults,
+            @Nullable AtomicInteger requestMetricQueryServiceGatewaysCounter,
+            Supplier<MetricDumpSerialization.MetricSerializationResult> tmMetricsAnswer) {
         final ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
         // ========= setup QueryServices
         // ================================================================================
@@ -290,8 +433,6 @@ class MetricFetcherTest {
                                                         0)))
                         .build();
 
-        MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer =
-                createRequestDumpAnswer(tmRID, jobID);
         final MetricQueryServiceGateway tmQueryService =
                 new TestingMetricQueryServiceGateway.Builder()
                         .setQueryMetricsSupplier(
@@ -310,14 +451,14 @@ class MetricFetcherTest {
                                                             } catch (InterruptedException ignore) {
                                                             }
                                                             metricsAnswerFuture.complete(
-                                                                    requestMetricsAnswer);
+                                                                    tmMetricsAnswer.get());
                                                             return metricsAnswerFuture;
                                                         },
                                                         executor);
                                         return metricsAnswerFuture;
                                     } else {
                                         return CompletableFuture.completedFuture(
-                                                requestMetricsAnswer);
+                                                tmMetricsAnswer.get());
                                     }
                                 })
                         .build();
@@ -330,7 +471,9 @@ class MetricFetcherTest {
                         .setRequestMultipleJobDetailsSupplier(
                                 () ->
                                         CompletableFuture.completedFuture(
-                                                new MultipleJobsDetails(Collections.emptyList())))
+                                                new MultipleJobsDetails(
+                                                        Collections.singleton(
+                                                                createRunningJobDetails(jobID)))))
                         .setRequestMetricQueryServiceGatewaysSupplier(
                                 () -> {
                                     if (requestMetricQueryServiceGatewaysCounter != null) {
@@ -359,6 +502,20 @@ class MetricFetcherTest {
                 Executors.directExecutor(),
                 timeout,
                 updateInterval);
+    }
+
+    private static JobDetails createRunningJobDetails(JobID jobID) {
+        return new JobDetails(
+                jobID,
+                "jobname",
+                0,
+                0,
+                0,
+                JobStatus.RUNNING,
+                0,
+                new int[10],
+                1,
+                Collections.emptyMap());
     }
 
     private MetricFetcher createMetricFetcher(long updateInterval, RestfulGateway restfulGateway) {

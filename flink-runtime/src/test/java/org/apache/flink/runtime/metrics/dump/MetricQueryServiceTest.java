@@ -95,6 +95,7 @@ class MetricQueryServiceTest {
         assertThat(dump.serializedGauges).isNotEmpty();
         assertThat(dump.serializedHistograms).isNotEmpty();
         assertThat(dump.serializedMeters).isNotEmpty();
+        assertThat(dump.incomplete).isFalse();
 
         queryService.removeMetric(c);
         queryService.removeMetric(g);
@@ -148,6 +149,8 @@ class MetricQueryServiceTest {
         assertThat(dump.serializedHistograms).isNotEmpty();
         assertThat(dump.numHistograms).isOne();
 
+        assertThat(dump.incomplete).isTrue();
+
         // unregister all but one gauge to ensure gauges are reported again if the remaining fit
         for (int x = 1; x < gauges.size(); x++) {
             queryService.removeMetric(gauges.get(x).f1);
@@ -164,5 +167,6 @@ class MetricQueryServiceTest {
         assertThat(recoveredDump.numGauges).isOne();
         assertThat(recoveredDump.serializedHistograms).isNotEmpty();
         assertThat(recoveredDump.numHistograms).isOne();
+        assertThat(recoveredDump.incomplete).isFalse();
     }
 }
