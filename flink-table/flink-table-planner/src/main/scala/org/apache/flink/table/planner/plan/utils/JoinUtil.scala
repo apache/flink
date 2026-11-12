@@ -318,6 +318,10 @@ object JoinUtil {
   }
 
   def containsJoinStrategyHint(relHints: ImmutableList[RelHint]): Boolean = {
-    relHints.exists(relHint => JoinStrategy.isJoinStrategy(relHint.hintName))
+    // EARLY_FIRE does not choose a join strategy, so it must not mark the join as hinted
+    relHints.exists(
+      relHint =>
+        JoinStrategy.isJoinStrategy(relHint.hintName) &&
+          !JoinStrategy.isEarlyFireHint(relHint.hintName))
   }
 }
