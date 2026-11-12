@@ -173,7 +173,7 @@ object BridgingFunctionGenUtil {
       skipIfArgsNull,
       // Async table function correlate entry; supplies the UDF name that instrumented call
       // generators scope their metrics under, mirroring BridgingSqlFunctionCallGen.
-      udfMetricName = Some(function.getName)
+      udfMetricName = Some(udfMetricNameOf(function))
     )
   }
 
@@ -580,6 +580,16 @@ object BridgingFunctionGenUtil {
            |}""".stripMargin
       case None => evalStatement
     }
+  }
+
+  /**
+   * Returns the metric group name of a UDF call. Function names resolve case-insensitively, so a
+   * named function reports under its normalized name and every spelling of it shares one group. An
+   * inline function is not resolved by name and keeps its generated, class-based name.
+   */
+  private[calls] def udfMetricNameOf(function: BridgingSqlFunction): String = {
+    val name = function.getName
+    if (function.getResolvedFunction.isAnonymous) name else FunctionIdentifier.normalizeName(name)
   }
 
   /**
