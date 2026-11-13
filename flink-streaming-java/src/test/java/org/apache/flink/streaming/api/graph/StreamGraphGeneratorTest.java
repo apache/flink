@@ -30,6 +30,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -89,6 +90,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
@@ -737,6 +739,24 @@ class StreamGraphGeneratorTest {
                 streamGraph.getSavepointRestoreSettings();
         assertThat(savepointRestoreSettings)
                 .isEqualTo(SavepointRestoreSettings.forPath("/tmp/savepoint1"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RecoveryClaimMode.class)
+    void testSettingPathlessRecoveryClaimMode(RecoveryClaimMode mode) {
+        Configuration config = new Configuration();
+        config.set(StateRecoveryOptions.RESTORE_MODE, mode);
+
+        final StreamGraph streamGraph =
+                new StreamGraphGenerator(
+                                Collections.emptyList(),
+                                new ExecutionConfig(),
+                                new CheckpointConfig(),
+                                config)
+                        .generate();
+
+        assertThat(streamGraph.getSavepointRestoreSettings())
+                .isEqualTo(SavepointRestoreSettings.forRecoveryClaimMode(null, mode));
     }
 
     @Test
