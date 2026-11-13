@@ -260,7 +260,7 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 - SQL 语法
 
     ```sql
-    COMPILE PLAN [IF NOT EXISTS] <plan_file_path> FOR <insert_statement>|<statement_set>;
+    COMPILE PLAN <plan_file_path> [IF NOT EXISTS] FOR <insert_statement>|<statement_set>;
     
     statement_set:
         EXECUTE STATEMENT SET
@@ -377,7 +377,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
 - SQL 语法
 
     ```sql
-    EXECUTE PLAN [IF EXISTS] <plan_file_path>;
+    EXECUTE PLAN <plan_file_path>;
     ```
     该语句反序列化指定的 JSON 文件，并提交作业。
 
