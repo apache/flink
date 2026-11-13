@@ -31,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -75,6 +77,8 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase {
         FileSystem.initialize(new Configuration());
     }
 
+    /** Returns the local directory the writer stages data in, or null if it uses none. */
+    @Nullable
     protected abstract String getLocalTmpDir() throws Exception;
 
     @BeforeEach
@@ -82,6 +86,10 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase {
         basePathForTest = new Path(basePath, StringUtils.getRandomString(RND, 16, 16, 'a', 'z'));
 
         final String defaultTmpDir = getLocalTmpDir();
+        if (defaultTmpDir == null) {
+            // The suite does not use local storage. No need to create directory.
+            return;
+        }
         final java.nio.file.Path path = Paths.get(defaultTmpDir);
 
         if (!Files.exists(path)) {

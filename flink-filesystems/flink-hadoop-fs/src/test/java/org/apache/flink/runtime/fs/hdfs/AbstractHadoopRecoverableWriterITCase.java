@@ -34,6 +34,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.annotation.Nullable;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -93,6 +95,8 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         cleanupLocalDir();
     }
 
+    /** Returns the local directory the writer stages data in, or null if it uses none. */
+    @Nullable
     protected abstract String getLocalTmpDir() throws Exception;
 
     protected abstract String getIncompleteObjectName(
@@ -100,6 +104,10 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
 
     private void cleanupLocalDir() throws Exception {
         final String defaultTmpDir = getLocalTmpDir();
+        if (defaultTmpDir == null) {
+            // The suite did not use local storage. No cleanup needed.
+            return;
+        }
         final java.nio.file.Path defaultTmpPath = Paths.get(defaultTmpDir);
 
         if (Files.exists(defaultTmpPath)) {
@@ -120,7 +128,20 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
 
     @AfterEach
     void cleanupAndCheckTmpCleanup() throws Exception {
+        try {
+            checkAndDeleteLocalTmpDir();
+        } finally {
+            // delete also object store dir, even if the local tmp dir check failed.
+            getFileSystem().delete(basePathForTest, true);
+        }
+    }
+
+    private void checkAndDeleteLocalTmpDir() throws Exception {
         final String defaultTmpDir = getLocalTmpDir();
+        if (defaultTmpDir == null) {
+            // The suite did not use local storage. No cleanup needed.
+            return;
+        }
         final java.nio.file.Path localTmpDir = Paths.get(defaultTmpDir);
 
         // delete local tmp dir.
@@ -129,9 +150,6 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
             assertThat(files).isEmpty();
         }
         Files.delete(localTmpDir);
-
-        // delete also object store dir.
-        getFileSystem().delete(basePathForTest, true);
     }
 
     protected static FileSystem getFileSystem() throws Exception {
@@ -181,7 +199,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
     }
 
     @Test
-    void testCleanupRecoverableState() throws Exception {
+    protected void testCleanupRecoverableState() throws Exception {
         final RecoverableWriter writer = getRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
@@ -220,7 +238,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
     }
 
     @Test
-    void testCallingDeleteObjectTwiceDoesNotThroughException() throws Exception {
+    protected void testCallingDeleteObjectTwiceDoesNotThroughException() throws Exception {
         final RecoverableWriter writer = getRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
