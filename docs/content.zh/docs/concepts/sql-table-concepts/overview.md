@@ -263,7 +263,7 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
     COMPILE PLAN <plan_file_path> [IF NOT EXISTS] FOR <insert_statement>|<statement_set>;
     
     statement_set:
-        EXECUTE STATEMENT SET
+        STATEMENT SET
         BEGIN
         insert_statement;
         ...
