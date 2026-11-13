@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.TableError;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.StaticResultProvider;
@@ -1109,9 +1110,7 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                 return TABLE_RESULT_OK;
             } else {
                 throw new ValidationException(
-                        String.format(
-                                "Materialized table with identifier '%s' does not exist.",
-                                tableIdentifier.asSummaryString()));
+                        TableError.MATERIALIZED_TABLE_NOT_FOUND, tableIdentifier);
             }
         }
 

@@ -19,6 +19,10 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.errors.FlinkError;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import javax.annotation.Nullable;
 
 /**
  * Exception for all errors occurring during validation phase.
@@ -26,7 +30,9 @@ import org.apache.flink.annotation.PublicEvolving;
  * <p>This exception indicates that the user did something wrong.
  */
 @PublicEvolving
-public class ValidationException extends RuntimeException {
+public class ValidationException extends FlinkRuntimeException {
+
+    private static final long serialVersionUID = -6120834944361151343L;
 
     public ValidationException(String message, Throwable cause) {
         super(message, cause);
@@ -34,5 +40,23 @@ public class ValidationException extends RuntimeException {
 
     public ValidationException(String message) {
         super(message);
+    }
+
+    /**
+     * Creates an exception for the given error, such as a {@link TableError}.
+     *
+     * @see FlinkRuntimeException#FlinkRuntimeException(FlinkError, Object...)
+     */
+    public ValidationException(FlinkError error, Object... arguments) {
+        super(error, arguments);
+    }
+
+    /**
+     * Creates an exception for the given error, such as a {@link TableError}, with a cause.
+     *
+     * @see FlinkRuntimeException#FlinkRuntimeException(FlinkError, Throwable, Object...)
+     */
+    public ValidationException(FlinkError error, @Nullable Throwable cause, Object... arguments) {
+        super(error, cause, arguments);
     }
 }

@@ -766,8 +766,10 @@ class MaterializedTableTableApiITCase {
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Materialized table with identifier '%s' does not exist.",
-                                USERS_SHOPS.asSummaryString()));
+                                "Materialized table %s does not exist. "
+                                        + "Check the name and the current catalog and database. "
+                                        + "SQLSTATE: 42P01",
+                                USERS_SHOPS.asSerializableString()));
 
         tEnv.executeSql("DROP MATERIALIZED TABLE IF EXISTS users_shops");
 

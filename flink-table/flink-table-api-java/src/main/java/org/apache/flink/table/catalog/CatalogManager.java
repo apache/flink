@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableError;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.MaterializedTableConfigOptions;
@@ -1509,18 +1510,22 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, TableKind kind) {
         final Predicate<CatalogBaseTable> filter;
         final String kindStr;
+        final TableError notFound;
         switch (kind) {
             case VIEW:
                 filter = table -> table instanceof CatalogView;
                 kindStr = "View";
+                notFound = TableError.VIEW_NOT_FOUND;
                 break;
             case TABLE:
                 filter = table -> table instanceof CatalogTable;
                 kindStr = "Table";
+                notFound = TableError.TABLE_NOT_FOUND;
                 break;
             case MATERIALIZED_TABLE:
                 filter = table -> table instanceof CatalogMaterializedTable;
                 kindStr = "Materialized Table";
+                notFound = TableError.MATERIALIZED_TABLE_NOT_FOUND;
                 break;
             default:
                 throw new ValidationException("Not supported table kind: " + kind);
@@ -1563,10 +1568,14 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     "DropTable");
             return true;
         } else if (!ignoreIfNotExists) {
-            throw new ValidationException(
-                    String.format(
-                            "%s with identifier '%s' does not exist.",
-                            kindStr, objectIdentifier.asSummaryString()));
+            if (resultOpt.isPresent()) {
+                // An object of another kind exists, which the not-found errors don't describe.
+                throw new ValidationException(
+                        String.format(
+                                "%s with identifier '%s' does not exist.",
+                                kindStr, objectIdentifier.asSummaryString()));
+            }
+            throw new ValidationException(notFound, objectIdentifier);
         }
         return false;
     }

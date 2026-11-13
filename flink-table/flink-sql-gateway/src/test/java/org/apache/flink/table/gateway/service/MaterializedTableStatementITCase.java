@@ -1577,8 +1577,10 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Materialized table with identifier '%s' does not exist.",
-                                userShopsIdentifier.asSummaryString()));
+                                "Materialized table %s does not exist. "
+                                        + "Check the name and the current catalog and database. "
+                                        + "SQLSTATE: 42P01",
+                                userShopsIdentifier.asSerializableString()));
 
         String dropNonExistMaterializedTableDDL2 = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
         OperationHandle dropNonExistMaterializedTableHandle2 =

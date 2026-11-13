@@ -26,7 +26,7 @@ org.apache.calcite.runtime.CalciteContextException: From line 1, column 30 to li
 
 drop table non_exist;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Table with identifier 'default_catalog.default_database.non_exist' does not exist.
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`non_exist` does not exist. Check the name and the current catalog and database. SQLSTATE: 42P01
 !error
 
 describe non_exist;
