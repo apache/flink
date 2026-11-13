@@ -20,6 +20,7 @@ import decimal
 import os
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -809,6 +810,26 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         with result.collect() as rows:
             self.assertEqual([Row(Row(None, ['row']), [None, 7], {'key': None}, None)],
                              list(rows))
+
+    def test_collect_timestamp_ignores_local_time_zone(self):
+        patcher = patch.dict(os.environ, {'TZ': 'America/Los_Angeles'})
+        patcher.start()
+        self.addCleanup(time.tzset)
+        self.addCleanup(patcher.stop)
+        time.tzset()
+        # A DST gap and times before 1902 used to shift in this zone.
+        values = [datetime.datetime(2020, 3, 8, 2, 30),
+                  datetime.datetime(1900, 1, 1),
+                  datetime.datetime(1800, 1, 1),
+                  datetime.datetime(2020, 7, 1, 12, 0),
+                  datetime.datetime(1969, 12, 31, 23, 59, 59, 500000),
+                  datetime.datetime(9999, 12, 31, 23, 59, 59, 999999)]
+        query = " UNION ALL ".join(
+            "SELECT %d AS i, TIMESTAMP '%s' AS ts" % (i, v) for i, v in enumerate(values))
+        result = self.t_env.execute_sql("SELECT i, ts, ROW(ts) AS nested FROM (%s)" % query)
+        with result.collect() as rows:
+            self.assertEqual([Row(i, v, Row(v)) for i, v in enumerate(values)],
+                             sorted(rows, key=lambda row: row[0]))
 
     def test_collect_with_retract(self):
         expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,

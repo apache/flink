@@ -61,6 +61,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -188,11 +189,17 @@ public final class PythonBridgeUtils {
                 time = time / 1000;
                 return pickler.dumps(time);
             } else if (dataType instanceof TimestampType) {
+                LocalDateTime localDateTime;
                 if (obj instanceof LocalDateTime) {
-                    return pickler.dumps(Timestamp.valueOf((LocalDateTime) obj));
+                    localDateTime = (LocalDateTime) obj;
                 } else {
-                    return pickler.dumps(obj);
+                    localDateTime = ((Timestamp) obj).toLocalDateTime();
                 }
+                // UTC makes this plain arithmetic on the wall clock, without any zone rules.
+                long micros =
+                        localDateTime.toEpochSecond(ZoneOffset.UTC) * 1_000_000L
+                                + localDateTime.getNano() / 1_000;
+                return pickler.dumps(micros);
             } else if (dataType instanceof RowType) {
                 Row tmpRow = (Row) obj;
                 LogicalType[] tmpRowFieldTypes =

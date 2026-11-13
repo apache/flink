@@ -303,7 +303,8 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
         elif isinstance(field_type, DateType):
             return field_type.from_sql_type(data)
         elif isinstance(field_type, TimestampType):
-            return field_type.from_sql_type(int(data.timestamp() * 10**6))
+            # Wall-clock micros since 1970-01-01; from_sql_type would apply the local zone.
+            return datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=data)
         elif isinstance(field_type, MapType):
             key_type = field_type.key_type
             value_type = field_type.value_type
