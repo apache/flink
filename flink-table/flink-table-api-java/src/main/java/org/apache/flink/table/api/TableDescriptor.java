@@ -418,7 +418,7 @@ public class TableDescriptor {
             return this;
         }
 
-        private static void validateBucketKeys(String[] bucketKeys) {
+        static void validateBucketKeys(String[] bucketKeys) {
             Preconditions.checkNotNull(bucketKeys, "Bucket keys must not be null.");
             if (bucketKeys.length == 0) {
                 throw new ValidationException(

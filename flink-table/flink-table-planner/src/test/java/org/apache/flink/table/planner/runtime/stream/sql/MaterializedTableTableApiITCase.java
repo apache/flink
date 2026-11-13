@@ -46,6 +46,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.MaterializedPipeline;
 import org.apache.flink.table.api.MaterializedTable;
+import org.apache.flink.table.api.MaterializedTableDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
@@ -105,6 +106,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.coalesce;
 import static org.apache.flink.table.api.Expressions.dateFormat;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
@@ -232,18 +234,31 @@ class MaterializedTableTableApiITCase {
     @Test
     void testCreateMaterializedTableInContinuousMode() throws Exception {
         final MaterializedPipeline pipeline =
-                usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30));
+                usersShopsQuery()
+                        .materializeInto(
+                                "users_shops",
+                                usersShopsDescriptor()
+                                        .comment("users and shops")
+                                        .freshness(Duration.ofSeconds(30))
+                                        .continuousRefresh()
+                                        .build());
 
         final MaterializedTable materializedTable = pipeline.execute();
 
         assertThat(materializedTable.getIdentifier()).isEqualTo(USERS_SHOPS);
         final ResolvedCatalogMaterializedTable actualMaterializedTable = getUsersShops();
         assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(USERS_SHOPS_SCHEMA);
-        assertThat(actualMaterializedTable.getOptions()).isEmpty();
+        assertThat(actualMaterializedTable.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("connector", "values", "sink-insert-only", "false"));
+        assertThat(actualMaterializedTable.getComment()).isEqualTo("users and shops");
+        assertThat(actualMaterializedTable.getPartitionKeys()).containsExactly("ds");
+        assertThat(actualMaterializedTable.getDefinitionFreshness())
+                .isEqualTo(IntervalFreshness.ofSecond(30));
         assertThat(actualMaterializedTable.getExpandedQuery())
                 .contains("`test_catalog`.`test_db`.`datagenSource`");
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
-                .isSameAs(LogicalRefreshMode.AUTOMATIC);
+                .isSameAs(LogicalRefreshMode.CONTINUOUS);
         assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
         assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
@@ -388,15 +403,14 @@ class MaterializedTableTableApiITCase {
         // an insert-only sink cannot consume the updates of the aggregation
         assertThatThrownBy(
                         () ->
-                                tEnv.executeSql(
-                                        "CREATE MATERIALIZED TABLE users_shops"
-                                                + " PARTITIONED BY (ds)\n"
-                                                + " WITH(\n"
-                                                + "   'connector' = 'values',\n"
-                                                + "   'sink-insert-only' = 'true'\n"
-                                                + " )\n"
-                                                + " FRESHNESS = INTERVAL '30' SECOND\n"
-                                                + USERS_SHOPS_QUERY))
+                                usersShopsQuery()
+                                        .materializeInto(
+                                                "users_shops",
+                                                usersShopsDescriptor()
+                                                        .option("sink-insert-only", "true")
+                                                        .freshness(Duration.ofSeconds(30))
+                                                        .build())
+                                        .execute())
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         String.format(
@@ -410,15 +424,21 @@ class MaterializedTableTableApiITCase {
     void testCreateMaterializedTableWithDistribution() {
         assertThatThrownBy(
                         () ->
-                                tEnv.executeSql(
-                                        "CREATE MATERIALIZED TABLE users_shops ("
-                                                + " PRIMARY KEY (shop_id, user_id) not enforced)"
-                                                + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
-                                                + " WITH(\n"
-                                                + "   'connector' = 'blackhole'\n"
-                                                + " )\n"
-                                                + " FRESHNESS = INTERVAL '30' SECOND\n"
-                                                + " AS SELECT 1 as shop_id, 2 as user_id"))
+                                tEnv.sqlQuery("SELECT 1 AS shop_id, 2 AS user_id")
+                                        .materializeInto(
+                                                "users_shops",
+                                                MaterializedTableDescriptor.newBuilder()
+                                                        .schema(
+                                                                Schema.newBuilder()
+                                                                        .primaryKey(
+                                                                                "shop_id",
+                                                                                "user_id")
+                                                                        .build())
+                                                        .distributedByHash(7, "user_id")
+                                                        .option("connector", "blackhole")
+                                                        .freshness(Duration.ofSeconds(30))
+                                                        .build())
+                                        .execute())
                 .isInstanceOf(TableException.class)
                 .hasRootCauseMessage(
                         String.format(
@@ -456,25 +476,26 @@ class MaterializedTableTableApiITCase {
     @Test
     void testAlterMaterializedTableAsQueryInContinuousMode(@TempDir Path temporaryPath)
             throws Exception {
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops ("
-                        + " PRIMARY KEY (ds, user_id) not enforced)"
-                        + " PARTITIONED BY (ds)\n"
-                        + " WITH(\n"
-                        + "   'connector' = 'values',\n"
-                        + "   'sink-insert-only' = 'false',\n"
-                        + "   'sink-changelog-mode-enforced' = 'I,UB,UA,D'\n"
-                        + " )\n"
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT \n"
-                        + "  coalesce(user_id, 0) as user_id,\n"
-                        + "  shop_id,\n"
-                        + "  coalesce(ds, '') as ds,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds)");
+        tEnv.from("datagenSource")
+                .select(
+                        $("user_id"),
+                        $("shop_id"),
+                        dateFormat($("order_created_at"), "yyyy-MM-dd").as("ds"),
+                        $("payment_amount_cents"))
+                .groupBy($("user_id"), $("shop_id"), $("ds"))
+                .select(
+                        coalesce($("user_id"), 0).as("user_id"),
+                        $("shop_id"),
+                        coalesce($("ds"), "").as("ds"),
+                        $("payment_amount_cents").sum().as("payed_buy_fee_sum"))
+                .materializeInto(
+                        "users_shops",
+                        usersShopsDescriptor()
+                                .schema(Schema.newBuilder().primaryKey("ds", "user_id").build())
+                                .option("sink-changelog-mode-enforced", "I,UB,UA,D")
+                                .freshness(Duration.ofSeconds(30))
+                                .build())
+                .execute();
         final ResolvedCatalogMaterializedTable oldTable = getUsersShops();
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
 
@@ -571,21 +592,17 @@ class MaterializedTableTableApiITCase {
         data.add(Row.of(3L, 3L, 3L, "2024-01-02"));
         createBoundedValuesSource(data);
 
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops"
-                        + " PARTITIONED BY (ds)\n"
-                        + UPDATING_VALUES_SINK
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " REFRESH_MODE = CONTINUOUS\n"
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  ds,\n"
-                        + "  COUNT(order_id) AS order_cnt\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds)");
+        tEnv.from("my_source")
+                .select($("user_id"), $("shop_id"), $("order_created_at").as("ds"), $("order_id"))
+                .groupBy($("user_id"), $("shop_id"), $("ds"))
+                .select($("user_id"), $("shop_id"), $("ds"), $("order_id").count().as("order_cnt"))
+                .materializeInto(
+                        "users_shops",
+                        usersShopsDescriptor()
+                                .freshness(Duration.ofSeconds(30))
+                                .continuousRefresh()
+                                .build())
+                .execute();
         CommonTestUtils.waitUtil(
                 () -> getUsersShopsResults().size() == data.size(),
                 TIMEOUT,
@@ -610,22 +627,30 @@ class MaterializedTableTableApiITCase {
 
     @Test
     void testAlterMaterializedTableRefreshWithInvalidPartitionSpec() {
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops"
-                        + " PARTITIONED BY (ds1, ds2)\n"
-                        + UPDATING_VALUES_SINK
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  ds1,\n"
-                        + "  ds2,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
-                        + "  SUM (1) AS pv\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds1, user_id % 10 as ds2, payment_amount_cents FROM datagenSource"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds1, ds2)");
+        tEnv.from("datagenSource")
+                .select(
+                        $("user_id"),
+                        $("shop_id"),
+                        dateFormat($("order_created_at"), "yyyy-MM-dd").as("ds1"),
+                        $("user_id").mod(10).as("ds2"),
+                        $("payment_amount_cents"))
+                .groupBy($("user_id"), $("shop_id"), $("ds1"), $("ds2"))
+                .select(
+                        $("user_id"),
+                        $("shop_id"),
+                        $("ds1"),
+                        $("ds2"),
+                        $("payment_amount_cents").sum().as("payed_buy_fee_sum"),
+                        lit(1).sum().as("pv"))
+                .materializeInto(
+                        "users_shops",
+                        MaterializedTableDescriptor.newBuilder()
+                                .partitionedBy("ds1", "ds2")
+                                .option("connector", "values")
+                                .option("sink-insert-only", "false")
+                                .freshness(Duration.ofSeconds(30))
+                                .build())
+                .execute();
 
         // CASE 1: check unknown partition keys
         assertThatThrownBy(
@@ -859,20 +884,12 @@ class MaterializedTableTableApiITCase {
     @Test
     void testRedeployMaterializedTableWithMaterializeInto(@TempDir Path temporaryPath)
             throws Exception {
-        tEnv.executeSql(
-                "CREATE MATERIALIZED TABLE users_shops"
-                        + " PARTITIONED BY (ds)\n"
-                        + UPDATING_VALUES_SINK
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT \n"
-                        + "  user_id,\n"
-                        + "  shop_id,\n"
-                        + "  ds,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds)");
+        usersShopsQuery()
+                .dropColumns($("pv"))
+                .materializeInto(
+                        "users_shops",
+                        usersShopsDescriptor().freshness(Duration.ofSeconds(30)).build())
+                .execute();
         final JobID oldJobId = getRefreshJobId();
         addDistributionToUsersShops(TableDistribution.ofHash(List.of("user_id"), 4));
         final ResolvedCatalogMaterializedTable oldTable = getUsersShops();
@@ -901,6 +918,13 @@ class MaterializedTableTableApiITCase {
     // --------------------------------------------------------------------------------------------
     // Test helpers
     // --------------------------------------------------------------------------------------------
+
+    private static MaterializedTableDescriptor.Builder usersShopsDescriptor() {
+        return MaterializedTableDescriptor.newBuilder()
+                .partitionedBy("ds")
+                .option("connector", "values")
+                .option("sink-insert-only", "false");
+    }
 
     private Table usersShopsQuery(Expression... additionalAggregates) {
         final List<Expression> selection =

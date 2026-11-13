@@ -46,8 +46,36 @@ MaterializedTable revenue = tEnv.from("orders")
 The schema is derived from the stored SQL text of the query, and the path is resolved against the
 current catalog and database. The freshness is optional and defaults to
 [materialized-table.default-freshness.continuous]({{< ref "docs/dev/table/config" >}}#materialized-table-default-freshness-continuous).
-The refresh mode is derived from the freshness (see [Refresh Mode]({{< ref "docs/sql/materialized-table/overview" >}}#refresh-mode)).
+The refresh mode is derived from the freshness, unless a [`MaterializedTableDescriptor`](#declaring-a-materialized-table) declares it (see [Refresh Mode]({{< ref "docs/sql/materialized-table/overview" >}}#refresh-mode)).
 Full refresh mode needs a workflow scheduler and cannot be used from a plain `TableEnvironment`.
+
+By using a `MaterializedTableDescriptor` the clauses of the materialized table that the query
+doesn't define can be declared.
+
+```java
+MaterializedTable ordersCurated = tEnv.from("orders")
+        .select($("order_id"), $("region"), $("order_time"), $("amount"))
+        .materializeInto(
+                "orders_curated",
+                MaterializedTableDescriptor.newBuilder()
+                        .schema(Schema.newBuilder()
+                                .primaryKey("order_id")
+                                .watermark("order_time", $("order_time").minus(lit(5).seconds()))
+                                .build())
+                        .distributedByHash(4, "order_id")
+                        .partitionedBy("region")
+                        .option("format", "json")
+                        .freshness(Duration.ofSeconds(30))
+                        .continuousRefresh()
+                        .build())
+        .execute();
+```
+
+A declared schema is merged onto the schema of the query, and every declared physical or persisted
+metadata column must be produced by the query. The query must produce the primary key columns as
+`NOT NULL`. See
+[CREATE MATERIALIZED TABLE]({{< ref "docs/sql/materialized-table/statements" >}}#create-or-alter-materialized-table)
+for the semantics of the clauses.
 
 # Redeploying
 
@@ -57,10 +85,17 @@ schema-evolution rules of
 A running continuous refresh job is stopped with a savepoint and restarted without restoring it,
 even if the declaration is unchanged, so streaming state is reset.
 
-An existing materialized table keeps its freshness, so a freshness passed to `materializeInto` is
-ignored. As with `CREATE OR ALTER` without `WITH` and `DISTRIBUTED BY` clauses, its options are
-reset and its distribution is dropped. To keep them, redeploy with SQL `CREATE OR ALTER` and
-restate the clauses.
+An existing materialized table keeps its freshness, comment and partition keys, so declared ones are
+ignored. Its options and distribution are replaced by the declared ones. This means options that the
+descriptor doesn't declare are removed, and the distribution is dropped if the descriptor declares
+none. To keep them, restate them in the descriptor on every redeploy.
+
+If the declared schema starts with a physical column, it replaces the watermark, computed columns,
+virtual metadata columns and primary key of the materialized table. Otherwise, the materialized
+table keeps its watermark, and computed and virtual metadata columns that the schema no longer
+declares, and keeps its primary key unless the schema declares one. For example, the schema of
+`orders_curated` above declares no columns, so redeploying it with a different watermark keeps the
+old one.
 
 If the changes are rejected, for example because the new query drops a column, `execute()` fails
 and leaves the materialized table suspended with its previous definition. Resume it with

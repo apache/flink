@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /**
- * A pending declaration of one materialized table, created by {@link
- * Table#materializeInto(String)}.
+ * A pending declaration of one materialized table, created by {@link Table#materializeInto(String,
+ * MaterializedTableDescriptor)}.
  */
 @PublicEvolving
 public interface MaterializedPipeline {
@@ -53,9 +53,13 @@ public interface MaterializedPipeline {
      * in full refresh mode is altered without changing its refresh workflow.
      *
      * <p>An existing materialized table keeps its freshness, comment and partition keys, so a
-     * freshness given to {@link Table#materializeInto(String, java.time.Duration)} is ignored. Its
-     * options are reset and its distribution is dropped, as by a {@code CREATE OR ALTER
-     * MATERIALIZED TABLE} without {@code WITH} and {@code DISTRIBUTED BY} clauses.
+     * declared one is ignored. A declared {@link RefreshStrategy#continuous()} or {@link
+     * RefreshStrategy#full()} that differs from its refresh mode is rejected like any other
+     * rejected change, which leaves a running table suspended. If the declared schema starts with a
+     * physical column, it replaces the watermark, computed columns, virtual metadata columns and
+     * primary key of the materialized table. Otherwise, the materialized table keeps its watermark,
+     * keeps computed and virtual metadata columns that the schema no longer declares, and keeps its
+     * primary key unless the schema declares one.
      *
      * <p>Returns once the catalog entry is written and, if a continuous refresh job is started,
      * once that job has been submitted.

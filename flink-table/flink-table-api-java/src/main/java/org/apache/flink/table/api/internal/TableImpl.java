@@ -29,6 +29,7 @@ import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.MaterializedPipeline;
+import org.apache.flink.table.api.MaterializedTableDescriptor;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.PartitionedTable;
@@ -43,7 +44,6 @@ import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.api.internal.materializedtable.MaterializedPipelineImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -496,43 +496,26 @@ public class TableImpl implements Table {
 
     @Override
     public MaterializedPipeline materializeInto(String path) {
-        return createMaterializedPipeline(path, null);
+        return materializeInto(path, MaterializedTableDescriptor.newBuilder().build());
     }
 
     @Override
     public MaterializedPipeline materializeInto(String path, Duration freshness) {
-        Preconditions.checkNotNull(freshness, "Freshness must not be null.");
-        return createMaterializedPipeline(path, toIntervalFreshness(freshness));
+        return materializeInto(
+                path, MaterializedTableDescriptor.newBuilder().freshness(freshness).build());
     }
 
-    private MaterializedPipeline createMaterializedPipeline(
-            String path, @Nullable IntervalFreshness freshness) {
+    @Override
+    public MaterializedPipeline materializeInto(
+            String path, MaterializedTableDescriptor descriptor) {
         Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Descriptor must not be null.");
         final UnresolvedIdentifier unresolvedIdentifier =
                 tableEnvironment.getParser().parseIdentifier(path);
         final ObjectIdentifier identifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         return new MaterializedPipelineImpl(
-                tableEnvironment, getQueryOperation(), identifier, freshness);
-    }
-
-    private static IntervalFreshness toIntervalFreshness(Duration freshness) {
-        if (freshness.isNegative() || freshness.isZero()) {
-            throw new ValidationException(
-                    String.format("Freshness must be positive, but was: %s", freshness));
-        }
-        if (freshness.getNano() != 0) {
-            throw new ValidationException(
-                    String.format(
-                            "Freshness must be a whole number of seconds, but was: %s", freshness));
-        }
-        if (freshness.getSeconds() > Integer.MAX_VALUE) {
-            throw new ValidationException(
-                    String.format(
-                            "Freshness must be at most %d seconds, but was: %s",
-                            Integer.MAX_VALUE, freshness));
-        }
-        return IntervalFreshness.fromDuration(freshness);
+                tableEnvironment, getQueryOperation(), identifier, descriptor);
     }
 
     @Override
