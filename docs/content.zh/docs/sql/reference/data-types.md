@@ -1792,6 +1792,16 @@ SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1;                             -- co
 A `PRIMARY KEY` column cannot be a `VARIANT` or a type that contains one either. Declare the key
 column with a concrete type.
 
+A `VARIANT` has no common type with any other type, because no cast to or from `VARIANT` is applied
+implicitly. So `UNION ALL`, `CASE`, `VALUES`, and the `ARRAY` and `MAP` constructors fail at
+validation when they mix a `VARIANT` with another type, also inside an `ARRAY`, `MAP`, or `ROW`.
+Cast one side first.
+
+```sql
+SELECT v FROM t UNION ALL SELECT s FROM u                    -- fails
+SELECT v FROM t UNION ALL SELECT CAST(s AS VARIANT) FROM u   -- one VARIANT column
+```
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}
