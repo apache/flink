@@ -400,6 +400,19 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
     ```
     This will deserialize the JSON file and submit an insert statement job.
 
+**Compile and Execute the Plan in One Statement**
+
+`COMPILE AND EXECUTE PLAN` compiles the statement, writes the plan to the file, and runs it. If the
+file already exists, it runs the plan from the file and doesn't use the statement, which must still
+be valid. Running the same statement again, including on a newer Flink version, therefore runs the
+plan that was compiled first. To run a changed statement, compile it to a new file.
+
+- SQL Syntax
+
+    ```sql
+    COMPILE AND EXECUTE PLAN <plan_file_path> FOR <insert_statement>|<statement_set>;
+    ```
+
 **A Full Example**
 
 The following table program computes the enriched order shipment information. 
@@ -567,36 +580,15 @@ Now change the value of left state to `"3000 ms"` and right state to `"9000 ms"`
 Table programs that are executed in streaming mode are intended as *standing queries* which means they
 are defined once and are continuously evaluated as static end-to-end pipelines.
 
-In case of stateful pipelines, any change to both the query or Flink's planner might lead to a completely
-different execution plan. This makes stateful upgrades and the evolution of table programs challenging
-at the moment. The community is working on improving those shortcomings.
+A change to the query or to the Flink version can lead to a different execution plan, and the state
+in a savepoint might not map to it. For example, by adding a filter predicate, the optimizer might
+decide to reorder joins or change the schema of an intermediate operator.
 
-For example, by adding a filter predicate, the optimizer might decide to reorder joins or change the
-schema of an intermediate operator. This prevents restoring from a savepoint due to either changed
-topology or different column layout within the state of an operator.
-
-The query implementer must ensure that the optimized plans before and after the change are compatible.
-Use the `EXPLAIN` command in SQL or `table.explain()` in Table API to [get insights]({{< ref "docs/dev/table/common" >}}#explaining-a-table).
-
-Since new optimizer rules are continuously added, and operators become more efficient and specialized,
-also the upgrade to a newer Flink version could lead to incompatible plans.
-
-{{< hint warning >}}
-Currently, the framework cannot guarantee that state can be mapped from a savepoint to a new table
-operator topology.
-
-In other words: Savepoints are only supported if both the query and the Flink version remain constant.
-{{< /hint >}}
-
-Since the community rejects contributions that modify the optimized plan and the operator topology
-in a patch version (e.g. from `1.13.1` to `1.13.2`), it should be safe to upgrade a Table API & SQL
-pipeline to a newer bug fix release. However, major-minor upgrades from (e.g. from `1.12` to `1.13`)
-are not supported.
-
-For both shortcomings (i.e. modified query and modified Flink version), we recommend to investigate
-whether the state of an updated table program can be "warmed up" (i.e. initialized) with historical
-data again before switching to real-time data. The Flink community is working on a [hybrid source]({{< ref "docs/connectors/datastream/hybridsource" >}})
-to make this switching as convenient as possible.
+A compiled plan stores the execution plan of a pipeline, so that a newer Flink version runs the same
+operators with the same state layout. A process table function restores its state by its `uid`,
+even when the query around it changes. See
+[Application State Compatibility]({{< ref "docs/ops/upgrading" >}}#table-api--sql) for what you can
+change and how.
 
 
 Where to go next?

@@ -381,6 +381,19 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
     ```
     该语句反序列化指定的 JSON 文件，并提交作业。
 
+**Compile and Execute the Plan in One Statement**
+
+`COMPILE AND EXECUTE PLAN` compiles the statement, writes the plan to the file, and runs it. If the
+file already exists, it runs the plan from the file and doesn't use the statement, which must still
+be valid. Running the same statement again, including on a newer Flink version, therefore runs the
+plan that was compiled first. To run a changed statement, compile it to a new file.
+
+- SQL Syntax
+
+    ```sql
+    COMPILE AND EXECUTE PLAN <plan_file_path> FOR <insert_statement>|<statement_set>;
+    ```
+
 **完整示例**
 
 下面的例子展示了一个通过双流 Join 计算订单明细的作业，并且如何为左右流设置不同的 TTL。
@@ -546,28 +559,15 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
 
 表程序在流模式下执行将被视为*标准查询*，这意味着它们被定义一次后将被一直视为静态的端到端 (end-to-end) 管道
 
-对于这种状态化的管道，对查询和Flink的Planner的改动都有可能导致完全不同的执行计划。这让表程序的状态化的升级和演化在目前而言
-仍具有挑战，社区正致力于改进这一缺点。
+A change to the query or to the Flink version can lead to a different execution plan, and the state
+in a savepoint might not map to it. For example, by adding a filter predicate, the optimizer might
+decide to reorder joins or change the schema of an intermediate operator.
 
-例如为了添加过滤谓词，优化器可能决定重排 join 或改变内部算子的 schema。 这会阻碍从 savepoint 的恢复，因为其被改变的拓扑和
-算子状态的列布局差异。
-
-查询实现者需要确保改变在优化计划前后是兼容的，在 SQL 中使用 `EXPLAIN` 或在 Table API 中使用 `table.explain()` 
-可[获取详情]({{< ref "docs/dev/table/common" >}}#explaining-a-table)。
-
-由于新的优化器规则正不断地被添加，算子变得更加高效和专用，升级到更新的Flink版本可能造成不兼容的计划。
-
-{{< hint warning >}}
-当前框架无法保证状态可以从 savepoint 映射到新的算子拓扑上。
-
-换言之： Savepoint 只在查询语句和版本保持恒定的情况下被支持。
-{{< /hint >}}
-
-由于社区拒绝在版本补丁（如 `1.13.1` 至 `1.13.2`）上对优化计划和算子拓扑进行修改的贡献，对一个 Table API & SQL 管道
-升级到新的 bug fix 发行版应当是安全的。然而主次（major-minor）版本的更新（如 `1.12` 至 `1.13`）不被支持。
-
-由于这两个缺点（即修改查询语句和修改Flink版本），我们推荐实现调查升级后的表程序是否可以在切换到实时数据前，被历史数据"暖机"
-（即被初始化）。Flink社区正致力于 [混合源]({{< ref "docs/connectors/datastream/hybridsource" >}}) 来让切换变得尽可能方便。
+A compiled plan stores the execution plan of a pipeline, so that a newer Flink version runs the same
+operators with the same state layout. A process table function restores its state by its `uid`,
+even when the query around it changes. See
+[Application State Compatibility]({{< ref "docs/ops/upgrading" >}}#table-api--sql) for what you can
+change and how.
 
 
 <a name="where-to-go-next"></a>
