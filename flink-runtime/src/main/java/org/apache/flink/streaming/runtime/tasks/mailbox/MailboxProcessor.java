@@ -331,7 +331,8 @@ public class MailboxProcessor implements Closeable {
 
     /**
      * Sends the given <code>mail</code> with urgent. Intended use is to control this <code>
-     * MailboxProcessor</code>; no interaction with tasks should be performed;
+     * MailboxProcessor</code>; no interaction with tasks should be performed. The mail is served
+     * before all normal mails, but after urgent mails that are already pending (FIFO).
      */
     private void sendControlMail(
             RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {
@@ -339,7 +340,7 @@ public class MailboxProcessor implements Closeable {
                 new Mail(
                         MailboxExecutor.MailOptions.urgent(),
                         mail,
-                        Integer.MAX_VALUE /*not used with putFirst*/,
+                        TaskMailbox.MAX_PRIORITY,
                         descriptionFormat,
                         descriptionArgs));
     }
