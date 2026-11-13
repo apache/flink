@@ -23,7 +23,6 @@ import org.apache.flink.table.codesplit.JavaParser.StatementContext;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.LinkedHashSet;
@@ -135,11 +134,11 @@ public class BlockStatementRewriter implements CodeRewriter {
 
         private final CommonTokenStream tokenStream;
 
-        private final TokenStreamRewriter rewriter;
+        private final FlinkTokenStreamRewriter rewriter;
 
         private BlockVisitor(String code) {
             this.tokenStream = new CommonTokenStream(new JavaLexer(CharStreams.fromString(code)));
-            this.rewriter = new TokenStreamRewriter(tokenStream);
+            this.rewriter = new FlinkTokenStreamRewriter(tokenStream);
         }
 
         private String rewriteAndGetCode() {
@@ -217,7 +216,8 @@ public class BlockStatementRewriter implements CodeRewriter {
                     functionGroupedBody.append("\n").append(groupedCode.getRewriteCode());
 
                     // replace original functions body with new, rewritten and grouped body.
-                    rewriter.replace(statement.start, statement.stop, functionGroupedBody);
+                    rewriter.replace(
+                            statement.start, statement.stop, functionGroupedBody.toString());
 
                     // build new method definitions.
                     StringJoiner newMethodDefinitions =

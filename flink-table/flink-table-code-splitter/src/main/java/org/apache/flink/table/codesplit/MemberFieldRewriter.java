@@ -23,7 +23,6 @@ import org.apache.flink.util.Preconditions;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.ArrayList;
@@ -73,7 +72,7 @@ public class MemberFieldRewriter implements CodeRewriter {
     private final int maxFieldCount;
 
     private String code;
-    private TokenStreamRewriter rewriter;
+    private FlinkTokenStreamRewriter rewriter;
 
     public MemberFieldRewriter(String code, int maxFieldCount) {
         this.code = code;
@@ -96,7 +95,7 @@ public class MemberFieldRewriter implements CodeRewriter {
     private JavaParser prepareRewrite() {
         CommonTokenStream tokenStream =
                 new CommonTokenStream(new JavaLexer(CharStreams.fromString(code)));
-        this.rewriter = new TokenStreamRewriter(tokenStream);
+        this.rewriter = new FlinkTokenStreamRewriter(tokenStream);
         JavaParser javaParser = new JavaParser(tokenStream);
         javaParser.getInterpreter().setPredictionMode(PredictionMode.SLL);
         return javaParser;
