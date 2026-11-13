@@ -185,7 +185,19 @@ public class PipelineOptions {
                     .defaultValue(Collections.emptyMap())
                     .withDescription(
                             "A parallelism override map (jobVertexId -> parallelism) which will be used to update"
-                                    + " the parallelism of the corresponding job vertices of submitted JobGraphs.");
+                                    + " the parallelism of the corresponding job vertices of a submitted job. The"
+                                    + " job vertex id is the id of the vertex in the running job (32 hex characters)."
+                                    + " The map is resolved when the job is submitted, with the entries of the job"
+                                    + " configuration winning over the entries of the cluster configuration, and is"
+                                    + " applied when the job vertices are created, so it covers jobs submitted as a"
+                                    + " StreamGraph as well as a JobGraph. Entries whose key is not a job vertex id"
+                                    + " or matches no vertex of the job are ignored. A value must be a positive"
+                                    + " integer no larger than the max parallelism configured for the vertex, or -1"
+                                    + " to unset the parallelism of the vertex; a bad value in the job configuration"
+                                    + " rejects the submission, one in the cluster configuration fails the job that"
+                                    + " contains the vertex. An override does not change job vertex ids, operator"
+                                    + " ids or operator chaining. The adaptive batch scheduler does not apply the map"
+                                    + " to a job submitted as a StreamGraph unless batch job recovery is enabled.");
 
     public static final ConfigOption<Integer> MAX_PARALLELISM =
             key("pipeline.max-parallelism")
