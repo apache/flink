@@ -504,7 +504,7 @@ public class ExecutionConfigOptions {
     // ------------------------------------------------------------------------
     //  Async Scalar Function
     // ------------------------------------------------------------------------
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS =
             key("table.exec.async-scalar.max-concurrent-operations")
                     .intType()
@@ -513,7 +513,7 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The max number of async i/o operation that the async scalar function can trigger.");
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_SCALAR_TIMEOUT =
             key("table.exec.async-scalar.timeout")
                     .durationType()
@@ -521,7 +521,7 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The async timeout for the asynchronous operation to complete.");
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<RetryStrategy> TABLE_EXEC_ASYNC_SCALAR_RETRY_STRATEGY =
             key("table.exec.async-scalar.retry-strategy")
                     .enumType(RetryStrategy.class)
@@ -529,14 +529,14 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "Restart strategy which will be used, FIXED_DELAY by default.");
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY =
             key("table.exec.async-scalar.retry-delay")
                     .durationType()
                     .defaultValue(Duration.ofMillis(100))
                     .withDescription("The delay to wait before trying again.");
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS =
             key("table.exec.async-scalar.max-attempts")
                     .intType()
