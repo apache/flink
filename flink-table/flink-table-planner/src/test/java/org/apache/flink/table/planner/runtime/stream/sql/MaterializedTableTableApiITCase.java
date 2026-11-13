@@ -143,13 +143,6 @@ class MaterializedTableTableApiITCase {
                     + " ) AS tmp\n"
                     + " GROUP BY (user_id, shop_id, ds)";
 
-    private static final String USERS_SHOPS_DDL =
-            "CREATE MATERIALIZED TABLE users_shops"
-                    + " PARTITIONED BY (ds)\n"
-                    + UPDATING_VALUES_SINK
-                    + " FRESHNESS = INTERVAL '30' SECOND\n"
-                    + USERS_SHOPS_QUERY;
-
     private static final ResolvedSchema USERS_SHOPS_SCHEMA =
             ResolvedSchema.of(
                     Arrays.asList(
@@ -192,22 +185,23 @@ class MaterializedTableTableApiITCase {
         tEnv.useCatalog(CATALOG);
         tEnv.useDatabase(DATABASE);
 
-        tEnv.executeSql(
-                "CREATE TABLE datagenSource (\n"
-                        + "  order_id BIGINT,\n"
-                        + "  order_number VARCHAR(20),\n"
-                        + "  user_id BIGINT,\n"
-                        + "  shop_id BIGINT,\n"
-                        + "  product_id BIGINT,\n"
-                        + "  status BIGINT,\n"
-                        + "  order_type BIGINT,\n"
-                        + "  order_created_at TIMESTAMP,\n"
-                        + "  payment_amount_cents BIGINT\n"
-                        + ")\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'datagen',\n"
-                        + "  'rows-per-second' = '10'\n"
-                        + ")");
+        tEnv.createTable(
+                "datagenSource",
+                TableDescriptor.forConnector("datagen")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("order_id", DataTypes.BIGINT())
+                                        .column("order_number", DataTypes.VARCHAR(20))
+                                        .column("user_id", DataTypes.BIGINT())
+                                        .column("shop_id", DataTypes.BIGINT())
+                                        .column("product_id", DataTypes.BIGINT())
+                                        .column("status", DataTypes.BIGINT())
+                                        .column("order_type", DataTypes.BIGINT())
+                                        .column("order_created_at", DataTypes.TIMESTAMP())
+                                        .column("payment_amount_cents", DataTypes.BIGINT())
+                                        .build())
+                        .option("rows-per-second", "10")
+                        .build());
     }
 
     @AfterEach
@@ -333,15 +327,19 @@ class MaterializedTableTableApiITCase {
 
     @Test
     void testCreateMaterializedTableFromTableWithConstraintsStoresPhysicalColumnsOnly() {
-        tEnv.executeSql(
-                "CREATE TABLE constrained_source (\n"
-                        + "  id BIGINT,\n"
-                        + "  ts TIMESTAMP(3),\n"
-                        + "  next_id AS id + 1,\n"
-                        + "  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,\n"
-                        + "  PRIMARY KEY (id) NOT ENFORCED\n"
-                        + ")\n"
-                        + "WITH ('connector' = 'datagen', 'rows-per-second' = '1')");
+        tEnv.createTable(
+                "constrained_source",
+                TableDescriptor.forConnector("datagen")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("id", DataTypes.BIGINT().notNull())
+                                        .column("ts", DataTypes.TIMESTAMP(3))
+                                        .columnByExpression("next_id", $("id").plus(1))
+                                        .watermark("ts", $("ts").minus(lit(1).seconds()))
+                                        .primaryKey("id")
+                                        .build())
+                        .option("rows-per-second", "1")
+                        .build());
 
         tEnv.from("constrained_source").materializeInto("users_shops").execute();
 
@@ -793,7 +791,12 @@ class MaterializedTableTableApiITCase {
         defaultEnv.useCatalog(CATALOG);
         defaultEnv.useDatabase(DATABASE);
 
-        assertThatThrownBy(() -> defaultEnv.executeSql(USERS_SHOPS_DDL))
+        assertThatThrownBy(
+                        () ->
+                                defaultEnv
+                                        .from("datagenSource")
+                                        .materializeInto("users_shops")
+                                        .execute())
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Unsupported execution target detected: local");
 
@@ -920,20 +923,19 @@ class MaterializedTableTableApiITCase {
     }
 
     private void createBoundedValuesSource(List<Row> data) {
-        tEnv.executeSql(
-                String.format(
-                        "CREATE TABLE IF NOT EXISTS my_source (\n"
-                                + "  order_id BIGINT,\n"
-                                + "  user_id BIGINT,\n"
-                                + "  shop_id BIGINT,\n"
-                                + "  order_created_at STRING\n"
-                                + ")\n"
-                                + "WITH (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'bounded' = 'true',\n"
-                                + "  'data-id' = '%s'\n"
-                                + ")",
-                        TestValuesTableFactory.registerData(data)));
+        tEnv.createTable(
+                "my_source",
+                TableDescriptor.forConnector("values")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("order_id", DataTypes.BIGINT())
+                                        .column("user_id", DataTypes.BIGINT())
+                                        .column("shop_id", DataTypes.BIGINT())
+                                        .column("order_created_at", DataTypes.STRING())
+                                        .build())
+                        .option("bounded", "true")
+                        .option("data-id", TestValuesTableFactory.registerData(data))
+                        .build());
     }
 
     private void setupSavepointDir(Path temporaryPath) {

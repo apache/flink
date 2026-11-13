@@ -117,7 +117,7 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
                 .build(
                         identifier,
                         Mode.CREATE_OR_ALTER,
-                        new QueryMaterializedTableMergeContext(
+                        new DescriptorMaterializedTableMergeContext(
                                 storedQueryOperation, serializedQuery, freshness));
     }
 
