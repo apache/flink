@@ -84,6 +84,9 @@ class AsyncDataStream(object):
                     AsyncFunctionDescriptor.OutputMode.UNORDERED),
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.PROCESS,  # type: ignore
                 output_type)
+        j_python_data_stream_function_operator = AsyncDataStream._to_thread_mode_operator(
+            data_stream, j_python_data_stream_function_operator, j_output_type_info,
+            timeout, capacity, ordered=False)
         return DataStream(data_stream._j_data_stream.transform(
             "async wait operator",
             j_output_type_info,
@@ -143,10 +146,41 @@ class AsyncDataStream(object):
                     AsyncFunctionDescriptor.OutputMode.ORDERED),
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.PROCESS,  # type: ignore
                 output_type)
+        j_python_data_stream_function_operator = AsyncDataStream._to_thread_mode_operator(
+            data_stream, j_python_data_stream_function_operator, j_output_type_info,
+            timeout, capacity, ordered=True)
         return DataStream(data_stream._j_data_stream.transform(
             "async wait operator",
             j_output_type_info,
             j_python_data_stream_function_operator))
+
+    @staticmethod
+    def _is_thread_mode(data_stream: DataStream) -> bool:
+        gateway = get_gateway()
+        j_conf = get_j_env_configuration(data_stream._j_data_stream.getExecutionEnvironment())
+        python_execution_mode = (
+            j_conf.get(gateway.jvm.org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE))
+        return python_execution_mode == 'thread'
+
+    @staticmethod
+    def _to_thread_mode_operator(data_stream: DataStream, j_operator, j_output_type_info,
+                                 timeout: Time, capacity: int, ordered: bool):
+        """
+        In thread mode, replaces the embedded process operator with the embedded async wait
+        operator, which keeps the Python configuration and function of the original operator.
+        """
+        if not AsyncDataStream._is_thread_mode(data_stream):
+            return j_operator
+        embedded = get_gateway().jvm.org.apache.flink.streaming.api.operators.python.embedded
+        return embedded.EmbeddedPythonAsyncWaitOperatorFactory(
+            embedded.EmbeddedPythonAsyncWaitOperator(
+                j_operator.getConfiguration(),
+                j_operator.getPythonFunctionInfo(),
+                data_stream._j_data_stream.getTransformation().getOutputType(),
+                j_output_type_info,
+                capacity,
+                timeout.to_milliseconds(),
+                ordered))
 
     @staticmethod
     def _validate(data_stream: DataStream, async_function: AsyncFunction,
@@ -164,9 +198,6 @@ class AsyncDataStream(object):
             raise Exception("Retry predicate of the async retry strategy '%s' is None."
                             % type(async_retry_strategy))
 
-        gateway = get_gateway()
-        j_conf = get_j_env_configuration(data_stream._j_data_stream.getExecutionEnvironment())
-        python_execution_mode = (
-            j_conf.get(gateway.jvm.org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE))
-        if python_execution_mode == 'thread':
-            raise Exception("AsyncFunction is still not supported for 'thread' mode.")
+        if (async_retry_strategy != async_retry_strategies.NO_RETRY_STRATEGY and
+                AsyncDataStream._is_thread_mode(data_stream)):
+            raise Exception("AsyncFunction with retry is still not supported for 'thread' mode.")
