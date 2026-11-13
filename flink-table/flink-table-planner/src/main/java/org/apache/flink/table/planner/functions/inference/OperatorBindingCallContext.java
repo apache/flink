@@ -134,6 +134,11 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     }
 
     @Override
+    public boolean isArgumentDefault(int pos) {
+        return isRexCallOfKind(pos, SqlKind.DEFAULT);
+    }
+
+    @Override
     public boolean isArgumentLiteral(int pos) {
         // Semantically a descriptor can be considered a literal,
         // however, Calcite represents them as a call
@@ -143,9 +148,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     @Override
     public boolean isArgumentNull(int pos) {
         // Default values are passed as NULL into functions.
-        // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
-        // information is required.
-        return binding.isOperandNull(pos, true) || isDefault(pos);
+        return binding.isOperandNull(pos, true) || isArgumentDefault(pos);
     }
 
     @Override
@@ -239,10 +242,6 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             return operand.getKind() == kind;
         }
         return false;
-    }
-
-    private boolean isDefault(int pos) {
-        return isRexCallOfKind(pos, SqlKind.DEFAULT);
     }
 
     private @Nullable RexTableArgCall getTableArgCall(int pos) {
