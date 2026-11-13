@@ -36,7 +36,7 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,9 +51,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link ExecutionVertex}. */
 class ExecutionVertexTest {
 
+    /**
+     * Future executor that runs the deployment callbacks inline on the test thread instead of
+     * racing it from another thread (FLINK-40655).
+     */
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
+    static final TestExecutorExtension<DirectScheduledExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorExtension<>(DirectScheduledExecutorService::new);
 
     @Test
     void testResetForNewExecutionReleasesPartitions() throws Exception {
