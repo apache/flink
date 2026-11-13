@@ -18,7 +18,8 @@ under the License.
 */}}
 {{/*
   Lists all built-in functions in alphabetical order, followed by the operators and special forms,
-  and the Table API-only functions. Each entry links to the category page that shows it.
+  and the Table API-only functions. Each entry links to its function page if its row has a "page",
+  else to the category page that shows it.
 
   A category's "sqlFunctions" names one sql_functions.yml key or a list of keys. A page with
   "markdownFunctions: true" also lists the functions of its Markdown tables, whose rows start
@@ -45,6 +46,11 @@ under the License.
   {{ with index .Params "sqlfunctions" }}
     {{ range $key := cond (reflect.IsSlice .) . (slice .) }}
       {{ range index $yml $key }}
+        {{/* A row with "page" links to that function page instead of the category page. */}}
+        {{ $link := $category.RelPermalink }}
+        {{ with .page }}
+          {{ $link = ($category.GetPage .).RelPermalink }}
+        {{ end }}
         {{ $sql := trim (.sql | default "") " \n" }}
         {{ if $sql }}
           {{ $names := slice }}
@@ -58,15 +64,15 @@ under the License.
             {{ end }}
           {{ end }}
           {{ range $names }}
-            {{ $functions = $functions | append (dict "name" . "link" $category.RelPermalink "category" $category.LinkTitle "key" (print . " " $category.RelPermalink)) }}
+            {{ $functions = $functions | append (dict "name" . "link" $link "category" $category.LinkTitle "key" (print . " " $link)) }}
           {{ else }}
             {{ $label := replace (trim (index (split $sql "\n") 0) " ") "**" "" }}
-            {{ $operators = $operators | append (dict "name" $label "link" $category.RelPermalink) }}
+            {{ $operators = $operators | append (dict "name" $label "link" $link) }}
           {{ end }}
         {{ else }}
           {{ with trim (.table | default "") " \n" }}
             {{ $label := replace (trim (index (split . "\n") 0) " ") "**" "" }}
-            {{ $tableOnly = $tableOnly | append (dict "name" $label "link" $category.RelPermalink) }}
+            {{ $tableOnly = $tableOnly | append (dict "name" $label "link" $link) }}
           {{ end }}
         {{ end }}
       {{ end }}

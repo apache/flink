@@ -1,0 +1,89 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TYPEOF
+summary: Returns the data type of an expression as a string.
+
+syntax:
+  sql: TYPEOF(input [, force_serializable])
+  java: |
+    call("TYPEOF", $("input"))
+    call("TYPEOF", $("input"), true)
+  python: |
+    call("TYPEOF", col("input"))
+    call("TYPEOF", col("input"), True)
+
+arguments:
+  - name: input
+    type: Any type
+    required: true
+    description: The expression whose type to return.
+  - name: force_serializable
+    type: BOOLEAN literal
+    required: false
+    default: "`FALSE`"
+    description: "`TRUE` returns the full string that can be parsed back into the type, instead of the short one."
+
+returns:
+  description: The data type of `input`, including `NOT NULL` for a type that can't be NULL.
+  nulls: Returns NULL if `force_serializable` is `TRUE` and the type has no serializable string, such as `CHAR(0)`, the type of the literal `''`.
+  type: "`STRING`, nullable."
+
+notes:
+  - The type is computed when the statement is planned, so every row gets the same string.
+  - "`TYPEOF(NULL)` returns the string `'NULL'`, which a result table shows the same way as a SQL NULL."
+  - The short string can omit details that the serializable one keeps, such as `STRING` for `VARCHAR(2147483647)`.
+
+see_also:
+  - {name: CAST, ref: cast/cast}
+
+examples:
+  - title: Types of literals
+    description: "A literal is NOT NULL:"
+    sql: |
+      SELECT
+        TYPEOF(42) AS int_literal,
+        TYPEOF('abc') AS string_literal,
+        TYPEOF(1.5) AS decimal_literal,
+        TYPEOF(DATE '2026-01-01') AS date_literal;
+    result: |
+      | int_literal  | string_literal   | decimal_literal        | date_literal  |
+      |--------------|------------------|------------------------|---------------|
+      | INT NOT NULL | CHAR(3) NOT NULL | DECIMAL(2, 1) NOT NULL | DATE NOT NULL |
+
+  - title: Columns and aggregates
+    description: "Return the types of a column and of two aggregates:"
+    sql: |
+      SELECT TYPEOF(name) AS name_type, TYPEOF(MAX(score)) AS max_type, TYPEOF(COUNT(*)) AS count_type
+      FROM (VALUES ('Alice', 10), ('Bob', 20)) AS t(name, score)
+      GROUP BY name;
+    result: |
+      | name_type           | max_type     | count_type      |
+      |---------------------|--------------|-----------------|
+      | VARCHAR(5) NOT NULL | INT NOT NULL | BIGINT NOT NULL |
+      | VARCHAR(5) NOT NULL | INT NOT NULL | BIGINT NOT NULL |
+
+  - title: The short and the serializable string
+    description: "With `force_serializable`, the string spells out the full type:"
+    sql: |
+      SELECT
+        TYPEOF(CAST('a' AS STRING)) AS short_string,
+        TYPEOF(CAST('a' AS STRING), TRUE) AS serializable;
+    result: |
+      | short_string    | serializable                 |
+      |-----------------|------------------------------|
+      | STRING NOT NULL | VARCHAR(2147483647) NOT NULL |

@@ -1,0 +1,92 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP_INSTR
+summary: Returns the position of the first match of a Java regular expression in a string.
+
+syntax:
+  sql: REGEXP_INSTR(str, regex)
+  java: $("str").regexpInstr(regex)
+  python: col("str").regexp_instr(regex)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+
+returns:
+  description: The position in `str` where the first match of `regex` starts, counting from 1. `0` if `regex` doesn't match.
+  nulls: Returns NULL if any argument is NULL or if `regex` doesn't compile.
+  type: "`INT`, nullable."
+
+notes:
+  - Positions count UTF-16 code units, so a character outside the Basic Multilingual Plane, such as an emoji, counts as 2. `POSITION` counts it as 1.
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A `regex` that doesn't compile returns NULL, even a literal one.
+
+see_also:
+  - {name: REGEXP_SUBSTR, ref: regular-expressions/regexp-substr}
+  - {name: REGEXP_COUNT, ref: regular-expressions/regexp-count}
+  - {name: POSITION, ref: string-and-binary}
+
+examples:
+  - title: Find the first match
+    description: "Return where the first number starts:"
+    sql: |
+      SELECT REGEXP_INSTR('order 17, refund 4', '\d+') AS first_number;
+    result: |
+      | first_number |
+      |--------------|
+      | 7            |
+
+  - title: No match or an invalid regular expression
+    description: "A regex that doesn't match returns `0`. A regex that doesn't compile returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_INSTR('order', '\d') AS no_match,
+        REGEXP_INSTR('order', '(') AS invalid_regex;
+    result: |
+      | no_match | invalid_regex |
+      |----------|---------------|
+      | 0        | NULL          |
+
+  - title: Characters outside the Basic Multilingual Plane
+    description: "The emoji counts as two positions in `REGEXP_INSTR` and as one in `POSITION`:"
+    sql: |
+      SELECT
+        REGEXP_INSTR('😀ab', 'a') AS regexp_pos,
+        POSITION('a' IN '😀ab') AS char_pos;
+    result: |
+      | regexp_pos | char_pos |
+      |------------|----------|
+      | 3          | 2        |
+
+  - title: NULL arguments
+    description: "A NULL argument returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_INSTR(CAST(NULL AS STRING), '\d') AS null_str,
+        REGEXP_INSTR('order 17', CAST(NULL AS STRING)) AS null_regex;
+    result: |
+      | null_str | null_regex |
+      |----------|------------|
+      | NULL     | NULL       |

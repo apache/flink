@@ -2,6 +2,7 @@
 title: "Cast"
 weight: 4
 type: docs
+bookCollapseSection: true
 sqlFunctions: conversion
 ---
 <!--

@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: UUID_V7
+summary: Returns a version 7 UUID, which starts with the current time.
+
+syntax:
+  sql: UUID_V7()
+  java: uuidV7()
+  python: uuid_v7()
+
+returns:
+  description: A new RFC 9562 version 7 UUID. Its first 48 bits are the Unix time in milliseconds when the row is evaluated, and the remaining bits are random apart from the version and variant bits.
+  type: "`UUID NOT NULL`."
+
+notes:
+  - The time is the wall clock of the machine that evaluates the row. It isn't the event time of the row, nor the start of the query.
+  - Values sort by time only to the millisecond. Values generated within the same millisecond are in random order.
+  - The function returns a new value for every call and every row. To use one value twice, compute it in a subquery.
+
+see_also:
+  - {name: UUID_V4, ref: utility/uuid-v4}
+  - {name: UUID, ref: utility/uuid}
+
+examples:
+  - title: The type and the version
+    description: "The 15th character of the text is the version:"
+    sql: |
+      SELECT
+        TYPEOF(UUID_V7()) AS result_type,
+        SUBSTRING(CAST(UUID_V7() AS STRING), 15, 1) AS version;
+    result: |
+      | result_type   | version |
+      |---------------|---------|
+      | UUID NOT NULL | 7       |
+
+  - title: A new value for every row
+    description: "Four rows get four different values:"
+    sql: |
+      SELECT COUNT(DISTINCT CAST(id AS STRING)) AS distinct_ids, COUNT(*) AS row_count
+      FROM (SELECT UUID_V7() AS id FROM (VALUES (1), (2), (3), (4)) AS t(x));
+    result: |
+      | distinct_ids | row_count |
+      |--------------|-----------|
+      | 4            | 4         |

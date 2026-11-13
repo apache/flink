@@ -1,0 +1,92 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP_COUNT
+summary: Returns how many times a Java regular expression matches in a string.
+
+syntax:
+  sql: REGEXP_COUNT(str, regex)
+  java: $("str").regexpCount(regex)
+  python: col("str").regexp_count(regex)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+
+returns:
+  description: The number of matches of `regex` in `str`. `0` if `regex` doesn't match.
+  nulls: Returns NULL if any argument is NULL or if `regex` doesn't compile.
+  type: "`INT`, nullable."
+
+notes:
+  - Each match starts after the end of the previous one, so matches don't overlap. `REGEXP_COUNT('aaa', 'aa')` returns `1`.
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A `regex` that doesn't compile returns NULL, even a literal one.
+
+see_also:
+  - {name: REGEXP, ref: regular-expressions/regexp}
+  - {name: REGEXP_EXTRACT_ALL, ref: regular-expressions/regexp-extract-all}
+  - {name: REGEXP_INSTR, ref: regular-expressions/regexp-instr}
+
+examples:
+  - title: Count the matches
+    description: "Count the numbers in a string:"
+    sql: |
+      SELECT REGEXP_COUNT('3 apples, 12 pears, 1 plum', '\d+') AS numbers;
+    result: |
+      | numbers |
+      |---------|
+      | 3       |
+
+  - title: Matches don't overlap
+    description: "After a match, the search continues at its end:"
+    sql: |
+      SELECT
+        REGEXP_COUNT('aaaa', 'aa') AS pairs,
+        REGEXP_COUNT('aaa', 'aa') AS odd_length;
+    result: |
+      | pairs | odd_length |
+      |-------|------------|
+      | 2     | 1          |
+
+  - title: No match or an invalid regular expression
+    description: "A regex that doesn't match returns `0`. A regex that doesn't compile returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_COUNT('foobar', '\d') AS no_match,
+        REGEXP_COUNT('foobar', '(') AS invalid_regex;
+    result: |
+      | no_match | invalid_regex |
+      |----------|---------------|
+      | 0        | NULL          |
+
+  - title: NULL arguments
+    description: "A NULL argument returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_COUNT(CAST(NULL AS STRING), 'a') AS null_str,
+        REGEXP_COUNT('banana', CAST(NULL AS STRING)) AS null_regex;
+    result: |
+      | null_str | null_regex |
+      |----------|------------|
+      | NULL     | NULL       |

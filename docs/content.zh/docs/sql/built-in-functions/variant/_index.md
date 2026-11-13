@@ -2,6 +2,7 @@
 title: "Variant"
 weight: 17
 type: docs
+bookCollapseSection: true
 sqlFunctions: variant
 ---
 <!--

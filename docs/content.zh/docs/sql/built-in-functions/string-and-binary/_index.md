@@ -2,6 +2,7 @@
 title: "String & Binary"
 weight: 15
 type: docs
+bookCollapseSection: true
 sqlFunctions: string
 ---
 <!--

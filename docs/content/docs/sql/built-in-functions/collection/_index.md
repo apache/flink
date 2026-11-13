@@ -2,6 +2,7 @@
 title: "Collection"
 weight: 5
 type: docs
+bookCollapseSection: true
 sqlFunctions: collection
 markdownFunctions: true
 ---

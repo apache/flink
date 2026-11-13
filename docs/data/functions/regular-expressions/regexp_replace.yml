@@ -1,0 +1,106 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP_REPLACE
+summary: Replaces every match of a Java regular expression in a string.
+
+syntax:
+  sql: REGEXP_REPLACE(str, regex, replacement)
+  java: $("str").regexpReplace(regex, replacement)
+  python: col("str").regexp_replace(regex, replacement)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+  - name: replacement
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The text that replaces each match. It is inserted as written.
+
+returns:
+  description: "`str` with every match of `regex` replaced by `replacement`. `str` unchanged if `regex` doesn't match."
+  nulls: Returns NULL if any argument is NULL, or if a `regex` that isn't a literal doesn't compile.
+  type: "`STRING`, nullable."
+
+notes:
+  - "`replacement` can't refer to groups. `$` and `\\` have no special meaning in it, so `$1` inserts the two characters `$1`."
+  - Each match starts after the end of the previous one, so matches don't overlap.
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A literal `regex` that doesn't compile fails the statement at planning time. For any other `regex`, such as a column, the function returns NULL if it doesn't compile, and the job keeps running.
+
+see_also:
+  - {name: REPLACE, ref: string-and-binary}
+  - {name: TRANSLATE, ref: string-and-binary}
+  - {name: REGEXP_EXTRACT, ref: regular-expressions/regexp-extract}
+
+examples:
+  - title: Replace every match
+    description: "Remove both matches of the regex:"
+    sql: |
+      SELECT REGEXP_REPLACE('foobar', 'oo|ar', '') AS replaced;
+    result: |
+      | replaced |
+      |----------|
+      | fb       |
+
+  - title: Mask a value in each row
+    description: "Replace every digit with `*`:"
+    sql: |
+      SELECT card, REGEXP_REPLACE(card, '\d', '*') AS masked
+      FROM (VALUES ('1234-5678'), ('no card')) AS t(card);
+    result: |
+      | card      | masked    |
+      |-----------|-----------|
+      | 1234-5678 | ****-**** |
+      | no card   | no card   |
+
+  - title: The replacement is inserted as written
+    description: "`$1` in the replacement doesn't refer to a group:"
+    sql: |
+      SELECT REGEXP_REPLACE('2024-01-15', '(\d+)-(\d+)-(\d+)', '$3.$2.$1') AS replaced;
+    result: |
+      | replaced |
+      |----------|
+      | $3.$2.$1 |
+
+  - title: NULL arguments
+    description: "A NULL argument returns NULL:"
+    sql: |
+      SELECT
+        REGEXP_REPLACE(CAST(NULL AS STRING), 'o', '0') AS null_str,
+        REGEXP_REPLACE('foobar', CAST(NULL AS STRING), '0') AS null_regex,
+        REGEXP_REPLACE('foobar', 'o', CAST(NULL AS STRING)) AS null_replacement;
+    result: |
+      | null_str | null_regex | null_replacement |
+      |----------|------------|------------------|
+      | NULL     | NULL       | NULL             |
+
+  - title: An invalid regular expression from a column
+    description: "The same regex read from a column returns NULL, and the query keeps running:"
+    sql: |
+      SELECT REGEXP_REPLACE(str, re, '0') AS replaced
+      FROM (VALUES ('foobar', '(')) AS t(str, re);
+    result: |
+      | replaced |
+      |----------|
+      | NULL     |

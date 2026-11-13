@@ -510,76 +510,25 @@ string:
 regex:
   - sql: REGEXP(str, regex)
     table: str.regexp(regex)
-    description: |
-      Returns `TRUE` if any substring of str matches the Java regular expression regex, otherwise `FALSE`.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime, or an empty regex, makes the function return `FALSE` rather than `NULL`.
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-
-      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
+    page: regexp
   - sql: REGEXP_COUNT(str, regex)
     table: str.regexpCount(regex)
-    description: |
-      Returns the number of times str matches the regex pattern. regex must be a Java regular expression.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      Returns an `INTEGER` representation of the number of matches. `NULL` if any of the arguments are `NULL` or regex is invalid.
+    page: regexp-count
   - sql: REGEXP_EXTRACT(str, regex[, extractIndex])
     table: str.regexpExtract(regex[, extractIndex])
-    description: |
-      Returns the substring in str captured by the group at position extractIndex of the Java regular expression regex.
-
-      extractIndex starts from 1, and 0 means matching the whole regex. It defaults to 0 when not specified and must not exceed the number of capturing groups in regex.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
-
-      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2) returns "bar".
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <INTEGER>`
-
-      Returns a `STRING` representation of the captured substring. `NULL` if any of the arguments are `NULL`, if extractIndex exceeds the number of capturing groups, if there is no match, or if a non-literal regex is invalid.
+    page: regexp-extract
   - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
     table: str.regexpExtractAll(regex[, extractIndex])
-    description: |
-      Extracts all the substrings in str that match the regex expression and correspond to the regex group extractIndex.
-      
-      regex may contain multiple groups. extractIndex indicates which regex group to extract and starts from 1, also the default value if not specified. 0 means matching the entire regular expression.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
-      
-      Returns an `ARRAY<STRING>` representation of all the matched substrings. `NULL` if any of the arguments are `NULL` or invalid.
+    page: regexp-extract-all
   - sql: REGEXP_INSTR(str, regex)
     table: str.regexpInstr(regex)
-    description: |
-      Returns the position of the first substring in str that matches regex.
-      
-      Result indexes begin at 1, 0 if there is no match.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      Returns an `INTEGER` representation of the first matched substring index. `NULL` if any of the arguments are `NULL` or regex is invalid.
+    page: regexp-instr
   - sql: REGEXP_REPLACE(str, regex, replacement)
     table: str.regexpReplace(regex, replacement)
-    description: |
-      Returns a version of str with every substring that matches the Java regular expression regex replaced by replacement.
-
-      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
-
-      E.g. REGEXP_REPLACE('foobar', 'oo|ar', '') returns "fb".
-
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, replacement <CHAR | VARCHAR>`
-
-      Returns a `STRING`. `NULL` if any of the arguments are `NULL`, or if a non-literal regex is invalid.
+    page: regexp-replace
   - sql: REGEXP_SUBSTR(str, regex)
     table: str.regexpSubstr(regex)
-    description: |
-      Returns the first substring in str that matches regex.
-      
-      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
-      
-      Returns an `STRING` representation of the first matched substring. `NULL` if any of the arguments are `NULL` or regex is invalid or pattern is not found.
+    page: regexp-substr
 
 temporal:
   - sql: DATE string
@@ -790,58 +739,37 @@ conditional:
         (WHEN value2_1 [, value2_2 ]* THEN result_2)*
         (ELSE result_z)
       END
-    description: Returns resultX when the first time value is contained in (valueX_1, valueX_2, ...). When no value matches, returns result_z if it is provided and returns NULL otherwise.
+    page: case
   - sql: |
       CASE 
         WHEN condition1 THEN result1
         (WHEN condition2 THEN result2)*
         (ELSE result_z)
       END
-    description: Returns resultX when the first conditionX is met. When no condition is met, returns result_z if it is provided and returns NULL otherwise.
-  - sql: NULLIF(value1, value2)
-    description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
+    page: case
   - sql: COALESCE(value1 [, value2]*)
-    table: coalesce(value1, [, value2]*)
-    description: |
-      Returns the first argument that is not NULL.
-
-      If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
-      The return type is nullable if all arguments are nullable as well.
-
-      ```sql
-      -- Returns 'default'
-      COALESCE(NULL, 'default')
-
-      -- Returns the first non-null value among f0 and f1,
-      -- or 'default' if f0 and f1 are both NULL
-      COALESCE(f0, f1, 'default')
-      ```
+    table: coalesce(value1 [, value2]*)
+    page: coalesce
+  - sql: GREATEST(value1[, value2]*)
+    page: greatest
   - sql: IF(condition, true_value, false_value)
-    description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
+    table: BOOLEAN.then(VALUE1, VALUE2)
+    page: if
   - sql: IFNULL(input, null_replacement)
     table: input.ifNull(nullReplacement)
-    description: |
-      Returns null_replacement if input is NULL; otherwise input is returned. 
-
-      Compared to COALESCE or CASE WHEN, this function returns a data type that is very specific in terms of nullability. The returned type is the common type of both arguments but only nullable if the null_replacement is nullable.
-
-      The function allows to pass nullable columns into a function or table that is declared with a NOT NULL constraint.
-
-      E.g., IFNULL(nullable_column, 5) returns never NULL.
-  - table: BOOLEAN.?(VALUE1, VALUE2)
-    description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
-  - sql: GREATEST(value1[, value2]*)
-    description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
+    page: ifnull
   - sql: LEAST(value1[, value2]*)
-    description: Returns the least value of the list of arguments. Returns NULL if any argument is NULL.
+    page: least
+  - sql: NULLIF(value1, value2)
+    page: nullif
 
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
-    description: Returns a new value being cast to type type. A CAST error throws an exception and fails the job. When performing a cast operation that may fail, like STRING to INT, one should rather use TRY_CAST, in order to handle errors. If "table.exec.legacy-cast-behaviour" is enabled, CAST behaves like TRY_CAST. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS STRING) returns NULL of type STRING; CAST('non-number' AS INT) throws an exception and fails the job. The result is nullable if the input may be null. In the Table API, the top-level nullability of TYPE is ignored, while the nullability of nested types, such as the element type of an array, is taken from TYPE. Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character U+FFFD for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
+    page: cast
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
-    description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., TRY_CAST('42' AS INT) returns 42; TRY_CAST(NULL AS STRING) returns NULL of type STRING; TRY_CAST('non-number' AS INT) returns NULL of type INT; COALESCE(TRY_CAST('non-number' AS INT), 0) returns 0 of type INT.
+    page: try-cast
 
 collection:
   - sql: ARRAY '[' value1 [, value2 ]* ']'
@@ -1840,29 +1768,26 @@ aggregate:
       Returns a `DOUBLE` if percentage is numeric, or an `ARRAY<DOUBLE>` if percentage is an array. `NULL` if percentage is an empty array.
 
 window:
-  - sql: RANK()
-    description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
+  - sql: CUME_DIST()
+    page: cume-dist
   - sql: DENSE_RANK()
-    description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
-  - sql: ROW_NUMBER()
-    description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
-  - sql: LEAD(expression [, offset] [, default])
-    table: lead(expression [, offset] [, default])
-    description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
+    page: dense-rank
   - sql: LAG(expression [, offset] [, default])
     table: lag(expression [, offset] [, default])
-    description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
-  - sql: CUME_DIST()
-    description: Return the cumulative distribution of a value in a group of values. The result is the number of rows preceding or equal to the current row in the ordering of the partition divided by the number of rows in the window partition.
-  - sql: PERCENT_RANK()
-    description: Return the percentage ranking of a value in a group of values. The result is the rank value minus one, divided by the number of rows in the partition minus one. If the partition only contains one row, the function will return 0.
+    page: lag
+  - sql: LEAD(expression [, offset] [, default])
+    table: lead(expression [, offset] [, default])
+    page: lead
   - sql: NTILE(n)
-    description: |
-      Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
-      If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
-      For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
-  - table: NUMERIC.rows
-    description: Creates a NUMERIC interval of rows (commonly used in window creation).
+    page: ntile
+  - sql: PERCENT_RANK()
+    page: percent-rank
+  - sql: RANK()
+    page: rank
+  - sql: ROW_NUMBER()
+    page: row-number
+  - table: rowInterval(LONG)
+    page: row-interval
 
 bitmapagg:
   - sql: BITMAP_AND_AGG(bitmap)
@@ -1939,45 +1864,29 @@ bitmapagg:
       Returns a `BIGINT`.
 
 utility:
+  - table: ANY.as(NAME1, NAME2, ...)
+    page: as
+  - table: callSql(STRING)
+    page: call-sql
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
-    description: Return the current database.
-
+    page: current-database
+  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
+    table: descriptor(STRING1, STRING2, ...)
+    page: descriptor
   - sql: |
       TYPEOF(input)
       TYPEOF(input, force_serializable)
     table: |
       call("TYPEOF", input)
       call("TYPEOF", input, force_serializable)
-    description: Returns the string representation of the input expression's data type. By default, the returned string is a summary string that might omit certain details for readability. If force_serializable is set to TRUE, the string represents a full data type that could be persisted in a catalog. Note that especially anonymous, inline data types have no serializable string representation. In this case, NULL is returned.
+    page: typeof
   - sql: UUID()
     table: uuid()
-    description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 9562 version 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
+    page: uuid
   - sql: UUID_V4()
     table: uuidV4()
-    description: Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a cryptographically strong pseudo random number generator. Compared to UUID(), this function returns a value of the UUID data type.
+    page: uuid-v4
   - sql: UUID_V7()
     table: uuidV7()
-    description: Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp and a random component. Compared to UUID(), this function returns a value of the UUID data type.
-  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
-    table: descriptor(STRING1, STRING2, ...)
-    description: |
-      Returns a literal describing an arbitrary, unvalidated list of column names. Passing a list of columns
-      can be useful for parameterizing a function. In particular, it enables declaring the `on_time` argument
-      for process table functions (PTFs).
-
-      ```sql
-      f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
-      ```
-  - table: callSql(STRING)
-    description: |
-      A call to a SQL expression.
-
-      The given string is parsed and translated into a Table API expression during planning. Only the translated expression is evaluated during runtime.
-
-      Currently, calls are limited to simple scalar expressions. Calls to aggregate or table-valued functions are not supported. Sub-queries are also not allowed.
-
-      E.g. table.select(callSql("UPPER(myColumn)").substring(3))
-
-  - table: ANY.as(NAME1, NAME2, ...)
-    description: Specifies a name for ANY (a field). Additional names can be specified if the expression expands to multiple fields.
+    page: uuid-v7

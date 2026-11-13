@@ -2,6 +2,7 @@
 title: "集合"
 weight: 5
 type: docs
+bookCollapseSection: true
 sqlFunctions: collection
 markdownFunctions: true
 ---

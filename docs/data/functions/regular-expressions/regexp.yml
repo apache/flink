@@ -1,0 +1,95 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP
+summary: Returns whether a string contains a match for a Java regular expression.
+
+syntax:
+  sql: REGEXP(str, regex)
+  java: $("str").regexp(regex)
+  python: col("str").regexp(regex)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+
+returns:
+  description: "`TRUE` if `regex` matches somewhere in `str`, `FALSE` if it doesn't."
+  nulls: Returns NULL if any argument is NULL.
+  type: "`BOOLEAN`, NOT NULL if both arguments are NOT NULL."
+
+notes:
+  - "`regex` can match anywhere in `str`. To match the whole string, anchor it with `^` and `\\z`. `$` also matches before a line break at the end of `str`."
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A literal `regex` that doesn't compile fails the statement at planning time. For any other `regex`, such as a column, the function returns `FALSE` if it doesn't compile, and the job keeps running.
+
+see_also:
+  - {name: REGEXP_COUNT, ref: regular-expressions/regexp-count}
+  - {name: REGEXP_INSTR, ref: regular-expressions/regexp-instr}
+  - {name: REGEXP_SUBSTR, ref: regular-expressions/regexp-substr}
+  - {name: LIKE, ref: comparison}
+  - {name: SIMILAR TO, ref: comparison}
+
+examples:
+  - title: Test a string for a match
+    description: "The first regex matches in the middle of the string. The second one is anchored to the start and doesn't match:"
+    sql: |
+      SELECT
+        REGEXP('foobar', 'o+b') AS has_ob,
+        REGEXP('foobar', '^bar') AS starts_with_bar;
+    result: |
+      | has_ob | starts_with_bar |
+      |--------|-----------------|
+      | TRUE   | FALSE           |
+
+  - title: Filter rows
+    description: "Keep the IDs that consist of `order-` and a number:"
+    sql: |
+      SELECT id
+      FROM (VALUES ('order-17'), ('refund-2'), ('order-4x')) AS t(id)
+      WHERE REGEXP(id, '^order-\d+$');
+    result: |
+      | id       |
+      |----------|
+      | order-17 |
+
+  - title: NULL arguments
+    description: "A NULL argument returns NULL:"
+    sql: |
+      SELECT
+        REGEXP(CAST(NULL AS STRING), 'o+b') AS null_str,
+        REGEXP('foobar', CAST(NULL AS STRING)) AS null_regex;
+    result: |
+      | null_str | null_regex |
+      |----------|------------|
+      | NULL     | NULL       |
+
+  - title: An invalid regular expression from a column
+    description: "The same regex read from a column returns `FALSE`, and the query keeps running:"
+    sql: |
+      SELECT REGEXP(str, re) AS matched
+      FROM (VALUES ('foobar', '(')) AS t(str, re);
+    result: |
+      | matched |
+      |---------|
+      | FALSE   |

@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: UUID
+summary: Returns a random version 4 UUID as a string.
+
+syntax:
+  sql: UUID()
+  java: uuid()
+  python: uuid()
+
+returns:
+  description: A new random RFC 9562 version 4 UUID, written as 36 characters, such as `3d3c68f7-f608-473f-b60c-b0c44ad4cc4e`.
+  type: "`CHAR(36) NOT NULL`."
+
+notes:
+  - The function returns a new value for every call and every row. To use one value twice, compute it in a subquery.
+  - The result is a string. To get a value of the `UUID` type, use `UUID_V4`, or cast the string with `CAST(UUID() AS UUID)`.
+
+see_also:
+  - {name: UUID_V4, ref: utility/uuid-v4}
+  - {name: UUID_V7, ref: utility/uuid-v7}
+
+examples:
+  - title: The shape of the result
+    description: "The 15th character is the version:"
+    sql: |
+      SELECT
+        CHAR_LENGTH(UUID()) AS len,
+        SUBSTRING(UUID(), 15, 1) AS version,
+        TYPEOF(UUID()) AS result_type;
+    result: |
+      | len | version | result_type       |
+      |-----|---------|-------------------|
+      | 36  | 4       | CHAR(36) NOT NULL |
+
+  - title: A new value for every row
+    description: "Four rows get four different values:"
+    sql: |
+      SELECT COUNT(DISTINCT id) AS distinct_ids, COUNT(*) AS row_count
+      FROM (SELECT UUID() AS id FROM (VALUES (1), (2), (3), (4)) AS t(x));
+    result: |
+      | distinct_ids | row_count |
+      |--------------|-----------|
+      | 4            | 4         |

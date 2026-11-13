@@ -1,0 +1,58 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: DESCRIPTOR
+summary: Passes a list of column names to a table function.
+
+syntax:
+  sql: DESCRIPTOR(column1 [, column2]*)
+  java: descriptor("column1", "column2")
+
+arguments:
+  - name: column1, column2, ...
+    type: Identifier
+    required: true
+    description: The column names, written as simple identifiers. A string such as `'ts'` or a qualified name such as `t.ts` fails at planning time.
+
+returns:
+  description: A list of column names, which the table function reads when the statement is planned.
+  type: "`DESCRIPTOR`."
+
+notes:
+  - In SQL, `DESCRIPTOR` is allowed only as an argument of a table function, such as the time column of `TUMBLE`, `HOP`, `CUMULATE` and `SESSION`, the `op` column of `TO_CHANGELOG` and `FROM_CHANGELOG`, or the `on_time` argument of a process table function. Anywhere else the statement fails at planning time. In the Table API, any function with a `DESCRIPTOR` argument accepts it.
+  - The function that takes the descriptor decides what the names mean, whether the columns must exist and how many names it accepts.
+
+see_also:
+  - {name: TUMBLE, ref: window}
+  - {name: TO_CHANGELOG, ref: process-table-functions}
+
+examples:
+  - title: Name the time column of a window
+    description: "`TUMBLE` reads the time of each row from the column that the descriptor names. This query runs in batch mode. In streaming mode, the column must be a time attribute:"
+    sql: |
+      CREATE TEMPORARY VIEW bids AS SELECT * FROM (VALUES
+        (TIMESTAMP '2026-01-01 10:01:00', 4),
+        (TIMESTAMP '2026-01-01 10:07:00', 2),
+        (TIMESTAMP '2026-01-01 10:12:00', 5)) AS t(bidtime, price);
+      SELECT window_start, window_end, SUM(price) AS total
+      FROM TUMBLE(TABLE bids, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
+      GROUP BY window_start, window_end;
+    result: |
+      | window_start            | window_end              | total |
+      |-------------------------|-------------------------|-------|
+      | 2026-01-01 10:00:00.000 | 2026-01-01 10:10:00.000 | 6     |
+      | 2026-01-01 10:10:00.000 | 2026-01-01 10:20:00.000 | 5     |

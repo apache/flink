@@ -1,0 +1,80 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: COALESCE
+summary: Returns the first argument that isn't NULL.
+
+syntax:
+  sql: COALESCE(value1 [, value2]*)
+  java: coalesce($("value1"), $("value2"))
+  python: coalesce(col("value1"), col("value2"))
+
+arguments:
+  - name: value1, value2, ...
+    type: Any type. All arguments must have a common type
+    required: true
+    description: The values to check, in order.
+
+returns:
+  description: The first argument that isn't NULL.
+  nulls: Returns NULL if all arguments are NULL.
+  type: The common type of all arguments, such as `BIGINT` for `INT` and `BIGINT`. NOT NULL if any argument is NOT NULL.
+
+notes:
+  - The arguments are evaluated in order, and evaluation stops at the first one that isn't NULL.
+
+see_also:
+  - {name: IFNULL, ref: conditional/ifnull}
+  - {name: NULLIF, ref: conditional/nullif}
+  - {name: CASE, ref: conditional/case}
+
+examples:
+  - title: Replace NULL with a default
+    description: "Use `0` where the amount is missing:"
+    sql: |
+      SELECT id, COALESCE(amount, 0) AS amount
+      FROM (VALUES (1, 15), (2, CAST(NULL AS INT))) AS t(id, amount);
+    result: |
+      | id | amount |
+      |----|--------|
+      | 1  | 15     |
+      | 2  | 0      |
+
+  - title: Take the first value that is present
+    description: "Prefer the mobile number, then the office number:"
+    sql: |
+      SELECT id, COALESCE(mobile, office, 'unknown') AS phone
+      FROM (VALUES
+        (1, '555-0101', '555-0199'),
+        (2, CAST(NULL AS STRING), '555-0299'),
+        (3, CAST(NULL AS STRING), CAST(NULL AS STRING))) AS t(id, mobile, office);
+    result: |
+      | id | phone    |
+      |----|----------|
+      | 1  | 555-0101 |
+      | 2  | 555-0299 |
+      | 3  | unknown  |
+
+  - title: A NOT NULL default gives a NOT NULL result
+    description: "The column is nullable, but the default isn't:"
+    sql: |
+      SELECT TYPEOF(amount) AS column_type, TYPEOF(COALESCE(amount, 0)) AS result_type
+      FROM (VALUES (CAST(NULL AS INT))) AS t(amount);
+    result: |
+      | column_type | result_type  |
+      |-------------|--------------|
+      | INT         | INT NOT NULL |

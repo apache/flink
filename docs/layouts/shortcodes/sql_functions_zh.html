@@ -32,18 +32,57 @@ under the License.
     </tr>
   </thead>
   <tbody>
+        {{ $shown := slice }}
         {{ range $category }}
+            {{ $row := . }}
+            {{/* A row with "page" links to that function page and shows the summary from its data file. */}}
+            {{ $page := false }}
+            {{ with .page }}
+                {{ $page = $.Page.GetPage . }}
+                {{ if not $page }}
+                    {{ errorf "The %q functions table on %s names page %q, which does not exist." $name $.Page.File.Path . }}
+                {{ end }}
+            {{ end }}
+            {{/* Rows for two forms of one function, such as the two forms of CASE, link to the same page and show once. */}}
+            {{ if not (and $page (in $shown $page.RelPermalink)) }}
+            {{ with $page }}{{ $shown = $shown | append .RelPermalink }}{{ end }}
             <tr>
                 <td>
-                    {{ .sql | $.Page.RenderString | default "不适用" }}
+                    {{ if $page }}
+                        {{ if $row.sql }}<a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a>{{ else }}不适用{{ end }}
+                    {{ else }}
+                        {{ $row.sql | $.Page.RenderString | default "不适用" }}
+                    {{ end }}
                 </td>
                 <td>
-                    {{ .table | default "不适用" }}
+                    {{ if and $page $row.table }}
+                        {{/* The call without its arguments: coalesce() for a function, .ifNull() for a method of an expression. */}}
+                        {{ $call := index (split (trim $row.table " \n") "\n") 0 }}
+                        {{ $callName := "" }}
+                        {{ with findRESubmatch `^call\("([^"]+)"` $call }}
+                            {{ $callName = printf "call(%q)" (index (index . 0) 1) }}
+                        {{ else }}
+                            {{ $callName = index (split $call "(") 0 }}
+                            {{ $parts := split $callName "." }}
+                            {{ if gt (len $parts) 1 }}
+                                {{ $callName = printf ".%s" (index $parts (sub (len $parts) 1)) }}
+                            {{ end }}
+                            {{ $callName = printf "%s()" $callName }}
+                        {{ end }}
+                        {{ if $row.sql }}{{ $callName }}{{ else }}<a href="{{ $page.RelPermalink }}">{{ $callName }}</a>{{ end }}
+                    {{ else }}
+                        {{ $row.table | default "不适用" }}
+                    {{ end }}
                 </td>
                 <td>
-                    {{ .description | $.Page.RenderString }}
+                    {{ if $page }}
+                        {{ $page.Params.summary | $.Page.RenderString }}
+                    {{ else }}
+                        {{ $row.description | $.Page.RenderString }}
+                    {{ end }}
                 </td>
             </tr>
+            {{ end }}
         {{ end }}
   </tbody>
 </table>
