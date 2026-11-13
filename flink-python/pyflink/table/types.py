@@ -2187,14 +2187,18 @@ def _create_type_verifier(data_type: DataType, name: str = None):
     return verify
 
 
-def create_arrow_schema(field_names: List[str], field_types: List[DataType], *, allow_nested=False):
+def create_arrow_schema(field_names: List[str], field_types: List[DataType], *,
+                        allow_nested=False, allow_nested_rows=False):
     """
     Create an Arrow schema with the specified field names and types.
 
     By default, retain the nested-type restrictions of the pandas conversion path.
+    Set ``allow_nested`` to include nested rows and timestamps when converting empty tables.
+    Pandas conversion can set ``allow_nested_rows`` without enabling nested zoned timestamps.
     """
     import pyarrow as pa
-    fields = [pa.field(field_name, to_arrow_type(field_type, allow_nested=allow_nested),
+    fields = [pa.field(field_name, to_arrow_type(field_type, allow_nested=allow_nested,
+                                                 allow_nested_rows=allow_nested_rows),
                        field_type._nullable)
               for field_name, field_type in zip(field_names, field_types)]
     return pa.schema(fields)
@@ -2266,7 +2270,7 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
 
 
-def to_arrow_type(data_type: DataType, *, allow_nested=False):
+def to_arrow_type(data_type: DataType, *, allow_nested=False, allow_nested_rows=False):
     """
     Converts the specified Flink data type to pyarrow data type.
     """
@@ -2314,19 +2318,36 @@ def to_arrow_type(data_type: DataType, *, allow_nested=False):
         else:
             return pa.timestamp('ns')
     elif isinstance(data_type, MapType):
-        return pa.map_(to_arrow_type(data_type.key_type, allow_nested=allow_nested),
-                       to_arrow_type(data_type.value_type, allow_nested=allow_nested))
+        # Pandas conversion applies the session time zone to top level TIMESTAMP_LTZ columns only.
+        # With nested rows allowed, reject zoned timestamps in map keys and values like in array
+        # elements and row fields. Callers that do not allow nested rows keep their map handling.
+        if allow_nested_rows and not allow_nested:
+            for role, child_type in (('key', data_type.key_type), ('value', data_type.value_type)):
+                if type(child_type) == LocalZonedTimestampType:
+                    raise ValueError("%s is not supported to be used as the %s type of MapType." %
+                                     (child_type, role))
+        key_type = to_arrow_type(data_type.key_type, allow_nested=allow_nested,
+                                 allow_nested_rows=allow_nested_rows)
+        value_type = to_arrow_type(data_type.value_type, allow_nested=allow_nested,
+                                   allow_nested_rows=allow_nested_rows)
+        return pa.map_(key_type, value_type)
     elif isinstance(data_type, ArrayType):
-        if not allow_nested and type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
+        if (not allow_nested and
+                (type(data_type.element_type) == LocalZonedTimestampType or
+                 type(data_type.element_type) == RowType and not allow_nested_rows)):
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
                              data_type.element_type)
-        return pa.list_(to_arrow_type(data_type.element_type, allow_nested=allow_nested))
+        return pa.list_(to_arrow_type(data_type.element_type, allow_nested=allow_nested,
+                                      allow_nested_rows=allow_nested_rows))
     elif isinstance(data_type, RowType):
         for field in data_type:
-            if not allow_nested and type(field.data_type) in [LocalZonedTimestampType, RowType]:
+            if (not allow_nested and
+                    (type(field.data_type) == LocalZonedTimestampType or
+                     type(field.data_type) == RowType and not allow_nested_rows)):
                 raise TypeError("%s is not supported to be used as the field type of RowType" %
                                 field.data_type)
-        fields = [pa.field(field.name, to_arrow_type(field.data_type, allow_nested=allow_nested),
+        fields = [pa.field(field.name, to_arrow_type(field.data_type, allow_nested=allow_nested,
+                                                     allow_nested_rows=allow_nested_rows),
                            field.data_type._nullable)
                   for field in data_type]
         return pa.struct(fields)
