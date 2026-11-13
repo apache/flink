@@ -6,13 +6,10 @@
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`upsert_src3`"
-      },
-      "abilities" : [ {
-        "type" : "FilterPushDown"
-      } ]
+      }
     },
     "outputType" : "ROW<`a` INT NOT NULL, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, upsert_src3, filter=[]]], fields=[a, b, c])"
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, upsert_src3]], fields=[a, b, c])"
   }, {
     "id" : 2,
     "type" : "stream-exec-exchange_1",

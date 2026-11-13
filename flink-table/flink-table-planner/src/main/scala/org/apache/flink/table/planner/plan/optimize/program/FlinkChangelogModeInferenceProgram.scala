@@ -37,13 +37,14 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.linq4j.Ord
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.RexCall
@@ -816,6 +817,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                 createNewNode(rel, Some(children), childTrait)
             }
           }
+
+        case lookupJoin: StreamPhysicalLookupJoin
+            if requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
+              isNonUpsertKeyLookupCondition(lookupJoin) =>
+          None
 
         case _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
             _: StreamPhysicalExchange | _: StreamPhysicalExpand |
@@ -1744,6 +1750,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     upsertKeys != null && upsertKeys.exists(!_.isEmpty)
   }
 
+  /** Like a filter, an inner lookup join drops an update that stops matching. */
+  private def isNonUpsertKeyLookupCondition(lookupJoin: StreamPhysicalLookupJoin): Boolean = {
+    val input = lookupJoin.getInput
+    // the looked up row isn't deterministic
+    val inputColumns = ImmutableBitSet.range(input.getRowType.getFieldCount)
+    lookupJoin.joinType == JoinRelType.INNER && lookupJoin.finalRemainingCondition.exists(
+      c => !isOnUpsertKey(input, RelOptUtil.InputFinder.bits(c).intersect(inputColumns)))
+  }
+
   private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
     val program = calc.getProgram
     if (program.getCondition == null) {
@@ -1751,18 +1766,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
 
     val condition = program.expandLocalRef(calc.getProgram.getCondition)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(calc.getInput())
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      // there are no upsert keys, so all columns are non-primary key columns
-      true
-    } else {
-      val inputRefIndices =
-        RexNodeExtractor
-          .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
-      val inputRefSet = ImmutableBitSet.of(inputRefIndices: _*)
-      !upsertKeys.stream().anyMatch(uk => uk.contains(inputRefSet))
-    }
+    !isOnUpsertKey(calc.getInput, RelOptUtil.InputFinder.bits(condition))
+  }
+
+  private def isOnUpsertKey(input: RelNode, columns: ImmutableBitSet): Boolean = {
+    val upsertKeys =
+      FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery).getUpsertKeys(input)
+    upsertKeys != null && upsertKeys.exists(_.contains(columns))
   }
 
   private def getModifyKindSet(node: RelNode): ModifyKindSet = {
