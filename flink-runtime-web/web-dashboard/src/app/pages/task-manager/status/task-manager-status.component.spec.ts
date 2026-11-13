@@ -18,8 +18,8 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, ParamMap } from '@angular/router';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
 import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
@@ -42,16 +42,21 @@ const mockDetail = {
 describe('TaskManagerStatusComponent', () => {
   let fixture: ComponentFixture<TaskManagerStatusComponent>;
   let element: HTMLElement;
+  let paramMap: BehaviorSubject<ParamMap>;
   const loadManager = vi.fn();
 
   beforeEach(async () => {
+    paramMap = new BehaviorSubject(convertToParamMap({ taskManagerId: 'tm-container-7' }));
     loadManager.mockReset().mockReturnValue(of(mockDetail));
     await TestBed.configureTestingModule({
       imports: [TaskManagerStatusComponent],
       providers: [
         { provide: StatusService, useValue: { refresh$: of(true) } },
         { provide: TaskManagerService, useValue: { loadManager } },
-        { provide: ActivatedRoute, useValue: { snapshot: { params: { taskManagerId: 'tm-container-7' } } } }
+        {
+          provide: ActivatedRoute,
+          useValue: { paramMap, snapshot: { params: { taskManagerId: 'tm-container-7' } } }
+        }
       ]
     }).compileComponents();
     fixture = TestBed.createComponent(TaskManagerStatusComponent);
@@ -75,5 +80,56 @@ describe('TaskManagerStatusComponent', () => {
     expect(fixture.componentInstance.notFound).toBe(true);
     expect(fixture.componentInstance.taskManagerDetail).toBeUndefined();
     expect(element.textContent).toContain('TaskManager not available');
+  });
+
+  it('loads another TaskManager after the previous one returned 404', () => {
+    loadManager.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 404 })));
+    fixture.detectChanges();
+    expect(element.textContent).toContain('TaskManager not available');
+
+    loadManager.mockReturnValue(of({ ...mockDetail, id: 'tm-container-8' }));
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-container-8' }));
+    fixture.detectChanges();
+
+    expect(loadManager).toHaveBeenLastCalledWith('tm-container-8');
+    expect(element.textContent).toContain('tm-container-8');
+    expect(element.textContent).not.toContain('TaskManager not available');
+  });
+
+  it('clears the previous detail while the next TaskManager is loading', () => {
+    fixture.detectChanges();
+    loadManager.mockReturnValue(new Subject<TaskManagerDetail>());
+
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-container-8' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.loading).toBe(true);
+    expect(fixture.componentInstance.taskManagerDetail).toBeUndefined();
+    expect(element.textContent).not.toContain('tm-container-7');
+  });
+
+  it('cancels the previous TaskManager request when the route changes', () => {
+    const previousDetail = new Subject<TaskManagerDetail>();
+    loadManager.mockReturnValueOnce(previousDetail);
+    fixture.detectChanges();
+
+    loadManager.mockReturnValue(of({ ...mockDetail, id: 'tm-container-8' }));
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-container-8' }));
+    previousDetail.next(mockDetail);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.taskManagerDetail?.id).toBe('tm-container-8');
+    expect(element.textContent).not.toContain('tm-container-7');
+  });
+
+  it('does not restart a stopped poll when the TaskManager ID is unchanged', () => {
+    loadManager.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    fixture.detectChanges();
+
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-container-7' }));
+    fixture.detectChanges();
+
+    expect(loadManager).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.notFound).toBe(true);
   });
 });
