@@ -502,3 +502,79 @@ describe function extended temp_upperudf;
 +---------------------------+-------------------------------+
 7 rows in set
 !ok
+
+# ==========================================================================
+# test describe function on a process table function (PTF)
+# ==========================================================================
+
+create temporary system function my_ptf as 'org.apache.flink.table.client.cli.utils.DescribeFunctionTestPtf';
+[INFO] Execute statement succeeded.
+!info
+
+describe function extended my_ptf;
++---------------------------+---------------------------------------------------------------------+
+|                 info name |                                                          info value |
++---------------------------+---------------------------------------------------------------------+
+|        is system function |                                                                true |
+|              is temporary |                                                                true |
+|                      kind |                                                       PROCESS_TABLE |
+|              requirements |                                                                  [] |
+|          is deterministic |                                                                true |
+| supports constant folding |                                                                true |
+|                 signature | my_ptf(input => {TABLE, SET SEMANTIC TABLE, OPTIONAL PARTITION BY}) |
+|              state: state |                                 type=ROW<`count` BIGINT>, ttl=PT24H |
+|  accepts system arguments |                                                                true |
+|     is changelog function |                                                                true |
+|               uses timers |                                                                true |
++---------------------------+---------------------------------------------------------------------+
+11 rows in set
+!ok
+
+# A minimal PTF demonstrates the "false" side of all three capability flags:
+# no @StateHint, no ChangelogFunction implementation, no onTimer method.
+create temporary system function my_minimal_ptf as 'org.apache.flink.table.client.cli.utils.DescribeFunctionTestMinimalPtf';
+[INFO] Execute statement succeeded.
+!info
+
+describe function extended my_minimal_ptf;
++---------------------------+------------------------------------------------------+
+|                 info name |                                           info value |
++---------------------------+------------------------------------------------------+
+|        is system function |                                                 true |
+|              is temporary |                                                 true |
+|                      kind |                                        PROCESS_TABLE |
+|              requirements |                                                   [] |
+|          is deterministic |                                                 true |
+| supports constant folding |                                                 true |
+|                 signature | my_minimal_ptf(input => {TABLE, SET SEMANTIC TABLE}) |
+|  accepts system arguments |                                                 true |
+|     is changelog function |                                                false |
+|               uses timers |                                                false |
++---------------------------+------------------------------------------------------+
+10 rows in set
+!ok
+
+# ==========================================================================
+# test describe function on a user-defined aggregate function (accumulator
+# surfaces via the same state:* row mechanism as PTFs)
+# ==========================================================================
+
+create temporary system function my_agg as 'org.apache.flink.table.client.cli.utils.DescribeFunctionTestAgg';
+[INFO] Execute statement succeeded.
+!info
+
+describe function extended my_agg;
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------+
+|                 info name |                                                                                                                      info value |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------+
+|        is system function |                                                                                                                            true |
+|              is temporary |                                                                                                                            true |
+|                      kind |                                                                                                                       AGGREGATE |
+|              requirements |                                                                                                                              [] |
+|          is deterministic |                                                                                                                            true |
+| supports constant folding |                                                                                                                            true |
+|                 signature |                                                                                                         my_agg(value => BIGINT) |
+|                state: acc | type=STRUCTURED<'org.apache.flink.table.client.cli.utils.DescribeFunctionTestAgg$Acc', `count` BIGINT, `sum` BIGINT>, ttl=PT48H |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------+
+8 rows in set
+!ok
