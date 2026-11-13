@@ -623,6 +623,10 @@ qualify as a data type. If no state is present, all fields are set to null (in c
 type) or fields are set to their default value (in case of a structured type). For state
 efficiency, it is recommended to keep all fields nullable.
 
+The data type of a state entry can't change once a job has stored state for it. See
+[Changing a Process Table Function]({{< ref "docs/ops/upgrading" >}}#changing-a-process-table-function)
+for the changes that keep the state of a PTF.
+
 {{< tabs "0937eeed-3d13-455c-8e2f-5e164da9f844" >}}
 {{< tab "Java" >}}
 ```java
@@ -1576,14 +1580,17 @@ Query Evolution with UIDs
 Unlike other SQL operators, PTFs support stateful query evolution.
 
 From the planner's perspective, a PTF is a stateful building block that remains unoptimized, while the planner optimizes
-the surrounding operators of the query. The state entries of a PTF can be persisted and restored by Flink, even if the
-surrounding query or the PTF itself changes. As long as the schema of the state entries remains unchanged.
+the surrounding operators of the query. Flink restores the state entries of a PTF from a savepoint even if the
+surrounding query or the logic of the PTF changes, as long as the UID, the `PARTITION BY` clause, and the name and data
+type of each state entry stay the same. See [Changing a Process Table Function]({{< ref "docs/ops/upgrading" >}}#changing-a-process-table-function)
+for which changes keep the state.
 
 For future query evolution, the framework enforces a unique identifier (UID) for all PTFs that operate on tables with set
 or broadcast semantics. The UID can be provided through the implicit `uid` string argument. It is used when persisting the PTF's state
 entries to checkpoints or savepoints. If the `uid` argument is not specified, the function name will be used by the framework,
 ensuring one unique PTF invocation per statement. If a PTF is invoked multiple times, validation will require a manually
-specified UID to ensure it is unique across the entire Flink job.
+specified UID to ensure it is unique across the entire Flink job. Set the UID explicitly for every PTF whose state you want
+to keep. Without it, renaming the function changes the UID, and Flink can't map the state of the PTF after a restore.
 
 Additionally, the UID helps the optimizer determine whether to merge common parts of the pipeline. A shared UID enables
 fan-out behavior while maintaining a single stateful PTF.

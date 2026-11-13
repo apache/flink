@@ -199,104 +199,7 @@ Window-based operations (like [Window Join]({{< ref "docs/sql/reference/queries/
 
 **Generate a Compiled Plan**
 
-The setup process begins by generating a JSON file using the `COMPILE PLAN` statement, 
-which represents the serialized execution plan of the current table program. 
-{{< hint info >}}
-Currently, `COMPILE PLAN` statement does not support `SELECT... FROM...` queries. 
-{{< /hint >}}
-
-- Run a `COMPILE PLAN` statement
-
-{{< tabs "compile-plan" >}}
-{{< tab "Java" >}}
-```java
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)");
-
-// CompilePlan#writeToFile only supports a local file path, if you need to write to remote filesystem,
-// please use tableEnv.executeSql("COMPILE PLAN 'hdfs://path/to/plan.json' FOR ...")
-CompiledPlan compiledPlan = 
-    tableEnv.compilePlanSql(
-        "INSERT INTO enriched_orders \n" 
-       + "SELECT a.order_id, a.order_line_id, b.order_status, ... \n" 
-       + "FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id");
-
-compiledPlan.writeToFile("/path/to/plan.json");
-
-```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)")
-
-val compiledPlan = 
-    tableEnv.compilePlanSql(
-       """
-        |INSERT INTO enriched_orders
-        |SELECT a.order_id, a.order_line_id, b.order_status, ...
-        |FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id
-        |""".stripMargin)
-// CompilePlan#writeToFile only supports a local file path, if you need to write to remote filesystem,
-// please use tableEnv.executeSql("COMPILE PLAN 'hdfs://path/to/plan.json' FOR ...")
-compiledPlan.writeToFile("/path/to/plan.json")
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-
-```sql
-Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_orders
-> SELECT a.order_id, a.order_line_id, b.order_status, ...
-> FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
-[INFO] Execute statement succeeded.
-```
-
-{{< /tab >}}
-{{< /tabs >}}
-
-
-- SQL Syntax
-
-    ```sql
-    COMPILE PLAN [IF NOT EXISTS] <plan_file_path> FOR <insert_statement>|<statement_set>;
-    
-    statement_set:
-        EXECUTE STATEMENT SET
-        BEGIN
-        insert_statement;
-        ...
-        insert_statement;
-        END;
-    
-    insert_statement:
-        <insert_from_select>|<insert_from_values>
-    ```
-    This will generate a JSON file at `/path/to/plan.json`.
-
-{{< hint info >}}
-`COMPILE PLAN` statement supports writing the plan to a remote [filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) scheme like `hdfs://` or `s3://`. 
-Please be sure that the target path has set up the write access.
-{{< /hint >}}
+Compile the statement to a plan file as described in [Compile a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#compile-a-plan).
 
 **Modify the Compiled Plan**
 
@@ -335,70 +238,8 @@ Conceptually, the TTL of downstream stateful operator should be greater than or 
 
 **Execute the Compiled Plan**
 
-`EXECUTE PLAN` statement will deserialize the specified file back to execution plan of the current table program and then submit the job.
+Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#execute-a-plan).
 The job submitted via `EXECUTE PLAN` statement will apply state TTL read from the file, instead of the configuration `table.exec.state.ttl`.
-
-- Run an `EXECUTE PLAN` statement
-{{< tabs "execute-plan" >}}
-{{< tab "Java" >}}
-```java
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)");
-
-// PlanReference#fromFile only supports a local file path, if you need to read from remote filesystem,
-// please use tableEnv.executeSql("EXECUTE PLAN 'hdfs://path/to/plan.json'").await();
-tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await();
-
-```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)")
-
-// PlanReference#fromFile only supports a local file path, if you need to read from remote filesystem,
-// please use tableEnv.executeSql("EXECUTE PLAN 'hdfs://path/to/plan.json'").await()
-tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await()
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-
-```sql
-Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> EXECUTE PLAN 'file:///path/to/plan.json';
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] SQL update statement has been successfully submitted to the cluster:
-Job ID: 79fbe3fa497e4689165dd81b1d225ea8
-```
-
-{{< /tab >}}
-{{< /tabs >}}
-
-- SQL Syntax
-
-    ```sql
-    EXECUTE PLAN [IF EXISTS] <plan_file_path>;
-    ```
-    This will deserialize the JSON file and submit an insert statement job.
 
 **A Full Example**
 
@@ -567,36 +408,15 @@ Now change the value of left state to `"3000 ms"` and right state to `"9000 ms"`
 Table programs that are executed in streaming mode are intended as *standing queries* which means they
 are defined once and are continuously evaluated as static end-to-end pipelines.
 
-In case of stateful pipelines, any change to both the query or Flink's planner might lead to a completely
-different execution plan. This makes stateful upgrades and the evolution of table programs challenging
-at the moment. The community is working on improving those shortcomings.
+A change to the query or to the Flink version can lead to a different execution plan, and the state
+in a savepoint might not map to it. For example, by adding a filter predicate, the optimizer might
+decide to reorder joins or change the schema of an intermediate operator.
 
-For example, by adding a filter predicate, the optimizer might decide to reorder joins or change the
-schema of an intermediate operator. This prevents restoring from a savepoint due to either changed
-topology or different column layout within the state of an operator.
-
-The query implementer must ensure that the optimized plans before and after the change are compatible.
-Use the `EXPLAIN` command in SQL or `table.explain()` in Table API to [get insights]({{< ref "docs/dev/table/common" >}}#explaining-a-table).
-
-Since new optimizer rules are continuously added, and operators become more efficient and specialized,
-also the upgrade to a newer Flink version could lead to incompatible plans.
-
-{{< hint warning >}}
-Currently, the framework cannot guarantee that state can be mapped from a savepoint to a new table
-operator topology.
-
-In other words: Savepoints are only supported if both the query and the Flink version remain constant.
-{{< /hint >}}
-
-Since the community rejects contributions that modify the optimized plan and the operator topology
-in a patch version (e.g. from `1.13.1` to `1.13.2`), it should be safe to upgrade a Table API & SQL
-pipeline to a newer bug fix release. However, major-minor upgrades from (e.g. from `1.12` to `1.13`)
-are not supported.
-
-For both shortcomings (i.e. modified query and modified Flink version), we recommend to investigate
-whether the state of an updated table program can be "warmed up" (i.e. initialized) with historical
-data again before switching to real-time data. The Flink community is working on a [hybrid source]({{< ref "docs/connectors/datastream/hybridsource" >}})
-to make this switching as convenient as possible.
+A [compiled plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) stores the execution plan of a pipeline, so that a newer Flink version runs the same
+operators with the same state layout. A process table function restores its state by its `uid`,
+even when the query around it changes. See
+[Application State Compatibility]({{< ref "docs/ops/upgrading" >}}#table-api--sql) for what you can
+change and how.
 
 
 Where to go next?
@@ -607,6 +427,7 @@ Where to go next?
 * [Versioned Tables]({{< ref "docs/concepts/sql-table-concepts/versioned_tables" >}}): Describes the Temporal Table concept.
 * [Joins in Continuous Queries]({{< ref "docs/sql/reference/queries/joins" >}}): Different supported types of Joins in Continuous Queries.
 * [Determinism in Continuous Queries]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): Determinism in Continuous Queries.
+* [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}): Describes how to compile a pipeline to a plan file and run it.
 * [Query configuration]({{< ref "docs/dev/table/config" >}}): Lists Table API & SQL specific configuration options.
 
 {{< top >}}
