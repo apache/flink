@@ -119,6 +119,37 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
   }
 
   @Test
+  def testAggOverCrossJoinWithEmptyInput(): Unit = {
+    // no grouping key comes from the empty input, so an aggregate pushed to it would have no
+    // grouping keys and return a row
+    checkResult(
+      "SELECT DISTINCT a FROM T3, (SELECT * FROM MyTable WHERE a2 > 99)",
+      Seq()
+    )
+    checkResult(
+      "SELECT DISTINCT a FROM (SELECT * FROM MyTable WHERE a2 > 99), T3",
+      Seq()
+    )
+    checkResult(
+      "SELECT a, COUNT(*) FROM T3, (SELECT * FROM MyTable WHERE a2 > 99) GROUP BY a",
+      Seq()
+    )
+    checkResult(
+      "SELECT COUNT(*), SUM(a), MIN(a) FROM T3, (SELECT * FROM MyTable WHERE a2 > 99)",
+      Seq(row(0, null, null))
+    )
+    checkResult(
+      "SELECT COUNT(*), COUNT(a) FROM T3, (SELECT * FROM MyTable WHERE a2 > 99)",
+      Seq(row(0, 0))
+    )
+    // the right input has at most one row and is not aggregated
+    checkResult(
+      "SELECT COUNT(*) FROM T3, (SELECT COUNT(*) FROM MyTable HAVING COUNT(*) > 99)",
+      Seq(row(0))
+    )
+  }
+
+  @Test
   def testSomeAggCallColumnsAndJoinConditionColumnsIsSame(): Unit = {
     checkResult(
       "SELECT MIN(a2), MIN(b2), a, b, COUNT(c2) FROM " +

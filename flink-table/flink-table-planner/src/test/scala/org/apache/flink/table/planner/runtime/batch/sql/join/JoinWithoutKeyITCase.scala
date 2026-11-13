@@ -273,6 +273,15 @@ class JoinWithoutKeyITCase extends BatchTestBase {
   }
 
   @Test
+  def testDistinctOnCrossJoinWithIsNullFilter(): Unit = {
+    // SmallTable3.b contains no NULL, so the filter must remove all rows
+    checkResult(
+      "SELECT * FROM (SELECT DISTINCT t.a, s.b FROM Table3 t, SmallTable3 s) WHERE b IS NULL",
+      Seq()
+    )
+  }
+
+  @Test
   def testInnerJoin(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable3, NullTable5 WHERE b > e AND b < 3",
