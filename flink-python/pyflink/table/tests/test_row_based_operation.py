@@ -392,6 +392,26 @@ class EmbeddedThreadRowBasedOperationITTests(PyFlinkBatchTableTestCase):
                 with result.execute().collect() as rows:
                     self.assertEqual(sorted(tuple(row) for row in rows), expected)
 
+    def test_map_with_null_nested_row(self):
+        child = DataTypes.ROW([DataTypes.FIELD("x", DataTypes.BIGINT())])
+        t = self.t_env.from_elements(
+            [(7, None, [Row(1), None])],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("child", child),
+                 DataTypes.FIELD("children", DataTypes.ARRAY(child))]))
+
+        func = udf(
+            lambda row: Row(row[0], None if row[1] is None else row[1][0],
+                            [None if c is None else c[0] for c in row[2]]),
+            result_type=DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("b", DataTypes.BIGINT()),
+                 DataTypes.FIELD("c", DataTypes.ARRAY(DataTypes.BIGINT()))]))
+
+        with t.map(func).execute().collect() as rows:
+            self.assertEqual([tuple(row) for row in rows], [(7, None, [1, None])])
+
 
 class CountAndSumAggregateFunction(AggregateFunction):
 
