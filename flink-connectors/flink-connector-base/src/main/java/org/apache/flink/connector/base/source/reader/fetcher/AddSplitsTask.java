@@ -25,20 +25,21 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /** The task to add splits. */
 @Internal
 class AddSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
 
-    private final SplitReader<?, SplitT> splitReader;
+    private final Supplier<? extends SplitReader<?, SplitT>> splitReaderSupplier;
     private final List<SplitT> splitsToAdd;
     private final Map<String, SplitT> assignedSplits;
 
     AddSplitsTask(
-            SplitReader<?, SplitT> splitReader,
+            Supplier<? extends SplitReader<?, SplitT>> splitReaderSupplier,
             List<SplitT> splitsToAdd,
             Map<String, SplitT> assignedSplits) {
-        this.splitReader = splitReader;
+        this.splitReaderSupplier = splitReaderSupplier;
         this.splitsToAdd = splitsToAdd;
         this.assignedSplits = assignedSplits;
     }
@@ -48,7 +49,7 @@ class AddSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
         for (SplitT s : splitsToAdd) {
             assignedSplits.put(s.splitId(), s);
         }
-        splitReader.handleSplitsChanges(new SplitsAddition<>(splitsToAdd));
+        splitReaderSupplier.get().handleSplitsChanges(new SplitsAddition<>(splitsToAdd));
         return true;
     }
 

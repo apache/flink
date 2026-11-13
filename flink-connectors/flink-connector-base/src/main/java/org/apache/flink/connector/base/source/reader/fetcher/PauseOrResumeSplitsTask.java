@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,17 +42,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 class PauseOrResumeSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
     private static final Logger LOG = LoggerFactory.getLogger(PauseOrResumeSplitsTask.class);
-    private final SplitReader<?, SplitT> splitReader;
+    private final Supplier<? extends SplitReader<?, SplitT>> splitReaderSupplier;
     private final Collection<SplitT> splitsToPause;
     private final Collection<SplitT> splitsToResume;
     private final boolean allowUnalignedSourceSplits;
 
     PauseOrResumeSplitsTask(
-            SplitReader<?, SplitT> splitReader,
+            Supplier<? extends SplitReader<?, SplitT>> splitReaderSupplier,
             Collection<SplitT> splitsToPause,
             Collection<SplitT> splitsToResume,
             boolean allowUnalignedSourceSplits) {
-        this.splitReader = checkNotNull(splitReader);
+        this.splitReaderSupplier = checkNotNull(splitReaderSupplier);
         this.splitsToPause = checkNotNull(splitsToPause);
         this.splitsToResume = checkNotNull(splitsToResume);
         this.allowUnalignedSourceSplits = allowUnalignedSourceSplits;
@@ -60,7 +61,7 @@ class PauseOrResumeSplitsTask<SplitT extends SourceSplit> implements SplitFetche
     @Override
     public boolean run() throws IOException {
         try {
-            splitReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            splitReaderSupplier.get().pauseOrResumeSplits(splitsToPause, splitsToResume);
         } catch (UnsupportedOperationException e) {
             if (!allowUnalignedSourceSplits) {
                 throw e;
