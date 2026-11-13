@@ -53,16 +53,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
+import static org.apache.flink.table.operations.materializedtable.MaterializedTableSchemaUtils.METADATA_PERSISTED_COLUMN_KIND;
+import static org.apache.flink.table.operations.materializedtable.MaterializedTableSchemaUtils.PHYSICAL_COLUMN_KIND;
+import static org.apache.flink.table.operations.materializedtable.MaterializedTableSchemaUtils.checkPersistedColumnProducedByQuery;
 
 /** The utils for materialized table. */
 @Internal
 public class MaterializedTableUtils {
-
-    private static final String PERSISTED_COLUMN_NOT_USED_IN_QUERY =
-            "Failed to execute %s statement.\n"
-                    + "Invalid schema. All persisted (physical and metadata) columns "
-                    + "in the schema part need to be present in the query part.\n"
-                    + "However, %s column `%s` could not be found in the query.";
 
     public static IntervalFreshness getMaterializedTableFreshness(
             SqlIntervalLiteral sqlIntervalLiteral) {
@@ -297,16 +294,19 @@ public class MaterializedTableUtils {
     private static void throwIfPersistedColumnNotUsedByQuery(
             SqlNode column, Set<String> querySchemaColumnNames, String operationName) {
         if (column instanceof SqlRegularColumn) {
-            String columnName = ((SqlRegularColumn) column).getName().getSimple();
-            if (!querySchemaColumnNames.contains(columnName)) {
-                throwPersistedColumnNotUsedException(operationName, "physical", columnName);
-            }
+            checkPersistedColumnProducedByQuery(
+                    ((SqlRegularColumn) column).getName().getSimple(),
+                    PHYSICAL_COLUMN_KIND,
+                    querySchemaColumnNames,
+                    operationName);
         } else if (column instanceof SqlMetadataColumn) {
             SqlMetadataColumn metadataColumn = (SqlMetadataColumn) column;
-            String columnName = metadataColumn.getName().getSimple();
-            if (!metadataColumn.isVirtual() && !querySchemaColumnNames.contains(columnName)) {
-                throwPersistedColumnNotUsedException(
-                        operationName, "metadata persisted", columnName);
+            if (!metadataColumn.isVirtual()) {
+                checkPersistedColumnProducedByQuery(
+                        metadataColumn.getName().getSimple(),
+                        METADATA_PERSISTED_COLUMN_KIND,
+                        querySchemaColumnNames,
+                        operationName);
             }
         } else if (column instanceof SqlTableColumnPosition) {
             throwIfPersistedColumnNotUsedByQuery(
@@ -314,12 +314,6 @@ public class MaterializedTableUtils {
                     querySchemaColumnNames,
                     operationName);
         }
-    }
-
-    private static void throwPersistedColumnNotUsedException(
-            String operationName, String type, String columnName) {
-        throw new ValidationException(
-                String.format(PERSISTED_COLUMN_NOT_USED_IN_QUERY, operationName, type, columnName));
     }
 
     private static void validateIntervalValuePositive(

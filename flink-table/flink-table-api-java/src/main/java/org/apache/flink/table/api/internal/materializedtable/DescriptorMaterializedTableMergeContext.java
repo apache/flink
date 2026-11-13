@@ -44,14 +44,14 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  * the equivalent {@code CREATE OR ALTER MATERIALIZED TABLE} statement.
  */
 @Internal
-final class QueryMaterializedTableMergeContext implements MaterializedTableMergeContext {
+final class DescriptorMaterializedTableMergeContext implements MaterializedTableMergeContext {
 
     private final QueryOperation queryOperation;
     private final String serializedQuery;
     private final @Nullable IntervalFreshness freshness;
     private final ResolvedSchema querySchema;
 
-    QueryMaterializedTableMergeContext(
+    DescriptorMaterializedTableMergeContext(
             QueryOperation queryOperation,
             String serializedQuery,
             @Nullable IntervalFreshness freshness) {
