@@ -27,6 +27,11 @@ import org.apache.flink.table.data.StringData;
 
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 import static org.apache.flink.formats.protobuf.ProtobufTestHelper.mapOf;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -212,5 +217,35 @@ class NullValueToProtoTest {
                         false);
         NullTest nullTest = NullTest.parseFrom(bytes);
         assertThat(nullTest.getStringMapMap().get("key")).isEqualTo("NULL");
+    }
+
+    private static Stream<Arguments> nullStringLiterals() {
+        return Stream.of(
+                Arguments.of("\"", "\""),
+                Arguments.of("'", "'"),
+                Arguments.of("`", "`"),
+                // a lone trailing backslash is dropped by unescaping
+                Arguments.of("\\", ""),
+                Arguments.of("\\\\", "\\"),
+                Arguments.of("\"\"", "\"\""),
+                Arguments.of("😀", "😀"),
+                Arguments.of("\"👍🏽\"", "\"👍🏽\""),
+                Arguments.of("✅", "✅"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("nullStringLiterals")
+    void testNullStringLiteral(String nullLiteral, String expected) throws Exception {
+        GenericRowData row = new GenericRowData(18);
+        row.setField(0, new GenericMapData(mapOf(StringData.fromString("key"), null)));
+
+        byte[] bytes =
+                ProtobufTestHelper.rowToPbBytes(
+                        row,
+                        NullTest.class,
+                        new PbFormatConfig(NullTest.class.getName(), false, false, nullLiteral),
+                        false);
+
+        assertThat(NullTest.parseFrom(bytes).getStringMapMap().get("key")).isEqualTo(expected);
     }
 }
