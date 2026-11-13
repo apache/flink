@@ -1,0 +1,218 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 14,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`a` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a])",
+    "dynamicFilteringDataListenerID" : "c2edb55d-b2f6-4cb2-8dd5-ce056ceea2ca"
+  }, {
+    "id" : 15,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `f0` BIGINT>",
+    "description" : "Calc(select=[a, CAST(a AS BIGINT) AS f0])"
+  }, {
+    "id" : 16,
+    "type" : "batch-exec-async-calc_1",
+    "configuration" : {
+      "table.exec.async-scalar.max-attempts" : "3",
+      "table.exec.async-scalar.max-concurrent-operations" : "10",
+      "table.exec.async-scalar.retry-delay" : "100 ms",
+      "table.exec.async-scalar.retry-strategy" : "FIXED_DELAY",
+      "table.exec.async-scalar.timeout" : "3 min"
+    },
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`udf1`",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "BIGINT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `f0` BIGINT>",
+    "description" : "AsyncCalc(select=[a, udf1(f0) AS f0])"
+  }, {
+    "id" : 17,
+    "type" : "batch-exec-async-calc_1",
+    "configuration" : {
+      "table.exec.async-scalar.max-attempts" : "3",
+      "table.exec.async-scalar.max-concurrent-operations" : "10",
+      "table.exec.async-scalar.retry-delay" : "100 ms",
+      "table.exec.async-scalar.retry-strategy" : "FIXED_DELAY",
+      "table.exec.async-scalar.timeout" : "3 min"
+    },
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`udf1`",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "BIGINT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `f0` BIGINT>",
+    "description" : "AsyncCalc(select=[a, udf1(f0) AS f0])"
+  }, {
+    "id" : 18,
+    "type" : "batch-exec-async-calc_1",
+    "configuration" : {
+      "table.exec.async-scalar.max-attempts" : "3",
+      "table.exec.async-scalar.max-concurrent-operations" : "10",
+      "table.exec.async-scalar.retry-delay" : "100 ms",
+      "table.exec.async-scalar.retry-strategy" : "FIXED_DELAY",
+      "table.exec.async-scalar.timeout" : "3 min"
+    },
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`udf1`",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "BIGINT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `EXPR$1` BIGINT>",
+    "description" : "AsyncCalc(select=[a, udf1(f0) AS EXPR$1])"
+  }, {
+    "id" : 19,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "a1",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `EXPR$1` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, EXPR$1])"
+  } ],
+  "edges" : [ {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 15,
+    "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 16,
+    "target" : 17,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 17,
+    "target" : 18,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 18,
+    "target" : 19,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
