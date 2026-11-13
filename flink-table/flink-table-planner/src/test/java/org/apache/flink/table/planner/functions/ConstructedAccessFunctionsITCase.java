@@ -206,6 +206,32 @@ class ConstructedAccessFunctionsITCase {
         }
     }
 
+    @Test
+    public void testMapItemAccessOnMapReturningFunctions() throws Exception {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+        env.createTemporaryView(
+                "t",
+                env.fromValues(
+                        ROW(
+                                FIELD("k", DataTypes.ARRAY(STRING())),
+                                FIELD("v", DataTypes.ARRAY(INT()))),
+                        Row.of(new String[] {"a", "b"}, new Integer[] {1, 2})));
+
+        try (CloseableIterator<Row> it =
+                env.executeSql(
+                                "SELECT MAP_FROM_ARRAYS(k, v)['a'], "
+                                        + "MAP_FROM_ENTRIES(ARRAY[ROW(k[1], v[1])])['a'], "
+                                        + "MAP_UNION(MAP_FROM_ARRAYS(k, v), MAP['c', 3])['b'], "
+                                        + "MAP_FROM_ARRAYS(k, v)['zzz'], "
+                                        + "MAP['x', 9]['x'] "
+                                        + "FROM t")
+                        .collect()) {
+            assertThat(it.next()).isEqualTo(Row.of(1, 1, 2, null, 9));
+            assertThat(it).isExhausted();
+        }
+    }
+
     /**
      * A helper function for testing accessing nested fields of a {@link LogicalTypeRoot#ROW} type.
      *
