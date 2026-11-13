@@ -318,7 +318,7 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
       streamRankById).foreach(rank => assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(rank)))
 
     Array(logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
-      .foreach(rank => assertEquals(toBitSet(Array(0), Array(7)), mq.getUpsertKeys(rank)))
+      .foreach(rank => assertEquals(toBitSet(Array(7)), mq.getUpsertKeys(rank)))
   }
 
   @Test
@@ -595,7 +595,7 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
         RankType.RANK,
         new ConstantRankRange(1, 5),
         new RelDataTypeFieldImpl("rk", 4, longType),
-        true,
+        false,
         RankProcessStrategy.UNDEFINED_STRATEGY,
         false
       )
