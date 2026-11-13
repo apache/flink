@@ -261,7 +261,7 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<Boolean> TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT =
             key("table.exec.sink.require-on-conflict")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -272,9 +272,9 @@ public class ExecutionConfigOptions {
                                     .linebreak()
                                     .linebreak()
                                     .text(
-                                            "Set this to false to restore the old behavior where no ON CONFLICT clause "
-                                                    + "was required. Note that disabling this check may lead to non-deterministic "
-                                                    + "results in certain streaming scenarios.")
+                                            "When disabled, a missing ON CONFLICT clause behaves like ON CONFLICT DO DEDUPLICATE. "
+                                                    + "Note that this may lead to non-deterministic results in certain streaming "
+                                                    + "scenarios.")
                                     .build());
 
     // ------------------------------------------------------------------------

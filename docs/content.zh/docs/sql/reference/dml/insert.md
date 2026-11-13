@@ -306,11 +306,11 @@ END;
 
 When a query produces a changelog stream with an upsert key that differs from the sink table's primary key, multiple records with different upsert keys may map to the same primary key. The `ON CONFLICT` clause specifies how to resolve these primary key conflicts at the sink.
 
-### When is ON CONFLICT required?
+### Requiring ON CONFLICT
 
-By default, Flink requires an explicit `ON CONFLICT` clause whenever the query's upsert key differs from the sink table's primary key. Without it, the query fails at planning time. This forces you to consider whether your query genuinely has a conflict scenario or whether there is a logic issue (e.g., a missing `GROUP BY`).
+When `table.exec.sink.require-on-conflict` is enabled, Flink requires an explicit `ON CONFLICT` clause whenever the query's upsert key differs from the sink table's primary key. Without it, the query fails at planning time. This forces you to consider whether your query genuinely has a conflict scenario or whether there is a logic issue (e.g., a missing `GROUP BY`).
 
-This check is controlled by the configuration option `table.exec.sink.require-on-conflict` (default: `true`). Setting it to `false` restores the legacy behavior where no `ON CONFLICT` clause was required, but may lead to non-deterministic results.
+The option defaults to `false`. A query without an `ON CONFLICT` clause then resolves conflicts as with `ON CONFLICT DO DEDUPLICATE`, which may lead to non-deterministic results.
 
 Alternatively, if you do not need consistency guarantees for conflicting keys, you can disable the sink upsert materializer entirely by setting `table.exec.sink.upsert-materialize` to `NONE`. This removes the materializer operator from the pipeline, so no buffering, compaction, or conflict resolution is performed. Records are passed directly to the sink as they arrive.
 
@@ -419,7 +419,7 @@ CREATE TABLE product_orders (
 ) WITH (...);
 
 -- This join produces an upsert key that may differ from the sink's PK,
--- so ON CONFLICT is required.
+-- so ON CONFLICT defines how conflicts are resolved.
 INSERT INTO product_orders
 SELECT p.name, o.order_id
 FROM orders o JOIN products p ON o.product_name = p.name

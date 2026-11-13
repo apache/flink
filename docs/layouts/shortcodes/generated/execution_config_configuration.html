@@ -274,9 +274,9 @@ By default no operator is disabled.</td>
         </tr>
         <tr>
             <td><h5>table.exec.sink.require-on-conflict</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">true</td>
+            <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>When enabled, an error is thrown if the query's upsert key differs from the sink table's primary key and no ON CONFLICT clause is specified. This can lead to non-deterministic results when multiple records with different upsert keys map to the same primary key.<br /><br />Set this to false to restore the old behavior where no ON CONFLICT clause was required. Note that disabling this check may lead to non-deterministic results in certain streaming scenarios.</td>
+            <td>When enabled, an error is thrown if the query's upsert key differs from the sink table's primary key and no ON CONFLICT clause is specified. This can lead to non-deterministic results when multiple records with different upsert keys map to the same primary key.<br /><br />When disabled, a missing ON CONFLICT clause behaves like ON CONFLICT DO DEDUPLICATE. Note that this may lead to non-deterministic results in certain streaming scenarios.</td>
         </tr>
         <tr>
             <td><h5>table.exec.sink.rowtime-inserter</h5><br> <span class="label label-primary">Streaming</span></td>
