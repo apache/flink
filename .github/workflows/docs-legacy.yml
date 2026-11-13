@@ -59,7 +59,7 @@ jobs:
           echo "flink_branch=${{ inputs.branch }}" >> ${GITHUB_ENV}
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-docs-legacy-${{ inputs.branch }}
