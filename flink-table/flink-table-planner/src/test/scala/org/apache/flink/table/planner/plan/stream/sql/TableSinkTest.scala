@@ -935,6 +935,8 @@ class TableSinkTest extends TableTestBase {
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
       ExecutionConfigOptions.UpsertMaterialize.NONE)
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(true))
     util.addTable(s"""
                      |CREATE TABLE sinkWithPkNoMaterialize (
                      |  `id` INT,

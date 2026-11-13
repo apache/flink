@@ -316,7 +316,7 @@ END;
 
 When a query produces an updating table with an upsert key that differs from the sink table's primary key, multiple records with different upsert keys may map to the same primary key. The `ON CONFLICT` clause specifies how to resolve these primary key conflicts at the sink.
 
-### When is ON CONFLICT required?
+### Requiring ON CONFLICT
 
 When `table.exec.sink.require-on-conflict` is enabled, Flink requires an explicit `ON CONFLICT` clause whenever the query's upsert key differs from the sink table's primary key. Without it, the query fails at planning time. This forces you to consider whether your query genuinely has a conflict scenario or whether there is a logic issue (e.g., a missing `GROUP BY`).
 

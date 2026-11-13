@@ -298,7 +298,6 @@ public class SinkTestPrograms {
             TableTestProgram.of(
                             "sink-upsert-key-differs-from-pk-without-on-conflict-disabled",
                             "When require-on-conflict config is disabled, no ON CONFLICT is needed even if upsert key differs from PK.")
-                    .setupConfig(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, false)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT", "b BIGINT")
