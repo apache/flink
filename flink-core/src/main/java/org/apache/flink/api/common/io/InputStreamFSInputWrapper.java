@@ -33,6 +33,8 @@ import java.io.InputStream;
 @Public
 public class InputStreamFSInputWrapper extends FSDataInputStream {
 
+    private static final int SEEK_BUFFER_SIZE = 8192;
+
     private final InputStream inStream;
 
     private long pos = 0;
@@ -52,12 +54,12 @@ public class InputStreamFSInputWrapper extends FSDataInputStream {
             throw new IllegalArgumentException("Wrapped InputStream: cannot search backwards.");
         }
 
+        final byte[] buffer = new byte[(int) Math.min(desired - pos, SEEK_BUFFER_SIZE)];
         while (this.pos < desired) {
-            long numReadBytes = this.inStream.skip(desired - pos);
-            if (numReadBytes == -1) {
+            final int bytesToRead = (int) Math.min(desired - pos, buffer.length);
+            if (read(buffer, 0, bytesToRead) == -1) {
                 throw new EOFException("Unexpected EOF during forward seek.");
             }
-            this.pos += numReadBytes;
         }
     }
 
