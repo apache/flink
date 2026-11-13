@@ -94,6 +94,7 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.StateRecoveryOptions.SAVEPOINT_PATH;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.SCHEDULE_TIME_DATE_FORMATTER_DEFAULT;
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
@@ -112,6 +113,11 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             " The table remains in the catalog with refresh status INITIALIZING (creation"
                     + " unfinished), and no materialized table statement can drop or recover it."
                     + " Remove it from the catalog directly.";
+
+    private static final String DECLARE_CONTINUOUS_REFRESH_MODE_HINT =
+            " If the refresh mode is not declared, use a freshness below '"
+                    + MATERIALIZED_TABLE_FRESHNESS_THRESHOLD.key()
+                    + "'. Otherwise declare the continuous refresh mode.";
 
     private final ExecutableOperation.Context operationCtx;
     private final MaterializedTableJobSubmitter jobSubmitter;
@@ -170,7 +176,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             createMaterializedTableInFullMode(
                     createMaterializedTableOperation,
                     requireRefreshWorkflowContext(
-                            "The workflow scheduler must be configured when creating materialized table in full refresh mode."));
+                            "The workflow scheduler must be configured when creating materialized table in full refresh mode.",
+                            DECLARE_CONTINUOUS_REFRESH_MODE_HINT));
         }
         // Just return ok to unify different refresh job info of continuous and full mode, user
         // should get the refresh job info via desc table.
@@ -261,7 +268,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
             convertTableToMaterializedTableInFullMode(
                     convertOperation,
                     requireRefreshWorkflowContext(
-                            "The workflow scheduler must be configured when converting a table to a materialized table in full refresh mode."));
+                            "The workflow scheduler must be configured when converting a table to a materialized table in full refresh mode.",
+                            DECLARE_CONTINUOUS_REFRESH_MODE_HINT));
         }
         // Just return ok for unify different refresh job info of continuous and full mode, user
         // should get the refresh job info via desc table.
@@ -1323,9 +1331,19 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
     }
 
     private RefreshWorkflowContext requireRefreshWorkflowContext(String missingSchedulerMessage) {
+        return requireRefreshWorkflowContext(missingSchedulerMessage, "");
+    }
+
+    private RefreshWorkflowContext requireRefreshWorkflowContext(
+            String missingSchedulerMessage, String hint) {
         return jobSubmitter
                 .getRefreshWorkflowContext()
-                .orElseThrow(() -> new TableException(missingSchedulerMessage));
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        missingSchedulerMessage
+                                                + " Without one, only the continuous refresh mode is supported."
+                                                + hint));
     }
 
     private static RowData refreshRowToInternalRow(Row row) {
