@@ -182,6 +182,46 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @TestTemplate
+  def testSinkKeyedByInputKeyOfRankWithRowNumber(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", Long.box(1L), Int.box(100)),
+        changelogRow("+I", Long.box(2L), Int.box(90)),
+        changelogRow("+I", Long.box(3L), Int.box(80)),
+        changelogRow("-D", Long.box(1L), Int.box(100))
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE items (id BIGINT, score INT, PRIMARY KEY (id) NOT ENFORCED)
+                       |WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'changelog-mode' = 'I,UB,UA,D'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(
+      """
+        |CREATE TABLE ranked_items (id BIGINT, rn BIGINT, PRIMARY KEY (id) NOT ENFORCED)
+        |WITH (
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    tEnv
+      .executeSql("""
+                    |INSERT INTO ranked_items
+                    |SELECT id, rn FROM
+                    |  (SELECT *, ROW_NUMBER() OVER (ORDER BY score DESC) AS rn FROM items)
+                    |WHERE rn <= 3
+                    |ON CONFLICT DO DEDUPLICATE
+                    |""".stripMargin)
+      .await()
+
+    val result = TestValuesTableFactory.getResultsAsStrings("ranked_items")
+    assertThat(result.sorted).isEqualTo(List("+I[2, 1]", "+I[3, 2]"))
+  }
+
+  @TestTemplate
   def testChangelogSourceWithNonDeterministicFuncSinkWithDifferentPk(): Unit = {
     tEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf)
     tEnv.executeSql("""
