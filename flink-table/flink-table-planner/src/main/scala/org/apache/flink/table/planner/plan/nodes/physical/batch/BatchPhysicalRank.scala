@@ -68,7 +68,9 @@ class BatchPhysicalRank(
     outputRankNumber)
   with BatchPhysicalRel {
 
-  require(rankType == RankType.RANK, "Only RANK is supported now")
+  require(
+    rankType == RankType.RANK || rankType == RankType.ROW_NUMBER,
+    "Only RANK and ROW_NUMBER are supported now")
   val (rankStart, rankEnd) = rankRange match {
     case r: ConstantRankRange => (r.getRankStart, r.getRankEnd)
     case o => throw new TableException(s"$o is not supported now")
@@ -240,6 +242,7 @@ class BatchPhysicalRank(
       rankStart,
       rankEnd,
       outputRankNumber,
+      rankType,
       InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
