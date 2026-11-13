@@ -22,6 +22,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,5 +49,21 @@ class UpsertKeyUtilTest {
         upsertKeys.add(smallestKey);
         upsertKeys.add(longKey);
         assertThat(UpsertKeyUtil.getSmallestKey(upsertKeys)).isEqualTo(smallestKey.toArray());
+    }
+
+    @Test
+    void testSortedKeys() {
+        assertThat(UpsertKeyUtil.sortedKeys(null)).isEmpty();
+
+        final Set<ImmutableBitSet> upsertKeys = new LinkedHashSet<>();
+        assertThat(UpsertKeyUtil.sortedKeys(upsertKeys)).isEmpty();
+
+        upsertKeys.add(ImmutableBitSet.of(0, 1, 2));
+        upsertKeys.add(ImmutableBitSet.of(0, 2));
+        upsertKeys.add(ImmutableBitSet.of(3));
+        upsertKeys.add(ImmutableBitSet.of(0, 1));
+        assertThat(UpsertKeyUtil.sortedKeys(upsertKeys))
+                .containsExactly(
+                        new int[] {3}, new int[] {0, 1}, new int[] {0, 2}, new int[] {0, 1, 2});
     }
 }
