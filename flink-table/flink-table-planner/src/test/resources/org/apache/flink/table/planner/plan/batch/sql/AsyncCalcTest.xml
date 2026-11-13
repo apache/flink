@@ -1,0 +1,267 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAsyncCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT func1(a) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCalc(select=[func1(a) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCalcInFilterIsSplit">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable WHERE func1(a) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[>(func1($0), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a], where=[(f0 > 0)])
++- AsyncCalc(select=[a, func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCalcIsNotMergedIntoMultipleInput">
+    <Resource name="sql">
+      <![CDATA[SELECT t1.a, t1.f, t2.b FROM (SELECT a, func1(a) AS f FROM (SELECT a FROM MyTable GROUP BY a)) t1 JOIN MyTable2 t2 ON t1.a = t2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$1], b=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalProject(a=[$0], f=[func1($0)])
+   :  +- LogicalAggregate(group=[{0}])
+   :     +- LogicalProject(a=[$0])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, f, b])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, f, a0, b], build=[left])
+   :- Exchange(distribution=[keep_input_as_is[hash[a]]])
+   :  +- AsyncCalc(select=[a, func1(a) AS f])
+   :     +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+   :        +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
+   :           +- Exchange(distribution=[hash[a]])
+   :              +- LocalHashAggregate(groupBy=[a], select=[a])
+   :                 +- Calc(select=[a])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCalcNextToJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT func1(t1.a), t2.b FROM MyTable t1 JOIN MyTable2 t2 ON t1.a = t2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[func1($0)], b=[$4])
++- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0 AS EXPR$0, b])
++- AsyncCalc(select=[b, func1(a) AS f0])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, b], build=[left])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, b])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCallInCorrelateArgument">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable, LATERAL TABLE(tableFunc(func1(a)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[tableFunc(func1($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, EXPR$0])
++- Correlate(invocation=[tableFunc($3)], correlate=[table(tableFunc(f0))], select=[a,b,c,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJavaAsyncOnPythonAsync">
+    <Resource name="sql">
+      <![CDATA[SELECT func1(pya(a, a)) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[func1(pya($0, $0))])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCalc(select=[func1(f0) AS EXPR$0])
++- PythonAsyncCalc(select=[pya(a, a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedAsyncCallInCorrelateArgument">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable, LATERAL TABLE(tableFunc(ABS(func1(a))))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[tableFunc(ABS(func1($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, EXPR$0])
++- Correlate(invocation=[tableFunc(ABS($3))], correlate=[table(tableFunc(ABS(f0)))], select=[a,b,c,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedAsyncCalls">
+    <Resource name="sql">
+      <![CDATA[SELECT func1(func1(a)) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[func1(func1($0))])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCalc(select=[func1(f0) AS EXPR$0])
++- AsyncCalc(select=[func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonAsyncAndJavaAsyncInProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT pya(a, a), func1(a) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[pya($0, $0)], EXPR$1=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCalc(select=[f0 AS EXPR$0, func1(a) AS EXPR$1])
++- PythonAsyncCalc(select=[a, pya(a, a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonAsyncInCorrelateArgument">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable, LATERAL TABLE(tableFunc(pya(a, a)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[tableFunc(pya($cor0.a, $cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, EXPR$0])
++- Correlate(invocation=[tableFunc($3)], correlate=[table(tableFunc(f0))], select=[a,b,c,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- PythonAsyncCalc(select=[a, b, c, pya(a, a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonAsyncOnJavaAsync">
+    <Resource name="sql">
+      <![CDATA[SELECT pya(func1(a), a) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[pya(func1($0), $0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonAsyncCalc(select=[pya(f0, a) AS EXPR$0])
++- AsyncCalc(select=[a, func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoAsyncCallsTwoCalcs">
+    <Resource name="sql">
+      <![CDATA[SELECT func1(a), func2(a) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[func1($0)], EXPR$1=[func2($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCalc(select=[f0 AS EXPR$0, func2(a) AS EXPR$1])
++- AsyncCalc(select=[a, func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
