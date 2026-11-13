@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -304,5 +305,41 @@ public class JoinSemanticTestPrograms {
                                     + "SELECT a.r.id, b.r.id "
                                     + "FROM fj_n_left a FULL JOIN fj_n_right b "
                                     + "ON a.r.id = b.r.id")
+                    .build();
+
+    public static final TableTestProgram JOIN_REORDER_FILTER_ON_NULL_GENERATING_SIDE_OF_LEFT_JOIN =
+            TableTestProgram.of(
+                            "join-reorder-filter-on-null-generating-side-of-left-join",
+                            "validates that the filter on the null generating side of a left join"
+                                    + " keeps the rows of the left side without a match")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t1")
+                                    .addSchema("a1 INT")
+                                    .producedValues(Row.of(1), Row.of(2))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t2")
+                                    .addSchema("a2 INT", "b2 INT")
+                                    .producedValues(Row.of(1, 5), Row.of(2, 5))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t3")
+                                    .addSchema("a3 INT", "b3 INT")
+                                    .producedValues(Row.of(2, 1))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a1 INT", "a2 INT", "b2 INT", "b3 INT")
+                                    .testMaterializedData()
+                                    // The filter removes the row of t2 with a2 = 2, so the row of
+                                    // t1 with a1 = 2 has no match.
+                                    .consumedValues("+I[1, 1, 5, null]", "+I[2, null, null, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a1, a2, b2, b3 FROM t1 LEFT JOIN "
+                                    + "(SELECT * FROM t2 LEFT JOIN t3 ON a2 = a3 "
+                                    + "WHERE COALESCE(b3, b2) > 3) tab "
+                                    + "ON a1 = a2")
                     .build();
 }
