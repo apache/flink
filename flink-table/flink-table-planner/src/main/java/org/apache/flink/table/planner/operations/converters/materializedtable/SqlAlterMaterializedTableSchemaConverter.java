@@ -148,7 +148,7 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
                         createDataType(context.getCatalogManager().getDataTypeFactory(), col);
                 LogicalType oldDataType = map.get(col.getName()).getDataType().getLogicalType();
                 // The check is similar to the one in
-                // SchemaBuilderUtil#validateImplicitCastCompatibility
+                // AsQuerySchemaMerger#addDeclaredColumn
                 // which is used while merging schemas (CREATE [MATERIALIZED ]TABLE operation)
                 if (!LogicalTypeCasts.supportsImplicitCast(oldDataType, dataType)) {
                     throw new ValidationException(

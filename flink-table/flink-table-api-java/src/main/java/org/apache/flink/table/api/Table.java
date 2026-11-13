@@ -1310,10 +1310,10 @@ public interface Table extends Explainable<Table>, Executable {
 
     /**
      * Declares this table's query as the definition of a materialized table at the given path, with
-     * the default freshness and an automatically chosen refresh mode.
+     * the default freshness and {@link RefreshStrategy#automatic()}.
      *
-     * <p>The query is stored as SQL text, which also defines the schema of the materialized table,
-     * and re-run by the refresh job, also from other sessions, so it must be expressible in SQL.
+     * <p>Shorthand for {@code materializeInto(path,
+     * MaterializedTableDescriptor.newBuilder().build())}.
      *
      * <p>The path is resolved against the current catalog and database when this method is called.
      * See {@link TableEnvironment#useDatabase(String)} and {@link
@@ -1332,16 +1332,22 @@ public interface Table extends Explainable<Table>, Executable {
      * @param path The path of the materialized table.
      * @return The declaration.
      * @throws SqlParserException if the path is not a valid identifier
-     * @throws ValidationException if the query cannot be stored as SQL
+     * @throws ValidationException if the query cannot be stored as SQL, see {@link
+     *     #materializeInto(String, MaterializedTableDescriptor)}
      */
     MaterializedPipeline materializeInto(String path);
 
     /**
      * Like {@link #materializeInto(String)}, with the given freshness.
      *
-     * <p>The refresh mode is chosen automatically: when the materialized table is created, a
-     * freshness at or above {@code materialized-table.refresh-mode.freshness-threshold} resolves to
-     * FULL, which requires a workflow scheduler and fails on a plain {@link TableEnvironment}.
+     * <p>Shorthand for {@code materializeInto(path,
+     * MaterializedTableDescriptor.newBuilder().freshness(freshness).build())}.
+     *
+     * <p>The refresh strategy is {@link RefreshStrategy#automatic()}: when the materialized table
+     * is created, a freshness at or above {@code
+     * materialized-table.refresh-mode.freshness-threshold} resolves to FULL, which requires a
+     * workflow scheduler and fails on a plain {@link TableEnvironment}. Declare {@link
+     * MaterializedTableDescriptor.Builder#continuousRefresh()} to force continuous refresh.
      *
      * @param path The path of the materialized table.
      * @param freshness The freshness, a positive whole number of seconds.
@@ -1350,9 +1356,28 @@ public interface Table extends Explainable<Table>, Executable {
      * @throws ValidationException if the freshness is not positive, has a sub-second part, or
      *     exceeds {@link Integer#MAX_VALUE} seconds
      * @throws ValidationException if the query cannot be stored as SQL, see {@link
-     *     #materializeInto(String)}
+     *     #materializeInto(String, MaterializedTableDescriptor)}
      */
     MaterializedPipeline materializeInto(String path, Duration freshness);
+
+    /**
+     * Declares this table's query as the definition of a materialized table at the given path,
+     * described by the given descriptor.
+     *
+     * <p>The query is stored as SQL text, which, merged with any declared schema, defines the
+     * schema of the materialized table, and re-run by the refresh job, also from other sessions, so
+     * it must be expressible in SQL.
+     *
+     * <p>The path is resolved when this method is called, as described for {@link
+     * #materializeInto(String)}.
+     *
+     * @param path The path of the materialized table.
+     * @param descriptor The declaration of the materialized table besides its query.
+     * @return The declaration.
+     * @throws SqlParserException if the path is not a valid identifier
+     * @throws ValidationException if the query cannot be stored as SQL
+     */
+    MaterializedPipeline materializeInto(String path, MaterializedTableDescriptor descriptor);
 
     /**
      * Partitions the table by a set of partition keys.
