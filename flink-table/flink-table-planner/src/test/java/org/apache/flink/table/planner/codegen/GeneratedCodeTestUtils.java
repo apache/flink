@@ -57,6 +57,11 @@ final class GeneratedCodeTestUtils {
         return codes;
     }
 
+    /** Returns the code of all the classes generated for the operators of the query. */
+    static String generatedCode(StreamTableEnvironment tEnv, String sql) {
+        return String.join("", generatedClassCodes(tEnv, sql));
+    }
+
     static int countMatches(Pattern pattern, String code) {
         return (int) pattern.matcher(code).results().count();
     }

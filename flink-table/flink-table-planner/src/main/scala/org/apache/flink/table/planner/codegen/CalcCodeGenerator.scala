@@ -298,7 +298,7 @@ object CalcCodeGenerator {
     rexProgram.getProjectList.asScala.zipWithIndex.map {
       case (projectRef, idx) =>
         if (keyIndices.contains(idx)) {
-          exprGenerator.generateExpression(projectRef)
+          exprGenerator.generatePlainExpression(projectRef)
         } else {
           GenerateUtils.generateNullLiteral(outRowType.getTypeAt(idx).copy(true))
         }
