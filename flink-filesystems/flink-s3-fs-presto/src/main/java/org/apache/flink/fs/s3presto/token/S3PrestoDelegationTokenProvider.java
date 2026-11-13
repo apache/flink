@@ -19,13 +19,54 @@
 package org.apache.flink.fs.s3presto.token;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenProvider;
+import org.apache.flink.fs.s3.common.token.S3SessionCredentials;
 
-/** Delegation token provider for S3 Presto filesystems. */
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
+import com.amazonaws.services.securitytoken.model.Credentials;
+
+/** Delegation token provider for S3 Presto filesystems, based on AWS SDK v1. */
 @Internal
 public class S3PrestoDelegationTokenProvider extends AbstractS3DelegationTokenProvider {
+
     @Override
     public String serviceName() {
         return "s3-presto";
+    }
+
+    @Override
+    protected SessionTokenClient createSessionTokenClient(
+            String region, String accessKey, String secretKey) {
+        final AWSSecurityTokenService stsClient = createStsClient(region, accessKey, secretKey);
+        return new SessionTokenClient() {
+            @Override
+            public S3SessionCredentials getSessionCredentials() {
+                final Credentials credentials = stsClient.getSessionToken().getCredentials();
+                return new S3SessionCredentials(
+                        credentials.getAccessKeyId(),
+                        credentials.getSecretAccessKey(),
+                        credentials.getSessionToken(),
+                        credentials.getExpiration().getTime());
+            }
+
+            @Override
+            public void close() {
+                stsClient.shutdown();
+            }
+        };
+    }
+
+    @VisibleForTesting
+    AWSSecurityTokenService createStsClient(String region, String accessKey, String secretKey) {
+        return AWSSecurityTokenServiceClientBuilder.standard()
+                .withRegion(region)
+                .withCredentials(
+                        new AWSStaticCredentialsProvider(
+                                new BasicAWSCredentials(accessKey, secretKey)))
+                .build();
     }
 }

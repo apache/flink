@@ -32,8 +32,6 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<!-- hadoop-aws 3.4 requires AWS SDK v2; stay on Hadoop 3.3 until the S3 filesystems are migrated (FLINK-30975) -->
-		<fs.hadoopshaded.version>3.3.4</fs.hadoopshaded.version>
 		<presto.version>0.294</presto.version>
 		<surefire.module.config> <!--
 			S5CmdOnPrestoS3FileSystemITCase uses ArraysAsListSerializer indirectly
@@ -58,13 +56,57 @@ under the License.
 			<artifactId>flink-architecture-tests-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<!-- S3 base (bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<!-- Presto uses AWS SDK v1; hadoop-aws, the Analytics Accelerator and Netty are only
+				     used by flink-s3-fs-hadoop -->
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-aws</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.s3.analyticsaccelerator</groupId>
+					<artifactId>analyticsaccelerator-s3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>s3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>sts</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>kms</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>dynamodb</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>sso</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>auth</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>s3-transfer-manager</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- for the HAJobRunOnPrestoS3FileSystemITCase -->

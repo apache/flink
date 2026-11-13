@@ -3,56 +3,104 @@ Copyright 2014-2026 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.amazonaws:aws-java-sdk-core:1.12.779
-- com.amazonaws:aws-java-sdk-dynamodb:1.12.779
-- com.amazonaws:aws-java-sdk-kms:1.12.779
-- com.amazonaws:aws-java-sdk-s3:1.12.779
-- com.amazonaws:aws-java-sdk-sts:1.12.779
-- com.amazonaws:jmespath-java:1.12.779
 - com.fasterxml.jackson.core:jackson-annotations:2.22
 - com.fasterxml.jackson.core:jackson-core:2.22.2
 - com.fasterxml.jackson.core:jackson-databind:2.22.2
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.22.2
-- com.fasterxml.woodstox:woodstox-core:5.3.0
-- com.google.guava:failureaccess:1.0
-- com.google.guava:guava:27.0-jre
+- com.fasterxml.woodstox:woodstox-core:5.4.0
+- com.google.guava:failureaccess:1.0.1
+- com.google.guava:guava:32.0.1-jre
 - com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
-- com.google.j2objc:j2objc-annotations:1.1
-- commons-beanutils:commons-beanutils:1.11.0
+- com.google.j2objc:j2objc-annotations:2.8
 - commons-codec:commons-codec:1.15
-- commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.15.1
 - commons-logging:commons-logging:1.1.3
-- joda-time:joda-time:2.5
+- io.dropwizard.metrics:metrics-core:3.2.5
+- io.netty:netty-buffer:4.2.17.Final
+- io.netty:netty-codec:4.2.17.Final
+- io.netty:netty-codec-base:4.2.17.Final
+- io.netty:netty-codec-compression:4.2.17.Final
+- io.netty:netty-codec-http:4.2.17.Final
+- io.netty:netty-codec-http2:4.2.17.Final
+- io.netty:netty-codec-marshalling:4.2.17.Final
+- io.netty:netty-codec-protobuf:4.2.17.Final
+- io.netty:netty-common:4.2.17.Final
+- io.netty:netty-handler:4.2.17.Final
+- io.netty:netty-resolver:4.2.17.Final
+- io.netty:netty-transport:4.2.17.Final
+- io.netty:netty-transport-classes-epoll:4.2.17.Final
+- io.netty:netty-transport-native-epoll:4.2.17.Final
+- io.netty:netty-transport-native-unix-common:4.2.17.Final
+- org.apache.commons:commons-collections4:4.4
 - org.apache.commons:commons-compress:1.26.0
-- org.apache.commons:commons-configuration2:2.1.1
+- org.apache.commons:commons-configuration2:2.10.1
 - org.apache.commons:commons-lang3:3.18.0
 - org.apache.commons:commons-text:1.10.0
-- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
-- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
-- org.apache.hadoop:hadoop-annotations:3.3.4
-- org.apache.hadoop:hadoop-auth:3.3.4
-- org.apache.hadoop:hadoop-aws:3.3.4
-- org.apache.hadoop:hadoop-common:3.3.4
+- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.5.0
+- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25:1.5.0
+- org.apache.hadoop:hadoop-annotations:3.4.3
+- org.apache.hadoop:hadoop-auth:3.4.3
+- org.apache.hadoop:hadoop-aws:3.4.3
+- org.apache.hadoop:hadoop-common:3.4.3
 - org.apache.httpcomponents:httpclient:4.5.13
 - org.apache.httpcomponents:httpcore:4.4.14
-- org.apache.kerby:kerb-core:1.0.1
-- org.apache.kerby:kerby-asn1:1.0.1
-- org.apache.kerby:kerby-pkix:1.0.1
-- org.apache.kerby:kerby-util:1.0.1
-- org.wildfly.openssl:wildfly-openssl:1.0.7.Final
+- org.apache.kerby:kerb-core:2.0.3
+- org.apache.kerby:kerb-crypto:2.0.3
+- org.apache.kerby:kerb-util:2.0.3
+- org.apache.kerby:kerby-asn1:2.0.3
+- org.apache.kerby:kerby-config:2.0.3
+- org.apache.kerby:kerby-pkix:2.0.3
+- org.apache.kerby:kerby-util:2.0.3
+- org.codehaus.jettison:jettison:1.5.4
+- org.wildfly.openssl:wildfly-openssl:2.2.5.Final
 - org.xerial.snappy:snappy-java:1.1.10.12
-- software.amazon.ion:ion-java:1.0.2
+- software.amazon.awssdk:annotations:2.35.4
+- software.amazon.awssdk:apache-client:2.35.4
+- software.amazon.awssdk:arns:2.35.4
+- software.amazon.awssdk:auth:2.35.4
+- software.amazon.awssdk:aws-core:2.35.4
+- software.amazon.awssdk:aws-json-protocol:2.35.4
+- software.amazon.awssdk:aws-query-protocol:2.35.4
+- software.amazon.awssdk:aws-xml-protocol:2.35.4
+- software.amazon.awssdk:checksums:2.35.4
+- software.amazon.awssdk:checksums-spi:2.35.4
+- software.amazon.awssdk:crt-core:2.35.4
+- software.amazon.awssdk:endpoints-spi:2.35.4
+- software.amazon.awssdk:http-auth:2.35.4
+- software.amazon.awssdk:http-auth-aws:2.35.4
+- software.amazon.awssdk:http-auth-aws-eventstream:2.35.4
+- software.amazon.awssdk:http-auth-spi:2.35.4
+- software.amazon.awssdk:http-client-spi:2.35.4
+- software.amazon.awssdk:identity-spi:2.35.4
+- software.amazon.awssdk:json-utils:2.35.4
+- software.amazon.awssdk:kms:2.35.4
+- software.amazon.awssdk:metrics-spi:2.35.4
+- software.amazon.awssdk:netty-nio-client:2.35.4
+- software.amazon.awssdk:profiles:2.35.4
+- software.amazon.awssdk:protocol-core:2.35.4
+- software.amazon.awssdk:regions:2.35.4
+- software.amazon.awssdk:retries:2.35.4
+- software.amazon.awssdk:retries-spi:2.35.4
+- software.amazon.awssdk:s3:2.35.4
+- software.amazon.awssdk:s3-transfer-manager:2.35.4
+- software.amazon.awssdk:sdk-core:2.35.4
+- software.amazon.awssdk:sso:2.35.4
+- software.amazon.awssdk:sts:2.35.4
+- software.amazon.awssdk:third-party-jackson-core:2.35.4
+- software.amazon.awssdk:utils:2.35.4
+- software.amazon.awssdk:utils-lite:2.35.4
+- software.amazon.eventstream:eventstream:1.0.1
+- software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3:1.3.1
 
 This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).
 See bundled license files for details.
 
-- dnsjava:dnsjava:2.1.7
+- dnsjava:dnsjava:3.6.1
 
 This project bundles the following dependencies under the MIT (https://opensource.org/licenses/MIT)
 
-- org.checkerframework:checker-qual:2.5.2
-- org.codehaus.mojo:animal-sniffer-annotations:1.17
+- org.bouncycastle:bcprov-jdk18on:1.82
+- org.checkerframework:checker-qual:3.33.0
+- org.reactivestreams:reactive-streams:1.0.4
 
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
@@ -73,10 +121,43 @@ The bundled Apache Hadoop Relocated (Shaded) Third-party Miscellaneous Libs
 org.apache.hadoop.thirdparty:hadoop-shaded-guava dependency bundles the following dependencies under
 the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.google.guava:guava:30.1.1-jre
+- com.google.guava:guava:33.4.8-jre
 
 The bundled Apache Hadoop Relocated (Shaded) Third-party Miscellaneous Libs
-org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7 dependency bundles the following dependencies under
-the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25 dependency bundles the following dependencies under
+the BSD-3 License (https://opensource.org/licenses/BSD-3-Clause)
 
-- com.google.protobuf:protobuf-java:3.7.1
+- com.google.protobuf:protobuf-java:3.25.5
+
+The bundled software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3 dependency bundles the following
+dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.github.ben-manes.caffeine:caffeine:2.9.3
+- dev.failsafe:failsafe:3.3.2
+- org.apache.parquet:parquet-format:2.10.0
+- org.apache.thrift:libthrift:0.19.0
+
+The bundled io.netty dependencies contain code from the following projects under the Apache Software License 2.0
+(http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- Apache Commons Lang (https://commons.apache.org/proper/commons-lang/)
+- Apache Harmony (https://archive.apache.org/dist/harmony/)
+- HPACK by Twitter (https://github.com/twitter/hpack)
+- JCTools (https://github.com/JCTools/JCTools)
+
+Apache Harmony
+Copyright 2006, 2010 The Apache Software Foundation.
+
+The bundled io.netty dependencies contain code from the following projects under other licenses.
+See bundled license files for details.
+
+- Base64 by Robert Harder, Public Domain (http://iharder.sourceforge.net/current/java/base64/)
+- HPACK by Cory Benfield, MIT License (https://github.com/python-hyper/hpack)
+- HPACK by Tatsuhiro Tsujikawa, MIT License (https://github.com/nghttp2/nghttp2)
+- JSR-166 extensions, Public Domain (http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/)
+- jbzip2, MIT License (https://code.google.com/p/jbzip2/)
+- jfastlz, MIT License (https://code.google.com/p/jfastlz/)
+- libdivsufsort, MIT License (https://github.com/y-256/libdivsufsort)
+- Protocol Buffers, BSD License (https://github.com/protocolbuffers/protobuf)
+- SLF4J, MIT License (https://www.slf4j.org/)
+- Webbit, BSD License (https://github.com/joewalnes/webbit)

@@ -31,9 +31,9 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<!-- hadoop-aws 3.4 requires AWS SDK v2; stay on Hadoop 3.3 until the S3 filesystems are migrated (FLINK-30975) -->
-		<fs.hadoopshaded.version>3.3.4</fs.hadoopshaded.version>
 		<fs.s3.aws.version>1.12.779</fs.s3.aws.version>
+		<!-- The AWS SDK v2 version that hadoop-aws ${fs.hadoopshaded.version} is built against -->
+		<fs.s3.aws.sdk2.version>2.35.4</fs.s3.aws.sdk2.version>
 		<japicmp.skip>true</japicmp.skip>
 		<surefire.module.config> <!--
 			S5CmdOnSeaweedFsITCase uses ArraysAsListSerializer indirectly
@@ -88,6 +88,11 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-server</artifactId>
+				</exclusion>
+				<!-- hadoop-common 3.4 declares jersey-json, but none of its classes use it. -->
+				<exclusion>
+					<groupId>com.github.pjfanning</groupId>
+					<artifactId>jersey-json</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.avro</groupId>
@@ -236,6 +241,11 @@ under the License.
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-bundle</artifactId>
 				</exclusion>
+				<!-- The SDK v2 bundle shades everything; the modules below are what hadoop-aws needs -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>bundle</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>ch.qos.reload4j</groupId>
 					<artifactId>reload4j</artifactId>
@@ -245,6 +255,38 @@ under the License.
 					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- AWS SDK v2 modules used by hadoop-aws, instead of its shaded bundle -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>kms</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sso</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>auth</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3-transfer-manager</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
 		</dependency>
 
 		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnSeaweedFsS3StoreITCase -->

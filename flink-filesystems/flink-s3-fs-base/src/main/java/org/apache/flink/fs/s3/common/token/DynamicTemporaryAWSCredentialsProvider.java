@@ -21,12 +21,11 @@ package org.apache.flink.fs.s3.common.token;
 import org.apache.flink.annotation.Internal;
 
 import com.amazonaws.SdkBaseException;
+import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,13 +34,24 @@ import java.net.URI;
 /**
  * Support dynamic session credentials for authenticating with AWS. Please note that users may
  * reference this class name from configuration property fs.s3a.aws.credentials.provider. Therefore,
- * changing the class name would be a backward-incompatible change. This credential provider must
- * not fail in creation because that will break a chain of credential providers.
+ * changing the class name would be a backward-incompatible change.
+ *
+ * <p>It is based on AWS SDK v1 and serves flink-s3-fs-presto; flink-s3-fs-hadoop remaps this name
+ * to {@code HadoopDynamicTemporaryAWSCredentialsProvider}. It must not fail in creation, because
+ * that breaks the provider chain. Without credentials, {@link #getCredentials()} throws the SDK v1
+ * {@link SdkClientException}, because Hadoop's {@code NoAwsCredentialsException} is based on SDK v2
+ * since Hadoop 3.4.
  */
 @Internal
 public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsProvider {
 
-    public static final String NAME = DynamicTemporaryAWSCredentialsProvider.class.getName();
+    /**
+     * Spelled out as a string literal (a compile-time constant) so that referencing {@code NAME}
+     * never triggers loading this class: it implements an SDK v1 interface that is absent from the
+     * flink-s3-fs-hadoop jar. Pinned to the actual class name by a test.
+     */
+    public static final String NAME =
+            "org.apache.flink.fs.s3.common.token.DynamicTemporaryAWSCredentialsProvider";
 
     public static final String COMPONENT = "Dynamic session credentials for Flink";
 
@@ -54,9 +64,9 @@ public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsPro
 
     @Override
     public AWSCredentials getCredentials() throws SdkBaseException {
-        Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
+        S3SessionCredentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
         if (credentials == null) {
-            throw new NoAwsCredentialsException(COMPONENT);
+            throw new SdkClientException(COMPONENT + ": No AWS credentials");
         }
         LOG.debug("Providing session credentials");
         return new BasicSessionCredentials(
@@ -67,6 +77,6 @@ public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsPro
 
     @Override
     public void refresh() {
-        // Intentionally blank. Credentials are updated by S3DelegationTokenReceiver
+        // Intentionally blank. Credentials are updated by the delegation token receiver.
     }
 }
