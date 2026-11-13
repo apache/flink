@@ -210,11 +210,11 @@ def extract_process_function(
             yield from process_func(process_element2(value[1], function_context))
 
         def on_timer_func(timestamp):
-            yield from process_func(on_timer(timestamp, timer_context))
+            if on_timer is not None:
+                yield from process_func(on_timer(timestamp, timer_context))
 
         return TwoInputOperation(
-            open_func, close_func, process_element_func1, process_element_func2,
-            on_timer_func if on_timer else None)
+            open_func, close_func, process_element_func1, process_element_func2, on_timer_func)
 
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS:
         broadcast_ctx = InternalKeyedBroadcastProcessFunctionContext(
