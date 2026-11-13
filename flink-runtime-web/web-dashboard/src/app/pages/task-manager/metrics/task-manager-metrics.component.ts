@@ -19,8 +19,8 @@
 import { DecimalPipe, NgForOf, NgIf, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { of, Subject } from 'rxjs';
-import { catchError, takeUntil } from 'rxjs/operators';
+import { Observable, of, Subject } from 'rxjs';
+import { catchError, distinctUntilChanged, map, mergeMap, switchMap, takeUntil } from 'rxjs/operators';
 
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { MetricMap, TaskManagerDetail } from '@flink-runtime-web/interfaces';
@@ -67,14 +67,28 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    const taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
-    pollTaskManagerDetail(this.statusService.refresh$, () => this.taskManagerService.loadManager(taskManagerId))
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(({ detail }) => {
-        if (detail) {
-          this.reload(detail.id);
-        }
-        this.taskManagerDetail = detail;
+    this.activatedRoute
+      .parent!.paramMap.pipe(
+        map(params => params.get('taskManagerId')!),
+        distinctUntilChanged(),
+        switchMap(taskManagerId => {
+          this.taskManagerDetail = undefined;
+          this.metrics = {};
+          this.cdr.markForCheck();
+          return pollTaskManagerDetail(this.statusService.refresh$, () =>
+            this.taskManagerService.loadManager(taskManagerId)
+          ).pipe(
+            mergeMap(({ detail }) => {
+              this.taskManagerDetail = detail;
+              this.cdr.markForCheck();
+              return detail ? this.loadMetrics(detail.id) : of<MetricMap>({});
+            })
+          );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(metrics => {
+        this.metrics = metrics;
         this.cdr.markForCheck();
       });
   }
@@ -84,8 +98,8 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private reload(id: string): void {
-    this.taskManagerService
+  private loadMetrics(id: string): Observable<MetricMap> {
+    return this.taskManagerService
       .loadMetrics(id, [
         'Status.JVM.Memory.Heap.Used',
         'Status.JVM.Memory.Heap.Max',
@@ -96,13 +110,6 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
         'Status.JVM.Memory.Metaspace.Used',
         'Status.JVM.Memory.Metaspace.Max'
       ])
-      .pipe(
-        catchError(() => of({} as MetricMap)),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(metrics => {
-        this.metrics = metrics;
-        this.cdr.markForCheck();
-      });
+      .pipe(catchError(() => of<MetricMap>({})));
   }
 }
