@@ -106,6 +106,39 @@ class ArrowSchemaTests(unittest.TestCase):
                 self.assertEqual(len(create_arrow_schema(["value"], [data_type],
                                                          allow_nested=True)), 1)
 
+    def test_pandas_collection_schema_allows_nested_rows_but_not_nested_ltz(self):
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        row = DataTypes.ROW([DataTypes.FIELD("v", DataTypes.BIGINT())])
+        ltz = DataTypes.TIMESTAMP_LTZ(3)
+        key = DataTypes.STRING().not_null()
+        for data_type in (
+            DataTypes.ARRAY(row),
+            DataTypes.ROW([DataTypes.FIELD("inner", row)]),
+            DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD("inner", row)])),
+        ):
+            with self.subTest(data_type=data_type):
+                self.assertEqual(len(create_arrow_schema(["value"], [data_type],
+                                                         allow_nested_rows=True)), 1)
+
+        # Pandas conversion only converts top level zoned timestamps to the session time zone.
+        lookup = DataTypes.MAP(key, ltz)
+        for data_type, error in (
+            (DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD("t", ltz)])), TypeError),
+            (lookup, ValueError),
+            (DataTypes.MAP(ltz.not_null(), DataTypes.STRING()), ValueError),
+            (DataTypes.MAP(key, DataTypes.MAP(key, ltz)), ValueError),
+            (DataTypes.ROW([DataTypes.FIELD("m", lookup)]), ValueError),
+            (DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD("m", lookup)])), ValueError),
+        ):
+            with self.subTest(data_type=data_type):
+                with self.assertRaises(error):
+                    create_arrow_schema(["value"], [data_type], allow_nested_rows=True)
+                # Empty results are converted without values, so they allow every nested type.
+                self.assertEqual(len(create_arrow_schema(
+                    ["value"], [data_type], allow_nested=True, allow_nested_rows=True)), 1)
+
     def test_pandas_collection_schema_and_round_trip(self):
         import pandas as pd
         from pyflink.table import DataTypes
