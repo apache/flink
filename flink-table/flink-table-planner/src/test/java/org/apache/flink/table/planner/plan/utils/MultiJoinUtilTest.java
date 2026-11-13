@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -34,6 +35,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.operators.join.FlinkJoinType.INNER;
+import static org.apache.flink.table.runtime.operators.join.FlinkJoinType.LEFT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MultiJoinUtil}. */
@@ -65,6 +68,52 @@ class MultiJoinUtilTest {
                                         List.of(new int[] {0}),
                                         List.of(new int[] {0, 1}, new int[] {0}))))
                 .isEqualTo(new int[][] {{0, 1}, {}, {1}});
+    }
+
+    @Test
+    void testInnerJoinFiltersBothSides() {
+        assertThat(
+                        nullFilterFields(
+                                List.of(INNER, INNER, LEFT), List.of(equals(0, 2), equals(2, 4))))
+                .isEqualTo(new int[][] {{0}, {0}, {0}});
+    }
+
+    @Test
+    void testLeftJoinFiltersOnlyItsOwnInput() {
+        // The preceding inputs of a left join are preserved, also when the condition compares
+        // two of them.
+        assertThat(
+                        nullFilterFields(
+                                List.of(INNER, LEFT, LEFT),
+                                List.of(equals(0, 2), and(equals(0, 4), equals(1, 3)))))
+                .isEqualTo(new int[][] {{}, {0}, {0}});
+    }
+
+    @Test
+    void testLaterInnerJoinFiltersPrecedingInputs() {
+        assertThat(
+                        nullFilterFields(
+                                List.of(INNER, LEFT, INNER),
+                                List.of(equals(0, 2), and(equals(0, 4), equals(3, 5)))))
+                .isEqualTo(new int[][] {{0}, {0, 1}, {0, 1}});
+    }
+
+    @Test
+    void testIgnoresConditionsThatCanMatchNull() {
+        final RexNode isNotDistinctFrom =
+                REX_BUILDER.makeCall(
+                        SqlStdOperatorTable.IS_NOT_DISTINCT_FROM, inputRef(0), inputRef(2));
+        final RexNode or = REX_BUILDER.makeCall(SqlStdOperatorTable.OR, equals(1, 3), equals(0, 2));
+        assertThat(nullFilterFields(List.of(INNER, INNER, INNER), List.of(isNotDistinctFrom, or)))
+                .isEqualTo(new int[][] {{}, {}, {}});
+    }
+
+    private static int[][] nullFilterFields(
+            final List<FlinkJoinType> joinTypes, final List<RexNode> conditions) {
+        // The condition of input 0 is TRUE
+        final List<RexNode> joinConditions =
+                Arrays.asList(REX_BUILDER.makeLiteral(true), conditions.get(0), conditions.get(1));
+        return MultiJoinUtil.createNullFilterFields(INPUT_TYPES, joinConditions, joinTypes);
     }
 
     private static RexNode equals(final int left, final int right) {
