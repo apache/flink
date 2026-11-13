@@ -190,7 +190,7 @@ into operators again on every start. A newer Flink version can plan the same que
 example because of new optimizer rules or a new version of an operator, and the state in the
 savepoint then doesn't match the new operators.
 
-A [compiled plan]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#configure-operator-level-state-ttl)
+A [compiled plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}})
 stores the result of the planning: the execution nodes of the pipeline with their IDs and versions.
 A newer Flink version runs the plan as it is, as long as it still supports the versions of the
 execution nodes in the plan, so that the operators find their state in the savepoint.
@@ -260,17 +260,9 @@ Keep the plan file as long as the job runs. Don't delete it, and don't compile t
 upgrade. A new compilation can plan the query differently, and the operator IDs it assigns can
 differ from the ones in the savepoint.
 
-Also note:
-
-* Temporary tables and functions are stored in the plan only by their name. Create and register them
-  again before you run the plan. Catalog tables and functions are stored in the plan with their
-  options. By default, a restore also looks them up in the catalog to enrich options that can
-  change, see `table.plan.compile.catalog-objects` and `table.plan.restore.catalog-objects`.
-* The SQL Client or SQL Gateway that runs the statement reads and writes the plan file, so it needs
-  access to the path.
-* Pipelines that read from a `DataStream`, use legacy sources or sinks, or use table aggregate
-  functions can't be compiled to a plan.
-* PTFs can be compiled to a plan since Flink 2.1.
+Before you run the plan on the new version, create its temporary tables and functions again. Flink
+guarantees an upgrade by one minor version. See [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) for older plans, what a
+plan stores, and what can't be compiled.
 
 Without a compiled plan, a restore after a version upgrade can work, but there is no guarantee.
 

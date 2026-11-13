@@ -182,103 +182,7 @@ SELECT * FROM upsert_kafka;
 
 **生成 Compiled Plan**
 
-配置过程首先会使用 `COMPILE PLAN` 语句生成一个 JSON 文件，它表示了序列化后的执行计划。
-{{< hint info >}}
-`COMPILE PLAN` 不支持查询语句 `SELECT... FROM...` 。 
-{{< /hint >}}
-
-- 执行 `COMPILE PLAN` 语句
-
-{{< tabs "compile-plan" >}}
-{{< tab "Java" >}}
-```java
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)");
-
-// CompilePlan#writeToFile only supports a local file path, if you need to write to remote filesystem,
-// please use tableEnv.executeSql("COMPILE PLAN 'hdfs://path/to/plan.json' FOR ...")
-CompiledPlan compiledPlan = 
-    tableEnv.compilePlanSql(
-        "INSERT INTO enriched_orders \n" 
-       + "SELECT a.order_id, a.order_line_id, b.order_status, ... \n" 
-       + "FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id");
-
-compiledPlan.writeToFile("/path/to/plan.json");
-
-```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)")
-
-val compiledPlan = 
-    tableEnv.compilePlanSql(
-       """
-        |INSERT INTO enriched_orders
-        |SELECT a.order_id, a.order_line_id, b.order_status, ...
-        |FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id
-        |""".stripMargin)
-// CompilePlan#writeToFile only supports a local file path, if you need to write to remote filesystem,
-// please use tableEnv.executeSql("COMPILE PLAN 'hdfs://path/to/plan.json' FOR ...")
-compiledPlan.writeToFile("/path/to/plan.json")
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-
-```sql
-Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_orders
-> SELECT a.order_id, a.order_line_id, b.order_status, ...
-> FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
-[INFO] Execute statement succeeded.
-```
-
-{{< /tab >}}
-{{< /tabs >}}
-
-
-- SQL 语法
-
-    ```sql
-    COMPILE PLAN <plan_file_path> [IF NOT EXISTS] FOR <insert_statement>|<statement_set>;
-    
-    statement_set:
-        STATEMENT SET
-        BEGIN
-        insert_statement;
-        ...
-        insert_statement;
-        END;
-    
-    insert_statement:
-        <insert_from_select>|<insert_from_values>
-    ```
-    该语句会在指定位置 `/path/to/plan.json` 生成一个 JSON 文件。
-
-{{< hint info >}}
-`COMPILE PLAN` 语句支持写入 `hdfs://` 或 `s3://` 等 Flink 支持的[文件系统]({{< ref "docs/deployment/filesystems/overview" >}})。
-请确保已为目标写入路径设置了写入权限。
-{{< /hint >}}
+Compile the statement to a plan file as described in [Compile a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#compile-a-plan).
 
 **修改 Compiled Plan**
 
@@ -316,83 +220,8 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 
 **执行 Compiled Plan**
 
-`EXECUTE PLAN` 语句将会反序列化上述 JSON 文件，进一步生成 JobGraph 并提交作业。
+Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#execute-a-plan).
 通过 `EXECUTE PLAN` 语句提交的作业，其状态算子的 TTL 的值将会从文件中读取，配置项 `table.exec.state.ttl` 的值将会被忽略。
-
-- 执行 `EXECUTE PLAN` 语句
-{{< tabs "execute-plan" >}}
-{{< tab "Java" >}}
-```java
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)");
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)");
-
-// PlanReference#fromFile only supports a local file path, if you need to read from remote filesystem,
-// please use tableEnv.executeSql("EXECUTE PLAN 'hdfs://path/to/plan.json'").await();
-tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await();
-
-```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)")
-
-// PlanReference#fromFile only supports a local file path, if you need to read from remote filesystem,
-// please use tableEnv.executeSql("EXECUTE PLAN 'hdfs://path/to/plan.json'").await()
-tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await()
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-
-```sql
-Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeeded.
-
-Flink SQL> EXECUTE PLAN 'file:///path/to/plan.json';
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] SQL update statement has been successfully submitted to the cluster:
-Job ID: 79fbe3fa497e4689165dd81b1d225ea8
-```
-
-{{< /tab >}}
-{{< /tabs >}}
-
-- SQL 语法
-
-    ```sql
-    EXECUTE PLAN <plan_file_path>;
-    ```
-    该语句反序列化指定的 JSON 文件，并提交作业。
-
-**Compile and Execute the Plan in One Statement**
-
-`COMPILE AND EXECUTE PLAN` compiles the statement, writes the plan to the file, and runs it. If the
-file already exists, it runs the plan from the file and doesn't use the statement, which must still
-be valid. Running the same statement again, including on a newer Flink version, therefore runs the
-plan that was compiled first. To run a changed statement, compile it to a new file.
-
-- SQL Syntax
-
-    ```sql
-    COMPILE AND EXECUTE PLAN <plan_file_path> FOR <insert_statement>|<statement_set>;
-    ```
 
 **完整示例**
 
@@ -563,7 +392,7 @@ A change to the query or to the Flink version can lead to a different execution 
 in a savepoint might not map to it. For example, by adding a filter predicate, the optimizer might
 decide to reorder joins or change the schema of an intermediate operator.
 
-A compiled plan stores the execution plan of a pipeline, so that a newer Flink version runs the same
+A [compiled plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) stores the execution plan of a pipeline, so that a newer Flink version runs the same
 operators with the same state layout. A process table function restores its state by its `uid`,
 even when the query around it changes. See
 [Application State Compatibility]({{< ref "docs/ops/upgrading" >}}#table-api--sql) for what you can
@@ -580,6 +409,7 @@ change and how.
 * [时态（temporal）表]({{< ref "docs/concepts/sql-table-concepts/versioned_tables" >}}): 描述了时态表的概念。
 * [流上的 Join]({{< ref "docs/sql/reference/queries/joins" >}}): 支持的几种流上的 Join。
 * [流上的确定性]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): 解释了流计算的确定性。
+* [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}): Describes how to compile a pipeline to a plan file and run it.
 * [查询配置]({{< ref "docs/dev/table/config" >}}): Table API & SQL 特定的配置。
 
 {{< top >}}
