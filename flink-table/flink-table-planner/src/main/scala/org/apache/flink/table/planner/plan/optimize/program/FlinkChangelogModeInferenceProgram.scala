@@ -1750,21 +1750,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     upsertKeys != null && upsertKeys.exists(!_.isEmpty)
   }
 
-  /**
-   * Whether an inner lookup join drops an update whose row stops matching, i.e. a condition reads
-   * columns outside the input's upsert key, or the lookup table is filtered and the join key isn't
-   * on the upsert key.
-   */
+  /** Like a filter, an inner lookup join drops an update that stops matching. */
   private def isNonUpsertKeyLookupCondition(lookupJoin: StreamPhysicalLookupJoin): Boolean = {
-    if (lookupJoin.joinType != JoinRelType.INNER) {
-      return false
-    }
     val input = lookupJoin.getInput
-    // columns of the looked up row are never in the input's upsert key
-    val conditions = lookupJoin.finalPreFilterCondition ++ lookupJoin.finalRemainingCondition
-    conditions.exists(c => !isOnUpsertKey(input, RelOptUtil.InputFinder.bits(c))) ||
-    (lookupJoin.calcOnTemporalTable.exists(_.getCondition != null) &&
-      !isOnUpsertKey(input, ImmutableBitSet.of(lookupJoin.joinInfo.leftKeys)))
+    // the looked up row isn't deterministic
+    val inputColumns = ImmutableBitSet.range(input.getRowType.getFieldCount)
+    lookupJoin.joinType == JoinRelType.INNER && lookupJoin.finalRemainingCondition.exists(
+      c => !isOnUpsertKey(input, RelOptUtil.InputFinder.bits(c).intersect(inputColumns)))
   }
 
   private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {

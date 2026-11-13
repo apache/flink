@@ -391,7 +391,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
                     .build();
 
-    /** Row "one" is deleted or stops matching the filter, so the sink must only keep row "two". */
+    /** Row "one" is deleted or filtered out, so only row "two" stays. */
     private static TableTestProgram.Builder pushedNonKeyFilter(
             String id, ChangelogMode mode, Row... rows) {
         return TableTestProgram.of(id, "validates a non key filter on a filterable source")

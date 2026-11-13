@@ -25,6 +25,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata.MetadataFilterResult;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.MetadataFilterPushDownSpec;
@@ -78,10 +79,9 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
 
     /**
      * Pushes physical-only and metadata-only predicates to their own abilities and keeps mixed ones
-     * as runtime filters, so per FLIP-574 {@code applyFilters} never sees a metadata column. A
-     * predicate on columns outside the upsert keys of a source that sends updates isn't pushed if a
-     * ChangelogNormalize follows the source, and is also kept as a runtime filter otherwise.
-     * Returns {@code null} if nothing can be pushed.
+     * as runtime filters, so per FLIP-574 {@code applyFilters} never sees a metadata column.
+     * Non-key predicates of an updating source stay as runtime filters. Returns {@code null} if
+     * nothing can be pushed.
      */
     @Nullable
     protected FilterPushDownResult classifyAndPushFilters(
@@ -94,27 +94,34 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
         boolean supportsMetadataFilter = canPushdownMetadataFilter(tableSourceTable);
         List<String> metadataKeys = getReadMetadataKeys(tableSourceTable);
         int firstMetadataIndex = scan.getRowType().getFieldCount() - metadataKeys.size();
-        Set<ImmutableBitSet> keys = getUpsertKeysOfUpdatingSource(tableSourceTable, scan);
+        boolean sendsUpdates = sendsUpdatesOrDeletesByKey(tableSourceTable.tableSource());
+        Set<ImmutableBitSet> upsertKeys =
+                FlinkRelMetadataQuery.reuseOrCreate(scan.getCluster().getMetadataQuery())
+                        .getUpsertKeys(scan);
+        // eventTimeSnapshotRequired is only set after filter push-down
         boolean changelogNormalized =
-                keys != null
-                        && PushProjectIntoTableSourceScanRule.requiresPrimaryKey(
-                                tableSourceTable, ShortcutUtils.unwrapTableConfig(scan));
+                DynamicSourceUtils.changelogNormalizeEnabled(
+                        false,
+                        tableSourceTable.contextResolvedTable().getResolvedSchema(),
+                        tableSourceTable.tableSource(),
+                        ShortcutUtils.unwrapTableConfig(scan));
 
         List<RexNode> allRemainingRexNodes = new ArrayList<>();
-        List<RexNode> keptRexNodes = new ArrayList<>();
         List<RexNode> physicalPredicates = new ArrayList<>();
         List<RexNode> metadataPredicates = new ArrayList<>();
         for (RexNode predicate : convertiblePredicates) {
             ImmutableBitSet columns = RelOptUtil.InputFinder.bits(predicate);
             FilterColumnKind kind = classifyColumns(columns, firstMetadataIndex);
-            if (keys != null && keys.stream().noneMatch(key -> key.contains(columns))) {
-                // a ChangelogNormalize after the source never sees an update the filter drops
+            boolean onUpsertKey =
+                    upsertKeys != null
+                            && upsertKeys.stream().anyMatch(key -> key.contains(columns));
+            if (sendsUpdates && !onUpsertKey) {
+                // as a runtime filter it makes the planner keep UPDATE_BEFORE
+                allRemainingRexNodes.add(predicate);
+                // ChangelogNormalize must see every update
                 if (changelogNormalized) {
-                    allRemainingRexNodes.add(predicate);
                     continue;
                 }
-                // keeping the filter in the plan too makes the planner keep UPDATE_BEFORE
-                keptRexNodes.add(predicate);
             }
             if (kind == FilterColumnKind.PHYSICAL_ONLY && supportsPhysicalFilter) {
                 physicalPredicates.add(predicate);
@@ -154,9 +161,6 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
             allRemainingRexNodes.addAll(metadataResult.remainingRexNodes);
         }
 
-        keptRexNodes.stream()
-                .filter(predicate -> !allRemainingRexNodes.contains(predicate))
-                .forEach(allRemainingRexNodes::add);
         allRemainingRexNodes.addAll(Arrays.asList(unconvertedPredicates));
         return new FilterPushDownResult(currentTable, allRemainingRexNodes);
     }
@@ -239,24 +243,12 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
         MIXED
     }
 
-    /**
-     * Returns the upsert keys of a source that sends updates or deletes by key, empty if unknown,
-     * or null for any other source.
-     */
-    private static @Nullable Set<ImmutableBitSet> getUpsertKeysOfUpdatingSource(
-            TableSourceTable tableSourceTable, TableScan scan) {
-        if (!(tableSourceTable.tableSource() instanceof ScanTableSource)) {
-            return null;
+    private static boolean sendsUpdatesOrDeletesByKey(DynamicTableSource source) {
+        if (!(source instanceof ScanTableSource)) {
+            return false;
         }
-        ChangelogMode changelogMode =
-                ((ScanTableSource) tableSourceTable.tableSource()).getChangelogMode();
-        if (!changelogMode.contains(RowKind.UPDATE_AFTER) && !changelogMode.keyOnlyDeletes()) {
-            return null;
-        }
-        Set<ImmutableBitSet> upsertKeys =
-                FlinkRelMetadataQuery.reuseOrCreate(scan.getCluster().getMetadataQuery())
-                        .getUpsertKeys(scan);
-        return upsertKeys == null ? Set.of() : upsertKeys;
+        ChangelogMode changelogMode = ((ScanTableSource) source).getChangelogMode();
+        return changelogMode.contains(RowKind.UPDATE_AFTER) || changelogMode.keyOnlyDeletes();
     }
 
     private static FilterColumnKind classifyColumns(

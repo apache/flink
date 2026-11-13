@@ -345,37 +345,36 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
   @Test
   def testLeftJoinWithNonKeyConditionOnUpsertInput(): Unit = {
-    // a left join emits a row for every input row, so the input needn't send UPDATE_BEFORE
-    util.addTable("""
-                    |CREATE TABLE Users (
-                    |  id INT PRIMARY KEY NOT ENFORCED,
-                    |  age INT,
-                    |  proctime AS PROCTIME()
-                    |) WITH (
-                    |  'connector' = 'values',
-                    |  'changelog-mode' = 'I,UA,UB,D'
-                    |)""".stripMargin)
-    util.addTable("""
-                    |CREATE TABLE Profiles (
-                    |  id INT PRIMARY KEY NOT ENFORCED,
-                    |  name STRING,
-                    |  age INT
-                    |) WITH (
-                    |  'connector' = 'values'
-                    |)""".stripMargin)
-    util.addTable("""
-                    |CREATE TABLE UsersSink (
-                    |  id INT PRIMARY KEY NOT ENFORCED,
-                    |  name STRING
-                    |) WITH (
-                    |  'connector' = 'values',
-                    |  'sink-insert-only' = 'false',
-                    |  'sink-changelog-mode-enforced' = 'I,UA,D'
-                    |)""".stripMargin)
+    // a left join emits a row for every input row
+    createUpsertInputTables()
     util.verifyRelPlanInsert(
       "INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U " +
         "LEFT JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D " +
         "ON U.id = D.id AND U.age > D.age",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testInnerJoinWithNonKeyConditionOnUpsertInput(): Unit = {
+    // an update to age can make the row stop matching
+    createUpsertInputTables()
+    util.verifyRelPlanInsert(
+      "INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U " +
+        "JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D " +
+        "ON U.id = D.id AND U.age > D.age",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testInnerJoinWithKeyConditionOnUpsertInput(): Unit = {
+    // only the lookup key reads a non-key input column
+    createUpsertInputTables()
+    util.verifyRelPlanInsert(
+      "INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U " +
+        "JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D " +
+        "ON U.age = D.id AND U.id > D.age AND D.name <> 'unknown'",
       ExplainDetail.CHANGELOG_MODE
     )
   }
@@ -1119,6 +1118,35 @@ class LookupJoinTest extends TableTestBase with Serializable {
                      |  'lookup-function-class' = '${lookupFunction.getClass.getName}'
                      |)
                      |""".stripMargin)
+  }
+
+  private def createUpsertInputTables(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE Users (
+                    |  id INT PRIMARY KEY NOT ENFORCED,
+                    |  age INT,
+                    |  proctime AS PROCTIME()
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'changelog-mode' = 'I,UA,UB,D'
+                    |)""".stripMargin)
+    util.addTable("""
+                    |CREATE TABLE Profiles (
+                    |  id INT PRIMARY KEY NOT ENFORCED,
+                    |  name STRING,
+                    |  age INT
+                    |) WITH (
+                    |  'connector' = 'values'
+                    |)""".stripMargin)
+    util.addTable("""
+                    |CREATE TABLE UsersSink (
+                    |  id INT PRIMARY KEY NOT ENFORCED,
+                    |  name STRING
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false',
+                    |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                    |)""".stripMargin)
   }
 
   private def expectExceptionThrown(

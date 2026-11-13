@@ -455,7 +455,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
                                |)
                                |""".stripMargin)
 
-    // without upsert keys the pushed filter is kept in a Calc too, so UB cannot be dropped
+    // without upsert keys the filter is also kept in a Calc
     util.verifyRelPlan("select * from src where name <> 'Tom'", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -474,7 +474,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
                                |)
                                |""".stripMargin)
 
-    // upsert key {name, id} contains {name}, so the filter is only pushed and UB can be dropped
+    // upsert key {name, id} contains {name}, so it's only pushed
     util.verifyRelPlan("select * from src where name <> 'Tom'", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -504,7 +504,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
                                |)
                                |""".stripMargin)
 
-    // a delete by key has no name to filter on, and no ChangelogNormalize provides full deletes
+    // a delete by key has no name to filter on
     assertThatThrownBy(
       () => util.verifyRelPlanInsert("insert into snk select * from src where name <> 'Tom'"))
       .hasMessageContaining(

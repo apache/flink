@@ -226,8 +226,7 @@ public class PushProjectIntoTableSourceScanRule
         return projections;
     }
 
-    /** Whether a ChangelogNormalize, which needs the primary key, follows the source. */
-    static boolean requiresPrimaryKey(TableSourceTable table, TableConfig tableConfig) {
+    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig tableConfig) {
         return DynamicSourceUtils.isUpsertSource(
                         table.contextResolvedTable().getResolvedSchema(), table.tableSource())
                 || DynamicSourceUtils.isSourceChangeEventsDuplicate(

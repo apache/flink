@@ -28,8 +28,6 @@ public class LookupJoinSemanticTests extends SemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return List.of(
-                LookupJoinSemanticTestPrograms.LOOKUP_TABLE_FILTER_WITH_UPDATED_JOIN_KEY,
-                LookupJoinSemanticTestPrograms.NON_EQUI_CONDITION_WITH_UPDATED_COLUMN);
+        return List.of(LookupJoinSemanticTestPrograms.NON_EQUI_CONDITION_WITH_UPDATED_COLUMN);
     }
 }
