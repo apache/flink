@@ -880,7 +880,15 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return Optional.empty();
     }
 
-    private Optional<CatalogBaseTable> getUnresolvedTable(ObjectIdentifier objectIdentifier) {
+    /**
+     * Retrieves the permanent catalog object in the given fully qualified path without resolving
+     * it. Temporary objects are ignored.
+     *
+     * @param objectIdentifier full path of the object to retrieve
+     * @return the unresolved permanent object, or empty if the catalog does not exist or holds no
+     *     object in the given path
+     */
+    public Optional<CatalogBaseTable> getUnresolvedTable(ObjectIdentifier objectIdentifier) {
         Optional<Catalog> currentCatalog = getCatalog(objectIdentifier.getCatalogName());
         ObjectPath objectPath = objectIdentifier.toObjectPath();
         if (currentCatalog.isPresent()) {
