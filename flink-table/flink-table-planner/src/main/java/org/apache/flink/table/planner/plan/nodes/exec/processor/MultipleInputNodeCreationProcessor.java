@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
@@ -193,6 +194,10 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         }
         if (wrapper.execNode instanceof CommonExecExchange) {
             // exchange cannot be a member of multiple input node
+            return false;
+        }
+        if (wrapper.execNode instanceof BatchExecAsyncCalc) {
+            // TableOperatorWrapper does not set the mailbox executor for YieldingOperatorFactory
             return false;
         }
 
