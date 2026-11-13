@@ -481,7 +481,8 @@ function internal_check_logs_for_exceptions {
   "RecipientUnreachableException" \
   "completeExceptionally" \
   "SerializedCheckpointException.unwrap" \
-  "wrapInExecutionException")
+  "wrapInExecutionException" \
+  "Closing output stream statistics while data is still marked as pending upload.*(stream_write_exceptions=0)")
 
   local all_allowed_exceptions=("${default_allowed_exceptions[@]}" "${additional_allowed_exceptions[@]}")
 
