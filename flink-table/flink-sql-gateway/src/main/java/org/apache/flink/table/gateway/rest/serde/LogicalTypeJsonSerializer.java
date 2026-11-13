@@ -131,6 +131,7 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
             case VARIANT:
             case BITMAP:
             case UUID:
+            case GEOGRAPHY:
                 break;
             case CHAR:
                 jsonGenerator.writeNumberField(

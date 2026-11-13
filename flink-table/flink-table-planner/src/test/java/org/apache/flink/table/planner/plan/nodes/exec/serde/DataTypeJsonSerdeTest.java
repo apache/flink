@@ -62,6 +62,7 @@ public class DataTypeJsonSerdeTest {
                 DataTypes.VARIANT(),
                 DataTypes.VARIANT().notNull(),
                 DataTypes.ARRAY(DataTypes.VARIANT()),
+                DataTypes.GEOGRAPHY(),
                 DataTypes.ROW(
                         DataTypes.TIMESTAMP_LTZ(3).toInternal(),
                         DataTypes.TIMESTAMP_LTZ(9).bridgedTo(long.class),
