@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -311,4 +312,32 @@ public class IntervalJoinTestPrograms {
                                     + " ON o.id = s.order_id\n"
                                     + " AND o.order_ts BETWEEN s.shipment_ts + INTERVAL '10' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
                     .build();
+
+    /** {@link #INTERVAL_JOIN_EVENT_TIME} with async state, restoring its synchronous savepoint. */
+    static final TableTestProgram INTERVAL_JOIN_EVENT_TIME_ASYNC_STATE =
+            withAsyncState(INTERVAL_JOIN_EVENT_TIME);
+
+    /** {@link #INTERVAL_JOIN_PROC_TIME} with async state, restoring its synchronous savepoint. */
+    static final TableTestProgram INTERVAL_JOIN_PROC_TIME_ASYNC_STATE =
+            withAsyncState(INTERVAL_JOIN_PROC_TIME);
+
+    /** {@link #INTERVAL_JOIN_EARLY_FIRE} with async state, restoring its synchronous savepoint. */
+    static final TableTestProgram INTERVAL_JOIN_EARLY_FIRE_ASYNC_STATE =
+            withAsyncState(INTERVAL_JOIN_EARLY_FIRE);
+
+    /**
+     * {@link #INTERVAL_JOIN_PROC_TIME_EARLY_FIRE} with async state, restoring its synchronous
+     * savepoint.
+     */
+    static final TableTestProgram INTERVAL_JOIN_PROC_TIME_EARLY_FIRE_ASYNC_STATE =
+            withAsyncState(INTERVAL_JOIN_PROC_TIME_EARLY_FIRE);
+
+    private static TableTestProgram withAsyncState(TableTestProgram program) {
+        return TableTestProgram.of(program.id, program.description + " with async state")
+                .setupConfig(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED, true)
+                .setupTableSources(program.getSetupSourceTestSteps())
+                .setupTableSinks(program.getSetupSinkTestSteps())
+                .runSql(program.getRunSqlTestStep().sql)
+                .build();
+    }
 }
