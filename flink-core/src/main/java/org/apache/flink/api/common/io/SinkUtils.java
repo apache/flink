@@ -33,7 +33,7 @@ public class SinkUtils implements Serializable {
     /**
      * Acquire permits on the given semaphore within a given allowed timeout and deal with errors.
      *
-     * @param permits the mumber of permits to acquire.
+     * @param permits the number of permits to acquire.
      * @param maxConcurrentRequests the maximum number of permits the semaphore was initialized
      *     with.
      * @param maxConcurrentRequestsTimeout the timeout to acquire the permits.

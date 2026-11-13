@@ -71,7 +71,7 @@ class StateBackend(object, metaclass=ABCMeta):
 
     The :class:`EmbeddedRocksDBStateBackend` stores working state in an embedded
     `RocksDB <http://rocksdb.org/>`_, instance and is able to scale working state to many
-    terrabytes in size, only limited by available disk space across all task managers.
+    terabytes in size, only limited by available disk space across all task managers.
 
     **Raw Bytes Storage and Backends**
 
@@ -244,7 +244,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         Gets the configured local DB storage paths, or null, if none were configured.
 
         Under these directories on the TaskManager, RocksDB stores its SST files and
-        metadata files. These directories do not need to be persistent, they can be ephermeral,
+        metadata files. These directories do not need to be persistent, they can be ephemeral,
         meaning that they are lost on a machine failure, because state in RocksDB is persisted
         in checkpoints.
 

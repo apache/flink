@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A RecoverableFsDataOutputStream to S3 that is based on a recoverable multipart upload.
  *
- * <p>This class is NOT thread-safe. Concurrent writes tho this stream result in corrupt or lost
+ * <p>This class is NOT thread-safe. Concurrent writes to this stream result in corrupt or lost
  * data.
  *
  * <p>The {@link #close()} method may be called concurrently when cancelling / shutting down. It

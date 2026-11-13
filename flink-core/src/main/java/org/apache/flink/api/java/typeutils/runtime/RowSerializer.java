@@ -467,7 +467,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
     }
 
     // --------------------------------------------------------------------------------------------
-    // Serializer configuration snapshoting & compatibility
+    // Serializer configuration snapshotting & compatibility
     // --------------------------------------------------------------------------------------------
 
     @Override

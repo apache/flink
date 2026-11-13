@@ -557,7 +557,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             IOUtils.closeQuietly(writeBatchWrapper);
 
             // Metric collection occurs on a background thread. When this method returns
-            // it is guaranteed that thr ForSt reference has been invalidated
+            // it is guaranteed that the ForSt reference has been invalidated
             // and no more metric collection will be attempted against the database.
             if (nativeMetricMonitor != null) {
                 nativeMetricMonitor.close();

@@ -154,7 +154,7 @@ public abstract class TypeComparator<T> implements Serializable {
      *
      * @param first The first record.
      * @param second The second record.
-     * @return An integer defining the oder among the objects in the same way as {@link
+     * @return An integer defining the order among the objects in the same way as {@link
      *     java.util.Comparator#compare(Object, Object)}.
      * @see java.util.Comparator#compare(Object, Object)
      */
@@ -169,7 +169,7 @@ public abstract class TypeComparator<T> implements Serializable {
      *
      * @param firstSource The input view containing the first record.
      * @param secondSource The input view containing the second record.
-     * @return An integer defining the oder among the objects in the same way as {@link
+     * @return An integer defining the order among the objects in the same way as {@link
      *     java.util.Comparator#compare(Object, Object)}.
      * @throws IOException Thrown, if any of the input views raised an exception when reading the
      *     records.

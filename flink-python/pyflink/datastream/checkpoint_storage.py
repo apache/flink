@@ -237,7 +237,7 @@ class FileSystemCheckpointStorage(CheckpointStorage):
     many small files. The threshold for that is configurable. When increasing this threshold, the
     size of the checkpoint metadata increases. The checkpoint metadata of all retained completed
     checkpoints needs to fit into the JobManager's heap memory. This is typically not a problem,
-    unless the threashold `get_min_file_size_threshold` is increased significantly.
+    unless the threshold `get_min_file_size_threshold` is increased significantly.
 
     **Persistence Guarantees**
 
@@ -340,7 +340,7 @@ class FileSystemCheckpointStorage(CheckpointStorage):
         """
         Gets the threshold below which state is stored as part of the metadata, rather than in
         file. This threshold ensures the backend does not create a large amount of small files,
-        where potentially the file pointers are larget than the state itself.
+        where potentially the file pointers are larger than the state itself.
         """
         return self._j_checkpoint_storage.getMinFileSizeThreshold()
 
