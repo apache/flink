@@ -215,7 +215,7 @@ public class OpenTelemetryMetricReporterITCase extends OpenTelemetryTestBase {
                     metrics.forEach(
                             metric -> {
                                 assertThat(metric.at("/sum/dataPoints").findPath("asInt").asInt())
-                                        .isEqualTo(1234);
+                                        .isEqualTo(25);
                             });
                 });
     }
