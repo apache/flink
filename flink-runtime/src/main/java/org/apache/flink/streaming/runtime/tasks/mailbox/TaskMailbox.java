@@ -30,6 +30,15 @@ import java.util.Optional;
  * A task mailbox provides read and write access to a mailbox and has a lifecycle of open ->
  * (quiesced) -> closed. Mails have a priority that can be used to retrieve only relevant letters.
  *
+ * <h3>Priority and urgency</h3>
+ *
+ * <p>The priority only decides which mails are eligible: {@link #take(int)} and {@link
+ * #tryTake(int)} return only mails whose priority is at least the requested one. Urgency only
+ * decides the position: urgent mails ({@link MailboxExecutor.MailOptions#isUrgent()}) are served
+ * before all non-urgent mails and in FIFO order among themselves, subject to priority eligibility.
+ * That is, a take returns the oldest eligible urgent mail if there is any, and otherwise the oldest
+ * eligible non-urgent mail. A mail that is not eligible never blocks later eligible mails.
+ *
  * <h3>Threading model</h3>
  *
  * <p>The mailbox is bound to a mailbox thread passed during creation. Most operations may only
@@ -54,9 +63,14 @@ import java.util.Optional;
  * smaller logical chunks, such that the task threads cannot be blocked by a mail that enqueues
  * itself and thus provides input starvation.
  *
- * <p>A batch is consumed with {@link #tryTakeFromBatch()}, and batch will be created during taking
- * mail. Note that there is no blocking {@code takeFromBatch} as batches can only be created and
- * consumed from the mailbox thread.
+ * <p>A batch is created explicitly with {@link #createBatch()} and consumed with {@link
+ * #tryTakeFromBatch()}. Note that there is no blocking {@code takeFromBatch} as batches can only be
+ * created and consumed from the mailbox thread.
+ *
+ * <p>Urgent mails are the only exception to the above: they are not part of any batch, but are
+ * served by {@link #tryTakeFromBatch()} before the rest of the batch (in FIFO order). Hence, urgent
+ * mails must be rare and must not enqueue further urgent mails unboundedly, as that could starve
+ * the task input.
  *
  * <p>Also note that a batch can only be created in the {@link MailboxProcessor#runMailboxLoop()}. A
  * batch must not be extended in any of the consuming methods as we may run into task input
@@ -64,7 +78,7 @@ import java.util.Optional;
  * record. That record is subsequently handled downstream, where it may lead to a {@link
  * MailboxExecutor#yield()} triggering another consumption method. If we extend the batch in any way
  * during that processing, we effectively lose the bounded processing guarantee of mails inside the
- * mailbox loop.
+ * mailbox loop (urgent mails excluded, see above).
  */
 @Internal
 public interface TaskMailbox {
@@ -97,13 +111,13 @@ public interface TaskMailbox {
     boolean hasMail();
 
     /**
-     * Returns an optional with either the oldest mail from the mailbox (head of queue) if the
-     * mailbox is not empty or an empty optional otherwise.
+     * Returns an optional with either the oldest eligible mail (priority at least the given one) if
+     * there is any, or an empty optional otherwise. Urgent mails are served first (FIFO among
+     * themselves), then the remaining mails of the batch, then the other mails.
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *
-     * @return an optional with either the oldest mail from the mailbox (head of queue) if the
-     *     mailbox is not empty or an empty optional otherwise.
+     * @return an optional with either the oldest eligible mail or an empty optional otherwise.
      * @throws IllegalStateException if mailbox is already closed.
      */
     Optional<Mail> tryTake(int priority);
@@ -120,12 +134,12 @@ public interface TaskMailbox {
     Optional<Mail> tryTakeIgnoringDeferrable(int priority);
 
     /**
-     * This method returns the oldest mail from the mailbox (head of queue) or blocks until a mail
-     * is available.
+     * This method returns the oldest eligible mail (urgent mails first, see {@link #tryTake(int)})
+     * or blocks until an eligible mail is available.
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *
-     * @return the oldest mail from the mailbox (head of queue).
+     * @return the oldest eligible mail.
      * @throws InterruptedException on interruption.
      * @throws IllegalStateException if mailbox is already closed.
      */
@@ -147,22 +161,22 @@ public interface TaskMailbox {
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *
-     * @return true if there is at least one element in the batch; that is, if there is any mail at
-     *     all at the time of the invocation.
+     * @return true if there is at least one mail to take with {@link #tryTakeFromBatch()}; that is,
+     *     if there is any mail at all (including urgent mails) at the time of the invocation.
      */
     boolean createBatch();
 
     /**
-     * Returns an optional with either the oldest mail from the batch (head of queue) if the batch
-     * is not empty or an empty optional otherwise.
+     * Returns an optional with either the oldest pending urgent mail (regardless of its priority),
+     * or else the oldest mail from the batch, or an empty optional if there is none of them.
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *
      * <p>Note that there is no blocking {@code takeFromBatch} as batches can only be created and
      * consumed from the mailbox thread.
      *
-     * @return an optional with either the oldest mail from the batch (head of queue) if the batch
-     *     is not empty or an empty optional otherwise.
+     * @return an optional with either the oldest pending urgent mail or the oldest mail from the
+     *     batch, or an empty optional otherwise.
      * @throws MailboxClosedException if mailbox is already closed.
      */
     Optional<Mail> tryTakeFromBatch();
@@ -171,7 +185,8 @@ public interface TaskMailbox {
 
     /**
      * Enqueues the given mail to the mailbox and blocks until there is capacity for a successful
-     * put. The Mail with ({@link MailboxExecutor.MailOptions#isUrgent} will be put in the head.
+     * put. Mails with {@link MailboxExecutor.MailOptions#isUrgent} are served before non-urgent
+     * mails, and in the order of their arrival among themselves.
      *
      * <p>Mails can be added from any thread.
      *
