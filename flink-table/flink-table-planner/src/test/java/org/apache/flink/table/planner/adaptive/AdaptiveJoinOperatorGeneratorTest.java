@@ -36,6 +36,7 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY;
 import static org.apache.flink.table.planner.plan.utils.OperatorType.BroadcastHashJoin;
 import static org.apache.flink.table.planner.plan.utils.OperatorType.ShuffleHashJoin;
@@ -330,6 +331,7 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
                 20,
                 10000,
                 false,
-                TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY.defaultValue().getBytes());
+                TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY.defaultValue().getBytes(),
+                TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY.defaultValue().getBytes());
     }
 }
