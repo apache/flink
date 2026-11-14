@@ -62,6 +62,7 @@ import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /** Builder for {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerBuilder {
@@ -95,6 +96,9 @@ public class AdaptiveSchedulerBuilder {
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
     private Collection<FailureEnricher> failureEnrichers = Collections.emptySet();
     private long initializationTimestamp = System.currentTimeMillis();
+
+    private UnaryOperator<ExecutionGraphFactory> executionGraphFactoryDecorator =
+            UnaryOperator.identity();
 
     @Nullable private SlotAllocator slotAllocator;
 
@@ -141,6 +145,12 @@ public class AdaptiveSchedulerBuilder {
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
             final Configuration jobMasterConfiguration) {
         this.jobMasterConfiguration = jobMasterConfiguration;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder setExecutionGraphFactoryDecorator(
+            UnaryOperator<ExecutionGraphFactory> executionGraphFactoryDecorator) {
+        this.executionGraphFactoryDecorator = executionGraphFactoryDecorator;
         return this;
     }
 
@@ -252,17 +262,18 @@ public class AdaptiveSchedulerBuilder {
 
     public AdaptiveScheduler build() throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
-                new DefaultExecutionGraphFactory(
-                        jobMasterConfiguration,
-                        userCodeLoader,
-                        new DefaultExecutionDeploymentTracker(),
-                        executorService,
-                        executorService,
-                        rpcTimeout,
-                        jobManagerJobMetricGroup,
-                        blobWriter,
-                        shuffleMaster,
-                        partitionTracker);
+                executionGraphFactoryDecorator.apply(
+                        new DefaultExecutionGraphFactory(
+                                jobMasterConfiguration,
+                                userCodeLoader,
+                                new DefaultExecutionDeploymentTracker(),
+                                executorService,
+                                executorService,
+                                rpcTimeout,
+                                jobManagerJobMetricGroup,
+                                blobWriter,
+                                shuffleMaster,
+                                partitionTracker));
 
         final AdaptiveScheduler.Settings settings =
                 AdaptiveScheduler.Settings.of(jobMasterConfiguration);
