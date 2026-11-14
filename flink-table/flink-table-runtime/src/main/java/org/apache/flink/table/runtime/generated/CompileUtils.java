@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -71,6 +72,37 @@ public final class CompileUtils {
     public static void cleanUp() {
         COMPILED_CLASS_CACHE.cleanUp();
         COMPILED_EXPRESSION_CACHE.cleanUp();
+    }
+
+    private static final int WARM_UP_RUNS = 10;
+
+    // warm up Janino on class load, off the critical path, before the first real compile
+    static {
+        final Thread thread = new Thread(CompileUtils::doWarmUp, "flink-janino-warmup");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    @VisibleForTesting
+    static Class<?> doWarmUp() {
+        Class<?> compiled = null;
+        try {
+            // distinct names so each is a real cook; framework classloader outlives any job's
+            for (int i = 0; i < WARM_UP_RUNS; i++) {
+                final String name = "JaninoWarmUp" + i;
+                compiled =
+                        compile(
+                                CompileUtils.class.getClassLoader(),
+                                name,
+                                "public class "
+                                        + name
+                                        + " { public long eval(long a, long b) { return a + b; } }");
+            }
+        } catch (Throwable t) {
+            // best-effort: a warm-up failure only costs a missed warm-up
+            CODE_LOG.warn("Janino warm-up failed", t);
+        }
+        return compiled;
     }
 
     /**
