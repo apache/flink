@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -117,6 +118,38 @@ class ArchiveStorageTest {
         storage.putArchiveContent(key, overwriteContent);
         assertThat(storage.exists(key)).isTrue();
         assertThat(storage.readArchiveContent(storage.getEntry(key))).isEqualTo(overwriteContent);
+    }
+
+    /** A reader must never observe a missing or partially written entry while it is rewritten. */
+    @TestTemplate
+    void testOverwriteIsNotObservedAsMissingOrPartial() throws Exception {
+        String key = "jobs/overview.json";
+        String content = "{\"jobs\":\"" + "x".repeat(256 * 1024) + "\"}";
+        storage.putArchiveContent(key, content);
+
+        AtomicBoolean stop = new AtomicBoolean(false);
+        Thread writer =
+                new Thread(
+                        () -> {
+                            try {
+                                while (!stop.get()) {
+                                    storage.putArchiveContent(key, content);
+                                }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+        writer.start();
+        try {
+            for (int i = 0; i < 2000; i++) {
+                Object entry = storage.getEntry(key);
+                assertThat(entry).isNotNull();
+                assertThat(storage.readArchiveContent(entry)).isEqualTo(content);
+            }
+        } finally {
+            stop.set(true);
+            writer.join();
+        }
     }
 
     // ----------------------------- deleteEntriesByPrefix ----------------------------
