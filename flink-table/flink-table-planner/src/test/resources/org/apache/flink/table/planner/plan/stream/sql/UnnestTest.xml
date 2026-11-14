@@ -700,8 +700,8 @@ LogicalProject(a=[$0], number=[$1], ordinality=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, number, ordinality])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,number,ordinality], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER number, INTEGER ordinality)], joinType=[INNER], condition=[=($1, 1)])
+Calc(select=[a, b0 AS number, 1 AS ordinality])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,b0,ORDINALITY], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER b0, INTEGER ORDINALITY)], joinType=[INNER], condition=[=($1, 1)])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
