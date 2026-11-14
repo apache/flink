@@ -47,15 +47,23 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                             .map(t -> t.replaceAll("\"", ""))
                             .collect(Collectors.toSet()));
 
-    private final Executor executor;
+    private ReadableConfig configuration;
 
     public SqlClientSyntaxHighlighter(Executor executor) {
-        this.executor = executor;
+        updateSessionConfig(executor.getSessionConfig());
+    }
+
+    public void updateSessionConfig(ReadableConfig configuration) {
+        if (configuration != null) {
+            this.configuration = configuration;
+        }
     }
 
     @Override
     public AttributedString highlight(LineReader reader, String buffer) {
-        ReadableConfig configuration = executor.getSessionConfig();
+        if (configuration == null) {
+            return super.highlight(reader, buffer);
+        }
         final SyntaxHighlightStyle.BuiltInStyle style =
                 SyntaxHighlightStyle.BuiltInStyle.fromString(
                         configuration.get(SqlClientOptions.DISPLAY_DEFAULT_COLOR_SCHEMA));
