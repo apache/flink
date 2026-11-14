@@ -125,6 +125,71 @@ describe('TaskManagerMetricsComponent', () => {
     expect(cells).toEqual(['Available', '1,234', 'Total', '5,678']);
   });
 
+  const processUsageCells = (): Array<string | undefined> => {
+    const table = Array.from(element.querySelectorAll('nz-table')).find(t => t.textContent?.includes('Memory (RSS)'));
+    return Array.from(table?.querySelectorAll('tbody td') ?? []).map(td => td.textContent?.replace(/\s+/g, ' ').trim());
+  };
+
+  it('shows the process usage when system resource metrics are reported', () => {
+    loadMetrics.mockReturnValue(
+      of({
+        ...mockMetrics,
+        'Status.JVM.CPU.Load': 0.125,
+        'Process.Memory.RSS': 1_073_741_824,
+        'Process.IO.Read': 2048,
+        'Process.IO.Write': 512
+      })
+    );
+
+    fixture.detectChanges();
+
+    expect(loadMetrics).toHaveBeenCalledWith(
+      'tm-1',
+      expect.arrayContaining(['Status.JVM.CPU.Load', 'Process.Memory.RSS', 'Process.IO.Read', 'Process.IO.Write'])
+    );
+    expect(processUsageCells()).toEqual([
+      'CPU Usage',
+      '12.5 %',
+      'Memory (RSS)',
+      '1.00 GB',
+      'Total I/O (Read / Write)',
+      '2.00 KB / 512 B'
+    ]);
+  });
+
+  it('shows zero process usage as values, not placeholders', () => {
+    loadMetrics.mockReturnValue(
+      of({
+        ...mockMetrics,
+        'Status.JVM.CPU.Load': 0,
+        'Process.Memory.RSS': 0,
+        'Process.IO.Read': 0,
+        'Process.IO.Write': 0
+      })
+    );
+
+    fixture.detectChanges();
+
+    expect(processUsageCells()).toEqual([
+      'CPU Usage',
+      '0 %',
+      'Memory (RSS)',
+      '0 B',
+      'Total I/O (Read / Write)',
+      '0 B / 0 B'
+    ]);
+  });
+
+  it('shows placeholders when the process metrics are unavailable', () => {
+    loadMetrics.mockReturnValue(
+      of({ ...mockMetrics, 'Status.JVM.CPU.Load': -1, 'Process.Memory.RSS': -1, 'Process.IO.Read': -1 })
+    );
+
+    fixture.detectChanges();
+
+    expect(processUsageCells()).toEqual(['CPU Usage', '-', 'Memory (RSS)', '-', 'Total I/O (Read / Write)', '- / -']);
+  });
+
   it('does not load metrics when the manager cannot be fetched', () => {
     loadManager.mockReturnValue(throwError(() => new Error('gone')));
 
