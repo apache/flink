@@ -29,9 +29,14 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
+import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator;
+import org.apache.flink.table.runtime.operators.join.snapshot.MultiSetLateralSnapshotJoinOperator;
+import org.apache.flink.table.runtime.operators.join.snapshot.UpsertLateralSnapshotJoinOperator;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -278,7 +283,10 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testInnerJoinWithUpsertBuildSourceMaterializesRetractions() {
+    void testInnerJoinWithUpsertBuildSourceSkipsChangelogNormalize() throws Exception {
+        // When the build side is an upsert source whose upsert key contains the join key, the
+        // operator uses the upsert-keyed layout and consumes the changelog directly, so no
+        // ChangelogNormalize is inserted (FLINK-40914).
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE b_upsert ("
@@ -299,15 +307,54 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                         + "input => TABLE b_upsert, on_time => DESCRIPTOR(bts), "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                                         + ") AS s ON probe.pk = s.bk");
-        assertThat(plan).contains("ChangelogNormalize");
+        assertThat(plan).contains("LateralSnapshotJoin");
+        assertThat(plan).doesNotContain("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
+        assertThat(compileJoinOperator("b_upsert"))
+                .isInstanceOf(UpsertLateralSnapshotJoinOperator.class);
+        assertThat(buildUpsertKeysOf("b_upsert")).containsExactly(0);
     }
 
     @Test
-    void testRejectNonDeterministicUpdatingBuildColumnWithPrimaryKey() {
-        // The LSJ operator keys its state by the whole build row, so retractions are matched by
-        // exact row equality. A non-deterministic build column therefore breaks retraction even
-        // when the build side has a unique key (FLINK-40890). TRY_RESOLVE must reject it.
+    void testInnerJoinWithCompositeUpsertKeyContainingJoinKeySkipsChangelogNormalize()
+            throws Exception {
+        // The upsert key (bk, id) is wider than the join key (bk) but contains it, so the
+        // upsert-keyed layout is still used and no ChangelogNormalize is inserted.
+        createCompositePkBuildSource("b_composite", "bk, id");
+
+        final String plan = explainJoinOn("b_composite");
+
+        assertThat(plan).contains("LateralSnapshotJoin");
+        assertThat(plan).doesNotContain("ChangelogNormalize");
+        assertThat(plan).doesNotContain("DropUpdateBefore");
+        assertThat(compileJoinOperator("b_composite"))
+                .isInstanceOf(UpsertLateralSnapshotJoinOperator.class);
+        assertThat(buildUpsertKeysOf("b_composite")).containsExactly(0, 1);
+    }
+
+    @Test
+    void testInnerJoinWithUpsertKeyNotContainingJoinKeyFallsBackToChangelogNormalize()
+            throws Exception {
+        // The upsert key (id) doesn't contain the join key (bk), so a partial delete couldn't be
+        // routed to its join-key partition. The multi-set layout is used and ChangelogNormalize
+        // produces the full deletes it needs.
+        createCompositePkBuildSource("b_other_pk", "id");
+
+        final String plan = explainJoinOn("b_other_pk");
+
+        assertThat(plan).contains("LateralSnapshotJoin");
+        assertThat(plan).contains("ChangelogNormalize");
+        assertThat(compileJoinOperator("b_other_pk"))
+                .isInstanceOf(MultiSetLateralSnapshotJoinOperator.class);
+        assertThat(buildUpsertKeysOf("b_other_pk")).isNull();
+    }
+
+    @Test
+    void testAcceptNonDeterministicNonKeyBuildColumnWithPrimaryKey() {
+        // With the upsert-keyed build-side layout, build retractions apply by the build upsert key
+        // rather than by whole-row match, so a non-deterministic non-key build column no longer
+        // breaks retraction. TRY_RESOLVE therefore accepts it (FLINK-40914 relaxes the
+        // FLINK-40890 restriction for keyed build sides).
         enableTryResolve();
         createUpdatingPkBuildSource();
         util.tableEnv()
@@ -318,6 +365,39 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         final String sql =
                 "SELECT probe.pk, s.bk, s.bn FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b_view, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+
+        assertThatCode(() -> util.tableEnv().explainSql(sql)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void testRejectNonDeterministicUpdatingBuildColumnWithoutUpsertKey() {
+        // Without a usable upsert key the operator falls back to the multi-set layout, which keys
+        // its state by the whole build row and matches retractions by exact row equality. A
+        // non-deterministic build column then breaks retraction, so TRY_RESOLVE must still reject
+        // it (the FLINK-40914 relaxation only applies to the upsert-keyed layout).
+        enableTryResolve();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_retract ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3),"
+                                + "  WATERMARK FOR bts AS bts"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'changelog-mode' = 'I,UB,UA,D'"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW b_retract_view AS "
+                                + "SELECT bk, CAST(NOW() AS STRING) AS bn, bts FROM b_retract");
+
+        final String sql =
+                "SELECT probe.pk, s.bk, s.bn FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_retract_view, on_time => DESCRIPTOR(bts), "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s ON probe.pk = s.bk";
 
@@ -750,7 +830,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 .orElseThrow(
                         () ->
                                 new AssertionError(
-                                        "No LateralSnapshotJoinOperator found in the plan."));
+                                        "No LATERAL SNAPSHOT join operator found in the plan."));
     }
 
     private void enableTryResolve() {
@@ -759,6 +839,83 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
                         NonDeterministicUpdateStrategy.TRY_RESOLVE);
+    }
+
+    private void createCompositePkBuildSource(String table, String primaryKey) {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE "
+                                + table
+                                + " ("
+                                + "  bk STRING,"
+                                + "  id INT,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3),"
+                                + "  WATERMARK FOR bts AS bts,"
+                                + "  PRIMARY KEY ("
+                                + primaryKey
+                                + ") NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        // SELECT * keeps every build column, so the key columns are not pruned from the source.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE IF NOT EXISTS sink_composite ("
+                                + "  pk STRING, pv INT, pts TIMESTAMP(3),"
+                                + "  bk STRING, id INT, bv INT, bts TIMESTAMP(3)"
+                                + ") WITH ('connector' = 'blackhole')");
+    }
+
+    private CompiledPlan compileJoinOn(String buildTable) {
+        return util.tableEnv()
+                .compilePlanSql(
+                        "INSERT INTO "
+                                + (buildTable.equals("b_upsert") ? "sink" : "sink_composite")
+                                + " SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                                + "input => TABLE "
+                                + buildTable
+                                + ", on_time => DESCRIPTOR(bts), "
+                                + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                                + ") AS s ON probe.pk = s.bk");
+    }
+
+    private LateralSnapshotJoinOperator compileJoinOperator(String buildTable) {
+        return findJoinOperator(
+                CompiledPlanUtils.toTransformations(util.tableEnv(), compileJoinOn(buildTable)));
+    }
+
+    /** Returns the {@code buildUpsertKeys} of the compiled join node, or null if not serialized. */
+    private int[] buildUpsertKeysOf(String buildTable) throws Exception {
+        final JsonNode plan =
+                JsonTestUtils.readFromString(compileJoinOn(buildTable).asJsonString());
+        for (JsonNode node : plan.get("nodes")) {
+            if (node.get("type").asText().startsWith("stream-exec-lateral-snapshot-join")) {
+                final JsonNode keys = node.get("buildUpsertKeys");
+                if (keys == null) {
+                    return null;
+                }
+                final int[] result = new int[keys.size()];
+                for (int i = 0; i < result.length; i++) {
+                    result[i] = keys.get(i).asInt();
+                }
+                return result;
+            }
+        }
+        throw new AssertionError("No LATERAL SNAPSHOT join node found in the compiled plan.");
+    }
+
+    private String explainJoinOn(String buildTable) {
+        return util.tableEnv()
+                .explainSql(
+                        "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                                + "input => TABLE "
+                                + buildTable
+                                + ", on_time => DESCRIPTOR(bts), "
+                                + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                                + ") AS s ON probe.pk = s.bk");
     }
 
     private void createUpdatingPkBuildSource() {
