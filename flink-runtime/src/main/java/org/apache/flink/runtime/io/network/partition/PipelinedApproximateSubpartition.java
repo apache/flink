@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A pipelined in-memory only subpartition, which allows to reconnect after failure. Only one view
- * is allowed at a time to read teh subpartition.
+ * is allowed at a time to read the subpartition.
  */
 public class PipelinedApproximateSubpartition extends PipelinedSubpartition {
 
