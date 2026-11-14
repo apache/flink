@@ -20,6 +20,7 @@ package org.apache.flink.state.rocksdb.restore;
 
 import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
@@ -174,7 +175,8 @@ class RocksDBHandle implements AutoCloseable {
             // create a meta info for the state on restore;
             // this allows us to retain the state in future snapshots even if it wasn't accessed
             RegisteredStateMetaInfoBase stateMetaInfo =
-                    RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+                    RegisteredKeyValueStateBackendMetaInfo.fromMetaInfoSnapshot(
+                            stateMetaInfoSnapshot);
             if (columnFamilyHandle == null) {
                 registeredStateMetaInfoEntry =
                         RocksDBOperationUtils.createStateInfo(
