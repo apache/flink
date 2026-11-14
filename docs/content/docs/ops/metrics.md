@@ -2384,7 +2384,7 @@ Metrics below can be used to measure the effectiveness of speculative execution.
 
 ### UDF
 
-The following metrics are registered per SQL/Table user-defined function when UDF metrics are enabled (see [UDF metrics](#udf-metrics) below). They are registered only on the operator that runs the function, under the infix `udf.<udf_name>`, so the identifier is the operator scope (`metrics.scope.operator`) followed by `udf.<udf_name>.<metric>`.
+The following metrics are registered per SQL/Table user-defined function when UDF metrics are enabled (see [UDF metrics](#udf-metrics) below). They are registered only on the operator that runs the function, under the infix `udf.<udf_name>`, so the identifier is the operator scope (`metrics.scope.operator`) followed by `udf.<udf_name>.<metric>`. For a function called by name, `<udf_name>` is its name in lower case.
 
 <table class="table table-bordered">
   <thead>
@@ -2477,6 +2477,8 @@ Flink can track the processing time and exceptions of SQL/Table user-defined fun
 To enable it you must set `table.exec.udf-metric-enabled` to `true`. When disabled, nothing is registered and there is no overhead.
 
 Once enabled, each user-defined function gets two metrics on the operator that runs it, scoped under `udf.<udf_name>`: a `udfProcessingTime` histogram and a `udfExceptionCount` counter.
+Function names are case-insensitive, so for a function called by name, `<udf_name>` is its name in lower case: calls written as `MyUdf(x)` and `MYUDF(x)` both report under `udf.myudf`.
+A function called inline in the Table API, such as `call(new MyUdf(), $("x"))`, is not registered under a name, so it reports under a name generated from its class, such as `*com.example.MyUdf*`.
 
 Flink samples the processing time every `N` invocations, in which `N` is defined by `table.exec.udf-metric.sample-interval`.
 This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
