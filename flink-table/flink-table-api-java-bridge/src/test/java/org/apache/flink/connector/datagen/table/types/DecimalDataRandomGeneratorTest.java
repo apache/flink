@@ -37,7 +37,7 @@ class DecimalDataRandomGeneratorTest {
                         new DecimalDataRandomGenerator(
                                 precision, scale, Double.MIN_VALUE, Double.MAX_VALUE, 0f);
 
-                DecimalData value = gen.next();
+                DecimalData value = gen.map(0L);
                 assertThat(value)
                         .as("Null value for DECIMAL(" + precision + "," + scale + ")")
                         .isNotNull();
@@ -97,7 +97,7 @@ class DecimalDataRandomGeneratorTest {
                 DecimalDataRandomGenerator gen =
                         new DecimalDataRandomGenerator(
                                 precision, scale, min.doubleValue(), max.doubleValue(), 0f);
-                DecimalData result = gen.next();
+                DecimalData result = gen.map(0L);
 
                 assertThat(result)
                         .as("Null value for DECIMAL(" + precision + "," + scale + ")")
