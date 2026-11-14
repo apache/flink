@@ -1,8 +1,6 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": "./",
-    "downlevelIteration": true,
     "paths": {
       "*": ["./src/@types/*"],
       "@flink-runtime-web/*": ["./src/app/*", "./src/environments/*"]
@@ -12,6 +10,7 @@
     "declaration": false,
     "module": "es2022",
     "moduleResolution": "bundler",
+    "strict": false,
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "es2022",
@@ -24,5 +23,8 @@
     "strictFunctionTypes": true,
     "strictNullChecks": true,
     "useDefineForClassFields": false
+  },
+  "angularCompilerOptions": {
+    "strictTemplates": false
   }
 }

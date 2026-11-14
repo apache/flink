@@ -16,21 +16,12 @@
  * limitations under the License.
  */
 import { registerLocaleData } from '@angular/common';
-import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
-import { enableProdMode, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
+import { enableProdMode } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideRouter, withHashLocation } from '@angular/router';
 
-import { APP_ICONS } from '@flink-runtime-web/app-icons';
 import { AppComponent } from '@flink-runtime-web/app.component';
-import { AppInterceptor } from '@flink-runtime-web/app.interceptor';
-import { APP_ROUTES } from '@flink-runtime-web/routes';
-import { StatusService } from '@flink-runtime-web/services';
-import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
-import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
-import { provideNzIcons } from 'ng-zorro-antd/icon';
+import { appConfig } from '@flink-runtime-web/app.config';
 
 import { environment } from './environments/environment';
 
@@ -40,24 +31,4 @@ if (environment.production) {
 
 registerLocaleData(en);
 
-const ngZorroConfig: NzConfig = {
-  notification: { nzMaxStack: 1 }
-};
-
-bootstrapApplication(AppComponent, {
-  providers: [
-    provideZoneChangeDetection(),
-    {
-      provide: HTTP_INTERCEPTORS,
-      useClass: AppInterceptor,
-      multi: true
-    },
-    provideAppInitializer(() => inject(StatusService).boot()),
-    provideNzI18n(en_US),
-    provideNzIcons(APP_ICONS),
-    provideNzConfig(ngZorroConfig),
-    provideHttpClient(withInterceptorsFromDi()),
-    provideAnimationsAsync(),
-    provideRouter(APP_ROUTES, withHashLocation())
-  ]
-}).catch(err => console.error(err));
+bootstrapApplication(AppComponent, appConfig).catch(err => console.error(err));
