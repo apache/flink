@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.codehaus.janino.ExpressionEvaluator;
+import org.codehaus.janino.SimpleCompiler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +40,39 @@ class CompileUtilsTest {
         // cleanup cached class before tests
         CompileUtils.COMPILED_CLASS_CACHE.invalidateAll();
         CompileUtils.COMPILED_EXPRESSION_CACHE.invalidateAll();
+        CompileUtils.BYTECODE_CACHE.invalidateAll();
+    }
+
+    @Test
+    void testSameSourceIsCompiledOnceAcrossClassLoaders() throws Exception {
+        String nonce = String.valueOf(System.nanoTime());
+        // probe is resolvable only via the compile classloader, so cooking must go through it
+        String probe = "UserProbe$" + nonce;
+        byte[] probeBytes = compileToBytes(probe, "public class " + probe + " {}");
+
+        String name = "Repro$" + nonce;
+        String code =
+                "public class " + name + " { public Object e() { return new " + probe + "(); } }";
+
+        CompileUtils.compile(new ProbeClassLoader(probe, probeBytes, null), name, code);
+
+        int[] resolveCount = new int[1];
+        ProbeClassLoader loader2 = new ProbeClassLoader(probe, probeBytes, resolveCount);
+        Class<?> reused = CompileUtils.compile(loader2, name, code);
+
+        // a second cook would resolve the probe again; reused bytecode resolves it zero times
+        assertThat(resolveCount[0]).isZero();
+
+        // using the class links the probe through loader2, proving the shared bytecode re-resolves
+        Object probeInstance =
+                reused.getMethod("e").invoke(reused.getDeclaredConstructor().newInstance());
+        assertThat(probeInstance.getClass().getClassLoader()).isSameAs(loader2);
+    }
+
+    private static byte[] compileToBytes(String className, String source) throws Exception {
+        SimpleCompiler compiler = new SimpleCompiler();
+        compiler.cook(source);
+        return compiler.getBytecodes().get(className);
     }
 
     @Test
@@ -92,6 +126,33 @@ class CompileUtilsTest {
 
         TestClassLoader() {
             super(new URL[0], Thread.currentThread().getContextClassLoader());
+        }
+    }
+
+    /**
+     * Resolves only {@code probe} (from given bytes) and optionally counts how often it is asked.
+     */
+    private static class ProbeClassLoader extends URLClassLoader {
+        private final String probe;
+        private final byte[] probeBytes;
+        private final int[] resolveCount;
+
+        ProbeClassLoader(String probe, byte[] probeBytes, int[] resolveCount) {
+            super(new URL[0], Thread.currentThread().getContextClassLoader());
+            this.probe = probe;
+            this.probeBytes = probeBytes;
+            this.resolveCount = resolveCount;
+        }
+
+        @Override
+        protected Class<?> findClass(String n) throws ClassNotFoundException {
+            if (n.equals(probe)) {
+                if (resolveCount != null) {
+                    resolveCount[0]++;
+                }
+                return defineClass(n, probeBytes, 0, probeBytes.length);
+            }
+            return super.findClass(n);
         }
     }
 }
