@@ -80,8 +80,19 @@ class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         final MemorySegment segment =
                 MemorySegmentFactory.allocateOffHeapUnsafeMemory(10, null, cleaner);
 
-        final Thread t1 = new Thread(segment::free);
-        final Thread t2 = new Thread(segment::free);
+        final Runnable free =
+                () -> {
+                    try {
+                        segment.free();
+                    } catch (IllegalStateException e) {
+                        // The losing thread of the concurrent free() observes the segment as
+                        // already freed; swallow the expected exception so it is not surfaced
+                        // as an uncaught exception polluting the test logs (FLINK-31244).
+                    }
+                };
+
+        final Thread t1 = new Thread(free);
+        final Thread t2 = new Thread(free);
         t1.start();
         t2.start();
         t1.join();
