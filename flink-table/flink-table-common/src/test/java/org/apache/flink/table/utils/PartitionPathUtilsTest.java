@@ -18,12 +18,24 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystem;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link org.apache.flink.table.utils.PartitionPathUtils}. */
 class PartitionPathUtilsTest {
+
+    @TempDir Path tmpDir;
 
     @Test
     void testEscapeChar() {
@@ -86,5 +98,35 @@ class PartitionPathUtilsTest {
         String actual = PartitionPathUtils.escapePathName(origin);
         assertThat(actual).isEqualTo(expected);
         assertThat(PartitionPathUtils.unescapePathName(actual)).isEqualTo(origin);
+    }
+
+    /**
+     * FLINK-38774: {@link PartitionPathUtils#searchPartSpecAndPaths} must not descend into hidden
+     * directories. A hidden dir such as {@code _temporary} may contain non-hidden children (e.g.
+     * {@code job-123}) at partition depth; without skipping hidden dirs those children leak into
+     * the result with an empty partition spec, which later surfaces as a {@code TableException:
+     * incomplete partition spec}.
+     */
+    @Test
+    void testSearchPartSpecAndPathsSkipsHiddenDirectories() throws IOException {
+        org.apache.flink.core.fs.Path basePath =
+                new org.apache.flink.core.fs.Path(tmpDir.toString(), "country_page_view");
+        FileSystem fs = basePath.getFileSystem();
+
+        // Real partition: date=2019-8-30/country=China
+        Files.createDirectories(
+                Path.of(tmpDir.toString(), "country_page_view", "date=2019-8-30", "country=China"));
+        // Hidden _temporary dir whose non-hidden child sits at partition depth (2).
+        Files.createDirectories(
+                Path.of(tmpDir.toString(), "country_page_view", "_temporary", "job-123"));
+
+        List<Tuple2<LinkedHashMap<String, String>, org.apache.flink.core.fs.Path>> parts =
+                PartitionPathUtils.searchPartSpecAndPaths(fs, basePath, 2);
+
+        // Only the real partition is returned; the _temporary subtree is skipped entirely.
+        assertThat(parts).hasSize(1);
+        assertThat(parts.get(0).f0)
+                .containsEntry("date", "2019-8-30")
+                .containsEntry("country", "China");
     }
 }
