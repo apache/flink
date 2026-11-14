@@ -109,6 +109,10 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword(getAlterOperation());
+        unparseTableSchema(writer, leftPrec, rightPrec);
+    }
+
+    protected void unparseTableSchema(SqlWriter writer, int leftPrec, int rightPrec) {
         SqlUnparseUtils.unparseTableSchema(
                 columnList, constraints, watermark, writer, leftPrec, rightPrec);
     }
