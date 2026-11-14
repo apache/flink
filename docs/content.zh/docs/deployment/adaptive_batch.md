@@ -58,7 +58,7 @@ Adaptive Batch Scheduler 支持自动推导算子并行度，如果算子未设�
     - [`execution.batch.adaptive.auto-parallelism.min-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-min-parallelism): 允许自动设置的并行度最小值。
     - [`execution.batch.adaptive.auto-parallelism.max-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-max-parallelism): 允许自动设置的并行度最大值，如果该配置项没有配置将使用通过 [`parallelism.default`]({{< ref "docs/deployment/config" >}}) 或者 `StreamExecutionEnvironment#setParallelism()` 设置的默认并行度作为允许自动设置的并行度最大值。
     - [`execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-avg-data-volume-per-ta): 期望每个任务平均处理的数据量大小。请注意，当出现数据倾斜，或者确定的并行度达到最大并行度（由于数据过多）时，一些任务实际处理的数据可能会远远超过这个值。
-    - [`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-paralle): source 算子可动态推导的最大并行度，若该配置项没有配置将优先使用 [`execution-batch-adaptive-auto-parallelism-max-parallelism`]({{< ref "docs/deployment/config" >}})作为允许动态推导的并行度最大值，若该配置项也没有配置，将使用 [`parallelism.default`]({{< ref "docs/deployment/config" >}}) 或者 `StreamExecutionEnvironment#setParallelism()` 设置的默认并行度。
+    - [`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-parallelism): source 算子可动态推导的最大并行度，若该配置项没有配置将优先使用 [`execution-batch-adaptive-auto-parallelism-max-parallelism`]({{< ref "docs/deployment/config" >}})作为允许动态推导的并行度最大值，若该配置项也没有配置，将使用 [`parallelism.default`]({{< ref "docs/deployment/config" >}}) 或者 `StreamExecutionEnvironment#setParallelism()` 设置的默认并行度。
 - 不要指定算子的并行度：
 
   Adaptive Batch Scheduler 只会为用户未指定并行度的算子推导并行度。 所以如果你想算子的并行度被自动推导，需要避免通过算子的 `setParallelism()` 方法来为其指定并行度。
@@ -78,7 +78,7 @@ public interface DynamicParallelismInference {
 其中 Context 会提供可推导并行度上界、期望每个任务平均处理的数据量大小、动态过滤信息来协助并行度推导。
 Adaptive Batch Scheduler 将会在调度 Source 节点之前调用上述接口，需注意实现中应尽量避免高耗时的操作。
 
-若 Source 未实现上述接口，[`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-paralle) 将会作为 Source 节点的并行度。
+若 Source 未实现上述接口，[`execution.batch.adaptive.auto-parallelism.default-source-parallelism`]({{< ref "docs/deployment/config" >}}#execution-batch-adaptive-auto-parallelism-default-source-parallelism) 将会作为 Source 节点的并行度。
 
 需注意，Source 动态并行度推导也只会为用户未指定并行度的 Source 算子推导并行度。
 

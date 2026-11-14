@@ -19,5 +19,5 @@ under the License.
   Shortcode that only renders its contents if the site
   is marked as stable.
 
-  Parmeters: Markdown text
+  Parameters: Markdown text
 */}}{{ if $.Site.Params.IsStable }}{{ .Inner | markdownify }}{{ end }}
