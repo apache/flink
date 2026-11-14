@@ -89,7 +89,7 @@ public class JobResult implements Serializable {
         checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
         checkArgument(
                 jobStatus == null || jobStatus.isGloballyTerminalState(),
-                "jobStatus must be globally terminal or unknow(null)");
+                "jobStatus must be globally terminal or unknown(null)");
 
         this.jobId = requireNonNull(jobId);
         this.jobName = requireNonNull(jobName);

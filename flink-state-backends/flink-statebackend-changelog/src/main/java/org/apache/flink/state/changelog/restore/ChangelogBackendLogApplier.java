@@ -117,7 +117,7 @@ class ChangelogBackendLogApplier {
                 throw new RuntimeException(
                         "Unsupported state type: "
                                 + snapshot.getBackendStateType()
-                                + ", sate: "
+                                + ", state: "
                                 + snapshot.getName());
         }
         stateIds.put(

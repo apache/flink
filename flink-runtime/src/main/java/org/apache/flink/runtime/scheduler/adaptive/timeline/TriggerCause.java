@@ -20,10 +20,10 @@ package org.apache.flink.runtime.scheduler.adaptive.timeline;
 
 /** The cause of trigger rescaling. */
 public enum TriggerCause {
-    INITIAL_SCHEDULE("The first schedule of the job starting triggerred the rescale."),
-    UPDATE_REQUIREMENT("Updating job resource requirements triggerred the rescale."),
-    NEW_RESOURCE_AVAILABLE("That new resources were available triggerred the rescale."),
-    RECOVERABLE_FAILOVER("Recoverable failover triggerred the rescale.");
+    INITIAL_SCHEDULE("The first schedule of the job starting triggered the rescale."),
+    UPDATE_REQUIREMENT("Updating job resource requirements triggered the rescale."),
+    NEW_RESOURCE_AVAILABLE("That new resources were available triggered the rescale."),
+    RECOVERABLE_FAILOVER("Recoverable failover triggered the rescale.");
 
     private final String description;
 
