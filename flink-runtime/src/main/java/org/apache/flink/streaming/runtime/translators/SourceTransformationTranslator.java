@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.translators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
@@ -69,12 +70,20 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
         final String slotSharingGroup = context.getSlotSharingGroup();
         final int transformationId = transformation.getId();
         final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+        final DynamicRateLimitParams dynamicRateLimitParams =
+                transformation
+                        .getDynamicRateLimitParams()
+                        .orElseGet(
+                                () ->
+                                        DynamicRateLimitParams.fromConfiguration(
+                                                streamGraph.getJobConfiguration()));
 
         SourceOperatorFactory<OUT> operatorFactory =
                 new SourceOperatorFactory<>(
                         transformation.getSource(),
                         transformation.getWatermarkStrategy(),
-                        emitProgressiveWatermarks);
+                        emitProgressiveWatermarks,
+                        dynamicRateLimitParams);
 
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
         operatorFactory.setCoordinatorListeningID(transformation.getCoordinatorListeningID());

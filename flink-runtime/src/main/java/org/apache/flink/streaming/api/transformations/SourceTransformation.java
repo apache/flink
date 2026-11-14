@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,6 +47,7 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
 
     private ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
     private @Nullable String coordinatorListeningID;
+    private @Nullable DynamicRateLimitParams dynamicRateLimitParams;
 
     /**
      * Creates a new {@code Transformation} with the given name, output type and parallelism.
@@ -120,6 +123,23 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
     @Nullable
     public String getCoordinatorListeningID() {
         return coordinatorListeningID;
+    }
+
+    /**
+     * Overrides the job-wide {@link org.apache.flink.configuration.SourceOptions} for this source
+     * only. Passing {@code null} (the default) means the job-wide configuration applies.
+     */
+    public void setDynamicRateLimitParams(@Nullable DynamicRateLimitParams dynamicRateLimitParams) {
+        this.dynamicRateLimitParams = dynamicRateLimitParams;
+    }
+
+    /**
+     * Returns the per-source override of the dynamic rate limit parameters, if one was set via
+     * {@link #setDynamicRateLimitParams(DynamicRateLimitParams)}. Empty means the job-wide {@link
+     * org.apache.flink.configuration.SourceOptions} should be used instead.
+     */
+    public Optional<DynamicRateLimitParams> getDynamicRateLimitParams() {
+        return Optional.ofNullable(dynamicRateLimitParams);
     }
 
     private void extractLineageVertex() {
