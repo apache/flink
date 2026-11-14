@@ -483,7 +483,7 @@ public final class LogicalTypeCasts {
     }
 
     /**
-     * Returns whether the source type can be safely casted to the target type without loosing
+     * Returns whether the source type can be safely casted to the target type without losing
      * information.
      *
      * <p>Implicit casts are used for type widening and type generalization (finding a common

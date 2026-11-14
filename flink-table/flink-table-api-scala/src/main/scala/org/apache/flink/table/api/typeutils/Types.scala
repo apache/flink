@@ -278,7 +278,7 @@ object Types {
    *
    * A Scala case class is a fixed-length composite type for storing multiple values in a
    * deterministic field order. Fields of a case class are typed. Case classes and tuples are the
-   * most efficient composite type; therefore, they do not not support null-valued fields unless the
+   * most efficient composite type; therefore, they do not support null-valued fields unless the
    * type of the field supports nullability.
    *
    * Example use: `Types.CASE_CLASS[MyCaseClass]`
@@ -300,7 +300,7 @@ object Types {
    *
    * A Scala tuple is a fixed-length composite type for storing multiple values in a deterministic
    * field order. Fields of a tuple are typed. Tuples are the most efficient composite type;
-   * therefore, they do not not support null-valued fields unless the type of the field supports
+   * therefore, they do not support null-valued fields unless the type of the field supports
    * nullability.
    *
    * Example use: `Types.TUPLE[(String, Int)]`

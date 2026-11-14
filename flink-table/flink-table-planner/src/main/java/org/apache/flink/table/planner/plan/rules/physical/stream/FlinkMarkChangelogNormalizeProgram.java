@@ -120,8 +120,8 @@ import java.util.stream.Collectors;
  *    +- Reused(reference_id=[1])}
  * </pre>
  *
- * <p>After applying {@link PushCalcPastChangelogNormalizeRule} the condition should be splitted
- * into common and not common parts. Common part should be pushed down as below.
+ * <p>After applying {@link PushCalcPastChangelogNormalizeRule} the condition should be split into
+ * common and not common parts. Common part should be pushed down as below.
  *
  * <pre>{@code Union(all=[true], union=[f0, f1])
  * :- Calc(select=[f0, f1], where=[(f1 < 10)])

@@ -135,7 +135,7 @@ public class ProcessSetTableOperator extends AbstractProcessTableOperator
                                         inputSortBuffers[inputIdx].updateWatermark(
                                                 mark.getTimestamp());
                                     }
-                                    // Handle watermarks per-input but in an interruptable way.
+                                    // Handle watermarks per-input but in an interruptible way.
                                     // Advances the combined watermark eventually.
                                     inputWatermarkProcessors[inputIdx].emitWatermarkInsideMailbox(
                                             mark);

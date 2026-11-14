@@ -283,7 +283,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                         maxRetentionTime,
                         isLeftOuterJoin);
             } else {
-                // The exsiting TemporalProcessTimeJoinOperator has already supported temporal table
+                // The existing TemporalProcessTimeJoinOperator has already supported temporal table
                 // join.
                 // However, the semantic of this implementation is problematic, because the join
                 // processing

@@ -52,7 +52,7 @@ object TableSinkUtils {
    * @param sinkOperation
    *   The sink operation with the query that is supposed to be written.
    * @param sinkIdentifier
-   *   Tha path of the sink. It is needed just for logging. It does not participate in the
+   *   The path of the sink. It is needed just for logging. It does not participate in the
    *   validation.
    * @param sink
    *   The sink that we want to write to.

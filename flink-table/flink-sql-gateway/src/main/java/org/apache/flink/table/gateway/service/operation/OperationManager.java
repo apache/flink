@@ -107,9 +107,9 @@ public class OperationManager {
     }
 
     /**
-     * Submit the operation to the {@link OperationManager}. The {@link OperationManager} manges the
-     * lifecycle of the {@link Operation}, including register resources, fire the execution and so
-     * on.
+     * Submit the operation to the {@link OperationManager}. The {@link OperationManager} manages
+     * the lifecycle of the {@link Operation}, including register resources, fire the execution and
+     * so on.
      *
      * @param fetcherSupplier offer the fetcher to get the results.
      * @return OperationHandle to fetch the results or check the status.

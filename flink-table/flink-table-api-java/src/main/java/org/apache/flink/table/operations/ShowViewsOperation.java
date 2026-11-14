@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 import java.util.Set;
 
 /**
- * Operation to describe a SHOW VIEWS statement. The full syntax for SHOW VIEWS is as followings:
+ * Operation to describe a SHOW VIEWS statement. The full syntax for SHOW VIEWS is as follows:
  *
  * <pre>{@code
  * SHOW VIEWS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE

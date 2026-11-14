@@ -31,7 +31,7 @@ import java.util.Collection;
 
 /**
  * Operation to describe a SHOW PROCEDURES statement. The full syntax for SHOW PROCEDURES is as
- * followings:
+ * follows:
  *
  * <pre>{@code
  * SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)
