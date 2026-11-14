@@ -22,6 +22,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.util.Preconditions;
 
 import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.forstdb.RocksIterator;
 
 import javax.annotation.Nonnull;
@@ -140,6 +141,13 @@ public abstract class ForStDBIterRequest<K, N, UK, UV, R> implements Closeable {
         }
 
         if (!encounterEnd && (entries.size() < cacheSizeLimit || !rocksIterator.isValid())) {
+            // An invalid iterator is either exhausted or failed. On failure, the iterator is left
+            // for the caller to close.
+            try {
+                rocksIterator.status();
+            } catch (RocksDBException e) {
+                throw new IOException("Failed to iterate ForStDB.", e);
+            }
             encounterEnd = true;
             rocksIterator.close();
             rocksIterator = null;

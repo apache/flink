@@ -72,14 +72,11 @@ public class ForStIterateOperation implements ForStDBOperation {
                             if (error.get() == null) {
                                 request.process(db, CACHE_SIZE_LIMIT);
                             } else {
-                                request.completeStateFutureExceptionally(
-                                        "Error when execute ForStDb iterate operation",
-                                        error.get());
+                                failRequest(request, error.get());
                             }
                         } catch (Exception e) {
                             error.set(e);
-                            request.completeStateFutureExceptionally(
-                                    "Error when execute ForStDb iterate operation", e);
+                            failRequest(request, e);
                             future.completeExceptionally(e);
                         } finally {
                             if (counter.decrementAndGet() == 0
@@ -93,6 +90,22 @@ public class ForStIterateOperation implements ForStDBOperation {
                     });
         }
         return future;
+    }
+
+    /**
+     * Closes the request's native iterator on its owning worker thread and completes its state
+     * future exceptionally.
+     */
+    private static void failRequest(ForStDBIterRequest<?, ?, ?, ?, ?> request, Throwable failure) {
+        try {
+            request.close();
+        } catch (Throwable closeFailure) {
+            if (closeFailure != failure) {
+                failure.addSuppressed(closeFailure);
+            }
+        }
+        request.completeStateFutureExceptionally(
+                "Error when execute ForStDb iterate operation", failure);
     }
 
     @Override
