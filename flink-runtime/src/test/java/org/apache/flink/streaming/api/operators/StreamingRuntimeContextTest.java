@@ -60,6 +60,7 @@ import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.testutils.StateSchemaEvolvingTestSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -248,6 +249,27 @@ class StreamingRuntimeContextTest {
     }
 
     @Test
+    void testValueStateSerializerIsArmedForObjectLevelMigratingBackend() throws Exception {
+        final ExecutionConfig config = new ExecutionConfig();
+        final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
+
+        StreamingRuntimeContext context =
+                createRuntimeContext(descriptorCapture, config, false, true);
+        ValueStateDescriptor<Integer> descr =
+                new ValueStateDescriptor<>("name", StateSchemaEvolvingTestSerializer.typeInfo());
+        context.getState(descr);
+
+        StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
+        TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+
+        // The keyed state store owns the arming; a serializer initialized before delegating to the
+        // store would win the descriptor's CAS and leave this unarmed.
+        assertThat(serializer).isInstanceOf(StateSchemaEvolvingTestSerializer.class);
+        assertThat(((StateSchemaEvolvingTestSerializer) serializer).isStateSchemaEvolutionEnabled())
+                .isTrue();
+    }
+
+    @Test
     void testV2ValueStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
@@ -404,11 +426,21 @@ class StreamingRuntimeContextTest {
     private StreamingRuntimeContext createRuntimeContext(
             AtomicReference<Object> descriptorCapture, ExecutionConfig config, boolean stateV2)
             throws Exception {
+        return createRuntimeContext(descriptorCapture, config, stateV2, false);
+    }
+
+    private StreamingRuntimeContext createRuntimeContext(
+            AtomicReference<Object> descriptorCapture,
+            ExecutionConfig config,
+            boolean stateV2,
+            boolean objectLevelValueMigration)
+            throws Exception {
         return createDescriptorCapturingMockOp(
                         descriptorCapture,
                         config,
                         MockEnvironment.builder().setExecutionConfig(config).build(),
-                        stateV2)
+                        stateV2,
+                        objectLevelValueMigration)
                 .getRuntimeContext();
     }
 
@@ -428,7 +460,8 @@ class StreamingRuntimeContextTest {
             final AtomicReference<Object> ref,
             final ExecutionConfig config,
             Environment environment,
-            boolean stateV2)
+            boolean stateV2,
+            boolean objectLevelValueMigration)
             throws Exception {
 
         StreamConfig streamConfig = new StreamConfig(new Configuration());
@@ -457,6 +490,8 @@ class StreamingRuntimeContextTest {
                 new StreamTaskStateInitializerImpl(environment, new HashMapStateBackend());
 
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
+        when(keyedStateBackend.supportsObjectLevelValueMigration())
+                .thenReturn(objectLevelValueMigration);
 
         AsyncKeyedStateBackend asyncKeyedStateBackend = mock(AsyncKeyedStateBackend.class);
 
