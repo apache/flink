@@ -60,7 +60,6 @@ DataStream<WordWithCount> windowCounts = text
 
 windowCounts.print();
 env.execute();
-}
 ```
 
 ### Batch Example
