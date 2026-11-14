@@ -59,6 +59,8 @@ public class JobManagerSharedServices {
 
     private final ExecutorService ioExecutor;
 
+    private final ExecutorService recoveryExecutor;
+
     private final LibraryCacheManager libraryCacheManager;
 
     private final ShuffleMaster<?> shuffleMaster;
@@ -71,9 +73,25 @@ public class JobManagerSharedServices {
             LibraryCacheManager libraryCacheManager,
             ShuffleMaster<?> shuffleMaster,
             @Nonnull BlobWriter blobWriter) {
+        this(
+                futureExecutor,
+                ioExecutor,
+                ioExecutor,
+                libraryCacheManager,
+                shuffleMaster,
+                blobWriter);
+    }
 
+    public JobManagerSharedServices(
+            ScheduledExecutorService futureExecutor,
+            ExecutorService ioExecutor,
+            ExecutorService recoveryExecutor,
+            LibraryCacheManager libraryCacheManager,
+            ShuffleMaster<?> shuffleMaster,
+            @Nonnull BlobWriter blobWriter) {
         this.futureExecutor = checkNotNull(futureExecutor);
         this.ioExecutor = checkNotNull(ioExecutor);
+        this.recoveryExecutor = checkNotNull(recoveryExecutor);
         this.libraryCacheManager = checkNotNull(libraryCacheManager);
         this.shuffleMaster = checkNotNull(shuffleMaster);
         this.blobWriter = blobWriter;
@@ -85,6 +103,15 @@ public class JobManagerSharedServices {
 
     public Executor getIoExecutor() {
         return ioExecutor;
+    }
+
+    /**
+     * Shared capacity for adaptive graph creation and state assignment, including synchronous
+     * storage calls within that work. Asynchronous checkpoint-trigger initialization and cleanup
+     * must continue to use the general IO executor to preserve their existing feedback.
+     */
+    public Executor getRecoveryExecutor() {
+        return recoveryExecutor;
     }
 
     public LibraryCacheManager getLibraryCacheManager() {
@@ -113,8 +140,12 @@ public class JobManagerSharedServices {
         Throwable exception = null;
 
         try {
+            final ExecutorService[] executors =
+                    recoveryExecutor == ioExecutor
+                            ? new ExecutorService[] {futureExecutor, ioExecutor}
+                            : new ExecutorService[] {futureExecutor, ioExecutor, recoveryExecutor};
             ExecutorUtils.gracefulShutdown(
-                    SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS, futureExecutor, ioExecutor);
+                    SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS, executors);
         } catch (Throwable t) {
             exception = t;
         }
@@ -183,7 +214,19 @@ public class JobManagerSharedServices {
                         .createShuffleMaster(shuffleMasterContext);
         shuffleMaster.start();
 
+        // One fixed pool per JobManager, not per job or graph. The queue remains unbounded;
+        // BackgroundTask serializes suppliers within each adaptive scheduler. This separates
+        // worker availability, not storage clients or synchronous work inside a supplier.
+        final ExecutorService recoveryExecutor =
+                Executors.newFixedThreadPool(
+                        jobManagerIoPoolSize, new ExecutorThreadFactory("jobmanager-recovery"));
+
         return new JobManagerSharedServices(
-                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobServer);
+                futureExecutor,
+                ioExecutor,
+                recoveryExecutor,
+                libraryCacheManager,
+                shuffleMaster,
+                blobServer);
     }
 }

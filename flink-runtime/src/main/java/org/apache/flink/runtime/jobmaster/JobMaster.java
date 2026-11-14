@@ -178,6 +178,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final Executor ioExecutor;
 
+    private final Executor recoveryExecutor;
+
     private final OnCompletionActions jobCompletionActions;
 
     private final FatalErrorHandler fatalErrorHandler;
@@ -346,6 +348,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         this.futureExecutor =
                 MdcUtils.scopeToJob(jid, jobManagerSharedServices.getFutureExecutor());
         this.ioExecutor = MdcUtils.scopeToJob(jid, jobManagerSharedServices.getIoExecutor());
+        this.recoveryExecutor =
+                MdcUtils.scopeToJob(jid, jobManagerSharedServices.getRecoveryExecutor());
         this.jobCompletionActions = checkNotNull(jobCompletionActions);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.userCodeLoader = checkNotNull(userCodeLoader);
@@ -431,6 +435,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         log,
                         executionPlan,
                         ioExecutor,
+                        recoveryExecutor,
                         jobMasterConfiguration.getConfiguration(),
                         slotPoolService,
                         futureExecutor,
