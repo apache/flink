@@ -32,6 +32,7 @@ import org.apache.flink.shaded.netty4.io.netty.util.internal.logging.Slf4JLogger
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigUtil;
 import org.apache.pekko.actor.ActorRef;
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.actor.Address;
@@ -349,7 +350,8 @@ class PekkoUtils {
         final String sslCertFingerprints =
                 sslCertFingerprintString != null
                         ? Arrays.stream(sslCertFingerprintString.split(","))
-                                .collect(Collectors.joining("\",\"", "[\"", "\"]"))
+                                .map(PekkoUtils::quote)
+                                .collect(Collectors.joining(",", "[", "]"))
                         : "[]";
 
         final String sslProtocol = configuration.get(SecurityOptions.SSL_PROTOCOL);
@@ -357,6 +359,8 @@ class PekkoUtils {
         final String sslAlgorithmsString = configuration.get(SecurityOptions.SSL_ALGORITHMS);
         final String sslAlgorithms =
                 Arrays.stream(sslAlgorithmsString.split(","))
+                        .map(String::trim)
+                        .map(PekkoUtils::quote)
                         .collect(Collectors.joining(",", "[", "]"));
 
         final String sslEngineProviderName = CustomSSLEngineProvider.class.getCanonicalName();
@@ -371,14 +375,14 @@ class PekkoUtils {
                 .add("        enable-ssl = " + enableSSL)
                 .add("        ssl-engine-provider = " + sslEngineProviderName)
                 .add("        security {")
-                .add("          key-store = \"" + sslKeyStore + "\"")
-                .add("          key-store-password = \"" + sslKeyStorePassword + "\"")
-                .add("          key-store-type = \"" + sslKeyStoreType + "\"")
-                .add("          key-password = \"" + sslKeyPassword + "\"")
-                .add("          trust-store = \"" + sslTrustStore + "\"")
-                .add("          trust-store-password = \"" + sslTrustStorePassword + "\"")
-                .add("          trust-store-type = \"" + sslTrustStoreType + "\"")
-                .add("          protocol = \"" + sslProtocol + "\"")
+                .add("          key-store = " + quote(sslKeyStore))
+                .add("          key-store-password = " + quote(sslKeyStorePassword))
+                .add("          key-store-type = " + quote(sslKeyStoreType))
+                .add("          key-password = " + quote(sslKeyPassword))
+                .add("          trust-store = " + quote(sslTrustStore))
+                .add("          trust-store-password = " + quote(sslTrustStorePassword))
+                .add("          trust-store-type = " + quote(sslTrustStoreType))
+                .add("          protocol = " + quote(sslProtocol))
                 .add("          enabled-algorithms = " + sslAlgorithms + "")
                 .add("          random-number-generator = \"\"")
                 .add("          require-mutual-authentication = on")
@@ -608,6 +612,10 @@ class PekkoUtils {
 
     private static String booleanToOnOrOff(boolean flag) {
         return flag ? "on" : "off";
+    }
+
+    private static String quote(@Nullable String value) {
+        return ConfigUtil.quoteString(String.valueOf(value));
     }
 
     private static class ConfigBuilder {
