@@ -20,6 +20,7 @@ package org.apache.flink.api.common.python.pickle;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,22 +29,15 @@ class ArrayConstructorTest {
 
     private final ArrayConstructor constructor = new ArrayConstructor();
 
-    /**
-     * Verifies that typecode 'l' (long) arrays are correctly constructed as long[], preserving
-     * values that exceed Integer.MAX_VALUE. This was broken when args[0] == "l" was used (reference
-     * equality) instead of "l".equals(args[0]) (value equality), causing the long[] branch to be
-     * unreachable and silently truncating values to int.
-     */
     @Test
     void testLongArrayPreservesValuesAboveIntMax() {
-        ArrayList<Object> values = new ArrayList<>();
-        values.add(3_000_000_000L); // exceeds Integer.MAX_VALUE (2_147_483_647)
+        List<Object> values = new ArrayList<>();
+        values.add(Integer.MAX_VALUE + 10L);
         values.add(Long.MAX_VALUE);
         values.add(0L);
         values.add(-1L);
 
-        // Simulate how pickle passes the typecode — as a deserialized String object,
-        // not an interned literal. new String ensures it is a distinct object reference.
+        // new String so the typecode is a distinct object, as a deserialized pickle value is.
         Object[] args = new Object[] {new String("l"), values};
 
         Object result = constructor.construct(args);
@@ -51,7 +45,7 @@ class ArrayConstructorTest {
         assertThat(result).isInstanceOf(long[].class);
         long[] longs = (long[]) result;
         assertThat(longs).hasSize(4);
-        assertThat(longs[0]).isEqualTo(3_000_000_000L);
+        assertThat(longs[0]).isEqualTo(Integer.MAX_VALUE + 10L);
         assertThat(longs[1]).isEqualTo(Long.MAX_VALUE);
         assertThat(longs[2]).isEqualTo(0L);
         assertThat(longs[3]).isEqualTo(-1L);
@@ -59,7 +53,7 @@ class ArrayConstructorTest {
 
     @Test
     void testLongArrayWithSingleValue() {
-        ArrayList<Object> values = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
         values.add(10_000_000_000L);
 
         Object[] args = new Object[] {new String("l"), values};
@@ -72,7 +66,7 @@ class ArrayConstructorTest {
 
     @Test
     void testLongArrayWithEmptyList() {
-        ArrayList<Object> values = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
         Object[] args = new Object[] {new String("l"), values};
 
         Object result = constructor.construct(args);
@@ -83,15 +77,13 @@ class ArrayConstructorTest {
 
     @Test
     void testNonLongTypecodesDelegateToSuper() {
-        // typecode 'i' (int) should fall through to the parent implementation
-        ArrayList<Object> values = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
         values.add(42);
 
         Object[] args = new Object[] {new String("i"), values};
 
         Object result = constructor.construct(args);
 
-        // parent returns int[] for typecode 'i'
         assertThat(result).isInstanceOf(int[].class);
         assertThat((int[]) result).containsExactly(42);
     }
