@@ -50,6 +50,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
                 aggsHandleFunction,
                 GENERATED_ROW_VALUE_EQUALISER,
                 GENERATED_SORT_KEY_EQUALISER,
+                GENERATED_ACC_EQUALISER,
                 generatedSortKeyComparator,
                 accTypes,
                 inputFieldTypes,
@@ -107,6 +108,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
                                 lastValueAggsHandleFunction,
                                 GENERATED_ROW_VALUE_EQUALISER,
                                 GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_ACC_EQUALISER,
                                 GENERATED_SORT_KEY_COMPARATOR_ASC,
                                 lastValueAccTypes,
                                 inputFieldTypes,
@@ -161,6 +163,7 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
                                 aggsSumLongHandleFunction,
                                 GENERATED_ROW_VALUE_EQUALISER,
                                 GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_ACC_EQUALISER,
                                 GENERATED_SORT_KEY_COMPARATOR_ASC,
                                 accTypes,
                                 inputFieldTypes,
@@ -557,7 +560,6 @@ class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBa
 
     @TestTemplate
     void testRetractWithEarlyOut() throws Exception {
-        assumeEarlyOutSupported();
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRangeUnboundedPrecedingFunction(
