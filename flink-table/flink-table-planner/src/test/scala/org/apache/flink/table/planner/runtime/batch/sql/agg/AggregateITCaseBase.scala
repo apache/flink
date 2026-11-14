@@ -115,7 +115,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       expectedTypedData5
     )
 
-    // for hash agg mode it wont fallback
+    // for hash agg mode it won't fallback
     val singleGrouplargeData5 = for (i <- 0 until 100000) yield row(999, 1L, 10, "Hallo", 1L)
     registerCollection("SingleGroupLargeTable5", singleGrouplargeData5, type5, "d, e, f, g, h")
     checkResult(

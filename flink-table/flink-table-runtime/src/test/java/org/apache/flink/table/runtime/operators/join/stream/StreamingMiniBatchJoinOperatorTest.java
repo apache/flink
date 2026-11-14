@@ -299,7 +299,7 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
     void testInnerJoinJoinKeyContainsUniqueKeyWithoutFold() throws Exception {
         // joinKey is LineOrd
         testHarness.setStateTtlProcessingTime(1);
-        // basic test for that the mini-batch process could be triggerred normally
+        // basic test for that the mini-batch process could be triggered normally
         testHarness.processElement1(
                 insertRecord(
                         "Ord#1",

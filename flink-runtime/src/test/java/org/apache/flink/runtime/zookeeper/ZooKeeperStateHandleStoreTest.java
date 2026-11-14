@@ -1223,7 +1223,7 @@ class ZooKeeperStateHandleStoreTest {
             Stat stat =
                     getZooKeeperClient().checkExists().forPath(zkStore.getInstanceLockPath(path));
 
-            assertThat(stat).as("Expecte and existing lock.").isNotNull();
+            assertThat(stat).as("Expected an existing lock.").isNotNull();
         }
 
         zkStore.releaseAll();

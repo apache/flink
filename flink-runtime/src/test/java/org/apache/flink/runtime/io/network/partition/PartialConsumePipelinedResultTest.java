@@ -71,7 +71,7 @@ class PartialConsumePipelinedResultTest {
     /**
      * Tests a fix for FLINK-1930.
      *
-     * <p>When consuming a pipelined result only partially, is is possible that local channels
+     * <p>When consuming a pipelined result only partially, it is possible that local channels
      * release the buffer pool, which is associated with the result partition, too early. If the
      * producer is still producing data when this happens, it runs into an IllegalStateException,
      * because of the destroyed buffer pool.

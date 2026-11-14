@@ -95,7 +95,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
                 throw new IllegalArgumentException(
                         "The key type "
                                 + i
-                                + " is null or not implenting the interface "
+                                + " is null or not implementing the interface "
                                 + Value.class.getName()
                                 + ".");
             }

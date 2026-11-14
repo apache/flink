@@ -52,7 +52,7 @@ public class TaskCancelThread extends Thread {
         try {
             Thread.sleep(this.cancelTimeout * 1000);
         } catch (InterruptedException e) {
-            fail("CancelThread interruped while waiting for cancel timeout");
+            fail("CancelThread interrupted while waiting for cancel timeout");
         }
 
         try {

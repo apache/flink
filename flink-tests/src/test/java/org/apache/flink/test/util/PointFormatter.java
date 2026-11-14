@@ -28,7 +28,7 @@ import java.text.DecimalFormatSymbols;
  * Writes records that contain an id and a CoordVector. The output format is line-based, i.e. one
  * record is written to a line and terminated with '\n'. Within a line the first '|' character
  * separates the id from the CoordVector. The vector consists of a vector of decimals. The decimals
- * are separated by '|'. The is is the id of a data point or cluster center and the vector the
+ * are separated by '|'. The id is the id of a data point or cluster center and the vector the
  * corresponding position (coordinate vector) of the data point or cluster center. Example line:
  * "42|23.23|52.57|74.43| Id: 42 Coordinate vector: (23.23, 52.57, 74.43)
  */

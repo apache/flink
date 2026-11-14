@@ -33,7 +33,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
- * Ths base plan test for join reorder. This class will test
+ * The base plan test for join reorder. This class will test
  * [[org.apache.flink.table.planner.plan.rules.logical.FlinkBushyJoinReorderRule]] and
  * [[org.apache.calcite.rel.rules.LoptOptimizeJoinRule]] together by changing the factor
  * isBushyJoinReorder.

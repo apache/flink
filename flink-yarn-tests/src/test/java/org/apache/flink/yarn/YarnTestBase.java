@@ -754,7 +754,7 @@ public abstract class YarnTestBase {
         try {
             Thread.sleep(time);
         } catch (InterruptedException e) {
-            LOG.warn("Interruped", e);
+            LOG.warn("Interrupted", e);
         }
     }
 

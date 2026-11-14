@@ -84,7 +84,7 @@ public class TestAllocator implements Allocator {
     @Override
     public synchronized Chunk getChunkById(int chunkId) {
         TestChunk chunk = chunkMap.get(chunkId);
-        Preconditions.checkNotNull(chunk, "chunk " + chunkId + " doest not exist.");
+        Preconditions.checkNotNull(chunk, "chunk " + chunkId + " does not exist.");
         return chunk;
     }
 

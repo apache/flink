@@ -5018,7 +5018,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     }
 
     /**
-     * Since {@link AbstractKeyedStateBackend#getKeys(String, Object)} does't support concurrent
+     * Since {@link AbstractKeyedStateBackend#getKeys(String, Object)} doesn't support concurrent
      * modification and {@link AbstractKeyedStateBackend#applyToAllKeys(Object, TypeSerializer,
      * StateDescriptor, KeyedStateFunction)} rely on it to get keys from backend. So we need this
      * unit test to verify the concurrent modification with {@link

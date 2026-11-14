@@ -486,7 +486,7 @@ class RocksDBStateBackendConfigTest {
                                                     (MetricGroup) new UnregisteredMetricsGroup(),
                                                     Collections.emptyList(),
                                                     cancelStreamRegistry)),
-                            "We must see a failure because no storaged directory is feasible.")
+                            "We must see a failure because no storage directory is feasible.")
                     .hasMessageContaining("No local storage directories available")
                     .hasMessageContaining(targetDir.getAbsolutePath());
         } finally {

@@ -307,7 +307,7 @@ class SplitFetcherManagerTest {
             waitUntil(
                     () -> reader.isClosed,
                     Duration.ofSeconds(1),
-                    "The reader should hava been closed.");
+                    "The reader should have been closed.");
         } finally {
             fetcherManager.close(30_000);
         }
