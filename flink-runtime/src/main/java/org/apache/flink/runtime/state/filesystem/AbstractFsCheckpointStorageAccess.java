@@ -358,7 +358,7 @@ public abstract class AbstractFsCheckpointStorageAccess implements CheckpointSto
                 }
             }
 
-            // covert to string and path
+            // convert to string and path
             try {
                 return new Path(
                         new String(

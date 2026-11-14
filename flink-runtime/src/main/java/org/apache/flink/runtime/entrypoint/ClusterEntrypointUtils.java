@@ -226,7 +226,7 @@ public final class ClusterEntrypointUtils {
 
     /**
      * Creates the working directory for the JobManager process. This method ensures that the
-     * working diretory exists.
+     * working directory exists.
      *
      * @param configuration to extract the required settings from
      * @param envelopedResourceId identifying the TaskManager process

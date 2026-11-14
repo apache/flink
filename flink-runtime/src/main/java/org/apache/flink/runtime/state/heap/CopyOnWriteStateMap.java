@@ -164,7 +164,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
      */
     private StateMapEntry<K, N, S>[] incrementalRehashTable;
 
-    /** The current number of mappings in the primary talbe. */
+    /** The current number of mappings in the primary table. */
     private int primaryTableSize;
 
     /** The current number of mappings in the rehash table. */

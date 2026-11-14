@@ -50,8 +50,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * A handle to ChangelogStateBackend state. Consists of the base and delta parts. Base part
  * references materialized state (e.g. SST files), while delta part references state changes that
- * were not not materialized at the time of the snapshot. Both are potentially empty lists as there
- * can be no state or multiple states (e.g. after rescaling).
+ * were not materialized at the time of the snapshot. Both are potentially empty lists as there can
+ * be no state or multiple states (e.g. after rescaling).
  */
 @Internal
 public interface ChangelogStateBackendHandle

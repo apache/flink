@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * {@code StateHandleStoreUtils} collects utility methods that might be usefule for any {@link
+ * {@code StateHandleStoreUtils} collects utility methods that might be useful for any {@link
  * StateHandleStore} implementation.
  */
 public class StateHandleStoreUtils {

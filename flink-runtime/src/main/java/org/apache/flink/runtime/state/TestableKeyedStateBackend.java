@@ -26,8 +26,7 @@ public interface TestableKeyedStateBackend<K> extends KeyedStateBackend<K> {
     int numKeyValueStateEntries();
 
     /**
-     * @return delegated {@link KeyedStateBackend} if this backends delegates its
-     *     responisibilities..
+     * @return delegated {@link KeyedStateBackend} if this backends delegates its responsibilities.
      * @param recursive true if the call should be recursive
      */
     default KeyedStateBackend<K> getDelegatedKeyedStateBackend(boolean recursive) {

@@ -112,7 +112,7 @@ public class ProducerMergedPartitionFileIndex {
      *
      * @param subpartitionId the subpartition id
      * @param bufferIndex the buffer index
-     * @return the region containing the buffer index, or return emtpy if the region is not found.
+     * @return the region containing the buffer index, or return empty if the region is not found.
      */
     Optional<FixedSizeRegion> getRegion(
             TieredStorageSubpartitionId subpartitionId, int bufferIndex) {

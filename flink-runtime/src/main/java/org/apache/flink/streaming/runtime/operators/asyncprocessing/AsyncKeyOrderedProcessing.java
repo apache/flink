@@ -30,7 +30,7 @@ public interface AsyncKeyOrderedProcessing {
     /**
      * Get if the async state processing is enabled for this input/operator.
      *
-     * @return ture if async state processing is enabled.
+     * @return true if async state processing is enabled.
      */
     boolean isAsyncKeyOrderedProcessingEnabled();
 
