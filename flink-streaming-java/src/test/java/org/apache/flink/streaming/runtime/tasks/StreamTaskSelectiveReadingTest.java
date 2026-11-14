@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -176,9 +175,14 @@ class StreamTaskSelectiveReadingTest {
         }
         testHarness.waitForTaskCompletion(10_000L);
 
-        LinkedBlockingQueue<Object> output = testHarness.getOutput();
+        // Filter out WatermarkStatus (e.g., FINISHED watermark status when task finishes) - this
+        // test focuses on selective reading behavior.
+        ConcurrentLinkedQueue<Object> filteredOutput =
+                TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput());
+
         if (orderedCheck) {
-            TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, output);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct.", expectedOutput, filteredOutput);
         } else {
             String[] expectedResult =
                     expectedOutput.stream()
@@ -187,7 +191,7 @@ class StreamTaskSelectiveReadingTest {
             Arrays.sort(expectedResult);
 
             String[] result =
-                    output.stream()
+                    filteredOutput.stream()
                             .map(StreamTaskSelectiveReadingTest::elementToString)
                             .toArray(String[]::new);
             Arrays.sort(result);
