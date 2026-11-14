@@ -71,6 +71,19 @@ If the new refresh job starts but the catalog cannot record it, the job is cance
 job restarts from its savepoint. If that cancel fails, the materialized table is rolled back and
 left suspended instead of restarting the old job.
 
+# Dropping a Materialized Table
+
+```java
+boolean dropped = tEnv.dropMaterializedTable("revenue");
+```
+
+`dropMaterializedTable(path, ignoreIfNotExists)` has the semantics of
+[`DROP MATERIALIZED TABLE`]({{< ref "docs/sql/materialized-table/statements" >}}#drop-materialized-table):
+a running continuous refresh job is cancelled before the materialized table is removed from the
+catalog. Like `dropTable`, with `ignoreIfNotExists = true`, the default of
+`dropMaterializedTable(path)`, it returns `false` if no materialized table exists at the path, even
+if a table or view exists there instead.
+
 # Limitations
 
 - The query of a refresh job is stored as SQL text, so it must be expressible in SQL. Inline

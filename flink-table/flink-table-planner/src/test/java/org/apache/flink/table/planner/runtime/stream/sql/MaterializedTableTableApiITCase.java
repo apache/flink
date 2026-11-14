@@ -64,6 +64,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -748,37 +749,36 @@ class MaterializedTableTableApiITCase {
         waitUntilAllTasksAreRunning(clusterClient, refreshJobId);
         assertThat(getJobStatus(refreshJobId)).isEqualTo(JobStatus.RUNNING);
 
-        // Drop materialized table using drop table statement
-        assertThatThrownBy(() -> tEnv.executeSql("DROP TABLE users_shops"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        String.format(
-                                "Table with identifier '%s' does not exist.",
-                                USERS_SHOPS.asSummaryString()));
-
-        tEnv.executeSql("DROP MATERIALIZED TABLE IF EXISTS users_shops");
+        assertThat(tEnv.dropMaterializedTable("users_shops")).isTrue();
 
         assertThat(catalog.tableExists(USERS_SHOPS.toObjectPath())).isFalse();
         awaitJobStatus(refreshJobId, JobStatus.CANCELED);
+    }
 
-        // verify drop materialized table that doesn't exist
-        assertThatThrownBy(() -> tEnv.executeSql("DROP MATERIALIZED TABLE users_shops"))
+    @Test
+    void testDropMaterializedTableWithoutMaterializedTableAtPath() {
+        assertThat(tEnv.dropMaterializedTable("users_shops")).isFalse();
+        assertThatThrownBy(() -> tEnv.dropMaterializedTable("users_shops", false))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
                                 "Materialized table with identifier '%s' does not exist.",
                                 USERS_SHOPS.asSummaryString()));
 
-        tEnv.executeSql("DROP MATERIALIZED TABLE IF EXISTS users_shops");
+        // A regular table counts as absent and is kept
+        assertThat(tEnv.dropMaterializedTable("datagenSource")).isFalse();
+        assertThat(catalog.tableExists(new ObjectPath(DATABASE, "datagenSource"))).isTrue();
 
-        // Drop a table using drop materialized table statement
-        assertThatThrownBy(() -> tEnv.executeSql("DROP MATERIALIZED TABLE IF EXISTS datagenSource"))
+        // A temporary view shadowing the materialized table is not skipped as absent
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
+        tEnv.createTemporaryView("users_shops", tEnv.from("datagenSource"));
+        assertThatThrownBy(() -> tEnv.dropMaterializedTable("users_shops"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
                                 "Table '%s' is not a materialized table, does not support materialized table related operation.",
-                                ObjectIdentifier.of(CATALOG, DATABASE, "datagenSource")
-                                        .asSummaryString()));
+                                USERS_SHOPS.asSummaryString()));
+        assertThat(catalog.tableExists(USERS_SHOPS.toObjectPath())).isTrue();
     }
 
     // --------------------------------------------------------------------------------------------
