@@ -950,8 +950,8 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b,
 :- Exchange(distribution=[hash[b]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[rk]])
-   +- Calc(select=[w0$o0 AS rk, d])
-      +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, w0$o0])
+   +- Calc(select=[rk, d])
+      +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window#0=[RANK(*) AS rk RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, rk])
          +- Exchange(distribution=[forward])
             +- Sort(orderBy=[d ASC, e ASC])
                +- Exchange(distribution=[hash[d]])
@@ -1485,16 +1485,16 @@ LogicalProject(EXPR$0=[MAX($0) OVER ()], EXPR$1=[MIN($1) OVER (PARTITION BY $2 O
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = EXPR$0) AND (b = EXPR$1))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
-+- Exchange(distribution=[hash[$0, $1]])
-   +- Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
-      +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window#0=[MIN(e) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, w0$o0, w1$o0])
++- Exchange(distribution=[hash[EXPR$0, EXPR$1]])
+   +- Calc(select=[EXPR$0, EXPR$1])
+      +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window#0=[MIN(e) AS EXPR$1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, EXPR$0, EXPR$1])
          +- Exchange(distribution=[forward])
             +- Sort(orderBy=[f ASC, d ASC])
                +- Exchange(distribution=[hash[f]])
-                  +- OverAggregate(window#0=[MAX(d) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[d, e, f, w0$o0])
+                  +- OverAggregate(window#0=[MAX(d) AS EXPR$0 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[d, e, f, EXPR$0])
                      +- Exchange(distribution=[single])
                         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
