@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.TestContainerExtension;
 import org.apache.flink.fs.s3native.NativeS3FileSystemFactory;
 import org.apache.flink.fs.s3native.SeaweedFsNativeS3TestContainer;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,6 +76,10 @@ class NativeS3RecoverableWriterRecoveryITCase {
                     new AllCallbackWrapper<>(
                             new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
 
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> UPLOAD_POOL =
+            new TestExecutorExtension<>(Executors::newCachedThreadPool);
+
     @TempDir java.nio.file.Path tmp;
 
     private String bucket;
@@ -91,7 +98,8 @@ class NativeS3RecoverableWriterRecoveryITCase {
     }
 
     private NativeS3RecoverableWriter writer() {
-        return NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+        return NativeS3RecoverableWriter.writer(
+                s3, UPLOAD_POOL.getExecutor(), tmp.toString(), MIN_PART_SIZE, 4);
     }
 
     private Path targetPath() {

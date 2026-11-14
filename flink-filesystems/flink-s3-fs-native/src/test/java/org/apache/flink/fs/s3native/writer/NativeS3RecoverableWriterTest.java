@@ -20,9 +20,11 @@ package org.apache.flink.fs.s3native.writer;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -30,9 +32,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
+import static org.apache.flink.util.concurrent.Executors.directExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests how {@link NativeS3RecoverableWriter} persists, restores and cleans up the tail of an
@@ -53,6 +61,10 @@ class NativeS3RecoverableWriterTest {
 
     /** Where the tail of a target without a directory is stored now: at the bucket root. */
     private static final String TAIL_KEY_OF_ROOT_LEVEL_TARGET = ".incomplete/U1/tail";
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> UPLOAD_POOL =
+            new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @TempDir java.nio.file.Path tmp;
 
@@ -182,6 +194,41 @@ class NativeS3RecoverableWriterTest {
         assertThat(s3.committedObjects.get(KEY)).isEqualTo(ascii("AAAAABBBC"));
     }
 
+    @Test
+    void maxConcurrentUploadsAppliesPerStream() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        final NativeS3RecoverableWriter writer =
+                NativeS3RecoverableWriter.writer(
+                        s3, UPLOAD_POOL.getExecutor(), tmp.toString(), MIN_PART_SIZE, 2);
+        final RecoverableFsDataOutputStream first = writer.open(targetPath("dir/first"));
+        final RecoverableFsDataOutputStream second = writer.open(targetPath("dir/second"));
+
+        for (RecoverableFsDataOutputStream stream :
+                new RecoverableFsDataOutputStream[] {first, second}) {
+            stream.write(ascii("AAAAAAAAAA"), 0, 10);
+            stream.write(ascii("BBBBBBBBBB"), 0, 10);
+        }
+        waitUntilCondition(() -> s3.inFlightUploads.get() == 4);
+
+        s3.uploadPartGate.countDown();
+        first.closeForCommit().commit();
+        second.closeForCommit().commit();
+
+        assertThat(s3.maxInFlightUploads).hasValue(4);
+        assertThat(s3.committedObjects.get("dir/first")).isEqualTo(ascii("AAAAAAAAAABBBBBBBBBB"));
+        assertThat(s3.committedObjects.get("dir/second")).isEqualTo(ascii("AAAAAAAAAABBBBBBBBBB"));
+    }
+
+    @Test
+    void rejectsNonPositiveMaxConcurrentUploads() {
+        assertThatThrownBy(
+                        () ->
+                                NativeS3RecoverableWriter.writer(
+                                        s3, directExecutor(), tmp.toString(), MIN_PART_SIZE, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxConcurrentUploadsPerStream must be positive");
+    }
+
     private NativeS3Recoverable persistFiveBytes(String key) throws IOException {
         final RecoverableFsDataOutputStream stream = writer().open(targetPath(key));
         stream.write(ascii("AAAAA"), 0, 5);
@@ -197,7 +244,8 @@ class NativeS3RecoverableWriterTest {
     }
 
     private NativeS3RecoverableWriter writer() {
-        return NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+        return NativeS3RecoverableWriter.writer(
+                s3, directExecutor(), tmp.toString(), MIN_PART_SIZE, 1);
     }
 
     private static Path targetPath(String key) {
