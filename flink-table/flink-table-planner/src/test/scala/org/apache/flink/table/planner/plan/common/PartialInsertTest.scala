@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.common
 
+import org.apache.flink.api.common.typeutils.base.StringSerializer
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
@@ -170,6 +171,64 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
         .hasMessageContaining(
           "requires the primary sort key to be a time attribute in ascending order")
     }
+  }
+
+  @TestTemplate
+  def testPartialInsertWithOrderByOrdinal(): Unit = {
+    // the ordinal refers to the select list of the query, not to the sink's column order
+    val insert =
+      "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+        "SELECT e,a,456,123,c,d FROM MyTable ORDER BY 1"
+    if (isBatch) {
+      util.verifyRelPlanInsert(insert)
+    } else {
+      assertThatThrownBy(() => util.verifyRelPlanInsert(insert))
+        .hasMessageContaining(
+          "requires the primary sort key to be a time attribute in ascending order")
+    }
+  }
+
+  @TestTemplate
+  def testPartialInsertWithInvalidStaticPartitionValue(): Unit = {
+    util.tableEnv.executeSql(
+      "CREATE TABLE date_partitioned_sink (a INT, dt DATE) PARTITIONED BY (dt) " +
+        "WITH ('connector' = 'filesystem', 'path' = '/non', 'format' = 'testcsv')")
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlanInsert(
+          "INSERT INTO date_partitioned_sink PARTITION (dt = TRUE) SELECT 1"))
+      .hasMessageContaining("Cast function cannot convert value of type BOOLEAN to type DATE")
+      .isInstanceOf(classOf[ValidationException])
+  }
+
+  @TestTemplate
+  def testPartialInsertPadsStructuredAndRawColumns(): Unit = {
+    util.tableEnv.createTemporaryTable(
+      "typed_sink",
+      TableDescriptor
+        .forConnector("values")
+        .schema(
+          Schema
+            .newBuilder()
+            .column("a", DataTypes.INT())
+            .column("s", DataTypes.STRUCTURED("MyUserPojo", DataTypes.FIELD("i", DataTypes.INT())))
+            .column("r", DataTypes.RAW(classOf[String], StringSerializer.INSTANCE))
+            .build())
+        .option("sink-insert-only", "false")
+        .build()
+    )
+    util.verifyRelPlanInsert("INSERT INTO typed_sink (a) SELECT a FROM MyTable")
+  }
+
+  @TestTemplate
+  def testPartialInsertWithStaticPartitionColumnInColumnList(): Unit = {
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlanInsert(
+          "INSERT INTO partitioned_sink PARTITION(`c`='2021') (c,e) " +
+            "SELECT c,e FROM MyTable"))
+      .hasMessageContaining("Target column 'c' is assigned more than once")
+      .isInstanceOf(classOf[ValidationException])
   }
 
   @TestTemplate
