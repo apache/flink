@@ -143,7 +143,8 @@ trait BatchPhysicalJoinRuleBase {
       case JoinStrategy.NEST_LOOP =>
         checkNestLoopJoin(join, tableConfig, withHint)
 
-      case JoinStrategy.LOOKUP =>
+      // these hints do not select one of the batch join operators above
+      case JoinStrategy.LOOKUP | JoinStrategy.EARLY_FIRE =>
         (false, false)
 
       case _ =>
