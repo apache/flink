@@ -18,10 +18,12 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalOverAggregate
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalOverAggregateRule.validateMultipleWindows
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 
@@ -42,18 +44,16 @@ class StreamPhysicalOverAggregateRule(config: Config) extends ConverterRule(conf
   override def matches(call: RelOptRuleCall): Boolean = {
     val logicWindow: FlinkLogicalOverAggregate =
       call.rel(0).asInstanceOf[FlinkLogicalOverAggregate]
-    val agg = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
-    !agg.exists(isPythonAggregate(_))
+    !logicWindow.groups.asScala
+      .flatMap(_.getAggregateCalls(logicWindow).asScala)
+      .exists(isPythonAggregate(_))
   }
 
   override def convert(rel: RelNode): RelNode = {
     val logicWindow: FlinkLogicalOverAggregate = rel.asInstanceOf[FlinkLogicalOverAggregate]
 
     if (logicWindow.groups.size > 1) {
-      throw new TableException(
-        "Over Agg: Unsupported use of OVER windows. " +
-          "All aggregates must be computed on the same window. " +
-          "please re-check the over window statement.")
+      validateMultipleWindows(logicWindow)
     }
 
     val keys = logicWindow.groups.get(0).keys
@@ -73,8 +73,7 @@ class StreamPhysicalOverAggregateRule(config: Config) extends ConverterRule(conf
     val outputRowType = OverAggregateUtil.inferOutputRowType(
       logicWindow.getCluster,
       input.getRowType,
-      // only supports one group now
-      logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala)
+      logicWindow.groups.asScala.flatMap(_.getAggregateCalls(logicWindow).asScala))
 
     new StreamPhysicalOverAggregate(
       rel.getCluster,
@@ -86,6 +85,48 @@ class StreamPhysicalOverAggregateRule(config: Config) extends ConverterRule(conf
 }
 
 object StreamPhysicalOverAggregateRule {
+
+  /**
+   * Several OVER windows are computed by one operator that shares the input rows between them,
+   * which requires bounded RANGE windows on the same partition and event-time order.
+   */
+  private def validateMultipleWindows(window: FlinkLogicalOverAggregate): Unit = {
+    val first = window.groups.get(0)
+    val inputFields = window.getInput.getRowType.getFieldList
+    window.groups.asScala.foreach {
+      group =>
+        val collations = group.orderKeys.getFieldCollations
+        val reason =
+          if (group.keys != first.keys) {
+            Some("all windows must have the same PARTITION BY")
+          } else if (group.orderKeys != first.orderKeys || collations.size() != 1) {
+            Some("all windows must be ordered by the same single time attribute")
+          } else if (
+            !FlinkTypeFactory.isRowtimeIndicatorType(
+              inputFields.get(collations.get(0).getFieldIndex).getType)
+          ) {
+            Some("only event-time attributes are supported in ORDER BY")
+          } else if (group.isRows) {
+            Some("only RANGE windows are supported")
+          } else if (
+            !group.lowerBound.isPreceding || group.lowerBound.isUnbounded
+            || !group.upperBound.isCurrentRow
+          ) {
+            Some("only windows from a bounded PRECEDING to CURRENT ROW are supported")
+          } else {
+            None
+          }
+        reason.foreach {
+          r =>
+            throw new TableException(
+              "Over Agg: Unsupported use of OVER windows. " +
+                s"A streaming query with several different OVER windows requires that $r. " +
+                "Please re-check the over window statement, " +
+                "or compute each window in its own subquery.")
+        }
+    }
+  }
+
   val INSTANCE: RelOptRule = new StreamPhysicalOverAggregateRule(
     Config.INSTANCE.withConversion(
       classOf[FlinkLogicalOverAggregate],
