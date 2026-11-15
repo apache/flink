@@ -32,6 +32,8 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import scala.Enumeration;
 
@@ -426,12 +428,14 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
         assertEquals(expectedOverAggNduErrorMsg, tableException.getMessage());
     }
 
-    @Test
-    void testNowFilterPushedIntoChangelogNormalizeOnUpsertSource() {
+    @ParameterizedTest
+    @EnumSource(NonDeterministicUpdateStrategy.class)
+    void testNowFilterPushedIntoChangelogNormalizeOnUpsertSource(
+            NonDeterministicUpdateStrategy strategy) {
         tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+                        strategy);
 
         tEnv.executeSql(
                 "CREATE TEMPORARY TABLE upsert_src (\n"
@@ -449,18 +453,21 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                 "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src"
                         + " WHERE ts >= NOW() - INTERVAL '90' DAY";
 
-        assertThatThrownBy(() -> util.verifyJsonPlan(sql))
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining("non deterministic function")
-                .hasMessageContaining("NOW");
+        util.doVerifyPlanInsert(
+                sql,
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
     }
 
-    @Test
-    void testCurrentTimestampFilterPushedIntoChangelogNormalizeOnUpsertSource() {
+    @ParameterizedTest
+    @EnumSource(NonDeterministicUpdateStrategy.class)
+    void testCurrentTimestampFilterPushedIntoChangelogNormalizeOnUpsertSource(
+            NonDeterministicUpdateStrategy strategy) {
         tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+                        strategy);
 
         tEnv.executeSql(
                 "CREATE TEMPORARY TABLE upsert_src2 (\n"
@@ -475,13 +482,31 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                         + ")");
 
         final String sql =
-                "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src2"
+                "INSERT INTO sink_without_pk SELECT a, b, c FROM upsert_src2"
                         + " WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '90' DAY";
 
-        assertThatThrownBy(() -> util.verifyJsonPlan(sql))
+        util.doVerifyPlanInsert(
+                sql,
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
+    }
+
+    @Test
+    void testNonDeterministicFilterOnRetractSourceIsRejected() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        assertThatThrownBy(
+                        () ->
+                                tEnv.explainSql(
+                                        "INSERT INTO sink_without_pk SELECT a, b, c FROM cdc"
+                                                + " WHERE ndFunc(b) > 100"))
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining("non deterministic function")
-                .hasMessageContaining("CURRENT_TIMESTAMP");
+                .hasMessageContaining("ndFunc");
     }
 
     @Test

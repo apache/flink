@@ -30,6 +30,7 @@ public class ChangelogNormalizeSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NON_DETERMINISTIC_FILTER,
                 ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_KEY_FILTER,
                 ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NO_FILTER,
                 ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_NON_KEY_FILTER,
