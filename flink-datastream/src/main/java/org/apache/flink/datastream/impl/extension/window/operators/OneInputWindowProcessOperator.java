@@ -309,8 +309,8 @@ public class OneInputWindowProcessOperator<K, IN, OUT, W extends Window>
                 }
 
                 windowState.setCurrentNamespace(stateWindow);
-                outputCollector.setTimestamp(window.maxTimestamp());
-                windowFunctionContext.setWindow(window);
+                outputCollector.setTimestamp(actualWindow.maxTimestamp());
+                windowFunctionContext.setWindow(actualWindow);
                 windowProcessFunction.onRecord(
                         element.getValue(),
                         outputCollector,
