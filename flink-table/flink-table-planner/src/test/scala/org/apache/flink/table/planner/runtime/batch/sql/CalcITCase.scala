@@ -2433,4 +2433,42 @@ class CalcITCase extends BatchTestBase {
       "SELECT val FROM TimestampTable WHERE ts IN ('2000-06-30 12:00:00', '2000-09-27 12:00:00')",
       Seq(row("a"), row("b")))
   }
+
+  @Test
+  def testCalcOnReusedInputRows(): Unit = {
+    registerCollection(
+      "ReusedT",
+      Seq(row("Aa", "{\"a\":1}"), row("Bb", "{\"a\":2}"), row("Cc", "{\"a\":3}")),
+      new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO),
+      "s, j")
+    // GROUP BY output is a reused row, so the Calc above it reads strings from reused memory
+    val reused = "(SELECT s, j FROM ReusedT GROUP BY s, j)"
+
+    checkResult(
+      s"SELECT s, LOWER(s) FROM $reused",
+      Seq(row("Aa", "aa"), row("Bb", "bb"), row("Cc", "cc")))
+
+    checkResult(
+      s"SELECT JSON_VALUE(j, '$$.a'), JSON_QUERY(j, '$$') FROM $reused",
+      Seq(row("1", "{\"a\":1}"), row("2", "{\"a\":2}"), row("3", "{\"a\":3}")))
+
+    checkResult(
+      s"SELECT JSON_VALUE(j, '$$.a') FROM $reused WHERE JSON_VALUE(j, '$$.a') <> '2'",
+      Seq(row("1"), row("3")))
+
+    checkResult(
+      s"SELECT CASE WHEN s LIKE 'A%' THEN JSON_VALUE(j, '$$.a') " +
+        s"ELSE JSON_VALUE(j, '$$.a') || 'x' END FROM $reused",
+      Seq(row("1"), row("2x"), row("3x")))
+
+    // Calc output kept by a downstream aggregate and join
+    checkResult(
+      s"SELECT MAX(l), MIN(l) FROM (SELECT LOWER(s) AS l FROM $reused)",
+      Seq(row("cc", "aa")))
+    checkResult(
+      s"SELECT a.l, b.j FROM (SELECT LOWER(s) AS l, s FROM $reused) a " +
+        "JOIN ReusedT b ON a.s = b.s",
+      Seq(row("aa", "{\"a\":1}"), row("bb", "{\"a\":2}"), row("cc", "{\"a\":3}"))
+    )
+  }
 }
