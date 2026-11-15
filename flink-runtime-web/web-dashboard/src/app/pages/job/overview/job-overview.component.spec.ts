@@ -17,9 +17,10 @@
  */
 
 import { NgIf } from '@angular/common';
-import { ChangeDetectorRef, CUSTOM_ELEMENTS_SCHEMA, ElementRef } from '@angular/core';
+import { ChangeDetectorRef, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, provideRouter, Router, RouterLink } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { EMPTY, of } from 'rxjs';
 
 import { JobDetailCorrect, NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
@@ -29,6 +30,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { JobOverviewComponent } from './job-overview.component';
+import { JOB_OVERVIEW_ROUTES } from './routes';
 import { JobLocalService } from '../job-local.service';
 
 const activatedRoute = { parent: { parent: { snapshot: { params: { jid: 'job-1' } } } } };
@@ -116,7 +118,7 @@ describe('JobOverviewComponent with a resolved plan', () => {
     streamLinks: [{ id: 'link-1', source: 'node-a', target: 'node-b' } as NodesItemLink]
   };
 
-  function createComponent(): {
+  function createComponent(job = { jid: 'job-1', plan: mockPlan } as JobDetailCorrect): {
     component: JobOverviewComponent;
     fakeDagre: { showPendingOperators: boolean; flush: ReturnType<typeof vi.fn>; updateNode: ReturnType<typeof vi.fn> };
   } {
@@ -134,7 +136,7 @@ describe('JobOverviewComponent with a resolved plan', () => {
         loadWatermarks: vi.fn().mockReturnValue(of({ lowWatermark: NaN }))
       } as unknown as MetricsService,
       {
-        jobDetailChanges: () => of({ jid: 'job-1', plan: mockPlan } as JobDetailCorrect),
+        jobDetailChanges: () => of(job),
         selectedVertexChanges: () => EMPTY
       } as unknown as JobLocalService,
       {} as unknown as JobService,
@@ -145,10 +147,21 @@ describe('JobOverviewComponent with a resolved plan', () => {
     return { component, fakeDagre };
   }
 
+  it('flags a job that failed before its tasks were created', () => {
+    // A job that fails during JobManager initialization arrives as FAILED with an empty plan.
+    const emptyPlan: JobDetailCorrect['plan'] = { ...mockPlan, jid: '', nodes: [], streamNodes: [], streamLinks: [] };
+    const { component } = createComponent({ jid: 'job-1', state: 'FAILED', plan: emptyPlan } as JobDetailCorrect);
+    component.ngOnInit();
+
+    expect(component.nodes).toEqual([]);
+    expect(component.jobFailed).toBe(true);
+  });
+
   it('derives pending nodes and links from the streaming graph when a plan arrives', () => {
     const { component } = createComponent();
     component.ngOnInit();
 
+    expect(component.jobFailed).toBe(false);
     expect(component.nodes).toEqual(mockPlan.nodes);
     expect(component.pendingNodes).toEqual([{ id: 'node-b' }]);
     // The pending link's endpoints are remapped through the streaming-graph node ids onto
@@ -176,5 +189,48 @@ describe('JobOverviewComponent with a resolved plan', () => {
       [{ id: 'vertex-a-node-b', source: 'vertex-a', target: 'node-b', pending: true }],
       true
     );
+  });
+});
+
+describe('JobOverviewComponent of a failed job without tasks', () => {
+  @Component({ template: '' })
+  class ExceptionsStubComponent {}
+
+  it('points to the Exceptions tab of the same job', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        // The overview is an empty-path route under 'overview', so its '../exceptions' link must
+        // resolve to the job's sibling route.
+        provideRouter([
+          {
+            path: 'job/:jid',
+            children: [
+              { path: 'overview', children: JOB_OVERVIEW_ROUTES },
+              { path: 'exceptions', component: ExceptionsStubComponent }
+            ]
+          }
+        ]),
+        { provide: MetricsService, useValue: {} },
+        { provide: JobService, useValue: {} },
+        { provide: JobLocalService, useValue: { jobDetailChanges: () => EMPTY, selectedVertexChanges: () => EMPTY } },
+        { provide: NzNotificationService, useValue: {} }
+      ]
+    }).overrideComponent(JobOverviewComponent, {
+      set: { imports: [NgIf, NzAlertModule, RouterLink], schemas: [CUSTOM_ELEMENTS_SCHEMA] }
+    });
+    const harness = await RouterTestingHarness.create();
+    const component = await harness.navigateByUrl('/job/job-1/overview', JobOverviewComponent);
+    component.jobFailed = true;
+    harness.routeDebugElement!.injector.get(ChangeDetectorRef).markForCheck();
+    harness.detectChanges();
+
+    const element = harness.routeNativeElement!;
+    expect(element.textContent).toContain('Job failed');
+    expect(element.textContent).not.toContain('Job is not running yet.');
+
+    element.querySelector<HTMLAnchorElement>('a')!.click();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/job/job-1/exceptions');
   });
 });

@@ -27,7 +27,7 @@ import {
   OnInit,
   ViewChild
 } from '@angular/core';
-import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
 import { catchError, filter, map, mergeMap, takeUntil } from 'rxjs/operators';
 
@@ -46,10 +46,11 @@ import { JobLocalService } from '../job-local.service';
   templateUrl: './job-overview.component.html',
   styleUrls: ['./job-overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzAlertModule, NgIf, DagreComponent, RouterOutlet, JobOverviewListComponent, ResizeComponent]
+  imports: [NzAlertModule, NgIf, DagreComponent, RouterLink, RouterOutlet, JobOverviewListComponent, ResizeComponent]
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];
+  public jobFailed = false;
   public links: NodesItemLink[] = [];
   public streamNodes: NodesItemCorrect[] = [];
   public streamLinks: NodesItemLink[] = [];
@@ -92,6 +93,9 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
+        // A job that failed before its tasks were created, e.g. during JobManager initialization,
+        // has no plan nodes, so the overview points to the Exceptions tab instead.
+        this.jobFailed = data.state === 'FAILED';
         if (this.jobId !== data.plan.jid || data.plan.nodes.length !== this.nodes.length) {
           this.jobId = data.plan.jid;
           this.nodes = data.plan.nodes;

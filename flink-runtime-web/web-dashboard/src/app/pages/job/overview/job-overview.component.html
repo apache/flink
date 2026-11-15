@@ -17,11 +17,23 @@
   -->
 
 <nz-alert
-  *ngIf="nodes.length === 0"
+  *ngIf="nodes.length === 0 && !jobFailed"
   nzShowIcon
   nzType="info"
   nzMessage="Job is not running yet."
 ></nz-alert>
+<nz-alert
+  *ngIf="nodes.length === 0 && jobFailed"
+  nzShowIcon
+  nzType="error"
+  nzMessage="Job failed"
+  [nzDescription]="jobFailedDescription"
+></nz-alert>
+<ng-template #jobFailedDescription>
+  There are no tasks to show. The
+  <a routerLink="../exceptions">Exceptions</a>
+  tab shows the cause.
+</ng-template>
 <div class="container" [style.height.px]="top">
   <flink-dagre
     (nodeClick)="onNodeClick($event)"
