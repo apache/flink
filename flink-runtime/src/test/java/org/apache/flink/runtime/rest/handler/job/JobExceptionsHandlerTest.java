@@ -74,6 +74,7 @@ import java.util.function.Function;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.collection.IsIterableWithSize.iterableWithSize;
@@ -379,6 +380,13 @@ class JobExceptionsHandlerTest {
         assertThat(response.getExceptionHistory().getEntries())
                 .satisfies(matching(iterableWithSize(1)));
         assertThat(response.getExceptionHistory().isTruncated()).isTrue();
+    }
+
+    @Test
+    void testNegativeMaxExceptionsIsRejected() {
+        assertThatThrownBy(() -> createRequest(new JobID(), -1))
+                .isInstanceOf(HandlerRequestException.class)
+                .hasMessageContaining(UpperLimitExceptionParameter.KEY);
     }
 
     @Test
