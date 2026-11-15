@@ -45,6 +45,7 @@ import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.commons.collections.iterators.IteratorChain;
@@ -440,6 +441,44 @@ class OperatorCoordinatorHolderTest {
 
         // The checkpoint would be finally confirmed.
         assertThat(checkpointResult).isCompletedExceptionally();
+    }
+
+    // The delivery fails. For an event still in flight when the task finishes, see
+    // OperatorCoordinatorSchedulerTest#testCheckpointSucceedsIfTaskFinishesBeforeLossTolerantEventArrives.
+    @Test
+    void testCheckpointSucceedsIfLossTolerantEventFindsTaskNotRunning() throws Exception {
+        assertThat(checkpointWithEventFindingTaskNotRunning(true)).isCompleted();
+    }
+
+    @Test
+    void testCheckpointFailsIfEventFindsTaskNotRunning() throws Exception {
+        assertThat(checkpointWithEventFindingTaskNotRunning(false)).isCompletedExceptionally();
+    }
+
+    private CompletableFuture<byte[]> checkpointWithEventFindingTaskNotRunning(
+            boolean lossTolerantEvent) throws Exception {
+        CompletableFuture<Acknowledge> eventSendingResult = new CompletableFuture<>();
+        final EventReceivingTasks tasks =
+                EventReceivingTasks.createForRunningTasksWithRpcResult(eventSendingResult);
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
+
+        // Send one event without finishing it.
+        CompletableFuture<Acknowledge> sendResult =
+                getCoordinator(holder)
+                        .getSubtaskGateway(0)
+                        .sendEvent(new TestOperatorEvent(0, lossTolerantEvent));
+
+        CompletableFuture<byte[]> checkpointResult = new CompletableFuture<>();
+        holder.checkpointCoordinator(1L, checkpointResult);
+        getCoordinator(holder).getLastTriggeredCheckpoint().complete(new byte[0]);
+
+        // The target task finished before the event reached it.
+        eventSendingResult.completeExceptionally(
+                new FlinkException(new TaskNotRunningException("test")));
+
+        assertThat(sendResult).isCompletedExceptionally();
+        return checkpointResult;
     }
 
     @Test
