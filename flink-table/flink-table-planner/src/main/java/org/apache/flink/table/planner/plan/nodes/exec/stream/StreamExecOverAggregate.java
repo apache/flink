@@ -60,8 +60,8 @@ import org.apache.flink.table.runtime.operators.over.NonTimeRowsUnboundedPrecedi
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeUnboundedPrecedingFunction;
-import org.apache.flink.table.runtime.operators.over.RowTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeMultiRangeBoundedPrecedingFunction;
+import org.apache.flink.table.runtime.operators.over.RowTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRangeUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction;

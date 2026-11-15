@@ -96,33 +96,20 @@ object StreamPhysicalOverAggregateRule {
     window.groups.asScala.foreach {
       group =>
         val collations = group.orderKeys.getFieldCollations
-        val reason =
-          if (group.keys != first.keys) {
-            Some("all windows must have the same PARTITION BY")
-          } else if (group.orderKeys != first.orderKeys || collations.size() != 1) {
-            Some("all windows must be ordered by the same single time attribute")
-          } else if (
-            !FlinkTypeFactory.isRowtimeIndicatorType(
-              inputFields.get(collations.get(0).getFieldIndex).getType)
-          ) {
-            Some("only event-time attributes are supported in ORDER BY")
-          } else if (group.isRows) {
-            Some("only RANGE windows are supported")
-          } else if (
-            !group.lowerBound.isPreceding || group.lowerBound.isUnbounded
-            || !group.upperBound.isCurrentRow
-          ) {
-            Some("only windows from a bounded PRECEDING to CURRENT ROW are supported")
-          } else {
-            None
-          }
-        reason.foreach {
-          r =>
-            throw new TableException(
-              "Over Agg: Unsupported use of OVER windows. " +
-                s"A streaming query with several different OVER windows requires that $r. " +
-                "Please re-check the over window statement, " +
-                "or compute each window in its own subquery.")
+        val supported = group.keys == first.keys &&
+          group.orderKeys == first.orderKeys &&
+          collations.size() == 1 &&
+          FlinkTypeFactory.isRowtimeIndicatorType(
+            inputFields.get(collations.get(0).getFieldIndex).getType) &&
+          !group.isRows &&
+          group.lowerBound.isPreceding &&
+          !group.lowerBound.isUnbounded &&
+          group.upperBound.isCurrentRow
+        if (!supported) {
+          throw new TableException(
+            "Over Agg: Unsupported use of OVER windows. " +
+              "All aggregates must be computed on the same window. " +
+              "please re-check the over window statement.")
         }
     }
   }
