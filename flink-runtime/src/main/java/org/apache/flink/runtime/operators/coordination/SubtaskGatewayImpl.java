@@ -29,6 +29,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -36,6 +39,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.runtime.operators.coordination.OperatorCoordinator.BATCH_CHECKPOINT_ID;
 
@@ -55,6 +59,8 @@ import static org.apache.flink.runtime.operators.coordination.OperatorCoordinato
  * ComponentMainThreadExecutor, IncompleteFuturesTracker)} in order to avoid race condition.
  */
 class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SubtaskGatewayImpl.class);
 
     private static final String EVENT_LOSS_ERROR_MESSAGE =
             "An OperatorEvent from an OperatorCoordinator to a task was lost. "
@@ -111,10 +117,7 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
                 sendResult.whenCompleteAsync(
                         (success, failure) -> {
                             if (failure != null && subtaskAccess.isStillRunning()) {
-                                if (ExceptionUtils.findThrowable(
-                                                        failure, TaskNotRunningException.class)
-                                                .isPresent()
-                                        && evt.isLossTolerant()) {
+                                if (isToleratedLoss(evt, failure)) {
                                     return;
                                 }
                                 String msg =
@@ -133,10 +136,29 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
         mainThreadExecutor.execute(
                 () -> {
                     sendEventInternal(sendAction, sendResult);
-                    incompleteFuturesTracker.trackFutureWhileIncomplete(result);
+                    // A tolerated loss must not fail the checkpoints that wait for this event.
+                    incompleteFuturesTracker.trackFutureWhileIncomplete(
+                            result.handle(
+                                    (ack, failure) -> {
+                                        if (failure != null) {
+                                            if (!isToleratedLoss(evt, failure)) {
+                                                throw new CompletionException(failure);
+                                            }
+                                            LOG.info(
+                                                    "Ignoring the loss of event '{}' for {} because the task is no longer running.",
+                                                    evt,
+                                                    subtaskAccess.subtaskName());
+                                        }
+                                        return ack;
+                                    }));
                 });
 
         return result;
+    }
+
+    private static boolean isToleratedLoss(OperatorEvent evt, Throwable failure) {
+        return evt.isLossTolerant()
+                && ExceptionUtils.findThrowable(failure, TaskNotRunningException.class).isPresent();
     }
 
     private void sendEventInternal(
