@@ -113,6 +113,9 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
         void setDetailTask(Future<?> detailTask) {
             this.detailTask = detailTask;
+            if (isCancelled()) {
+                detailTask.cancel(true);
+            }
         }
 
         boolean isDetailTaskSubmitted() {
@@ -234,6 +237,19 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     /** Access ordered, the eldest entry is the least recently viewed job. */
     private final Map<String, Boolean> mostRecentlyViewedJobs =
             new LinkedHashMap<>(16, 0.75f, true);
+
+    /** Deletions deferred by request pins, guarded by {@link #localStateLock}. */
+    private final Map<String, PendingDeletion> pendingDeletions = new HashMap<>();
+
+    private static final class PendingDeletion {
+        private final Path refreshDir;
+        private final boolean localOnly;
+
+        private PendingDeletion(Path refreshDir, boolean localOnly) {
+            this.refreshDir = refreshDir;
+            this.localOnly = localOnly;
+        }
+    }
 
     HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
@@ -376,6 +392,10 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                         continue;
                     }
 
+                    synchronized (localStateLock) {
+                        pendingDeletions.computeIfPresent(
+                                archiveId, (id, pending) -> pending.localOnly ? null : pending);
+                    }
                     if (fetch) {
                         try (HeldJobLock ignored = lockJob(archiveId)) {
                             fetchArchive(
@@ -396,12 +416,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             }
             // clean local only
             if (!archivesToEvictLocally.isEmpty()) {
-                synchronized (localStateLock) {
-                    archivesToEvictLocally
-                            .values()
-                            .forEach(ids -> ids.removeAll(mostRecentlyViewedJobs.keySet()));
-                }
-                events.addAll(cleanupExpiredArchives(archivesToEvictLocally));
+                events.addAll(cleanupArchives(archivesToEvictLocally, true));
             }
             if (!events.isEmpty()) {
                 refreshOverview();
@@ -425,6 +440,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             LOG.trace("Ignoring archive {} because it was already fetched.", archivePath);
         } else {
             LOG.info("Processing archive {}.", archivePath);
+            boolean previouslyCached = hasCachedArchive(archiveId);
             try {
                 List<ArchiveEvent> processArchiveEvents =
                         LAZY.equals(archiveLoadMode)
@@ -435,9 +451,16 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                 LOG.info("Processing archive {} finished.", archivePath);
             } catch (Exception e) {
                 LOG.error("Failure while fetching/processing archive {}.", archiveId, e);
-                deleteCachedArchives(archiveId, refreshDir);
+                if (!previouslyCached) {
+                    cleanUpLazyFetchTask(archiveId);
+                    deleteCachedArchives(archiveId, refreshDir);
+                }
             }
         }
+    }
+
+    boolean hasCachedArchive(String archiveId) throws IOException {
+        return archiveStorage.exists(JOB_OVERVIEWS_KEY_PREFIX + archiveId + JSON_FILE_ENDING);
     }
 
     List<FileStatus> listValidArchives(FileSystem refreshFS, Path refreshDir) throws IOException {
@@ -485,6 +508,12 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     }
 
     ArchiveEvent processJobArchive(String jobId, Path jobArchive) throws IOException {
+        try (HeldJobLock ignored = lockJob(jobId)) {
+            return writeJobArchive(jobId, jobArchive);
+        }
+    }
+
+    private ArchiveEvent writeJobArchive(String jobId, Path jobArchive) throws IOException {
         for (ArchivedJson archive : FsJsonArchivist.readArchivedJsons(jobArchive)) {
             String path = archive.getPath();
             String json = archive.getJson();
@@ -533,26 +562,47 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     }
 
     List<ArchiveEvent> cleanupExpiredArchives(Map<Path, Set<String>> archivesToRemove) {
+        return cleanupArchives(archivesToRemove, false);
+    }
+
+    private List<ArchiveEvent> cleanupArchives(
+            Map<Path, Set<String>> archivesToRemove, boolean localOnly) {
         List<ArchiveEvent> deleteLog = new ArrayList<>();
-
         archivesToRemove.forEach(
-                (refreshDir, archives) -> {
-                    synchronized (localStateLock) {
-                        cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archives);
-                        mostRecentlyViewedJobs.keySet().removeAll(archives);
-                    }
-                    archives.forEach(
-                            archiveId -> {
-                                // the files are deleted outside of the state lock, but not while
-                                // the job is being fetched
-                                try (HeldJobLock ignored = lockJob(archiveId)) {
-                                    cleanUpLazyFetchTask(archiveId);
-                                    deleteLog.addAll(deleteCachedArchives(archiveId, refreshDir));
-                                }
-                            });
-                });
-
+                (refreshDir, archives) ->
+                        archives.forEach(
+                                archiveId ->
+                                        deleteLog.addAll(
+                                                cleanupArchive(
+                                                        archiveId,
+                                                        new PendingDeletion(
+                                                                refreshDir, localOnly)))));
         return deleteLog;
+    }
+
+    private List<ArchiveEvent> cleanupArchive(String archiveId, PendingDeletion deletion) {
+        try (HeldJobLock ignored = lockJob(archiveId)) {
+            synchronized (localStateLock) {
+                PendingDeletion pending = pendingDeletions.get(archiveId);
+                if (pending != null && !pending.localOnly) {
+                    deletion = pending;
+                }
+                if (deletion.localOnly && mostRecentlyViewedJobs.containsKey(archiveId)) {
+                    cachedArchivesPerRefreshDirectory.get(deletion.refreshDir).remove(archiveId);
+                    pendingDeletions.remove(archiveId);
+                    return Collections.emptyList();
+                }
+                if (jobsInUse.containsKey(archiveId)) {
+                    pendingDeletions.put(archiveId, deletion);
+                    return Collections.emptyList();
+                }
+                pendingDeletions.remove(archiveId);
+                cachedArchivesPerRefreshDirectory.get(deletion.refreshDir).remove(archiveId);
+                mostRecentlyViewedJobs.remove(archiveId);
+            }
+            cleanUpLazyFetchTask(archiveId);
+            return deleteCachedArchives(archiveId, deletion.refreshDir);
+        }
     }
 
     List<ArchiveEvent> deleteCachedArchives(String archiveId, Path refreshDir) {
@@ -730,6 +780,13 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     ArchiveEvent lazyProcessJobArchive(String jobId, Path jobArchive, boolean individual)
             throws Exception {
+        try (HeldJobLock ignored = lockJob(jobId)) {
+            return startLazyFetch(jobId, jobArchive, individual);
+        }
+    }
+
+    private ArchiveEvent startLazyFetch(String jobId, Path jobArchive, boolean individual)
+            throws Exception {
         final ArchiveMetaInfo archiveMetaInfo = new ArchiveMetaInfo(jobId, PENDING, jobArchive);
         ArchiveMetaInfo existing = archiveMetaInfoCache.putIfAbsent(jobId, archiveMetaInfo);
         if (existing != null) {
@@ -780,6 +837,32 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         archiveMetaInfo.setEventType(ArchiveEventType.OVERVIEW_PARSING);
 
         Collection<ArchivedJson> archivedJsons = FsJsonArchivist.readArchivedJsons(jobArchive);
+        // This lock only protects publication. Requests can still read the overview while a
+        // detail write is blocked; cancellation waits for the write before deleting its files.
+        synchronized (fetchFuture) {
+            if (fetchFuture.isCancelled()) {
+                throw new CancellationException("Fetch was cancelled for job " + jobId);
+            }
+            return publishLazyArchive(
+                    jobId,
+                    individual,
+                    archiveMetaInfo,
+                    fetchExecutor,
+                    fetchTasks,
+                    fetchFuture,
+                    archivedJsons);
+        }
+    }
+
+    private ArchiveEvent publishLazyArchive(
+            String jobId,
+            boolean individual,
+            ArchiveMetaInfo archiveMetaInfo,
+            ExecutorService fetchExecutor,
+            Map<String, FetchFuture> fetchTasks,
+            FetchFuture fetchFuture,
+            Collection<ArchivedJson> archivedJsons)
+            throws Exception {
         List<ArchivedJson> detailArchives = new ArrayList<>();
         boolean overviewCreated = false;
 
@@ -792,7 +875,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                 archiveStorage.putArchiveContent(key, json);
                 overviewCreated = true;
             } else if (path.equals("/joboverview")) { // legacy path
-                LOG.debug("Migrating legacy archive {}", jobArchive);
+                LOG.debug("Migrating legacy archive {}", archiveMetaInfo.getArchivePath());
                 json = convertLegacyJobOverview(json);
                 String key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
                 archiveStorage.putArchiveContent(key, json);
@@ -815,7 +898,13 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                     fetchExecutor.submit(
                             () -> {
                                 try {
-                                    archiveMetaInfo.setEventType(ArchiveEventType.DETAIL_PARSING);
+                                    synchronized (fetchFuture) {
+                                        if (!isCurrentFetch(jobId, archiveMetaInfo, fetchFuture)) {
+                                            return;
+                                        }
+                                        archiveMetaInfo.setEventType(
+                                                ArchiveEventType.DETAIL_PARSING);
+                                    }
                                     for (ArchivedJson archive : detailArchives) {
                                         if (Thread.currentThread().isInterrupted()) {
                                             LOG.debug(
@@ -830,7 +919,13 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                                         // sub-path under the storage root
                                         String key = path.substring(1) + JSON_FILE_ENDING;
                                         try {
-                                            archiveStorage.putArchiveContent(key, json);
+                                            synchronized (fetchFuture) {
+                                                if (!isCurrentFetch(
+                                                        jobId, archiveMetaInfo, fetchFuture)) {
+                                                    return;
+                                                }
+                                                archiveStorage.putArchiveContent(key, json);
+                                            }
                                         } catch (IOException e) {
                                             LOG.error(
                                                     "Failed to write detail archive file for job {}, path {}.",
@@ -839,7 +934,12 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                                                     e);
                                         }
                                     }
-                                    archiveMetaInfo.setEventType(ArchiveEventType.CREATED);
+                                    synchronized (fetchFuture) {
+                                        if (!isCurrentFetch(jobId, archiveMetaInfo, fetchFuture)) {
+                                            return;
+                                        }
+                                        archiveMetaInfo.setEventType(ArchiveEventType.CREATED);
+                                    }
                                     if (individual) {
                                         refreshOverview();
                                     }
@@ -862,18 +962,23 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         return new ArchiveEvent(jobId, archiveEventType);
     }
 
+    private boolean isCurrentFetch(
+            String jobId, ArchiveMetaInfo metaInfo, FetchFuture fetchFuture) {
+        return !fetchFuture.isCancelled() && archiveMetaInfoCache.get(jobId) == metaInfo;
+    }
+
     void lazyFetchArchiveProactively(String jobId, @Nullable Path archivePath) throws Exception {
-        resetWhenTriggerLazyFetch(jobId);
-
-        if (archivePath != null) {
-            lazyProcessJobArchive(jobId, archivePath, true);
-            return;
-        }
-
-        for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
-            archivePath = new Path(refreshDir.getPath(), jobId);
-            if (refreshDir.getFs().exists(archivePath)) {
+        try (HeldJobLock ignored = lockJob(jobId)) {
+            resetWhenTriggerLazyFetch(jobId);
+            if (archivePath != null) {
                 lazyProcessJobArchive(jobId, archivePath, true);
+                return;
+            }
+            for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
+                archivePath = new Path(refreshDir.getPath(), jobId);
+                if (refreshDir.getFs().exists(archivePath)) {
+                    lazyProcessJobArchive(jobId, archivePath, true);
+                }
             }
         }
     }
@@ -898,7 +1003,8 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             return;
         }
         synchronized (localStateLock) {
-            if (!isOwnedByRefreshDirectory(jobId) || isCachedByScan(jobId)) {
+            if (!isOwnedByRefreshDirectory(jobId)
+                    || (isCachedByScan(jobId) && !pendingDeletions.containsKey(jobId))) {
                 return;
             }
             mostRecentlyViewedJobs.put(jobId, Boolean.TRUE);
@@ -918,6 +1024,20 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     void releaseJob(String jobId) {
         jobsInUse.computeIfPresent(jobId, (id, count) -> count > 1 ? count - 1 : null);
+        List<ArchiveEvent> events = Collections.emptyList();
+        try (HeldJobLock ignored = lockJob(jobId)) {
+            PendingDeletion deletion;
+            synchronized (localStateLock) {
+                deletion = pendingDeletions.get(jobId);
+            }
+            if (deletion != null) {
+                events = cleanupArchive(jobId, deletion);
+            }
+        }
+        if (!events.isEmpty()) {
+            refreshOverview();
+            events.forEach(archiveEventListener);
+        }
         // evictions skipped while the job was in use are caught up on here
         if (cachedRetainedJobs > 0 && !jobsInUse.containsKey(jobId)) {
             evictLeastRecentlyViewed(null);
@@ -1051,15 +1171,21 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     }
 
     void cleanUpLazyFetchTask(String jobId) {
-        FetchFuture commonFetchTask = commonFetchTasks.get(jobId);
-        if (commonFetchTask != null) {
-            commonFetchTask.cancel(true);
-            commonFetchTasks.remove(jobId);
+        try (HeldJobLock ignored = lockJob(jobId)) {
+            cancelFetch(commonFetchTasks, jobId);
+            cancelFetch(individualFetchTasks, jobId);
         }
-        FetchFuture individualFetchTask = individualFetchTasks.get(jobId);
-        if (individualFetchTask != null) {
-            individualFetchTask.cancel(true);
-            individualFetchTasks.remove(jobId);
+    }
+
+    private void cancelFetch(Map<String, FetchFuture> tasks, String jobId) {
+        FetchFuture task = tasks.get(jobId);
+        if (task != null) {
+            task.cancel(true);
+            synchronized (task) {
+                // An interrupted storage operation may still finish. Drain it before cleanup
+                // or a new fetch can publish another generation of this job.
+                tasks.remove(jobId, task);
+            }
         }
     }
 

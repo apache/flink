@@ -365,7 +365,8 @@ public class HistoryServer {
                         archiveMetaInfoCache,
                         applicationArchiveMetaInfoCache,
                         lazyFetchExecutorCommonPoolSize,
-                        lazyFetchExecutorIndividualPoolSize);
+                        lazyFetchExecutorIndividualPoolSize,
+                        archiveFetcher);
 
         historyServerHandler =
                 historyServerHandlerFactory.createHistoryServerHandler(

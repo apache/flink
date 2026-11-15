@@ -34,7 +34,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -125,31 +129,42 @@ class ArchiveStorageTest {
     void testOverwriteIsNotObservedAsMissingOrPartial() throws Exception {
         String key = "jobs/overview.json";
         String content = "{\"jobs\":\"" + "x".repeat(256 * 1024) + "\"}";
+        String replacement = "{\"jobs\":\"updated\"}";
         storage.putArchiveContent(key, content);
 
         AtomicBoolean stop = new AtomicBoolean(false);
-        Thread writer =
-                new Thread(
+        AtomicInteger writes = new AtomicInteger();
+        CountDownLatch firstReplacements = new CountDownLatch(2);
+        FutureTask<Void> writing =
+                new FutureTask<>(
                         () -> {
-                            try {
-                                while (!stop.get()) {
-                                    storage.putArchiveContent(key, content);
-                                }
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
+                            while (!stop.get()) {
+                                storage.putArchiveContent(
+                                        key, writes.get() % 2 == 0 ? replacement : content);
+                                writes.incrementAndGet();
+                                firstReplacements.countDown();
                             }
+                            return null;
                         });
+        Thread writer = new Thread(writing);
         writer.start();
         try {
+            assertThat(firstReplacements.await(10, TimeUnit.SECONDS)).isTrue();
             for (int i = 0; i < 2000; i++) {
                 Object entry = storage.getEntry(key);
                 assertThat(entry).isNotNull();
-                assertThat(storage.readArchiveContent(entry)).isEqualTo(content);
+                assertThat(storage.readArchiveContent(entry)).isIn(content, replacement);
             }
         } finally {
             stop.set(true);
-            writer.join();
+            try {
+                writing.get(10, TimeUnit.SECONDS);
+            } finally {
+                writer.interrupt();
+                writer.join(10_000);
+            }
         }
+        assertThat(writes.get()).isGreaterThanOrEqualTo(2);
     }
 
     // ----------------------------- deleteEntriesByPrefix ----------------------------

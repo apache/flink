@@ -218,6 +218,7 @@ public class HistoryServerOptions {
                                             code(HISTORY_SERVER_CACHED_RETAINED_JOBS.key()))
                                     .text(
                                             "It does not limit how many remote archives can be fetched, only how many stay cached locally. ")
+                                    .text("This limit is shared across all archive directories. ")
                                     .text(
                                             "Jobs viewed by several users share these slots, so raise it in production to avoid evicting each other. ")
                                     .text("Must be at least 1.")

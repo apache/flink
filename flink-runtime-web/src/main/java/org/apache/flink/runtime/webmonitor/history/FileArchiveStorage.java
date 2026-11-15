@@ -19,14 +19,15 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,6 +52,8 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
     /** Root directory under which all archive files are stored. */
     private final Path rootPath;
 
+    private final BiConsumerWithException<Path, Path, IOException> atomicMove;
+
     /**
      * Creates a new {@link FileArchiveStorage}.
      *
@@ -58,7 +61,16 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
      * @throws IOException if the canonical path of {@code rootPath} cannot be resolved
      */
     public FileArchiveStorage(File rootPath) throws IOException {
+        this(
+                rootPath,
+                (source, target) -> Files.move(source, target, StandardCopyOption.ATOMIC_MOVE));
+    }
+
+    @VisibleForTesting
+    FileArchiveStorage(File rootPath, BiConsumerWithException<Path, Path, IOException> atomicMove)
+            throws IOException {
         this.rootPath = checkNotNull(rootPath).getCanonicalFile().toPath();
+        this.atomicMove = checkNotNull(atomicMove);
     }
 
     @Override
@@ -119,15 +131,12 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
 
         // We overwrite existing files since this may be another attempt at fetching this archive.
         // The content is written to a temporary sibling file and moved into place, so concurrent
-        // readers never see a missing or partially written file.
+        // readers never see a missing or partially written file. If the provider cannot replace
+        // the target atomically, fail without a non-atomic fallback that could lose valid content.
         Path tmp = parent.resolve(target.getFileName() + "." + UUID.randomUUID() + TMP_SUFFIX);
         try {
             Files.write(tmp, json.getBytes(StandardCharsets.UTF_8));
-            try {
-                Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-            }
+            atomicMove.accept(tmp, target);
         } finally {
             Files.deleteIfExists(tmp);
         }

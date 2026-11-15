@@ -48,7 +48,7 @@
             <td><h5>historyserver.archive.num-cached-most-recently-viewed-jobs</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>The maximum number of most recently viewed job archives kept in the local cache, in addition to the ones governed by <code class="highlighter-rouge">historyserver.archive.cached-retained-jobs</code>. It does not limit how many remote archives can be fetched, only how many stay cached locally. Jobs viewed by several users share these slots, so raise it in production to avoid evicting each other. Must be at least 1.</td>
+            <td>The maximum number of most recently viewed job archives kept in the local cache, in addition to the ones governed by <code class="highlighter-rouge">historyserver.archive.cached-retained-jobs</code>. It does not limit how many remote archives can be fetched, only how many stay cached locally. This limit is shared across all archive directories. Jobs viewed by several users share these slots, so raise it in production to avoid evicting each other. Must be at least 1.</td>
         </tr>
         <tr>
             <td><h5>historyserver.archive.retained-applications</h5></td>

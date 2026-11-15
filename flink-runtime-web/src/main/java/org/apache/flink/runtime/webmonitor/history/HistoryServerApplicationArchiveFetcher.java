@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -79,6 +80,7 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
             new HashMap<>();
 
     private final ConcurrentHashMap<String, ArchiveMetaInfo> applicationArchiveMetaInfoCache;
+    private final HistoryServerArchiveFetcher<?> jobArchiveFetcher;
 
     HistoryServerApplicationArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
@@ -90,7 +92,8 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
             ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
             ConcurrentHashMap<String, ArchiveMetaInfo> applicationArchiveMetaInfoCache,
             int lazyFetchExecutorCommonPoolSize,
-            int lazyFetchExecutorIndividualPoolSize)
+            int lazyFetchExecutorIndividualPoolSize,
+            HistoryServerArchiveFetcher<?> jobArchiveFetcher)
             throws IOException {
         super(
                 refreshDirs,
@@ -104,6 +107,7 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
                 lazyFetchExecutorIndividualPoolSize);
 
         this.applicationArchiveMetaInfoCache = applicationArchiveMetaInfoCache;
+        this.jobArchiveFetcher = jobArchiveFetcher;
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedApplicationIdsToJobIds.put(refreshDir.getPath(), new HashMap<>());
         }
@@ -189,8 +193,9 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
                     .add(jobId);
             ArchiveEvent processArchiveEvents =
                     LAZY.equals(archiveLoadMode)
-                            ? lazyProcessJobArchive(jobId, jobArchive.getPath(), false)
-                            : processJobArchive(jobId, jobArchive.getPath());
+                            ? jobArchiveFetcher.lazyProcessJobArchive(
+                                    jobId, jobArchive.getPath(), false)
+                            : jobArchiveFetcher.processJobArchive(jobId, jobArchive.getPath());
             events.add(processArchiveEvents);
         }
 
@@ -224,6 +229,12 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
     }
 
     @Override
+    boolean hasCachedArchive(String archiveId) throws IOException {
+        return archiveStorage.exists(
+                APPLICATION_OVERVIEWS_KEY_PREFIX + archiveId + JSON_FILE_ENDING);
+    }
+
+    @Override
     List<ArchiveEvent> deleteCachedArchives(String archiveId, Path refreshDir) {
         LOG.info("Archive directories for application {} is deleted", archiveId);
         List<ArchiveEvent> deleteLog = new ArrayList<>();
@@ -232,7 +243,10 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
 
         Set<String> jobIds = cachedApplicationIdsToJobIds.get(refreshDir).remove(archiveId);
         if (jobIds != null) {
-            jobIds.forEach(jobId -> deleteLog.add(deleteJobFiles(jobId)));
+            // Use the same owner as on-demand requests so its pins and writers are respected.
+            deleteLog.addAll(
+                    jobArchiveFetcher.cleanupExpiredArchives(
+                            Collections.singletonMap(refreshDir, jobIds)));
         }
 
         return deleteLog;
@@ -330,17 +344,5 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
 
         archiveMetaInfo.setEventType(ArchiveEventType.CREATED);
         return events;
-    }
-
-    @Override
-    void cleanUpLazyFetchTask(String archiveId) {
-        for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
-            Path refreshDirPath = refreshDir.getPath();
-            if (cachedApplicationIdsToJobIds.get(refreshDirPath).containsKey(archiveId)) {
-                Set<String> jobIds =
-                        cachedApplicationIdsToJobIds.get(refreshDirPath).get(archiveId);
-                jobIds.forEach(super::cleanUpLazyFetchTask);
-            }
-        }
     }
 }

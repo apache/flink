@@ -168,7 +168,8 @@ public class AbstractHistoryServerHandlerTest {
                         jobMetaInfoCache,
                         applicationMetaInfoCache,
                         4,
-                        4);
+                        4,
+                        archiveFetcher);
 
         return handlerCtor.create(storage, mode, archiveFetcher, applicationArchiveFetcher, webDir);
     }
@@ -376,6 +377,39 @@ public class AbstractHistoryServerHandlerTest {
         assertThat(detailResponse.get().f0).isEqualTo(200);
         assertThat(detailResponse.get().f1).contains(jobId.toString());
         assertThat(blockingArchiveStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
+    }
+
+    @TestTemplate
+    void testScanCannotEvictJobBeforeHttpRequestOpensResource() throws Exception {
+        startServer(LAZY);
+        HistoryServerTestUtils.BlockingArchiveStorage<?> storage =
+                (HistoryServerTestUtils.BlockingArchiveStorage<?>) handler.archiveStorage;
+        storage.releaseLatch.countDown();
+        JobID jobId = JobID.generate();
+        org.apache.flink.core.fs.Path remote =
+                createJobArchive(remoteArchiveRootPath.toFile(), jobId, true);
+        assertThat(new File(remote.toUri()).setLastModified(1000)).isTrue();
+        assertThat(HttpUtils.getFromHTTP(baseUrl + "/jobs/overview").f0).isEqualTo(200);
+        handler.archiveFetcher.waitLazyFetchArchiveFinished(jobId.toString());
+        String key = "jobs/" + jobId + "/config.json";
+        storage.blockedReadKey = key;
+        AtomicReference<Tuple2<Integer, String>> response = new AtomicReference<>();
+        CompletableFuture<Void> request = requestAsync(jobId, response);
+        try {
+            assertThat(storage.readStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            createJobArchive(remoteArchiveRootPath.toFile(), JobID.generate(), true);
+            handler.archiveFetcher.fetchArchives(LAZY);
+            assertThat(storage.exists(key)).isTrue();
+            assertThat(request.isDone()).isFalse();
+        } finally {
+            storage.allowRead.countDown();
+            request.get(10, TimeUnit.SECONDS);
+        }
+        assertThat(response.get().f0).isEqualTo(200);
+        assertThat(response.get().f1)
+                .isEqualTo("{\"jid\":\"" + jobId + "\",\"name\":\"test-job\"}");
+        waitUntil(() -> !storage.exists(key));
+        assertThat(remote.getFileSystem().exists(remote)).isTrue();
     }
 
     /**
