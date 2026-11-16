@@ -121,11 +121,14 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   /**
-   * A streaming Top-N that outputs the rank number or starts after rank 1 emits its changes per
-   * rank: each change says which row now holds a rank, so the changes of one row are spread over
-   * the ranks it leaves and enters. An input upsert key such as `id` then stays an upsert key only
-   * if it is part of the partition key, because each partition holds a single row. Otherwise the
-   * Top-N emits an insert or delete per row and keeps its input upsert keys.
+   * A streaming Top-N emits its changes in one of two ways:
+   *   - Per row, when the rank number is not in the output and the range starts at rank 1. A row
+   *     that enters gets an INSERT. A row that drops out gets a DELETE. Input upsert keys such as
+   *     `id` stay valid.
+   *   - Per rank, when the rank number is in the output or the range starts after rank 1. Each
+   *     change says which row now holds a rank. So the changes of one `id` are spread over several
+   *     ranks. Then `id` is an upsert key only if it is part of the partition key. In that case
+   *     each partition holds one row.
    *
    * The (partition key, rank number) key is added by [[FlinkRelMdUniqueKeys.getRankUniqueKeys]].
    * Window Top-N is insert-only and keeps all input upsert keys.
