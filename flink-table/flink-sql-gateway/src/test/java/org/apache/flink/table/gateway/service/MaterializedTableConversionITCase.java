@@ -295,6 +295,76 @@ class MaterializedTableConversionITCase {
     }
 
     @Test
+    void testResumeTableLeftSuspendedWhenRefreshJobFailedToStart() throws Exception {
+        String createRegularTableDDL =
+                "CREATE TABLE users_shops (\n"
+                        + "  user_id BIGINT,\n"
+                        + "  shop_id BIGINT,\n"
+                        + "  ds STRING,\n"
+                        + "  payed_buy_fee_sum BIGINT,\n"
+                        + "  pv INT NOT NULL\n"
+                        + ")\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'datagen',\n"
+                        + "  'rows-per-second' = '10'\n"
+                        + ")";
+        awaitOperationTermination(
+                service,
+                sessionHandle,
+                executeStatement(service, sessionHandle, createRegularTableDDL));
+
+        // 'json' cannot encode the updating changelog, so the conversion leaves the table
+        // SUSPENDED without a refresh handler
+        String convertDDL =
+                "CREATE OR ALTER MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle convertHandle = executeStatement(service, sessionHandle, convertDDL);
+        assertThatThrownBy(() -> awaitOperationTermination(service, sessionHandle, convertHandle));
+
+        // fix the cause while suspended
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        awaitOperationTermination(
+                service,
+                sessionHandle,
+                executeStatement(
+                        service,
+                        sessionHandle,
+                        "ALTER MATERIALIZED TABLE users_shops SET ('format' = 'debezium-json')"));
+        assertThat(getTable(service, sessionHandle, userShopsIdentifier).getRefreshStatus())
+                .isSameAs(RefreshStatus.SUSPENDED);
+
+        // RESUME starts the first refresh job
+        awaitOperationTermination(
+                service,
+                sessionHandle,
+                executeStatement(
+                        service, sessionHandle, "ALTER MATERIALIZED TABLE users_shops RESUME"));
+        ResolvedCatalogMaterializedTable resumedMaterializedTable =
+                getTable(service, sessionHandle, userShopsIdentifier);
+        assertThat(resumedMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
+        ContinuousRefreshHandler resumedRefreshHandler =
+                getContinuousRefreshHandler(resumedMaterializedTable, getClass().getClassLoader());
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(resumedRefreshHandler.getJobId()));
+
+        dropMaterializedTable(userShopsIdentifier);
+    }
+
+    @Test
     void testExplainConvertTableToMaterializedTable() throws Exception {
         // pre-create a regular table that CREATE OR ALTER would convert in place.
         String createRegularTableDDL =
