@@ -42,6 +42,8 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.HashMap;
 import java.util.List;
@@ -335,6 +337,64 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
     }
 
     @Nested
+    class PartitionKeys {
+
+        @BeforeEach
+        void enableConversion() {
+            configureConversionEnabled(true);
+        }
+
+        @Test
+        void partitionedTableKeepsItsDeclaredPartitionKeys()
+                throws TableAlreadyExistException, DatabaseNotExistException {
+            sourceTable("src_part").withPartitionKeys("b", "a").create();
+
+            assertThat(
+                            convertedOperation(
+                                            "CREATE OR ALTER MATERIALIZED TABLE src_part"
+                                                    + " PARTITIONED BY (b, a)"
+                                                    + " AS SELECT a, b, ts FROM t1_with_ts")
+                                    .getMaterializedTable()
+                                    .getPartitionKeys())
+                    .containsExactly("b", "a");
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"", " PARTITIONED BY (a, b)"})
+        void partitionedTableRejectsOtherPartitionKeys(String partitionedBy)
+                throws TableAlreadyExistException, DatabaseNotExistException {
+            sourceTable("src_part").withPartitionKeys("b", "a").create();
+
+            assertThatThrownBy(
+                            () ->
+                                    parse(
+                                            "CREATE OR ALTER MATERIALIZED TABLE src_part"
+                                                    + partitionedBy
+                                                    + " AS SELECT a, b, ts FROM t1_with_ts"))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessage(
+                            "The table 'builtin.default.src_part' is partitioned, so the conversion"
+                                    + " statement must declare its partition keys in the same"
+                                    + " order: PARTITIONED BY (b, a).");
+        }
+
+        @Test
+        void unpartitionedTableTakesDeclaredPartitionKeys()
+                throws TableAlreadyExistException, DatabaseNotExistException {
+            sourceTable("src_unpart").create();
+
+            assertThat(
+                            convertedOperation(
+                                            "CREATE OR ALTER MATERIALIZED TABLE src_unpart"
+                                                    + " PARTITIONED BY (b)"
+                                                    + " AS SELECT a, b, ts FROM t1_with_ts")
+                                    .getMaterializedTable()
+                                    .getPartitionKeys())
+                    .containsExactly("b");
+        }
+    }
+
+    @Nested
     class SchemaDerivation {
 
         @BeforeEach
@@ -617,6 +677,7 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
         private boolean withWatermark;
         private boolean withPrimaryKey;
         private boolean withNonPersistedColumns;
+        private String[] partitionKeys = new String[0];
 
         private SourceTableBuilder(String name) {
             this.name = name;
@@ -634,6 +695,11 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
 
         SourceTableBuilder withNonPersistedColumns() {
             this.withNonPersistedColumns = true;
+            return this;
+        }
+
+        SourceTableBuilder withPartitionKeys(String... partitionKeys) {
+            this.partitionKeys = partitionKeys;
             return this;
         }
 
@@ -655,7 +721,11 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "COLLECTION");
             final CatalogTable table =
-                    CatalogTable.newBuilder().schema(schema.build()).options(options).build();
+                    CatalogTable.newBuilder()
+                            .schema(schema.build())
+                            .partitionKeys(List.of(partitionKeys))
+                            .options(options)
+                            .build();
             catalog.createTable(
                     new ObjectPath(catalogManager.getCurrentDatabase(), name), table, false);
         }

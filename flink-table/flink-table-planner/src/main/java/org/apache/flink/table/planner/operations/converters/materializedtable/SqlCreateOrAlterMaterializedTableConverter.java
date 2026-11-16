@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
-import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
@@ -145,23 +144,19 @@ public class SqlCreateOrAlterMaterializedTableConverter
         final MergeContext baseMergeContext =
                 getMergeContext(sqlCreateOrAlterMaterializedTable, context);
 
-        final CatalogMaterializedTable newMaterializedTable =
-                CatalogMaterializedTable.newBuilder()
-                        .schema(baseMergeContext.getMergedSchema())
-                        .comment(baseMergeContext.getMergedComment())
-                        .partitionKeys(baseMergeContext.getMergedPartitionKeys())
-                        .options(baseMergeContext.getMergedTableOptions())
-                        .originalQuery(baseMergeContext.getMergedOriginalQuery())
-                        .expandedQuery(baseMergeContext.getMergedExpandedQuery())
-                        .distribution(baseMergeContext.getMergedTableDistribution().orElse(null))
-                        .freshness(baseMergeContext.getMergedFreshness())
-                        .logicalRefreshMode(baseMergeContext.getMergedLogicalRefreshMode())
-                        .refreshMode(baseMergeContext.getMergedRefreshMode())
-                        .refreshStatus(RefreshStatus.INITIALIZING)
-                        .startMode(baseMergeContext.getMergedStartMode())
-                        .build();
+        if (!oldBaseTable.getPartitionKeys().isEmpty()
+                && !oldBaseTable
+                        .getPartitionKeys()
+                        .equals(baseMergeContext.getMergedPartitionKeys())) {
+            throw new ValidationException(
+                    String.format(
+                            "The table '%s' is partitioned, so the conversion statement must declare its partition keys in the same order: PARTITIONED BY (%s).",
+                            identifier.asSummaryString(),
+                            String.join(", ", oldBaseTable.getPartitionKeys())));
+        }
         final ResolvedCatalogMaterializedTable resolvedNewMaterializedTable =
-                context.getCatalogManager().resolveCatalogMaterializedTable(newMaterializedTable);
+                getResolvedCatalogMaterializedTable(
+                        baseMergeContext, sqlCreateOrAlterMaterializedTable, context);
 
         final PlannerQueryOperation asQueryOperation =
                 new MergeTableAsUtil(context)

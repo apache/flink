@@ -365,6 +365,10 @@ CREATE OR ALTER MATERIALIZED TABLE user_spending (
 
 Because the schema, primary key, and watermark all come from the statement and its query, not from the existing table, the result is fully defined by the DDL. The same statement always produces the same materialized table. Running it again after the conversion matches the now-existing materialized table and produces the same result.
 
+**Partition keys**
+
+A partitioned table keeps its partition keys, so the data it already holds still matches them. The statement must declare the same keys in `PARTITIONED BY`, in the same order, or the conversion fails. An unpartitioned table takes the partition keys from the statement's `PARTITIONED BY` clause.
+
 **Using the converted table**
 
 The conversion is one-way and cannot be undone. You can still use the result like a regular table: suspend it to stop the refresh job, then query it.
