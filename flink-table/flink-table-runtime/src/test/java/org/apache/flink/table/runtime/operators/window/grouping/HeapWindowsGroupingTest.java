@@ -24,6 +24,8 @@ import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.util.RowIterator;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -206,6 +208,39 @@ class HeapWindowsGroupingTest {
         expected.add(asList(5L, 6L, 7L, 7L, 8L, 9L));
         expected.add(asList(11L, 12L, 12L, 12L));
         verify(5000, ts, 5L, 5L, expected, expectedWindows);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {4L, 6L, 100L})
+    void testLastPaneAfterEmptyWindow(long lastTimestamp) throws IOException {
+        try (HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 4L, 2L, 0, false)) {
+            for (int group = 0; group < 2; group++) {
+                final List<List<Long>> actual = new ArrayList<>();
+                final List<TimeWindow> windows = new ArrayList<>();
+                final RowIterator<BinaryRowData> input =
+                        new TestInputIterator(new Long[] {0L, lastTimestamp});
+                grouping.addInputToBuffer(input.getRow());
+                processTriggerWindow(actual, windows, grouping);
+                // The pre-aggregated last pane is buffered immediately before draining the group.
+                grouping.addInputToBuffer(input.getRow());
+                grouping.advanceWatermarkToTriggerAllWindows();
+                processTriggerWindow(actual, windows, grouping);
+
+                assertThat(windows)
+                        .containsExactly(
+                                TimeWindow.of(-2, 2),
+                                TimeWindow.of(0, 4),
+                                TimeWindow.of(lastTimestamp - 2, lastTimestamp + 2),
+                                TimeWindow.of(lastTimestamp, lastTimestamp + 4));
+                assertThat(actual)
+                        .containsExactly(
+                                singletonList(0L),
+                                singletonList(0L),
+                                singletonList(lastTimestamp),
+                                singletonList(lastTimestamp));
+                grouping.reset();
+            }
+        }
     }
 
     @Test

@@ -57,6 +57,8 @@ public abstract class WindowsGrouping implements Closeable {
 
     private long watermark;
 
+    private long lastInputTimestamp;
+
     private TimeWindow nextWindow;
 
     private TimeWindow currentWindow;
@@ -79,6 +81,7 @@ public abstract class WindowsGrouping implements Closeable {
         this.isDate = isDate;
         nextWindow = null;
         watermark = Long.MIN_VALUE;
+        lastInputTimestamp = Long.MIN_VALUE;
         // index to define
         triggerWindowStartIndex = 0;
         emptyWindowTriggered = true;
@@ -88,6 +91,7 @@ public abstract class WindowsGrouping implements Closeable {
     public void reset() {
         nextWindow = null;
         watermark = Long.MIN_VALUE;
+        lastInputTimestamp = Long.MIN_VALUE;
         triggerWindowStartIndex = 0;
         emptyWindowTriggered = true;
         resetBuffer();
@@ -96,7 +100,8 @@ public abstract class WindowsGrouping implements Closeable {
     public void addInputToBuffer(BinaryRowData input) throws IOException {
         if (!input.isNullAt(timeIndex)) {
             addIntoBuffer(input.copy());
-            advanceWatermark(getTimeValue(input));
+            lastInputTimestamp = getTimeValue(input);
+            advanceWatermark(lastInputTimestamp);
         }
     }
 
@@ -105,7 +110,7 @@ public abstract class WindowsGrouping implements Closeable {
      */
     public void advanceWatermarkToTriggerAllWindows() {
         skipEmptyWindow();
-        advanceWatermark(watermark + windowSize);
+        advanceWatermark(lastInputTimestamp + windowSize);
     }
 
     /**
@@ -178,17 +183,18 @@ public abstract class WindowsGrouping implements Closeable {
 
     private void skipEmptyWindow() {
         if (emptyWindowTriggered && watermark != Long.MIN_VALUE) {
-            nextWindow = advanceNextWindowByWatermark(watermark);
+            // The final watermark is ahead of the last row and must not skip its windows.
+            nextWindow = advanceNextWindowByTimestamp(lastInputTimestamp);
             emptyWindowTriggered = false;
         }
     }
 
-    private TimeWindow advanceNextWindowByWatermark(long watermark) {
+    private TimeWindow advanceNextWindowByTimestamp(long timestamp) {
         int maxOverlapping = (int) Math.ceil(windowSize * 1.0 / slideSize);
-        long start = getWindowStartWithOffset(watermark, windowStartOffset, slideSize);
+        long start = getWindowStartWithOffset(timestamp, windowStartOffset, slideSize);
         for (int i = 1; i < maxOverlapping; i++) {
             long nextStart = start - slideSize;
-            if (nextStart + windowSize > watermark) {
+            if (nextStart + windowSize > timestamp) {
                 start = nextStart;
             } else {
                 break;
