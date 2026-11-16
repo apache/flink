@@ -38,10 +38,14 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -201,6 +205,52 @@ class JavaCatalogTableTest extends TableTestBase {
                         + "FROM `cat`.`default`.`t` AS `o`\n"
                         + "CROSS JOIN UNNEST(`o`.`product_ids`) AS `pids` (`product_id`)");
         testUtil.verifyExecPlan("SELECT * FROM `cat`.`default`.v");
+    }
+
+    @TestTemplate
+    void testViewWithCurrentDate() throws Exception {
+        verifyViewWithTimeFunction("CURRENT_DATE", LocalDate.class);
+    }
+
+    @TestTemplate
+    void testViewWithLocalTime() throws Exception {
+        verifyViewWithTimeFunction("LOCALTIME", LocalTime.class);
+    }
+
+    private void verifyViewWithTimeFunction(String function, Class<?> expectedType)
+            throws Exception {
+        final TableEnvironment tableEnvironment = getTestUtil().getTableEnv();
+        tableEnvironment.executeSql("CREATE VIEW v AS SELECT " + function);
+        final String definition;
+        try (CloseableIterator<Row> rows =
+                tableEnvironment.executeSql("SHOW CREATE VIEW v").collect()) {
+            definition = rows.next().getFieldAs(0);
+        }
+        assertThat(definition)
+                .isEqualTo(
+                        "CREATE VIEW `default_catalog`.`default_database`.`v` (\n"
+                                + "  `"
+                                + function
+                                + "`\n"
+                                + ")\n"
+                                + "AS SELECT "
+                                + function
+                                + " AS `"
+                                + function
+                                + "`\n");
+        try (CloseableIterator<Row> rows =
+                tableEnvironment.executeSql("SELECT * FROM v").collect()) {
+            assertThat(rows.next().getField(0)).isInstanceOf(expectedType);
+            assertThat(rows.hasNext()).isFalse();
+        }
+        tableEnvironment.executeSql("DROP VIEW v");
+        tableEnvironment.executeSql(definition);
+        assertThat(
+                        tableEnvironment
+                                .sqlQuery("SELECT * FROM v")
+                                .getResolvedSchema()
+                                .getColumnNames())
+                .containsExactly(function);
     }
 
     @TestTemplate
