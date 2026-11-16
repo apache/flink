@@ -115,6 +115,7 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
         val inputImmutableColumns = fmq.getImmutableColumns(rel.getInput)
         val inputUpsertKeysWithPartitionKey =
           filterKeys(inputUpsertKeys, rel.partitionKey, inputImmutableColumns)
+        // Also adds the (partition key, rank number) key when the rank number is in the output
         FlinkRelMdUniqueKeys.INSTANCE.getRankUniqueKeys(
           rel,
           inputUpsertKeysKeptByRank(rel, inputUpsertKeysWithPartitionKey))
@@ -122,26 +123,26 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   /**
-   * A streaming Top-N emits its changes in one of two ways:
-   *   - Per row, when the rank number is not in the output and the Top-N includes rank 1, e.g. the
-   *     top 3. A row that enters gets an INSERT. A row that drops out gets a DELETE. Input upsert
-   *     keys such as `id` stay valid.
-   *   - Per rank, when the rank number is in the output or the Top-N skips the first ranks, e.g.
-   *     only ranks 2 to 3. Each change says which row now holds a rank. So the changes of one `id`
-   *     are spread over several ranks. Then `id` is an upsert key only if it is part of the
-   *     partition key. In that case each partition holds one row.
-   *
-   * The (partition key, rank number) key is added by [[FlinkRelMdUniqueKeys.getRankUniqueKeys]].
-   * Window Top-N is insert-only and keeps all input upsert keys.
+   * Returns the input upsert keys that stay upsert keys of the Top-N output. This depends on how
+   * the Top-N emits its changes, see [[AbstractTopNFunction.emitsChangelogPerRow]]:
+   *   - Per row: a row that enters gets an INSERT. A row that drops out gets a DELETE. All input
+   *     upsert keys stay valid.
+   *   - Per rank: each change says which row now holds a rank. The changes of one input key such as
+   *     `id` are spread over several ranks. Only the input upsert keys that are part of the
+   *     partition key stay valid, because each of these partitions holds a single row.
    */
   private def inputUpsertKeysKeptByRank(
       rel: Rank,
       inputUpsertKeys: JSet[ImmutableBitSet]): JSet[ImmutableBitSet] = {
-    val emitsChangelogPerRank =
-      AbstractTopNFunction.emitsChangelogPerRank(rel.rankRange, rel.outputRankNumber)
+    val emitsChangelogPerRow =
+      AbstractTopNFunction.emitsChangelogPerRow(rel.rankRange, rel.outputRankNumber)
     rel match {
-      case _: StreamPhysicalWindowRank => inputUpsertKeys
-      case _ if inputUpsertKeys != null && emitsChangelogPerRank =>
+      case _: StreamPhysicalWindowRank =>
+        // Window Top-N is insert-only and keeps all input upsert keys
+        inputUpsertKeys
+      case _ if inputUpsertKeys != null && !emitsChangelogPerRow =>
+        // The Top-N emits per-rank changes. Remove all upsert keys that are not a subset of the
+        // partition key
         inputUpsertKeys.filter(rel.partitionKey.contains)
       case _ => inputUpsertKeys
     }

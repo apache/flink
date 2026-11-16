@@ -19,9 +19,10 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalOverAggregate, StreamPhysicalRank, StreamPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalOverAggregate, StreamPhysicalRank, StreamPhysicalTableSourceScan, StreamPhysicalWindowRank}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.{ExpandUtil, RankProcessStrategy}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
@@ -608,6 +609,68 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     // Rank partitioned by column 3 (rowtime, NOT immutable)
     val rank3 = buildRank(3)
     assertEquals(toBitSet(), mq.getUpsertKeys(rank3))
+  }
+
+  @Test
+  def testGetUpsertKeysOnRowNumberRank(): Unit = {
+    // Input (a, c, d, rowtime) has upsert keys {a} and {a, c, d}, c and d are immutable
+    def buildRowNumber(
+        partitionKey: Int,
+        rankRange: ConstantRankRange,
+        outputRankNumber: Boolean): RelNode = {
+      val hash = FlinkRelDistribution.hash(Array(partitionKey), requireStrict = true)
+      val exchange = new StreamPhysicalExchange(
+        cluster,
+        tableWithImmutableColsStreamScan.getTraitSet.replace(hash),
+        tableWithImmutableColsStreamScan,
+        hash)
+      new StreamPhysicalRank(
+        cluster,
+        streamPhysicalTraits,
+        exchange,
+        ImmutableBitSet.of(partitionKey),
+        RelCollations.of(2),
+        RankType.ROW_NUMBER,
+        rankRange,
+        new RelDataTypeFieldImpl("rn", 4, longType),
+        outputRankNumber,
+        RankProcessStrategy.UNDEFINED_STRATEGY,
+        false
+      )
+    }
+    val top3 = new ConstantRankRange(1, 3)
+    val ranks2To3 = new ConstantRankRange(2, 3)
+
+    // Per-row changes keep all input upsert keys
+    assertEquals(
+      toBitSet(Array(0), Array(0, 1, 2)),
+      mq.getUpsertKeys(buildRowNumber(1, top3, false)))
+
+    // Per-rank changes keep only the input upsert keys that are part of the partition key
+    assertEquals(toBitSet(Array(1, 4)), mq.getUpsertKeys(buildRowNumber(1, top3, true)))
+    assertEquals(toBitSet(Array(0), Array(0, 4)), mq.getUpsertKeys(buildRowNumber(0, top3, true)))
+    assertEquals(toBitSet(), mq.getUpsertKeys(buildRowNumber(1, ranks2To3, false)))
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(buildRowNumber(0, ranks2To3, false)))
+
+    // Window Top-N is insert-only and keeps all input upsert keys
+    val singleton = FlinkRelDistribution.SINGLETON
+    val windowRank = new StreamPhysicalWindowRank(
+      cluster,
+      streamPhysicalTraits,
+      new StreamPhysicalExchange(
+        cluster,
+        studentStreamScan.getTraitSet.replace(singleton),
+        studentStreamScan,
+        singleton),
+      ImmutableBitSet.of(),
+      RelCollations.of(4),
+      RankType.ROW_NUMBER,
+      top3,
+      new RelDataTypeFieldImpl("rn", 7, longType),
+      true,
+      new WindowAttachedWindowingStrategy(tumbleWindowSpec, timeAttributeType, 5, 6)
+    )
+    assertEquals(toBitSet(Array(0), Array(7)), mq.getUpsertKeys(windowRank))
   }
 
   @Test
