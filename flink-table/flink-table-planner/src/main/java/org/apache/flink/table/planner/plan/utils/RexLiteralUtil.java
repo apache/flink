@@ -38,6 +38,7 @@ import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
+import org.apache.calcite.util.UuidValue;
 
 import java.math.BigDecimal;
 import java.time.ZoneOffset;
@@ -104,8 +105,8 @@ public class RexLiteralUtil {
                 }
                 break;
             case UUID:
-                if (value instanceof java.util.UUID) {
-                    return UuidUtils.toBytes((java.util.UUID) value);
+                if (value instanceof UuidValue) {
+                    return UuidUtils.toBytes(((UuidValue) value).uuid());
                 }
                 break;
             case DECIMAL:

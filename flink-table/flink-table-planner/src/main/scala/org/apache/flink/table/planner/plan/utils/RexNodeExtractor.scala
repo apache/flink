@@ -494,6 +494,9 @@ class RexNodeToExpressionConverter(
       case BINARY | VARBINARY =>
         literal.getValueAs(classOf[Array[Byte]])
 
+      case UUID =>
+        literal.getValueAs(classOf[java.util.UUID])
+
       case _ =>
         literal.getValue
     }
