@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
@@ -36,7 +37,7 @@ import org.apache.calcite.rex.RexNode;
 import java.util.Collections;
 import java.util.List;
 
-/** Batch {@link ExecNode} for {@link org.apache.flink.table.functions.AsyncScalarFunction}. */
+/** Batch {@link ExecNode} for {@link AsyncScalarFunction}. */
 @ExecNodeMetadata(
         name = "batch-exec-async-calc",
         version = 1,

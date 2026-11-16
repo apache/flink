@@ -36,8 +36,7 @@ class BatchPhysicalCalcRule(config: Config) extends ConverterRule(config) {
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsPythonCall(_)) &&
-    !program.getExprList.asScala.exists(containsAsyncCall)
+    !program.getExprList.asScala.exists(e => containsPythonCall(e) || containsAsyncCall(e))
   }
 
   def convert(rel: RelNode): RelNode = {

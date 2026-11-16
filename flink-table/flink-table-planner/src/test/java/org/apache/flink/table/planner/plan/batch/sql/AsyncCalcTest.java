@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.sql;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalAsyncCalc;
 import org.apache.flink.table.planner.plan.rules.logical.AsyncCalcSplitRuleTest;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.AsyncPythonScalarFunction;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
@@ -27,7 +28,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Plan tests for async scalar functions in a batch calc ({@code BatchPhysicalAsyncCalc}). */
+/** Tests for {@link BatchPhysicalAsyncCalc}. */
 class AsyncCalcTest extends TableTestBase {
 
     private BatchTableTestUtil util;
@@ -35,19 +36,15 @@ class AsyncCalcTest extends TableTestBase {
     @BeforeEach
     void setup() {
         util = batchTestUtil(TableConfig.getDefault());
-        for (String table : new String[] {"MyTable", "MyTable2"}) {
-            util.getTableEnv()
-                    .executeSql(
-                            "CREATE TABLE "
-                                    + table
-                                    + " (\n"
-                                    + "  a INT,\n"
-                                    + "  b BIGINT,\n"
-                                    + "  c STRING\n"
-                                    + ") WITH (\n"
-                                    + "  'connector' = 'test-simple-table-source'\n"
-                                    + ")");
-        }
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE MyTable (\n"
+                                + "  a INT,\n"
+                                + "  b BIGINT,\n"
+                                + "  c STRING\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'test-simple-table-source'\n"
+                                + ")");
         util.addTemporarySystemFunction("func1", new AsyncCalcSplitRuleTest.Func1());
         util.addTemporarySystemFunction("func2", new AsyncCalcSplitRuleTest.Func2());
         util.addTemporarySystemFunction(
@@ -78,7 +75,7 @@ class AsyncCalcTest extends TableTestBase {
     @Test
     void testAsyncCalcNextToJoin() {
         util.verifyExecPlan(
-                "SELECT func1(t1.a), t2.b FROM MyTable t1 JOIN MyTable2 t2 ON t1.a = t2.a");
+                "SELECT func1(t1.a), t2.b FROM MyTable t1 JOIN MyTable t2 ON t1.a = t2.a");
     }
 
     @Test
@@ -86,17 +83,25 @@ class AsyncCalcTest extends TableTestBase {
         util.verifyExecPlan(
                 "SELECT t1.a, t1.f, t2.b FROM "
                         + "(SELECT a, func1(a) AS f FROM (SELECT a FROM MyTable GROUP BY a)) t1 "
-                        + "JOIN MyTable2 t2 ON t1.a = t2.a");
+                        + "JOIN MyTable t2 ON t1.a = t2.a");
+    }
+
+    @Test
+    void testPythonAsyncCalcIsMergedIntoMultipleInput() {
+        util.verifyExecPlan(
+                "SELECT t1.a, t1.f, t2.b FROM "
+                        + "(SELECT a, pya(a, a) AS f FROM (SELECT a FROM MyTable GROUP BY a)) t1 "
+                        + "JOIN MyTable t2 ON t1.a = t2.a");
     }
 
     @Test
     void testAsyncCallInCorrelateArgument() {
-        util.verifyExecPlan("SELECT * FROM MyTable, LATERAL TABLE(tableFunc(func1(a)))");
+        util.verifyExecPlan("SELECT * FROM MyTable, LATERAL tableFunc(func1(a))");
     }
 
     @Test
     void testNestedAsyncCallInCorrelateArgument() {
-        util.verifyExecPlan("SELECT * FROM MyTable, LATERAL TABLE(tableFunc(ABS(func1(a))))");
+        util.verifyExecPlan("SELECT * FROM MyTable, LATERAL tableFunc(ABS(func1(a)))");
     }
 
     @Test
@@ -116,6 +121,6 @@ class AsyncCalcTest extends TableTestBase {
 
     @Test
     void testPythonAsyncInCorrelateArgument() {
-        util.verifyExecPlan("SELECT * FROM MyTable, LATERAL TABLE(tableFunc(pya(a, a)))");
+        util.verifyExecPlan("SELECT * FROM MyTable, LATERAL tableFunc(pya(a, a))");
     }
 }

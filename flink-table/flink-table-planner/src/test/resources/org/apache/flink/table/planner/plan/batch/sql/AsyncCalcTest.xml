@@ -54,7 +54,7 @@ Calc(select=[a], where=[(f0 > 0)])
   </TestCase>
   <TestCase name="testAsyncCalcIsNotMergedIntoMultipleInput">
     <Resource name="sql">
-      <![CDATA[SELECT t1.a, t1.f, t2.b FROM (SELECT a, func1(a) AS f FROM (SELECT a FROM MyTable GROUP BY a)) t1 JOIN MyTable2 t2 ON t1.a = t2.a]]>
+      <![CDATA[SELECT t1.a, t1.f, t2.b FROM (SELECT a, func1(a) AS f FROM (SELECT a FROM MyTable GROUP BY a)) t1 JOIN MyTable t2 ON t1.a = t2.a]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -64,7 +64,7 @@ LogicalProject(a=[$0], f=[$1], b=[$3])
    :  +- LogicalAggregate(group=[{0}])
    :     +- LogicalProject(a=[$0])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -78,23 +78,23 @@ Calc(select=[a, f, b])
    :           +- Exchange(distribution=[hash[a]])
    :              +- LocalHashAggregate(groupBy=[a], select=[a])
    :                 +- Calc(select=[a])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testAsyncCalcNextToJoin">
     <Resource name="sql">
-      <![CDATA[SELECT func1(t1.a), t2.b FROM MyTable t1 JOIN MyTable2 t2 ON t1.a = t2.a]]>
+      <![CDATA[SELECT func1(t1.a), t2.b FROM MyTable t1 JOIN MyTable t2 ON t1.a = t2.a]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[func1($0)], b=[$4])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -104,16 +104,16 @@ Calc(select=[f0 AS EXPR$0, b])
    +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, b], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, b])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testAsyncCallInCorrelateArgument">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable, LATERAL TABLE(tableFunc(func1(a)))]]>
+      <![CDATA[SELECT * FROM MyTable, LATERAL tableFunc(func1(a))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -152,7 +152,7 @@ AsyncCalc(select=[func1(f0) AS EXPR$0])
   </TestCase>
   <TestCase name="testNestedAsyncCallInCorrelateArgument">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable, LATERAL TABLE(tableFunc(ABS(func1(a))))]]>
+      <![CDATA[SELECT * FROM MyTable, LATERAL tableFunc(ABS(func1(a)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -207,9 +207,38 @@ AsyncCalc(select=[f0 AS EXPR$0, func1(a) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPythonAsyncCalcIsMergedIntoMultipleInput">
+    <Resource name="sql">
+      <![CDATA[SELECT t1.a, t1.f, t2.b FROM (SELECT a, pya(a, a) AS f FROM (SELECT a FROM MyTable GROUP BY a)) t1 JOIN MyTable t2 ON t1.a = t2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$1], b=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalProject(a=[$0], f=[pya($0, $0)])
+   :  +- LogicalAggregate(group=[{0}])
+   :     +- LogicalProject(a=[$0])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, f, b])
++- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, f, a0, b], build=[left])\n:- PythonAsyncCalc(select=[a, pya(a, a) AS f])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a])
+         +- Calc(select=[a])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPythonAsyncInCorrelateArgument">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable, LATERAL TABLE(tableFunc(pya(a, a)))]]>
+      <![CDATA[SELECT * FROM MyTable, LATERAL tableFunc(pya(a, a))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[

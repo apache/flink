@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.AsyncCalcTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.common.AsyncCalcTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Arrays;
 import java.util.List;
 
-/** Batch compiled plan tests for {@link BatchExecAsyncCalc}. */
+/** Batch Compiled Plan tests for {@link BatchExecAsyncCalc}. */
 public class AsyncCalcBatchRestoreTest extends BatchRestoreTestBase {
 
     public AsyncCalcBatchRestoreTest() {
@@ -34,7 +33,7 @@ public class AsyncCalcBatchRestoreTest extends BatchRestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(
+        return List.of(
                 AsyncCalcTestPrograms.ASYNC_CALC_UDF_SIMPLE,
                 AsyncCalcTestPrograms.ASYNC_CALC_UDF_COMPLEX,
                 AsyncCalcTestPrograms.ASYNC_CALC_UDF_NESTED,

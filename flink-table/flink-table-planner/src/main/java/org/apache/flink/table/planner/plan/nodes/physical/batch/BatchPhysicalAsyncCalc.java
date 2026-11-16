@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch;
 
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAsyncCalc;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -33,14 +35,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
-import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
-
-/**
- * Batch physical RelNode for {@link org.apache.flink.table.functions.AsyncScalarFunction}. Mirrors
- * {@link org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalAsyncCalc}.
- */
+/** Batch physical RelNode for {@link AsyncScalarFunction}. */
 public class BatchPhysicalAsyncCalc extends BatchPhysicalCalcBase {
     private final RelOptCluster cluster;
     private final RexProgram calcProgram;
@@ -66,20 +62,10 @@ public class BatchPhysicalAsyncCalc extends BatchPhysicalCalcBase {
     @Override
     public ExecNode<?> translateToExecNode() {
         List<RexNode> projection =
-                calcProgram.getProjectList().stream()
-                        .map(calcProgram::expandLocalRef)
-                        .collect(Collectors.toList());
-        if (calcProgram.getCondition() != null) {
-            throw new IllegalStateException(
-                    "The condition of BatchPhysicalAsyncCalc should be null.");
-        }
-        if (projection.stream().filter(AsyncUtil::containsAsyncCall).count() > 1) {
-            throw new IllegalStateException(
-                    "Only a single async projection is allowed in BatchPhysicalAsyncCalc.");
-        }
+                AsyncUtil.expandAsyncCalcProjection(calcProgram, getRelTypeName());
 
         return new BatchExecAsyncCalc(
-                unwrapTableConfig(this),
+                ShortcutUtils.unwrapTableConfig(this),
                 projection,
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
