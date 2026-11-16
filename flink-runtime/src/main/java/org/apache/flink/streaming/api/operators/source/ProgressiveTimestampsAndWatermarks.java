@@ -131,7 +131,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
         currentPerSplitOutputs =
                 new SplitLocalOutputs<>(
                         output,
-                        idlenessManager.getSplitLocalOutput(),
+                        idlenessManager,
                         watermarkUpdateListener,
                         timestampAssigner,
                         watermarksFactory,
@@ -143,6 +143,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 new StreamingReaderOutput<>(
                         output,
                         idlenessManager.getMainOutput(),
+                        idlenessManager.getMainPeriodicOutput(),
                         timestampAssigner,
                         watermarkGenerator,
                         currentPerSplitOutputs);
@@ -199,12 +200,18 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 
         StreamingReaderOutput(
                 PushingAsyncDataInput.DataOutput<T> output,
-                WatermarkOutput watermarkOutput,
+                WatermarkOutput onEventWatermarkOutput,
+                WatermarkOutput periodicWatermarkOutput,
                 TimestampAssigner<T> timestampAssigner,
                 WatermarkGenerator<T> watermarkGenerator,
                 SplitLocalOutputs<T> splitLocalOutputs) {
 
-            super(output, watermarkOutput, watermarkOutput, timestampAssigner, watermarkGenerator);
+            super(
+                    output,
+                    onEventWatermarkOutput,
+                    periodicWatermarkOutput,
+                    timestampAssigner,
+                    watermarkGenerator);
             this.splitLocalOutputs = splitLocalOutputs;
         }
 
@@ -230,6 +237,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
     private static final class SplitLocalOutputs<T> {
 
         private final WatermarkOutputMultiplexer watermarkMultiplexer;
+        private final IdlenessManager idlenessManager;
         private final Map<String, SourceOutputWithWatermarks<T>> localOutputs;
         private final Map<String, PausableRelativeClock> inputActivityClocks = new HashMap<>();
         private final PushingAsyncDataInput.DataOutput<T> recordOutput;
@@ -242,7 +250,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 
         private SplitLocalOutputs(
                 PushingAsyncDataInput.DataOutput<T> recordOutput,
-                WatermarkOutput watermarkOutput,
+                IdlenessManager idlenessManager,
                 WatermarkUpdateListener watermarkUpdateListener,
                 TimestampAssigner<T> timestampAssigner,
                 WatermarkGeneratorSupplier<T> watermarksFactory,
@@ -258,7 +266,8 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             this.clock = clock;
             this.taskIOMetricGroup = taskIOMetricGroup;
 
-            this.watermarkMultiplexer = new WatermarkOutputMultiplexer(watermarkOutput);
+            this.idlenessManager = idlenessManager;
+            this.watermarkMultiplexer = idlenessManager.getSplitOutputs();
             this.localOutputs =
                     new LinkedHashMap<>(); // we use a LinkedHashMap because it iterates faster
         }
@@ -283,6 +292,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                             watermarkUpdateListener.updateCurrentSplitIdle(splitId, idle);
                         }
                     });
+            idlenessManager.onSplitOutputRegistered();
             final WatermarkOutput onEventOutput = watermarkMultiplexer.getImmediateOutput(splitId);
             final WatermarkOutput periodicOutput = watermarkMultiplexer.getDeferredOutput(splitId);
 
@@ -315,6 +325,9 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             watermarkUpdateListener.splitFinished(splitId);
             localOutputs.remove(splitId);
             watermarkMultiplexer.unregisterOutput(splitId);
+            if (localOutputs.isEmpty()) {
+                idlenessManager.onAllSplitOutputsReleased();
+            }
             PausableRelativeClock inputActivityClock =
                     requireNonNull(inputActivityClocks.remove(splitId));
             taskIOMetricGroup.unregisterBackPressureListener(inputActivityClock);
@@ -352,35 +365,69 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
      * <p>The reason of adding this manager is that the implementation of source reader might only
      * use one of main or split-local output for emitting records and watermarks, and we could avoid
      * watermark generator on the vacant output keep marking the underlying output as idle.
+     *
+     * <p>Which split outputs hold an idle main output back depends on who reported it idle, see
+     * {@link #maybeMarkUnderlyingOutputAsIdle()}.
      */
     private static class IdlenessManager {
         private final WatermarkOutput underlyingOutput;
         private final IdlenessAwareWatermarkOutput splitLocalOutput;
         private final IdlenessAwareWatermarkOutput mainOutput;
+        private final WatermarkOutputMultiplexer splitOutputs;
 
         IdlenessManager(WatermarkOutput underlyingOutput) {
             this.underlyingOutput = underlyingOutput;
             this.splitLocalOutput = new IdlenessAwareWatermarkOutput(underlyingOutput);
             this.mainOutput = new IdlenessAwareWatermarkOutput(underlyingOutput);
+            this.splitOutputs = new WatermarkOutputMultiplexer(splitLocalOutput);
         }
 
-        IdlenessAwareWatermarkOutput getSplitLocalOutput() {
-            return splitLocalOutput;
+        WatermarkOutputMultiplexer getSplitOutputs() {
+            return splitOutputs;
         }
 
         IdlenessAwareWatermarkOutput getMainOutput() {
             return mainOutput;
         }
 
+        /** The main output for the periodic emits of its generator. */
+        WatermarkOutput getMainPeriodicOutput() {
+            return new MainPeriodicOutput();
+        }
+
+        /**
+         * The idleness timer of the main output sees no record of a split-based reader, so its
+         * report waits until every split output is idle. An idle report from the reader is held
+         * back only by split outputs that reported activity.
+         */
         void maybeMarkUnderlyingOutputAsIdle() {
-            if (splitLocalOutput.isIdle && mainOutput.isIdle) {
+            final boolean splitOutputsIdle =
+                    mainOutput.idleByPeriodicEmit
+                            ? splitOutputs.allOutputsIdle()
+                            : !splitOutputs.hasActiveOutput();
+            if (mainOutput.isIdle && splitOutputsIdle) {
                 underlyingOutput.markIdle();
+            }
+        }
+
+        /** A new split output is not proven idle, so an idle subtask becomes active again. */
+        void onSplitOutputRegistered() {
+            underlyingOutput.markActive();
+        }
+
+        /** The timer of the main output reports idleness only once, so the release concludes. */
+        void onAllSplitOutputsReleased() {
+            if (mainOutput.idleByPeriodicEmit) {
+                maybeMarkUnderlyingOutputAsIdle();
             }
         }
 
         private class IdlenessAwareWatermarkOutput implements WatermarkOutput {
             private final WatermarkOutput underlyingOutput;
             private boolean isIdle = true;
+
+            /** Whether a periodic emit, not the reader, reported the last idleness. */
+            private boolean idleByPeriodicEmit;
 
             private IdlenessAwareWatermarkOutput(WatermarkOutput underlyingOutput) {
                 this.underlyingOutput = underlyingOutput;
@@ -394,7 +441,12 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 
             @Override
             public void markIdle() {
+                markIdle(false);
+            }
+
+            void markIdle(boolean byPeriodicEmit) {
                 isIdle = true;
+                idleByPeriodicEmit = byPeriodicEmit;
                 maybeMarkUnderlyingOutputAsIdle();
             }
 
@@ -402,6 +454,23 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             public void markActive() {
                 isIdle = false;
                 underlyingOutput.markActive();
+            }
+        }
+
+        private class MainPeriodicOutput implements WatermarkOutput {
+            @Override
+            public void emitWatermark(Watermark watermark) {
+                mainOutput.emitWatermark(watermark);
+            }
+
+            @Override
+            public void markIdle() {
+                mainOutput.markIdle(true);
+            }
+
+            @Override
+            public void markActive() {
+                mainOutput.markActive();
             }
         }
     }

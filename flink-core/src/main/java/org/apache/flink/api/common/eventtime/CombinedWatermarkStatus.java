@@ -60,6 +60,20 @@ final class CombinedWatermarkStatus {
         return false;
     }
 
+    /**
+     * Returns true if every registered output has reported that it is idle, vacuously if none is
+     * registered. An output that has not reported anything yet counts as not idle, as it does in
+     * {@link #updateCombinedWatermark()}.
+     */
+    public boolean allOutputsIdle() {
+        for (PartialWatermark partialWatermark : partialWatermarks) {
+            if (!partialWatermark.isIdle()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean remove(PartialWatermark o) {
         return partialWatermarks.remove(o);
     }

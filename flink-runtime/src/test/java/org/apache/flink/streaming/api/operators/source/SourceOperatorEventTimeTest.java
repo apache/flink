@@ -223,9 +223,10 @@ class SourceOperatorEventTimeTest {
                         new StreamRecord<>(0, 100L),
                         new Watermark(100L),
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
-                        // Record and watermark from split 1
-                        new StreamRecord<>(0, 150L),
+                        // Registering split 1 re-activates the idle subtask, then its record and
+                        // watermark follow
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
+                        new StreamRecord<>(0, 150L),
                         new Watermark(150L),
                         // Record and watermark from split 2
                         new StreamRecord<>(0, 200L),
