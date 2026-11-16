@@ -50,12 +50,14 @@ import org.apache.calcite.runtime.variant.VariantValue;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
+import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.util.NumberUtil;
 import org.apache.calcite.util.TimeWithTimeZoneString;
 import org.apache.calcite.util.TimestampWithTimeZoneString;
 import org.apache.calcite.util.TryThreadLocal;
 import org.apache.calcite.util.Unsafe;
 import org.apache.calcite.util.Util;
+import org.apache.calcite.util.UuidValue;
 import org.apache.calcite.util.format.FormatElement;
 import org.apache.calcite.util.format.FormatModel;
 import org.apache.calcite.util.format.FormatModels;
@@ -160,6 +162,9 @@ import static org.apache.calcite.util.Static.RESOURCE;
  *
  * <p>Many of the functions do not check for null values. This is intentional. If null arguments are
  * possible, the code-generation framework checks for nulls before calling the functions.
+ *
+ * <p>Lines 289 ~ 379, 2310 ~ 2313, 2398 ~ 2403, 2457 ~ 2462, 2550 ~ 2555, CALCITE-7716 should be
+ * removed after upgrading Calcite to 1.43.0.
  */
 @SuppressWarnings("UnnecessaryUnboxing")
 @Deterministic
@@ -281,27 +286,98 @@ public class SqlFunctions {
         return condition;
     }
 
-    public static String uuidToString(UUID uuid) {
+    // FLINK MODIFICATION BEGIN
+    public static String uuidToString(UuidValue uuid) {
         return uuid.toString();
     }
 
-    public static UUID binaryToUuid(ByteString bytes) {
+    /**
+     * Converts a string to a UUID: 32 hexadecimal digits. All of the following give the UUID {@code
+     * 123e4567-e89b-12d3-a456-426655440000}:
+     *
+     * <blockquote>
+     *
+     * <pre>
+     * 123e4567-e89b-12d3-a456-426655440000
+     * 123E4567-E89B-12D3-A456-426655440000
+     * 123e4567e89b12d3a456426655440000
+     * {123e4567-e89b-12d3-a456-426655440000}
+     * {123e4567e89b12d3a456426655440000}
+     * 123e-4567-e89b-12d3-a456-4266-5544-0000
+     * 123e4567-e89b12d3-a4564266-55440000
+     * 123e-4567e89b-12d3a456426655440000
+     * </pre>
+     *
+     * </blockquote>
+     *
+     * <p>and each of the following is an error:
+     *
+     * <blockquote>
+     *
+     * <pre>
+     * 1-2-3-4-5                              a group is not four digits wide
+     * 123e456-7e89b-12d3-a456-426655440000   as above, though 36 characters long
+     * 123e4567--e89b-12d3-a456-426655440000  empty group
+     * -123e4567e89b12d3a456426655440000      leading hyphen
+     * 123e4567e89b12d3a456426655440000-      trailing hyphen
+     * {123e4567-e89b-12d3-a456-426655440000  unbalanced brace
+     * 123e4567-e89b-12d3-a456-42665544000    31 digits
+     * </pre>
+     *
+     * </blockquote>
+     *
+     * <p>Blanks are never trimmed.
+     */
+    public static UUID stringToUuid(String s) {
+        String body = s;
+        if (body.length() > 1 && body.charAt(0) == '{' && body.charAt(body.length() - 1) == '}') {
+            body = body.substring(1, body.length() - 1);
+        }
+        final StringBuilder digits = new StringBuilder(32);
+        for (int i = 0; i < body.length(); i++) {
+            final char c = body.charAt(i);
+            if (c == '-') {
+                // A hyphen separates groups, so it must follow a complete group of four
+                // digits and cannot be the last character
+                if (digits.length() == 0
+                        || digits.length() % 4 != 0
+                        || digits.length() == 32
+                        || body.charAt(i - 1) == '-') {
+                    throw new IllegalArgumentException("Invalid UUID string: " + s);
+                }
+            } else if (SqlParserUtil.isHexDigit(c) && digits.length() < 32) {
+                digits.append(c);
+            } else {
+                throw new IllegalArgumentException("Invalid UUID string: " + s);
+            }
+        }
+        if (digits.length() != 32) {
+            throw new IllegalArgumentException("Invalid UUID string: " + s);
+        }
+        return new UUID(
+                Long.parseUnsignedLong(digits.substring(0, 16), 16),
+                Long.parseUnsignedLong(digits.substring(16), 16));
+    }
+
+    public static UuidValue binaryToUuid(ByteString bytes) {
         if (bytes.length() < 16) {
             throw new IllegalArgumentException("Need at least 16 bytes for UUID");
         }
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes.getBytes());
         long mostSignificantBits = byteBuffer.getLong();
         long leastSignificantBits = byteBuffer.getLong();
-        return new UUID(mostSignificantBits, leastSignificantBits);
+        return new UuidValue(new UUID(mostSignificantBits, leastSignificantBits));
     }
 
-    public static ByteString uuidToBinary(UUID uuid) {
+    public static ByteString uuidToBinary(UuidValue uuid) {
         byte[] dest = new byte[16];
         ByteBuffer byteBuffer = ByteBuffer.wrap(dest);
         byteBuffer.putLong(uuid.getMostSignificantBits());
         byteBuffer.putLong(uuid.getLeastSignificantBits());
         return new ByteString(dest);
     }
+
+    // FLINK MODIFICATION END
 
     /** SQL TO_BASE64(string)/BASE64(string) function. */
     public static String toBase64(String string) {
@@ -2232,6 +2308,11 @@ public class SqlFunctions {
         return b0.compareTo(b1) < 0;
     }
 
+    /** SQL <code>&lt;</code> operator applied to UUID values. */
+    public static boolean lt(UuidValue b0, UuidValue b1) {
+        return b0.compareTo(b1) < 0;
+    }
+
     /** SQL <code>&lt;</code> operator applied to BigDecimal values. */
     public static boolean lt(BigDecimal b0, BigDecimal b1) {
         return b0.compareTo(b1) < 0;
@@ -2315,6 +2396,14 @@ public class SqlFunctions {
         return b0.compareTo(b1) <= 0;
     }
 
+    // FLINK MODIFICATION BEGIN
+    /** SQL <code>&le;</code> operator applied to UUID values. */
+    public static boolean le(UuidValue b0, UuidValue b1) {
+        return b0.compareTo(b1) <= 0;
+    }
+
+    // FLINK MODIFICATION END
+
     /** SQL <code>&le;</code> operator applied to BigDecimal values. */
     public static boolean le(BigDecimal b0, BigDecimal b1) {
         return b0.compareTo(b1) <= 0;
@@ -2366,6 +2455,14 @@ public class SqlFunctions {
     public static boolean gt(ByteString b0, ByteString b1) {
         return b0.compareTo(b1) > 0;
     }
+
+    // FLINK MODIFICATION BEGIN
+    /** SQL <code>&gt;</code> operator applied to UUID values. */
+    public static boolean gt(UuidValue b0, UuidValue b1) {
+        return b0.compareTo(b1) > 0;
+    }
+
+    // FLINK MODIFICATION END
 
     /** SQL <code>&gt;</code> operator applied to BigDecimal values. */
     public static boolean gt(BigDecimal b0, BigDecimal b1) {
@@ -2452,6 +2549,14 @@ public class SqlFunctions {
     public static boolean ge(ByteString b0, ByteString b1) {
         return b0.compareTo(b1) >= 0;
     }
+
+    // FLINK MODIFICATION BEGIN
+    /** SQL <code>&ge;</code> operator applied to UUID values. */
+    public static boolean ge(UuidValue b0, UuidValue b1) {
+        return b0.compareTo(b1) >= 0;
+    }
+
+    // FLINK MODIFICATION END
 
     /** SQL <code>&ge;</code> operator applied to BigDecimal values. */
     public static boolean ge(BigDecimal b0, BigDecimal b1) {
