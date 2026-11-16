@@ -110,7 +110,10 @@ public abstract class WindowsGrouping implements Closeable {
      */
     public void advanceWatermarkToTriggerAllWindows() {
         skipEmptyWindow();
-        advanceWatermark(lastInputTimestamp + windowSize);
+        // Without any timestamped input there is no window, and MIN_VALUE would overflow.
+        if (lastInputTimestamp != Long.MIN_VALUE) {
+            advanceWatermark(lastInputTimestamp + windowSize);
+        }
     }
 
     /**

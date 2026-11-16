@@ -244,6 +244,28 @@ class HeapWindowsGroupingTest {
     }
 
     @Test
+    void testNoTimestampTriggersNoWindow() throws IOException {
+        try (HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 4L, 2L, 0, false)) {
+            for (Long[] timestamps : asList(new Long[0], new Long[] {null, null})) {
+                final RowIterator<BinaryRowData> input = new TestInputIterator(timestamps);
+                while (input.advanceNext()) {
+                    grouping.addInputToBuffer(input.getRow());
+                }
+                grouping.advanceWatermarkToTriggerAllWindows();
+
+                final List<TimeWindow> windows = new ArrayList<>();
+                // Bounded so that a regression fails instead of spinning forever.
+                for (int i = 0; i < 3 && grouping.hasTriggerWindow(); i++) {
+                    grouping.buildTriggerWindowElementsIterator();
+                    windows.add(grouping.getTriggerWindow());
+                }
+                assertThat(windows).isEmpty();
+                grouping.reset();
+            }
+        }
+    }
+
+    @Test
     void testSparseCase() throws IOException {
         Long[] ts = new Long[] {0L, 7L, 33L, 76L, 77L, 77L, 98L, 99L, 100L, 999L};
         // sliding(4, 2)
