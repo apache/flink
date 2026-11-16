@@ -42,9 +42,9 @@ LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(partitionBy=[a], orderBy=[ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0, COUNT(*) AS w0$o0_0])
+OverAggregate(partitionBy=[a], orderBy=[ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, c1, COUNT(*) AS c2])
 +- Exchange(distribution=[hash[a]])
-   +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, COUNT(*) AS w0$o0])
+   +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, COUNT(*) AS c1])
       +- Exchange(distribution=[hash[a, b]])
          +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
             +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, ts])
@@ -68,8 +68,8 @@ LogicalProject(a=[$0], EXPR$1=[COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE 100
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, w0$o0 AS $1])
-+- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
+Calc(select=[a, EXPR$1])
++- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS EXPR$1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -92,8 +92,8 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS 2 PR
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0])
+Calc(select=[c, EXPR$1])
++- OverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -144,8 +144,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS sum1])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -164,8 +164,8 @@ LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY P
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, CASE((w0$o0 > 0), w0$o1, null:BIGINT) AS EXPR$1, w0$o2 AS EXPR$2])
-+- OverAggregate(partitionBy=[a], orderBy=[$2 ASC], window=[ ROWS BETWEEN 4 PRECEDING AND CURRENT ROW], select=[a, c, $2, COUNT(c) AS w0$o0, SUM(c) AS w0$o1, MIN(c) AS w0$o2])
+Calc(select=[a, CASE((w0$o0 > 0), w0$o1, null:BIGINT) AS EXPR$1, EXPR$2])
++- OverAggregate(partitionBy=[a], orderBy=[$2 ASC], window=[ ROWS BETWEEN 4 PRECEDING AND CURRENT ROW], select=[a, c, $2, COUNT(c) AS w0$o0, SUM(c) AS w0$o1, MIN(c) AS EXPR$2])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, PROCTIME() AS $2])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -189,8 +189,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST)], cnt2=[CA
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -213,8 +213,8 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS UNBO
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, EXPR$1])
++- OverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, rowtime, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -237,8 +237,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -262,8 +262,8 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, EXPR$1])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, rowtime, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -288,8 +288,8 @@ LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS sum1])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS cnt1, SUM(DISTINCT a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -319,8 +319,8 @@ LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE((w0$o3 > 0), w0$o4, null:BIGINT) AS sum2])
-+- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1, COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, SUM(DISTINCT c) AS w0$o4])
+Calc(select=[b, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS sum1, cnt2, CASE((w0$o3 > 0), w0$o4, null:BIGINT) AS sum2])
++- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS cnt1, SUM(a) AS w0$o1, COUNT(DISTINCT a) AS cnt2, COUNT(DISTINCT c) AS w0$o3, SUM(DISTINCT c) AS w0$o4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -344,8 +344,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE 1000:
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, cnt1])
++- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -368,8 +368,8 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS 5 PR
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, EXPR$1])
++- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -393,8 +393,8 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, EXPR$1])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -418,8 +418,8 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, EXPR$1])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -443,8 +443,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST)], cnt2=[CA
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -468,8 +468,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUN
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -493,8 +493,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -518,8 +518,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+Calc(select=[c, cnt1, CASE((cnt1 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS cnt1, SUM(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -550,8 +550,8 @@ LogicalProject(amount_count=[COUNT($1) OVER (PARTITION BY $0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, COUNT(amount) AS w0$o0])
+Calc(select=[amount_count])
++- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, COUNT(amount) AS amount_count])
    +- Exchange(distribution=[hash[product_id]])
       +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
          +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
@@ -591,8 +591,8 @@ LogicalProject(first_order_ts=[FIRST_VALUE($2) OVER (PARTITION BY $0)], min_orde
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[w0$o0 AS $0, w0$o1 AS $1, w0$o2 AS $2])
-+- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, FIRST_VALUE(order_ts) AS w0$o0, MIN(order_ts) AS w0$o1, MAX(amount) AS w0$o2])
+Calc(select=[first_order_ts, min_order_ts, max_amount])
++- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, FIRST_VALUE(order_ts) AS first_order_ts, MIN(order_ts) AS min_order_ts, MAX(amount) AS max_amount])
    +- Exchange(distribution=[hash[product_id]])
       +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
          +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
@@ -631,8 +631,8 @@ LogicalProject(last_amount=[LAST_VALUE($1) OVER (PARTITION BY $0 ORDER BY $2 NUL
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[w0$o0 AS $0, w0$o1 AS $1])
-+- OverAggregate(partitionBy=[product_id], orderBy=[order_ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, LAST_VALUE(amount) AS w0$o0, LAG(amount) AS w0$o1])
+Calc(select=[last_amount, prev_amount])
++- OverAggregate(partitionBy=[product_id], orderBy=[order_ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, LAST_VALUE(amount) AS last_amount, LAG(amount) AS prev_amount])
    +- Exchange(distribution=[hash[product_id]])
       +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
          +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
@@ -670,8 +670,8 @@ LogicalProject(total_order_ts=[COUNT($2) OVER (PARTITION BY $0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, COUNT(order_ts) AS w0$o0])
+Calc(select=[total_order_ts])
++- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, COUNT(order_ts) AS total_order_ts])
    +- Exchange(distribution=[hash[product_id]])
       +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
          +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
@@ -702,8 +702,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0])
+Calc(select=[c, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -727,8 +727,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS F
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 16.0 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0])
+Calc(select=[c, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 16.0 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -751,8 +751,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[c, cnt1])
++- OverAggregate(partitionBy=[c], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, proctime, rowtime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[c]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>

@@ -77,10 +77,8 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1292-1301
- *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1313-1317
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1337
- *   <li>Should be removed after upgrading to Calcite 1.42.0, see CALCITE-7293: Lines 1994-2001
+ *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1322-1330
+ *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1342-1346
  * </ol>
  */
 public abstract class SqlTypeUtil {
@@ -1084,6 +1082,36 @@ public abstract class SqlTypeUtil {
                     || fromType.getSqlTypeName() == SqlTypeName.UUID
                     || fromType.getFamily() == SqlTypeFamily.CHARACTER
                     || fromType.getFamily() == SqlTypeFamily.BINARY;
+        } else if (toType.getSqlTypeName() == SqlTypeName.ARRAY) {
+            if (fromType.getSqlTypeName() == SqlTypeName.ARRAY
+                    || fromType.getSqlTypeName() == SqlTypeName.MULTISET) {
+                return canCastFrom(
+                        requireNonNull(toType.getComponentType(), "componentType"),
+                        requireNonNull(fromType.getComponentType(), "componentType"),
+                        typeMappingRule);
+            } else if (fromType.getFamily() == SqlTypeFamily.CHARACTER
+                    || fromType.getSqlTypeName() == SqlTypeName.NULL) {
+                // Cast from NULL or string to array is legal
+                return true;
+            }
+            return false;
+        } else if (toType.getSqlTypeName() == SqlTypeName.MAP) {
+            if (fromType.getSqlTypeName() == SqlTypeName.MAP) {
+                // It is not clear whether this is sufficient, but it is clearly necessary
+                return canCastFrom(
+                                requireNonNull(toType.getKeyType(), "keyType"),
+                                requireNonNull(fromType.getKeyType(), "keyType"),
+                                typeMappingRule)
+                        && canCastFrom(
+                                requireNonNull(toType.getValueType(), "valueType"),
+                                requireNonNull(fromType.getValueType(), "valueType"),
+                                typeMappingRule);
+            } else if (fromType.getFamily() == SqlTypeFamily.CHARACTER
+                    || fromType.getSqlTypeName() == SqlTypeName.NULL) {
+                // Cast from NULL or string to map is legal
+                return true;
+            }
+            return false;
         }
         if (toType.isStruct() || fromType.isStruct()) {
             if (toTypeName == SqlTypeName.DISTINCT) {
@@ -1289,8 +1317,8 @@ public abstract class SqlTypeUtil {
                     new SqlBasicTypeNameSpec(
                             typeName, precision, scale, charSetName, SqlParserPos.ZERO);
         } else if (isCollection(type)) {
+            RelDataType componentType = getComponentTypeOrThrow(type);
             // FLINK MODIFICATION BEGIN
-            final RelDataType componentType = getComponentTypeOrThrow(type);
             typeNameSpec =
                     new ExtendedSqlCollectionTypeNameSpec(
                             convertTypeToSpec(componentType).getTypeNameSpec(),
@@ -1991,14 +2019,12 @@ public abstract class SqlTypeUtil {
         if (typeName == null) {
             return false;
         }
-        // FLINK MODIFICATION BEGIN
         return SqlTypeUtil.isDatetime(type)
                 || SqlTypeUtil.isNumeric(type)
                 || SqlTypeUtil.isString(type)
                 || SqlTypeUtil.isBoolean(type)
                 || typeName == SqlTypeName.UUID
                 || typeName == SqlTypeName.VARIANT;
-        // FLINK MODIFICATION END
     }
 
     /** Returns a DECIMAL type with the maximum precision for the current type system. */

@@ -245,7 +245,7 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
       <![CDATA[
 FlinkLogicalCalc(select=[a1, b1, c, EXPR$3])
 +- FlinkLogicalAggregate(group=[{0, 2}], b1=[AUXILIARY_GROUP($1)], EXPR$3=[COUNT($3)])
-   +- FlinkLogicalCalc(select=[a1, b1, w0$o0 AS c, d1])
+   +- FlinkLogicalCalc(select=[a1, b1, c, d1])
       +- FlinkLogicalOverAggregate(window#0=[window(partition {2} aggs [COUNT()])])
          +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>

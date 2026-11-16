@@ -84,6 +84,7 @@ import java.math.RoundingMode;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
@@ -95,11 +96,13 @@ import java.text.DecimalFormat;
 import java.text.Normalizer;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -199,20 +202,22 @@ public class SqlFunctions {
             a0 -> a0 == null ? Linq4j.emptyEnumerable() : Linq4j.asEnumerable(a0);
 
     @SuppressWarnings("unused")
-    private static final Function1<Object[], Enumerable<Object[]>> ARRAY_CARTESIAN_PRODUCT =
-            lists -> {
-                final List<Enumerator<Object>> enumerators = new ArrayList<>();
-                for (Object list : lists) {
-                    enumerators.add(Linq4j.enumerator((List) list));
-                }
-                final Enumerator<List<Object>> product = Linq4j.product(enumerators);
-                return new AbstractEnumerable<Object[]>() {
-                    @Override
-                    public Enumerator<Object[]> enumerator() {
-                        return Linq4j.transform(product, List::toArray);
-                    }
-                };
-            };
+    private static final Function1<Object[], Enumerable<@Nullable Object[]>>
+            ARRAY_CARTESIAN_PRODUCT =
+                    lists -> {
+                        final List<Enumerator<@Nullable Object>> enumerators = new ArrayList<>();
+                        for (Object list : lists) {
+                            enumerators.add(Linq4j.enumerator((List) list));
+                        }
+                        final Enumerator<List<@Nullable Object>> product =
+                                Linq4j.product(enumerators);
+                        return new AbstractEnumerable<@Nullable Object[]>() {
+                            @Override
+                            public Enumerator<@Nullable Object[]> enumerator() {
+                                return Linq4j.transform(product, List::toArray);
+                            }
+                        };
+                    };
 
     /**
      * Holds, for each thread, a map from sequence name to sequence current value.
@@ -223,6 +228,11 @@ public class SqlFunctions {
      */
     private static final TryThreadLocal<Map<String, AtomicLong>> THREAD_SEQUENCES =
             TryThreadLocal.withInitial(HashMap::new);
+
+    /** Resets the sequences in the current thread. */
+    public static void resetThreadSequences() {
+        THREAD_SEQUENCES.get().clear();
+    }
 
     /** A byte string consisting of a single byte that is the ASCII space character (0x20). */
     private static final ByteString SINGLE_SPACE_BYTE_STRING = ByteString.of("20", 16);
@@ -1038,11 +1048,17 @@ public class SqlFunctions {
 
     /** SQL {@code SPLIT_PART(string, string, int)} function. */
     public static String splitPart(String s, String delimiter, int n) {
-        if (Strings.isNullOrEmpty(s) || Strings.isNullOrEmpty(delimiter)) {
+        // Function is strict, so arguments cannot be null
+        if (s.isEmpty()) {
             return "";
         }
 
-        String[] parts = s.split(delimiter, -1);
+        String[] parts;
+        if (delimiter.isEmpty()) {
+            parts = new String[] {s};
+        } else {
+            parts = s.split(Pattern.quote(delimiter), -1);
+        }
         int partCount = parts.length;
 
         if (n < 0) {
@@ -1302,6 +1318,62 @@ public class SqlFunctions {
     public static String formatNumber(BigDecimal value, int decimalVal) {
         DecimalFormat numberFormat = getNumberFormat(decimalVal);
         return numberFormat.format(value);
+    }
+
+    /**
+     * Implements casts from integer to binary values.
+     *
+     * @param value Value converted; an integer or unsigned value.
+     * @param resultSize Size of result in bytes; negative if unspecified.
+     * @param fixed True if the result type is BINARY; false for VARBINARY.
+     * @return A ByteString containing the conversion result.
+     *     <p>Most SQL dialects which support this feature seem to convert integers to big endian
+     *     values, and then truncate or pad on the left when the size of the target BINARY does not
+     *     exactly match the integer's size.
+     */
+    public static ByteString intToBinary(Object value, int resultSize, boolean fixed) {
+        ByteBuffer buffer;
+        if (value instanceof Byte) {
+            buffer = ByteBuffer.allocate(1).order(ByteOrder.BIG_ENDIAN).put((byte) value);
+        } else if (value instanceof Short) {
+            buffer = ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort((short) value);
+        } else if (value instanceof Integer) {
+            buffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt((Integer) value);
+        } else if (value instanceof Long) {
+            buffer = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN).putLong((Long) value);
+        } else if (value instanceof UByte) {
+            buffer =
+                    ByteBuffer.allocate(1)
+                            .order(ByteOrder.BIG_ENDIAN)
+                            .put(((UByte) value).byteValue());
+        } else if (value instanceof UShort) {
+            buffer =
+                    ByteBuffer.allocate(2)
+                            .order(ByteOrder.BIG_ENDIAN)
+                            .putShort(((UShort) value).shortValue());
+        } else if (value instanceof UInteger) {
+            buffer =
+                    ByteBuffer.allocate(4)
+                            .order(ByteOrder.BIG_ENDIAN)
+                            .putInt(((UInteger) value).intValue());
+        } else if (value instanceof ULong) {
+            buffer =
+                    ByteBuffer.allocate(8)
+                            .order(ByteOrder.BIG_ENDIAN)
+                            .putLong(((ULong) value).longValue());
+        } else {
+            throw new IllegalArgumentException("Unexpected argument type " + value);
+        }
+        ByteString result = new ByteString(buffer.array());
+        if (resultSize >= 0) {
+            if (resultSize < result.length()) {
+                result = SqlFunctions.right(result, resultSize);
+            } else if (fixed && resultSize > result.length()) {
+                // pad on left
+                result = new ByteString(new byte[resultSize - result.length()]).concat(result);
+            }
+        }
+        return result;
     }
 
     public static String formatNumber(long value, String format) {
@@ -2138,7 +2210,7 @@ public class SqlFunctions {
 
     /** SQL <code>=</code> operator applied to Object[] values (neither may be null). */
     public static boolean eq(@Nullable Object[] b0, @Nullable Object[] b1) {
-        return Arrays.deepEquals(b0, b1);
+        return Functions.compareObjectArrays(b0, b1) == 0;
     }
 
     /**
@@ -2147,6 +2219,16 @@ public class SqlFunctions {
      */
     public static boolean eq(Object b0, Object b1) {
         return b0.equals(b1);
+    }
+
+    /** SQL <code>=</code> operator applied to List values. */
+    public static boolean eq(List<?> b0, List<?> b1) {
+        return eqNullable(b0, b1);
+    }
+
+    /** SQL <code>=</code> operator applied to Map values. */
+    public static boolean eq(Map<?, ?> b0, Map<?, ?> b1) {
+        return eqNullable(b0, b1);
     }
 
     /** SQL <code>=</code> operator applied to String values with a certain Comparator. */
@@ -2159,22 +2241,7 @@ public class SqlFunctions {
      * neither may be null).
      */
     public static boolean eqAny(Object b0, Object b1) {
-        if (b0.getClass().equals(b1.getClass())) {
-            // The result of SqlFunctions.eq(BigDecimal, BigDecimal) makes more sense
-            // than BigDecimal.equals(BigDecimal). So if both of types are BigDecimal,
-            // we just use SqlFunctions.eq(BigDecimal, BigDecimal).
-            if (BigDecimal.class.isInstance(b0)) {
-                return eq((BigDecimal) b0, (BigDecimal) b1);
-            } else {
-                return b0.equals(b1);
-            }
-        } else if (allAssignable(Number.class, b0, b1)) {
-            return eq(toBigDecimal((Number) b0), toBigDecimal((Number) b1));
-        }
-        // We shouldn't rely on implementation even though overridden equals can
-        // handle other types which may create worse result: for example,
-        // a.equals(b) != b.equals(a)
-        return false;
+        return eqNullable(b0, b1);
     }
 
     /** Returns whether two objects can both be assigned to a given class. */
@@ -2197,6 +2264,21 @@ public class SqlFunctions {
         return !eq(b0, b1);
     }
 
+    /** SQL <code>&lt;gt;</code> operator applied to List values. */
+    public static boolean ne(List<?> b0, List<?> b1) {
+        return !eqNullable(b0, b1);
+    }
+
+    /** SQL <code>&lt;gt;</code> operator applied to Map values. */
+    public static boolean ne(Map<?, ?> b0, Map<?, ?> b1) {
+        return !eqNullable(b0, b1);
+    }
+
+    /** SQL <code>&lt;gt;</code> operator applied to Object[] values. */
+    public static boolean ne(@Nullable Object[] b0, @Nullable Object[] b1) {
+        return !eqNullable(b0, b1);
+    }
+
     /** SQL <code>&lt;gt;</code> operator applied to OString values with a certain Comparator. */
     public static boolean ne(String s0, String s1, Comparator<String> comparator) {
         return !eq(s0, s1, comparator);
@@ -2208,6 +2290,68 @@ public class SqlFunctions {
      */
     public static boolean neAny(Object b0, Object b1) {
         return !eqAny(b0, b1);
+    }
+
+    private static boolean eqNullable(@Nullable Object b0, @Nullable Object b1) {
+        if (b0 == b1) {
+            return true;
+        }
+        if (b0 == null || b1 == null) {
+            return false;
+        }
+        if (b0 instanceof List && b1 instanceof List) {
+            return Functions.compareLists((List<?>) b0, (List<?>) b1) == 0;
+        }
+        if (b0 instanceof Map && b1 instanceof Map) {
+            return Functions.compareMaps((Map<?, ?>) b0, (Map<?, ?>) b1) == 0;
+        }
+        if (b0 instanceof Object[] && b1 instanceof Object[]) {
+            return Functions.compareObjectArrays((Object[]) b0, (Object[]) b1) == 0;
+        }
+        if (b0.getClass().equals(b1.getClass())) {
+            if (b0 instanceof BigDecimal) {
+                return eq((BigDecimal) b0, (BigDecimal) b1);
+            }
+            return b0.equals(b1);
+        }
+        if (b0 instanceof Number && b1 instanceof Number) {
+            return eq(toBigDecimal((Number) b0), toBigDecimal((Number) b1));
+        }
+        return false;
+    }
+
+    /**
+     * Compares two nullable objects recursively if they are collections. Nulls are treated as
+     * larger than non-null values. The op is used to record the type of comparison operation for
+     * user-friendly display in error messages.
+     */
+    private static int compareNullable(@Nullable Object b0, @Nullable Object b1, String op) {
+        if (b0 == b1) {
+            return 0;
+        }
+        if (b0 == null) {
+            return 1;
+        }
+        if (b1 == null) {
+            return -1;
+        }
+        if (b0 instanceof List && b1 instanceof List) {
+            return Functions.compareLists((List<?>) b0, (List<?>) b1);
+        }
+        if (b0 instanceof Map && b1 instanceof Map) {
+            return Functions.compareMaps((Map<?, ?>) b0, (Map<?, ?>) b1);
+        }
+        if (b0 instanceof Object[] && b1 instanceof Object[]) {
+            return Functions.compareObjectArrays((Object[]) b0, (Object[]) b1);
+        }
+        if (b0.getClass().equals(b1.getClass()) && b0 instanceof Comparable) {
+            //noinspection unchecked
+            return ((Comparable) b0).compareTo(b1);
+        }
+        if (b0 instanceof Number && b1 instanceof Number) {
+            return toBigDecimal((Number) b0).compareTo(toBigDecimal((Number) b1));
+        }
+        throw notComparable(op, b0, b1);
     }
 
     // <
@@ -2274,23 +2418,20 @@ public class SqlFunctions {
     }
 
     public static boolean lt(List<?> b0, List<?> b1) {
-        return Functions.compareLists(b0, b1) < 0;
+        return compareNullable(b0, b1, "<") < 0;
     }
 
-    public static boolean lt(Object[] b0, Object[] b1) {
-        return Functions.compareObjectArrays(b0, b1) < 0;
+    public static boolean lt(Map<?, ?> b0, Map<?, ?> b1) {
+        return compareNullable(b0, b1, "<") < 0;
+    }
+
+    public static boolean lt(@Nullable Object[] b0, @Nullable Object[] b1) {
+        return compareNullable(b0, b1, "<") < 0;
     }
 
     /** SQL <code>&lt;</code> operator applied to Object values. */
     public static boolean ltAny(Object b0, Object b1) {
-        if (b0.getClass().equals(b1.getClass()) && b0 instanceof Comparable) {
-            //noinspection unchecked
-            return ((Comparable) b0).compareTo(b1) < 0;
-        } else if (allAssignable(Number.class, b0, b1)) {
-            return lt(toBigDecimal((Number) b0), toBigDecimal((Number) b1));
-        }
-
-        throw notComparable("<", b0, b1);
+        return compareNullable(b0, b1, "<") < 0;
     }
 
     // <=
@@ -2322,12 +2463,17 @@ public class SqlFunctions {
 
     /** SQL <code>&le;</code> operator applied to List values. */
     public static boolean le(List<?> b0, List<?> b1) {
-        return Functions.compareLists(b0, b1) <= 0;
+        return compareNullable(b0, b1, "<=") <= 0;
+    }
+
+    /** SQL <code>&le;</code> operator applied to Map values. */
+    public static boolean le(Map<?, ?> b0, Map<?, ?> b1) {
+        return compareNullable(b0, b1, "<=") <= 0;
     }
 
     /** SQL <code>&le;</code> operator applied to Object[] values. */
-    public static boolean le(Object[] b0, Object[] b1) {
-        return Functions.compareObjectArrays(b0, b1) <= 0;
+    public static boolean le(@Nullable Object[] b0, @Nullable Object[] b1) {
+        return compareNullable(b0, b1, "<=") <= 0;
     }
 
     /**
@@ -2335,14 +2481,7 @@ public class SqlFunctions {
      * neither may be null).
      */
     public static boolean leAny(Object b0, Object b1) {
-        if (b0.getClass().equals(b1.getClass()) && b0 instanceof Comparable) {
-            //noinspection unchecked
-            return ((Comparable) b0).compareTo(b1) <= 0;
-        } else if (allAssignable(Number.class, b0, b1)) {
-            return le(toBigDecimal((Number) b0), toBigDecimal((Number) b1));
-        }
-
-        throw notComparable("<=", b0, b1);
+        return compareNullable(b0, b1, "<=") <= 0;
     }
 
     // >
@@ -2409,11 +2548,15 @@ public class SqlFunctions {
     }
 
     public static boolean gt(List<?> b0, List<?> b1) {
-        return Functions.compareLists(b0, b1) > 0;
+        return compareNullable(b0, b1, ">") > 0;
     }
 
-    public static boolean gt(Object[] b0, Object[] b1) {
-        return Functions.compareObjectArrays(b0, b1) > 0;
+    public static boolean gt(Map<?, ?> b0, Map<?, ?> b1) {
+        return compareNullable(b0, b1, ">") > 0;
+    }
+
+    public static boolean gt(@Nullable Object[] b0, @Nullable Object[] b1) {
+        return compareNullable(b0, b1, ">") > 0;
     }
 
     /**
@@ -2421,14 +2564,7 @@ public class SqlFunctions {
      * neither may be null).
      */
     public static boolean gtAny(Object b0, Object b1) {
-        if (b0.getClass().equals(b1.getClass()) && b0 instanceof Comparable) {
-            //noinspection unchecked
-            return ((Comparable) b0).compareTo(b1) > 0;
-        } else if (allAssignable(Number.class, b0, b1)) {
-            return gt(toBigDecimal((Number) b0), toBigDecimal((Number) b1));
-        }
-
-        throw notComparable(">", b0, b1);
+        return compareNullable(b0, b1, ">") > 0;
     }
 
     // >=
@@ -2460,12 +2596,17 @@ public class SqlFunctions {
 
     /** SQL <code>&ge;</code> operator applied to List values. */
     public static boolean ge(List<?> b0, List<?> b1) {
-        return Functions.compareLists(b0, b1) >= 0;
+        return compareNullable(b0, b1, ">=") >= 0;
+    }
+
+    /** SQL <code>&ge;</code> operator applied to Map values. */
+    public static boolean ge(Map<?, ?> b0, Map<?, ?> b1) {
+        return compareNullable(b0, b1, ">=") >= 0;
     }
 
     /** SQL <code>&ge;</code> operator applied to Object[] values. */
-    public static boolean ge(Object[] b0, Object[] b1) {
-        return Functions.compareObjectArrays(b0, b1) >= 0;
+    public static boolean ge(@Nullable Object[] b0, @Nullable Object[] b1) {
+        return compareNullable(b0, b1, ">=") >= 0;
     }
 
     /**
@@ -2473,14 +2614,7 @@ public class SqlFunctions {
      * neither may be null).
      */
     public static boolean geAny(Object b0, Object b1) {
-        if (b0.getClass().equals(b1.getClass()) && b0 instanceof Comparable) {
-            //noinspection unchecked
-            return ((Comparable) b0).compareTo(b1) >= 0;
-        } else if (allAssignable(Number.class, b0, b1)) {
-            return ge(toBigDecimal((Number) b0), toBigDecimal((Number) b1));
-        }
-
-        throw notComparable(">=", b0, b1);
+        return compareNullable(b0, b1, ">=") >= 0;
     }
 
     // +
@@ -2855,8 +2989,12 @@ public class SqlFunctions {
         if ((b0 & b1 & q) >= 0) {
             return q;
         } else {
-            throw new ArithmeticException("integer overflow");
+            throw new ArithmeticException("long overflow");
         }
+    }
+
+    public static double checkedDivide(int b0, double b1) {
+        return b0 / b1;
     }
 
     public static UByte checkedDivide(UByte b0, UByte b1) {
@@ -2873,6 +3011,15 @@ public class SqlFunctions {
 
     public static ULong checkedDivide(ULong b0, ULong b1) {
         return ULong.valueOf(UnsignedType.toBigInteger(b0).divide(UnsignedType.toBigInteger(b1)));
+    }
+
+    // The definition of this function must match the divide function with the same signature
+    public static int checkedDivide(int b0, BigDecimal b1) {
+        return BigDecimal.valueOf(b0).divide(b1, RoundingMode.HALF_DOWN).intValueExact();
+    }
+
+    public static BigDecimal checkedDivide(BigDecimal b0, BigDecimal b1) {
+        return b0.divide(b1, RoundingMode.HALF_DOWN);
     }
 
     // *
@@ -2986,6 +3133,10 @@ public class SqlFunctions {
 
     public static ULong checkedMultiply(ULong b0, ULong b1) {
         return ULong.valueOf(UnsignedType.toBigInteger(b0).multiply(UnsignedType.toBigInteger(b1)));
+    }
+
+    public static BigDecimal checkedMultiply(BigDecimal b0, long b1) {
+        return b0.multiply(BigDecimal.valueOf(b1));
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to long values. */
@@ -4325,6 +4476,18 @@ public class SqlFunctions {
         return CombinatoricsUtils.factorial(b0);
     }
 
+    /** SQL <code>HYPOT</code> operator applied to double values. */
+    public static double hypot(double a, double b) {
+        return Math.hypot(a, b);
+    }
+
+    /** SQL <code>HYPOT</code> operator applied to general numeric values. */
+    public static double hypot(Object a, Object b) {
+        final Number left = (Number) a;
+        final Number right = (Number) b;
+        return hypot(left.doubleValue(), right.doubleValue());
+    }
+
     /** SQL <code>IS_INF</code> operator applied to BigDecimal values. */
     public static boolean isInf(BigDecimal b0) {
         return Double.isInfinite(b0.doubleValue());
@@ -4653,8 +4816,7 @@ public class SqlFunctions {
         return b0 > b1 ? b1 : b0;
     }
 
-    public static @Nullable <T extends Comparable<T>> List<T> lesser(
-            @Nullable List<T> b0, @Nullable List<T> b1) {
+    public static @Nullable List lesser(@Nullable List b0, @Nullable List b1) {
         if (b0 == null) {
             return b1;
         }
@@ -4664,8 +4826,47 @@ public class SqlFunctions {
         return lt(b0, b1) ? b0 : b1;
     }
 
-    public static @Nullable <T extends Comparable<T>> List<T> greater(
-            @Nullable List<T> b0, @Nullable List<T> b1) {
+    public static @Nullable Map lesser(@Nullable Map b0, @Nullable Map b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return lt(b0, b1) ? b0 : b1;
+    }
+
+    public static @Nullable Object[] lesser(@Nullable Object[] b0, @Nullable Object[] b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return lt(b0, b1) ? b0 : b1;
+    }
+
+    public static @Nullable List greater(@Nullable List b0, @Nullable List b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return gt(b0, b1) ? b0 : b1;
+    }
+
+    public static @Nullable Map greater(@Nullable Map b0, @Nullable Map b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return gt(b0, b1) ? b0 : b1;
+    }
+
+    public static @Nullable Object[] greater(@Nullable Object[] b0, @Nullable Object[] b1) {
         if (b0 == null) {
             return b1;
         }
@@ -4747,6 +4948,18 @@ public class SqlFunctions {
     }
 
     public static boolean toBoolean(Number number) {
+        if (number instanceof BigDecimal) {
+            BigDecimal decimal = (BigDecimal) number;
+            return decimal.compareTo(BigDecimal.ZERO) != 0;
+        }
+        if (number instanceof Double) {
+            Double d = (Double) number;
+            return !d.equals(Double.valueOf(0));
+        }
+        if (number instanceof Float) {
+            Float f = (Float) number;
+            return !f.equals(Float.valueOf(0));
+        }
         return !number.equals(0);
     }
 
@@ -5833,6 +6046,22 @@ public class SqlFunctions {
         }
     }
 
+    public static ByteString byteArrayToByteString(byte[] bytes) {
+        if (bytes == null) {
+            return null;
+        } else {
+            return new ByteString(bytes);
+        }
+    }
+
+    public static byte[] byteStringToByteArray(ByteString s) {
+        if (s == null) {
+            return null;
+        } else {
+            return s.getBytes();
+        }
+    }
+
     /** Helper for CAST(... AS VARBINARY(maxLength)). */
     public static ByteString truncate(ByteString s, int maxLength) {
         if (s == null) {
@@ -6341,7 +6570,7 @@ public class SqlFunctions {
 
     /** SQL {@code TRANSLATE(string, search_chars, replacement_chars)} function. */
     public static String translate3(String s, String search, String replacement) {
-        return org.apache.commons.lang3.StringUtils.replaceChars(s, search, replacement);
+        return Util.replaceChars(s, search, replacement);
     }
 
     /** SQL {@code REPLACE(string, search, replacement)} function. */
@@ -6354,7 +6583,7 @@ public class SqlFunctions {
             return s.replace(search, replacement);
         }
         // for MSSQL's REPLACE function, search pattern is case-insensitive during matching
-        return org.apache.commons.lang3.Strings.CI.replace(s, search, replacement);
+        return Util.replaceIgnoreCase(s, search, replacement);
     }
 
     /**
@@ -6915,6 +7144,43 @@ public class SqlFunctions {
         return map;
     }
 
+    /**
+     * Combines multiple query result lists into rows for the Combine operator.
+     *
+     * <p>Each input list contains maps representing rows from a query. The output is a list of
+     * Object arrays, where each array is a row with one element per query. The number of output
+     * rows equals the maximum size across all input lists. Shorter lists are padded with nulls.
+     *
+     * @param queryLists array of lists, one per query
+     * @return list of Object arrays representing combined rows
+     */
+    public static List<@Nullable Object[]> combineQueryResults(List[] queryLists) {
+        // Find the maximum row count across all queries
+        int maxRows = 0;
+        for (List list : queryLists) {
+            if (list.size() > maxRows) {
+                maxRows = list.size();
+            }
+        }
+
+        // Build the result rows
+        List<@Nullable Object[]> result = new ArrayList<>(maxRows);
+        for (int rowIdx = 0; rowIdx < maxRows; rowIdx++) {
+            @Nullable Object[] row = new Object[queryLists.length];
+            for (int queryIdx = 0; queryIdx < queryLists.length; queryIdx++) {
+                List queryList = queryLists[queryIdx];
+                if (rowIdx < queryList.size()) {
+                    row[queryIdx] = queryList.get(rowIdx);
+                } else {
+                    row[queryIdx] = null;
+                }
+            }
+            result.add(row);
+        }
+
+        return result;
+    }
+
     /** Support the STR_TO_MAP function. */
     public static Map strToMap(String string, String stringDelimiter, String keyValueDelimiter) {
         final Map map = new LinkedHashMap();
@@ -7430,5 +7696,123 @@ public class SqlFunctions {
         FILE,
         AUTHORITY,
         USERINFO;
+    }
+
+    /** SQL {@code AGE(timestamp1, timestamp2)} function. */
+    private static String age(long timestamp1, long timestamp2) {
+        // Convert timestamps to ZonedDateTime objects using UTC to avoid timezone issues
+        Instant instant1 = Instant.ofEpochMilli(timestamp1);
+        Instant instant2 = Instant.ofEpochMilli(timestamp2);
+
+        ZonedDateTime dateTime1 = ZonedDateTime.ofInstant(instant1, ZoneOffset.UTC);
+        ZonedDateTime dateTime2 = ZonedDateTime.ofInstant(instant2, ZoneOffset.UTC);
+
+        // Check if the original timestamps are in the correct order
+        boolean isNegative = timestamp1 < timestamp2;
+
+        // Ensure dateTime1 is later than dateTime2 for consistent calculation
+        if (dateTime1.isBefore(dateTime2)) {
+            ZonedDateTime temp = dateTime1;
+            dateTime1 = dateTime2;
+            dateTime2 = temp;
+        }
+
+        // Calculate period (years, months, days)
+        Period period = Period.between(dateTime2.toLocalDate(), dateTime1.toLocalDate());
+
+        // Calculate duration (hours, minutes, seconds, milliseconds)
+        Duration duration = Duration.between(dateTime2, dateTime1);
+
+        // Adjust for possible day overflow when time part is negative
+        if (dateTime1.toLocalTime().isBefore(dateTime2.toLocalTime())) {
+            period = period.minusDays(1);
+            duration = duration.plusDays(1);
+        }
+
+        // Extract components
+        int years = period.getYears();
+        int months = period.getMonths();
+        int days = period.getDays();
+
+        long hours = duration.toHours() % 24;
+        long minutes = duration.toMinutes() % 60;
+        long seconds = duration.getSeconds() % 60;
+        long millis = duration.toMillis() % 1000;
+
+        // Apply negative sign if needed
+        if (isNegative) {
+            years = -years;
+            months = -months;
+            days = -days;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (years != 0) {
+            sb =
+                    Math.abs(years) > 1
+                            ? sb.append(years).append(" years ")
+                            : sb.append(years).append(" year ");
+        }
+        if (months != 0) {
+            sb =
+                    Math.abs(months) > 1
+                            ? sb.append(months).append(" mons ")
+                            : sb.append(months).append(" mon ");
+        }
+        if (days != 0) {
+            sb =
+                    Math.abs(days) > 1
+                            ? sb.append(days).append(" days ")
+                            : sb.append(days).append(" day ");
+        }
+
+        // Add negative sign if needed for time part
+        if (isNegative && (hours != 0 || minutes != 0 || seconds != 0)) {
+            sb.append("-");
+        }
+        if (millis != 0) {
+            String millisString =
+                    BigDecimal.valueOf(millis)
+                            .divide(BigDecimal.valueOf(1000))
+                            .stripTrailingZeros()
+                            .toPlainString()
+                            .substring(2);
+            sb.append(
+                    String.format(
+                            Locale.ROOT,
+                            "%02d:%02d:%02d.%s",
+                            hours,
+                            minutes,
+                            seconds,
+                            millisString));
+        } else if (sb.length() != 0 && hours == 0 && minutes == 0 && seconds == 0 && millis == 0) {
+            return sb.toString().trim();
+        } else {
+            sb.append(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds));
+        }
+        return sb.toString().trim();
+    }
+
+    /** SQL {@code AGE(timestamp1, timestamp2)} function. Supports 1 or 2 timestamp arguments. */
+    public static String age(long... timestamps) {
+        if (timestamps.length == 0) {
+            throw new IllegalArgumentException(
+                    "AGE function requires at least one timestamp argument");
+        }
+
+        if (timestamps.length == 1) {
+            // Single parameter version: calculate age relative to current time
+            long timestamp = timestamps[0];
+            // Use the actual current timestamp (including time component) in UTC
+            long currentTimestamp = Instant.now().toEpochMilli();
+            // Call the two-parameter version with current timestamp and input timestamp
+            return age(currentTimestamp, timestamp);
+        } else if (timestamps.length == 2) {
+            // Two parameter version: calculate age between two timestamps
+            return age(timestamps[0], timestamps[1]);
+        } else {
+            throw new IllegalArgumentException(
+                    "AGE function supports only 1 or 2 timestamp arguments");
+        }
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.plan.common.MLPredictTableFunctionTestBase;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -128,5 +129,54 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
                         anyCauseMatches(
                                 "The 'uid' argument is not supported because function "
                                         + "'ML_PREDICT' does not use system arguments."));
+    }
+
+    @Test
+    public void testIllegalConfig() {
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))"))
+                .isInstanceOf(ValidationException.class)
+                .hasRootCauseMessage(
+                        "No match found for function signature ML_PREDICT(<RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime)>, <RecordType(VARCHAR(2147483647) e, INTEGER ARRAY f)>, <COLUMN_LIST>, <(CHAR(5), BOOLEAN) MAP>).\n"
+                                + "Supported signatures are:\n"
+                                + "ML_PREDICT(INPUT => {TABLE, ROW SEMANTIC TABLE}, MODEL => {MODEL}, ARGS => DESCRIPTOR, CONFIG => MAP<STRING, STRING>)");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'yes']))"))
+                .hasCauseInstanceOf(ValidationException.class)
+                .hasStackTraceContaining("Failed to parse the config.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'max-concurrent-operations', '-1']))"))
+                .hasCauseInstanceOf(ValidationException.class)
+                .hasStackTraceContaining(
+                        "Invalid runtime config option 'max-concurrent-operations'. Its value should be positive integer but was -1.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', CAST(-1 AS STRING)]))"))
+                .hasCauseInstanceOf(ValidationException.class)
+                .hasStackTraceContaining(
+                        "Config parameter should be a MAP data type consisting of String literals.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true']))"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "Require async mode, but model provider org.apache.flink.table.factories.TestModelProviderFactory$TestModelProviderMock doesn't support async mode.");
     }
 }
