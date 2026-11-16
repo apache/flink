@@ -90,6 +90,9 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * <p>Some common literal values (NULL, TRUE, FALSE, 0, 1, '') are cached.
  *
  * <p>FLINK modifications (because of FLINK-39945): Lines 858-860, 1277-1294
+ *
+ * <p>Lines 1316 ~ 1328, 2043 ~ 2050, CALCITE-7716 should be removed after upgrading Calcite to
+ * 1.43.0.
  */
 public class RexBuilder {
     /**
@@ -2037,6 +2040,14 @@ public class RexBuilder {
                 return new RexLiteral((Comparable) value, guessType(value), SqlTypeName.GEOMETRY);
             case ANY:
                 return makeLiteral(value, guessType(value), allowCast);
+            // FLINK MODIFICATION BEGIN
+            case UUID:
+                if (value instanceof UUID) {
+                    return makeUuidLiteral((UUID) value);
+                } else {
+                    return makeUuidLiteral((UuidValue) value);
+                }
+            // FLINK MODIFICATION END
             default:
                 throw new IllegalArgumentException(
                         "Cannot create literal for type '" + sqlTypeName + "'");
