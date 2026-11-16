@@ -126,8 +126,8 @@ from pyflink.table.result_kind import ResultKind
 from pyflink.table.schema import Schema
 from pyflink.table.sql_dialect import SqlDialect
 from pyflink.table.statement_set import StatementSet
-from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, \
-    PartitionedTable, Table, WindowGroupedTable
+from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
+    WindowGroupedTable
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor, FormatDescriptor
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment)
@@ -148,7 +148,6 @@ __all__ = [
     'GroupedTable',
     'GroupWindowedTable',
     'OverWindowedTable',
-    'PartitionedTable',
     'WindowGroupedTable',
     'ScalarFunction',
     'TableFunction',

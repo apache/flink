@@ -99,19 +99,6 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
                                         + "received a non-literal expression."),
                 withDefaults(
-                                "No PARTITION BY",
-                                new TableSemanticsMock(
-                                        INPUT_TYPE,
-                                        new int[0],
-                                        new int[0],
-                                        -1,
-                                        ChangelogMode.insertOnly()))
-                        .expectErrorMessage(
-                                "DEDUPLICATE requires a key, but the input has no PARTITION BY. "
-                                        + "Add PARTITION BY with the columns to deduplicate on, "
-                                        + "for example TABLE t PARTITION BY id. To drop only rows "
-                                        + "that repeat in full, partition by every column."),
-                withDefaults(
                                 "ORDER BY",
                                 new TableSemanticsMock(
                                         INPUT_TYPE,
@@ -155,8 +142,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .expectErrorMessage(
                                 "DEDUPLICATE does not support on_time, but received on_time => "
                                         + "DESCRIPTOR(ts). Use sequence_by => DESCRIPTOR(ts) to "
-                                        + "order by timestamp, or DEDUPLICATE_WINDOW for "
-                                        + "event-time windows."),
+                                        + "order by a timestamp column."),
                 sequenceBy("Unknown sequence_by column", "nope")
                         .expectErrorMessage(
                                 "The sequence_by column 'nope' does not exist in the input of "

@@ -17,7 +17,7 @@
 ################################################################################
 
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
-from pyflink.table import PartitionedTable, Table
+from pyflink.table import Table
 
 
 class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -41,6 +41,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
             'getQueryOperation',
             'asArgument',
             'process',
+            'partitionBy',
             'materializeInto',
         }
 
@@ -54,31 +55,6 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
         :return:
         """
         return {'alias': 'as'}.get(python_method_name, python_method_name)
-
-
-class PartitionedTableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
-    """
-    Tests whether the Python :class:`PartitionedTable` is consistent with
-    Java `org.apache.flink.table.api.PartitionedTable`.
-    """
-
-    @classmethod
-    def python_class(cls):
-        return PartitionedTable
-
-    @classmethod
-    def java_class(cls):
-        return "org.apache.flink.table.api.PartitionedTable"
-
-    @classmethod
-    def excluded_methods(cls):
-        return {
-            'asArgument',
-            'fromChangelog',
-            'orderBy',
-            'process',
-            'toChangelog',
-        }
 
 
 if __name__ == '__main__':

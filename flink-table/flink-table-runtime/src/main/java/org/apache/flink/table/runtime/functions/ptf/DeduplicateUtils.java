@@ -20,25 +20,48 @@ package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.Keep;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.lang.invoke.MethodHandle;
+import java.time.Duration;
+import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.ifThenElse;
+import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_INPUT;
+import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
 
 /** Record ordering of the built-in deduplication PTFs. */
 @Internal
 public final class DeduplicateUtils {
+
+    public static TableSemantics tableSemantics(final SpecializedContext context) {
+        return context.getCallContext()
+                .getTableSemantics(ARG_INPUT)
+                .orElseThrow(() -> new IllegalStateException("Table argument expected."));
+    }
+
+    /** Returns a value state of the given type that expires after the {@code state_ttl}. */
+    public static StateTypeStrategy stateStrategy(
+            final SpecializedContext context, final DataType valueType) {
+        return StateTypeStrategy.of(
+                callContext -> Optional.of(ValueView.newValueViewDataType(valueType)),
+                context.getCallContext()
+                        .getArgumentValue(ARG_STATE_TTL, Duration.class)
+                        .orElse(null));
+    }
 
     /**
      * Returns whether a new record replaces the current one, given the order of the new record
