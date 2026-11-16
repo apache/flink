@@ -32,6 +32,10 @@ import static org.apache.flink.table.api.Expressions.uuidV7;
  */
 public class UuidFunctionsITCase extends BuiltInFunctionTestBase {
 
+    private static final String MIN = "UUID '00000000-0000-0000-0000-000000000000'";
+    private static final String MID = "UUID '8ba7b810-9dad-11d1-80b4-00c04fd430c8'";
+    private static final String MAX = "UUID 'ffffffff-ffff-ffff-ffff-ffffffffffff'";
+
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
@@ -64,6 +68,42 @@ public class UuidFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlResult(
                                 "SUBSTR(SPLIT_INDEX(CAST(UUID_V7() AS STRING), '-', 2), 1, 1)",
                                 "7",
-                                DataTypes.STRING()));
+                                DataTypes.STRING()),
+                // Range predicates on UUID literals use unsigned ordering
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BETWEEN, "UUID literals")
+                        .testSqlResult(
+                                MID + " BETWEEN " + MIN + " AND " + MAX,
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MIN + " BETWEEN " + MIN + " AND " + MAX,
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MAX + " BETWEEN " + MIN + " AND " + MAX,
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MID + " NOT BETWEEN " + MIN + " AND " + MAX,
+                                false,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(MID + " > " + MIN, true, DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(MAX + " < " + MIN, false, DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MID + " IN (" + MIN + ", " + MAX + ")",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MAX + " IN (" + MIN + ", " + MAX + ")",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MID + " NOT IN (" + MIN + ", " + MAX + ")",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                MAX + " IS DISTINCT FROM " + MIN,
+                                true,
+                                DataTypes.BOOLEAN().notNull()));
     }
 }

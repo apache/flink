@@ -58,6 +58,7 @@ import org.apache.calcite.util.TimeWithTimeZoneString;
 import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.TimestampWithTimeZoneString;
 import org.apache.calcite.util.Util;
+import org.apache.calcite.util.UuidValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.locationtech.jts.geom.Geometry;
@@ -1309,9 +1310,19 @@ public class RexBuilder {
         return b ? booleanTrue : booleanFalse;
     }
 
+    // FLINK MODIFICATION BEGIN
     public RexLiteral makeUuidLiteral(@Nullable UUID uuid) {
-        return new RexLiteral(uuid, typeFactory.createSqlType(SqlTypeName.UUID), SqlTypeName.UUID);
+        UuidValue uuidValue = (uuid != null) ? new UuidValue(uuid) : null;
+        return new RexLiteral(
+                uuidValue, typeFactory.createSqlType(SqlTypeName.UUID), SqlTypeName.UUID);
     }
+
+    public RexLiteral makeUuidLiteral(@Nullable UuidValue uuidValue) {
+        return new RexLiteral(
+                uuidValue, typeFactory.createSqlType(SqlTypeName.UUID), SqlTypeName.UUID);
+    }
+
+    // FLINK MODIFICATION END
 
     /** Creates a numeric literal. */
     @SuppressWarnings("deprecation") // [CALCITE-6598]
