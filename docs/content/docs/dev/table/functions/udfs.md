@@ -1286,6 +1286,8 @@ Similar to `AsyncScalarFunction`, there also exists a `AsyncTableFunction` for r
 
 Asynchronous interaction with an external system means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cases to much higher streaming throughput.
 
+`AsyncTableFunction` is supported in both streaming and batch mode.
+
 #### Defining an AsyncTableFunction
 
 A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/reference/data-types" >}}) can be used as a parameter or return type of an evaluation method.
@@ -1299,6 +1301,8 @@ While calls to an `AsyncTableFunction` may be completed out of the original inpu
 
 #### Error Handling
 The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) will be waited, and the function call will be retried. If the call has been retried [`table.exec.async-table.max-retries`]({{< ref "docs/dev/table/config#table-exec-async-table-max-retries" >}}) times or if the timeout [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) expires (including all retry attempts), the job will fail.
+
+With `FIXED_DELAY`, a call that completes with an empty result is retried as well. When a bounded input ends, every call that is waiting for a delayed retry gets one immediate attempt and no further retries happen: an exceptional result then fails the job and an empty result is emitted as is, even if fewer than `table.exec.async-table.max-retries` retries have been made.
 
 The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
 

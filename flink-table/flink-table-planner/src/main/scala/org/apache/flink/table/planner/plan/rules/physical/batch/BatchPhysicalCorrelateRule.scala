@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCorrelate
-import org.apache.flink.table.planner.plan.utils.PythonUtil
+import org.apache.flink.table.planner.plan.utils.{AsyncUtil, PythonUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.volcano.RelSubset
@@ -37,13 +37,15 @@ class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
 
     right match {
       // right node is a table function
-      // return true if it is a non python table function
-      case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
+      // return true if it is a non python and non async table function
+      case scan: FlinkLogicalTableFunctionScan =>
+        PythonUtil.isNonPythonCall(scan.getCall) && AsyncUtil.isNonAsyncCall(scan.getCall)
       // a filter is pushed above the table function
-      // return true if it is a non python table function
+      // return true if it is a non python and non async table function
       case calc: FlinkLogicalCalc =>
         calc.getInput.asInstanceOf[RelSubset].getOriginal match {
-          case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
+          case scan: FlinkLogicalTableFunctionScan =>
+            PythonUtil.isNonPythonCall(scan.getCall) && AsyncUtil.isNonAsyncCall(scan.getCall)
           case _ => false
         }
       case _ => false

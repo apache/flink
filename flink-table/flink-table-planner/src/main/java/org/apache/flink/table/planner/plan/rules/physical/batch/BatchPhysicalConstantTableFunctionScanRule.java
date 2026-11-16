@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalAsyncCorrelate;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalValues;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -36,6 +37,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexUtil;
 import org.immutables.value.Value;
+
+import java.util.Optional;
 
 import scala.Option;
 
@@ -100,6 +103,17 @@ public class BatchPhysicalConstantTableFunctionScanRule
                             values,
                             scan,
                             Option.empty(),
+                            scan.getRowType(),
+                            JoinRelType.INNER);
+        } else if (function.getKind() == FunctionKind.ASYNC_TABLE) {
+            replacement =
+                    new BatchPhysicalAsyncCorrelate(
+                            cluster,
+                            traitSet,
+                            values,
+                            scan,
+                            Optional.empty(),
+                            Optional.empty(),
                             scan.getRowType(),
                             JoinRelType.INNER);
         } else {
