@@ -49,6 +49,41 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testHashAggOnAsyncCorrelateOnHashJoinWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT a1, s FROM T1, T2, LATERAL asyncFunc(c1) AS S(s) WHERE a1 = a2)
+SELECT count(s) FROM r group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
+   +- LogicalProject(a1=[$0], s=[$8])
+      +- LogicalFilter(condition=[=($0, $4)])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalJoin(condition=[true], joinType=[inner])
+            :  :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+            +- LogicalTableFunctionScan(invocation=[asyncFunc($cor0.c1)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(s) AS EXPR$0])
+   +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+      +- Calc(select=[a1, EXPR$0 AS s])
+         +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+            +- AsyncCorrelate(invocation=[asyncFunc($2)], correlate=[table(asyncFunc(c1))], select=[a1,b1,c1,d1,a2,b2,c2,d2,EXPR$0], rowType=[RecordType(BIGINT a1, BIGINT b1, VARCHAR(2147483647) c1, BIGINT d1, BIGINT a2, BIGINT b2, VARCHAR(2147483647) c2, BIGINT d2, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+               +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+                  +- HashJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
+                     :- Exchange(distribution=[hash[a1]])
+                     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
+                     +- Exchange(distribution=[hash[a2]])
+                        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testHashAggOnHashJoinWithHashShuffle">
     <Resource name="sql">
       <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')

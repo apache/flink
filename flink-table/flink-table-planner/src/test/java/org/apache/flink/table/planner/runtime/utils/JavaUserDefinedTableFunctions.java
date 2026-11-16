@@ -26,6 +26,7 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
@@ -39,6 +40,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /** Test functions. */
 public class JavaUserDefinedTableFunctions {
@@ -164,6 +168,33 @@ public class JavaUserDefinedTableFunctions {
             if (varbinary != null) {
                 this.eval(future, new String(varbinary, StandardCharsets.UTF_8));
             }
+        }
+    }
+
+    /** Emits each input twice, completing the future off the task thread after a short delay. */
+    public static class AsyncDuplicateRows extends AsyncTableFunction<Integer> {
+
+        private static final long ASYNC_DELAY_MILLIS = 5;
+
+        private transient ScheduledExecutorService executor;
+
+        @Override
+        public void open(FunctionContext context) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
+
+        @Override
+        public void close() {
+            if (executor != null) {
+                executor.shutdownNow();
+            }
+        }
+
+        public void eval(CompletableFuture<Collection<Integer>> future, Integer i) {
+            executor.schedule(
+                    () -> future.complete(Arrays.asList(i, i)),
+                    ASYNC_DELAY_MILLIS,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
