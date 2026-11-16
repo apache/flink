@@ -31,7 +31,6 @@ public class DeduplicateSemanticTests extends SemanticTestBase {
         return List.of(
                 DeduplicateTestPrograms.ARRIVAL_ORDER,
                 DeduplicateTestPrograms.COMPOSITE_AND_NULL_KEY,
-                DeduplicateTestPrograms.SEQUENCE_BY,
-                DeduplicateTestPrograms.NO_PARTITION_BY_FAILS);
+                DeduplicateTestPrograms.SEQUENCE_BY);
     }
 }

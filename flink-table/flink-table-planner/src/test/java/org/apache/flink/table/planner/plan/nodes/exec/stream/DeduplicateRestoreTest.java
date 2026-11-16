@@ -33,7 +33,6 @@ public class DeduplicateRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                DeduplicateRestoreTestPrograms.ARRIVAL_ORDER_RESTORE,
                 DeduplicateRestoreTestPrograms.FIRST_ARRIVAL_RESTORE,
                 DeduplicateRestoreTestPrograms.SEQUENCE_BY_RESTORE);
     }

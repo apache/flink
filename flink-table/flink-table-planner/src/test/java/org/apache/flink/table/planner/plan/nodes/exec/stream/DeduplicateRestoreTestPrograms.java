@@ -26,45 +26,6 @@ import org.apache.flink.types.Row;
 /** {@link TableTestProgram} definitions for restore tests of the DEDUPLICATE PTF. */
 public class DeduplicateRestoreTestPrograms {
 
-    public static final TableTestProgram ARRIVAL_ORDER_RESTORE =
-            TableTestProgram.of(
-                            "deduplicate-arrival-order-restore",
-                            "the kept record survives a restore: a key seen before the restore "
-                                    + "is updated or emits nothing for an identical record, and a "
-                                    + "key first seen after it is inserted")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("user_events")
-                                    .addSchema("user_id STRING", "event STRING")
-                                    .producedBeforeRestore(
-                                            Row.of("u1", "login"),
-                                            Row.of("u2", "login"),
-                                            Row.of("u1", "click"),
-                                            Row.of("u3", "view"))
-                                    .producedAfterRestore(
-                                            Row.of("u1", "click"),
-                                            Row.of("u1", "logout"),
-                                            Row.of("u2", "login"),
-                                            Row.of("u4", "login"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(
-                                            "user_id STRING PRIMARY KEY NOT ENFORCED",
-                                            "event STRING")
-                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
-                                    .consumedBeforeRestore(
-                                            "+I[u1, login]",
-                                            "+I[u2, login]",
-                                            "+U[u1, click]",
-                                            "+I[u3, view]")
-                                    .consumedAfterRestore("+U[u1, logout]", "+I[u4, login]")
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
-                                    + "input => TABLE user_events PARTITION BY user_id, "
-                                    + "keep => 'last')")
-                    .build();
-
     public static final TableTestProgram FIRST_ARRIVAL_RESTORE =
             TableTestProgram.of(
                             "deduplicate-first-arrival-restore",

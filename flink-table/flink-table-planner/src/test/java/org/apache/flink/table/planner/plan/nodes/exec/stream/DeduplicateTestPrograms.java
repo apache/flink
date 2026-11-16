@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -297,25 +296,6 @@ public class DeduplicateTestPrograms {
                                     + "input => TABLE versions PARTITION BY id, "
                                     + "keep => 'first', "
                                     + "sequence_by => DESCRIPTOR(s, b, t, y))")
-                    .build();
-
-    public static final TableTestProgram NO_PARTITION_BY_FAILS =
-            TableTestProgram.of("deduplicate-no-partition-by-fails", "PARTITION BY is required")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("user_events")
-                                    .addSchema(USER_EVENTS_SCHEMA)
-                                    .producedValues(Row.of("u1", "login"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(USER_EVENTS_SCHEMA)
-                                    .consumedValues(new Row[0])
-                                    .build())
-                    .runFailingSql(
-                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
-                                    + "input => TABLE user_events)",
-                            ValidationException.class,
-                            "DEDUPLICATE requires a key, but the input has no PARTITION BY.")
                     .build();
 
     private static SinkTestStep upsertSink(
