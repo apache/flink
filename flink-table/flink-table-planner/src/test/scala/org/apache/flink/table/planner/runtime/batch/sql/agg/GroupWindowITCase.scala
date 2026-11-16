@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions, TableConfigOptions}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -399,6 +400,49 @@ class GroupWindowITCase extends BatchTestBase {
         row(localDateTime("2016-03-27 09:00:00.6"), localDateTime("2016-03-27 09:00:00.8"), 2),
         row(localDateTime("2016-03-27 09:00:00.64"), localDateTime("2016-03-27 09:00:00.84"), 1),
         row(localDateTime("2016-03-27 09:00:00.68"), localDateTime("2016-03-27 09:00:00.88"), 1)
+      )
+    )
+  }
+
+  @Test
+  def testSlidingWindowOnePhaseWithTimeAttributeAfterAggregateInput(): Unit = {
+    tEnv.getConfig
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.ONE_PHASE)
+    tEnv.getConfig.set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC")
+
+    registerCollection(
+      "T4",
+      Seq(row(1, 7000L, localDateTime("2001-09-09 01:46:40.0"))),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, LOCAL_DATE_TIME),
+      "k, v, rt")
+
+    checkResult(
+      """
+        |SELECT SUM(v), HOP_START(rt, INTERVAL '3' SECOND, INTERVAL '12' SECOND)
+        |FROM T4
+        |GROUP BY HOP(rt, INTERVAL '3' SECOND, INTERVAL '12' SECOND)
+      """.stripMargin,
+      Seq(
+        row(7000L, localDateTime("2001-09-09 01:46:30.0")),
+        row(7000L, localDateTime("2001-09-09 01:46:33.0")),
+        row(7000L, localDateTime("2001-09-09 01:46:36.0")),
+        row(7000L, localDateTime("2001-09-09 01:46:39.0"))
+      )
+    )
+
+    checkResult(
+      """
+        |SELECT k, SUM(v), HOP_START(rt, INTERVAL '3' SECOND, INTERVAL '12' SECOND)
+        |FROM T4
+        |GROUP BY k, HOP(rt, INTERVAL '3' SECOND, INTERVAL '12' SECOND)
+      """.stripMargin,
+      Seq(
+        row(1, 7000L, localDateTime("2001-09-09 01:46:30.0")),
+        row(1, 7000L, localDateTime("2001-09-09 01:46:33.0")),
+        row(1, 7000L, localDateTime("2001-09-09 01:46:36.0")),
+        row(1, 7000L, localDateTime("2001-09-09 01:46:39.0"))
       )
     )
   }
