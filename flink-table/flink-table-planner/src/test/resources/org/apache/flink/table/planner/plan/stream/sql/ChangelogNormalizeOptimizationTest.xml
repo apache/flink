@@ -33,7 +33,7 @@ LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fiel
 Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
 +- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -430,7 +430,7 @@ LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[
 Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
 +- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -451,7 +451,7 @@ LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[
 Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
 +- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -472,7 +472,7 @@ LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fiel
 Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
 +- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>

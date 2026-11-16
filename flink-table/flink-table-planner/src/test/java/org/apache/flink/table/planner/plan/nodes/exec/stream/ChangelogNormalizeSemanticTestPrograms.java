@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -349,4 +350,65 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t")
                     .build();
+
+    static final TableTestProgram UPSERT_SOURCE_WITH_PUSHED_NON_KEY_FILTER =
+            pushedNonKeyFilter(
+                            "upsert-with-pushed-non-key-filter",
+                            ChangelogMode.upsert(),
+                            Row.ofKind(RowKind.INSERT, "one", 1, "a"),
+                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 3, "a"),
+                            Row.ofKind(RowKind.INSERT, "two", 1, "b"))
+                    .build();
+
+    static final TableTestProgram KAFKA_SOURCE_WITH_PUSHED_NON_KEY_FILTER =
+            pushedNonKeyFilter(
+                            "kafka-with-pushed-non-key-filter",
+                            KAFKA_WITH_PARTIAL_DELETES_CHANGELOG,
+                            Row.ofKind(RowKind.INSERT, "one", 1, "a"),
+                            Row.ofKind(RowKind.DELETE, "one", null, null),
+                            Row.ofKind(RowKind.INSERT, "two", 1, "b"))
+                    .build();
+
+    static final TableTestProgram RETRACT_SOURCE_WITH_PUSHED_NON_KEY_FILTER =
+            pushedNonKeyFilter(
+                            "retract-with-pushed-non-key-filter",
+                            ChangelogMode.all(),
+                            Row.ofKind(RowKind.INSERT, "one", 1, "a"),
+                            Row.ofKind(RowKind.UPDATE_BEFORE, "one", 1, "a"),
+                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 3, "a"),
+                            Row.ofKind(RowKind.INSERT, "two", 1, "b"))
+                    .build();
+
+    static final TableTestProgram DUPLICATE_RETRACT_SOURCE_WITH_PUSHED_NON_KEY_FILTER =
+            pushedNonKeyFilter(
+                            "duplicate-retract-with-pushed-non-key-filter",
+                            ChangelogMode.all(),
+                            Row.ofKind(RowKind.INSERT, "one", 1, "a"),
+                            Row.ofKind(RowKind.UPDATE_BEFORE, "one", 1, "a"),
+                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 3, "a"),
+                            Row.ofKind(RowKind.INSERT, "two", 1, "b"))
+                    .setupConfig(
+                            ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+                    .build();
+
+    /** Row "one" is deleted or filtered out, so only row "two" stays. */
+    private static TableTestProgram.Builder pushedNonKeyFilter(
+            String id, ChangelogMode mode, Row... rows) {
+        return TableTestProgram.of(id, "validates a non key filter on a filterable source")
+                .setupTableSource(
+                        SourceTestStep.newBuilder("source_t")
+                                .addMode(mode)
+                                .addOption("filterable-fields", "b")
+                                .addSchema(SOURCE_SCHEMA)
+                                .producedValues(rows)
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("sink_t")
+                                .addMode(ChangelogMode.upsert())
+                                .addSchema(SINK_SCHEMA)
+                                .testMaterializedData()
+                                .consumedValues("+I[two, 1, b]")
+                                .build())
+                .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 3");
+    }
 }

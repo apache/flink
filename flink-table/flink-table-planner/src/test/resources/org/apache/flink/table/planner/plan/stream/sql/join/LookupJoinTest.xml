@@ -276,6 +276,57 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInnerJoinWithKeyConditionOnUpsertInput">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D ON U.age = D.id AND U.id > D.age AND D.name <> 'unknown']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.UsersSink], fields=[id, name])
++- LogicalProject(id=[$0], name=[$4])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
+      :- LogicalProject(id=[$0], age=[$1], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      +- LogicalFilter(condition=[AND(=($cor0.age, $0), >($cor0.id, $2), <>($1, _UTF-16LE'unknown'))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, Profiles]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.UsersSink], fields=[id, name], changelogMode=[NONE])
++- Calc(select=[id, name], changelogMode=[I,UA,D])
+   +- LookupJoin(table=[default_catalog.default_database.Profiles], joinType=[InnerJoin], lookup=[id=age], where=[<>(name, 'unknown')], joinCondition=[>(id, age0)], select=[id, age, id, name, age], upsertKey=[[0]], changelogMode=[I,UA,D])
+      +- DropUpdateBefore(changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[id, age], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithNonKeyConditionOnUpsertInput">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D ON U.id = D.id AND U.age > D.age]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.UsersSink], fields=[id, name])
++- LogicalProject(id=[$0], name=[$4])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
+      :- LogicalProject(id=[$0], age=[$1], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      +- LogicalFilter(condition=[AND(=($cor0.id, $0), >($cor0.age, $2))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, Profiles]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.UsersSink], fields=[id, name], changelogMode=[NONE])
++- Calc(select=[id, name], changelogMode=[I,UB,UA,D])
+   +- LookupJoin(table=[default_catalog.default_database.Profiles], joinType=[InnerJoin], lookup=[id=id], joinCondition=[>(age, age0)], select=[id, age, id0, name, age0], upsertKey=[[0]], changelogMode=[I,UB,UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[id, age], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinAsyncTableKeyOrderedWithAppendOnlySource">
     <Resource name="sql">
       <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * FROM (SELECT *, PROCTIME() AS proctime FROM AppendOnlyTable) AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id]]>
@@ -1529,6 +1580,32 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithNonKeyConditionOnUpsertInput">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO UsersSink SELECT U.id, D.name FROM Users AS U LEFT JOIN Profiles FOR SYSTEM_TIME AS OF U.proctime AS D ON U.id = D.id AND U.age > D.age]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.UsersSink], fields=[id, name])
++- LogicalProject(id=[$0], name=[$4])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 2}])
+      :- LogicalProject(id=[$0], age=[$1], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      +- LogicalFilter(condition=[AND(=($cor0.id, $0), >($cor0.age, $2))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, Profiles]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.UsersSink], fields=[id, name], changelogMode=[NONE])
++- Calc(select=[id, name], changelogMode=[I,UA,D])
+   +- LookupJoin(table=[default_catalog.default_database.Profiles], joinType=[LeftOuterJoin], lookup=[id=id], joinCondition=[>(age, age0)], select=[id, age, id0, name, age0], upsertKey=[[0]], changelogMode=[I,UA,D])
+      +- DropUpdateBefore(changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[id, age], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>

@@ -18,21 +18,27 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata.MetadataFilterResult;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.MetadataFilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.reuse.ScanReuserUtils;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
+import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
@@ -74,7 +80,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
     /**
      * Pushes physical-only and metadata-only predicates to their own abilities and keeps mixed ones
      * as runtime filters, so per FLIP-574 {@code applyFilters} never sees a metadata column.
-     * Returns {@code null} if nothing can be pushed.
+     * Non-key predicates of an updating source stay as runtime filters. Returns {@code null} if
+     * nothing can be pushed.
      */
     @Nullable
     protected FilterPushDownResult classifyAndPushFilters(
@@ -87,12 +94,35 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
         boolean supportsMetadataFilter = canPushdownMetadataFilter(tableSourceTable);
         List<String> metadataKeys = getReadMetadataKeys(tableSourceTable);
         int firstMetadataIndex = scan.getRowType().getFieldCount() - metadataKeys.size();
+        boolean sendsUpdates = sendsUpdatesOrDeletesByKey(tableSourceTable.tableSource());
+        Set<ImmutableBitSet> upsertKeys =
+                FlinkRelMetadataQuery.reuseOrCreate(scan.getCluster().getMetadataQuery())
+                        .getUpsertKeys(scan);
+        // eventTimeSnapshotRequired is only set after filter push-down
+        boolean changelogNormalized =
+                DynamicSourceUtils.changelogNormalizeEnabled(
+                        false,
+                        tableSourceTable.contextResolvedTable().getResolvedSchema(),
+                        tableSourceTable.tableSource(),
+                        ShortcutUtils.unwrapTableConfig(scan));
 
         List<RexNode> allRemainingRexNodes = new ArrayList<>();
         List<RexNode> physicalPredicates = new ArrayList<>();
         List<RexNode> metadataPredicates = new ArrayList<>();
         for (RexNode predicate : convertiblePredicates) {
-            FilterColumnKind kind = classifyColumns(predicate, firstMetadataIndex);
+            ImmutableBitSet columns = RelOptUtil.InputFinder.bits(predicate);
+            FilterColumnKind kind = classifyColumns(columns, firstMetadataIndex);
+            boolean onUpsertKey =
+                    upsertKeys != null
+                            && upsertKeys.stream().anyMatch(key -> key.contains(columns));
+            if (sendsUpdates && !onUpsertKey) {
+                // as a runtime filter it makes the planner keep UPDATE_BEFORE
+                allRemainingRexNodes.add(predicate);
+                // ChangelogNormalize must see every update
+                if (changelogNormalized) {
+                    continue;
+                }
+            }
             if (kind == FilterColumnKind.PHYSICAL_ONLY && supportsPhysicalFilter) {
                 physicalPredicates.add(predicate);
             } else if (kind == FilterColumnKind.METADATA_ONLY && supportsMetadataFilter) {
@@ -213,8 +243,16 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
         MIXED
     }
 
-    private static FilterColumnKind classifyColumns(RexNode predicate, int firstMetadataIndex) {
-        ImmutableBitSet columns = RelOptUtil.InputFinder.bits(predicate);
+    private static boolean sendsUpdatesOrDeletesByKey(DynamicTableSource source) {
+        if (!(source instanceof ScanTableSource)) {
+            return false;
+        }
+        ChangelogMode changelogMode = ((ScanTableSource) source).getChangelogMode();
+        return changelogMode.contains(RowKind.UPDATE_AFTER) || changelogMode.keyOnlyDeletes();
+    }
+
+    private static FilterColumnKind classifyColumns(
+            ImmutableBitSet columns, int firstMetadataIndex) {
         boolean referencesMetadata = columns.nextSetBit(firstMetadataIndex) >= 0;
         int lowestColumn = columns.nextSetBit(0);
         boolean referencesPhysical = lowestColumn >= 0 && lowestColumn < firstMetadataIndex;

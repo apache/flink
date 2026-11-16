@@ -98,6 +98,42 @@ Calc(select=[score, note, 'Tom' AS name, id], where=[AND(>(score, 90), =(name, '
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFilterPushedDownOnPartOfUpsertKey">
+    <Resource name="sql">
+      <![CDATA[select * from src where name <> 'Tom']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(score=[$0], name=[$1], id=[$2])
++- LogicalFilter(condition=[<>($1, _UTF-16LE'Tom')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+DropUpdateBefore(changelogMode=[I,UA])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[<>(name, _UTF-16LE'Tom':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[score, name, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushedDownWithoutUpsertKey">
+    <Resource name="sql">
+      <![CDATA[select * from src where name <> 'Tom']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], score=[$1], id=[$2])
++- LogicalFilter(condition=[<>($0, _UTF-16LE'Tom')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[name, score, id], where=[<>(name, 'Tom')], changelogMode=[I,UB,UA])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[<>(name, _UTF-16LE'Tom':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[name, score, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFilterSubsetOfUpsertKey">
     <Resource name="sql">
       <![CDATA[
