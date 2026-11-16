@@ -46,7 +46,8 @@ from pyflink.util.api_stability_decorators import Deprecated, PublicEvolving
 from pyflink.util.java_utils import to_jarray
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
-__all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
+__all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'PartitionedTable',
+           'WindowGroupedTable']
 
 
 @PublicEvolving()
@@ -204,6 +205,23 @@ class Table(object):
         :return: The grouped table.
         """
         return GroupedTable(self._j_table.groupBy(to_expression_jarray(fields)), self._t_env)
+
+    def partition_by(self, *fields: Expression) -> 'PartitionedTable':
+        """
+        Partitions the table by the given keys for a process table function with set semantics.
+        All rows of a key are processed by the same parallel instance.
+
+        Example:
+        ::
+
+            >>> tab.partition_by(col('key')).deduplicate()
+
+        :param fields: Partition keys.
+        :return: The partitioned table.
+        """
+        return PartitionedTable(
+            self._j_table.partitionBy(to_expression_jarray(fields)), self._t_env
+        )
 
     def distinct(self) -> 'Table':
         """
@@ -1424,6 +1442,46 @@ class GroupedTable(object):
             else:
                 func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+
+
+@PublicEvolving()
+class PartitionedTable(object):
+    """
+    A table that has been partitioned on a set of partition keys.
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def deduplicate(self, *arguments: Expression) -> 'Table':
+        """
+        Keeps one row per partition key using the built-in ``DEDUPLICATE`` process table
+        function. The result is an updating table with the partition columns as its upsert key.
+
+        ``keep => 'first'`` (default) keeps the earliest arrival or the smallest ``sequence_by``
+        value, ``keep => 'last'`` keeps the latest arrival or the greatest value.
+
+        Example:
+        ::
+
+            >>> import datetime
+            >>> from pyflink.table.expressions import col, descriptor, lit
+            >>> # Keep the first delivery of each payment
+            >>> result = payments.partition_by(col('payment_id')).deduplicate()
+            >>> # Keep the version with the greatest 'lsn' per customer, with bounded retention
+            >>> result = customer_changes.partition_by(col('customer_id')).deduplicate(
+            ...     lit('last').as_argument('keep'),
+            ...     descriptor('lsn').as_argument('sequence_by'),
+            ...     lit(datetime.timedelta(days=1)).as_argument('state_ttl')
+            ... )
+
+        :param arguments: Optional named arguments for ``keep``, ``sequence_by``, ``state_ttl``,
+                          ``reset_ttl_on_duplicate``, and ``uid``.
+        :return: An updating :class:`~pyflink.table.Table` with the partition columns followed
+                 by the remaining input columns.
+        """
+        return Table(self._j_table.deduplicate(to_expression_jarray(arguments)), self._t_env)
 
 
 @PublicEvolving()
