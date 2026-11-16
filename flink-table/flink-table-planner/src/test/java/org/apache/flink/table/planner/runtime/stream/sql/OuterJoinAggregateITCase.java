@@ -22,6 +22,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
@@ -29,9 +30,9 @@ import org.apache.flink.types.Row;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,14 +94,13 @@ class OuterJoinAggregateITCase extends StreamingTestBase {
 
         @Override
         public Row map(Long index) throws Exception {
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
-            while (TestValuesTableFactory.getRawResults(sink).stream()
-                    .noneMatch(row -> Long.valueOf(3).equals(row.getField(2)))) {
-                if (System.nanoTime() >= deadline) {
-                    throw new IllegalStateException("Initial aggregate did not reach sink");
-                }
-                Thread.sleep(10);
-            }
+            CommonTestUtils.waitUtil(
+                    () ->
+                            TestValuesTableFactory.getRawResults(sink).stream()
+                                    .anyMatch(row -> Long.valueOf(3).equals(row.getField(2))),
+                    Duration.ofSeconds(60),
+                    Duration.ofMillis(10),
+                    "Initial aggregate did not reach sink");
             return Row.of(index == 0 ? 3 : -9);
         }
     }
