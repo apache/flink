@@ -528,6 +528,30 @@ class WatermarkOutputMultiplexerTest {
         assertThat(underlyingWatermarkOutput.activeUpdates).isZero();
     }
 
+    @Test
+    void allOutputsIdleCountsOnlyOutputsThatReportedIdleness() {
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(new RecordingWatermarkOutput());
+        assertThat(multiplexer.allOutputsIdle())
+                .as("without any output there is nothing that is not idle")
+                .isTrue();
+
+        multiplexer.registerNewOutput("silent");
+        final WatermarkOutput reporting = createDeferredOutput(multiplexer);
+        reporting.markIdle();
+        assertThat(multiplexer.allOutputsIdle())
+                .as("an output that never reported anything is not proven idle")
+                .isFalse();
+
+        multiplexer.unregisterOutput("silent");
+        assertThat(multiplexer.allOutputsIdle())
+                .as("a deferred report counts before the next periodic emit combines it")
+                .isTrue();
+
+        reporting.emitWatermark(new Watermark(1));
+        assertThat(multiplexer.allOutputsIdle()).isFalse();
+    }
+
     /** A {@link WatermarkOutput} that records everything it is asked to report. */
     private static final class RecordingWatermarkOutput implements WatermarkOutput {
 
