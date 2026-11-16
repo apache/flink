@@ -103,7 +103,7 @@ object PreValidateReWriter {
     val assignedFields = new util.HashSet[Integer]
 
     // validate partition fields first.
-    val partitionColumns = partitions.getList.map {
+    partitions.getList.foreach {
       node =>
         val id = node.asInstanceOf[SqlProperty].getKey
         validateUnsupportedCompositeColumn(id)
@@ -114,7 +114,6 @@ object PreValidateReWriter {
           calciteCatalogReader,
           relOptTable)
         validateField(assignedFields.add, id, targetField)
-        targetField
     }
 
     if (sqlInsert.getTargetColumnList == null) {
@@ -122,7 +121,8 @@ object PreValidateReWriter {
     }
 
     // validate partial insert columns.
-    val targetColumns = sqlInsert.getTargetColumnList.getList.map {
+    val targetColumnList = sqlInsert.getTargetColumnList
+    targetColumnList.getList.foreach {
       id =>
         val identifier = id.asInstanceOf[SqlIdentifier]
         validateUnsupportedCompositeColumn(identifier)
@@ -133,21 +133,17 @@ object PreValidateReWriter {
           calciteCatalogReader,
           relOptTable)
         validateField(assignedFields.add, identifier, targetField)
-        targetField
     }
 
     // unlisted columns are padded with NULL after validation, which requires them to be nullable
     for (targetField <- targetRowType.getFieldList) {
-      if (
-        !partitionColumns.contains(targetField) && !targetColumns.contains(targetField)
-        && !targetField.getType.isNullable
-      ) {
+      if (!assignedFields.contains(targetField.getIndex) && !targetField.getType.isNullable) {
         val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
         throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
       }
     }
 
-    validateColumnCount(sqlInsert.getSource, targetColumns.size)
+    validateColumnCount(sqlInsert.getSource, targetColumnList.size)
   }
 
   /**

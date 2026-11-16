@@ -18,10 +18,15 @@
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer
+import org.apache.flink.sql.parser.validate.FlinkSqlConformance
 import org.apache.flink.table.api._
+import org.apache.flink.table.planner.calcite.CalciteConfig
+import org.apache.flink.table.planner.delegation.FlinkSqlParserFactories
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
+import org.apache.calcite.config.Lex
+import org.apache.calcite.sql.parser.SqlParser
 import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
@@ -183,6 +188,7 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
       util.verifyRelPlanInsert(insert)
     } else {
       assertThatThrownBy(() => util.verifyRelPlanInsert(insert))
+        .isInstanceOf(classOf[TableException])
         .hasMessageContaining(
           "requires the primary sort key to be a time attribute in ascending order")
     }
@@ -192,13 +198,14 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
   def testPartialInsertWithInvalidStaticPartitionValue(): Unit = {
     util.tableEnv.executeSql(
       "CREATE TABLE date_partitioned_sink (a INT, dt DATE) PARTITIONED BY (dt) " +
-        "WITH ('connector' = 'filesystem', 'path' = '/non', 'format' = 'testcsv')")
+        "WITH ('connector' = 'values')")
     assertThatThrownBy(
       () =>
         util.verifyRelPlanInsert(
           "INSERT INTO date_partitioned_sink PARTITION (dt = TRUE) SELECT 1"))
-      .hasMessageContaining("Cast function cannot convert value of type BOOLEAN to type DATE")
       .isInstanceOf(classOf[ValidationException])
+      .hasMessage("SQL validation failed. From line 0, column 0 to line 1, column 54: " +
+        "Cast function cannot convert value of type BOOLEAN to type DATE")
   }
 
   @TestTemplate
@@ -227,8 +234,23 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
         util.verifyRelPlanInsert(
           "INSERT INTO partitioned_sink PARTITION(`c`='2021') (c,e) " +
             "SELECT c,e FROM MyTable"))
-      .hasMessageContaining("Target column 'c' is assigned more than once")
       .isInstanceOf(classOf[ValidationException])
+      .hasMessage("SQL validation failed. At line 1, column 53: " +
+        "Target column 'c' is assigned more than once")
+  }
+
+  @TestTemplate
+  def testPartialInsertWithCaseInsensitiveColumnNames(): Unit = {
+    val parserConfig = SqlParser
+      .config()
+      .withParserFactory(FlinkSqlParserFactories.create(FlinkSqlConformance.DEFAULT))
+      .withConformance(FlinkSqlConformance.DEFAULT)
+      .withLex(Lex.JAVA)
+      .withIdentifierMaxLength(256)
+      .withCaseSensitive(false)
+    util.tableEnv.getConfig.setPlannerConfig(
+      CalciteConfig.createBuilder().replaceSqlParserConfig(parserConfig).build())
+    util.verifyRelPlanInsert("INSERT INTO sink (B, A) SELECT b, a FROM MyTable")
   }
 
   @TestTemplate

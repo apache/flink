@@ -45,10 +45,11 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.tools.RelBuilder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -86,51 +87,50 @@ public final class PartialInsertUtil {
         final FlinkTypeFactory typeFactory = (FlinkTypeFactory) cluster.getTypeFactory();
         final RowType sinkRowType = (RowType) sinkSchema.toSinkRowDataType().getLogicalType();
 
-        final Map<String, SqlLiteral> partitionValues = new HashMap<>();
+        final List<RowType.RowField> sinkFields = sinkRowType.getFields();
+        final Map<String, Integer> sinkFieldIndices =
+                createSinkFieldIndices(planner, sinkRowType.getFieldNames());
+
+        final SqlLiteral[] partitionValues = new SqlLiteral[sinkFields.size()];
         for (SqlNode node : staticPartitions) {
             final SqlProperty property = (SqlProperty) node;
-            partitionValues.put(property.getKey().getSimple(), (SqlLiteral) property.getValue());
+            partitionValues[resolve(sinkFieldIndices, property.getKey())] =
+                    (SqlLiteral) property.getValue();
         }
 
-        final List<String> targetColumns;
+        // query column per sink column, -1 for an unlisted column
+        final int[] queryColumns;
         if (targetColumnList == null) {
-            targetColumns = null;
+            queryColumns = null;
         } else {
-            targetColumns =
-                    targetColumnList.stream()
-                            .map(column -> ((SqlIdentifier) column).getSimple())
-                            .collect(Collectors.toList());
             // PreValidateReWriter can only check this before validation for sources whose column
             // count is known syntactically, so not for a SELECT *.
-            if (targetColumns.size() != queryColumnCount) {
+            if (targetColumnList.size() != queryColumnCount) {
                 throw validationError(
                         SqlUtil.newContextException(
                                 insert.getSource().getParserPosition(),
                                 RESOURCE.columnCountMismatch()));
             }
+            queryColumns = new int[sinkFields.size()];
+            Arrays.fill(queryColumns, -1);
+            for (int i = 0; i < targetColumnList.size(); i++) {
+                queryColumns[resolve(sinkFieldIndices, (SqlIdentifier) targetColumnList.get(i))] =
+                        i;
+            }
         }
-
-        // PreValidateReWriter resolved these names against the same schema. An unresolved name
-        // here would pad the sink column with NULL and drop the query column.
-        final List<String> sinkFieldNames = sinkRowType.getFieldNames();
-        checkState(
-                sinkFieldNames.containsAll(partitionValues.keySet())
-                        && (targetColumns == null || sinkFieldNames.containsAll(targetColumns)),
-                "Unresolved target column for sink columns %s",
-                sinkFieldNames);
 
         final List<RexNode> projects = new ArrayList<>();
         final List<String> fieldNames = new ArrayList<>();
-        boolean projectionNeeded = !partitionValues.isEmpty();
+        boolean projectionNeeded = !staticPartitions.isEmpty();
         int nextQueryColumn = 0;
-        for (RowType.RowField field : sinkRowType.getFields()) {
+        for (int i = 0; i < sinkFields.size(); i++) {
+            final RowType.RowField field = sinkFields.get(i);
             final RelDataType fieldType =
                     typeFactory.createFieldTypeFromLogicalType(field.getType());
-            final SqlLiteral partitionValue = partitionValues.get(field.getName());
-            if (partitionValue != null) {
-                projects.add(convertStaticPartitionValue(planner, partitionValue, fieldType));
-            } else if (targetColumns != null) {
-                final int queryColumn = targetColumns.indexOf(field.getName());
+            if (partitionValues[i] != null) {
+                projects.add(convertStaticPartitionValue(planner, partitionValues[i], fieldType));
+            } else if (queryColumns != null) {
+                final int queryColumn = queryColumns[i];
                 if (queryColumn < 0) {
                     // PreValidateReWriter has verified that the column is nullable
                     projects.add(rexBuilder.makeNullLiteral(fieldType));
@@ -151,7 +151,7 @@ public final class PartialInsertUtil {
             fieldNames.add(field.getName());
         }
         // surplus query columns are kept so that the sink validation reports the mismatch
-        while (targetColumns == null && nextQueryColumn < queryColumnCount) {
+        while (queryColumns == null && nextQueryColumn < queryColumnCount) {
             projects.add(rexBuilder.makeInputRef(queryRel, nextQueryColumn));
             fieldNames.add(queryRel.getRowType().getFieldNames().get(nextQueryColumn));
             nextQueryColumn++;
@@ -166,6 +166,29 @@ public final class PartialInsertUtil {
         return new PlannerQueryOperation(
                 projected,
                 () -> OperationConverterUtils.getQuotedSqlString(insert.getSource(), planner));
+    }
+
+    /** Indexes the sink columns by name with the validator's case sensitivity. */
+    private static Map<String, Integer> createSinkFieldIndices(
+            FlinkPlannerImpl planner, List<String> sinkFieldNames) {
+        final boolean caseSensitive =
+                planner.getOrCreateSqlValidator()
+                        .getCatalogReader()
+                        .nameMatcher()
+                        .isCaseSensitive();
+        // first match wins, like RelDataType#getField
+        final Map<String, Integer> indices =
+                caseSensitive ? new HashMap<>() : new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (int i = 0; i < sinkFieldNames.size(); i++) {
+            indices.putIfAbsent(sinkFieldNames.get(i), i);
+        }
+        return indices;
+    }
+
+    private static int resolve(Map<String, Integer> sinkFieldIndices, SqlIdentifier column) {
+        final Integer index = sinkFieldIndices.get(column.getSimple());
+        checkState(index != null, "Unresolved target column %s", column);
+        return index;
     }
 
     private static RexNode convertStaticPartitionValue(
