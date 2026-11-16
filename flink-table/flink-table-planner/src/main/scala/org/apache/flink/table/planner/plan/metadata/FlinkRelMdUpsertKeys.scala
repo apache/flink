@@ -121,11 +121,11 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   /**
-   * A streaming Top-N that outputs the rank number emits its changelog per (partition key, rank
-   * number). Each rank is a slot: an update of a slot overwrites the row that held it before, and a
-   * row that changes rank or drops out of the Top-N only gets an UPDATE_BEFORE at its old rank,
-   * never a DELETE. So an input upsert key such as `id` is no upsert key of the output, unless it
-   * is part of the partition key: then each partition holds a single row, always at rank 1.
+   * A streaming Top-N that outputs the rank number or starts after rank 1 emits its changes per
+   * rank: each change says which row now holds a rank, so the changes of one row are spread over
+   * the ranks it leaves and enters. An input upsert key such as `id` then stays an upsert key only
+   * if it is part of the partition key, because each partition holds a single row. Otherwise the
+   * Top-N emits an insert or delete per row and keeps its input upsert keys.
    *
    * The (partition key, rank number) key is added by [[FlinkRelMdUniqueKeys.getRankUniqueKeys]].
    * Window Top-N is insert-only and keeps all input upsert keys.
@@ -135,7 +135,7 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       inputUpsertKeys: JSet[ImmutableBitSet]): JSet[ImmutableBitSet] =
     rel match {
       case _: StreamPhysicalWindowRank => inputUpsertKeys
-      case _ if inputUpsertKeys != null && rel.outputRankNumber =>
+      case _ if inputUpsertKeys != null && RankUtil.emitsChangelogPerRank(rel) =>
         inputUpsertKeys.filter(rel.partitionKey.contains)
       case _ => inputUpsertKeys
     }
