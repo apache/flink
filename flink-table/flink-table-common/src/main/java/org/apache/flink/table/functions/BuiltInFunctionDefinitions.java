@@ -38,6 +38,7 @@ import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TraitCondition;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
@@ -968,6 +969,31 @@ public final class BuiltInFunctionDefinitions {
                                             StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)))
                     .outputTypeStrategy(argument(0))
                     .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition DEDUPLICATE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DEDUPLICATE")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES)),
+                            StaticArgument.scalar("keep", DataTypes.STRING(), true),
+                            StaticArgument.scalar("sequence_by", DataTypes.DESCRIPTOR(), true),
+                            StaticArgument.scalar(
+                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true),
+                            StaticArgument.scalar(
+                                    "reset_ttl_on_duplicate", DataTypes.BOOLEAN(), true))
+                    .changelogModeStrategy(DeduplicateTypeStrategy.CHANGELOG_MODE_STRATEGY)
+                    .inputTypeStrategy(DeduplicateTypeStrategy.INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(DeduplicateTypeStrategy.OUTPUT_TYPE_STRATEGY)
+                    .runtimeClass("org.apache.flink.table.runtime.functions.ptf.Deduplicate")
                     .build();
 
     /**

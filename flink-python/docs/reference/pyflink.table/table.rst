@@ -110,6 +110,7 @@ Example:
     Table.offset
     Table.order_by
     Table.over_window
+    Table.partition_by
     Table.print_schema
     Table.rename_columns
     Table.right_outer_join
@@ -134,6 +135,19 @@ A table that has been grouped on a set of grouping keys.
     GroupedTable.select
     GroupedTable.aggregate
     GroupedTable.flat_aggregate
+
+
+PartitionedTable
+================
+
+A table that has been partitioned on a set of partition keys.
+
+.. currentmodule:: pyflink.table
+
+.. autosummary::
+    :toctree: api/
+
+    PartitionedTable.deduplicate
 
 
 GroupWindowedTable
