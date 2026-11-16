@@ -49,6 +49,10 @@ current catalog and database. The freshness is optional and defaults to
 The refresh mode is derived from the freshness, unless a [`MaterializedTableDescriptor`](#declaring-a-materialized-table) declares it (see [Refresh Mode]({{< ref "docs/sql/materialized-table/overview" >}}#refresh-mode)).
 Full refresh mode needs a workflow scheduler and cannot be used from a plain `TableEnvironment`.
 
+`execute()` uses the default `CreateMode.createOrAlter()`. It creates the materialized table, or
+redeploys it if it already exists (see [Redeploying](#redeploying)).
+`execute(CreateMode.failIfExists())` instead fails if a table or view already exists at the path.
+
 # Declaring a Materialized Table
 
 By using a `MaterializedTableDescriptor` the clauses of the materialized table that the query

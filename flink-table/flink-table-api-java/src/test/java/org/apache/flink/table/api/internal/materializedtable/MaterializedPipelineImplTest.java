@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.internal.materializedtable;
 
+import org.apache.flink.table.api.CreateMode;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.MaterializedPipeline;
 import org.apache.flink.table.api.Schema;
@@ -86,20 +87,29 @@ class MaterializedPipelineImplTest {
         assertThat(getPermanentTableKind()).contains(TableKind.TABLE);
     }
 
-    @Test
-    void temporaryTableAtThePathIsRejected() throws Exception {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("createModesWithVerbs")
+    void temporaryTableAtThePathIsRejected(CreateMode mode, String verb) throws Exception {
         tEnv.createTemporaryTable("mt", TABLE_DESCRIPTOR);
         final MaterializedPipeline pipeline = tEnv.from("source").materializeInto("mt");
 
-        assertThatThrownBy(pipeline::execute)
+        assertThatThrownBy(() -> pipeline.execute(mode))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
-                        "Cannot create or alter materialized table default_catalog.default_database.mt,"
+                        "Cannot "
+                                + verb
+                                + " materialized table default_catalog.default_database.mt,"
                                 + " because a temporary table or view with the same identifier"
                                 + " exists and would shadow it. Drop the temporary object first.");
 
         assertThat(tEnv.listTemporaryTables()).containsExactly("mt");
         assertThat(getPermanentTableKind()).isEmpty();
+    }
+
+    private static Stream<Arguments> createModesWithVerbs() {
+        return Stream.of(
+                Arguments.of(CreateMode.createOrAlter(), "create or alter"),
+                Arguments.of(CreateMode.failIfExists(), "create"));
     }
 
     @ParameterizedTest(name = "{0}")

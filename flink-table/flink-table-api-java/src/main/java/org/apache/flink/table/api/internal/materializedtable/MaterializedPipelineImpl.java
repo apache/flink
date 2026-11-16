@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.internal.materializedtable;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.CreateMode;
 import org.apache.flink.table.api.MaterializedPipeline;
 import org.apache.flink.table.api.MaterializedTable;
 import org.apache.flink.table.api.MaterializedTableDescriptor;
@@ -88,25 +89,37 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
 
     @Override
     public MaterializedTable execute() {
-        tableEnvironment.executeInternal(buildOperation());
+        return execute(CreateMode.createOrAlter());
+    }
+
+    @Override
+    public MaterializedTable execute(CreateMode mode) {
+        Preconditions.checkNotNull(mode, "Create mode must not be null.");
+        final Mode finalOperationMode = toFactoryMode(mode);
+        tableEnvironment.executeInternal(buildOperation(finalOperationMode));
         return new MaterializedTableImpl(identifier);
     }
 
-    private Operation buildOperation() {
+    private Operation buildOperation(Mode factoryMode) {
         final CatalogManager catalogManager = tableEnvironment.getCatalogManager();
         if (catalogManager.isTemporaryTable(identifier)) {
             throw new ValidationException(
                     String.format(
-                            "Cannot create or alter materialized table %s, because a temporary table or view with the same identifier exists and would shadow it. Drop the temporary object first.",
+                            "Cannot %s materialized table %s, because a temporary table or view with the same identifier exists and would shadow it. Drop the temporary object first.",
+                            factoryMode == Mode.CREATE ? "create" : "create or alter",
                             identifier.asSummaryString()));
         }
-        final Optional<ResolvedCatalogBaseTable<?>> existing =
-                catalogManager.getCatalogBaseTable(identifier);
-        if (existing.isPresent() && existing.get().getTableKind() == TableKind.TABLE) {
-            throw new ValidationException(
-                    String.format(
-                            "Cannot create or alter materialized table %s, because a regular table with the same identifier exists. Table#materializeInto does not support regular table conversion.",
-                            identifier.asSummaryString()));
+
+        // Under CREATE the catalog rejects any permanent object at the path.
+        if (factoryMode == Mode.CREATE_OR_ALTER) {
+            final Optional<ResolvedCatalogBaseTable<?>> existing =
+                    catalogManager.getCatalogBaseTable(identifier);
+            if (existing.isPresent() && existing.get().getTableKind() == TableKind.TABLE) {
+                throw new ValidationException(
+                        String.format(
+                                "Cannot create or alter materialized table %s, because a regular table with the same identifier exists. Table#materializeInto does not support regular table conversion.",
+                                identifier.asSummaryString()));
+            }
         }
         // A query statement parses to exactly one query operation.
         final QueryOperation storedQueryOperation =
@@ -114,9 +127,31 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
         return new MaterializedTableOperationFactory(catalogManager, tableEnvironment.getConfig())
                 .build(
                         identifier,
-                        Mode.CREATE_OR_ALTER,
+                        factoryMode,
                         new DescriptorMaterializedTableMergeContext(
-                                descriptor, storedQueryOperation, serializedQuery, catalogManager));
+                                descriptor,
+                                storedQueryOperation,
+                                serializedQuery,
+                                catalogManager,
+                                factoryMode == Mode.CREATE
+                                        ? "CREATE MATERIALIZED TABLE"
+                                        : "CREATE OR ALTER MATERIALIZED TABLE"));
+    }
+
+    private Mode toFactoryMode(CreateMode mode) {
+        final Mode factoryMode;
+        switch (mode.getKind()) {
+            case CREATE_OR_ALTER:
+                factoryMode = Mode.CREATE_OR_ALTER;
+                break;
+            case FAIL_IF_EXISTS:
+                factoryMode = Mode.CREATE;
+                break;
+            default:
+                throw new TableException("Unsupported create mode: " + mode);
+        }
+
+        return factoryMode;
     }
 
     @Override
