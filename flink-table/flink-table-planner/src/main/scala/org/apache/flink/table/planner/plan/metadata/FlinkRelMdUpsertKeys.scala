@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalL
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil, UpsertKeyUtil}
+import org.apache.flink.table.runtime.operators.rank.AbstractTopNFunction
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -122,26 +123,29 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
 
   /**
    * A streaming Top-N emits its changes in one of two ways:
-   *   - Per row, when the rank number is not in the output and the range starts at rank 1. A row
-   *     that enters gets an INSERT. A row that drops out gets a DELETE. Input upsert keys such as
-   *     `id` stay valid.
-   *   - Per rank, when the rank number is in the output or the range starts after rank 1. Each
-   *     change says which row now holds a rank. So the changes of one `id` are spread over several
-   *     ranks. Then `id` is an upsert key only if it is part of the partition key. In that case
-   *     each partition holds one row.
+   *   - Per row, when the rank number is not in the output and the Top-N includes rank 1, e.g. the
+   *     top 3. A row that enters gets an INSERT. A row that drops out gets a DELETE. Input upsert
+   *     keys such as `id` stay valid.
+   *   - Per rank, when the rank number is in the output or the Top-N skips the first ranks, e.g.
+   *     only ranks 2 to 3. Each change says which row now holds a rank. So the changes of one `id`
+   *     are spread over several ranks. Then `id` is an upsert key only if it is part of the
+   *     partition key. In that case each partition holds one row.
    *
    * The (partition key, rank number) key is added by [[FlinkRelMdUniqueKeys.getRankUniqueKeys]].
    * Window Top-N is insert-only and keeps all input upsert keys.
    */
   private def inputUpsertKeysKeptByRank(
       rel: Rank,
-      inputUpsertKeys: JSet[ImmutableBitSet]): JSet[ImmutableBitSet] =
+      inputUpsertKeys: JSet[ImmutableBitSet]): JSet[ImmutableBitSet] = {
+    val emitsChangelogPerRank =
+      AbstractTopNFunction.emitsChangelogPerRank(rel.rankRange, rel.outputRankNumber)
     rel match {
       case _: StreamPhysicalWindowRank => inputUpsertKeys
-      case _ if inputUpsertKeys != null && RankUtil.emitsChangelogPerRank(rel) =>
+      case _ if inputUpsertKeys != null && emitsChangelogPerRank =>
         inputUpsertKeys.filter(rel.partitionKey.contains)
       case _ => inputUpsertKeys
     }
+  }
 
   def getUpsertKeys(rel: Sort, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)

@@ -384,19 +384,6 @@ object RankUtil {
   }
 
   /**
-   * Whether a streaming Top-N emits its changes per rank instead of per row, matching the choice in
-   * [[AbstractTopNFunction]] implementations: it does so when it outputs the rank number or starts
-   * after rank 1.
-   */
-  def emitsChangelogPerRank(rank: Rank): Boolean = {
-    val hasOffset = rank.rankRange match {
-      case range: ConstantRankRange => range.getRankStart > 1
-      case _ => false
-    }
-    rank.outputRankNumber || hasOffset
-  }
-
-  /**
    * Whether the given rank is a deduplication ordered by a single time attribute. Any other
    * deduplication is executed as a regular Top-1 Rank that retracts the previously kept row.
    */

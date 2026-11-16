@@ -156,7 +156,7 @@ public class RetractableTopNFunction extends AbstractSyncStateTopNFunction {
             }
 
             // emit
-            if (outputRankNumber || hasOffset()) {
+            if (emitsChangelogPerRank) {
                 // the without-number-algorithm can't handle topN with offset,
                 // so use the with-number-algorithm to handle offset
                 emitRecordsWithRowNumber(sortedMap, sortKey, input, out);
@@ -174,7 +174,7 @@ public class RetractableTopNFunction extends AbstractSyncStateTopNFunction {
         } else {
             final boolean stateRemoved;
             // emit updates first
-            if (outputRankNumber || hasOffset()) {
+            if (emitsChangelogPerRank) {
                 // the without-number-algorithm can't handle topN with offset,
                 // so use the with-number-algorithm to handle offset
                 stateRemoved = retractRecordWithRowNumber(sortedMap, sortKey, input, out);

@@ -72,6 +72,8 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected final boolean outputRankNumber;
 
+    protected final boolean emitsChangelogPerRank;
+
     protected final InternalTypeInfo<RowData> inputRowType;
 
     protected final KeySelector<RowData, RowData> sortKeySelector;
@@ -150,7 +152,19 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         this.generateUpdateBefore = generateUpdateBefore;
         this.inputRowType = inputRowType;
         this.outputRankNumber = outputRankNumber;
+        this.emitsChangelogPerRank = emitsChangelogPerRank(rankRange, outputRankNumber);
         this.sortKeySelector = sortKeySelector;
+    }
+
+    /**
+     * Whether a Top-N emits its changes per rank instead of per row. This is the case when it
+     * outputs the rank number, or when it skips the first ranks, e.g. only ranks 2 to 3. The
+     * per-row algorithm cannot handle skipped ranks.
+     */
+    public static boolean emitsChangelogPerRank(RankRange rankRange, boolean outputRankNumber) {
+        return outputRankNumber
+                || (rankRange instanceof ConstantRankRange
+                        && ((ConstantRankRange) rankRange).getRankStart() > 1);
     }
 
     @Override
@@ -280,11 +294,6 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected boolean isInRankRange(long rank, long rankEnd) {
         return rank <= rankEnd && rank >= rankStart;
-    }
-
-    protected boolean hasOffset() {
-        // rank start is 1-based
-        return rankStart > 1;
     }
 
     private RowData createOutputRow(RowData inputRow, long rank, RowKind rowKind) {
