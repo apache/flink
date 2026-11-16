@@ -32,7 +32,6 @@ import java.math.BigDecimal;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalMinus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalPlus;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.and;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
@@ -93,10 +92,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum= */ ifThenElse(
-                    and(isNull(mergeOperand(sum)), equalTo(mergeOperand(count), literal(0L))),
-                    sum,
-                    adjustedPlus(sum, mergeOperand(sum))),
+            /* sum= */ adjustedPlus(sum, mergeOperand(sum)),
             /* count= */ plus(count, mergeOperand(count))
         };
     }

@@ -24,9 +24,13 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link HashAggITCase} with adaptive local hash aggregation enabled. */
 class AdaptiveLocalHashAggITCase extends HashAggITCase {
@@ -36,9 +40,12 @@ class AdaptiveLocalHashAggITCase extends HashAggITCase {
         return true;
     }
 
-    @Test
-    void testAvgNullAfterAdaptiveBypass() {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testAvgNullAfterAdaptiveBypass(boolean fusion) {
         env().setParallelism(1);
+        tEnv().getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, fusion);
         tEnv().getConfig()
                 .set(
                         ExecutionConfigOptions
@@ -63,9 +70,26 @@ class AdaptiveLocalHashAggITCase extends HashAggITCase {
                                 + "'enable-aggregate-push-down' = 'false', 'data-id' = '"
                                 + dataId
                                 + "')");
-        checkResult(
+        String query =
                 "SELECT g, AVG(x), AVG(d), AVG(CAST(x AS DECIMAL(10, 2))), SUM(x), COUNT(x)"
-                        + " FROM avg_input GROUP BY g",
+                        + " FROM avg_input GROUP BY g";
+        if (fusion) {
+            String dimensionId =
+                    TestValuesTableFactory.registerData(
+                            Arrays.asList(Row.of(1), Row.of(2), Row.of(3)));
+            tEnv().executeSql(
+                            "CREATE TABLE dim (id INT) WITH ('connector' = 'values', 'bounded' = 'true',"
+                                    + " 'data-id' = '"
+                                    + dimensionId
+                                    + "')");
+            query =
+                    "SELECT /*+ BROADCAST(dim) */ a.g, AVG(x), AVG(d),"
+                            + " AVG(CAST(x AS DECIMAL(10, 2))), SUM(x), COUNT(x)"
+                            + " FROM avg_input a JOIN dim ON a.g = dim.id GROUP BY a.g";
+            assertThat(tEnv().explainSql(query)).contains("members=[\\nLocalHashAggregate");
+        }
+        checkResult(
+                query,
                 JavaScalaConversionUtil.toScala(
                         Arrays.asList(
                                 Row.of(1, 5, 5.0, new BigDecimal("5.000000"), 5, 1L),
