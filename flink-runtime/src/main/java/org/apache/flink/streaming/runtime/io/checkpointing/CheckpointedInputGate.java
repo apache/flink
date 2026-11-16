@@ -132,7 +132,6 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
                         () -> {
                             try {
                                 mailboxExecutor.execute(
-                                        MailboxExecutor.MailOptions.urgent(),
                                         this::processPriorityEvents,
                                         "process priority event @ gate %s",
                                         inputGate);
