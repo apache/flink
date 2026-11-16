@@ -15,10 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 import json
 
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.expressions import col, descriptor, lit
 
 
 class StreamTableExplainTests(PyFlinkStreamTableTestCase):
@@ -43,6 +45,20 @@ class StreamTableExplainTests(PyFlinkStreamTableTestCase):
             json.loads(result.split('== Physical Execution Plan ==')[1])
         except:
             self.fail('The execution plan of explain detail is not in json format.')
+
+    def test_explain_deduplicate(self):
+        payments = self.t_env.from_elements([('p1', 50)], ['payment_id', 'amount'])
+        result = payments.partition_by(col('payment_id')).deduplicate().explain()
+        self.assertGreaterEqual(result.find('DEDUPLICATE'), 0)
+
+        customer_changes = self.t_env.from_elements(
+            [('c1', 'Berlin', 100)], ['customer_id', 'city', 'lsn'])
+        result = customer_changes.partition_by(col('customer_id')).deduplicate(
+            lit('last').as_argument('keep'),
+            descriptor('lsn').as_argument('sequence_by'),
+            lit(datetime.timedelta(days=1)).as_argument('state_ttl')
+        ).explain()
+        self.assertGreaterEqual(result.find('DEDUPLICATE'), 0)
 
 
 if __name__ == '__main__':
