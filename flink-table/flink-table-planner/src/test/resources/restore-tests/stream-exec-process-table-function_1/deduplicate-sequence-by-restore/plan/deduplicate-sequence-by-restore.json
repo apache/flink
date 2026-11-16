@@ -1,0 +1,168 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 9,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`customer_changes`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "customer_id",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "city",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "lsn",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, customer_changes]], fields=[customer_id, city, lsn])"
+  }, {
+    "id" : 10,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT>",
+    "description" : "Exchange(distribution=[hash[customer_id]])"
+  }, {
+    "id" : 11,
+    "type" : "stream-exec-process-table-function_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT>",
+    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'first', DESCRIPTOR(_UTF-16LE'lsn'), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[customer_id,city,lsn], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])",
+    "uid" : "DEDUPLICATE",
+    "functionCall" : {
+      "kind" : "CALL",
+      "internalName" : "$DEDUPLICATE$1",
+      "operands" : [ {
+        "kind" : "TABLE_ARG_CALL",
+        "inputIndex" : 0,
+        "partitionKeys" : [ 0 ],
+        "type" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT> NOT NULL"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "first",
+        "type" : "CHAR(5) NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "internalName" : "$DESCRIPTOR$1",
+        "operands" : [ {
+          "kind" : "LITERAL",
+          "value" : "lsn",
+          "type" : "CHAR(3) NOT NULL"
+        } ],
+        "type" : "DESCRIPTOR NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "INTERVAL SECOND(6)"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT> NOT NULL"
+    },
+    "inputChangelogModes" : [ [ "INSERT" ] ],
+    "outputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKeys" : [ [ ] ]
+  }, {
+    "id" : 12,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "customer_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "city",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "lsn",
+              "dataType" : "BIGINT"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_customer_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "customer_id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[customer_id, city, lsn])"
+  } ],
+  "edges" : [ {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
