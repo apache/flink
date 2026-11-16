@@ -27,6 +27,7 @@ import org.apache.flink.formats.protobuf.serialize.PbCodegenSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors.FieldDescriptor;
+import org.apache.commons.text.StringEscapeUtils;
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,7 +185,10 @@ public class PbCodegenUtils {
             case LONG:
                 return "0L";
             case STRING:
-                return "\"" + nullLiteral + "\"";
+                // unescape keeps old behavior: option \"NULL\" still writes "NULL"
+                return "\""
+                        + StringEscapeUtils.escapeJava(StringEscapeUtils.unescapeJava(nullLiteral))
+                        + "\"";
             case ENUM:
                 return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType())
                         + ".values()[0]";
