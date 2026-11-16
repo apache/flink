@@ -64,8 +64,18 @@ public interface MaterializedPipeline {
      * metadata columns that the schema no longer declares, and keeps its primary key unless the
      * schema declares one.
      *
+     * <p>Equivalent to {@code execute(CreateMode.createOrAlter())}.
+     *
      * <p>Returns once the catalog entry is written and, if a continuous refresh job is started,
      * once that job has been submitted.
      */
     MaterializedTable execute();
+
+    /**
+     * Submits this declaration in the given mode. With {@link CreateMode#createOrAlter()}, this is
+     * {@link #execute()}. With {@link CreateMode#failIfExists()}, it fails with a {@link
+     * ValidationException} if a table or view already exists at the path. In this case the existing
+     * object is not changed, and no refresh job is started.
+     */
+    MaterializedTable execute(CreateMode mode);
 }

@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.table.api.CreateMode;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.MaterializedPipeline;
@@ -71,6 +73,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
@@ -244,7 +247,7 @@ class MaterializedTableTableApiITCase {
                                         .continuousRefresh()
                                         .build());
 
-        final MaterializedTable materializedTable = pipeline.execute();
+        final MaterializedTable materializedTable = pipeline.execute(CreateMode.failIfExists());
 
         assertThat(materializedTable.getIdentifier()).isEqualTo(USERS_SHOPS);
         final ResolvedCatalogMaterializedTable actualMaterializedTable = getUsersShops();
@@ -419,6 +422,58 @@ class MaterializedTableTableApiITCase {
                                 USERS_SHOPS.asSummaryString()));
 
         assertThat(catalog.tableExists(USERS_SHOPS.toObjectPath())).isFalse();
+    }
+
+    @Test
+    void testRegularTableAndViewAtThePathAreRejected() throws Exception {
+        tEnv.createTable(
+                "existing_table",
+                TableDescriptor.forConnector("datagen")
+                        .schema(Schema.newBuilder().column("id", DataTypes.BIGINT()).build())
+                        .build());
+        tEnv.createView("existing_view", tEnv.from("datagenSource"));
+        final Set<JobID> jobsBefore = listJobIds();
+
+        assertThatThrownBy(
+                        () ->
+                                usersShopsQuery()
+                                        .materializeInto("existing_table")
+                                        .execute(CreateMode.failIfExists()))
+                .isInstanceOf(ValidationException.class)
+                .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
+                .extracting(Throwable::getMessage)
+                .containsExactly(
+                        "Could not execute CreateTable in path `test_catalog`.`test_db`.`existing_table`",
+                        "Table (or view) test_db.existing_table already exists in Catalog test_catalog.");
+        assertThatThrownBy(
+                        () ->
+                                usersShopsQuery()
+                                        .materializeInto("existing_view")
+                                        .execute(CreateMode.failIfExists()))
+                .isInstanceOf(ValidationException.class)
+                .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
+                .extracting(Throwable::getMessage)
+                .containsExactly(
+                        "Could not execute CreateTable in path `test_catalog`.`test_db`.`existing_view`",
+                        "Table (or view) test_db.existing_view already exists in Catalog test_catalog.");
+        // A view under createOrAlter() is rejected by the factory. The regular-table case is
+        // rejected before planning and covered in MaterializedPipelineImplTest.
+        assertThatThrownBy(
+                        () ->
+                                usersShopsQuery()
+                                        .materializeInto("existing_view")
+                                        .execute(CreateMode.createOrAlter()))
+                .isInstanceOf(ValidationException.class)
+                .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
+                .extracting(Throwable::getMessage)
+                .containsExactly(
+                        "Catalog object test_catalog.test_db.existing_view of kind VIEW does not"
+                                + " support the CREATE OR ALTER MATERIALIZED TABLE operation.");
+        assertThat(catalog.getTable(new ObjectPath(DATABASE, "existing_table")).getTableKind())
+                .isSameAs(TableKind.TABLE);
+        assertThat(catalog.getTable(new ObjectPath(DATABASE, "existing_view")).getTableKind())
+                .isSameAs(TableKind.VIEW);
+        assertThat(listJobIds()).isEqualTo(jobsBefore);
     }
 
     @Test
@@ -925,6 +980,30 @@ class MaterializedTableTableApiITCase {
         assertThat(newTable.getOptions()).isEqualTo(Map.of("sink-insert-only", "false"));
         assertThat(oldTable.getDistribution()).isPresent();
         assertThat(newTable.getDistribution()).isEmpty();
+    }
+
+    @Test
+    void testRedeployWithFailIfExistsIsRejectedAndLeavesRefreshJobRunning() throws Exception {
+        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
+        final ResolvedCatalogMaterializedTable oldTable = getUsersShops();
+        final JobID refreshJobId = getRefreshJobId();
+        waitUntilAllTasksAreRunning(clusterClient, refreshJobId);
+        final Set<JobID> jobsBefore = listJobIds();
+
+        assertThatThrownBy(
+                        () ->
+                                usersShopsQuery()
+                                        .materializeInto("users_shops", Duration.ofMinutes(1))
+                                        .execute(CreateMode.failIfExists()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not execute CreateTable in path `test_catalog`.`test_db`.`users_shops`")
+                .hasCauseInstanceOf(TableAlreadyExistException.class);
+
+        assertThat(getUsersShops()).isEqualTo(oldTable);
+        assertThat(getRefreshJobId()).isEqualTo(refreshJobId);
+        assertThat(getJobStatus(refreshJobId)).isEqualTo(JobStatus.RUNNING);
+        assertThat(listJobIds()).isEqualTo(jobsBefore);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -63,24 +63,25 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 final class DescriptorMaterializedTableMergeContext implements MaterializedTableMergeContext {
 
-    private static final String OPERATION_NAME = "CREATE OR ALTER MATERIALIZED TABLE";
-
     private final MaterializedTableDescriptor descriptor;
     private final QueryOperation queryOperation;
     private final String serializedQuery;
     private final DataTypeFactory dataTypeFactory;
     private final ResolvedSchema querySchema;
+    private final String operationName;
 
     DescriptorMaterializedTableMergeContext(
             MaterializedTableDescriptor descriptor,
             QueryOperation queryOperation,
             String serializedQuery,
-            CatalogManager catalogManager) {
+            CatalogManager catalogManager,
+            String operationName) {
         this.descriptor = descriptor;
         this.queryOperation = queryOperation;
         this.serializedQuery = serializedQuery;
         this.dataTypeFactory = catalogManager.getDataTypeFactory();
         this.querySchema = toPhysicalSchema(queryOperation.getResolvedSchema());
+        this.operationName = operationName;
     }
 
     @Override
@@ -266,14 +267,14 @@ final class DescriptorMaterializedTableMergeContext implements MaterializedTable
         for (UnresolvedColumn column : declaredSchema.getColumns()) {
             if (column instanceof UnresolvedPhysicalColumn) {
                 checkPersistedColumnProducedByQuery(
-                        column.getName(), PHYSICAL_COLUMN_KIND, queryColumns, OPERATION_NAME);
+                        column.getName(), PHYSICAL_COLUMN_KIND, queryColumns, operationName);
             } else if (column instanceof UnresolvedMetadataColumn
                     && !((UnresolvedMetadataColumn) column).isVirtual()) {
                 checkPersistedColumnProducedByQuery(
                         column.getName(),
                         METADATA_PERSISTED_COLUMN_KIND,
                         queryColumns,
-                        OPERATION_NAME);
+                        operationName);
             }
         }
     }
