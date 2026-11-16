@@ -150,12 +150,16 @@ public final class MaterializedTableOperationFactory {
                     "Regular table does not support create or alter operation.");
         }
 
-        final CatalogMaterializedTable newMaterializedTable =
-                newTableBuilder(declaration, declaration.getMergedSchema())
-                        .refreshStatus(RefreshStatus.INITIALIZING)
-                        .build();
+        if (!oldBaseTable.getPartitionKeys().isEmpty()
+                && !oldBaseTable.getPartitionKeys().equals(declaration.getPartitionKeys())) {
+            throw new ValidationException(
+                    String.format(
+                            "The table '%s' is partitioned, so the conversion statement must declare its partition keys in the same order: PARTITIONED BY (%s).",
+                            identifier.asSummaryString(),
+                            String.join(", ", oldBaseTable.getPartitionKeys())));
+        }
         final ResolvedCatalogMaterializedTable resolvedNewMaterializedTable =
-                catalogManager.resolveCatalogMaterializedTable(newMaterializedTable);
+                resolveNewMaterializedTable(declaration);
 
         final QueryOperation asQueryOperation =
                 declaration.alignQuery(resolvedNewMaterializedTable);
