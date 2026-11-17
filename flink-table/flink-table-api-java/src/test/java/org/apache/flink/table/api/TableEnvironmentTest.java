@@ -307,6 +307,26 @@ class TableEnvironmentTest {
                 .hasMessage("Database unknown_database does not exist");
     }
 
+    @Test
+    void testFromMaterializedTableWithoutMaterializedTableAtPath() throws Exception {
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(AssertionError::new)
+                .createTable(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "mt"),
+                        createMaterializedTable(),
+                        false);
+        tEnv.createTemporaryTable("mt", TEST_DESCRIPTOR);
+
+        assertThatThrownBy(() -> tEnv.fromMaterializedTable("missing"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Materialized table with identifier 'default_catalog.default_database.missing' does not exist.");
+        assertThatThrownBy(() -> tEnv.fromMaterializedTable("mt"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Table 'default_catalog.default_database.mt' is not a materialized table, does not support materialized table related operation.");
+    }
+
     private static void assertCreateTableFromDescriptor(
             TableEnvironmentMock tEnv, Schema schema, boolean ignoreIfExists)
             throws org.apache.flink.table.catalog.exceptions.TableNotExistException {

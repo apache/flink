@@ -755,16 +755,17 @@ class MaterializedTableTableApiITCase {
     @Test
     void testAlterMaterializedTableSuspendAndResumeInContinuousMode(@TempDir Path temporaryPath)
             throws Exception {
-        usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
+        final MaterializedTable materializedTable =
+                usersShopsQuery().materializeInto("users_shops", Duration.ofSeconds(30)).execute();
 
-        assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
+        assertThat(materializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         waitUntilAllTasksAreRunning(clusterClient, getRefreshJobId());
 
         setupSavepointDir(temporaryPath);
 
         tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
 
-        assertThat(getUsersShops().getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
+        assertThat(materializedTable.getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
         final ContinuousRefreshHandler suspendRefreshHandler = getRefreshHandler();
         assertThat(getJobStatus(JobID.fromHexString(suspendRefreshHandler.getJobId())))
                 .isEqualTo(JobStatus.FINISHED);
@@ -776,7 +777,7 @@ class MaterializedTableTableApiITCase {
 
         final ResolvedCatalogMaterializedTable resumedMaterializedTable = getUsersShops();
         assertThat(resumedMaterializedTable.getOptions()).doesNotContainKey("sink.drop-late-event");
-        assertThat(resumedMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
+        assertThat(materializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
 
         final JobID resumeJobId = getRefreshJobId();
         waitUntilAllTasksAreRunning(clusterClient, resumeJobId);
