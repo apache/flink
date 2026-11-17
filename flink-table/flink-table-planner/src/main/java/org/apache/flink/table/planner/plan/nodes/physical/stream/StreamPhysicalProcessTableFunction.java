@@ -388,7 +388,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 inputProperties[inputIndex] = InputProperty.fromInput(getInput(inputIndex));
             }
         }
-        return Arrays.asList(inputProperties);
+        return List.of(inputProperties);
     }
 
     /** Returns whether the given signature declares a table argument with broadcast semantics. */

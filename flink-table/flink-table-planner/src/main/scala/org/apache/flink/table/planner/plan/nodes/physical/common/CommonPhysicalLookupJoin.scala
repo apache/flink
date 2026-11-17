@@ -156,9 +156,10 @@ abstract class CommonPhysicalLookupJoin(
       Collections.emptyList[RelDataTypeField])
   }
 
-  /** Only the hash shuffle of the LOOKUP hint requests a distribution of the input. */
+  /** Only the hash shuffle of the LOOKUP hint on join keys requests an input distribution. */
   protected def deriveInputProperty(): InputProperty = {
-    val requestsHashShuffle = enableLookupShuffle && !preferCustomShuffle
+    val joinKeyPairs = TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
+    val requestsHashShuffle = enableLookupShuffle && !preferCustomShuffle && joinKeyPairs.nonEmpty
     if (requestsHashShuffle) {
       InputProperty.fromInput(getInput)
     } else {
