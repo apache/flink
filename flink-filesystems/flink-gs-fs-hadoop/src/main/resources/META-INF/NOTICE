@@ -263,3 +263,38 @@ This product contains code from boringssl.
     * licenses/LICENSE.boringssl.txt
   * HOMEPAGE:
     * https://boringssl.googlesource.com/boringssl/
+
+conscrypt
+Copyright 2016 The Android Open Source Project
+
+This product contains a modified portion of `Netty`, a configurable network
+stack in Java, which can be obtained at:
+
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * http://netty.io/
+
+This product contains a modified portion of `Apache Harmony`, modular Java runtime,
+which can be obtained at:
+
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * https://harmony.apache.org/
+
+The native libraries of org.conscrypt:conscrypt-openjdk-uber contain code from boringssl.
+
+  * LICENSE:
+    * licenses/LICENSE.boringssl-openssl.txt
+  * HOMEPAGE:
+    * https://boringssl.googlesource.com/boringssl/
+
+This product includes software developed by the OpenSSL Project
+for use in the OpenSSL Toolkit (http://www.openssl.org/)
+
+This product includes cryptographic software written by
+Eric Young (eay@cryptsoft.com)
+
+This product includes software written by
+Tim Hudson (tjh@cryptsoft.com)
