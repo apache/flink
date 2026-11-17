@@ -1628,6 +1628,18 @@ public class StreamTaskTest {
                             new CheckpointMetaData(1L, 1L), checkpointOptions);
             harness.streamTask.dispatchOperatorEvent(operatorId, serializedEvent("event-3"));
 
+            // The ordering relies on events and triggers having the same priority: an operator
+            // yielding at a priority in between must not run the trigger before the events.
+            for (int priority : new int[] {MAX_PRIORITY, 1, 0}) {
+                MailboxExecutor executor =
+                        harness.streamTask.getMailboxExecutorFactory().createExecutor(priority);
+                while (executor.tryYield()) {
+                    if (invocations.contains("snapshot")) {
+                        assertThat(invocations).startsWith("event-1", "event-2", "snapshot");
+                    }
+                }
+            }
+
             for (int i = 0; i < MAX_MAILBOX_STEPS && !triggered.isDone(); i++) {
                 harness.streamTask.runMailboxStep();
             }
