@@ -1219,6 +1219,29 @@ public interface TableEnvironment {
     Model fromModel(ModelDescriptor descriptor);
 
     /**
+     * Returns a handle to the existing materialized table registered in the given path.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * MaterializedTable silver = tableEnv.fromMaterializedTable("silver");
+     * RefreshStatus status = silver.getRefreshStatus();
+     * }</pre>
+     *
+     * <p>Temporary objects are looked up first, as in {@link #from(String)}. A temporary table or
+     * view in the given path fails the lookup, even if it shadows a materialized table.
+     *
+     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
+     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+     *
+     * @param path The path of the materialized table.
+     * @return A handle to the materialized table.
+     * @throws ValidationException if no object exists in the given path, or it is not a
+     *     materialized table
+     */
+    MaterializedTable fromMaterializedTable(String path);
+
+    /**
      * Gets the names of all catalogs registered in this environment.
      *
      * @return A list of the names of all registered catalogs.
