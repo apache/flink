@@ -89,20 +89,34 @@ public interface MailboxExecutor {
     /** Extra options to configure enqueued mails. */
     @PublicEvolving
     interface MailOptions {
-        static MailOptions options() {
-            return MailOptionsImpl.DEFAULT;
-        }
 
         /**
-         * Mark this mail as deferrable.
-         *
-         * <p>Runtime can decide to defer execution of deferrable mails. For example, to unblock
+         * Runtime can decide to defer execution of deferrable mails. For example, to unblock
          * subtask thread as quickly as possible, deferrable mails are not executed during {@link
          * #yield()} or {@link #tryYield()}. This is done to speed up checkpointing, by skipping
          * execution of potentially long-running mails.
          */
+        boolean isDeferrable();
+
+        /**
+         * The urgent mail will be executed first compared to other mails. For example, handling
+         * unaligned checkpoint barrier or some control mails are expected to be executed as soon as
+         * possible.
+         */
+        boolean isUrgent();
+
+        static MailOptions options() {
+            return MailOptionsImpl.DEFAULT;
+        }
+
+        /** Mark this mail as deferrable. */
         static MailOptions deferrable() {
             return MailOptionsImpl.DEFERRABLE;
+        }
+
+        /** Mark this mail as urgent. */
+        static MailOptions urgent() {
+            return MailOptionsImpl.URGENT;
         }
     }
 

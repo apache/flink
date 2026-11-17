@@ -330,13 +330,14 @@ public class MailboxProcessor implements Closeable {
     }
 
     /**
-     * Sends the given <code>mail</code> using {@link TaskMailbox#putFirst(Mail)} . Intended use is
-     * to control this <code>MailboxProcessor</code>; no interaction with tasks should be performed;
+     * Sends the given <code>mail</code> with urgent. Intended use is to control this <code>
+     * MailboxProcessor</code>; no interaction with tasks should be performed;
      */
     private void sendControlMail(
             RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {
-        mailbox.putFirst(
+        mailbox.put(
                 new Mail(
+                        MailboxExecutor.MailOptions.urgent(),
                         mail,
                         Integer.MAX_VALUE /*not used with putFirst*/,
                         descriptionFormat,
