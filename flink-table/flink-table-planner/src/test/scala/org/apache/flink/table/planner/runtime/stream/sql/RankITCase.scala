@@ -754,18 +754,14 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       "+U(1,book,b,3,2)",
       "+U(2,fruit,a,2,1)",
       "+U(3,book,a,1,2)",
-      "+U(3,book,a,1,2)",
       "+U(1,fruit,b,6,1)",
       "+U(2,book,b,3,2)",
       "+U(3,fruit,a,2,1)",
       "+U(4,book,a,1,2)",
-      "+U(3,fruit,a,2,1)",
       "+U(2,book,e,5,1)",
       "+U(3,book,b,3,2)",
       "+U(4,fruit,a,2,1)",
-      "+U(3,book,b,3,2)",
       "+U(3,book,d,4,2)",
-      "+U(4,book,b,3,2)",
       "+U(4,book,b,3,2)"
     )
     assertThat(
