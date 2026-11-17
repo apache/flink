@@ -9,7 +9,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.hierynomus:asn-one:0.6.0
 - com.typesafe:config:1.4.2
 - com.typesafe:ssl-config-core_2.12:0.6.1
-- io.netty:netty-all:4.1.100.Final
 - org.agrona:agrona:1.22.0
 - org.apache.pekko:pekko-actor_2.12:1.1.2
 - org.apache.pekko:pekko-remote_2.12:1.1.2
@@ -26,41 +25,6 @@ The following dependencies all share the same BSD license which you find under l
 This project bundles the following dependencies under the Creative Commons CC0 "No Rights Reserved".
 
 - org.reactivestreams:reactive-streams:1.0.4
-
-This project bundles io.netty:netty:3.10.6.Final from which it inherits the following notices:
-
-This product contains the extensions to Java Collections Framework which has
-been derived from the works by JSR-166 EG, Doug Lea, and Jason T. Greene:
-
-  * LICENSE:
-    * licenses/LICENSE.jsr166y (Public Domain)
-  * HOMEPAGE:
-    * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/
-    * http://viewvc.jboss.org/cgi-bin/viewvc.cgi/jbosscache/experimental/jsr166/
-
-This product contains a modified version of Robert Harder's Public Domain
-Base64 Encoder and Decoder, which can be obtained at:
-
-  * LICENSE:
-    * licenses/LICENSE.base64 (Public Domain)
-  * HOMEPAGE:
-    * http://iharder.sourceforge.net/current/java/base64/
-
-This product contains a modified version of 'JZlib', a re-implementation of
-zlib in pure Java, which can be obtained at:
-
-  * LICENSE:
-    * licenses/LICENSE.jzlib (BSD Style License)
-  * HOMEPAGE:
-    * http://www.jcraft.com/jzlib/
-
-This product contains a modified version of 'Webbit', a Java event based
-WebSocket and HTTP server:
-
-  * LICENSE:
-    * licenses/LICENSE.webbit (BSD License)
-  * HOMEPAGE:
-    * https://github.com/joewalnes/webbit
 
 Scala
 Copyright (c) 2002-2022 EPFL
