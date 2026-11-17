@@ -63,9 +63,6 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
     private final @Nullable Long loadCompletedIdleTimeoutMs;
     private final @Nullable Long stateTtlMs;
 
-    /** Resolved on first use and handed to copies, so all planner phases agree on the layout. */
-    private @Nullable Optional<int[]> buildUpsertKey;
-
     public StreamPhysicalLateralSnapshotJoin(
             RelOptCluster cluster,
             RelTraitSet traitSet,
@@ -78,34 +75,6 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
             @Nullable Long stateTtlMs) {
-        this(
-                cluster,
-                traitSet,
-                leftRel,
-                rightRel,
-                condition,
-                joinType,
-                rightTimeAttributeIndex,
-                loadCompletedCondition,
-                loadCompletedTime,
-                loadCompletedIdleTimeoutMs,
-                stateTtlMs,
-                null);
-    }
-
-    private StreamPhysicalLateralSnapshotJoin(
-            RelOptCluster cluster,
-            RelTraitSet traitSet,
-            RelNode leftRel,
-            RelNode rightRel,
-            RexNode condition,
-            JoinRelType joinType,
-            int rightTimeAttributeIndex,
-            String loadCompletedCondition,
-            Long loadCompletedTime,
-            @Nullable Long loadCompletedIdleTimeoutMs,
-            @Nullable Long stateTtlMs,
-            @Nullable Optional<int[]> buildUpsertKey) {
         super(cluster, traitSet, leftRel, rightRel, condition, joinType, Collections.emptyList());
         this.rightTimeAttributeIndex = rightTimeAttributeIndex;
         Preconditions.checkNotNull(loadCompletedTime, "loadCompletedTime must not be null.");
@@ -113,7 +82,6 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
         this.loadCompletedTime = loadCompletedTime;
         this.loadCompletedIdleTimeoutMs = loadCompletedIdleTimeoutMs;
         this.stateTtlMs = stateTtlMs;
-        this.buildUpsertKey = buildUpsertKey;
     }
 
     @Override
@@ -150,8 +118,7 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
                 loadCompletedCondition,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
-                stateTtlMs,
-                buildUpsertKey);
+                stateTtlMs);
     }
 
     @Override
@@ -175,14 +142,10 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
      *
      * <p>The key must contain all join keys, so that a partial delete carrying only the upsert key
      * still reaches the right keyed-state partition. Of the qualifying keys, the smallest (then
-     * lexicographically first) is chosen to keep the plan deterministic. The result is computed
-     * once and shared with copies of this node.
+     * lexicographically first) is chosen to keep the plan deterministic.
      */
     public Optional<int[]> getBuildUpsertKey() {
-        if (buildUpsertKey == null) {
-            buildUpsertKey = Optional.ofNullable(computeBuildUpsertKey());
-        }
-        return buildUpsertKey;
+        return Optional.ofNullable(computeBuildUpsertKey());
     }
 
     private @Nullable int[] computeBuildUpsertKey() {
