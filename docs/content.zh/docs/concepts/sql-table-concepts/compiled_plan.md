@@ -254,7 +254,9 @@ The statement is still validated, so unlike `EXECUTE PLAN`, it needs its tables 
 A plan can't contain:
 
 * a table created from a `DataStream`, for example with `StreamTableEnvironment#fromDataStream`.
-* table aggregate functions.
+* [table aggregate functions]({{< ref "docs/dev/table/functions/udfs" >}}#表值聚合函数)
+  (`TableAggregateFunction`, called with `flatAggregate` in the Table API). Aggregate functions
+  (`AggregateFunction`) are supported.
 
 `COMPILE PLAN` fails for these. For a table from a `DataStream`, the error is:
 
