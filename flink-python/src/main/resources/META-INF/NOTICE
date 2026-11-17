@@ -33,6 +33,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_69_0:0.1
 - com.alibaba:pemja:0.6.3
+- io.netty:netty-buffer:4.2.17.Final
+- io.netty:netty-common:4.2.17.Final
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
@@ -54,15 +56,29 @@ The bundled Apache Beam dependencies bundle the following dependencies under the
 - com.google.api.grpc:proto-google-common-protos:2.9.0
 - com.google.code.gson:gson:2.9.0
 - com.google.guava:guava:32.1.2-jre
-- io.grpc:grpc-auth:1.59.1
-- io.grpc:grpc-core:1.59.1
-- io.grpc:grpc-context:1.59.1
-- io.grpc:grpc-netty:1.59.1
-- io.grpc:grpc-protobuf:1.59.1
-- io.grpc:grpc-stub:1.59.1
-- io.grpc:grpc-testing:1.59.1
-- io.netty:netty-buffer:4.2.17.Final
-- io.netty:netty-common:4.2.17.Final
+- io.grpc:grpc-auth:1.69.0
+- io.grpc:grpc-core:1.69.0
+- io.grpc:grpc-context:1.69.0
+- io.grpc:grpc-netty-shaded:1.69.0
+- io.grpc:grpc-protobuf:1.69.0
+- io.grpc:grpc-stub:1.69.0
+- io.grpc:grpc-testing:1.69.0
+- io.netty:netty-buffer:4.1.110.Final
+- io.netty:netty-codec:4.1.110.Final
+- io.netty:netty-codec-http:4.1.110.Final
+- io.netty:netty-codec-http2:4.1.110.Final
+- io.netty:netty-codec-socks:4.1.110.Final
+- io.netty:netty-common:4.1.110.Final
+- io.netty:netty-handler:4.1.110.Final
+- io.netty:netty-handler-proxy:4.1.110.Final
+- io.netty:netty-resolver:4.1.110.Final
+- io.netty:netty-tcnative-boringssl-static:2.0.65.Final
+- io.netty:netty-tcnative-classes:2.0.65.Final
+- io.netty:netty-transport:4.1.110.Final
+- io.netty:netty-transport-classes-epoll:4.1.110.Final
+- io.netty:netty-transport-native-epoll:linux-aarch_64:4.1.110.Final
+- io.netty:netty-transport-native-epoll:linux-x86_64:4.1.110.Final
+- io.netty:netty-transport-native-unix-common:4.1.110.Final
 - io.opencensus:opencensus-api:0.31.0
 - io.opencensus:opencensus-contrib-grpc-metrics:0.31.0
 - io.perfmark:perfmark-api:0.26.0
@@ -73,3 +89,156 @@ See bundled license files for details
 
 - com.google.auth:google-auth-library-credentials:1.4.0
 - com.google.protobuf:protobuf-java-util:3.21.1
+
+                            The Netty Project
+                            =================
+
+Please visit the Netty web site for more information:
+
+  * https://netty.io/
+
+Copyright 2014 The Netty Project
+
+This product contains the extensions to Java Collections Framework which has
+been derived from the works by JSR-166 EG, Doug Lea, and Jason T. Greene:
+
+  * LICENSE:
+    * licenses/LICENSE.jsr166y.txt (Public Domain)
+  * HOMEPAGE:
+    * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/
+    * http://viewvc.jboss.org/cgi-bin/viewvc.cgi/jbosscache/experimental/jsr166/
+
+This product contains a modified version of Robert Harder's Public Domain
+Base64 Encoder and Decoder, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.base64.txt (Public Domain)
+  * HOMEPAGE:
+    * http://iharder.sourceforge.net/current/java/base64/
+
+This product contains a modified portion of 'Webbit', an event based
+WebSocket and HTTP server, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.webbit.txt (BSD License)
+  * HOMEPAGE:
+    * https://github.com/joewalnes/webbit
+
+This product contains a modified portion of 'SLF4J', a simple logging
+facade for Java, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.slf4j.txt (MIT License)
+  * HOMEPAGE:
+    * https://www.slf4j.org/
+
+This product contains a modified portion of 'Apache Harmony', an open source
+Java SE, which can be obtained at:
+
+  * NOTICE:
+    * Apache Harmony
+      Copyright 2006, 2010 The Apache Software Foundation.
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * https://archive.apache.org/dist/harmony/
+
+This product contains a modified portion of 'jbzip2', a Java bzip2 compression
+and decompression library written by Matthew J. Francis. It can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.jbzip2.txt (MIT License)
+  * HOMEPAGE:
+    * https://code.google.com/p/jbzip2/
+
+This product contains a modified portion of 'libdivsufsort', a C API library to construct
+the suffix array and the Burrows-Wheeler transformed string for any input string of
+a constant-size alphabet written by Yuta Mori. It can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.libdivsufsort.txt (MIT License)
+  * HOMEPAGE:
+    * https://github.com/y-256/libdivsufsort
+
+This product contains a modified portion of Nitsan Wakart's 'JCTools', Java Concurrency Tools for the JVM,
+which can be obtained at:
+
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * https://github.com/JCTools/JCTools
+
+This product contains a modified portion of 'jfastlz', a Java port of FastLZ compression
+and decompression library written by William Kinney. It can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.jfastlz.txt (MIT License)
+  * HOMEPAGE:
+    * https://code.google.com/p/jfastlz/
+
+This product contains a modified portion of 'Protocol Buffers', Google's data
+interchange format, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.protobuf.txt (New BSD License)
+  * HOMEPAGE:
+    * https://github.com/google/protobuf
+
+This product contains a modified version of 'HPACK', a Java implementation of
+the HTTP/2 HPACK algorithm written by Twitter. It can be obtained at:
+
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * https://github.com/twitter/hpack
+
+This product contains a modified version of 'HPACK', a Java implementation of
+the HTTP/2 HPACK algorithm written by Cory Benfield. It can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.hyper-hpack.txt (MIT License)
+  * HOMEPAGE:
+    * https://github.com/python-hyper/hpack/
+
+This product contains a modified version of 'HPACK', a Java implementation of
+the HTTP/2 HPACK algorithm written by Tatsuhiro Tsujikawa. It can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.nghttp2-hpack.txt (MIT License)
+  * HOMEPAGE:
+    * https://github.com/nghttp2/nghttp2/
+
+This product contains a modified portion of 'Apache Commons Lang', a Java library
+provides utilities for the java.lang API, which can be obtained at:
+
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * https://commons.apache.org/proper/commons-lang/
+
+netty-tcnative
+Copyright 2016 The Netty Project
+
+This product contains a forked and modified version of Tomcat Native
+
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * http://tomcat.apache.org/native-doc/
+    * https://svn.apache.org/repos/asf/tomcat/native/
+
+This product contains code from boringssl.
+
+  * LICENSE:
+    * licenses/LICENSE.boringssl-openssl.txt
+  * HOMEPAGE:
+    * https://boringssl.googlesource.com/boringssl/
+
+This product includes software developed by the OpenSSL Project
+for use in the OpenSSL Toolkit (http://www.openssl.org/)
+
+This product includes cryptographic software written by
+Eric Young (eay@cryptsoft.com)
+
+This product includes software written by
+Tim Hudson (tjh@cryptsoft.com)
