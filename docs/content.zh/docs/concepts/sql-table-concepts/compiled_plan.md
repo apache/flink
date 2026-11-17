@@ -25,14 +25,14 @@ under the License.
 # Compiled Plans
 
 The planner translates a Table API or SQL program into a pipeline of operators every time you
-submit it. A compiled plan is the result of this translation, written to a JSON file. It contains
+submit it. By default, it uses the newest optimizer rules, functions, and operators available. A compiled plan is the result of this translation, written to a JSON file. It contains
 the execution nodes of the pipeline with their IDs and versions, the edges between them, the tables
 and functions they use, and the values of the options that the nodes depend on. When you run a
 plan, Flink doesn't plan the query again, so the job gets the same operators with the same IDs
 every time, including on a newer Flink version within the limits in
 [Flink Versions](#flink-versions).
 
-Use a compiled plan when you upgrade a job to a newer Flink version and need it to keep its state,
+Every new Flink version comes with improvements to the planner and a potentially different topology for the same query. Use a compiled plan when you upgrade a job to a newer Flink version and want to maintain the existing topology including keeping its state,
 see [Upgrading the Flink Version]({{< ref "docs/ops/upgrading" >}}#upgrading-the-flink-version), and to set the state
 TTL of each stateful operator, see
 [Configure Operator-level State TTL]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#配置算子粒度的状态-ttl).
@@ -69,28 +69,6 @@ compiledPlan.writeToFile("/path/to/plan.json");
 
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)")
-
-val compiledPlan = 
-    tableEnv.compilePlanSql(
-       """
-        |INSERT INTO enriched_orders
-        |SELECT a.order_id, a.order_line_id, b.order_status, ...
-        |FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id
-        |""".stripMargin)
-// CompilePlan#writeToFile only supports a local file path, if you need to write to remote filesystem,
-// please use tableEnv.executeSql("COMPILE PLAN 'hdfs://path/to/plan.json' FOR ...")
-compiledPlan.writeToFile("/path/to/plan.json")
-```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
@@ -175,21 +153,6 @@ tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await(
 ```
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
-tableEnv.executeSql(
-    "CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...)")
-tableEnv.executeSql(
-    "CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...)")
-
-// PlanReference#fromFile only supports a local file path, if you need to read from remote filesystem,
-// please use tableEnv.executeSql("EXECUTE PLAN 'hdfs://path/to/plan.json'").await()
-tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await()
-```
-{{< /tab >}}
 {{< tab "SQL CLI" >}}
 
 ```sql
@@ -245,8 +208,12 @@ supported either.
 
 ### Options {#options}
 
-For each node, the plan stores the values of the options that the node uses in its
-`configuration` entry. For example, the sink of the plan above:
+While the plan persists external catalog objects, it assumes an otherwise stable session. If the
+`EXECUTE PLAN` is embedded into a larger SQL script, make sure to set all configuration options as
+before. Only the options that a node stores in the plan are taken from the plan.
+
+For each node, the plan stores the values of the options that influence the topology or have
+runtime implications in its `configuration` entry. For example, the sink of the plan above:
 
 ```json
 "configuration" : {
@@ -284,23 +251,12 @@ The statement is still validated, so unlike `EXECUTE PLAN`, it needs its tables 
 A plan can't contain:
 
 * a table created from a `DataStream`, for example with `StreamTableEnvironment#fromDataStream`.
-* legacy table sources and sinks (`TableSource`, `TableSink`).
 * table aggregate functions.
-* process table functions, in Flink versions before 2.1.
 
-`COMPILE PLAN` fails for these. In the Table API, `compilePlan()` succeeds, and the error comes when
-you write the plan, for example with `writeToFile` or `asJsonString`. For a table from a
-`DataStream`, the error is:
+`COMPILE PLAN` fails for these. For a table from a `DataStream`, the error is:
 
 ```text
 Cannot serialize the table as it's an external inline table. This might be caused by a usage of StreamTableEnvironment#fromDataStream or TableResult#collect, which are not supported in compiled plans.
-```
-
-For a table aggregate function, the error is the following, although it's not a bug: table
-aggregate functions aren't supported in a plan.
-
-```text
-Can not serialize ExecNode with id: 6. Missing type, this is a bug, please file a ticket.
 ```
 
 Writing a plan doesn't check that it can be loaded again. Run the plan once with `EXECUTE PLAN`,
@@ -311,9 +267,9 @@ for example on a test cluster, before you rely on it for an upgrade.
 The plan stores the Flink version that compiled it, and the type of each node includes its
 version, such as `stream-exec-join_1`. A newer Flink version runs the plan as long as it still
 supports these node versions, otherwise `EXECUTE PLAN` fails to load the plan. Flink guarantees
-that a plan runs after an upgrade by one minor version, for example from 2.2 to 2.3. Over more
-versions, this isn't guaranteed, although the tests of Flink restore plans that were compiled with
-Flink 1.19 and later.
+that a plan runs after an upgrade by one minor version, for example from 2.2 to 2.3. Plans from
+older versions usually run as well, but without a guarantee. The tests of Flink run plans from
+Flink 1.19 and every later version.
 
 Flink doesn't migrate a plan to a newer version: `EXECUTE PLAN` and `COMPILE AND EXECUTE PLAN`
 don't rewrite the plan file. After two upgrades, a job still runs the plan of the first version.

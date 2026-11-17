@@ -199,7 +199,14 @@ Window-based operations (like [Window Join]({{< ref "docs/sql/reference/queries/
 
 **Generate a Compiled Plan**
 
-Compile the statement to a plan file as described in [Compile a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#compile-a-plan).
+Compile the statement to a plan file as described in [Compile a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#compile-a-plan):
+
+```sql
+COMPILE PLAN 'file:///path/to/plan.json' FOR
+INSERT INTO enriched_orders
+SELECT a.order_id, a.order_line_id, b.order_status, ...
+FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
+```
 
 **Modify the Compiled Plan**
 
@@ -238,7 +245,12 @@ Conceptually, the TTL of downstream stateful operator should be greater than or 
 
 **Execute the Compiled Plan**
 
-Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#execute-a-plan).
+Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#execute-a-plan):
+
+```sql
+EXECUTE PLAN 'file:///path/to/plan.json';
+```
+
 The job submitted via `EXECUTE PLAN` statement will apply state TTL read from the file, instead of the configuration `table.exec.state.ttl`.
 
 **A Full Example**

@@ -261,7 +261,8 @@ upgrade. A new compilation can plan the query differently, and the operator IDs 
 differ from the ones in the savepoint.
 
 Before you run the plan on the new version, create its temporary tables and functions again. Flink
-guarantees an upgrade by one minor version. See [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) for older plans, what a
+guarantees that a plan runs after an upgrade by one minor version, and plans from older versions
+usually run as well. See [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) for older plans, what a
 plan stores, and what can't be compiled.
 
 Without a compiled plan, a restore after an upgrade to a new minor version can work, but there is no

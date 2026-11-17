@@ -182,7 +182,14 @@ SELECT * FROM upsert_kafka;
 
 **生成 Compiled Plan**
 
-Compile the statement to a plan file as described in [Compile a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#compile-a-plan).
+Compile the statement to a plan file as described in [Compile a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#compile-a-plan):
+
+```sql
+COMPILE PLAN 'file:///path/to/plan.json' FOR
+INSERT INTO enriched_orders
+SELECT a.order_id, a.order_line_id, b.order_status, ...
+FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
+```
 
 **修改 Compiled Plan**
 
@@ -220,7 +227,12 @@ Compile the statement to a plan file as described in [Compile a Plan]({{< ref "d
 
 **执行 Compiled Plan**
 
-Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#execute-a-plan).
+Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}#execute-a-plan):
+
+```sql
+EXECUTE PLAN 'file:///path/to/plan.json';
+```
+
 通过 `EXECUTE PLAN` 语句提交的作业，其状态算子的 TTL 的值将会从文件中读取，配置项 `table.exec.state.ttl` 的值将会被忽略。
 
 **完整示例**
