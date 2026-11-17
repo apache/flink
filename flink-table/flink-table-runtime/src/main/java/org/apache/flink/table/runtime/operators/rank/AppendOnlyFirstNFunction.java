@@ -91,7 +91,7 @@ public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
         currentRank++;
         state.update(currentRank);
 
-        if (outputRankNumber || hasOffset()) {
+        if (emitsChangelogPerRank) {
             collectInsert(out, input, currentRank);
         } else {
             collectInsert(out, input);
