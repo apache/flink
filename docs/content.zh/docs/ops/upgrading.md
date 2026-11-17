@@ -302,9 +302,9 @@ BEGIN
 END;
 ```
 
-To start `Alerts` with empty state and keep the state of `Totals`, stop the job with
-`STOP JOB '<job_id>' WITH SAVEPOINT`, change the `uid` of `Alerts`, and allow Flink to skip the
-state that it stored for `alerts`:
+To start `Alerts` with empty state and keep the state of `Totals`, stop the job with a savepoint as
+in step 2 of [Upgrading the Flink Version](#upgrading-the-flink-version), change the `uid` of
+`Alerts`, and allow Flink to skip the state that it stored for `alerts`:
 
 ```sql
 SET 'execution.state-recovery.path' = 's3://my-bucket/savepoints/savepoint-...';
