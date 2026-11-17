@@ -56,7 +56,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Harness tests for {@link UpsertLateralSnapshotJoinOperator}, the build-side layout keyed by the
+ * Harness tests for {@link LateralSnapshotJoinOperator} with the build-side layout keyed by the
  * build upsert key. Verifies upsert overwrite, partial delete by key, coexistence of multiple
  * primary keys within a join key, and left-outer behaviour.
  */
@@ -123,9 +123,9 @@ class UpsertLateralSnapshotJoinOperatorTest {
                 new Object[0]);
     }
 
-    private static UpsertLateralSnapshotJoinOperator newOperator(
+    private static LateralSnapshotJoinOperator newOperator(
             boolean isLeftOuterJoin, Long loadCompletedTime) {
-        return new UpsertLateralSnapshotJoinOperator(
+        return new LateralSnapshotJoinOperator(
                 isLeftOuterJoin,
                 PROBE_TYPE,
                 BUILD_TYPE,
@@ -139,14 +139,14 @@ class UpsertLateralSnapshotJoinOperatorTest {
     }
 
     private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            newHarness(UpsertLateralSnapshotJoinOperator op) throws Exception {
+            newHarness(LateralSnapshotJoinOperator op) throws Exception {
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 op, PROBE_KEY_SELECTOR, BUILD_KEY_SELECTOR, KEY_TYPE);
     }
 
     @Test
     void multiplePrimaryKeysCoexistWithinJoinKey() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -165,7 +165,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     @Test
     void upsertOverwritesRowWithSamePrimaryKey() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -183,7 +183,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     @Test
     void partialDeleteRemovesRowByPrimaryKey() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -202,7 +202,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     @Test
     void tombstoneWithoutRowtimeAppliesAfterBufferedChangesInLoad() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -220,7 +220,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     @Test
     void tombstoneWithoutRowtimeAppliesAfterBufferedChangesInJoin() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -238,7 +238,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     @Test
     void partialDeleteOfAbsentPrimaryKeyCountsUnmatchedRetraction() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -256,7 +256,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void noMatchHonorsJoinType(boolean leftOuter) throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(leftOuter, 1L);
+        LateralSnapshotJoinOperator op = newOperator(leftOuter, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -273,7 +273,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     @Test
     void updateBeforeThenAfterReplacesRowByKey() throws Exception {
-        UpsertLateralSnapshotJoinOperator op = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -294,7 +294,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
     void restorePreservesUpsertBuildTable(StateBackend backend) throws Exception {
-        UpsertLateralSnapshotJoinOperator op1 = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 1L);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -309,7 +309,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        UpsertLateralSnapshotJoinOperator op2 = newOperator(false, 1L);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 1L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -374,12 +374,13 @@ class UpsertLateralSnapshotJoinOperatorTest {
     /** Returns the committed build rows for a join key as a map pk → val. */
     private static Map<String, String> buildTableForKey(
             KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h,
-            UpsertLateralSnapshotJoinOperator op,
+            LateralSnapshotJoinOperator op,
             String joinKey)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(joinKey));
         Map<String, String> result = new LinkedHashMap<>();
-        for (RowData buildRow : op.getBuildTableByKey().values()) {
+        for (RowData buildRow :
+                ((UpsertBuildStateView) op.getBuildState()).getBuildTableByKey().values()) {
             result.put(buildRow.getString(1).toString(), buildRow.getString(2).toString());
         }
         return result;

@@ -63,7 +63,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_CHANGE_BUFFER_STATE_NAME;
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.PROBE_BUFFER_STATE_NAME;
-import static org.apache.flink.table.runtime.operators.join.snapshot.MultiSetLateralSnapshotJoinOperator.BUILD_TABLE_STATE_NAME;
+import static org.apache.flink.table.runtime.operators.join.snapshot.MultiSetBuildStateView.BUILD_TABLE_STATE_NAME;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
@@ -73,7 +73,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
-/** Harness tests for {@link MultiSetLateralSnapshotJoinOperator}. */
+/** Harness tests for {@link LateralSnapshotJoinOperator} with the multi-set build-side layout. */
 class MultiSetLateralSnapshotJoinOperatorTest {
 
     // ----------------------------------------------------------------- Schema
@@ -184,7 +184,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     // ----------------------------------------------------------------- Operator / harness
     // factories
 
-    private static MultiSetLateralSnapshotJoinOperator newOperator(
+    private static LateralSnapshotJoinOperator newOperator(
             boolean isLeftOuterJoin,
             GeneratedJoinCondition joinCondition,
             boolean[] filterNullKeys,
@@ -192,7 +192,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             Long loadCompletedIdleTimeoutMs,
             Long stateTtlMs) {
 
-        return new MultiSetLateralSnapshotJoinOperator(
+        return new LateralSnapshotJoinOperator(
                 isLeftOuterJoin,
                 PROBE_TYPE,
                 BUILD_TYPE,
@@ -201,10 +201,11 @@ class MultiSetLateralSnapshotJoinOperatorTest {
                 filterNullKeys,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
-                stateTtlMs);
+                stateTtlMs,
+                null);
     }
 
-    private static MultiSetLateralSnapshotJoinOperator newOperator(
+    private static LateralSnapshotJoinOperator newOperator(
             boolean isLeftOuterJoin,
             Long loadCompletedTime,
             Long loadCompletedIdleTimeoutMs,
@@ -220,7 +221,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     }
 
     private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            newHarness(MultiSetLateralSnapshotJoinOperator op) throws Exception {
+            newHarness(LateralSnapshotJoinOperator op) throws Exception {
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 op, PROBE_KEY_SELECTOR, BUILD_KEY_SELECTOR, KEY_TYPE);
     }
@@ -231,7 +232,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
      * SNAPSHOT join takes when it doesn't have an equality predicate.
      */
     private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            newEmptyKeyHarness(MultiSetLateralSnapshotJoinOperator op) throws Exception {
+            newEmptyKeyHarness(LateralSnapshotJoinOperator op) throws Exception {
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 op,
                 EmptyRowDataKeySelector.INSTANCE,
@@ -257,7 +258,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void loadPhaseBuildSideChangeProcessing() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -311,7 +312,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // split when the build watermark advances between the two records (e.g. another build input
         // channel raising the combined watermark). With row-time gating the retraction stays
         // buffered until the watermark reaches the pair's row-time, so it is never applied alone.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -353,7 +354,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     void wmFlipAppliesOnlyDueBuildChanges() throws Exception {
         // A watermark flip materializes build changes only up to loadCompletedTime; changes with a
         // row-time above it stay buffered and are applied later as the watermark advances.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -382,7 +383,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // When the flip is triggered by the idle timeout and no build watermark was ever seen
         // (currentBuildSideWm == MIN_VALUE), there is nothing to gate on, so buffered changes are
         // force-applied regardless of row-time. Otherwise the build table would stay empty forever.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -403,7 +404,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void loadPhaseProbeSideInputProcessing() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -433,7 +434,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest(name = "leftOuter={0}, wmFlip={1}")
     @CsvSource({"true, true", "true, false", "false, true", "false, false"})
     void flipDrainsProbeBufferAndJoins(boolean leftOuter, boolean wmFlip) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(leftOuter, 100L, 200L, null);
+        LateralSnapshotJoinOperator op = newOperator(leftOuter, 100L, 200L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -509,7 +510,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // Each buffered probe gets its own event-time timer; at the flip they fire one per record
         // (interruptibly) and join in insertion order. Afterwards the buffer and its timers are
         // gone.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -553,7 +554,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // INNER JOIN with an empty keyset and a non-equi condition (probe.id < build.rt). This
         // happens if the join has no equality predicate (or it was folded away). The empty key puts
         // all build rows in one group; the generated condition then selects the matching ones.
-        MultiSetLateralSnapshotJoinOperator op =
+        LateralSnapshotJoinOperator op =
                 newOperator(
                         false, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
@@ -587,7 +588,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     void emptyKeyModeLeftOuterNonEquiJoin() throws Exception {
         // LEFT OUTER JOIN with an empty keyset and a non-equi condition (probe.id < build.rt). A
         // probe that matches no build row in the group is emitted null-padded.
-        MultiSetLateralSnapshotJoinOperator op =
+        LateralSnapshotJoinOperator op =
                 newOperator(true, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newEmptyKeyHarness(op)) {
@@ -622,7 +623,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     void emptyKeyModeLeftOuterReflectsBuildInsertAndDelete() throws Exception {
         // LEFT OUTER with an empty keyset: a matching build row is added and later removed, so the
         // same probe sees null (no match), then non-null (match), then null (match removed).
-        MultiSetLateralSnapshotJoinOperator op =
+        LateralSnapshotJoinOperator op =
                 newOperator(true, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newEmptyKeyHarness(op)) {
@@ -659,7 +660,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // Flip without a probe watermark leaves the LOAD-buffered probe in place. A new JOIN-phase
         // probe for the same key must be appended behind it (not joined inline, not blocking), and
         // the next probe watermark drains both in insertion order.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -697,7 +698,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // No probe-side watermark before the flip (currentProbeSideWm == MIN_VALUE): the FLIP
         // timers cannot fire at the flip, so the buffered probes stay buffered. The next
         // probe-side watermark advances event time past the FLIP timer and drains them.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -722,7 +723,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void idleTimerRearmsOnBuildWatermark() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(10);
@@ -746,7 +747,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     void idleTimerIsNotArmedBeforeAnyBuildSideSignal() throws Exception {
         // Regression test: the timer must not be armed at open(), so a slow build-side startup
         // (processing time advancing past the timeout before any build input) does not flip.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -763,7 +764,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void idleTimerArmsOnFirstBuildSideRecord() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(50);
@@ -782,7 +783,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @Test
     void idleTimerArmsOnBuildSideIdleStatus() throws Exception {
         // The empty/idle build-side case: no records or watermarks, only an idle status.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(50);
@@ -801,7 +802,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void flipJoiningInvokesCodeGeneratedJoinCondition(boolean leftOuter) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op =
+        LateralSnapshotJoinOperator op =
                 newOperator(
                         leftOuter, newMatchValCondition(), new boolean[] {true}, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
@@ -862,8 +863,8 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         InternalTypeInfo<RowData> compositeKeyType =
                 InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE);
 
-        MultiSetLateralSnapshotJoinOperator op =
-                new MultiSetLateralSnapshotJoinOperator(
+        LateralSnapshotJoinOperator op =
+                new LateralSnapshotJoinOperator(
                         leftOuter,
                         probeType,
                         buildType,
@@ -871,6 +872,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
                         newTrueCondition(),
                         new boolean[] {true, true},
                         100L,
+                        null,
                         null,
                         null);
 
@@ -926,7 +928,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void onEventTimeRejectsNonNegativeTimestamp() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -964,7 +966,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void joinPhaseImmediateInnerJoin(boolean leftOuter) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(leftOuter, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(leftOuter, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1008,7 +1010,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void joinPhaseBuildSideChangeApplication(boolean appliedByBuild) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1087,7 +1089,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void joinPhaseWmForwardingLogic() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1119,7 +1121,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
      */
     @Test
     void joinPhaseAppliesEqualRowTimeChangesInInsertionOrder() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1165,7 +1167,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
     void drainsDueBuildChangesByRowTimeOrder(StateBackend backend) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setStateBackend(backend);
@@ -1207,7 +1209,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void joinPhaseBufferedUpdatePairIsVisibleAtomicallyAfterWatermark() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1239,7 +1241,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @CsvSource({"true, true", "true, false", "false, true", "false, false"})
     void joinRespectsNullKeysFilter(boolean leftOuter, boolean filterNullKey) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op =
+        LateralSnapshotJoinOperator op =
                 newOperator(
                         leftOuter,
                         newTrueCondition(),
@@ -1294,7 +1296,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @MethodSource("stateBackends")
     void retractsNullKeyBuildRowStoredByEarlierVersion(StateBackend backend) throws Exception {
         // Store a build row with a null key, as an earlier version did, by comparing it null-safely
-        MultiSetLateralSnapshotJoinOperator op1 =
+        LateralSnapshotJoinOperator op1 =
                 newOperator(false, newTrueCondition(), new boolean[] {false}, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
@@ -1309,7 +1311,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1330,7 +1332,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void buildSideWmAndWmStatusForwarding() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1365,7 +1367,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void probeSideWmAndWmStatusForwarding(boolean probeIdleDuringLoad) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1415,7 +1417,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     void stateTtlRefreshesOnAccessAndEvictsInactiveKeys() throws Exception {
         // stateTtlMs = 100. Timers are registered at 1.5 × stateTtlMs, so the deadline for access
         // at t=0 is 150.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 50L, null, 100L);
+        LateralSnapshotJoinOperator op = newOperator(false, 50L, null, 100L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -1481,7 +1483,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @Test
     void stateTtlClearsAllPerKeyState() throws Exception {
         // stateTtlMs = 100. Timers are registered at 1.5 × stateTtlMs.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 50L, null, 100L);
+        LateralSnapshotJoinOperator op = newOperator(false, 50L, null, 100L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -1516,7 +1518,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     void stateTtlRestoreResetsFlipProcTime(StateBackend backend) throws Exception {
         // stateTtlMs = 50. Build write at t=0 arms TTL at 75. Flip at t=0 → flipProcTime=0.
         // Original grace ends at 0+50=50.
-        MultiSetLateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, 50L);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, 50L);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -1530,7 +1532,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         }
 
         // Restart at t=30 — flipProcTime is re-anchored to 30; new grace ends at 30+50=80.
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, 50L);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, 50L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1554,7 +1556,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void stateTtlDisabledRegistersNoTimers() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -1576,7 +1578,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void stateTtlDoesNotEvictKeyWithBufferedProbes() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, 50L);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, 50L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -1610,7 +1612,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // With no equi-key all build rows share one (empty) key, so a single state_ttl timer covers
         // the whole build side. After an idle period longer than the TTL, the entire build table is
         // evicted at once; a later probe then matches nothing (here: LEFT -> null-padded).
-        MultiSetLateralSnapshotJoinOperator op =
+        LateralSnapshotJoinOperator op =
                 newOperator(true, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, 100L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newEmptyKeyHarness(op)) {
@@ -1643,7 +1645,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
     void restoreFromLoadPhaseSnapshot(StateBackend backend) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -1662,7 +1664,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1706,7 +1708,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         // Recovery with several per-record flip timers for one key: the buffered probes, their
         // sequence counter, and one event-time timer per probe must all survive the snapshot and,
         // after restore, drain in insertion order when the flip fires them.
-        MultiSetLateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -1722,7 +1724,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1761,7 +1763,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @MethodSource("stateBackends")
     void restoreFromMixedPhaseSnapshot(StateBackend backend) throws Exception {
         // Subtask A: drive into JOIN with a buffered change for k1.
-        MultiSetLateralSnapshotJoinOperator opA = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator opA = newOperator(false, 100L, null, null);
         OperatorSubtaskState stateA;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(opA)) {
@@ -1776,7 +1778,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         }
 
         // Subtask B: stay in LOAD (no flip-triggering build WM).
-        MultiSetLateralSnapshotJoinOperator opB = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator opB = newOperator(false, 100L, null, null);
         OperatorSubtaskState stateB;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(opB)) {
@@ -1791,7 +1793,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
                 AbstractStreamOperatorTestHarness.repackageState(stateA, stateB);
 
         // Restore the combined state — phase must be LOAD because some subtask was LOAD.
-        MultiSetLateralSnapshotJoinOperator opC = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator opC = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(opC)) {
             h.setStateBackend(backend);
@@ -1834,7 +1836,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
     void restoreFromJoinPhaseSnapshot(StateBackend backend) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -1852,7 +1854,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1891,7 +1893,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
     void restoreDoesNotArmIdleFlipTimerUntilBuildSideSignal(StateBackend backend) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op1 = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 1000L, 100L, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -1902,7 +1904,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 1000L, 100L, null);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1929,7 +1931,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @MethodSource("stateBackends")
     void restoreFromJoinPhaseWithBufferedProbesDrainsInOrder(StateBackend backend)
             throws Exception {
-        MultiSetLateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
@@ -1948,7 +1950,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
             state = h.snapshot(0L, 0L);
         }
 
-        MultiSetLateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
             h.setStateBackend(backend);
@@ -1975,7 +1977,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void currentPhaseGaugeReflectsPhase() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -1992,7 +1994,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void probeBufferedGaugeTracksLoadBufferingAndDrainsOnProbeWatermark() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -2019,7 +2021,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @Test
     void watermarkGaugesTrackBuildAndProbeWatermarks() throws Exception {
         // High loadCompletedTime so the operator stays in LOAD for the first build WMs.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 1000L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -2050,7 +2052,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void fanOutGaugesTrackMaxAndAverage(boolean leftOuter) throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(leftOuter, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(leftOuter, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -2104,7 +2106,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void numUnmatchedBuildRetractionsCountsAbsentRowRetractions() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -2138,7 +2140,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     @Test
     void buildRetractionAtCountOneRemovesRowWithoutGoingNegative() throws Exception {
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
@@ -2161,7 +2163,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
     @Test
     void numStateTtlEvictionsCountsEvictedKeys() throws Exception {
         // stateTtlMs = 100 → timers registered at 1.5 × = 150.
-        MultiSetLateralSnapshotJoinOperator op = newOperator(false, 50L, null, 100L);
+        LateralSnapshotJoinOperator op = newOperator(false, 50L, null, 100L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.setProcessingTime(0);
@@ -2248,7 +2250,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
         return r;
     }
 
-    private static void assertPhase(MultiSetLateralSnapshotJoinOperator op, Phase expected) {
+    private static void assertPhase(LateralSnapshotJoinOperator op, Phase expected) {
         assertThat(op.getPhase()).isEqualTo(expected);
     }
 
@@ -2313,12 +2315,13 @@ class MultiSetLateralSnapshotJoinOperatorTest {
      */
     private static Map<String, Long> buildTableForKey(
             KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h,
-            MultiSetLateralSnapshotJoinOperator op,
+            LateralSnapshotJoinOperator op,
             String key)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
         Map<String, Long> result = new LinkedHashMap<>();
-        for (Map.Entry<RowData, Long> e : op.getBuildTableState().entries()) {
+        for (Map.Entry<RowData, Long> e :
+                ((MultiSetBuildStateView) op.getBuildState()).getBuildTableState().entries()) {
             result.put(e.getKey().getString(1).toString(), e.getValue());
         }
         return result;
@@ -2326,7 +2329,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     private static List<RowData> probeBufferForKey(
             KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h,
-            MultiSetLateralSnapshotJoinOperator op,
+            LateralSnapshotJoinOperator op,
             String key)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
@@ -2341,7 +2344,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     private static List<RowData> bufferedChangesForKey(
             KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h,
-            MultiSetLateralSnapshotJoinOperator op,
+            LateralSnapshotJoinOperator op,
             String key)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
@@ -2357,7 +2360,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     private static Long bufferedAtWmFor(
             KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h,
-            MultiSetLateralSnapshotJoinOperator op,
+            LateralSnapshotJoinOperator op,
             String key)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
@@ -2366,7 +2369,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
 
     private static Long ttlExpiryFor(
             KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h,
-            MultiSetLateralSnapshotJoinOperator op,
+            LateralSnapshotJoinOperator op,
             String key)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
