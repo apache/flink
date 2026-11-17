@@ -355,6 +355,18 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testUpsertInputWithRowSemanticsAndFullDeletes() {
+        util.addTemporarySystemFunction("f", RowSemanticUpdatingFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_full_delete_upsert_source (`name` STRING PRIMARY KEY NOT ENFORCED, `score` INT) "
+                                + "WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+        util.verifyRelPlan(
+                "SELECT * FROM f(r => TABLE t_full_delete_upsert_source)",
+                singletonList(ExplainDetail.CHANGELOG_MODE));
+    }
+
+    @Test
     void testUpsertInputWithRowSemanticsWithoutUpsertKey() {
         util.addTemporarySystemFunction("f", RowSemanticUpdatingFunction.class);
         util.tableEnv().executeSql("CREATE VIEW v AS SELECT score FROM t_upsert_source");
