@@ -33,6 +33,7 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.FunctionDescriptor;
+import org.apache.flink.table.api.MaterializedTable;
 import org.apache.flink.table.api.Model;
 import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.PlanReference;
@@ -48,6 +49,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.materializedtable.DefaultMaterializedTableJobSubmitter;
+import org.apache.flink.table.api.internal.materializedtable.MaterializedTableImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDescriptor;
@@ -742,6 +744,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final ResolvedCatalogModel resolvedCatalogModel =
                 catalogManager.resolveCatalogModel(descriptor.toCatalogModel());
         return createModel(ContextResolvedModel.anonymous(resolvedCatalogModel));
+    }
+
+    @Override
+    public MaterializedTable fromMaterializedTable(String path) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        return MaterializedTableImpl.of(this, getObjectIdentifierFromPath(path));
     }
 
     private Optional<SourceQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
