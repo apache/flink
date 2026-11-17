@@ -135,7 +135,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
                 loadCompletedTime,
                 null,
                 null,
-                BUILD_UPSERT_KEY_IDX);
+                BuildSideSpec.upsert(BUILD_UPSERT_KEY_IDX));
     }
 
     private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>

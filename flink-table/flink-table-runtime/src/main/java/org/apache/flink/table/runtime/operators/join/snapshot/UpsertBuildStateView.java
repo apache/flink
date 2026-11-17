@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.snapshot;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MapState;
@@ -42,44 +43,23 @@ import org.apache.flink.util.Preconditions;
  * needs no full before-image, so an upsert changelog can feed the build side directly without a
  * ChangelogNormalize. Changes of a key arrive in order, so they are applied in arrival order.
  */
-class UpsertBuildStateView implements BuildStateView {
+@Internal
+public class UpsertBuildStateView implements BuildStateView {
 
     @VisibleForTesting static final String BUILD_TABLE_STATE_NAME = "build-table-upsert";
 
-    private final InternalTypeInfo<RowData> buildType;
-
-    /** Field indices of the build-side upsert key within the build row. */
-    private final int[] buildUpsertKeyIndices;
-
     /** Committed build rows of the current key, keyed by their upsert-key projection. */
-    private MapState<RowData, RowData> buildTableByKey;
+    private final MapState<RowData, RowData> buildTableByKey;
 
     /** Field getters to project the upsert key out of a build row. */
-    private RowData.FieldGetter[] upsertKeyGetters;
+    private final RowData.FieldGetter[] upsertKeyGetters;
 
     /** Serializes the projected upsert key into a {@link RowData}. */
-    private RowDataSerializer upsertKeySerializer;
+    private final RowDataSerializer upsertKeySerializer;
 
-    UpsertBuildStateView(InternalTypeInfo<RowData> buildType, int[] buildUpsertKeyIndices) {
-        this.buildType = buildType;
-        this.buildUpsertKeyIndices = buildUpsertKeyIndices;
-    }
-
-    static void checkUpsertKeyIndices(InternalTypeInfo<RowData> buildType, int[] indices) {
-        Preconditions.checkArgument(
-                indices.length > 0,
-                "buildUpsertKeyIndices must not be empty for the upsert build-side layout");
-        final int fieldCount = buildType.toRowType().getFieldCount();
-        for (int idx : indices) {
-            Preconditions.checkArgument(
-                    idx >= 0 && idx < fieldCount,
-                    "buildUpsertKeyIndices out of bounds for build row: %s",
-                    idx);
-        }
-    }
-
-    @Override
-    public void open(RuntimeContext ctx) {
+    public UpsertBuildStateView(
+            RuntimeContext ctx, InternalTypeInfo<RowData> buildType, int[] buildUpsertKeyIndices) {
+        checkUpsertKeyIndices(buildType, buildUpsertKeyIndices);
         final RowType buildRow = buildType.toRowType();
         final LogicalType[] keyTypes = new LogicalType[buildUpsertKeyIndices.length];
         upsertKeyGetters = new RowData.FieldGetter[buildUpsertKeyIndices.length];
@@ -94,6 +74,19 @@ class UpsertBuildStateView implements BuildStateView {
         buildTableByKey =
                 ctx.getMapState(
                         new MapStateDescriptor<>(BUILD_TABLE_STATE_NAME, upsertKeyType, buildType));
+    }
+
+    private static void checkUpsertKeyIndices(InternalTypeInfo<RowData> buildType, int[] indices) {
+        Preconditions.checkArgument(
+                indices.length > 0,
+                "buildUpsertKeyIndices must not be empty for the upsert build-side layout");
+        final int fieldCount = buildType.toRowType().getFieldCount();
+        for (int idx : indices) {
+            Preconditions.checkArgument(
+                    idx >= 0 && idx < fieldCount,
+                    "buildUpsertKeyIndices out of bounds for build row: %s",
+                    idx);
+        }
     }
 
     @Override
