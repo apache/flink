@@ -556,6 +556,14 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
+									<!-- Native libraries for unrelocated Netty classes, which this jar doesn't contain. -->
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>META-INF/native/libnetty_*</exclude>
+										<exclude>META-INF/native/netty_*</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>.gitkeep</exclude>
