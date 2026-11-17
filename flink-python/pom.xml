@@ -688,6 +688,14 @@ under the License.
 							</artifactSet>
 							<filters>
 								<filter>
+									<!-- The parts of netty-tcnative's NOTICE and licenses that apply are in this module's NOTICE and licenses directory. -->
+									<artifact>org.apache.beam:beam-vendor-grpc-*</artifact>
+									<excludes>
+										<exclude>META-INF/NOTICE.txt</exclude>
+										<exclude>META-INF/license/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**
