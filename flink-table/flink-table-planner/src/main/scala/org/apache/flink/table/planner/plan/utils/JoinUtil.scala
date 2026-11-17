@@ -292,8 +292,7 @@ object JoinUtil {
       config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes
     // The memory used by SortMergeJoinIterator that buffer the matched rows, each side needs
     // this memory if it is full outer join
-    val externalBufferMemory =
-      config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY).getBytes
+    val externalBufferMemory = getExternalBufferMemory(config)
     // The memory used by BinaryExternalSorter for sort, the left and right side both need it
     val sortMemory = config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes
     var externalBufferNum = 1
@@ -304,6 +303,11 @@ object JoinUtil {
     // Due to hash join maybe fallback to sort merge join, so here managed memory choose the
     // large one
     Math.max(hashJoinManagedMemory, sortMergeJoinManagedMemory)
+  }
+
+  /** Get the memory of the external buffer that buffers the matched rows of a sort merge join. */
+  def getExternalBufferMemory(config: ReadableConfig): Long = {
+    config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY).getBytes
   }
 
   /** Get estimated row stats for hash join. */
