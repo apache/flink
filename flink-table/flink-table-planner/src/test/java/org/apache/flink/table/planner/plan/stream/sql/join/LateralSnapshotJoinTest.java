@@ -33,8 +33,6 @@ import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator;
-import org.apache.flink.table.runtime.operators.join.snapshot.MultiSetLateralSnapshotJoinOperator;
-import org.apache.flink.table.runtime.operators.join.snapshot.UpsertLateralSnapshotJoinOperator;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
@@ -310,9 +308,8 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThat(plan).contains("LateralSnapshotJoin");
         assertThat(plan).doesNotContain("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
-        assertThat(compileJoinOperator("b_upsert"))
-                .isInstanceOf(UpsertLateralSnapshotJoinOperator.class);
         assertThat(buildUpsertKeysOf("b_upsert")).containsExactly(0);
+        assertThat(compileJoinOperator("b_upsert").getBuildUpsertKeys()).containsExactly(0);
     }
 
     @Test
@@ -327,9 +324,8 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThat(plan).contains("LateralSnapshotJoin");
         assertThat(plan).doesNotContain("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
-        assertThat(compileJoinOperator("b_composite"))
-                .isInstanceOf(UpsertLateralSnapshotJoinOperator.class);
         assertThat(buildUpsertKeysOf("b_composite")).containsExactly(0, 1);
+        assertThat(compileJoinOperator("b_composite").getBuildUpsertKeys()).containsExactly(0, 1);
     }
 
     @Test
@@ -344,9 +340,8 @@ public class LateralSnapshotJoinTest extends TableTestBase {
 
         assertThat(plan).contains("LateralSnapshotJoin");
         assertThat(plan).contains("ChangelogNormalize");
-        assertThat(compileJoinOperator("b_other_pk"))
-                .isInstanceOf(MultiSetLateralSnapshotJoinOperator.class);
         assertThat(buildUpsertKeysOf("b_other_pk")).isNull();
+        assertThat(compileJoinOperator("b_other_pk").getBuildUpsertKeys()).isNull();
     }
 
     @Test

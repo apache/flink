@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.join.snapshot;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -32,75 +31,55 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 /**
- * {@link LateralSnapshotJoinOperator} that keys the committed build side by its upsert key.
+ * {@link BuildStateView} that keys the committed build side by its upsert key.
  *
  * <p>For each keyed-state key (the join key) the latest full build row is held per upsert key in a
  * {@link MapState} from the upsert-key projection to the row. Insertions and updates ({@code
  * +I}/{@code +U}) overwrite the row for the key; deletes and update-befores ({@code -D}/{@code
  * -U}), including partial deletes that carry only the upsert-key columns, remove it by key. Unlike
- * {@link MultiSetLateralSnapshotJoinOperator} this needs no full before-image, so an upsert
- * changelog can feed the build side directly without a ChangelogNormalize.
+ * {@link MultiSetBuildStateView} this needs no full before-image, so an upsert changelog can feed
+ * the build side directly without a ChangelogNormalize.
  */
-@Internal
-public class UpsertLateralSnapshotJoinOperator extends LateralSnapshotJoinOperator {
-
-    private static final long serialVersionUID = 1L;
+class UpsertBuildStateView implements BuildStateView {
 
     @VisibleForTesting static final String BUILD_TABLE_STATE_NAME = "build-table-upsert";
+
+    private final InternalTypeInfo<RowData> buildType;
 
     /** Field indices of the build-side upsert key within the build row. */
     private final int[] buildUpsertKeyIndices;
 
     /** Committed build rows of the current key, keyed by their upsert-key projection. */
-    private transient MapState<RowData, RowData> buildTableByKey;
+    private MapState<RowData, RowData> buildTableByKey;
 
     /** Field getters to project the upsert key out of a build row. */
-    private transient RowData.FieldGetter[] upsertKeyGetters;
+    private RowData.FieldGetter[] upsertKeyGetters;
 
     /** Serializes the projected upsert key into a {@link RowData}. */
-    private transient RowDataSerializer upsertKeySerializer;
+    private RowDataSerializer upsertKeySerializer;
 
-    public UpsertLateralSnapshotJoinOperator(
-            boolean isLeftOuterJoin,
-            InternalTypeInfo<RowData> leftType,
-            InternalTypeInfo<RowData> rightType,
-            int buildRowtimeIndex,
-            GeneratedJoinCondition generatedJoinCondition,
-            boolean[] filterNullKeys,
-            long loadCompletedTime,
-            @Nullable Long loadCompletedIdleTimeoutMs,
-            @Nullable Long stateTtlMs,
-            int[] buildUpsertKeyIndices) {
-        super(
-                isLeftOuterJoin,
-                leftType,
-                rightType,
-                buildRowtimeIndex,
-                generatedJoinCondition,
-                filterNullKeys,
-                loadCompletedTime,
-                loadCompletedIdleTimeoutMs,
-                stateTtlMs);
-        Preconditions.checkNotNull(buildUpsertKeyIndices);
+    UpsertBuildStateView(InternalTypeInfo<RowData> buildType, int[] buildUpsertKeyIndices) {
+        this.buildType = buildType;
+        this.buildUpsertKeyIndices = buildUpsertKeyIndices;
+    }
+
+    static void checkUpsertKeyIndices(InternalTypeInfo<RowData> buildType, int[] indices) {
         Preconditions.checkArgument(
-                buildUpsertKeyIndices.length > 0,
+                indices.length > 0,
                 "buildUpsertKeyIndices must not be empty for the upsert build-side layout");
-        final int fieldCount = rightType.toRowType().getFieldCount();
-        for (int idx : buildUpsertKeyIndices) {
+        final int fieldCount = buildType.toRowType().getFieldCount();
+        for (int idx : indices) {
             Preconditions.checkArgument(
                     idx >= 0 && idx < fieldCount,
                     "buildUpsertKeyIndices out of bounds for build row: %s",
                     idx);
         }
-        this.buildUpsertKeyIndices = buildUpsertKeyIndices;
     }
 
     @Override
-    protected void openBuildState() {
-        final RowType buildRow = getRightType().toRowType();
+    public void open(RuntimeContext ctx) {
+        final RowType buildRow = buildType.toRowType();
         final LogicalType[] keyTypes = new LogicalType[buildUpsertKeyIndices.length];
         upsertKeyGetters = new RowData.FieldGetter[buildUpsertKeyIndices.length];
         for (int i = 0; i < buildUpsertKeyIndices.length; i++) {
@@ -112,43 +91,36 @@ public class UpsertLateralSnapshotJoinOperator extends LateralSnapshotJoinOperat
         final InternalTypeInfo<RowData> upsertKeyType = InternalTypeInfo.ofFields(keyTypes);
         upsertKeySerializer = upsertKeyType.toRowSerializer();
         buildTableByKey =
-                getRuntimeContext()
-                        .getMapState(
-                                new MapStateDescriptor<>(
-                                        BUILD_TABLE_STATE_NAME, upsertKeyType, getRightType()));
+                ctx.getMapState(
+                        new MapStateDescriptor<>(BUILD_TABLE_STATE_NAME, upsertKeyType, buildType));
     }
 
     @Override
-    protected void applyBuildChange(RowData change) throws Exception {
+    public boolean apply(RowData change) throws Exception {
         final RowKind changeType = change.getRowKind();
         final RowData upsertKey = projectUpsertKey(change);
         if (changeType == RowKind.INSERT || changeType == RowKind.UPDATE_AFTER) {
             change.setRowKind(RowKind.INSERT);
             buildTableByKey.put(upsertKey, change);
-        } else {
-            // DELETE / UPDATE_BEFORE, including partial deletes that carry only the upsert key.
-            if (!buildTableByKey.contains(upsertKey)) {
-                incUnmatchedBuildRetractions();
-                return;
-            }
-            buildTableByKey.remove(upsertKey);
+            return true;
         }
+        // DELETE / UPDATE_BEFORE, including partial deletes that carry only the upsert key.
+        if (!buildTableByKey.contains(upsertKey)) {
+            return false;
+        }
+        buildTableByKey.remove(upsertKey);
+        return true;
     }
 
     @Override
-    protected long joinBuildRows(RowData probe) throws Exception {
-        long fanOut = 0;
+    public void forEachRow(RowVisitor visitor) throws Exception {
         for (RowData buildRow : buildTableByKey.values()) {
-            if (joinMatches(probe, buildRow)) {
-                emitJoined(probe, buildRow);
-                fanOut++;
-            }
+            visitor.visit(buildRow, 1L);
         }
-        return fanOut;
     }
 
     @Override
-    protected void clearBuildTable() {
+    public void clear() {
         buildTableByKey.clear();
     }
 
