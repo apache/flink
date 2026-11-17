@@ -25,14 +25,17 @@ under the License.
 # Compiled Plans
 
 The planner translates a Table API or SQL program into a pipeline of operators every time you
-submit it. By default, it uses the newest optimizer rules, functions, and operators available. A compiled plan is the result of this translation, written to a JSON file. It contains
+submit it. By default, it uses the newest optimizer rules, functions, and operators available. A
+compiled plan is the result of this translation, written to a JSON file. It contains
 the execution nodes of the pipeline with their IDs and versions, the edges between them, the tables
 and functions they use, and the values of the options that the nodes depend on. When you run a
 plan, Flink doesn't plan the query again, so the job gets the same operators with the same IDs
 every time, including on a newer Flink version within the limits in
 [Flink Versions](#flink-versions).
 
-Every new Flink version comes with improvements to the planner and a potentially different topology for the same query. Use a compiled plan when you upgrade a job to a newer Flink version and want to maintain the existing topology including keeping its state,
+Every new Flink version comes with improvements to the planner and a potentially different topology
+for the same query. Use a compiled plan when you upgrade a job to a newer Flink version and want to
+maintain the existing topology, including keeping its state,
 see [Upgrading the Flink Version]({{< ref "docs/ops/upgrading" >}}#upgrading-the-flink-version), and to set the state
 TTL of each stateful operator, see
 [Configure Operator-level State TTL]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#配置算子粒度的状态-ttl).
@@ -267,9 +270,8 @@ for example on a test cluster, before you rely on it for an upgrade.
 The plan stores the Flink version that compiled it, and the type of each node includes its
 version, such as `stream-exec-join_1`. A newer Flink version runs the plan as long as it still
 supports these node versions, otherwise `EXECUTE PLAN` fails to load the plan. Flink guarantees
-that a plan runs after an upgrade by one minor version, for example from 2.2 to 2.3. Plans from
-older versions usually run as well, but without a guarantee. The tests of Flink run plans from
-Flink 1.19 and every later version.
+that a plan runs after an upgrade by one minor version, for example from 2.2 to 2.3. Older plans
+aren't guaranteed to run, but the tests of Flink run plans from Flink 1.19 and every later version.
 
 Flink doesn't migrate a plan to a newer version: `EXECUTE PLAN` and `COMPILE AND EXECUTE PLAN`
 don't rewrite the plan file. After two upgrades, a job still runs the plan of the first version.
