@@ -410,7 +410,13 @@ are defined once and are continuously evaluated as static end-to-end pipelines.
 
 A change to the query or to the Flink version can lead to a different execution plan, and the state
 in a savepoint might not map to it. For example, by adding a filter predicate, the optimizer might
-decide to reorder joins or change the schema of an intermediate operator.
+decide to reorder joins or change the schema of an intermediate operator. To see how a change
+affects the plan, compare the output of `EXPLAIN` in SQL or `table.explain()` in the Table API before
+and after the change, see [Explaining a Table]({{< ref "docs/dev/table/common" >}}#explaining-a-table).
+
+A patch release, for example from 2.2.0 to 2.2.1, doesn't add new versions of execution nodes, and
+changes the plan of a query only to fix a bug. A new minor version can plan the same query
+differently, because new optimizer rules are added and operators become more efficient.
 
 A [compiled plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) stores the execution plan of a pipeline, so that a newer Flink version runs the same
 operators with the same state layout. A process table function restores its state by its `uid`,
@@ -429,5 +435,8 @@ Where to go next?
 * [Determinism in Continuous Queries]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): Determinism in Continuous Queries.
 * [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}): Describes how to compile a pipeline to a plan file and run it.
 * [Query configuration]({{< ref "docs/dev/table/config" >}}): Lists Table API & SQL specific configuration options.
+
+If the state of a changed job can't be kept, check whether you can initialize it with historical
+data before you switch the job to real-time data.
 
 {{< top >}}

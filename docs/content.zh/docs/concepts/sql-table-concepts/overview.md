@@ -390,7 +390,13 @@ Run the plan as described in [Execute a Plan]({{< ref "docs/concepts/sql-table-c
 
 A change to the query or to the Flink version can lead to a different execution plan, and the state
 in a savepoint might not map to it. For example, by adding a filter predicate, the optimizer might
-decide to reorder joins or change the schema of an intermediate operator.
+decide to reorder joins or change the schema of an intermediate operator. To see how a change
+affects the plan, compare the output of `EXPLAIN` in SQL or `table.explain()` in the Table API before
+and after the change, see [Explaining a Table]({{< ref "docs/dev/table/common" >}}#explaining-a-table).
+
+A patch release, for example from 2.2.0 to 2.2.1, doesn't add new versions of execution nodes, and
+changes the plan of a query only to fix a bug. A new minor version can plan the same query
+differently, because new optimizer rules are added and operators become more efficient.
 
 A [compiled plan]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) stores the execution plan of a pipeline, so that a newer Flink version runs the same
 operators with the same state layout. A process table function restores its state by its `uid`,
@@ -410,6 +416,9 @@ change and how.
 * [流上的 Join]({{< ref "docs/sql/reference/queries/joins" >}}): 支持的几种流上的 Join。
 * [流上的确定性]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): 解释了流计算的确定性。
 * [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}): Describes how to compile a pipeline to a plan file and run it.
+If the state of a changed job can't be kept, check whether you can initialize it with historical
+data before you switch the job to real-time data.
+
 * [查询配置]({{< ref "docs/dev/table/config" >}}): Table API & SQL 特定的配置。
 
 {{< top >}}

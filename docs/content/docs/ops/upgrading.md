@@ -264,7 +264,9 @@ Before you run the plan on the new version, create its temporary tables and func
 guarantees an upgrade by one minor version. See [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) for older plans, what a
 plan stores, and what can't be compiled.
 
-Without a compiled plan, a restore after a version upgrade can work, but there is no guarantee.
+Without a compiled plan, a restore after an upgrade to a new minor version can work, but there is no
+guarantee. A patch release, for example from 2.2.0 to 2.2.1, doesn't add new versions of execution
+nodes, and changes the plan of a query only to fix a bug.
 
 ##### Jobs That Run Without a Compiled Plan
 
@@ -295,17 +297,16 @@ already runs without one, there are two options:
 #### Changing the Query
 
 When a job starts from a savepoint, Flink matches the state in the savepoint to the operators of the
-job by operator ID, as for the [DataStream API](#matching-operator-state). In a Table API or SQL
-program, only PTFs have an ID that you control:
+job by operator ID. In a Table API or SQL program, only PTFs have an ID that you control:
 
 * **PTFs:** Flink restores the state of a PTF by its `uid` argument. Set the `uid` explicitly, and
   don't change it. Without it, the name of the function is used, and renaming the function then
   loses the state. See
   [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids).
 * **All other operators**, such as sources, sinks, joins, and aggregations, get their IDs from the
-  planner. There is no equivalent of `uid()` or `setUidHash()` for them. A job that runs from a
-  compiled plan uses the IDs in the plan. Without a plan, the IDs are derived from the topology of
-  the job and change when the topology changes. The state of a source is its read position.
+  planner. A job that runs from a compiled plan uses the IDs in the plan. Without a plan, the IDs
+  are derived from the topology of the job and change when the topology changes. The state of a
+  source is its read position.
 
 These changes keep the state of a PTF:
 
@@ -324,6 +325,34 @@ These changes fail the restore or lose the state of the PTF:
   key starts with empty state.
 
 The state of the other operators is kept only if their IDs stay the same. For example, without a
+Changing the `uid` of one PTF resets the state of that PTF only. For example, a job calls two PTFs:
+
+```sql
+EXECUTE STATEMENT SET
+BEGIN
+  INSERT INTO totals SELECT * FROM Totals(input => TABLE orders PARTITION BY user_id, uid => 'totals');
+  INSERT INTO alerts SELECT * FROM Alerts(input => TABLE orders PARTITION BY user_id, uid => 'alerts');
+END;
+```
+
+To start `Alerts` with empty state and keep the state of `Totals`, stop the job with a savepoint,
+change the `uid` of `Alerts`, and allow Flink to skip the state that it stored for `alerts`:
+
+```sql
+SET 'execution.state-recovery.path' = 's3://my-bucket/savepoints/savepoint-...';
+SET 'execution.state-recovery.ignore-unclaimed-state' = 'true';
+EXECUTE STATEMENT SET
+BEGIN
+  INSERT INTO totals SELECT * FROM Totals(input => TABLE orders PARTITION BY user_id, uid => 'totals');
+  INSERT INTO alerts SELECT * FROM Alerts(input => TABLE orders PARTITION BY user_id, uid => 'alerts-v2');
+END;
+RESET 'execution.state-recovery.path';
+RESET 'execution.state-recovery.ignore-unclaimed-state';
+```
+
+The other operators keep their state, because only the `uid` changes. Without
+`ignore-unclaimed-state`, the restore fails with `Cannot map checkpoint/savepoint state for operator ...`.
+
 compiled plan, adding an `INSERT` statement to a statement set changes the ID of a source that both
 statements read.
 
@@ -345,16 +374,14 @@ continues where the old job stopped, for example with a timestamp or the offsets
 group.
 {{< /hint >}}
 
-Setting `table.exec.uid.generation` to `ALWAYS` doesn't give stable IDs either: they depend on the
-statements that were planned before in the same process. Use a compiled plan instead.
-
 #### Changing a Process Table Function
 
 You can change the logic of a PTF without losing its state. Flink restores each state entry of a PTF
-by its name, and the state entry must keep its data type. Unlike POJO and Avro types in the
-DataStream API, the data type of a PTF state entry doesn't evolve. Set the name of every state entry
-that you want to keep explicitly with `@StateHint(name = "...")`. Otherwise, the name is the name of
-the parameter of the `eval` method.
+by its name, and the state entry must keep its data type. To add fields to a state entry later,
+use the `VARIANT` data type, see
+[Efficiency and Design Principles]({{< ref "docs/dev/table/functions/ptfs" >}}#efficiency-and-design-principles).
+Set the name of every state entry that you want to keep explicitly with `@StateHint(name = "...")`.
+Otherwise, the name is the name of the parameter of the `eval` method.
 
 | Change to the PTF                                                             | Result |
 |:------------------------------------------------------------------------------|:-------|
@@ -363,9 +390,10 @@ the parameter of the `eval` method.
 | Remove a state entry                                                          | Compatible. Its state is no longer read. |
 | Change the order of the state parameters                                      | Compatible. |
 | Rename a state entry                                                          | Not compatible. The state entry starts empty, without an error. |
-| Add a TTL with `@StateHint(ttl = "...")`                                      | Compatible. |
+| Add, change, or remove a TTL with `@StateHint(ttl = "...")`                   | Compatible. |
 | Add, remove, or change the type of a field of a POJO or `Row` state entry     | Not compatible. The restore fails with a `StateMigrationException`. A `transient` field counts as removed. |
 | Rename a field of a POJO, or change the order of its fields or of the parameters of its constructor | Not safe. The restore can succeed and assign values to the wrong fields, without an error. |
+| Add a field to the value of a `VARIANT` state entry                           | Compatible. The data type stays `VARIANT`. |
 | Change a `ListView` or `MapView` to a POJO field, or a POJO to a `ValueView`  | Not compatible. The restore fails. |
 | Add an optional argument or an output column                                  | Compatible without a compiled plan. A compiled plan stores the signature of the call, so the job needs a new plan, see [Changing the Query](#changing-the-query). |
 
@@ -379,7 +407,7 @@ state, take a savepoint of the current job in a test environment and start the c
 #### Parallelism
 
 You can change the parallelism of a Table API or SQL job between a savepoint and a restore, with or
-without a compiled plan. As for DataStream programs, keep the maximum parallelism the same.
+without a compiled plan. Keep the maximum parallelism the same.
 
 ## Upgrading the Flink Framework Version
 
