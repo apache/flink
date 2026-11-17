@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.ddl.view.SqlAlterViewAs;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 
@@ -30,14 +31,17 @@ import org.apache.calcite.sql.SqlNode;
 import java.util.Collections;
 
 import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.toCatalogView;
-import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.validateAlterView;
+import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.validateAlterViewWithIfExists;
 
 /** A converter for {@link SqlAlterViewAs}. */
 public class SqlAlterViewAsConverter implements SqlNodeConverter<SqlAlterViewAs> {
 
     @Override
     public Operation convertSqlNode(SqlAlterViewAs alterView, ConvertContext context) {
-        CatalogView oldView = validateAlterView(alterView, context);
+        CatalogView oldView = validateAlterViewWithIfExists(alterView, context);
+        if (oldView == null) {
+            return new NopOperation();
+        }
         SqlNode newQuery = alterView.getNewQuery();
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
@@ -51,6 +55,6 @@ public class SqlAlterViewAsConverter implements SqlNodeConverter<SqlAlterViewAs>
                         oldView.getOptions(),
                         oldView.getComment(),
                         context);
-        return new AlterViewAsOperation(viewIdentifier, newView);
+        return new AlterViewAsOperation(viewIdentifier, newView, alterView.ifExists());
     }
 }

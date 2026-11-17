@@ -32,12 +32,27 @@ public abstract class SqlAlterView extends SqlAlterObject {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER VIEW", SqlKind.ALTER_VIEW);
 
+    private final boolean ifExists;
+
     public SqlAlterView(SqlParserPos pos, SqlIdentifier viewIdentifier) {
+        this(pos, viewIdentifier, false);
+    }
+
+    public SqlAlterView(SqlParserPos pos, SqlIdentifier viewIdentifier, boolean ifExists) {
         super(OPERATOR, pos, "VIEW", viewIdentifier);
+        this.ifExists = ifExists;
+    }
+
+    /** Returns whether the statement should be a no-op when the view does not exist. */
+    public boolean ifExists() {
+        return ifExists;
     }
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
         name.unparse(writer, leftPrec, rightPrec);
     }
 }

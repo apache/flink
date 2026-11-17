@@ -2524,6 +2524,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterViewIfExists() {
+        sql("ALTER VIEW IF EXISTS v1 RENAME TO v2").ok("ALTER VIEW IF EXISTS `V1` RENAME TO `V2`");
+        sql("ALTER VIEW IF EXISTS v1 AS SELECT c1, c2 FROM tbl")
+                .ok("ALTER VIEW IF EXISTS `V1`\n" + "AS\n" + "SELECT `C1`, `C2`\n" + "FROM `TBL`");
+        // IF EXISTS stays optional and the plain form keeps working
+        sql("ALTER VIEW v1 RENAME TO v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+    }
+
+    @Test
     void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
         sql("show views not like '%'").ok("SHOW VIEWS NOT LIKE '%'");
