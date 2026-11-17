@@ -18,21 +18,17 @@
 
 package org.apache.flink.table.runtime.operators.join.snapshot;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 
 /**
  * Keyed state holding the committed build side of a {@link LateralSnapshotJoinOperator}. All
- * methods operate on the build table of the operator's current key.
- *
- * <p>Implementations differ in how the build table is laid out: {@link MultiSetBuildStateView}
- * keeps a row → count multi-set, {@link UpsertBuildStateView} keys rows by their upsert key.
+ * methods operate on the build table of the operator's current key. Implementations declare their
+ * keyed state when they are created, see {@link BuildStateViews#create}.
  */
-interface BuildStateView {
-
-    /** Declares the keyed state. Called once from the operator's {@code open()}. */
-    void open(RuntimeContext ctx) throws Exception;
+@Internal
+public interface BuildStateView {
 
     /**
      * Applies a single committed build-side change. The change carries its original {@link
@@ -53,7 +49,7 @@ interface BuildStateView {
     void forEachRow(RowVisitor visitor) throws Exception;
 
     /** Clears the committed build table (used by TTL eviction). */
-    void clear() throws Exception;
+    void clear();
 
     /** Callback of {@link #forEachRow(RowVisitor)}. */
     interface RowVisitor {

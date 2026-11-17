@@ -202,7 +202,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
                 stateTtlMs,
-                null);
+                BuildSideSpec.multiSet());
     }
 
     private static LateralSnapshotJoinOperator newOperator(
@@ -874,7 +874,7 @@ class MultiSetLateralSnapshotJoinOperatorTest {
                         100L,
                         null,
                         null,
-                        null);
+                        BuildSideSpec.multiSet());
 
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 new KeyedTwoInputStreamOperatorTestHarness<>(

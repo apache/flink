@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.snapshot.BuildSideSpec;
 import org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -217,18 +218,24 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
         final long effectiveStateTtlMs =
                 stateTtlMs != null ? stateTtlMs : config.getStateRetentionTime();
 
+        final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(rightInputType);
+        final BuildSideSpec buildSideSpec =
+                buildUpsertKeys == null
+                        ? BuildSideSpec.multiSet()
+                        : BuildSideSpec.upsert(buildUpsertKeys);
+
         final LateralSnapshotJoinOperator operator =
                 new LateralSnapshotJoinOperator(
                         isLeftOuterJoin,
                         InternalTypeInfo.of(leftInputType),
-                        InternalTypeInfo.of(rightInputType),
+                        rightTypeInfo,
                         rightTimeAttributeIndex,
                         generatedJoinCondition,
                         joinSpec.getFilterNulls(),
                         loadCompletedTime,
                         loadCompletedIdleTimeoutMs,
                         effectiveStateTtlMs,
-                        buildUpsertKeys);
+                        buildSideSpec);
 
         final Transformation<RowData> leftTransform =
                 (Transformation<RowData>) leftInputEdge.translateToPlan(planner);

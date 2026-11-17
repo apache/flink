@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.snapshot;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MapState;
@@ -35,24 +36,18 @@ import java.util.Map;
  * carry complete before-images. This is the layout used when the build side has no usable
  * primary/upsert key.
  */
-class MultiSetBuildStateView implements BuildStateView {
+@Internal
+public class MultiSetBuildStateView implements BuildStateView {
 
     @VisibleForTesting static final String BUILD_TABLE_STATE_NAME = "build-table";
-
-    private final InternalTypeInfo<RowData> buildType;
 
     /**
      * Build-side table as multi-set (row → reference count). Holds the committed snapshot, i.e. all
      * build changes up to the last applied build watermark; probes join against this.
      */
-    private MapState<RowData, Long> buildTableState;
+    private final MapState<RowData, Long> buildTableState;
 
-    MultiSetBuildStateView(InternalTypeInfo<RowData> buildType) {
-        this.buildType = buildType;
-    }
-
-    @Override
-    public void open(RuntimeContext ctx) {
+    public MultiSetBuildStateView(RuntimeContext ctx, InternalTypeInfo<RowData> buildType) {
         buildTableState =
                 ctx.getMapState(
                         new MapStateDescriptor<>(BUILD_TABLE_STATE_NAME, buildType, Types.LONG));
