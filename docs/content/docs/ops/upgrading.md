@@ -325,7 +325,6 @@ These changes fail the restore or lose the state of the PTF:
   the same, the job restores without an error, but the state belongs to the old keys and each new
   key starts with empty state.
 
-The state of the other operators is kept only if their IDs stay the same. For example, without a
 Changing the `uid` of one PTF resets the state of that PTF only. For example, a job calls two PTFs:
 
 ```sql
@@ -354,6 +353,7 @@ RESET 'execution.state-recovery.ignore-unclaimed-state';
 The other operators keep their state, because only the `uid` changes. Without
 `ignore-unclaimed-state`, the restore fails with `Cannot map checkpoint/savepoint state for operator ...`.
 
+The state of the other operators is kept only if their IDs stay the same. For example, without a
 compiled plan, adding an `INSERT` statement to a statement set changes the ID of a source that both
 statements read.
 
@@ -393,8 +393,8 @@ Otherwise, the name is the name of the parameter of the `eval` method.
 | Rename a state entry                                                          | Not compatible. The state entry starts empty, without an error. |
 | Add, change, or remove a TTL with `@StateHint(ttl = "...")`                   | Compatible. |
 | Add, remove, or change the type of a field of a POJO or `Row` state entry     | Not compatible. The restore fails with a `StateMigrationException`. A `transient` field counts as removed. |
-| Rename a field of a POJO, or change the order of its fields or of the parameters of its constructor | Not safe. The restore can succeed and assign values to the wrong fields, without an error. |
 | Add a field to the value of a `VARIANT` state entry                           | Compatible. The data type stays `VARIANT`. |
+| Rename a field of a POJO, or change the order of its fields or of the parameters of its constructor | Not safe. The restore can succeed and assign values to the wrong fields, without an error. |
 | Change a `ListView` or `MapView` to a POJO field, or a POJO to a `ValueView`  | Not compatible. The restore fails. |
 | Add an optional argument or an output column                                  | Compatible without a compiled plan. A compiled plan stores the signature of the call, so the job needs a new plan, see [Changing the Query](#changing-the-query). |
 

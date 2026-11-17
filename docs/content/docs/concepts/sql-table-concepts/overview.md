@@ -436,6 +436,9 @@ even when the query around it changes. See
 [Application State Compatibility]({{< ref "docs/ops/upgrading" >}}#table-api--sql) for what you can
 change and how.
 
+If the state of a changed job can't be kept, check whether you can initialize it with historical
+data before you switch the job to real-time data.
+
 
 Where to go next?
 -----------------
@@ -447,8 +450,5 @@ Where to go next?
 * [Determinism in Continuous Queries]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): Determinism in Continuous Queries.
 * [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}): Describes how to compile a pipeline to a plan file and run it.
 * [Query configuration]({{< ref "docs/dev/table/config" >}}): Lists Table API & SQL specific configuration options.
-
-If the state of a changed job can't be kept, check whether you can initialize it with historical
-data before you switch the job to real-time data.
 
 {{< top >}}

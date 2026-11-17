@@ -416,6 +416,9 @@ even when the query around it changes. See
 [Application State Compatibility]({{< ref "docs/ops/upgrading" >}}#table-api--sql) for what you can
 change and how.
 
+If the state of a changed job can't be kept, check whether you can initialize it with historical
+data before you switch the job to real-time data.
+
 
 <a name="where-to-go-next"></a>
 
@@ -428,9 +431,6 @@ change and how.
 * [流上的 Join]({{< ref "docs/sql/reference/queries/joins" >}}): 支持的几种流上的 Join。
 * [流上的确定性]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): 解释了流计算的确定性。
 * [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}): Describes how to compile a pipeline to a plan file and run it.
-If the state of a changed job can't be kept, check whether you can initialize it with historical
-data before you switch the job to real-time data.
-
 * [查询配置]({{< ref "docs/dev/table/config" >}}): Table API & SQL 特定的配置。
 
 {{< top >}}
