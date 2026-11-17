@@ -42,6 +42,13 @@ interface BuildStateView {
      */
     boolean apply(RowData change) throws Exception;
 
+    /**
+     * Whether build changes must be applied in row-time order (gated by the build-side watermark)
+     * instead of in arrival order. This is the case if a change can only be matched to its
+     * counterpart by value, as opposed to by key.
+     */
+    boolean requiresRowtimeOrdering();
+
     /** Visits the committed build rows, each with the number of times it is present. */
     void forEachRow(RowVisitor visitor) throws Exception;
 

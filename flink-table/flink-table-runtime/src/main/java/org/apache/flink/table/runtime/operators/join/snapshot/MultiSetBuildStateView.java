@@ -79,6 +79,11 @@ class MultiSetBuildStateView implements BuildStateView {
     }
 
     @Override
+    public boolean requiresRowtimeOrdering() {
+        return true;
+    }
+
+    @Override
     public void forEachRow(RowVisitor visitor) throws Exception {
         for (Map.Entry<RowData, Long> entry : buildTableState.entries()) {
             visitor.visit(entry.getKey(), entry.getValue());
