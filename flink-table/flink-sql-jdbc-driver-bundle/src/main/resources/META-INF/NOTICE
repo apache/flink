@@ -1,0 +1,25 @@
+flink-sql-jdbc-driver-bundle
+Copyright 2014-2026 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+                            The Netty Project
+                            =================
+
+Please visit the Netty web site for more information:
+
+  * https://netty.io/
+
+Copyright 2014 The Netty Project
+
+This product contains a modified portion of 'Apache Harmony', an open source
+Java SE, which can be obtained at:
+
+  * NOTICE:
+    * Apache Harmony
+      Copyright 2006, 2010 The Apache Software Foundation.
+  * LICENSE:
+    * Apache License 2.0
+  * HOMEPAGE:
+    * https://archive.apache.org/dist/harmony/
