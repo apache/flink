@@ -232,9 +232,9 @@ guarantees that a plan runs after an upgrade by one minor version, and plans fro
 usually run as well. See [Compiled Plans]({{< ref "docs/concepts/sql-table-concepts/compiled_plan" >}}) for older plans, what a
 plan stores, and what can't be compiled.
 
-Without a compiled plan, a restore after an upgrade to a new minor version can work, but there is no
-guarantee. A patch release, for example from 2.2.0 to 2.2.1, doesn't add new versions of execution
-nodes, and changes the plan of a query only to fix a bug.
+Without a compiled plan, a restore after a version upgrade can work, but there is no guarantee. This
+also applies to a patch release, for example from 2.2.0 to 2.2.1: it doesn't add new versions of
+execution nodes, but it can change the plan of a query, for example to fix a bug.
 
 ##### Jobs That Run Without a Compiled Plan
 
@@ -302,8 +302,9 @@ BEGIN
 END;
 ```
 
-To start `Alerts` with empty state and keep the state of `Totals`, stop the job with a savepoint,
-change the `uid` of `Alerts`, and allow Flink to skip the state that it stored for `alerts`:
+To start `Alerts` with empty state and keep the state of `Totals`, stop the job with
+`STOP JOB '<job_id>' WITH SAVEPOINT`, change the `uid` of `Alerts`, and allow Flink to skip the
+state that it stored for `alerts`:
 
 ```sql
 SET 'execution.state-recovery.path' = 's3://my-bucket/savepoints/savepoint-...';
@@ -317,8 +318,8 @@ RESET 'execution.state-recovery.path';
 RESET 'execution.state-recovery.ignore-unclaimed-state';
 ```
 
-The other operators keep their state, because only the `uid` changes. Without
-`ignore-unclaimed-state`, the restore fails with `Cannot map checkpoint/savepoint state for operator ...`.
+`Totals` keeps its state. Without `ignore-unclaimed-state`, the restore fails with
+`Cannot map checkpoint/savepoint state for operator ...`.
 
 The state of the other operators is kept only if their IDs stay the same. For example, without a
 compiled plan, adding an `INSERT` statement to a statement set changes the ID of a source that both
@@ -331,7 +332,8 @@ changed statement to a new file and run that file from the savepoint.
 The operators other than PTFs keep their state only if the new plan assigns them the same IDs,
 which isn't guaranteed. The node IDs of a plan depend on the statements that the same process
 planned before. Compile every plan of the job, including the first one, in a new SQL Client or
-Table API process, not in a SQL Gateway or SQL Client session that has planned other statements. Test the restore from a copy of the savepoint, and keep the old plan file to go back to.
+Table API process, not in a SQL Gateway or SQL Client session that has planned other statements.
+Test the restore from a copy of the savepoint, and keep the old plan file to go back to.
 
 {{< hint warning >}}
 When you use `--allowNonRestoredState` (in SQL: `execution.state-recovery.ignore-unclaimed-state`)
