@@ -660,6 +660,13 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
+									<!-- Native libraries named for a Netty relocation this jar doesn't contain, so Netty can't load them. -->
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>META-INF/native/liborg_apache_hbase_thirdparty_netty_*</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>.gitkeep</exclude>
