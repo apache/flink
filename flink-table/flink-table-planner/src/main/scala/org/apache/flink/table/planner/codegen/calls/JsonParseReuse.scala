@@ -60,8 +60,10 @@ object JsonParseReuse {
         val inputType = CodeGenUtils.boxedTypeTermForType(input.resultType)
         ctx.addReusableMember(s"$typeName $varName;")
         ctx.addReusableMember(s"$inputType $lastInputName;")
+        // the input may be a reused instance with new content, so the parse is valid for one record
+        ctx.addReusablePerRecordStatement(s"$lastInputName = null;")
 
-        // keyed on the immutable input so it re-parses on change; no per-record reset needed
+        // keyed on the input instance to share one parse between calls within a record
         ctx.addReusableMember(
           s"""
              |private $typeName $methodName($inputType in) {
