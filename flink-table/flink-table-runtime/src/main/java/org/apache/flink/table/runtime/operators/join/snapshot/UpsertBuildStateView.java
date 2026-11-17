@@ -36,10 +36,11 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>For each keyed-state key (the join key) the latest full build row is held per upsert key in a
  * {@link MapState} from the upsert-key projection to the row. Insertions and updates ({@code
- * +I}/{@code +U}) overwrite the row for the key; deletes and update-befores ({@code -D}/{@code
- * -U}), including partial deletes that carry only the upsert-key columns, remove it by key. Unlike
- * {@link MultiSetBuildStateView} this needs no full before-image, so an upsert changelog can feed
- * the build side directly without a ChangelogNormalize.
+ * +I}/{@code +U}) overwrite the row for the key; deletes ({@code -D}), including partial deletes
+ * that carry only the upsert-key columns, remove it by key. Update-befores ({@code -U}) are ignored
+ * because the following {@code +U} overwrites the row. Unlike {@link MultiSetBuildStateView} this
+ * needs no full before-image, so an upsert changelog can feed the build side directly without a
+ * ChangelogNormalize. Changes of a key arrive in order, so they are applied in arrival order.
  */
 class UpsertBuildStateView implements BuildStateView {
 
@@ -98,18 +99,28 @@ class UpsertBuildStateView implements BuildStateView {
     @Override
     public boolean apply(RowData change) throws Exception {
         final RowKind changeType = change.getRowKind();
+        if (changeType == RowKind.UPDATE_BEFORE) {
+            // The upsert key contains the join key, so the -U is always followed by its +U for the
+            // same key, which overwrites the row.
+            return true;
+        }
         final RowData upsertKey = projectUpsertKey(change);
         if (changeType == RowKind.INSERT || changeType == RowKind.UPDATE_AFTER) {
             change.setRowKind(RowKind.INSERT);
             buildTableByKey.put(upsertKey, change);
             return true;
         }
-        // DELETE / UPDATE_BEFORE, including partial deletes that carry only the upsert key.
+        // DELETE, including partial deletes that carry only the upsert key.
         if (!buildTableByKey.contains(upsertKey)) {
             return false;
         }
         buildTableByKey.remove(upsertKey);
         return true;
+    }
+
+    @Override
+    public boolean requiresRowtimeOrdering() {
+        return false;
     }
 
     @Override

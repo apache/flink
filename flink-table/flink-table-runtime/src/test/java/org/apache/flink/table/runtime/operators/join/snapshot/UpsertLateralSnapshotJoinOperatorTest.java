@@ -291,6 +291,84 @@ class UpsertLateralSnapshotJoinOperatorTest {
         }
     }
 
+    @Test
+    void updateBeforeIsIgnored() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            h.processElement2(insertRecord("a", "1", "v1", 1L));
+            h.processWatermark2(new Watermark(100L)); // flip to JOIN
+
+            h.processElement2(updateBeforeRecord("a", "1", "v1", 2L));
+            h.processElement1(insertRecord(10L, "a", "p"));
+
+            // The -U neither removes the row nor counts as an unmatched retraction.
+            JOINED_ASSERTOR.shouldEmitAll(h, row(10L, "a", "p", "a", "1", "v1", 1L));
+            assertThat(op.getNumUnmatchedBuildRetractions().getCount()).isZero();
+        }
+    }
+
+    @ParameterizedTest(name = "flipFirst={0}")
+    @ValueSource(booleans = {true, false})
+    void updateWithSmallerRowtimeOverwritesRowWithLargerRowtime(boolean flipFirst)
+            throws Exception {
+        assertBuildOutcome(
+                flipFirst,
+                row(10L, "a", "p", "a", "1", "v2", 5L),
+                insertRecord("a", "1", "v1", 10L),
+                updateAfterRecord("a", "1", "v2", 5L));
+    }
+
+    @ParameterizedTest(name = "flipFirst={0}")
+    @ValueSource(booleans = {true, false})
+    void updateBeforeAfterPairWithSmallerRowtimeOverwritesRow(boolean flipFirst) throws Exception {
+        assertBuildOutcome(
+                flipFirst,
+                row(10L, "a", "p", "a", "1", "v2", 5L),
+                insertRecord("a", "1", "v1", 10L),
+                updateBeforeRecord("a", "1", "v1", 10L),
+                updateAfterRecord("a", "1", "v2", 5L));
+    }
+
+    @ParameterizedTest(name = "flipFirst={0}")
+    @ValueSource(booleans = {true, false})
+    void insertWithSmallerRowtimeAfterTombstoneRestoresRow(boolean flipFirst) throws Exception {
+        assertBuildOutcome(
+                flipFirst,
+                row(10L, "a", "p", "a", "1", "v2", 8L),
+                insertRecord("a", "1", "v1", 10L),
+                deleteRecord("a", "1", null, null),
+                insertRecord("a", "1", "v2", 8L));
+    }
+
+    /**
+     * Applies the build changes either before or after the flip to JOIN phase, without any build
+     * watermark in between, and expects a probe to join exactly the given row.
+     */
+    @SafeVarargs
+    private static void assertBuildOutcome(
+            boolean flipFirst, RowData expected, StreamRecord<RowData>... buildChanges)
+            throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 1L);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            if (flipFirst) {
+                h.processWatermark2(new Watermark(100L));
+            }
+            for (StreamRecord<RowData> change : buildChanges) {
+                h.processElement2(change);
+            }
+            if (!flipFirst) {
+                h.processWatermark2(new Watermark(100L));
+            }
+            h.processElement1(insertRecord(10L, "a", "p"));
+
+            JOINED_ASSERTOR.shouldEmitAll(h, expected);
+        }
+    }
+
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
     void restorePreservesUpsertBuildTable(StateBackend backend) throws Exception {

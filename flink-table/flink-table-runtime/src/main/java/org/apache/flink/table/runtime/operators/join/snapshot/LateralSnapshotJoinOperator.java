@@ -91,7 +91,8 @@ import java.util.concurrent.ScheduledFuture;
  * state. How each input is handled depends on the current phase:
  *
  * <ul>
- *   <li>Build-side (input2 / right) changes are handled the same way in both phases: they are
+ *   <li>Build-side (input2 / right) changes are handled the same way in both phases. Accumulations
+ *       whose join key can never match are not stored. With the multi-set layout, changes are
  *       buffered in {@code buildChangeBuffer} and applied lazily to the per-key committed build
  *       table on the next per-key access (build- or probe-side) once the build-side watermark has
  *       advanced past the buffer's tag, or at the flip. The buffer is keyed by the build-side
@@ -99,7 +100,8 @@ import java.util.concurrent.ScheduledFuture;
  *       watermark reaches it; changes sharing a row-time are applied in arrival order, which
  *       mirrors the upstream emit order (a retraction directly precedes its accumulation). Gating
  *       application on the row-time preserves atomic update visibility across {@code -U}/{@code +U}
- *       pairs in JOIN phase. Accumulations whose join key can never match are not stored.
+ *       pairs in JOIN phase. With the upsert layouts, changes of a key arrive in order, so they are
+ *       applied on arrival.
  *   <li>Probe-side (input1 / left) records are handled differently per phase. During LOAD each is
  *       buffered in {@code probeBuffer} under a synthetic, increasing timestamp with one event-time
  *       timer registered per record. At the flip these timers fire (one record each, interruptibly)
@@ -137,7 +139,7 @@ import java.util.concurrent.ScheduledFuture;
 @Internal
 public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
-        Triggerable<RowData, VoidNamespace> {
+                Triggerable<RowData, VoidNamespace> {
 
     // -------------------------- static final definitions --------------------------
 
@@ -149,12 +151,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private static final String OPERATOR_PHASE_STATE_NAME = "lateral-snapshot-phase";
 
     /** Keyed state names. */
-    @VisibleForTesting
-    static final String BUILD_CHANGE_BUFFER_STATE_NAME = "build-change-buffer";
-    @VisibleForTesting
-    static final String BUFFERED_AT_WM_STATE_NAME = "buffered-at-wm";
-    @VisibleForTesting
-    static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
+    @VisibleForTesting static final String BUILD_CHANGE_BUFFER_STATE_NAME = "build-change-buffer";
+
+    @VisibleForTesting static final String BUFFERED_AT_WM_STATE_NAME = "buffered-at-wm";
+    @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
     private static final String PROBE_BUFFER_SEQ_STATE_NAME = "probe-buffer-seq";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
@@ -183,16 +183,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     static final String CURRENT_PROBE_WM_METRIC_NAME = "currentProbeSideWatermark";
 
     /** Gauge: current phase ordinal, 0 = LOAD, 1 = JOIN. */
-    @VisibleForTesting
-    static final String CURRENT_PHASE_METRIC_NAME = "currentPhase";
+    @VisibleForTesting static final String CURRENT_PHASE_METRIC_NAME = "currentPhase";
 
     /** Gauge: max joined records emitted for a probe-side record. */
-    @VisibleForTesting
-    static final String MAX_JOIN_FAN_OUT_METRIC_NAME = "maxJoinFanOut";
+    @VisibleForTesting static final String MAX_JOIN_FAN_OUT_METRIC_NAME = "maxJoinFanOut";
 
     /** Gauge: average joined records emitted per probe-side record. */
-    @VisibleForTesting
-    static final String AVG_JOIN_FAN_OUT_METRIC_NAME = "avgJoinFanOut";
+    @VisibleForTesting static final String AVG_JOIN_FAN_OUT_METRIC_NAME = "avgJoinFanOut";
 
     /** Counter: probe-side records without a match. */
     @VisibleForTesting
@@ -230,8 +227,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * Field indices of the build-side upsert key, or {@code null} for the multi-set build-side
      * layout.
      */
-    @Nullable
-    private final int[] buildUpsertKeys;
+    @Nullable private final int[] buildUpsertKeys;
 
     /**
      * Per-equi-key flag indicating whether rows with a NULL in that key position must be filtered
@@ -250,8 +246,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * operator flips to JOIN if no build-side watermark advance is seen for this duration. The
      * countdown starts on the first build-side signal (record, watermark, or idle status).
      */
-    @Nullable
-    private final Long loadCompletedIdleTimeoutMs;
+    @Nullable private final Long loadCompletedIdleTimeoutMs;
 
     /**
      * State TTL (millis) to clean up any keyed state during JOIN phase. We schedule TTL timers
@@ -285,8 +280,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * {@link Phase#JOIN}. {@code null} while still in LOAD. Used by the TTL handler to reschedule
      * state TTL timers that fire too early.
      */
-    @Nullable
-    private transient Long flipProcTime;
+    @Nullable private transient Long flipProcTime;
 
     /** Highest build-side watermark observed. */
     private transient long currentBuildSideWm;
@@ -295,8 +289,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private transient long currentProbeSideWm;
 
     /** Non-keyed processing-time idle-flip timer. */
-    @Nullable
-    private transient ScheduledFuture<?> idleFlipTimer;
+    @Nullable private transient ScheduledFuture<?> idleFlipTimer;
 
     /**
      * True if the keyed state backend iterates map entries in serialized-key order (RocksDB/ForSt),
@@ -618,6 +611,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             // remove the row if an earlier version stored it.
             return;
         }
+        if (!buildState.requiresRowtimeOrdering()) {
+            applyBuildChange(build);
+            refreshStateTtl();
+            return;
+        }
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         Long bufferedAt = applyBufferedChangesUpToCurrentWm();
         // Buffer the change under its build row-time (grouping changes that share a row-time).
@@ -637,20 +635,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         refreshStateTtl();
     }
 
-    /**
-     * Returns the row-time of a build change. A partial delete (delete by key) carries no row-time
-     * because it is not part of the key. It is ordered after the changes already buffered for the
-     * current key, i.e. in arrival order.
-     */
-    private long buildRowtimeOf(RowData build) throws Exception {
-        if (!build.isNullAt(buildRowtimeIndex) || RowDataUtil.isAccumulateMsg(build)) {
-            return build.getLong(buildRowtimeIndex);
-        }
-        long latest = currentBuildSideWm;
-        for (Long buffered : buildChangeBuffer.keys()) {
-            latest = Math.max(latest, buffered);
-        }
-        return latest;
+    private long buildRowtimeOf(RowData build) {
+        return build.getLong(buildRowtimeIndex);
     }
 
     // -------------------------- watermark processing --------------------------
@@ -938,10 +924,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * build-side WM is passed.
      *
      * @return the watermark up to which changes have been applied, or {@code null} if no changes
-     *         remain buffered.
+     *     remain buffered.
      */
     @Nullable
     private Long applyBufferedChangesUpToCurrentWm() throws Exception {
+        if (!buildState.requiresRowtimeOrdering()) {
+            return null;
+        }
         Long bufferedAt = bufferedAtWmState.value();
         if (bufferedAt == null) {
             // Nothing buffered for this key.
@@ -966,7 +955,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * watermark tag is advanced to {@code upToWm}; a fully drained buffer is cleared instead.
      *
      * @return the watermark up to which changes have been applied, or {@code null} if no changes
-     *         remain buffered.
+     *     remain buffered.
      */
     @Nullable
     private Long applyBufferedChangesUpTo(long upToWm) throws Exception {
@@ -1031,9 +1020,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     /** Applies a list of build-side changes to the committed build table for the current key. */
     private void applyBuildChanges(List<RowData> changes) throws Exception {
         for (RowData change : changes) {
-            if (!buildState.apply(change)) {
-                incUnmatchedBuildRetractions();
-            }
+            applyBuildChange(change);
+        }
+    }
+
+    private void applyBuildChange(RowData change) throws Exception {
+        if (!buildState.apply(change)) {
+            incUnmatchedBuildRetractions();
         }
     }
 
