@@ -23,14 +23,31 @@ import org.apache.calcite.util.ImmutableBitSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Utility for upsertKey which represented as a Set of {@link
  * org.apache.calcite.util.ImmutableBitSet}.
  */
 public class UpsertKeyUtil {
+
+    private static final Comparator<int[]> SMALLEST_FIRST =
+            Comparator.<int[]>comparingInt(a -> a.length)
+                    .thenComparing(
+                            (a, b) -> {
+                                for (int i = 0; i < a.length; i++) {
+                                    final int cmp = Integer.compare(a[i], b[i]);
+                                    if (cmp != 0) {
+                                        return cmp;
+                                    }
+                                }
+                                return 0;
+                            });
 
     /**
      * Returns the smallest key of given upsert keys. The rule of 'small' is an upsert key
@@ -71,5 +88,20 @@ public class UpsertKeyUtil {
                             }
                             return k2;
                         });
+    }
+
+    /**
+     * Returns the given upsert keys as arrays ordered by {@link SMALLEST_FIRST}, or an empty list
+     * if the input set is null. The order only depends on the key columns, so callers that pick a
+     * key by its position get the same key on every compilation.
+     */
+    public static List<int[]> sortedKeys(@Nullable Set<ImmutableBitSet> upsertKeys) {
+        if (upsertKeys == null) {
+            return Collections.emptyList();
+        }
+        return upsertKeys.stream()
+                .map(ImmutableBitSet::toArray)
+                .sorted(SMALLEST_FIRST)
+                .collect(Collectors.toList());
     }
 }
