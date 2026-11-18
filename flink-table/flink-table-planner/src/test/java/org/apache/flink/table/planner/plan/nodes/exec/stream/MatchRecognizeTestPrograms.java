@@ -181,6 +181,55 @@ public class MatchRecognizeTestPrograms {
                     .runSql(getEventTimeSql("ORDER BY rowtime, sequence_num"))
                     .build();
 
+    public static final TableTestProgram MATCH_LATE_ROWS_AFTER_RESTORE =
+            TableTestProgram.of(
+                            "match-late-rows-after-restore",
+                            "rows not newer than the rows of a partial match are late after a restore")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("MyEventTimeTable")
+                                    .addSchema(
+                                            "k STRING",
+                                            "kind STRING",
+                                            "id INT",
+                                            "ts STRING",
+                                            "`rowtime` AS TO_TIMESTAMP(`ts`)",
+                                            "WATERMARK for `rowtime` AS `rowtime`")
+                                    .producedBeforeRestore(
+                                            Row.of("k", "start", 1, "2020-10-10 00:00:01"),
+                                            Row.of("k", "middle", 2, "2020-10-10 00:00:02"),
+                                            Row.of("x", "start", 3, "2020-10-10 00:00:03"),
+                                            Row.of("x", "end", 4, "2020-10-10 00:00:04"),
+                                            Row.of("x", "middle", 5, "2020-10-10 00:00:05"))
+                                    .producedAfterRestore(
+                                            // late: the watermark was 5 seconds before the restore
+                                            Row.of("k", "start", 6, "2020-10-10 00:00:01"),
+                                            Row.of("k", "middle", 7, "2020-10-10 00:00:02"),
+                                            Row.of("k", "end", 8, "2020-10-10 00:00:06"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("MySink")
+                                    .addSchema("k STRING", "v INT", "m INT", "l INT")
+                                    .consumedBeforeRestore(Row.of("x", 3, null, 4))
+                                    .consumedAfterRestore(Row.of("k", 1, 2, 8))
+                                    .build())
+                    .runSql(
+                            "insert into MySink SELECT * FROM MyEventTimeTable MATCH_RECOGNIZE (\n"
+                                    + "  PARTITION BY k\n"
+                                    + "  ORDER BY rowtime\n"
+                                    + "  MEASURES\n"
+                                    + "    V.id AS v,\n"
+                                    + "    LAST(M.id) AS m,\n"
+                                    + "    L.id AS l\n"
+                                    + "  ONE ROW PER MATCH\n"
+                                    + "  AFTER MATCH SKIP PAST LAST ROW\n"
+                                    + "  PATTERN (V M* L) WITHIN INTERVAL '30' MINUTE\n"
+                                    + "  DEFINE\n"
+                                    + "    V AS V.kind = 'start',\n"
+                                    + "    M AS M.kind <> 'end',\n"
+                                    + "    L AS L.kind = 'end'\n"
+                                    + ") AS T")
+                    .build();
+
     private static String getEventTimeSql(final String orderByClause) {
         final String sql =
                 "insert into MySink SELECT * FROM MyEventTimeTable MATCH_RECOGNIZE (\n"
