@@ -134,7 +134,7 @@ class StreamPhysicalRank(
         keepLastRow,
         outputInsertOnly,
         generateUpdateBefore,
-        InputProperty.DEFAULT,
+        InputProperty.fromInput(getInput),
         FlinkTypeFactory.toLogicalRowType(getRowType),
         getDeduplicateDescription(sortOnRowTime, keepLastRow, outputInsertOnly))
     } else {
@@ -147,7 +147,7 @@ class StreamPhysicalRank(
         rankStrategy,
         outputRankNumber,
         generateUpdateBefore,
-        InputProperty.DEFAULT,
+        InputProperty.fromInput(getInput),
         FlinkTypeFactory.toLogicalRowType(getRowType),
         getRelDetailedDescription
       )

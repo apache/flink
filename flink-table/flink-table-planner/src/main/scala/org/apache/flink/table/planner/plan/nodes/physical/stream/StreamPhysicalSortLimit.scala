@@ -103,7 +103,7 @@ class StreamPhysicalSortLimit(
       limitEnd,
       rankStrategy,
       generateUpdateBefore,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

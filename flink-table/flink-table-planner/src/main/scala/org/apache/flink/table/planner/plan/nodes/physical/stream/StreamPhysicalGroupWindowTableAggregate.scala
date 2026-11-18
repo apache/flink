@@ -81,7 +81,7 @@ class StreamPhysicalGroupWindowTableAggregate(
       window,
       namedWindowProperties.toArray,
       needRetraction,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

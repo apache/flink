@@ -145,7 +145,7 @@ class StreamPhysicalIncrementalGroupAggregate(
       FlinkTypeFactory.toLogicalRowType(partialLocalAggInputRowType),
       partialAggNeedRetraction,
       StateTtlHint.getStateTtlFromHintOnSingleRel(hints),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }
