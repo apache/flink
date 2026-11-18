@@ -23,14 +23,13 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,11 +53,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link HeartbeatManager}. */
-public class HeartbeatManagerTest extends TestLogger {
+class HeartbeatManagerTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static final Logger LOG = LoggerFactory.getLogger(HeartbeatManagerTest.class);
     public static final long HEARTBEAT_INTERVAL = 50L;
@@ -71,7 +70,7 @@ public class HeartbeatManagerTest extends TestLogger {
      * HeartbeatListener}.
      */
     @Test
-    public void testRegularHeartbeat() throws InterruptedException {
+    void testRegularHeartbeat() throws InterruptedException {
         final long heartbeatTimeout = 1000L;
         ResourceID ownResourceID = new ResourceID("foobar");
         ResourceID targetResourceID = new ResourceID("barfoo");
@@ -90,7 +89,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         ownResourceID,
                         heartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         final ArrayBlockingQueue<Integer> reportedPayloadsHeartbeatTarget =
@@ -119,7 +118,7 @@ public class HeartbeatManagerTest extends TestLogger {
 
     /** Tests that the heartbeat monitors are updated when receiving a new heartbeat signal. */
     @Test
-    public void testHeartbeatMonitorUpdate() {
+    void testHeartbeatMonitorUpdate() {
         long heartbeatTimeout = 1000L;
         ResourceID ownResourceID = new ResourceID("foobar");
         ResourceID targetResourceID = new ResourceID("barfoo");
@@ -157,7 +156,7 @@ public class HeartbeatManagerTest extends TestLogger {
 
     /** Tests that a heartbeat timeout is signaled if the heartbeat is not reported in time. */
     @Test
-    public void testHeartbeatTimeout() throws Exception {
+    void testHeartbeatTimeout() throws Exception {
         int numHeartbeats = 6;
         final int payload = 42;
 
@@ -177,7 +176,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         ownResourceID,
                         heartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         final HeartbeatTarget<Integer> heartbeatTarget =
@@ -207,7 +206,7 @@ public class HeartbeatManagerTest extends TestLogger {
      * @throws Exception
      */
     @Test
-    public void testHeartbeatCluster() throws Exception {
+    void testHeartbeatCluster() throws Exception {
         ResourceID resourceIdTarget = new ResourceID("foobar");
         ResourceID resourceIDSender = new ResourceID("barfoo");
         final int targetPayload = 42;
@@ -239,7 +238,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         resourceIdTarget,
                         heartbeatListenerTarget,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         HeartbeatManagerSenderImpl<Integer, String> heartbeatManagerSender =
@@ -249,7 +248,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         resourceIDSender,
                         heartbeatListenerSender,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         heartbeatManagerTarget.monitorTarget(resourceIDSender, heartbeatManagerSender);
@@ -274,7 +273,7 @@ public class HeartbeatManagerTest extends TestLogger {
 
     /** Tests that after unmonitoring a target, there won't be a timeout triggered. */
     @Test
-    public void testTargetUnmonitoring() throws Exception {
+    void testTargetUnmonitoring() throws Exception {
         // this might be too aggressive for Travis, let's see...
         long heartbeatTimeout = 50L;
         ResourceID resourceID = new ResourceID("foobar");
@@ -294,7 +293,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         resourceID,
                         heartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         final HeartbeatTarget<Integer> heartbeatTarget =
@@ -310,7 +309,7 @@ public class HeartbeatManagerTest extends TestLogger {
 
     /** Tests that the last heartbeat from an unregistered target equals -1. */
     @Test
-    public void testLastHeartbeatFromUnregisteredTarget() {
+    void testLastHeartbeatFromUnregisteredTarget() {
         final long heartbeatTimeout = 100L;
         final ResourceID resourceId = ResourceID.generate();
         final HeartbeatListener<Object, Object> heartbeatListener =
@@ -322,7 +321,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         resourceId,
                         heartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
@@ -334,7 +333,7 @@ public class HeartbeatManagerTest extends TestLogger {
 
     /** Tests that we can correctly retrieve the last heartbeat for registered targets. */
     @Test
-    public void testLastHeartbeatFrom() {
+    void testLastHeartbeatFrom() {
         final long heartbeatTimeout = 100L;
         final ResourceID resourceId = ResourceID.generate();
         final ResourceID target = ResourceID.generate();
@@ -345,7 +344,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         resourceId,
                         new TestingHeartbeatListenerBuilder<>().createNewTestingHeartbeatListener(),
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
@@ -370,7 +369,7 @@ public class HeartbeatManagerTest extends TestLogger {
      * HeartbeatListener} by the {@link HeartbeatManagerImpl}.
      */
     @Test
-    public void testHeartbeatManagerTargetPayload() throws Exception {
+    void testHeartbeatManagerTargetPayload() throws Exception {
         final long heartbeatTimeout = 100L;
 
         final ResourceID someTargetId = ResourceID.generate();
@@ -411,7 +410,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         FAILED_RPC_THRESHOLD,
                         ResourceID.generate(),
                         testingHeartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
@@ -434,7 +433,7 @@ public class HeartbeatManagerTest extends TestLogger {
      * HeartbeatListener} by the {@link HeartbeatManagerSenderImpl}.
      */
     @Test
-    public void testHeartbeatManagerSenderTargetPayload() throws Exception {
+    void testHeartbeatManagerSenderTargetPayload() throws Exception {
         final long heartbeatTimeout = 100L;
         final long heartbeatPeriod = 2000L;
 
@@ -484,7 +483,7 @@ public class HeartbeatManagerTest extends TestLogger {
     }
 
     @Test
-    public void testHeartbeatManagerSenderMarksTargetUnreachableOnRecipientUnreachableException() {
+    void testHeartbeatManagerSenderMarksTargetUnreachableOnRecipientUnreachableException() {
         final long heartbeatPeriod = 20;
         final long heartbeatTimeout = 10000L;
         final ResourceID someTargetId = ResourceID.generate();
@@ -511,7 +510,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         1,
                         ResourceID.generate(),
                         testingHeartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
@@ -525,7 +524,7 @@ public class HeartbeatManagerTest extends TestLogger {
     }
 
     @Test
-    public void testHeartbeatManagerMarksTargetUnreachableOnRecipientUnreachableException() {
+    void testHeartbeatManagerMarksTargetUnreachableOnRecipientUnreachableException() {
         final long heartbeatTimeout = 10000L;
         final ResourceID someTargetId = ResourceID.generate();
         final HeartbeatTarget<Object> someHeartbeatTarget =
@@ -551,7 +550,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         failedRpcRequestsUntilUnreachable,
                         ResourceID.generate(),
                         testingHeartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
@@ -574,8 +573,7 @@ public class HeartbeatManagerTest extends TestLogger {
     }
 
     @Test
-    public void testHeartbeatManagerIgnoresRecipientUnreachableExceptionIfDisabled()
-            throws Exception {
+    void testHeartbeatManagerIgnoresRecipientUnreachableExceptionIfDisabled() throws Exception {
         final long heartbeatTimeout = 10000L;
         final ResourceID someTargetId = ResourceID.generate();
         final HeartbeatTarget<Object> someHeartbeatTarget =
@@ -600,7 +598,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         -1, // disable rpc request checking
                         ResourceID.generate(),
                         testingHeartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
@@ -618,7 +616,7 @@ public class HeartbeatManagerTest extends TestLogger {
     }
 
     @Test
-    public void testHeartbeatManagerResetsFailedRpcCountOnSuccessfulRpc() throws Exception {
+    void testHeartbeatManagerResetsFailedRpcCountOnSuccessfulRpc() throws Exception {
         final long heartbeatTimeout = 10000L;
         final ResourceID someTargetId = ResourceID.generate();
 
@@ -649,7 +647,7 @@ public class HeartbeatManagerTest extends TestLogger {
                         3,
                         ResourceID.generate(),
                         testingHeartbeatListener,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         LOG);
 
         try {
