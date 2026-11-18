@@ -228,13 +228,15 @@
     "loadCompletedTime" : 1782864000000,
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "HASH",
+        "keys" : [ 0 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     }, {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "HASH",
+        "keys" : [ 0 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0

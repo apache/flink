@@ -84,7 +84,7 @@ class StreamPhysicalWindowDeduplicate(
       orderKey,
       keepLastRow,
       windowing,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

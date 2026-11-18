@@ -22,6 +22,7 @@ import org.apache.flink.table.catalog.{ObjectIdentifier, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil, TemporalJoinUtil}
@@ -153,6 +154,17 @@ abstract class CommonPhysicalLookupJoin(
       flinkTypeFactory,
       null,
       Collections.emptyList[RelDataTypeField])
+  }
+
+  /** Only the hash shuffle of the LOOKUP hint on join keys requests an input distribution. */
+  protected def deriveInputProperty(): InputProperty = {
+    val joinKeyPairs = TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
+    val requestsHashShuffle = enableLookupShuffle && !preferCustomShuffle && joinKeyPairs.nonEmpty
+    if (requestsHashShuffle) {
+      InputProperty.fromInput(getInput)
+    } else {
+      InputProperty.DEFAULT
+    }
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

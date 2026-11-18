@@ -372,21 +372,23 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Derives per-input {@link InputProperty}s. Broadcast table arguments require a broadcast
-     * distribution, all other inputs use the default.
+     * Derives per-input {@link InputProperty}s. Table arguments with set or broadcast semantics
+     * request a distribution from their input, table arguments with row semantics don't.
      */
     private List<InputProperty> deriveInputProperties(RexCall call) {
-        final boolean[] broadcastByInput = broadcastByInput(call, getInputs().size());
-        return IntStream.range(0, getInputs().size())
-                .mapToObj(
-                        i ->
-                                broadcastByInput[i]
-                                        ? InputProperty.builder()
-                                                .requiredDistribution(
-                                                        InputProperty.BROADCAST_DISTRIBUTION)
-                                                .build()
-                                        : InputProperty.DEFAULT)
-                .collect(Collectors.toList());
+        final InputProperty[] inputProperties = new InputProperty[getInputs().size()];
+        Arrays.fill(inputProperties, InputProperty.DEFAULT);
+        for (Ord<StaticArgument> tableArg : getProvidedInputArgs(call)) {
+            final boolean requestsDistribution =
+                    tableArg.e.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)
+                            || tableArg.e.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE);
+            if (requestsDistribution) {
+                final int inputIndex =
+                        ((RexTableArgCall) call.getOperands().get(tableArg.i)).getInputIndex();
+                inputProperties[inputIndex] = InputProperty.fromInput(getInput(inputIndex));
+            }
+        }
+        return List.of(inputProperties);
     }
 
     /** Returns whether the given signature declares a table argument with broadcast semantics. */

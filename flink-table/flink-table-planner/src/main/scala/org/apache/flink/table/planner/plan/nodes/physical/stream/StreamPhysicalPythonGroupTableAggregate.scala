@@ -68,7 +68,7 @@ class StreamPhysicalPythonGroupTableAggregate(
       aggCallNeedRetractions,
       generateUpdateBefore,
       needRetraction,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

@@ -126,7 +126,7 @@ class StreamPhysicalWindowAggregate(
       windowing,
       namedWindowProperties.toArray,
       AggregateUtil.needRetraction(this),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }
