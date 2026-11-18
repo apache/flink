@@ -21,37 +21,27 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.isA;
-import static org.hamcrest.Matchers.hasItemInArray;
-import static org.hamcrest.Matchers.hasProperty;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /** Tests for classloader deserialize utilities. */
-public class ClassLoaderDeserializationTest extends TestLogger {
-
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class ClassLoaderDeserializationTest {
 
     @Test
-    public void testMessageDecodingWithUnavailableClass() throws Exception {
+    void testMessageDecodingWithUnavailableClass(@TempDir Path temporaryFolder) throws Exception {
         final ClassLoader systemClassLoader = getClass().getClassLoader();
 
         final String className = "UserClass";
         final URLClassLoader userClassLoader =
                 ClassLoaderUtils.compileAndLoadJava(
-                        temporaryFolder.newFolder(),
+                        temporaryFolder.toFile(),
                         className + ".java",
                         "import java.io.Serializable;\n"
                                 + "public class "
@@ -71,23 +61,18 @@ public class ClassLoaderDeserializationTest extends TestLogger {
 
         SerializedValue<RemoteRpcInvocation> serializedMethod = new SerializedValue<>(method);
 
-        expectedException.expect(ClassNotFoundException.class);
-        expectedException.expect(
-                allOf(
-                        isA(ClassNotFoundException.class),
-                        hasProperty(
-                                "suppressed",
-                                hasItemInArray(
-                                        allOf(
-                                                isA(ClassNotFoundException.class),
-                                                hasProperty(
-                                                        "message",
-                                                        containsString(
-                                                                "Could not deserialize 1th parameter type of method test(int, ...).")))))));
+        final Throwable thrown =
+                catchThrowable(
+                        () -> serializedMethod.deserializeValue(systemClassLoader).getMethodName());
 
-        RemoteRpcInvocation deserializedMethod =
-                serializedMethod.deserializeValue(systemClassLoader);
-        deserializedMethod.getMethodName();
+        assertThat(thrown).isInstanceOf(ClassNotFoundException.class);
+        assertThat(thrown.getSuppressed())
+                .anySatisfy(
+                        suppressed ->
+                                assertThat(suppressed)
+                                        .isInstanceOf(ClassNotFoundException.class)
+                                        .hasMessageContaining(
+                                                "Could not deserialize 1th parameter type of method test(int, ...)."));
 
         userClassLoader.close();
     }

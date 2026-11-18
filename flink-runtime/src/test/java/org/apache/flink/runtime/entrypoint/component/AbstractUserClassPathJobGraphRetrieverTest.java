@@ -22,26 +22,23 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FileUtilsTest;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AbstractUserClassPathJobGraphRetriever}. */
-public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class AbstractUserClassPathJobGraphRetrieverTest {
 
     private static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
         TestJobGraphRetriever(File jobDir) throws IOException {
@@ -55,27 +52,24 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
     }
 
     @Test
-    public void testGetUserClassPath() throws IOException {
-        final File testJobDir = temporaryFolder.newFolder("_test_job");
+    void testGetUserClassPath(@TempDir File testJobDir) throws IOException {
         final Collection<Path> testFiles = FileUtilsTest.prepareTestFiles(testJobDir.toPath());
         final Path currentWorkingDirectory = FileUtils.getCurrentWorkingDirectory();
         final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(testJobDir);
 
-        assertThat(
-                testJobGraphRetriever.getUserClassPaths(),
-                containsInAnyOrder(
-                        testFiles.stream()
-                                .map(
-                                        file ->
-                                                FileUtils.relativizePath(
-                                                        currentWorkingDirectory, file))
-                                .map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
-                                .toArray()));
+        final List<URL> expectedUrls =
+                testFiles.stream()
+                        .map(file -> FileUtils.relativizePath(currentWorkingDirectory, file))
+                        .map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
+                        .collect(Collectors.toList());
+
+        assertThat(testJobGraphRetriever.getUserClassPaths())
+                .containsExactlyInAnyOrderElementsOf(expectedUrls);
     }
 
     @Test
-    public void testGetUserClassPathReturnEmptyListIfJobDirIsNull() throws IOException {
+    void testGetUserClassPathReturnEmptyListIfJobDirIsNull() throws IOException {
         final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(null);
-        assertTrue(testJobGraphRetriever.getUserClassPaths().isEmpty());
+        assertThat(testJobGraphRetriever.getUserClassPaths()).isEmpty();
     }
 }

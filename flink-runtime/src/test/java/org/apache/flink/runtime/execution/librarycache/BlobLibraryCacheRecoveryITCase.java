@@ -29,19 +29,19 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.collection.IsEmptyCollection;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,29 +50,28 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.apache.flink.testutils.junit.utils.TempDirUtils.newFolder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration test for {@link BlobLibraryCacheManager}. */
-@RunWith(Parameterized.class)
-public class BlobLibraryCacheRecoveryITCase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+class BlobLibraryCacheRecoveryITCase {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
-    @Parameterized.Parameters(name = "Use system class loader: {0}")
-    public static List<Boolean> useSystemClassLoader() {
-        return Arrays.asList(true, false);
+    @Parameters(name = "Use system class loader: {0}")
+    private static List<Boolean> useSystemClassLoader() {
+        return List.of(true, false);
     }
 
-    @Parameterized.Parameter public boolean wrapsSystemClassLoader;
+    @Parameter private boolean wrapsSystemClassLoader;
 
     /**
      * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
      * any participating BlobLibraryCacheManager.
      */
-    @Test
-    public void testRecoveryRegisterAndDownload() throws Exception {
+    @TestTemplate
+    void testRecoveryRegisterAndDownload() throws Exception {
         Random rand = new Random();
 
         BlobServer[] server = new BlobServer[2];
@@ -85,7 +84,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
         config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
-                temporaryFolder.newFolder().getAbsolutePath());
+                newFolder(temporaryFolder).getAbsolutePath());
         config.set(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -100,7 +99,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                             true);
 
             for (int i = 0; i < server.length; i++) {
-                server[i] = new BlobServer(config, temporaryFolder.newFolder(), blobStoreService);
+                server[i] = new BlobServer(config, newFolder(temporaryFolder), blobStoreService);
                 server[i].start();
                 serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
                 libServer[i] =
@@ -125,10 +124,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             // The cache
             cache =
                     new PermanentBlobCache(
-                            config,
-                            temporaryFolder.newFolder(),
-                            blobStoreService,
-                            serverAddress[0]);
+                            config, newFolder(temporaryFolder), blobStoreService, serverAddress[0]);
 
             // Register uploaded libraries
             final LibraryCacheManager.ClassLoaderLease classLoaderLease =
@@ -137,14 +133,14 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
             // Verify key 1
             File f = cache.getFile(jobId, keys.get(0));
-            assertEquals(expected.length, f.length());
+            assertThat(f).hasSize(expected.length);
 
             try (FileInputStream fis = new FileInputStream(f)) {
                 for (int i = 0; i < expected.length && fis.available() > 0; i++) {
-                    assertEquals(expected[i], (byte) fis.read());
+                    assertThat((byte) fis.read()).isEqualTo(expected[i]);
                 }
 
-                assertEquals(0, fis.available());
+                assertThat(fis.available()).isZero();
             }
 
             // Shutdown cache and start with other server
@@ -152,33 +148,30 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
             cache =
                     new PermanentBlobCache(
-                            config,
-                            temporaryFolder.newFolder(),
-                            blobStoreService,
-                            serverAddress[1]);
+                            config, newFolder(temporaryFolder), blobStoreService, serverAddress[1]);
 
             // Verify key 1
             f = cache.getFile(jobId, keys.get(0));
-            assertEquals(expected.length, f.length());
+            assertThat(f).hasSize(expected.length);
 
             try (FileInputStream fis = new FileInputStream(f)) {
                 for (int i = 0; i < expected.length && fis.available() > 0; i++) {
-                    assertEquals(expected[i], (byte) fis.read());
+                    assertThat((byte) fis.read()).isEqualTo(expected[i]);
                 }
 
-                assertEquals(0, fis.available());
+                assertThat(fis.available()).isZero();
             }
 
             // Verify key 2
             f = cache.getFile(jobId, keys.get(1));
-            assertEquals(expected2.length, f.length());
+            assertThat(f).hasSize(expected2.length);
 
             try (FileInputStream fis = new FileInputStream(f)) {
                 for (int i = 0; i < 256 && fis.available() > 0; i++) {
-                    assertEquals(expected2[i], (byte) fis.read());
+                    assertThat((byte) fis.read()).isEqualTo(expected2[i]);
                 }
 
-                assertEquals(0, fis.available());
+                assertThat(fis.available()).isZero();
             }
 
             // Remove blobs again
@@ -189,13 +182,10 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             String haBlobStorePath = config.get(HighAvailabilityOptions.HA_STORAGE_PATH);
             File haBlobStoreDir = new File(haBlobStorePath, clusterId);
             File[] recoveryFiles = haBlobStoreDir.listFiles();
-            assertNotNull("HA storage directory does not exist", recoveryFiles);
-            assertEquals(
-                    "Unclean state backend: " + Arrays.toString(recoveryFiles),
-                    0,
-                    recoveryFiles.length);
+            assertThat(recoveryFiles).as("HA storage directory does not exist").isNotNull();
+            assertThat(recoveryFiles).as("Unclean state backend").isEmpty();
         } finally {
-            assertThat(executorService.shutdownNow(), IsEmptyCollection.empty());
+            assertThat(executorService.shutdownNow()).isEmpty();
 
             for (BlobLibraryCacheManager s : libServer) {
                 if (s != null) {
@@ -223,8 +213,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
      * Integration test for application-level jar sharing across multiple jobs with the same
      * ApplicationID.
      */
-    @Test
-    public void testRecoveryWithApplicationLevelBlob() throws Exception {
+    @TestTemplate
+    void testRecoveryWithApplicationLevelBlob() throws Exception {
         Random rand = new Random();
 
         BlobServer[] server = new BlobServer[2];
@@ -237,7 +227,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
         config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
-                temporaryFolder.newFolder().getAbsolutePath());
+                newFolder(temporaryFolder).getAbsolutePath());
         config.set(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -252,14 +242,14 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                             true);
 
             for (int i = 0; i < 2; i++) {
-                server[i] = new BlobServer(config, temporaryFolder.newFolder(), blobStoreService);
+                server[i] = new BlobServer(config, newFolder(temporaryFolder), blobStoreService);
                 server[i].start();
                 serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
 
                 PermanentBlobCache blobCache =
                         new PermanentBlobCache(
                                 config,
-                                temporaryFolder.newFolder(),
+                                newFolder(temporaryFolder),
                                 blobStoreService,
                                 serverAddress[i]);
 
@@ -283,10 +273,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             // The cache
             cache =
                     new PermanentBlobCache(
-                            config,
-                            temporaryFolder.newFolder(),
-                            blobStoreService,
-                            serverAddress[0]);
+                            config, newFolder(temporaryFolder), blobStoreService, serverAddress[0]);
 
             // Register uploaded libraries
             final LibraryCacheManager.ClassLoaderLease classLoaderLease =
@@ -295,14 +282,14 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
             // Verify file
             File f = cache.getFile(applicationId, keys.get(0));
-            assertEquals(expected.length, f.length());
+            assertThat(f).hasSize(expected.length);
 
             try (FileInputStream fis = new FileInputStream(f)) {
                 for (int i = 0; i < expected.length && fis.available() > 0; i++) {
-                    assertEquals(expected[i], (byte) fis.read());
+                    assertThat((byte) fis.read()).isEqualTo(expected[i]);
                 }
 
-                assertEquals(0, fis.available());
+                assertThat(fis.available()).isZero();
             }
 
             // Shutdown cache and start with other server
@@ -310,21 +297,18 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
             cache =
                     new PermanentBlobCache(
-                            config,
-                            temporaryFolder.newFolder(),
-                            blobStoreService,
-                            serverAddress[1]);
+                            config, newFolder(temporaryFolder), blobStoreService, serverAddress[1]);
 
             // Verify file
             f = cache.getFile(applicationId, keys.get(0));
-            assertEquals(expected.length, f.length());
+            assertThat(f).hasSize(expected.length);
 
             try (FileInputStream fis = new FileInputStream(f)) {
                 for (int i = 0; i < expected.length && fis.available() > 0; i++) {
-                    assertEquals(expected[i], (byte) fis.read());
+                    assertThat((byte) fis.read()).isEqualTo(expected[i]);
                 }
 
-                assertEquals(0, fis.available());
+                assertThat(fis.available()).isZero();
             }
 
             // Remove blobs again
@@ -335,13 +319,10 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             String haBlobStorePath = config.get(HighAvailabilityOptions.HA_STORAGE_PATH);
             File haBlobStoreDir = new File(haBlobStorePath, clusterId);
             File[] recoveryFiles = haBlobStoreDir.listFiles();
-            assertNotNull("HA storage directory does not exist", recoveryFiles);
-            assertEquals(
-                    "Unclean state backend: " + Arrays.toString(recoveryFiles),
-                    0,
-                    recoveryFiles.length);
+            assertThat(recoveryFiles).as("HA storage directory does not exist").isNotNull();
+            assertThat(recoveryFiles).as("Unclean state backend").isEmpty();
         } finally {
-            assertThat(executorService.shutdownNow(), IsEmptyCollection.empty());
+            assertThat(executorService.shutdownNow()).isEmpty();
 
             for (BlobLibraryCacheManager s : libServer) {
                 if (s != null) {

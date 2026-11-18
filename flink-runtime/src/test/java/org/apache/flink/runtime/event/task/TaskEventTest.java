@@ -20,51 +20,36 @@ package org.apache.flink.runtime.event.task;
 
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This class contains serialization tests concerning task events derived from {@link
  * org.apache.flink.runtime.event.AbstractEvent}.
  */
-public class TaskEventTest {
+class TaskEventTest {
     /** This test checks the serialization/deserialization of {@link IntegerTaskEvent} objects. */
     @Test
-    public void testIntegerTaskEvent() {
+    void testIntegerTaskEvent() throws IOException {
+        final IntegerTaskEvent orig = new IntegerTaskEvent(11);
+        final IntegerTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
 
-        try {
-            final IntegerTaskEvent orig = new IntegerTaskEvent(11);
-            final IntegerTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
-
-            assertEquals(orig.getInteger(), copy.getInteger());
-            assertEquals(orig.hashCode(), copy.hashCode());
-            assertTrue(orig.equals(copy));
-
-        } catch (IOException ioe) {
-            fail(ioe.getMessage());
-        }
+        assertThat(copy.getInteger()).isEqualTo(orig.getInteger());
+        assertThat(copy.hashCode()).isEqualTo(orig.hashCode());
+        assertThat(orig).isEqualTo(copy);
     }
 
     /** This test checks the serialization/deserialization of {@link StringTaskEvent} objects. */
     @Test
-    public void testStringTaskEvent() {
+    void testStringTaskEvent() throws IOException {
+        final StringTaskEvent orig = new StringTaskEvent("Test");
+        final StringTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
 
-        try {
-
-            final StringTaskEvent orig = new StringTaskEvent("Test");
-            final StringTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
-
-            assertEquals(orig.getString(), copy.getString());
-            assertEquals(orig.hashCode(), copy.hashCode());
-            assertTrue(orig.equals(copy));
-
-        } catch (IOException ioe) {
-            fail(ioe.getMessage());
-        }
+        assertThat(copy.getString()).isEqualTo(orig.getString());
+        assertThat(copy.hashCode()).isEqualTo(orig.hashCode());
+        assertThat(orig).isEqualTo(copy);
     }
 }
