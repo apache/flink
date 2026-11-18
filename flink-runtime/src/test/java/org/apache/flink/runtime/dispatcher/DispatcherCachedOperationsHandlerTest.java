@@ -30,7 +30,6 @@ import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.TriggerId;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DispatcherCachedOperationsHandler} component. */
-public class DispatcherCachedOperationsHandlerTest extends TestLogger {
+class DispatcherCachedOperationsHandlerTest {
 
     private static final Duration TIMEOUT = Duration.ofMinutes(10);
 
@@ -64,7 +63,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     private AsynchronousJobOperationKey operationKey;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
 
         checkpointIdFuture = new CompletableFuture<>();
         triggerCheckpointFunction =
@@ -105,7 +104,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void triggerSavepointRepeatedly() throws ExecutionException, InterruptedException {
+    void triggerSavepointRepeatedly() throws ExecutionException, InterruptedException {
         CompletableFuture<Acknowledge> firstAcknowledge =
                 handler.triggerSavepoint(
                         operationKey,
@@ -135,7 +134,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void stopWithSavepointRepeatedly() throws ExecutionException, InterruptedException {
+    void stopWithSavepointRepeatedly() throws ExecutionException, InterruptedException {
         CompletableFuture<Acknowledge> firstAcknowledge =
                 handler.stopWithSavepoint(
                         operationKey,
@@ -165,7 +164,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void retryingCompletedOperationDoesNotMarkCacheEntryAsAccessed()
+    void retryingCompletedOperationDoesNotMarkCacheEntryAsAccessed()
             throws ExecutionException, InterruptedException {
         handler.triggerSavepoint(
                         operationKey,
@@ -190,7 +189,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void throwsIfCacheIsShuttingDown() {
+    void throwsIfCacheIsShuttingDown() {
         savepointTriggerCache.closeAsync();
         assertThatThrownBy(
                         () ->
@@ -204,7 +203,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void getStatus() throws ExecutionException, InterruptedException {
+    void getStatus() throws ExecutionException, InterruptedException {
         handler.triggerSavepoint(
                 operationKey,
                 targetDirectory,
@@ -222,7 +221,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void getStatusFailsIfKeyUnknown() {
+    void getStatusFailsIfKeyUnknown() {
         CompletableFuture<OperationResult<String>> statusFuture =
                 handler.getSavepointStatus(operationKey);
 

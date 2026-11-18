@@ -22,8 +22,8 @@ import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,16 +32,16 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that {@link Dispatcher#requestThreadDump} is offloaded to the ioExecutor. */
-public class DispatcherThreadDumpOffloadTest extends AbstractDispatcherTest {
+class DispatcherThreadDumpOffloadTest extends AbstractDispatcherTest {
 
     private static final String IO_THREAD_NAME = "test-jm-io-thread";
 
     private TestingDispatcher dispatcher;
     private ExecutorService ioExecutor;
 
-    @After
+    @AfterEach
     @Override
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         if (dispatcher != null) {
             RpcUtils.terminateRpcEndpoint(dispatcher);
         }
@@ -52,7 +52,7 @@ public class DispatcherThreadDumpOffloadTest extends AbstractDispatcherTest {
     }
 
     @Test
-    public void requestThreadDumpRunsOnIoExecutor() throws Exception {
+    void requestThreadDumpRunsOnIoExecutor() throws Exception {
         // Named single-thread executor: if the dump runs on it, dumpAllThreads() captures
         // the thread and it appears in the returned ThreadDumpInfo.
         ioExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, IO_THREAD_NAME));

@@ -67,9 +67,9 @@ import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -86,12 +86,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
-public class DispatcherCleanupITCase extends AbstractDispatcherTest {
+class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
     private final BlockingQueue<RpcEndpoint> toTerminate = new LinkedBlockingQueue<>();
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         super.setUp();
         haServices.setCheckpointRecoveryFactory(
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
@@ -124,8 +124,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                         }));
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         while (!toTerminate.isEmpty()) {
             final RpcEndpoint endpoint = toTerminate.poll();
             try {
@@ -137,7 +137,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testCleanupThroughRetries() throws Exception {
+    void testCleanupThroughRetries() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
 
@@ -211,7 +211,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testCleanupNotCancellable() throws Exception {
+    void testCleanupNotCancellable() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
         final ApplicationID applicationId = ApplicationID.fromHexString(jobId.toHexString());
@@ -267,7 +267,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testCleanupAfterLeadershipChange() throws Exception {
+    void testCleanupAfterLeadershipChange() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
         final ApplicationID applicationId = ApplicationID.fromHexString(jobId.toHexString());
@@ -366,7 +366,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testApplicationCleanupThroughRetries() throws Exception {
+    void testApplicationCleanupThroughRetries() throws Exception {
         final ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder().setApplicationId(applicationId).build();
@@ -430,7 +430,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testApplicationCleanupNotCancellable() throws Exception {
+    void testApplicationCleanupNotCancellable() throws Exception {
         final ApplicationID applicationId = new ApplicationID();
 
         final ApplicationResultStore applicationResultStore = new EmbeddedApplicationResultStore();
@@ -476,7 +476,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testApplicationCleanupAfterLeadershipChange() throws Exception {
+    void testApplicationCleanupAfterLeadershipChange() throws Exception {
         final ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder().setApplicationId(applicationId).build();

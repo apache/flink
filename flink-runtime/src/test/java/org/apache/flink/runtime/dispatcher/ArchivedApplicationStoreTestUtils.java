@@ -46,13 +46,9 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava33.com.google.common.base.Ticker;
-
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 
 import javax.annotation.Nullable;
 
@@ -65,9 +61,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utils class for {@link ArchivedApplicationStore}. */
 public class ArchivedApplicationStoreTestUtils {
@@ -137,91 +135,39 @@ public class ArchivedApplicationStoreTestUtils {
         return archivedApplications;
     }
 
-    /** Compare whether two ExecutionGraphInfo instances are equivalent. */
-    static final class PartialExecutionGraphInfoMatcher extends BaseMatcher<ExecutionGraphInfo> {
-
-        private final ExecutionGraphInfo expectedExecutionGraphInfo;
-
-        PartialExecutionGraphInfoMatcher(ExecutionGraphInfo expectedExecutionGraphInfo) {
-            this.expectedExecutionGraphInfo =
-                    Preconditions.checkNotNull(expectedExecutionGraphInfo);
-        }
-
-        @Override
-        public boolean matches(Object o) {
-            if (expectedExecutionGraphInfo == o) {
-                return true;
-            }
-            if (o == null || expectedExecutionGraphInfo.getClass() != o.getClass()) {
-                return false;
-            }
-            ExecutionGraphInfo that = (ExecutionGraphInfo) o;
-
-            ArchivedExecutionGraph thisExecutionGraph =
-                    expectedExecutionGraphInfo.getArchivedExecutionGraph();
-            ArchivedExecutionGraph thatExecutionGraph = that.getArchivedExecutionGraph();
-            return thisExecutionGraph.isStoppable() == thatExecutionGraph.isStoppable()
-                    && Objects.equals(thisExecutionGraph.getJobID(), thatExecutionGraph.getJobID())
-                    && Objects.equals(
-                            thisExecutionGraph.getJobName(), thatExecutionGraph.getJobName())
-                    && thisExecutionGraph.getState() == thatExecutionGraph.getState()
-                    && Objects.equals(thisExecutionGraph.getPlan(), thatExecutionGraph.getPlan())
-                    && Objects.equals(
-                            thisExecutionGraph.getAccumulatorsSerialized(),
-                            thatExecutionGraph.getAccumulatorsSerialized())
-                    && Objects.equals(
-                            thisExecutionGraph.getCheckpointCoordinatorConfiguration(),
-                            thatExecutionGraph.getCheckpointCoordinatorConfiguration())
-                    && thisExecutionGraph.getAllVertices().size()
-                            == thatExecutionGraph.getAllVertices().size()
-                    && Objects.equals(
-                            expectedExecutionGraphInfo.getExceptionHistory(),
-                            that.getExceptionHistory());
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description.appendText(
-                    "Matches against " + ExecutionGraphInfo.class.getSimpleName() + '.');
-        }
+    /**
+     * Returns a requirement that an {@link ExecutionGraphInfo} is equivalent to the expected one in
+     * the fields that the {@link ArchivedApplicationStore} keeps.
+     */
+    static Consumer<ExecutionGraphInfo> partiallyEqualTo(ExecutionGraphInfo expected) {
+        return actual -> {
+            final ArchivedExecutionGraph actualGraph = actual.getArchivedExecutionGraph();
+            final ArchivedExecutionGraph expectedGraph = expected.getArchivedExecutionGraph();
+            assertThat(actualGraph.isStoppable()).isEqualTo(expectedGraph.isStoppable());
+            assertThat(actualGraph.getJobID()).isEqualTo(expectedGraph.getJobID());
+            assertThat(actualGraph.getJobName()).isEqualTo(expectedGraph.getJobName());
+            assertThat(actualGraph.getState()).isEqualTo(expectedGraph.getState());
+            assertThat(actualGraph.getPlan()).isEqualTo(expectedGraph.getPlan());
+            assertThat(actualGraph.getAccumulatorsSerialized())
+                    .isEqualTo(expectedGraph.getAccumulatorsSerialized());
+            assertThat(actualGraph.getCheckpointCoordinatorConfiguration())
+                    .isEqualTo(expectedGraph.getCheckpointCoordinatorConfiguration());
+            assertThat(actualGraph.getAllVertices()).hasSameSizeAs(expectedGraph.getAllVertices());
+            assertThat(actual.getExceptionHistory()).isEqualTo(expected.getExceptionHistory());
+        };
     }
 
-    /** Compare whether two ArchivedApplication instances are equivalent. */
-    static final class PartialArchivedApplicationMatcher extends BaseMatcher<ArchivedApplication> {
-
-        private final ArchivedApplication expectedArchivedApplication;
-
-        PartialArchivedApplicationMatcher(ArchivedApplication expectedArchivedApplication) {
-            this.expectedArchivedApplication =
-                    Preconditions.checkNotNull(expectedArchivedApplication);
-        }
-
-        @Override
-        public boolean matches(Object o) {
-            if (expectedArchivedApplication == o) {
-                return true;
-            }
-            if (o == null || expectedArchivedApplication.getClass() != o.getClass()) {
-                return false;
-            }
-            ArchivedApplication that = (ArchivedApplication) o;
-
-            return Objects.equals(
-                            expectedArchivedApplication.getApplicationId(), that.getApplicationId())
-                    && Objects.equals(
-                            expectedArchivedApplication.getApplicationName(),
-                            that.getApplicationName())
-                    && expectedArchivedApplication.getApplicationStatus()
-                            == that.getApplicationStatus()
-                    && Objects.equals(
-                            expectedArchivedApplication.getJobs().size(), that.getJobs().size());
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description.appendText(
-                    "Matches against " + ArchivedApplication.class.getSimpleName() + '.');
-        }
+    /**
+     * Returns a requirement that an {@link ArchivedApplication} has the same ID, name, status and
+     * number of jobs as the expected one.
+     */
+    static Consumer<ArchivedApplication> partiallyEqualTo(ArchivedApplication expected) {
+        return actual -> {
+            assertThat(actual.getApplicationId()).isEqualTo(expected.getApplicationId());
+            assertThat(actual.getApplicationName()).isEqualTo(expected.getApplicationName());
+            assertThat(actual.getApplicationStatus()).isEqualTo(expected.getApplicationStatus());
+            assertThat(actual.getJobs()).hasSameSizeAs(expected.getJobs());
+        };
     }
 
     static Collection<JobDetails> generateJobDetails(
