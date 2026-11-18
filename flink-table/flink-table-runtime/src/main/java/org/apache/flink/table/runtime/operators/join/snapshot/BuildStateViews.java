@@ -36,7 +36,7 @@ public final class BuildStateViews {
             case JOIN_KEY:
                 return new JoinKeyBuildStateView(ctx, buildType);
             case UPSERT:
-                return new UpsertBuildStateView(ctx, buildType, spec.getUpsertKeys());
+                return new UpsertBuildStateView(ctx, buildType, spec.getUpsertKeySelector());
             default:
                 throw new IllegalStateException("Unknown build side layout: " + spec.getLayout());
         }

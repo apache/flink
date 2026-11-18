@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.snapshot;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -42,20 +43,22 @@ public class BuildSideSpec implements Serializable {
         /** One row per join key, for a build side whose upsert key is the join key. */
         JOIN_KEY,
         /**
-         * One row per upsert key, for a build side whose upsert key is a superset of the join
-         * key.
+         * One row per upsert key, for a build side whose upsert key is a superset of the join key.
          */
         UPSERT
     }
 
     private final Layout layout;
 
-    /** Field indices of the build-side upsert key, only set for {@link Layout#UPSERT}. */
-    @Nullable private final int[] upsertKeys;
+    /**
+     * Projects the upsert-key columns that are not part of the join key out of a build row, only
+     * set for {@link Layout#UPSERT}.
+     */
+    @Nullable private final RowDataKeySelector upsertKeySelector;
 
-    private BuildSideSpec(Layout layout, @Nullable int[] upsertKeys) {
+    private BuildSideSpec(Layout layout, @Nullable RowDataKeySelector upsertKeySelector) {
         this.layout = layout;
-        this.upsertKeys = upsertKeys;
+        this.upsertKeySelector = upsertKeySelector;
     }
 
     public static BuildSideSpec multiSet() {
@@ -66,16 +69,16 @@ public class BuildSideSpec implements Serializable {
         return new BuildSideSpec(Layout.JOIN_KEY, null);
     }
 
-    public static BuildSideSpec upsert(int[] upsertKeys) {
-        return new BuildSideSpec(Layout.UPSERT, Preconditions.checkNotNull(upsertKeys));
+    public static BuildSideSpec upsert(RowDataKeySelector upsertKeySelector) {
+        return new BuildSideSpec(Layout.UPSERT, Preconditions.checkNotNull(upsertKeySelector));
     }
 
     public Layout getLayout() {
         return layout;
     }
 
-    public int[] getUpsertKeys() {
+    public RowDataKeySelector getUpsertKeySelector() {
         return Preconditions.checkNotNull(
-                upsertKeys, "Build side layout %s has no upsert keys", layout);
+                upsertKeySelector, "Build side layout %s has no upsert key selector", layout);
     }
 }
