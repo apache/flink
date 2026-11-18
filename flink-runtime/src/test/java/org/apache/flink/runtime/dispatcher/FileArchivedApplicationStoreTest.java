@@ -45,15 +45,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.createFileArchivedApplicationStore;
 import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.generateTerminalArchivedApplications;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.partiallyEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FileArchivedApplicationStore}. */
 class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTest {
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
     @TempDir File temporaryFolder;
@@ -87,7 +86,7 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
             archivedApplicationStore.put(archivedApplication);
 
             // there should one application
-            assertEquals(1, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isOne();
 
             manualTicker.advanceTime(expirationTime.toMillis(), TimeUnit.MILLISECONDS);
 
@@ -95,23 +94,23 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
             scheduledExecutor.triggerScheduledTasks();
 
             // check that the store is empty
-            assertEquals(0, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isZero();
 
-            assertNull(archivedApplicationStore.get(applicationId).orElse(null));
+            assertThat(archivedApplicationStore.get(applicationId)).isEmpty();
 
-            assertNull(archivedApplicationStore.getExecutionGraphInfo(jobId).orElse(null));
+            assertThat(archivedApplicationStore.getExecutionGraphInfo(jobId)).isEmpty();
 
             final File storageDirectory = archivedApplicationStore.getStorageDir();
 
             // check that the persisted file has been deleted
-            assertEquals(0, storageDirectory.listFiles().length);
+            assertThat(storageDirectory).isEmptyDirectory();
         }
     }
 
     /** Tests that all applications are cleaned up after closing the store. */
     @Test
     void testCloseCleansUp() throws IOException {
-        assertEquals(0, temporaryFolder.listFiles().length);
+        assertThat(temporaryFolder).isEmptyDirectory();
 
         final ArchivedApplication archivedApplication =
                 generateTerminalArchivedApplications(1).iterator().next();
@@ -119,21 +118,21 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
         try (final FileArchivedApplicationStore archivedApplicationStore =
                 createFileArchivedApplicationStore(
                         temporaryFolder,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()))) {
 
-            assertEquals(1, temporaryFolder.listFiles().length);
+            assertThat(temporaryFolder.listFiles()).hasSize(1);
 
             final File storageDirectory = archivedApplicationStore.getStorageDir();
 
-            assertEquals(0, storageDirectory.listFiles().length);
+            assertThat(storageDirectory).isEmptyDirectory();
 
             archivedApplicationStore.put(archivedApplication);
 
-            assertEquals(1, storageDirectory.listFiles().length);
+            assertThat(storageDirectory.listFiles()).hasSize(1);
 
             archivedApplicationStore.close();
 
-            assertEquals(0, temporaryFolder.listFiles().length);
+            assertThat(temporaryFolder).isEmptyDirectory();
         }
     }
 
@@ -146,7 +145,7 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
                         Duration.ofHours(1L),
                         Integer.MAX_VALUE,
                         100L << 10,
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                         Ticker.systemTicker())) {
 
             final LoadingCache<ApplicationID, ArchivedApplication> archivedApplicationCache =
@@ -171,7 +170,7 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
 
             final File storageDirectory = archivedApplicationStore.getStorageDir();
 
-            assertEquals(archivedApplications.size(), storageDirectory.listFiles().length);
+            assertThat(storageDirectory.listFiles()).hasSameSizeAs(archivedApplications);
 
             for (ArchivedApplication archivedApplication : archivedApplications) {
                 final ExecutionGraphInfo executionGraphInfo =
@@ -179,15 +178,11 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
                 final ApplicationID applicationId = archivedApplication.getApplicationId();
                 final JobID jobId = executionGraphInfo.getJobId();
 
-                assertThat(
-                        archivedApplicationStore.get(applicationId).orElse(null),
-                        new ArchivedApplicationStoreTestUtils.PartialArchivedApplicationMatcher(
-                                archivedApplication));
+                assertThat(archivedApplicationStore.get(applicationId))
+                        .hasValueSatisfying(partiallyEqualTo(archivedApplication));
 
-                assertThat(
-                        archivedApplicationStore.getExecutionGraphInfo(jobId).orElse(null),
-                        new ArchivedApplicationStoreTestUtils.PartialExecutionGraphInfoMatcher(
-                                executionGraphInfo));
+                assertThat(archivedApplicationStore.getExecutionGraphInfo(jobId))
+                        .hasValueSatisfying(partiallyEqualTo(executionGraphInfo));
             }
         }
     }
@@ -196,7 +191,7 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
     ArchivedApplicationStore createDefaultArchivedApplicationStore() throws IOException {
         return createFileArchivedApplicationStore(
                 temporaryFolder,
-                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
+                new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()));
     }
 
     @Override
@@ -207,7 +202,7 @@ class FileArchivedApplicationStoreTest extends MemoryArchivedApplicationStoreTes
                 Duration.ofHours(1L),
                 maximumCapacity,
                 10000L,
-                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                 Ticker.systemTicker());
     }
 }
