@@ -73,7 +73,7 @@ public class SharedBuffer<V> {
 
     private final MapState<EventId, Lockable<V>> eventsBuffer;
 
-    /** The number of events seen so far in the stream per timestamp. */
+    /** Per timestamp, the id the next event with that timestamp gets. */
     private final MapState<Long, Integer> eventsCount;
 
     private final MapState<NodeId, Lockable<SharedBufferNode>> entries;
@@ -183,25 +183,15 @@ public class SharedBuffer<V> {
         return new SharedBufferAccessor<>(this);
     }
 
-    void advanceTime(long timestamp) throws Exception {
-        Iterator<Long> iterator = eventsCount.keys().iterator();
-        while (iterator.hasNext()) {
-            Long next = iterator.next();
-            if (next < timestamp) {
-                iterator.remove();
-            }
-        }
-
-        // memory leak resolution
-        if (eventsCount.isEmpty()) {
-            eventsCount.clear();
-        }
-    }
-
     EventId registerEvent(V value, long timestamp) throws Exception {
         Integer id = eventsCount.get(timestamp);
         if (id == null) {
             id = 0;
+        }
+        // Snapshots taken before FLINK-41553 can hold events in use without a counter for their
+        // timestamp, or with gaps between their ids.
+        while (containsEvent(new EventId(id, timestamp))) {
+            id++;
         }
         EventId eventId = new EventId(id, timestamp);
         Lockable<V> lockableValue = new Lockable<>(value, 1);
@@ -255,6 +245,36 @@ public class SharedBuffer<V> {
     void removeEvent(EventId eventId) throws Exception {
         this.eventsBufferCache.invalidate(eventId);
         this.eventsBuffer.remove(eventId);
+        lowerCounter(eventId);
+    }
+
+    /**
+     * Lowers the counter of the removed event's timestamp to one above the highest id still in use,
+     * and removes it once no event with that timestamp is left. The counter must not be removed
+     * while such an event is in use, also not when time advances past its timestamp: an event with
+     * that timestamp can still arrive after a restore or when processing time goes back, and {@link
+     * #registerEvent} would then hand out the id of an event in use again. Only removing the
+     * highest id lowers the counter, so the cost per removed event stays constant on average.
+     */
+    private void lowerCounter(EventId removedEvent) throws Exception {
+        long timestamp = removedEvent.getTimestamp();
+        Integer count = eventsCount.get(timestamp);
+        if (count == null || removedEvent.getId() != count - 1) {
+            return;
+        }
+        int next = count - 1;
+        while (next > 0 && !containsEvent(new EventId(next - 1, timestamp))) {
+            next--;
+        }
+        if (next == 0) {
+            eventsCount.remove(timestamp);
+        } else {
+            eventsCount.put(timestamp, next);
+        }
+    }
+
+    private boolean containsEvent(EventId eventId) throws Exception {
+        return eventsBufferCache.getIfPresent(eventId) != null || eventsBuffer.contains(eventId);
     }
 
     /**
@@ -330,7 +350,7 @@ public class SharedBuffer<V> {
     }
 
     @VisibleForTesting
-    Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
+    public Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
         return eventsCount.iterator();
     }
 
