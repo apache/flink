@@ -69,4 +69,114 @@ FROM (
 WHERE row_num = 1
 ```
 
+## DEDUPLICATE
+
+{{< label Streaming >}}
+
+The `DEDUPLICATE` process table function (PTF) keeps the first or the last row per key of an append-only table, as long as the state of the key is retained. Unlike the `ROW_NUMBER()` pattern above, it needs no time attribute. Rows are ordered by arrival or by `sequence_by` columns.
+
+### Syntax
+
+```sql
+SELECT * FROM DEDUPLICATE(
+  input => TABLE source_table PARTITION BY key_col[, ...],
+  [keep => 'first' | 'last',]
+  [sequence_by => DESCRIPTOR(col[, ...]),]
+  [state_ttl => INTERVAL '1' HOUR,]
+  [reset_ttl_on_duplicate => true | false,]
+  [uid => 'my-id']
+)
+```
+
+### Parameters
+
+| Parameter | Required | Description |
+|:----------|:---------|:------------|
+| `input` | Yes | The append-only input table. `PARTITION BY` is required and its columns are the key of the output. `ORDER BY` is not supported, use `sequence_by` instead. |
+| `keep` | No | `'first'` (default) keeps the earliest arrival or the smallest `sequence_by` value, `'last'` keeps the latest arrival or the greatest. Must be a literal. Arrival order is not deterministic across reruns, use `sequence_by` for a repeatable result. |
+| `sequence_by` | No | One or more columns that order the records of a key instead of their arrival. The first column decides, later columns break ties, and `NULL` orders below every other value. On a tie, the later arrival wins for `'last'` and the earlier one for `'first'`. Columns must be numeric, string, binary, boolean or date-time, and not part of `PARTITION BY`. |
+| `state_ttl` | No | The minimum time the state of an idle key is retained, in processing time, as a non-negative `INTERVAL` literal. If omitted, `table.exec.state.ttl` applies, including later changes to it. `INTERVAL '0'` retains state indefinitely; the TTL is then left out of the state, so one cannot be added later without losing the state. When the state of a key expires, its next record is treated as the first one and emits `+I` again, so a sink without an upsert key can hold several rows for that key. |
+| `reset_ttl_on_duplicate` | No | Whether a record that is dropped refreshes the TTL of its key. Defaults to `true`. Has no effect without a TTL. |
+| `uid` | No | A unique identifier for the PTF invocation. Defaults to `DEDUPLICATE`. See [Multiple Invocations]({{< ref "docs/sql/reference/queries/changelog" >}}#multiple-invocations). |
+
+System arguments such as `uid` come last.
+
+### Output
+
+The output columns are the `PARTITION BY` columns, in the order listed, followed by the remaining input columns. Time attributes are emitted as regular timestamps.
+
+The result is an updating table whose key is the `PARTITION BY` columns. The first record of a key emits `+I`. A record that replaces the kept one emits `+U`, preceded by `-U` if the consumer needs retractions. A record that equals the kept one, or that does not replace it, emits nothing. With `keep => 'first'` and no `sequence_by`, only `+I` is emitted. The output is currently declared as updating in every case, so a sink that cannot consume updates is rejected at planning time. See [Updates and Changelogs]({{< ref "docs/dev/table/functions/ptfs" >}}#updates-and-changelogs) for the meaning of the change flags.
+
+### Examples
+
+#### Keep the first or the last record
+
+```sql
+CREATE TABLE user_events (user_id STRING, event STRING) WITH (...);
+-- (u1, login), (u2, login), (u1, click)
+
+SELECT * FROM DEDUPLICATE(
+  input => TABLE user_events PARTITION BY user_id);
+
+-- +I[u1, login]
+-- +I[u2, login]
+
+SELECT * FROM DEDUPLICATE(
+  input => TABLE user_events PARTITION BY user_id,
+  keep => 'last');
+
+-- +I[u1, login]
+-- +I[u2, login]
+-- +U[u1, click]     (an upsert consumer; a retract consumer also gets -U[u1, login] before it)
+```
+
+#### Order by a column
+
+```sql
+CREATE TABLE customer_changes (customer_id STRING, city STRING, lsn BIGINT) WITH (...);
+-- (c1, Berlin, 100), (c1, Munich, 120), (c1, Hamburg, 110)
+
+SELECT * FROM DEDUPLICATE(
+  input => TABLE customer_changes PARTITION BY customer_id,
+  keep => 'last',
+  sequence_by => DESCRIPTOR(lsn),
+  state_ttl => INTERVAL '1' DAY);
+
+-- +I[c1, Berlin, 100]
+-- +U[c1, Munich, 120]     (The entry (c1, Hamburg, 110) is older than the kept, row -> dropped)
+```
+
+#### Composite key
+
+```sql
+CREATE TABLE sessions (user_id STRING, page STRING, device STRING) WITH (...);
+-- (u1, a, web), (u1, b, mobile), (u1, c, web)
+
+SELECT * FROM DEDUPLICATE(
+  input => TABLE sessions PARTITION BY (device, user_id),
+  keep => 'last');
+
+-- columns: device, user_id, page
+-- +I[web, u1, a]
+-- +I[mobile, u1, b]
+-- +U[web, u1, c]
+```
+
+#### Table API
+
+```java
+// Keep the first record of each payment
+Table result = payments
+    .partitionBy($("payment_id"))
+    .deduplicate();
+
+// Keep the record with the greatest lsn per customer
+Table result = customerChanges
+    .partitionBy($("customer_id"))
+    .deduplicate(
+        lit("last").asArgument("keep"),
+        descriptor("lsn").asArgument("sequence_by"),
+        lit(Duration.ofDays(1)).asArgument("state_ttl"));
+```
+
 {{< top >}}
