@@ -50,7 +50,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThatList;
  * Result tests for the {@code LATERAL SNAPSHOT} processing-time temporal join that are
  * non-deterministic or benefit from dual-backend (HEAP/ROCKSDB) coverage. Deterministic,
  * backend-agnostic cases live in {@code LateralSnapshotJoinSemanticTests}; time-driven behavior
- * (idle-timeout flip, state-TTL eviction) in {@code LateralSnapshotJoinOperatorTest}.
+ * (idle-timeout flip, state-TTL eviction) in {@code MultiSetLateralSnapshotJoinOperatorTest}.
  *
  * <p>To stabilize results, each build source appends a non-matching "flip-trigger" row at {@link
  * #MID_FLIP} (after all real rows); its per-record watermark flips the operator to the JOIN phase.
@@ -144,6 +144,30 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
     // ------------------------------------------------------------------------------------------
     // Non-deterministic behavior (asserted with tolerant checks)
     // ------------------------------------------------------------------------------------------
+
+    @TestTemplate
+    void testUpsertBuildSourceWithCompositePrimaryKey() {
+        createProbe(
+                Arrays.asList(Row.of("a", 100, ts("00:01:00")), Row.of("b", 200, ts("00:01:01"))));
+        // PK (bk, id) is wider than the join key bk: several rows share a join key. Row (a, 1) is
+        // upserted 10 -> 11, row (a, 2) is deleted, and (b, 1) is untouched by the changes to a.
+        createCompositePkUpsertBuild(
+                Arrays.asList(
+                        Row.ofKind(RowKind.INSERT, "a", 1, 10, ts("00:00:01")),
+                        Row.ofKind(RowKind.INSERT, "a", 2, 20, ts("00:00:02")),
+                        Row.ofKind(RowKind.INSERT, "b", 1, 30, ts("00:00:03")),
+                        Row.ofKind(RowKind.UPDATE_AFTER, "a", 1, 11, ts("00:00:04")),
+                        Row.ofKind(RowKind.DELETE, "a", 2, 20, ts("00:00:05"))));
+
+        final List<Row> actual =
+                collect(
+                        "SELECT probe.pk, s.id, s.bv FROM probe JOIN LATERAL SNAPSHOT("
+                                + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                                + MID_FLIP
+                                + ") AS s ON probe.pk = s.bk");
+
+        assertThatList(actual).containsExactlyInAnyOrder(Row.of("a", 1, 11), Row.of("b", 1, 30));
+    }
 
     @TestTemplate
     void testProbesObserveProgressiveBuildVersions() {
@@ -247,6 +271,26 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
         tEnv().createTable(
                         "b",
                         valuesDescriptor(schema, id, sleepMillis)
+                                .option("changelog-mode", "I,UA,D")
+                                .build());
+    }
+
+    private void createCompositePkUpsertBuild(List<Row> data) {
+        final List<Row> withTrigger = new ArrayList<>(data);
+        withTrigger.add(Row.of(FLIP_TRIGGER_KEY, 0, 0, ts(FLIP_TRIGGER_TS)));
+        final String id = TestValuesTableFactory.registerData(withTrigger);
+        final Schema schema =
+                Schema.newBuilder()
+                        .column("bk", DataTypes.STRING().notNull())
+                        .column("id", DataTypes.INT().notNull())
+                        .column("bv", DataTypes.INT())
+                        .column("bts", DataTypes.TIMESTAMP(3))
+                        .watermark("bts", "bts")
+                        .primaryKey("bk", "id")
+                        .build();
+        tEnv().createTable(
+                        "b",
+                        valuesDescriptor(schema, id, 0L)
                                 .option("changelog-mode", "I,UA,D")
                                 .build());
     }

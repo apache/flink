@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLateralSnapshotJoin;
@@ -35,10 +36,14 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -57,6 +62,9 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
     private final @Nullable Long loadCompletedIdleTimeoutMs;
     private final @Nullable Long stateTtlMs;
 
+    /** Resolved on first use and handed to copies, so all planner phases agree on the layout. */
+    private @Nullable Optional<int[]> buildUpsertKey;
+
     public StreamPhysicalLateralSnapshotJoin(
             RelOptCluster cluster,
             RelTraitSet traitSet,
@@ -69,6 +77,34 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
             @Nullable Long stateTtlMs) {
+        this(
+                cluster,
+                traitSet,
+                leftRel,
+                rightRel,
+                condition,
+                joinType,
+                rightTimeAttributeIndex,
+                loadCompletedCondition,
+                loadCompletedTime,
+                loadCompletedIdleTimeoutMs,
+                stateTtlMs,
+                null);
+    }
+
+    private StreamPhysicalLateralSnapshotJoin(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            RelNode leftRel,
+            RelNode rightRel,
+            RexNode condition,
+            JoinRelType joinType,
+            int rightTimeAttributeIndex,
+            String loadCompletedCondition,
+            Long loadCompletedTime,
+            @Nullable Long loadCompletedIdleTimeoutMs,
+            @Nullable Long stateTtlMs,
+            @Nullable Optional<int[]> buildUpsertKey) {
         super(cluster, traitSet, leftRel, rightRel, condition, joinType, Collections.emptyList());
         this.rightTimeAttributeIndex = rightTimeAttributeIndex;
         Preconditions.checkNotNull(loadCompletedTime, "loadCompletedTime must not be null.");
@@ -76,6 +112,7 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
         this.loadCompletedTime = loadCompletedTime;
         this.loadCompletedIdleTimeoutMs = loadCompletedIdleTimeoutMs;
         this.stateTtlMs = stateTtlMs;
+        this.buildUpsertKey = buildUpsertKey;
     }
 
     @Override
@@ -112,7 +149,8 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
                 loadCompletedCondition,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
-                stateTtlMs);
+                stateTtlMs,
+                buildUpsertKey);
     }
 
     @Override
@@ -127,6 +165,40 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
             terms.item("stateTtl", stateTtlMs + " ms");
         }
         return terms;
+    }
+
+    /**
+     * Returns the build-side upsert key for the upsert-keyed layout, or empty if there is none.
+     *
+     * <p>The key must contain all join keys, so that a partial delete carrying only the upsert key
+     * still reaches the right keyed-state partition. Of the qualifying keys, the smallest (then
+     * lexicographically first) is chosen to keep the plan deterministic. The result is computed
+     * once and shared with copies of this node.
+     */
+    public Optional<int[]> getBuildUpsertKey() {
+        if (buildUpsertKey == null) {
+            buildUpsertKey = Optional.ofNullable(computeBuildUpsertKey());
+        }
+        return buildUpsertKey;
+    }
+
+    private @Nullable int[] computeBuildUpsertKey() {
+        final int[] rightKeys = joinSpec().getRightKeys();
+        final FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(getCluster().getMetadataQuery());
+        final Set<ImmutableBitSet> upsertKeys =
+                fmq.getUpsertKeysInKeyGroupRange(getRight(), rightKeys);
+        if (upsertKeys == null) {
+            return null;
+        }
+        final ImmutableBitSet joinKeyBits = ImmutableBitSet.of(rightKeys);
+        return upsertKeys.stream()
+                .filter(upsertKey -> upsertKey.contains(joinKeyBits))
+                .min(
+                        Comparator.comparingInt(ImmutableBitSet::cardinality)
+                                .thenComparing(Comparator.naturalOrder()))
+                .map(ImmutableBitSet::toArray)
+                .orElse(null);
     }
 
     @Override
@@ -152,6 +224,7 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
                 stateTtlMs,
+                getBuildUpsertKey().orElse(null),
                 InputProperty.DEFAULT,
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
