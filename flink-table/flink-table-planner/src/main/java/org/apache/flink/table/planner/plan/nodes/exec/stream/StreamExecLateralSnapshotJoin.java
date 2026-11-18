@@ -229,7 +229,18 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
             // The join key is the upsert key: there is one build row per keyed-state key.
             buildSideSpec = BuildSideSpec.joinKey();
         } else {
-            buildSideSpec = BuildSideSpec.upsert(buildUpsertKeys);
+            // The state is keyed by the join key, so the map key only needs the remaining
+            // upsert-key columns.
+            final int[] mapKeyFields =
+                    ImmutableBitSet.of(buildUpsertKeys)
+                            .except(ImmutableBitSet.of(joinSpec.getRightKeys()))
+                            .toArray();
+            buildSideSpec =
+                    BuildSideSpec.upsert(
+                            KeySelectorUtil.getRowDataSelector(
+                                    planner.getFlinkContext().getClassLoader(),
+                                    mapKeyFields,
+                                    rightTypeInfo));
         }
 
         final LateralSnapshotJoinOperator operator =

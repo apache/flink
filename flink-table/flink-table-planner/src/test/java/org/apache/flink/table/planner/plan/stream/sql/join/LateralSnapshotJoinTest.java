@@ -327,8 +327,10 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThat(plan).doesNotContain("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
         assertThat(buildUpsertKeysOf("b_composite")).containsExactly(0, 1);
-        assertThat(compileJoinOperator("b_composite").getBuildSideSpec().getLayout())
-                .isEqualTo(BuildSideSpec.Layout.UPSERT);
+        final BuildSideSpec spec = compileJoinOperator("b_composite").getBuildSideSpec();
+        assertThat(spec.getLayout()).isEqualTo(BuildSideSpec.Layout.UPSERT);
+        // The state is keyed by the join key (bk), so the map key only holds the remaining id.
+        assertThat(spec.getUpsertKeySelector().getProducedType().toRowFieldTypes()).hasSize(1);
     }
 
     @Test

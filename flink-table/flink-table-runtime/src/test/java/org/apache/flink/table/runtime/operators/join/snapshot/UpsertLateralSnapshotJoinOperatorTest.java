@@ -38,6 +38,7 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
@@ -69,7 +70,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
 
     /**
      * Build row schema: (jk VARCHAR, pk VARCHAR, val VARCHAR, rt BIGINT). Join key is jk at field
-     * 0; upsert key is (jk, pk) at fields {0, 1}; row-time is rt at field 3.
+     * 0; upsert key is (jk, pk), of which pk at field 1 is the map key; row-time is rt at field 3.
      */
     private static final InternalTypeInfo<RowData> BUILD_TYPE =
             InternalTypeInfo.ofFields(
@@ -92,7 +93,7 @@ class UpsertLateralSnapshotJoinOperatorTest {
     private static final int PROBE_JK_IDX = 1;
     private static final int BUILD_JK_IDX = 0;
     private static final int BUILD_RT_IDX = 3;
-    private static final int[] BUILD_UPSERT_KEY_IDX = {0, 1};
+    private static final int[] BUILD_UPSERT_KEY_IDX = {1};
 
     private static final InternalTypeInfo<RowData> KEY_TYPE =
             InternalTypeInfo.ofFields(VarCharType.STRING_TYPE);
@@ -135,7 +136,9 @@ class UpsertLateralSnapshotJoinOperatorTest {
                 loadCompletedTime,
                 null,
                 null,
-                BuildSideSpec.upsert(BUILD_UPSERT_KEY_IDX));
+                BuildSideSpec.upsert(
+                        HandwrittenSelectorUtil.getRowDataSelector(
+                                BUILD_UPSERT_KEY_IDX, BUILD_TYPE.toRowFieldTypes())));
     }
 
     private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
