@@ -593,7 +593,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             IOUtils.closeQuietly(writeBatchWrapper);
 
             // Metric collection occurs on a background thread. When this method returns
-            // it is guaranteed that thr RocksDB reference has been invalidated
+            // it is guaranteed that the RocksDB reference has been invalidated
             // and no more metric collection will be attempted against the database.
             if (nativeMetricMonitor != null) {
                 nativeMetricMonitor.close();

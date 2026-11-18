@@ -69,7 +69,7 @@ public final class PerWindowStateDataViewStore implements StateDataViewStore {
 
         final MapState<EK, EV> mapState =
                 keyedStateBackend.getOrCreateKeyedState(windowSerializer, mapStateDescriptor);
-        // explict cast to internal state
+        // explicit cast to internal state
         final InternalMapState<?, N, EK, EV> internalMapState =
                 (InternalMapState<?, N, EK, EV>) mapState;
 
@@ -78,7 +78,7 @@ public final class PerWindowStateDataViewStore implements StateDataViewStore {
                     new ValueStateDescriptor<>(stateName + NULL_STATE_POSTFIX, valueSerializer);
             final ValueState<EV> nullState =
                     keyedStateBackend.getOrCreateKeyedState(windowSerializer, nullStateDescriptor);
-            // explict cast to internal state
+            // explicit cast to internal state
             final InternalValueState<?, N, EV> internalNullState =
                     (InternalValueState<?, N, EV>) nullState;
             return new StateMapView.NamespacedStateMapViewWithKeysNullable<>(
@@ -96,7 +96,7 @@ public final class PerWindowStateDataViewStore implements StateDataViewStore {
 
         final ListState<EE> listState =
                 keyedStateBackend.getOrCreateKeyedState(windowSerializer, listStateDescriptor);
-        // explict cast to internal state
+        // explicit cast to internal state
         final InternalListState<?, N, EE> internalListState =
                 (InternalListState<?, N, EE>) listState;
 

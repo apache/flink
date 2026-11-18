@@ -50,7 +50,7 @@ import java.util.Set;
  * subset of the whole union state. On restore, each subtask's restored union state should have one
  * entry for each subtask in the previous run.
  *
- * <p>All input elements to the operator arre simply passed through a user-provided map function and
+ * <p>All input elements to the operator are simply passed through a user-provided map function and
  * emitted.
  */
 public class ArtificalOperatorStateMapper<IN, OUT> extends RichMapFunction<IN, OUT>

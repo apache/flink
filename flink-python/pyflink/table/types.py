@@ -1405,7 +1405,7 @@ _type_mappings = {
 # We should be careful here. The size of these types in python depends on C
 # implementation. We need to make sure that this conversion does not lose any
 # precision. Also, JVM only support signed types, when converting unsigned types,
-# keep in mind that it requires 1 more bit when stored as singed types.
+# keep in mind that it requires 1 more bit when stored as signed types.
 #
 # Reference for C integer size, see:
 # ISO/IEC 9899:201x specification, chapter 5.2.4.2.1 Sizes of integer types <limits.h>.

@@ -290,7 +290,7 @@ class SortCodeGenerator(
 
   /**
    * Because we put normalizedKeys in big endian way, if we are the little endian, we need to
-   * reverse these data with chunks for comparation.
+   * reverse these data with chunks for comparison.
    */
   def generateReverseNormalizedKeys(chunks: Array[Int]): mutable.ArrayBuffer[String] = {
     /* Example generated code, for int:

@@ -342,7 +342,7 @@ under the License.
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
-			separatly in the flink-shaded-hadoop-2 dependency).
+			separately in the flink-shaded-hadoop-2 dependency).
 		-->
 		<dependencies>
 

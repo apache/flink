@@ -306,7 +306,7 @@ class RecordWriterTest {
     }
 
     /**
-     * Tests that the RecordWriter is available iif the respective LocalBufferPool has at-least one
+     * Tests that the RecordWriter is available iff the respective LocalBufferPool has at-least one
      * available buffer.
      */
     @TestTemplate

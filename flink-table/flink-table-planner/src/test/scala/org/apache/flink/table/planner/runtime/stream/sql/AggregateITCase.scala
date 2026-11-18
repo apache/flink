@@ -503,7 +503,7 @@ class AggregateITCase(
     env.execute()
 
     // Use the result precision/scale calculated for sum and don't override with the one calculated
-    // for plus(), which results in loosing a decimal digit.
+    // for plus(), which results in losing a decimal digit.
     expected = List("2.22222222")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }
@@ -583,7 +583,7 @@ class AggregateITCase(
     env.execute()
 
     // Use the result precision/scale calculated for sum and don't override with the one calculated
-    // for plus()/minus(), which results in loosing a decimal digit.
+    // for plus()/minus(), which results in losing a decimal digit.
     val expected = List("6.41671935,65947.23071935707000000000,609.02867403703699700000")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
@@ -599,7 +599,7 @@ class AggregateITCase(
     env.execute()
 
     // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
-    // with the one calculated for plus()/minus(), which results in loosing a decimal digit.
+    // with the one calculated for plus()/minus(), which results in losing a decimal digit.
     var expected = List("1.03520274,12345.03520274865400000000,12.3456789012345670000000")
     assertThat(sink.getRetractResults).isEqualTo(expected)
 
@@ -617,7 +617,7 @@ class AggregateITCase(
     env.execute()
 
     // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
-    // with the one calculated for plus()/minus(), which result in loosing a decimal digit.
+    // with the one calculated for plus()/minus(), which result in losing a decimal digit.
     expected = List("2.77777778")
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }

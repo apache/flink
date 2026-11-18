@@ -223,7 +223,7 @@ class WatermarkITCase {
         // unblock operator2's subtask 1, which will send watermark with value {@code 2L} to
         // Operator3.
         // for Operator3, since the watermark combine function is max, and the channel 1 received
-        // watermark value 2L is larger than chanel 0 received watermark value 1L,
+        // watermark value 2L is larger than channel 0 received watermark value 1L,
         // so the Operator3 will receive combined watermark with value {@code 2L}.
         Operator2ProcessFunction.unblockSubTasks(1);
 

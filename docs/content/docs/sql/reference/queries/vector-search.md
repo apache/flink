@@ -93,7 +93,7 @@ input_table, LATERAL VECTOR_SEARCH(
   CONFIG => MAP['async', 'true', 'timeout', '100s']
 );
 
--- Searching with contant value
+-- Searching with constant value
 SELECT * 
 FROM TABLE(VECTOR_SEARCH(
   TABLE vector_table,

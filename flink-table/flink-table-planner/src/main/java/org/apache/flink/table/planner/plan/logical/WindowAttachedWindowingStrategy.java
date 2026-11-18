@@ -54,7 +54,7 @@ public class WindowAttachedWindowingStrategy extends WindowingStrategy {
     }
 
     /**
-     * Creates a {@link WindowAttachedWindowingStrategy} which only {@link #windowEnd} is attatched.
+     * Creates a {@link WindowAttachedWindowingStrategy} which only {@link #windowEnd} is attached.
      */
     public WindowAttachedWindowingStrategy(
             WindowSpec window, LogicalType timeAttributeType, int windowEnd) {

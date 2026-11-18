@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 import java.util.Set;
 
 /**
- * Operation to describe a SHOW TABLES statement. The full syntax for SHOW TABLES is as followings:
+ * Operation to describe a SHOW TABLES statement. The full syntax for SHOW TABLES is as follows:
  *
  * <pre>{@code
  * SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE

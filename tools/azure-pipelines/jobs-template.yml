@@ -53,7 +53,7 @@ jobs:
   # Note that we use the year number that the pipeline run starts in the cache key,
   # which means the cache is invalidated per year, in order to avoid the size of
   # cached .m2 directory growing indefinitely.
-  # Offical documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
+  # Official documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
   - task: Cache@2
     inputs:
       key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)

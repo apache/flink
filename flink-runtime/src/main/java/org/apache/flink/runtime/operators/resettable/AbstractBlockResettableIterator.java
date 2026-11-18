@@ -75,7 +75,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
             throws MemoryAllocationException {
         if (numPages < 1) {
             throw new IllegalArgumentException(
-                    "Block Resettable iterator requires at leat one page of memory");
+                    "Block Resettable iterator requires at least one page of memory");
         }
 
         this.memoryManager = memoryManager;
