@@ -939,6 +939,23 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition TO_APPEND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TO_APPEND")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES)))
+                    .outputTypeStrategy(argument(0))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
+                    .build();
+
     /**
      * Built-in proxy function for the LATERAL SNAPSHOT temporal join.
      *

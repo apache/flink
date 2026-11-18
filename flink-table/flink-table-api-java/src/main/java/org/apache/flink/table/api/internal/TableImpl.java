@@ -570,6 +570,11 @@ public class TableImpl implements Table {
         return process(BuiltInFunctionDefinitions.TO_CHANGELOG.getName(), (Object[]) arguments);
     }
 
+    @Override
+    public Table toAppend() {
+        return process(BuiltInFunctionDefinitions.TO_APPEND.getName());
+    }
+
     private TablePipeline insertInto(
             ContextResolvedTable contextResolvedTable,
             @Nullable InsertConflictStrategy conflictStrategy,

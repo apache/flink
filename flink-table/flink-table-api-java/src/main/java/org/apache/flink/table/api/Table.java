@@ -1523,6 +1523,21 @@ public interface Table extends Explainable<Table>, Executable {
     Table toChangelog(Expression... arguments);
 
     /**
+     * Converts this dynamic table into an append-only table using the built-in {@code TO_APPEND}
+     * process table function.
+     *
+     * <p>Every new row and every update is appended as a new row, and deletes are dropped. The
+     * output has the same columns as the input.
+     *
+     * <pre>{@code
+     * Table result = table.toAppend();
+     * }</pre>
+     *
+     * @return an append-only {@link Table} with the input columns
+     */
+    Table toAppend();
+
+    /**
      * Converts this append-only table with an explicit operation code column into a (potentially
      * updating) dynamic table. Each input row is expected to have a string column that indicates
      * the change operation. The operation column is interpreted by the engine and removed from the
