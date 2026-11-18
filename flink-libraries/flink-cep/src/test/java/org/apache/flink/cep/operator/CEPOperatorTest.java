@@ -653,6 +653,8 @@ class CEPOperatorTest {
             harness.processWatermark(21L);
 
             assertThat(operator2.hasNonEmptySharedBuffer(42)).isFalse();
+            assertThat(operator2.hasEventCounters(42)).isFalse();
+            assertThat(operator2.hasEventCounters(43)).isFalse();
             assertThat(operator2.hasNonEmptyPQ(42)).isFalse();
             assertThat(harness.numEventTimeTimers()).isZero();
 
@@ -837,6 +839,67 @@ class CEPOperatorTest {
         }
     }
 
+    /**
+     * Processing time can go back, for example when the clock is stepped. An event that then gets
+     * the timestamp of an event a partial match still references must not reuse its EventId.
+     */
+    @Test
+    void testProcessingTimeGoingBackDoesNotReuseEventIds() throws Exception {
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+                        .where(nameReadingOwnEvents("start", "start"))
+                        .next("middle")
+                        .where(nameReadingOwnEvents("middle", "middle"))
+                        .oneOrMore()
+                        .consecutive()
+                        .greedy()
+                        .next("end")
+                        .where(nameReadingOwnEvents("end", "end"));
+
+        CepOperator<Event, Integer, Map<String, List<Event>>> operator =
+                CepOperatorTestUtilities.getKeyedCepOperator(
+                        true, NFACompiler.compileFactory(pattern, false));
+        try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+                CepOperatorTestUtilities.getCepTestHarness(operator)) {
+            harness.open();
+
+            Event start = new Event(42, "start", 1.0);
+            Event middle1 = new Event(42, "middle", 2.0);
+            Event middle2 = new Event(42, "middle", 3.0);
+            Event middle3 = new Event(42, "middle", 4.0);
+            Event end = new Event(42, "end", 5.0);
+
+            harness.setProcessingTime(1000L);
+            harness.processElement(new StreamRecord<>(start));
+            harness.setProcessingTime(2000L);
+            harness.processElement(new StreamRecord<>(middle1));
+            harness.setProcessingTime(3000L);
+            harness.processElement(new StreamRecord<>(middle2));
+            harness.setProcessingTime(2000L);
+            harness.processElement(new StreamRecord<>(middle3));
+            harness.setProcessingTime(4000L);
+            harness.processElement(new StreamRecord<>(end));
+
+            assertThat(harness.extractOutputValues())
+                    .containsExactly(
+                            Map.of(
+                                    "start", List.of(start),
+                                    "middle", List.of(middle1, middle2, middle3),
+                                    "end", List.of(end)));
+        }
+    }
+
+    /** Matches by name and reads the events of its own variable, like SQL's DEFINE. */
+    private static IterativeCondition<Event> nameReadingOwnEvents(String variable, String name) {
+        return new IterativeCondition<Event>() {
+            @Override
+            public boolean filter(Event value, Context<Event> ctx) throws Exception {
+                ctx.getEventsForPattern(variable).forEach(e -> {});
+                return value.getName().equals(name);
+            }
+        };
+    }
+
     @Test
     void testCEPOperatorCleanupProcessingTime() throws Exception {
 
@@ -915,6 +978,7 @@ class CEPOperatorTest {
 
             // the pattern expired
             assertThat(operator2.hasNonEmptySharedBuffer(42)).isFalse();
+            assertThat(operator2.hasEventCounters(42)).isFalse();
 
             assertThat(harness.numEventTimeTimers()).isZero();
             assertThat(operator2.hasNonEmptyPQ(42)).isFalse();

@@ -286,20 +286,114 @@ class SharedBufferTest {
         SharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
         int numberEvents = 4;
-        Event[] events = new Event[numberEvents];
+        EventId[] eventIds = new EventId[numberEvents];
 
         for (int i = 0; i < numberEvents; i++) {
-            events[i] = new Event(i + 1, "e" + (i + 1), i);
-            sharedBuffer.registerEvent(events[i], i);
+            eventIds[i] = sharedBuffer.registerEvent(new Event(i + 1, "e" + (i + 1), i), i);
         }
 
-        sharedBuffer.advanceTime(3);
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            for (int i = 0; i < 3; i++) {
+                sharedBufferAccessor.releaseEvent(eventIds[i]);
+            }
+        }
 
         Iterator<Map.Entry<Long, Integer>> counters = sharedBuffer.getEventCounters();
         Map.Entry<Long, Integer> entry = counters.next();
         assertThat(entry.getKey().longValue()).isEqualTo(3);
         assertThat(entry.getValue().intValue()).isOne();
         assertThat(counters).isExhausted();
+    }
+
+    @TestTemplate
+    void testEventIdNotReusedWhileAnEventWithTheSameTimestampIsInUse() throws Exception {
+        SharedBuffer<Event> sharedBuffer =
+                TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
+
+        EventId first = sharedBuffer.registerEvent(new Event(1, "a", 1.0), 1L);
+        EventId second = sharedBuffer.registerEvent(new Event(2, "b", 2.0), 1L);
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            sharedBufferAccessor.releaseEvent(first);
+        }
+        EventId third = sharedBuffer.registerEvent(new Event(3, "c", 3.0), 1L);
+
+        assertThat(third).isNotEqualTo(second);
+
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            sharedBufferAccessor.releaseEvent(second);
+            sharedBufferAccessor.releaseEvent(third);
+        }
+        assertThat(sharedBuffer.getEventCounters()).isExhausted();
+    }
+
+    @TestTemplate
+    void testEventIdOfAReleasedEventIsReused() throws Exception {
+        SharedBuffer<Event> sharedBuffer =
+                TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
+        Event a = new Event(1, "a", 1.0);
+
+        EventId first = sharedBuffer.registerEvent(a, 1L);
+        EventId second = sharedBuffer.registerEvent(new Event(2, "b", 2.0), 1L);
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            sharedBufferAccessor.releaseEvent(second);
+        }
+        EventId third = sharedBuffer.registerEvent(new Event(3, "c", 3.0), 1L);
+
+        assertThat(third).isEqualTo(second);
+        assertThat(sharedBuffer.getEvent(first).getElement()).isEqualTo(a);
+    }
+
+    @TestTemplate
+    void testEventIdNotReusedWhenAnEventInUseHasNoCounter() throws Exception {
+        SharedBuffer<Event> sharedBuffer =
+                TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
+        Event b = new Event(2, "b", 2.0);
+        Event c = new Event(3, "c", 3.0);
+
+        EventId first = sharedBuffer.registerEvent(new Event(1, "a", 1.0), 1L);
+        EventId second = sharedBuffer.registerEvent(b, 1L);
+        EventId third = sharedBuffer.registerEvent(c, 1L);
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            sharedBufferAccessor.releaseEvent(first);
+        }
+        // Before FLINK-41553 counters were removed as time advanced, so a snapshot from then can
+        // hold events in use without a counter for their timestamp.
+        Iterator<Map.Entry<Long, Integer>> counters = sharedBuffer.getEventCounters();
+        counters.next();
+        counters.remove();
+
+        EventId fourth = sharedBuffer.registerEvent(new Event(4, "d", 4.0), 1L);
+        EventId fifth = sharedBuffer.registerEvent(new Event(5, "e", 5.0), 1L);
+
+        assertThat(List.of(fourth, fifth)).doesNotContain(second, third).doesNotHaveDuplicates();
+        assertThat(sharedBuffer.getEvent(second).getElement()).isEqualTo(b);
+        assertThat(sharedBuffer.getEvent(third).getElement()).isEqualTo(c);
+    }
+
+    @TestTemplate
+    void testReleasingEventsWithTheSameTimestampInOrderReadsLinearly() throws Exception {
+        TestSharedBuffer<Event> sharedBuffer =
+                TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
+        int numberEvents = 64;
+        EventId[] eventIds = new EventId[numberEvents];
+        // closing the accessor flushes the cache, in which events are found without a state read
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            for (int i = 0; i < numberEvents; i++) {
+                eventIds[i] = sharedBufferAccessor.registerEvent(new Event(i, "e", i), 1L);
+            }
+        }
+
+        long readsBefore = sharedBuffer.getStateReads();
+        try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+            for (EventId eventId : eventIds) {
+                sharedBufferAccessor.releaseEvent(eventId);
+            }
+        }
+
+        // Each release reads the event and its counter, and releasing the highest id checks the
+        // ids below it once: 3 * numberEvents - 1 reads.
+        assertThat(sharedBuffer.getStateReads() - readsBefore).isLessThan(4L * numberEvents);
+        assertThat(sharedBuffer.getEventCounters()).isExhausted();
     }
 
     @TestTemplate
