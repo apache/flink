@@ -30,11 +30,10 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -46,16 +45,14 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.testutils.junit.utils.TempDirUtils.newFolder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests that {@link FileCache} can read zipped directories from BlobServer and properly cleans them
  * after.
  */
-public class FileCacheDirectoriesTest {
+class FileCacheDirectoriesTest {
 
     private static final String testFileContent =
             "Goethe - Faust: Der Tragoedie erster Teil\n"
@@ -75,7 +72,7 @@ public class FileCacheDirectoriesTest {
                     + "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
                     + "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     private FileCache fileCache;
 
@@ -87,7 +84,7 @@ public class FileCacheDirectoriesTest {
                 public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
                     if (key.equals(permanentBlobKey)) {
                         final java.nio.file.Path directory =
-                                temporaryFolder.newFolder("zipArchive").toPath();
+                                newFolder(temporaryFolder, "zipArchive").toPath();
                         final java.nio.file.Path containedFile = directory.resolve("cacheFile");
                         Files.copy(
                                 new ByteArrayInputStream(
@@ -113,18 +110,18 @@ public class FileCacheDirectoriesTest {
     private DeleteCapturingDirectScheduledExecutorService executorService =
             new DeleteCapturingDirectScheduledExecutorService();
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         fileCache =
                 new FileCache(
-                        new String[] {temporaryFolder.newFolder().getAbsolutePath()},
+                        new String[] {newFolder(temporaryFolder).getAbsolutePath()},
                         blobService,
                         executorService,
                         CLEANUP_INTERVAL);
     }
 
-    @After
-    public void shutdown() {
+    @AfterEach
+    void shutdown() {
         fileCache.shutdown();
 
         if (executorService.lastDeleteProcess != null) {
@@ -133,7 +130,7 @@ public class FileCacheDirectoriesTest {
     }
 
     @Test
-    public void testDirectoryDownloadedFromBlob() throws Exception {
+    void testDirectoryDownloadedFromBlob() throws Exception {
         final DistributedCache.DistributedCacheEntry entry =
                 new DistributedCache.DistributedCacheEntry(
                         "test_file",
@@ -145,7 +142,7 @@ public class FileCacheDirectoriesTest {
     }
 
     @Test
-    public void testDirectoryDownloadedFromDFS() throws Exception {
+    void testDirectoryDownloadedFromDFS() throws Exception {
         final String zippedFile =
                 blobService.getFile(new JobID(), permanentBlobKey).getAbsolutePath();
         final DistributedCache.DistributedCacheEntry entry =
@@ -155,7 +152,7 @@ public class FileCacheDirectoriesTest {
     }
 
     @Test
-    public void testDirectoryCleanUp() throws Exception {
+    void testDirectoryCleanUp() throws Exception {
         JobID jobID = new JobID();
         ExecutionAttemptID attemptID1 = createExecutionAttemptId();
         ExecutionAttemptID attemptID2 = createExecutionAttemptId();
@@ -172,25 +169,25 @@ public class FileCacheDirectoriesTest {
         final FileSystem fs = dstPath.getFileSystem();
         final FileStatus fileStatus = fs.getFileStatus(dstPath);
         final Path cacheFile = new Path(dstPath, "cacheFile");
-        assertTrue(fileStatus.isDir());
-        assertTrue(fs.exists(cacheFile));
+        assertThat(fileStatus.isDir()).isTrue();
+        assertThat(fs.exists(cacheFile)).isTrue();
 
         fileCache.releaseJob(jobID, attemptID1);
         // still should be available
-        assertTrue(fileStatus.isDir());
-        assertTrue(fs.exists(cacheFile));
+        assertThat(fileStatus.isDir()).isTrue();
+        assertThat(fs.exists(cacheFile)).isTrue();
 
         fileCache.releaseJob(jobID, attemptID2);
         // still should be available, file will be deleted after cleanupInterval
-        assertTrue(fileStatus.isDir());
-        assertTrue(fs.exists(cacheFile));
+        assertThat(fileStatus.isDir()).isTrue();
+        assertThat(fs.exists(cacheFile)).isTrue();
 
         // after a while, the file should disappear
-        assertEquals(CLEANUP_INTERVAL, executorService.lastDelayMillis);
+        assertThat(executorService.lastDelayMillis).isEqualTo(CLEANUP_INTERVAL);
         executorService.lastDeleteProcess.run();
 
-        assertFalse(fs.exists(dstPath));
-        assertFalse(fs.exists(cacheFile));
+        assertThat(fs.exists(dstPath)).isFalse();
+        assertThat(fs.exists(cacheFile)).isFalse();
     }
 
     private final class DeleteCapturingDirectScheduledExecutorService
@@ -203,7 +200,7 @@ public class FileCacheDirectoriesTest {
         public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
 
             if (command instanceof FileCache.DeleteProcess) {
-                assertNull("Multiple delete process registered", lastDeleteProcess);
+                assertThat(lastDeleteProcess).as("Multiple delete process registered").isNull();
                 lastDeleteProcess = (FileCache.DeleteProcess) command;
                 lastDelayMillis = unit.toMillis(delay);
                 return super.schedule(() -> {}, delay, unit);
@@ -225,11 +222,11 @@ public class FileCacheDirectoriesTest {
         final Path dstPath = copyResult.get();
         final FileSystem fs = dstPath.getFileSystem();
         final FileStatus fileStatus = fs.getFileStatus(dstPath);
-        assertTrue(fileStatus.isDir());
+        assertThat(fileStatus.isDir()).isTrue();
 
         final Path cacheFile = new Path(dstPath, "cacheFile");
-        assertTrue(fs.exists(cacheFile));
+        assertThat(fs.exists(cacheFile)).isTrue();
         final String actualContent = FileUtils.readFileUtf8(new File(cacheFile.getPath()));
-        assertEquals(testFileContent, actualContent);
+        assertThat(actualContent).isEqualTo(testFileContent);
     }
 }

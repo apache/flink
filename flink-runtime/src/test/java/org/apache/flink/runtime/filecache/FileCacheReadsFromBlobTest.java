@@ -30,11 +30,10 @@ import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.flink.shaded.guava33.com.google.common.io.Files;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,11 +41,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.testutils.junit.utils.TempDirUtils.newFile;
+import static org.apache.flink.testutils.junit.utils.TempDirUtils.newFolder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that {@link FileCache} can read files from {@link BlobServer}. */
-public class FileCacheReadsFromBlobTest {
+class FileCacheReadsFromBlobTest {
 
     private static final String testFileContent =
             "Goethe - Faust: Der Tragoedie erster Teil\n"
@@ -66,7 +66,7 @@ public class FileCacheReadsFromBlobTest {
                     + "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
                     + "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     private FileCache fileCache;
 
@@ -77,7 +77,7 @@ public class FileCacheReadsFromBlobTest {
                 @Override
                 public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
                     if (key.equals(permanentBlobKey)) {
-                        File f = temporaryFolder.newFile("cacheFile");
+                        File f = newFile(temporaryFolder, "cacheFile");
                         FileUtils.writeFileUtf8(f, testFileContent);
                         return f;
                     } else {
@@ -90,20 +90,20 @@ public class FileCacheReadsFromBlobTest {
                 public void close() throws IOException {}
             };
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         fileCache =
                 new FileCache(
-                        new String[] {temporaryFolder.newFolder().getAbsolutePath()}, blobService);
+                        new String[] {newFolder(temporaryFolder).getAbsolutePath()}, blobService);
     }
 
-    @After
-    public void shutdown() {
+    @AfterEach
+    void shutdown() {
         fileCache.shutdown();
     }
 
     @Test
-    public void testFileDownloadedFromBlob() throws Exception {
+    void testFileDownloadedFromBlob() throws Exception {
         JobID jobID = new JobID();
         ExecutionAttemptID attemptID = createExecutionAttemptId();
 
@@ -117,7 +117,7 @@ public class FileCacheReadsFromBlobTest {
         final Path dstPath = copyResult.get();
         final String actualContent =
                 Files.toString(new File(dstPath.toUri()), StandardCharsets.UTF_8);
-        assertTrue(dstPath.getFileSystem().exists(dstPath));
-        assertEquals(testFileContent, actualContent);
+        assertThat(dstPath.getFileSystem().exists(dstPath)).isTrue();
+        assertThat(actualContent).isEqualTo(testFileContent);
     }
 }

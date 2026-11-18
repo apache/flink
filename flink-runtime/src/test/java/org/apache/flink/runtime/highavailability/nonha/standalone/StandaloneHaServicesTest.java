@@ -24,18 +24,17 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /** Tests for the {@link StandaloneHaServices}. */
-public class StandaloneHaServicesTest extends TestLogger {
+class StandaloneHaServicesTest {
 
     private final String dispatcherAddress = "dispatcher";
     private final String resourceManagerAddress = "resourceManager";
@@ -43,16 +42,16 @@ public class StandaloneHaServicesTest extends TestLogger {
 
     private StandaloneHaServices standaloneHaServices;
 
-    @Before
-    public void setupTest() {
+    @BeforeEach
+    void setupTest() {
 
         standaloneHaServices =
                 new StandaloneHaServices(
                         resourceManagerAddress, dispatcherAddress, webMonitorAddress);
     }
 
-    @After
-    public void teardownTest() throws Exception {
+    @AfterEach
+    void teardownTest() throws Exception {
         if (standaloneHaServices != null) {
             standaloneHaServices.closeWithOptionalClean(true);
             standaloneHaServices = null;
@@ -64,7 +63,7 @@ public class StandaloneHaServicesTest extends TestLogger {
      * id.
      */
     @Test
-    public void testLeaderElection() throws Exception {
+    void testLeaderElection() throws Exception {
         JobID jobId = new JobID();
         LeaderContender jmLeaderContender = mock(LeaderContender.class);
         LeaderContender rmLeaderContender = mock(LeaderContender.class);
@@ -86,7 +85,7 @@ public class StandaloneHaServicesTest extends TestLogger {
      * fixed leader session id.
      */
     @Test
-    public void testJobManagerLeaderRetrieval() throws Exception {
+    void testJobManagerLeaderRetrieval() throws Exception {
         JobID jobId1 = new JobID();
         JobID jobId2 = new JobID();
         LeaderRetrievalListener jmListener1 = mock(LeaderRetrievalListener.class);
@@ -118,7 +117,7 @@ public class StandaloneHaServicesTest extends TestLogger {
      * leader session id.
      */
     @Test
-    public void testJobMasterLeaderRetrieval() throws Exception {
+    void testJobMasterLeaderRetrieval() throws Exception {
         JobID jobId1 = new JobID();
         JobID jobId2 = new JobID();
         final String jobManagerAddress1 = "foobar";
