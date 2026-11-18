@@ -46,12 +46,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The watermark is not part of a snapshot, so after a restore the operator starts at {@link
- * Long#MIN_VALUE} and events that were late before the failure are buffered. Feeding them to the
- * NFA after events it already processed could reuse an EventId that a partial match still
- * references, which corrupts the shared buffer (FLINK-41553).
- */
+/** Late events after a restore (FLINK-41553). */
 class CepOperatorLateEventsAfterRestoreTest {
 
     private static final OutputTag<Event> LATE = new OutputTag<Event>("late") {};
@@ -208,8 +203,8 @@ class CepOperatorLateEventsAfterRestoreTest {
     }
 
     /**
-     * Stop-with-savepoint with --drain advances the NFA to {@link Long#MAX_VALUE}, which removes
-     * every event counter, while partial matches without {@code within()} stay.
+     * Stop-with-savepoint with --drain advances the NFA to {@link Long#MAX_VALUE}, while partial
+     * matches without {@code within()} stay.
      */
     @ParameterizedTest(name = "rocksdb = {0}")
     @ValueSource(booleans = {false, true})

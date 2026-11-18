@@ -320,9 +320,9 @@ public class CepOperator<IN, KEY, OUT>
         PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
         NFAState nfaState = getNFAState();
         // The watermark is not part of the snapshot, so after a restore elements that were late
-        // before the failure pass the check in processElement. Those older than an event the NFA
-        // still references would break the event-time order the NFA relies on and can reuse an
-        // EventId that is still in use, so they are handled as late here.
+        // before the failure pass the check in processElement. Those at or before the newest event
+        // the NFA still references would break the event-time order the NFA relies on, so they are
+        // handled as late here.
         long latestReferencedTimestamp = getLatestReferencedTimestamp(nfaState);
 
         // STEP 2
@@ -592,6 +592,12 @@ public class CepOperator<IN, KEY, OUT>
     boolean hasNonEmptySharedBuffer(KEY key) throws Exception {
         setCurrentKey(key);
         return !partialMatches.isEmpty();
+    }
+
+    @VisibleForTesting
+    boolean hasEventCounters(KEY key) throws Exception {
+        setCurrentKey(key);
+        return partialMatches.getEventCounters().hasNext();
     }
 
     @VisibleForTesting
