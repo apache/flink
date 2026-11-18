@@ -51,17 +51,6 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
     }
 
     /**
-     * Notifies shared buffer that there will be no events with timestamp &lt;&eq; the given value.
-     * It allows to clear internal counters for number of events seen so far per timestamp.
-     *
-     * @param timestamp watermark, no earlier events will arrive
-     * @throws Exception Thrown if the system cannot access the state.
-     */
-    public void advanceTime(long timestamp) throws Exception {
-        sharedBuffer.advanceTime(timestamp);
-    }
-
-    /**
      * Adds another unique event to the shared buffer and assigns a unique id for it. It
      * automatically creates a lock on this event, so it won't be removed during processing of that
      * event. Therefore the lock should be removed after processing all {@link
