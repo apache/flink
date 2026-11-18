@@ -30,7 +30,7 @@ import java.util.Collection;
 
 /**
  * Operation to describe a SHOW MATERIALIZED TABLES statement. The full syntax for SHOW MATERIALIZED
- * TABLES is as followings:
+ * TABLES is as follows:
  *
  * <pre>{@code
  * SHOW MATERIALIZED TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE

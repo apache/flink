@@ -316,7 +316,7 @@ public class ForStIncrementalCheckpointUtils {
         return bestHandlePos;
     }
 
-    /** Helper class tha defines a key-range in RocksDB as byte arrays for min and max key. */
+    /** Helper class that defines a key-range in RocksDB as byte arrays for min and max key. */
     private static final class KeyRange {
         static final KeyRange EMPTY = KeyRange.of(new byte[0], new byte[0]);
 

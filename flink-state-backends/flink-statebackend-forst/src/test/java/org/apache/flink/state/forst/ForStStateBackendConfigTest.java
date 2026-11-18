@@ -406,7 +406,7 @@ class ForStStateBackendConfigTest {
                 hasFailure = true;
             }
             assertThat(hasFailure)
-                    .as("We must see a failure because no storaged directory is feasible.")
+                    .as("We must see a failure because no storage directory is feasible.")
                     .isTrue();
         } finally {
             //noinspection ResultOfMethodCallIgnored

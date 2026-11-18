@@ -186,7 +186,7 @@ class CheckpointOptionsTest {
                     .isEqualTo(options);
         }
         assertThat(unalignedUnsupported.withUnalignedSupported())
-                .as("expected fully reversable options")
+                .as("expected fully reversible options")
                 .isEqualTo(options);
     }
 

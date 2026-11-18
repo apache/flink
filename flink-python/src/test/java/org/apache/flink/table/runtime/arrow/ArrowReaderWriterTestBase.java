@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.fail;
 /**
  * Abstract test base for {@link ArrowReader} and {@link ArrowWriter}.
  *
- * @param <T> the elment type.
+ * @param <T> the element type.
  */
 abstract class ArrowReaderWriterTestBase<T> {
 

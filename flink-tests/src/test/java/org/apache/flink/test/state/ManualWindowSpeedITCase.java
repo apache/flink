@@ -47,7 +47,7 @@ import java.util.Random;
  * run in local mode with parallelism 1 with a source that emits data as fast as possible. Thus,
  * these mostly test the performance of the state backend.
  *
- * <p>When doing a release we should manually run theses tests on the version that is to be released
+ * <p>When doing a release we should manually run these tests on the version that is to be released
  * and on older version to see if there are performance regressions.
  *
  * <p>When a test is executed it will output how many elements of key {@code "Tuple 0"} have been

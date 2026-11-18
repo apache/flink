@@ -134,7 +134,7 @@ function run_resume_externalized_checkpoints() {
   wait_job_running $DATASTREAM_JOB
   wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
-  # if state is errorneous and the general purpose DataStream job produces alerting messages,
+  # if state is erroneous and the general purpose DataStream job produces alerting messages,
   # output would be non-empty and the test will not pass
 }
 

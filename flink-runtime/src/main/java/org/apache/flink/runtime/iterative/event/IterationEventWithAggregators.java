@@ -98,7 +98,7 @@ public abstract class IterationEventWithAggregators extends TaskEvent {
                             "Could not load user-defined class '" + classNames[i] + "'.", e);
                 } catch (ClassCastException e) {
                     throw new RuntimeException(
-                            "User-defined aggregator class is not a value sublass.");
+                            "User-defined aggregator class is not a value subclass.");
                 }
 
                 try (DataInputViewStreamWrapper in =

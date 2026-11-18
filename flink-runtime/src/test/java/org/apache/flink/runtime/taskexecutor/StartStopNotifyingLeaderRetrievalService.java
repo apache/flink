@@ -23,7 +23,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.util.concurrent.CompletableFuture;
 
-/** {@link LeaderRetrievalService} that captures thes {@link LeaderRetrievalListener}. */
+/** {@link LeaderRetrievalService} that captures the {@link LeaderRetrievalListener}. */
 final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {
     private final CompletableFuture<LeaderRetrievalListener> startFuture;
 

@@ -135,7 +135,7 @@ class MemoryManagerTest {
             // check that the owner owners were not affected
             for (int k = i + 1; k < numOwners; k++) {
                 assertThat(allMemorySegmentsValid(mems[k]))
-                        .as("Non-released memory segments are accidentaly destroyed.")
+                        .as("Non-released memory segments are accidentally destroyed.")
                         .isTrue();
             }
         }

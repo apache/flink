@@ -477,7 +477,7 @@ class BlobServerConnection extends Thread {
      * Writes to the output stream the error return code, and the given exception in serialized
      * form.
      *
-     * @param out Thr output stream to write to.
+     * @param out The output stream to write to.
      * @param t The exception to send.
      * @throws IOException Thrown, if the output stream could not be written to.
      */

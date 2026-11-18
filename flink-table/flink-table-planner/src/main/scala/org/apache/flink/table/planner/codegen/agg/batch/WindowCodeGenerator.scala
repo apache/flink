@@ -432,7 +432,7 @@ abstract class WindowCodeGenerator(
     // output or merge pre accumulate results by window
     val (initAggBufferCode, doAggregateCode, mergeOrOutput, mergeOrOutputLastPane) =
       if (isFinal && enableAssignPane) {
-        // case: global/complete window agg: Sliding window with with pane optimization
+        // case: global/complete window agg: Sliding window with pane optimization
         val offset = if (isMerge) grouping.length + 1 else grouping.length
         val argsMapping = buildAggregateArgsMapping(
           isMerge,

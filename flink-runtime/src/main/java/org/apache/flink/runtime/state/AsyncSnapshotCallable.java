@@ -142,7 +142,7 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
     }
 
     /**
-     * This method implements the (async) snapshot logic. Resources aquired within this method
+     * This method implements the (async) snapshot logic. Resources acquired within this method
      * should be released at the end of the method.
      */
     protected abstract T callInternal() throws Exception;
