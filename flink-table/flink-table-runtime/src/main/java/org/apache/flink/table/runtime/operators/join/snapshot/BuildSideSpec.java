@@ -39,7 +39,12 @@ public class BuildSideSpec implements Serializable {
     public enum Layout {
         /** Row to count multi-set, for a build side without an upsert key. */
         MULTI_SET,
-        /** One row per upsert key, for a build side with an upsert key containing the join key. */
+        /** One row per join key, for a build side whose upsert key is the join key. */
+        JOIN_KEY,
+        /**
+         * One row per upsert key, for a build side whose upsert key is a superset of the join
+         * key.
+         */
         UPSERT
     }
 
@@ -55,6 +60,10 @@ public class BuildSideSpec implements Serializable {
 
     public static BuildSideSpec multiSet() {
         return new BuildSideSpec(Layout.MULTI_SET, null);
+    }
+
+    public static BuildSideSpec joinKey() {
+        return new BuildSideSpec(Layout.JOIN_KEY, null);
     }
 
     public static BuildSideSpec upsert(int[] upsertKeys) {

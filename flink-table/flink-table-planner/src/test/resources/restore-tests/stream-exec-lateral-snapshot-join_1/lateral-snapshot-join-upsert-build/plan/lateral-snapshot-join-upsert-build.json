@@ -1,7 +1,7 @@
 {
-  "flinkVersion" : "2.4",
+  "flinkVersion" : "2.5",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 28,
     "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
@@ -94,7 +94,7 @@
     "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `pts_str` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, probe, watermark=[TO_TIMESTAMP(pts_str)], watermarkEmitStrategy=[on-event]]], fields=[pk, pv, pts_str])"
   }, {
-    "id" : 2,
+    "id" : 29,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -116,7 +116,7 @@
     "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT>",
     "description" : "Calc(select=[pk, pv])"
   }, {
-    "id" : 3,
+    "id" : 30,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -129,7 +129,7 @@
     "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT>",
     "description" : "Exchange(distribution=[hash[pk]])"
   }, {
-    "id" : 4,
+    "id" : 31,
     "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
@@ -139,6 +139,9 @@
             "columns" : [ {
               "name" : "bk",
               "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "bid",
+              "dataType" : "INT NOT NULL"
             }, {
               "name" : "bv",
               "dataType" : "INT"
@@ -154,7 +157,7 @@
                   "internalName" : "$TO_TIMESTAMP$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
-                    "inputIndex" : 2,
+                    "inputIndex" : 3,
                     "type" : "VARCHAR(2147483647)"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -167,16 +170,16 @@
               "expression" : {
                 "rexNode" : {
                   "kind" : "INPUT_REF",
-                  "inputIndex" : 3,
+                  "inputIndex" : 4,
                   "type" : "TIMESTAMP(3)"
                 },
                 "serializableString" : "`bts`"
               }
             } ],
             "primaryKey" : {
-              "name" : "PK_bk",
+              "name" : "PK_bk_bid",
               "type" : "PRIMARY_KEY",
-              "columns" : [ "bk" ]
+              "columns" : [ "bk", "bid" ]
             }
           }
         }
@@ -188,7 +191,7 @@
           "internalName" : "$TO_TIMESTAMP$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
-            "inputIndex" : 2,
+            "inputIndex" : 3,
             "type" : "VARCHAR(2147483647)"
           } ],
           "type" : "TIMESTAMP(3)"
@@ -202,7 +205,7 @@
             "internalName" : "$TO_TIMESTAMP$1",
             "operands" : [ {
               "kind" : "INPUT_REF",
-              "inputIndex" : 2,
+              "inputIndex" : 3,
               "type" : "VARCHAR(2147483647)"
             } ],
             "type" : "TIMESTAMP(3)"
@@ -214,7 +217,7 @@
           }
         },
         "idleTimeoutMillis" : -1,
-        "producedType" : "ROW<`bk` VARCHAR(2147483647) NOT NULL, `bv` INT, `bts_str` VARCHAR(2147483647)> NOT NULL",
+        "producedType" : "ROW<`bk` VARCHAR(2147483647) NOT NULL, `bid` INT NOT NULL, `bv` INT, `bts_str` VARCHAR(2147483647)> NOT NULL",
         "watermarkParams" : {
           "emitStrategy" : "ON_EVENT",
           "alignGroupName" : null,
@@ -224,10 +227,10 @@
         }
       } ]
     },
-    "outputType" : "ROW<`bk` VARCHAR(2147483647) NOT NULL, `bv` INT, `bts_str` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, b_upsert, watermark=[TO_TIMESTAMP(bts_str)], watermarkEmitStrategy=[on-event]]], fields=[bk, bv, bts_str])"
+    "outputType" : "ROW<`bk` VARCHAR(2147483647) NOT NULL, `bid` INT NOT NULL, `bv` INT, `bts_str` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, b_upsert, watermark=[TO_TIMESTAMP(bts_str)], watermarkEmitStrategy=[on-event]]], fields=[bk, bid, bv, bts_str])"
   }, {
-    "id" : 5,
+    "id" : 32,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -236,6 +239,10 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
       "type" : "INT"
     }, {
       "kind" : "CALL",
@@ -246,7 +253,7 @@
         "internalName" : "$TO_TIMESTAMP$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
-          "inputIndex" : 2,
+          "inputIndex" : 3,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "TIMESTAMP(3)"
@@ -271,6 +278,9 @@
         "name" : "bk",
         "fieldType" : "VARCHAR(2147483647) NOT NULL"
       }, {
+        "name" : "bid",
+        "fieldType" : "INT NOT NULL"
+      }, {
         "name" : "bv",
         "fieldType" : "INT"
       }, {
@@ -282,9 +292,9 @@
         }
       } ]
     },
-    "description" : "Calc(select=[bk, bv, Reinterpret(TO_TIMESTAMP(bts_str)) AS bts])"
+    "description" : "Calc(select=[bk, bid, bv, Reinterpret(TO_TIMESTAMP(bts_str)) AS bts])"
   }, {
-    "id" : 6,
+    "id" : 33,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -300,6 +310,9 @@
         "name" : "bk",
         "fieldType" : "VARCHAR(2147483647) NOT NULL"
       }, {
+        "name" : "bid",
+        "fieldType" : "INT NOT NULL"
+      }, {
         "name" : "bv",
         "fieldType" : "INT"
       }, {
@@ -313,7 +326,7 @@
     },
     "description" : "Exchange(distribution=[hash[bk]])"
   }, {
-    "id" : 7,
+    "id" : 34,
     "type" : "stream-exec-lateral-snapshot-join_1",
     "joinSpec" : {
       "joinType" : "INNER",
@@ -322,10 +335,10 @@
       "filterNulls" : [ true ],
       "nonEquiCondition" : null
     },
-    "rightTimeAttributeIndex" : 2,
+    "rightTimeAttributeIndex" : 3,
     "loadCompletedCondition" : "user_time",
     "loadCompletedTime" : 1577836803000,
-    "buildUpsertKeys" : [ 0 ],
+    "buildUpsertKeys" : [ 0, 1 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -339,10 +352,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647) NOT NULL, `bv` INT, `bts` TIMESTAMP(3)>",
-    "description" : "LateralSnapshotJoin(joinType=[InnerJoin], where=[(pk = bk)], select=[pk, pv, bk, bv, bts], loadCompletedCondition=[user_time], loadCompletedTime=[1577836803000])"
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647) NOT NULL, `bid` INT NOT NULL, `bv` INT, `bts` TIMESTAMP(3)>",
+    "description" : "LateralSnapshotJoin(joinType=[InnerJoin], where=[(pk = bk)], select=[pk, pv, bk, bid, bv, bts], loadCompletedCondition=[user_time], loadCompletedTime=[1577836803000], buildUpsertKey=[0, 1])"
   }, {
-    "id" : 8,
+    "id" : 35,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -359,6 +372,10 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
       "type" : "INT"
     } ],
     "condition" : null,
@@ -369,10 +386,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647) NOT NULL, `bv` INT>",
-    "description" : "Calc(select=[pk, pv, bk, bv])"
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647) NOT NULL, `bid` INT NOT NULL, `bv` INT>",
+    "description" : "Calc(select=[pk, pv, bk, bid, bv])"
   }, {
-    "id" : 9,
+    "id" : 36,
     "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -396,6 +413,9 @@
               "name" : "bk",
               "dataType" : "VARCHAR(2147483647)"
             }, {
+              "name" : "bid",
+              "dataType" : "INT"
+            }, {
               "name" : "bv",
               "dataType" : "INT"
             } ]
@@ -404,7 +424,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "upsertMaterializeStrategy" : "VALUE",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -412,61 +431,61 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647) NOT NULL, `bv` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[pk, pv, bk, bv])"
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647) NOT NULL, `bid` INT NOT NULL, `bv` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[pk, pv, bk, bid, bv])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 28,
+    "target" : 29,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 29,
+    "target" : 30,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 31,
+    "target" : 32,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 32,
+    "target" : 33,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 7,
+    "source" : 30,
+    "target" : 34,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 6,
-    "target" : 7,
+    "source" : 33,
+    "target" : 34,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 7,
-    "target" : 8,
+    "source" : 34,
+    "target" : 35,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 8,
-    "target" : 9,
+    "source" : 35,
+    "target" : 36,
     "shuffle" : {
       "type" : "FORWARD"
     },

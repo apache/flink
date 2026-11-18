@@ -102,7 +102,7 @@ public class LateralSnapshotJoinTestPrograms {
                     + ") AS s ON probe.pk = s.bk";
 
     // Upsert build source (I, UA, D) whose primary key (bk) is the join key.
-    static final String[] BUILD_UPSERT_SCHEMA = {
+    static final String[] BUILD_JOIN_KEY_SCHEMA = {
         "bk STRING",
         "bv INT",
         "bts_str STRING",
@@ -113,7 +113,7 @@ public class LateralSnapshotJoinTestPrograms {
 
     // All changes are at or before the load-completed time, so the snapshot {a=12} is committed
     // before the savepoint and the after-restore probes cannot race with build changes.
-    static final Row[] UPSERT_BUILD_BEFORE_DATA = {
+    static final Row[] JOIN_KEY_BUILD_BEFORE_DATA = {
         Row.ofKind(RowKind.INSERT, "a", 10, "2020-01-01 00:00:01"),
         Row.ofKind(RowKind.INSERT, "b", 20, "2020-01-01 00:00:02"),
         Row.ofKind(RowKind.DELETE, "b", 20, "2020-01-01 00:00:02"),
@@ -121,6 +121,43 @@ public class LateralSnapshotJoinTestPrograms {
     };
 
     // After restore: a matches the restored row (12); b was deleted, so it has no match.
+    static final Row[] JOIN_KEY_PROBE_AFTER_DATA = {
+        Row.of("a", 101, "2020-01-01 00:00:10"), Row.of("b", 201, "2020-01-01 00:00:11")
+    };
+
+    private static final String SNAPSHOT_JOIN_KEY_BUILD =
+            "LATERAL SNAPSHOT("
+                    + "input => TABLE b_join_key, on_time => DESCRIPTOR(bts), "
+                    + "load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:03' AS TIMESTAMP_LTZ(3))"
+                    + ") AS s ON probe.pk = s.bk";
+
+    // Upsert build source (I, UA, D) whose primary key (bk, bid) is a superset of the join key (bk)
+    static final String[] BUILD_UPSERT_SCHEMA = {
+        "bk STRING",
+        "bid INT",
+        "bv INT",
+        "bts_str STRING",
+        "bts AS TO_TIMESTAMP(bts_str)",
+        "WATERMARK FOR bts AS bts",
+        "PRIMARY KEY (bk, bid) NOT ENFORCED"
+    };
+
+    // All changes are at or before the load-completed time, so the snapshot {(a,1,12), (a,2,7)} is
+    // committed before the savepoint.
+    static final Row[] UPSERT_BUILD_BEFORE_DATA = {
+        Row.ofKind(RowKind.INSERT, "a", 1, 10, "2020-01-01 00:00:01"),
+        Row.ofKind(RowKind.INSERT, "a", 2, 7, "2020-01-01 00:00:02"),
+        Row.ofKind(RowKind.INSERT, "b", 1, 20, "2020-01-01 00:00:02"),
+        Row.ofKind(RowKind.DELETE, "b", 1, 20, "2020-01-01 00:00:02"),
+        Row.ofKind(RowKind.UPDATE_AFTER, "a", 1, 12, "2020-01-01 00:00:03")
+    };
+
+    // The build upsert key (bk, bid) must be selected, otherwise the column pruning drops it before
+    // the join and the upsert-keyed layout cannot be used.
+    static final String[] UPSERT_SINK_SCHEMA = {
+        "pk STRING", "pv INT", "bk STRING", "bid INT", "bv INT"
+    };
+
     static final Row[] UPSERT_PROBE_AFTER_DATA = {
         Row.of("a", 101, "2020-01-01 00:00:10"), Row.of("b", 201, "2020-01-01 00:00:11")
     };
@@ -204,12 +241,43 @@ public class LateralSnapshotJoinTestPrograms {
                                     + SNAPSHOT_BUILD)
                     .build();
 
-    // Restore of the upsert-keyed build state: the update (a -> 12) and delete (b) applied before
-    // the savepoint are visible to the after-restore probes.
+    // Restore of the join-key build state (the upsert key is the join key): the update (a -> 12)
+    // and delete (b) applied before the savepoint are visible to the after-restore probes.
+    public static final TableTestProgram LATERAL_SNAPSHOT_JOIN_JOIN_KEY_BUILD =
+            TableTestProgram.of(
+                            "lateral-snapshot-join-join-key-build",
+                            "validates a LATERAL SNAPSHOT inner join with an upsert build side keyed by the join key across a restore")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("probe")
+                                    .addSchema(PROBE_SCHEMA)
+                                    .producedBeforeRestore(PROBE_BEFORE_DATA)
+                                    .producedAfterRestore(JOIN_KEY_PROBE_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("b_join_key")
+                                    .addSchema(BUILD_JOIN_KEY_SCHEMA)
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedBeforeRestore(JOIN_KEY_BUILD_BEFORE_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore("+I[a, 100, a, 12]")
+                                    .consumedAfterRestore("+I[a, 101, a, 12]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT probe.pk, probe.pv, s.bk, s.bv "
+                                    + "FROM probe JOIN "
+                                    + SNAPSHOT_JOIN_KEY_BUILD)
+                    .build();
+
+    // Restore of the upsert-keyed build state (the upsert key (bk, bid) is a superset of the join
+    // key): the update (a,1 -> 12) and delete (b,1) applied before the savepoint are visible to the
+    // after-restore probes, and the second row of key a is kept.
     public static final TableTestProgram LATERAL_SNAPSHOT_JOIN_UPSERT_BUILD =
             TableTestProgram.of(
                             "lateral-snapshot-join-upsert-build",
-                            "validates a LATERAL SNAPSHOT inner join with an upsert (partial-update) build side across a restore")
+                            "validates a LATERAL SNAPSHOT inner join with an upsert build side keyed differently from the join key across a restore")
                     .setupTableSource(
                             SourceTestStep.newBuilder("probe")
                                     .addSchema(PROBE_SCHEMA)
@@ -224,12 +292,14 @@ public class LateralSnapshotJoinTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema(SINK_SCHEMA)
-                                    .consumedBeforeRestore("+I[a, 100, a, 12]")
-                                    .consumedAfterRestore("+I[a, 101, a, 12]")
+                                    .addSchema(UPSERT_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[a, 100, a, 1, 12]", "+I[a, 100, a, 2, 7]")
+                                    .consumedAfterRestore(
+                                            "+I[a, 101, a, 1, 12]", "+I[a, 101, a, 2, 7]")
                                     .build())
                     .runSql(
-                            "INSERT INTO sink SELECT probe.pk, probe.pv, s.bk, s.bv "
+                            "INSERT INTO sink SELECT probe.pk, probe.pv, s.bk, s.bid, s.bv "
                                     + "FROM probe JOIN "
                                     + SNAPSHOT_UPSERT_BUILD)
                     .build();
