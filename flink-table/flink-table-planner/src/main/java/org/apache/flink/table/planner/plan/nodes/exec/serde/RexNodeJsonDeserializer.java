@@ -31,8 +31,8 @@ import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
 import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator;
+import org.apache.flink.table.planner.functions.sql.VersionedSqlOperator;
 import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -454,7 +454,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             return internalOperator.get();
         }
         // Try FUNC
-        final String publicName = BuiltInSqlOperator.extractNameFromQualifiedName(internalName);
+        final String publicName = VersionedSqlOperator.extractNameFromQualifiedName(internalName);
         final Optional<SqlOperator> latestOperator =
                 lookupOptionalSqlOperator(
                         FunctionIdentifier.of(publicName), syntax, serdeContext, true);

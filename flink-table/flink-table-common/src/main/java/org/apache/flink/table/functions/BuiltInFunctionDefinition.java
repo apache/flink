@@ -207,12 +207,13 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     }
 
     // --------------------------------------------------------------------------------------------
-    // Shared with BuiltInSqlOperator and BuiltInSqlFunction in planner
+    // Shared with VersionedSqlOperator in planner
     // --------------------------------------------------------------------------------------------
 
-    // note that for SQL operators the name can contain spaces and dollar signs
+    // note that for SQL operators the name can contain spaces, dollar signs, and the symbols of
+    // Calcite's standard operators (e.g. $<=$1 or $||$1)
     private static final Pattern INTERNAL_NAME_PATTERN =
-            Pattern.compile("\\$[A-Z0-9_ $]+\\$[1-9][0-9]*");
+            Pattern.compile("\\$[A-Z0-9_ $%&*+/<=>^|-]+\\$[1-9][0-9]*");
 
     private static final String INTERNAL_NAME_FORMAT = "$%s$%s";
 

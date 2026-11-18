@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
+import org.apache.flink.table.planner.functions.sql.VersionedSqlOperator;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
@@ -427,7 +427,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 // definitions
                 // stack is exposed to the user and can thus be external.
                 gen.writeStringField(
-                        FIELD_NAME_INTERNAL_NAME, BuiltInSqlOperator.toQualifiedName(operator));
+                        FIELD_NAME_INTERNAL_NAME, VersionedSqlOperator.toQualifiedName(operator));
             }
         }
     }
