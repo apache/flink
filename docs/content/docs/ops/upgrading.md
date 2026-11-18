@@ -362,12 +362,6 @@ A compiled plan pins the query. `COMPILE AND EXECUTE PLAN` doesn't use a changed
 as the plan file exists. To change the query of a job that runs from a compiled plan, compile the
 changed statement to a new file and run that file from the savepoint.
 
-The operators other than PTFs keep their state only if the new plan assigns them the same IDs,
-which isn't guaranteed. The node IDs of a plan depend on the statements that the same process
-planned before. Compile every plan of the job, including the first one, in a new SQL Client or
-Table API process, not in a SQL Gateway or SQL Client session that has planned other statements.
-Test the restore from a copy of the savepoint, and keep the old plan file to go back to.
-
 {{< hint warning >}}
 When you use `--allowNonRestoredState` (in SQL: `execution.state-recovery.ignore-unclaimed-state`)
 and it skips the state of a source, the source starts from its configured start position. It can
@@ -393,7 +387,7 @@ Otherwise, the name is the name of the parameter of the `eval` method.
 | Remove a state entry                                                          | Compatible. Its state is no longer read. |
 | Change the order of the state parameters                                      | Compatible. |
 | Rename a state entry                                                          | Not compatible. The state entry starts empty, without an error. |
-| Add, change, or remove a TTL with `@StateHint(ttl = "...")`                   | Compatible. |
+| Add, change, or remove a TTL with `@StateHint(ttl = "...")`                   | Compatible. Switching to or from `ttl = "0"` migrates the state when the job restores. |
 | Add, remove, or change the type of a field of a POJO or `Row` state entry     | Not compatible. The restore fails with a `StateMigrationException`. A `transient` field counts as removed. |
 | Add a field to the value of a `VARIANT` state entry                           | Compatible. The data type stays `VARIANT`. |
 | Rename a field of a POJO, or change the order of its fields or of the parameters of its constructor | Not safe. The restore can succeed and assign values to the wrong fields, without an error. |
