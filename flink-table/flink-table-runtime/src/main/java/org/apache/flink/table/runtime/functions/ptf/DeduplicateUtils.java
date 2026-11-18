@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
@@ -36,7 +37,9 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.lang.invoke.MethodHandle;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.ifThenElse;
@@ -51,6 +54,17 @@ public final class DeduplicateUtils {
         return context.getCallContext()
                 .getTableSemantics(ARG_INPUT)
                 .orElseThrow(() -> new IllegalStateException("Table argument expected."));
+    }
+
+    /** Returns the fields of the input row without time attributes. */
+    public static List<DataTypes.Field> inputFields(final SpecializedContext context) {
+        return DataType.getFields(tableSemantics(context).dataType()).stream()
+                .map(
+                        field ->
+                                DataTypes.FIELD(
+                                        field.getName(),
+                                        DataTypeUtils.removeTimeAttribute(field.getDataType())))
+                .collect(Collectors.toList());
     }
 
     /** Returns a value state of the given type that expires after the {@code state_ttl}. */
@@ -81,9 +95,7 @@ public final class DeduplicateUtils {
 
         private static final long serialVersionUID = 1L;
 
-        private final int[] leftIndices;
-
-        private final int[] rightIndices;
+        private final int[] indices;
 
         private final DataType[] types;
 
@@ -91,21 +103,12 @@ public final class DeduplicateUtils {
 
         private transient MethodHandle[] compareHandles;
 
-        private transient RowData.FieldGetter[] leftGetters;
+        private transient RowData.FieldGetter[] getters;
 
-        private transient RowData.FieldGetter[] rightGetters;
-
-        /**
-         * Creates a comparator of the columns at {@code leftIndices} of the left record against the
-         * columns at {@code rightIndices} of the right record, both of the given types.
-         */
+        /** Creates a comparator of the columns at {@code indices}, which have the given types. */
         public SequenceComparator(
-                final SpecializedContext context,
-                final int[] leftIndices,
-                final int[] rightIndices,
-                final DataType[] types) {
-            this.leftIndices = leftIndices;
-            this.rightIndices = rightIndices;
+                final SpecializedContext context, final int[] indices, final DataType[] types) {
+            this.indices = indices;
             this.types = types;
             this.evaluators = new ExpressionEvaluator[types.length];
             for (int i = 0; i < types.length; i++) {
@@ -124,14 +127,10 @@ public final class DeduplicateUtils {
 
         public void open(final FunctionContext context) throws Exception {
             compareHandles = new MethodHandle[types.length];
-            leftGetters = new RowData.FieldGetter[types.length];
-            rightGetters = new RowData.FieldGetter[types.length];
+            getters = new RowData.FieldGetter[types.length];
             for (int i = 0; i < types.length; i++) {
                 compareHandles[i] = evaluators[i].open(context);
-                leftGetters[i] =
-                        RowData.createFieldGetter(types[i].getLogicalType(), leftIndices[i]);
-                rightGetters[i] =
-                        RowData.createFieldGetter(types[i].getLogicalType(), rightIndices[i]);
+                getters[i] = RowData.createFieldGetter(types[i].getLogicalType(), indices[i]);
             }
         }
 
@@ -150,8 +149,8 @@ public final class DeduplicateUtils {
                 final int order =
                         compare(
                                 i,
-                                leftGetters[i].getFieldOrNull(left),
-                                rightGetters[i].getFieldOrNull(right));
+                                getters[i].getFieldOrNull(left),
+                                getters[i].getFieldOrNull(right));
                 if (order != 0) {
                     return order;
                 }

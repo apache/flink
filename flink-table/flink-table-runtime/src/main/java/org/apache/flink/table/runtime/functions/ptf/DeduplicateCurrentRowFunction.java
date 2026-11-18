@@ -26,15 +26,15 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.runtime.functions.ptf.DeduplicateUtils.SequenceComparator;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.ColumnList;
@@ -48,67 +48,58 @@ import java.util.Map;
 
 /**
  * {@link Deduplicate} with {@code keep => 'last'}, or {@code keep => 'first'} with {@code
- * sequence_by}: a later record can replace the kept one, so the kept record is held in the {@code
- * kept} state.
+ * sequence_by}: a later record can replace the kept one, so the kept input row is held in the
+ * {@code kept} state.
  */
 @Internal
-public class DeduplicateKeptRowFunction extends DeduplicateFunctionBase {
+public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
 
     private static final long serialVersionUID = 1L;
 
-    private final Keep keep;
+    private final Keep keepMode;
 
-    private final LogicalType[] payloadTypes;
+    private final LogicalType[] inputTypes;
 
     private final boolean isUpdateBeforeEmitted;
 
     private final @Nullable SequenceComparator sequenceComparator;
 
-    private transient RowData.FieldGetter[] payloadGetters;
+    private transient RowDataSerializer inputSerializer;
 
-    private transient RowDataSerializer candidateSerializer;
+    private transient ProjectedRowData projectedCandidate;
 
-    private transient RowDataSerializer currentSerializer;
+    private transient ProjectedRowData projectedKept;
 
-    private transient GenericRowData reusedCandidate;
-
-    private transient JoinedRowData output;
+    private transient JoinedRowData retraction;
 
     private transient RowData emptyRow;
 
-    DeduplicateKeptRowFunction(final SpecializedContext context) {
+    DeduplicateCurrentRowFunction(final SpecializedContext context) {
         super(context, internalState(Map.entry("kept", keptState(context))));
-        final CallContext callContext = context.getCallContext();
-        this.keep = DeduplicateTypeStrategy.keep(callContext);
-        this.payloadTypes =
-                DeduplicateTypeStrategyUtils.outputFields(DeduplicateUtils.tableSemantics(context))
-                        .stream()
+        this.keepMode = DeduplicateTypeStrategy.keep(context.getCallContext());
+        final List<DataTypes.Field> inputFields = DeduplicateUtils.inputFields(context);
+        this.inputTypes =
+                inputFields.stream()
                         .map(field -> field.getDataType().getLogicalType())
                         .toArray(LogicalType[]::new);
         this.isUpdateBeforeEmitted =
-                callContext
+                context.getCallContext()
                         .getOutputChangelogMode()
                         .map(mode -> mode.contains(RowKind.UPDATE_BEFORE))
                         .orElse(false);
-        this.sequenceComparator = sequenceComparator(context, outputIndices);
+        this.sequenceComparator = sequenceComparator(context, inputFields);
     }
 
     @Override
     public void open(final FunctionContext context) throws Exception {
         super.open(context);
-        payloadGetters = new RowData.FieldGetter[outputIndices.length];
-        for (int i = 0; i < outputIndices.length; i++) {
-            payloadGetters[i] = RowData.createFieldGetter(payloadTypes[i], outputIndices[i]);
-        }
         if (sequenceComparator != null) {
             sequenceComparator.open(context);
         }
-        // toBinaryRow reuses its result row, so each side of a comparison needs its own
-        // serializer
-        candidateSerializer = new RowDataSerializer(payloadTypes);
-        currentSerializer = new RowDataSerializer(payloadTypes);
-        reusedCandidate = new GenericRowData(outputIndices.length);
-        output = new JoinedRowData();
+        inputSerializer = new RowDataSerializer(inputTypes);
+        projectedCandidate = ProjectedRowData.from(outputIndices);
+        projectedKept = ProjectedRowData.from(outputIndices);
+        retraction = new JoinedRowData();
         emptyRow = GenericRowData.of();
     }
 
@@ -129,68 +120,65 @@ public class DeduplicateKeptRowFunction extends DeduplicateFunctionBase {
             @Nullable final Long stateTtl,
             @Nullable final Boolean resetTtlOnDuplicate)
             throws Exception {
-        final RowData kept = keptState.getValue();
+        final BinaryRowData candidate = inputSerializer.toBinaryRow(input);
+        final BinaryRowData kept = (BinaryRowData) keptState.getValue();
         if (kept == null) {
-            final BinaryRowData candidate = toCandidate(input);
-            emit(RowKind.INSERT, candidate);
             keptState.setValue(candidate.copy());
+            emitCandidate(RowKind.INSERT, candidate);
             return;
         }
-        final int order = sequenceComparator == null ? 0 : sequenceComparator.compare(input, kept);
-        if (DeduplicateUtils.replaces(this.keep, order)) {
-            final BinaryRowData candidate = toCandidate(input);
-            if (!candidate.equals(currentSerializer.toBinaryRow(kept))) {
-                if (isUpdateBeforeEmitted) {
-                    emit(RowKind.UPDATE_BEFORE, kept);
-                }
-                emit(RowKind.UPDATE_AFTER, candidate);
-                keptState.setValue(candidate.copy());
-                return;
+        final boolean isReplacing =
+                sequenceComparator == null
+                        || DeduplicateUtils.replaces(
+                                keepMode, sequenceComparator.compare(candidate, kept));
+        if (isReplacing && !candidate.equals(kept)) {
+            keptState.setValue(candidate.copy());
+            if (isUpdateBeforeEmitted) {
+                emitRetraction(kept);
             }
-        }
-        if (isResetTtlOnDuplicate) {
+            emitCandidate(RowKind.UPDATE_AFTER, candidate);
+        } else if (isResetTtlOnDuplicate) {
             keptState.setValue(kept);
         }
     }
 
-    /** Returns the payload of the input as a reused binary row, valid until the next call. */
-    private BinaryRowData toCandidate(final RowData input) {
-        for (int i = 0; i < outputIndices.length; i++) {
-            reusedCandidate.setField(i, payloadGetters[i].getFieldOrNull(input));
-        }
-        return candidateSerializer.toBinaryRow(reusedCandidate);
+    private void emitCandidate(final RowKind kind, final BinaryRowData candidate) {
+        projectedCandidate.replaceRow(candidate);
+        projectedCandidate.setRowKind(kind);
+        collect(projectedCandidate);
     }
 
-    /** Wraps the payload so that rows owned by state never change their row kind. */
-    private void emit(final RowKind kind, final RowData payload) {
-        output.replace(payload, emptyRow);
-        output.setRowKind(kind);
-        collect(output);
+    /** Wraps the kept row so that the row owned by state never changes its row kind. */
+    private void emitRetraction(final BinaryRowData kept) {
+        projectedKept.replaceRow(kept);
+        retraction.replace(projectedKept, emptyRow);
+        retraction.setRowKind(RowKind.UPDATE_BEFORE);
+        collect(retraction);
     }
 
     private static StateTypeStrategy keptState(final SpecializedContext context) {
         return DeduplicateUtils.stateStrategy(
-                context,
-                DataTypes.ROW(
-                        DeduplicateTypeStrategyUtils.outputFields(
-                                DeduplicateUtils.tableSemantics(context))));
+                context, DataTypes.ROW(DeduplicateUtils.inputFields(context)));
     }
 
     private static @Nullable SequenceComparator sequenceComparator(
-            final SpecializedContext context, final int[] outputIndices) {
-        final int[] payloadIndices =
-                DeduplicateTypeStrategy.sequenceByOutputIndices(context.getCallContext());
-        if (payloadIndices.length == 0) {
+            final SpecializedContext context, final List<DataTypes.Field> inputFields) {
+        final int[] outputIndices =
+                ChangelogTypeStrategyUtils.computeOutputIndices(
+                        DeduplicateUtils.tableSemantics(context));
+        final int[] sequenceIndices =
+                Arrays.stream(
+                                DeduplicateTypeStrategy.sequenceByOutputIndices(
+                                        context.getCallContext()))
+                        .map(i -> outputIndices[i])
+                        .toArray();
+        if (sequenceIndices.length == 0) {
             return null;
         }
-        final List<DataTypes.Field> payloadFields =
-                DeduplicateTypeStrategyUtils.outputFields(DeduplicateUtils.tableSemantics(context));
-        final int[] inputIndices =
-                Arrays.stream(payloadIndices).map(i -> outputIndices[i]).toArray();
         final DataType[] types =
-                Arrays.stream(payloadIndices)
-                        .mapToObj(i -> payloadFields.get(i).getDataType())
+                Arrays.stream(sequenceIndices)
+                        .mapToObj(i -> inputFields.get(i).getDataType())
                         .toArray(DataType[]::new);
-        return new SequenceComparator(context, inputIndices, payloadIndices, types);
+        return new SequenceComparator(context, sequenceIndices, types);
     }
 }

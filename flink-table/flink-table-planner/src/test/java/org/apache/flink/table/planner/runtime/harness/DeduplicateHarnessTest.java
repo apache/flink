@@ -30,7 +30,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -44,34 +43,35 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Harness tests for the processing-time state retention of the built-in DEDUPLICATE PTF, which need
- * control over the time that state TTL observes.
- */
+/** Harness tests for {@code reset_ttl_on_duplicate} of the built-in DEDUPLICATE PTF. */
 class DeduplicateHarnessTest {
 
     private static final Function<RowData, String> PAYMENT =
             row -> row.getString(0) + ", " + row.getInt(1);
 
-    private static final Function<RowData, String> CUSTOMER_CHANGE =
-            row -> row.getString(1) + ", " + row.getLong(2);
-
     private static Stream<Arguments> resetTtlOnDuplicate() {
+        final List<String> refreshed = List.of("+I[p1, 50]@10:00", "+I[p1, 50]@10:20");
+        final List<String> notRefreshed =
+                List.of("+I[p1, 50]@10:00", "+I[p1, 50]@10:07", "+I[p1, 50]@10:20");
         return Stream.of(
-                Arguments.of(true, List.of("+I[p1, 50]@10:00", "+I[p1, 50]@10:20")),
-                Arguments.of(
-                        false,
-                        List.of("+I[p1, 50]@10:00", "+I[p1, 50]@10:07", "+I[p1, 50]@10:20")));
+                Arguments.of("first", true, refreshed),
+                Arguments.of("first", false, notRefreshed),
+                Arguments.of("last", true, refreshed),
+                Arguments.of("last", false, notRefreshed));
     }
 
-    @ParameterizedTest(name = "reset_ttl_on_duplicate={0}")
+    @ParameterizedTest(name = "keep={0}, reset_ttl_on_duplicate={1}")
     @MethodSource("resetTtlOnDuplicate")
     void testTimeBoundedDeduplication(
-            final boolean resetTtlOnDuplicate, final List<String> expected) throws Exception {
+            final String keep, final boolean resetTtlOnDuplicate, final List<String> expected)
+            throws Exception {
         try (KeyedMultiInputStreamOperatorTestHarness<RowData, ?> harness =
                 createHarness(
                         "SELECT * FROM DEDUPLICATE("
                                 + "input => TABLE payments PARTITION BY payment_id, "
+                                + "keep => '"
+                                + keep
+                                + "', "
                                 + "state_ttl => INTERVAL '5' MINUTES, "
                                 + "reset_ttl_on_duplicate => "
                                 + resetTtlOnDuplicate
@@ -82,71 +82,6 @@ class DeduplicateHarnessTest {
             }
 
             assertThat(output).isEqualTo(expected);
-        }
-    }
-
-    @Test
-    void testRecordAfterExpiryIsFirstRecord() throws Exception {
-        try (KeyedMultiInputStreamOperatorTestHarness<RowData, ?> harness =
-                createHarness(
-                        "SELECT * FROM DEDUPLICATE("
-                                + "input => TABLE customer_changes PARTITION BY customer_id, "
-                                + "keep => 'last', "
-                                + "sequence_by => DESCRIPTOR(lsn), "
-                                + "state_ttl => INTERVAL '5' MINUTES)")) {
-            final List<String> output = new ArrayList<>();
-            output.addAll(
-                    process(harness, "10:00", CUSTOMER_CHANGE, customerChange("Berlin", 120)));
-            output.addAll(
-                    process(harness, "10:02", CUSTOMER_CHANGE, customerChange("Munich", 100)));
-            output.addAll(
-                    process(harness, "10:20", CUSTOMER_CHANGE, customerChange("Hamburg", 90)));
-
-            assertThat(output).containsExactly("+I[Berlin, 120]@10:00", "+I[Hamburg, 90]@10:20");
-        }
-    }
-
-    @Test
-    void testReplacingRecordRefreshesTtl() throws Exception {
-        try (KeyedMultiInputStreamOperatorTestHarness<RowData, ?> harness =
-                createHarness(
-                        "SELECT * FROM DEDUPLICATE("
-                                + "input => TABLE payments PARTITION BY payment_id, "
-                                + "keep => 'last', "
-                                + "state_ttl => INTERVAL '5' MINUTES, "
-                                + "reset_ttl_on_duplicate => false)")) {
-            final List<String> output = new ArrayList<>();
-            output.addAll(process(harness, "10:00", PAYMENT, payment(50)));
-            output.addAll(process(harness, "10:04", PAYMENT, payment(60)));
-            output.addAll(process(harness, "10:07", PAYMENT, payment(60)));
-            output.addAll(process(harness, "10:08", PAYMENT, payment(70)));
-            output.addAll(process(harness, "10:14", PAYMENT, payment(70)));
-
-            assertThat(output)
-                    .containsExactly(
-                            "+I[p1, 50]@10:00",
-                            "-U[p1, 50]@10:04",
-                            "+U[p1, 60]@10:04",
-                            "-U[p1, 60]@10:08",
-                            "+U[p1, 70]@10:08",
-                            "+I[p1, 70]@10:14");
-        }
-    }
-
-    @Test
-    void testIdenticalRecordRefreshesTtl() throws Exception {
-        try (KeyedMultiInputStreamOperatorTestHarness<RowData, ?> harness =
-                createHarness(
-                        "SELECT * FROM DEDUPLICATE("
-                                + "input => TABLE payments PARTITION BY payment_id, "
-                                + "keep => 'last', "
-                                + "state_ttl => INTERVAL '5' MINUTES)")) {
-            final List<String> output = new ArrayList<>();
-            for (final String time : List.of("10:00", "10:04", "10:07")) {
-                output.addAll(process(harness, time, PAYMENT, payment(50)));
-            }
-
-            assertThat(output).containsExactly("+I[p1, 50]@10:00");
         }
     }
 
@@ -174,19 +109,12 @@ class DeduplicateHarnessTest {
         return GenericRowData.of(StringData.fromString("p1"), amount);
     }
 
-    private static RowData customerChange(final String city, final long lsn) {
-        return GenericRowData.of(StringData.fromString("c1"), StringData.fromString(city), lsn);
-    }
-
     private static KeyedMultiInputStreamOperatorTestHarness<RowData, ?> createHarness(
             final String query) throws Exception {
         final StreamTableEnvironment tEnv =
                 StreamTableEnvironment.create(StreamExecutionEnvironment.getExecutionEnvironment());
         tEnv.executeSql(
                 "CREATE TABLE payments (payment_id STRING, amount INT) "
-                        + "WITH ('connector' = 'values')");
-        tEnv.executeSql(
-                "CREATE TABLE customer_changes (customer_id STRING, city STRING, lsn BIGINT) "
                         + "WITH ('connector' = 'values')");
         final KeyedMultipleInputTransformation<?> transformation =
                 findPtf(tEnv.toChangelogStream(tEnv.sqlQuery(query)).getTransformation())

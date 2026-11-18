@@ -38,13 +38,13 @@ import java.util.Map;
  * replace the first one, so only whether the key has emitted is kept in the {@code seen} state.
  */
 @Internal
-public class DeduplicateFirstArrivalFunction extends DeduplicateFunctionBase {
+public class DeduplicateEmitOnceFunction extends DeduplicateFunctionBase {
 
     private static final long serialVersionUID = 1L;
 
     private transient ProjectedRowData projectedOutput;
 
-    DeduplicateFirstArrivalFunction(final SpecializedContext context) {
+    DeduplicateEmitOnceFunction(final SpecializedContext context) {
         super(
                 context,
                 internalState(
