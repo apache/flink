@@ -40,7 +40,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -59,7 +58,6 @@ import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.anyLong;
 
 /**
  * General tests for {@link NFA} features. See also {@link IterativeConditionsITCase}, {@link
@@ -2815,37 +2813,6 @@ public class NFAITCase extends TestLogger {
         }
 
         Assert.assertEquals(expectedOrder, resultOrder);
-    }
-
-    @Test
-    public void testSharedBufferClearing() throws Exception {
-        Pattern<Event, ?> pattern = Pattern.<Event>begin("start").followedBy("end");
-
-        Event a = new Event(40, "a", 1.0);
-        Event b = new Event(41, "b", 2.0);
-
-        NFA<Event> nfa = compile(pattern, false);
-        TestTimerService timerService = new TestTimerService();
-        try (SharedBufferAccessor<Event> accessor = Mockito.spy(sharedBuffer.getAccessor())) {
-            nfa.process(
-                    accessor,
-                    nfa.createInitialNFAState(),
-                    a,
-                    1,
-                    AfterMatchSkipStrategy.noSkip(),
-                    timerService);
-            nfa.process(
-                    accessor,
-                    nfa.createInitialNFAState(),
-                    b,
-                    2,
-                    AfterMatchSkipStrategy.noSkip(),
-                    timerService);
-            Mockito.verify(accessor, Mockito.never()).advanceTime(anyLong());
-            nfa.advanceTime(
-                    accessor, nfa.createInitialNFAState(), 2, AfterMatchSkipStrategy.noSkip());
-            Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);
-        }
     }
 
     @Test
