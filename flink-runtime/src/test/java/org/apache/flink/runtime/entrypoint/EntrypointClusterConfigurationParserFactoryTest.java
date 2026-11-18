@@ -22,26 +22,22 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
-import static org.hamcrest.Matchers.arrayContaining;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link EntrypointClusterConfigurationParserFactory}. */
-public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger {
+class EntrypointClusterConfigurationParserFactoryTest {
 
     private static final CommandLineParser<EntrypointClusterConfiguration> commandLineParser =
             new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
 
     @Test
-    public void testEntrypointClusterConfigurationParsing() throws FlinkParseException {
+    void testEntrypointClusterConfigurationParsing() throws FlinkParseException {
         final String configDir = "/foo/bar";
         final int restPort = 1234;
         final String key = "key";
@@ -64,17 +60,17 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
         final Configuration dynamicPropertiesConfig =
                 ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
 
-        assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-        assertThat(dynamicPropertiesConfig.get(RestOptions.PORT), is(equalTo(restPort)));
+        assertThat(clusterConfiguration.getConfigDir()).isEqualTo(configDir);
+        assertThat(dynamicPropertiesConfig.get(RestOptions.PORT)).isEqualTo(restPort);
         final Properties dynamicProperties = clusterConfiguration.getDynamicProperties();
 
-        assertThat(dynamicProperties, hasEntry(key, value));
+        assertThat(dynamicProperties).containsEntry(key, value);
 
-        assertThat(clusterConfiguration.getArgs(), arrayContaining(arg1, arg2));
+        assertThat(clusterConfiguration.getArgs()).containsExactly(arg1, arg2);
     }
 
     @Test
-    public void testOnlyRequiredArguments() throws FlinkParseException {
+    void testOnlyRequiredArguments() throws FlinkParseException {
         final String configDir = "/foo/bar";
         final String[] args = {"--configDir", configDir};
 
@@ -82,14 +78,15 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
         final Configuration dynamicProperties =
                 ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
 
-        assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-        assertThat(dynamicProperties.get(RestOptions.PORT), is(equalTo(8081)));
+        assertThat(clusterConfiguration.getConfigDir()).isEqualTo(configDir);
+        assertThat(dynamicProperties.get(RestOptions.PORT)).isEqualTo(8081);
     }
 
-    @Test(expected = FlinkParseException.class)
-    public void testMissingRequiredArgument() throws FlinkParseException {
+    @Test
+    void testMissingRequiredArgument() {
         final String[] args = {};
 
-        commandLineParser.parse(args);
+        assertThatThrownBy(() -> commandLineParser.parse(args))
+                .isInstanceOf(FlinkParseException.class);
     }
 }
