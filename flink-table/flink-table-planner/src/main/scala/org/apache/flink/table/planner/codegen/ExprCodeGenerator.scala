@@ -592,13 +592,7 @@ class ExprCodeGenerator(
       return memberTermsOf(localRef.getIndex)
     }
 
-    generateInputAccess(
-      ctx,
-      input1Type,
-      input1Term,
-      localRef.getIndex,
-      nullableInput,
-      deepCopy = true)
+    generateInputAccess(ctx, input1Type, input1Term, localRef.getIndex, nullableInput)
   }
 
   /** Input fields the memoized local ref reads, directly or through the refs it uses. */
@@ -620,7 +614,7 @@ class ExprCodeGenerator(
   private def shareInputField(idx: Int): Unit = {
     if (sharedInputFields.add(idx)) {
       val field =
-        generateInputAccess(ctx, input1Type, input1Term, idx, nullableInput, deepCopy = true)
+        generateInputAccess(ctx, input1Type, input1Term, idx, nullableInput)
       val member = memberTermsOf(idx)
       val read = ctx.getReusableInputUnboxingExprs(input1Term, idx).get
       read.code = s"""
