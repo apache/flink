@@ -615,8 +615,8 @@ public class ExecutionConfigOptions {
                     .enumType(AsyncOutputMode.class)
                     .defaultValue(AsyncOutputMode.ORDERED)
                     .withDescription(
-                            "Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: "
-                                    + "ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect "
+                            "Output mode for async ML predict, which describes whether or not the output should attempt to be ordered or not. The supported options are: "
+                                    + "ALLOW_UNORDERED means the operator emits the result when execution finishes. The planner will attempt to use ALLOW_UNORDERED when it doesn't affect "
                                     + "the correctness of the results.\n"
                                     + "ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.");
 

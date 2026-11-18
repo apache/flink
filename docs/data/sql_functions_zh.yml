@@ -18,7 +18,7 @@
 comparison:
   - sql: value1 = value2
     table: value1 === value2
-    description: 如果 value1 等于 value2 返回 `TRUE`；如果 value1 或者 value2 为 `NULL` 返回 `UNKNOW`。
+    description: 如果 value1 等于 value2 返回 `TRUE`；如果 value1 或者 value2 为 `NULL` 返回 `UNKNOWN`。
   - sql: value1 <> value2
     table: value1 !== value2
     description: 如果 value1 不等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
@@ -818,7 +818,7 @@ temporal:
   - sql: FROM_UNIXTIME(numeric[, string])
     table: fromUnixtime(NUMERIC[, STRING])
     description: |
-      以格式 string（默认为 'yyyy-MM-dd HH:mm:ss'）表示数字参数 numberic 的值。numeric 是一个内部
+      以格式 string（默认为 'yyyy-MM-dd HH:mm:ss'）表示数字参数 numeric 的值。numeric 是一个内部
       时间戳值，表示自'1970-01-01 00:00:00' UTC 以来的秒数，由 UNIX_TIMESTAMP() 函数生成。返回值以会话时区表示
       （在 TableConfig 中指定）。例如，如果在 UTC 时区，FROM_UNIXTIME(44) 返回 '1970-01-01 00:00:44'，如果在
       'Asia/Tokyo' 时区，则返回 '1970-01-01 09:00:44'。

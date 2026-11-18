@@ -307,7 +307,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（exclusive），即窗口结束时间。</p>
-        <p><b>注意:</b> 上限时间戳（exlusive）<i>不能</i>作为 <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a> 用于后续基于时间的操作，例如：<a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>。</p></td>
+        <p><b>注意:</b> 上限时间戳（exclusive）<i>不能</i>作为 <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a> 用于后续基于时间的操作，例如：<a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>。</p></td>
     </tr>
     <tr>
       <td>

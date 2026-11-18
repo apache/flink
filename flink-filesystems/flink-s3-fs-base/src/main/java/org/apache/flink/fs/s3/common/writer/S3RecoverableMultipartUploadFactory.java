@@ -33,7 +33,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
-/** A factory for creating or recovering {@link RecoverableMultiPartUpload mulitpart uploads}. */
+/** A factory for creating or recovering {@link RecoverableMultiPartUpload multipart uploads}. */
 @Internal
 final class S3RecoverableMultipartUploadFactory {
 

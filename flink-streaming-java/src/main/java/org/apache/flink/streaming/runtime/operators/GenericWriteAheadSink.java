@@ -187,7 +187,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
             checkpointedState.clear();
 
             throw new Exception(
-                    "Could not add panding checkpoints to operator state "
+                    "Could not add pending checkpoints to operator state "
                             + "backend of operator "
                             + getOperatorName()
                             + '.',

@@ -129,7 +129,7 @@ etc).
 
 The :class:`EmbeddedRocksDBStateBackend` stores working state in an embedded
 `RocksDB <http://rocksdb.org/>`_, instance and is able to scale working state to many
-terrabytes in size, only limited by available disk space across all task managers.
+terabytes in size, only limited by available disk space across all task managers.
 
 **Raw Bytes Storage and Backends**
 

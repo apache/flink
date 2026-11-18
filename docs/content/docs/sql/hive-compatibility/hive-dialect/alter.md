@@ -250,7 +250,7 @@ ALTER TABLE table_name [PARTITION partition_spec] CHANGE [COLUMN] col_old_name c
 
 ```sql
 ALTER TABLE t1 CHANGE COLUMN c1 new_c1 STRING FIRST;
-ALTER TABLE t1 CHANGE COLUMN c1 new_c1 STRING AFRER c2;
+ALTER TABLE t1 CHANGE COLUMN c1 new_c1 STRING AFTER c2;
 ```
 
 #### Add/Replace Columns

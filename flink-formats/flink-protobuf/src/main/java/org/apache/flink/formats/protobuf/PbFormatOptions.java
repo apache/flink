@@ -45,7 +45,7 @@ public class PbFormatOptions {
                     .withDescription(
                             "Optional flag to read as default values instead of null when some field does not exist in deserialization; default to false."
                                     + "If proto syntax is proto3, users need to set this to true when using protobuf versions lower than 3.15 as older versions "
-                                    + "do not support checking for field presence which can cause runtime compilation issues. Additionally, primtive types "
+                                    + "do not support checking for field presence which can cause runtime compilation issues. Additionally, primitive types "
                                     + "will be set to default values instead of null as field presence cannot be checked for them. Please be aware that setting this"
                                     + " to true will cause the deserialization performance to be much slower depending on schema complexity and message size");
     public static final ConfigOption<String> WRITE_NULL_STRING_LITERAL =

@@ -91,7 +91,7 @@ class KeyedStateStore(ABC):
         """
         Gets a handle to the system's key/value list state. This state is similar to the value state
         access, but is optimized for state that holds lists. One can add elements to the list, or
-        retrieve the list as a whle.
+        retrieve the list as a whole.
 
         This state is only accessible if the function is executed on a KeyedStream.
         """
@@ -288,7 +288,7 @@ class FlatMapFunction(Function):
     @abstractmethod
     def flat_map(self, value):
         """
-        The core mthod of the FlatMapFunction. Takes an element from the input data and transforms
+        The core method of the FlatMapFunction. Takes an element from the input data and transforms
         it into zero, one, or more elements.
         A basic implementation of flat map is as follows:
 

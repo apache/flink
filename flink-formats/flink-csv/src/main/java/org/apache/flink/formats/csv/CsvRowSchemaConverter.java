@@ -38,7 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 
 /**
- * Converter functions that covert Flink's type information to Jackson's {@link CsvSchema}.
+ * Converter functions that convert Flink's type information to Jackson's {@link CsvSchema}.
  *
  * <p>In {@link CsvSchema}, there are four types (string, number, boolean, and array). In order to
  * satisfy various Flink types, this class sorts out instances of {@link TypeInformation} and {@link

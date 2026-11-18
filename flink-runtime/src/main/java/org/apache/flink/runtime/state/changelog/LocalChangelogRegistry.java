@@ -24,7 +24,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import java.io.Closeable;
 import java.io.IOException;
 
-/** This registry is responsible for deleting changlog's local handles which are not in use. */
+/** This registry is responsible for deleting changelog's local handles which are not in use. */
 @Internal
 public interface LocalChangelogRegistry extends Closeable {
     LocalChangelogRegistry NO_OP =

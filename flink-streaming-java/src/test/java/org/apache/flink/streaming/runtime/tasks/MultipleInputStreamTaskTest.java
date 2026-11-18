@@ -135,7 +135,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for {@link MultipleInputStreamTask}. Theses tests implicitly also test the {@link
+ * Tests for {@link MultipleInputStreamTask}. These tests implicitly also test the {@link
  * StreamMultipleInputProcessor}.
  */
 @SuppressWarnings("serial")

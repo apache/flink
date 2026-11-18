@@ -157,8 +157,8 @@ class MetricRegistryImplTest {
             long curT = System.currentTimeMillis();
             /**
              * Within a given time-frame T only T/500 reports may be triggered due to the interval
-             * between reports. This value however does not not take the first triggered report into
-             * account (=> +1). Furthermore we have to account for the mis-alignment between reports
+             * between reports. This value however does not take the first triggered report into
+             * account (=> +1). Furthermore we have to account for the misalignment between reports
              * being triggered and our time measurement (=> +1); for T=200 a total of 4-6 reports
              * may have been triggered depending on whether the end of the interval for the first
              * reports ends before or after T=50.

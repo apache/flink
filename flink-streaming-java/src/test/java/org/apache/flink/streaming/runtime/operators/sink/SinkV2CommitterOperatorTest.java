@@ -224,7 +224,7 @@ class SinkV2CommitterOperatorTest {
                                 originalSubtaskId);
         testHarness.open();
 
-        // We cannot test a different checkpoint thant 0 because when using the OperatorTestHarness
+        // We cannot test a different checkpoint than 0 because when using the OperatorTestHarness
         // for recovery the lastCompleted checkpoint is always reset to 0.
         long checkpointId = 0L;
 

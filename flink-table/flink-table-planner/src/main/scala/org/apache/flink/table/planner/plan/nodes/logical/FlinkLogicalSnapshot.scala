@@ -61,7 +61,7 @@ class FlinkLogicalSnapshot(
     val dataType = period.getType
     if (period.getType.getSqlTypeName.getFamily != SqlTypeFamily.TIMESTAMP) {
       litmus.fail("The system time period specification expects" +
-        " TIMESTAMP or TIMESTAMP WITH LOCAL TIME ZONE ype but is '" + dataType.getSqlTypeName + "'")
+        " TIMESTAMP or TIMESTAMP WITH LOCAL TIME ZONE type but is '" + dataType.getSqlTypeName + "'")
     }
     litmus.succeed()
   }

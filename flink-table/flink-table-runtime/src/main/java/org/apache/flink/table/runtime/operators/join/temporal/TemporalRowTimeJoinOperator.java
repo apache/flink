@@ -360,7 +360,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
      * correlated.
      *
      * @return found element or {@code Optional.empty} If such row was not found (either {@code
-     *     rightRowsSorted} is empty or all {@code rightRowsSorted} are are newer).
+     *     rightRowsSorted} is empty or all {@code rightRowsSorted} are newer).
      */
     private Optional<RowData> latestRightRowToJoin(List<RowData> rightRowsSorted, long leftTime) {
         return latestRightRowToJoin(rightRowsSorted, 0, rightRowsSorted.size() - 1, leftTime);

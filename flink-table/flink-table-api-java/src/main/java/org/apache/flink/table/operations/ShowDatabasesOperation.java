@@ -28,7 +28,7 @@ import java.util.Collection;
 
 /**
  * Operation to describe a SHOW DATABASES statement. The full syntax for SHOW DATABASES is as
- * followings:
+ * follows:
  *
  * <pre>{@code
  * SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) &lt;sql_like_pattern&gt; ]
