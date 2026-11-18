@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.utils.EncodingUtils
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
@@ -48,7 +49,7 @@ import javax.annotation.Nullable
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.Locale
-import java.util.function.{Function => JFunction}
+import java.util.function.{Function => JFunction, Supplier}
 
 import scala.collection.JavaConverters._
 
@@ -70,6 +71,9 @@ class FlinkPlannerImpl(
     config.getSqlToRelConverterConfig.withAddJsonTypeOperatorEnabled(false)
 
   var validator: FlinkCalciteSqlValidator = _
+
+  /** Qualified names of the views that are currently being expanded, outermost first. */
+  private val viewsInExpansion = new util.ArrayList[util.List[String]]()
 
   def getSqlAdvisorValidator(): SqlAdvisorValidator = {
     new SqlAdvisorValidator(
@@ -355,6 +359,31 @@ class FlinkPlannerImpl(
       config)
   }
 
+  /**
+   * Runs the given action as part of the expansion of the view with the given qualified name.
+   *
+   * <p>Expanding a view that is already being expanded fails with a [[ValidationException]]. This
+   * rejects view definitions that reference themselves, either directly or through other views.
+   */
+  def withinViewExpansion[T](viewPath: util.List[String], action: Supplier[T]): T = {
+    val index = viewsInExpansion.indexOf(viewPath)
+    if (index >= 0) {
+      val cycle = viewsInExpansion.asScala.drop(index) :+ viewPath
+      throw new ValidationException(
+        s"View ${quoteViewPath(viewPath)} references itself: " +
+          s"${cycle.map(quoteViewPath).mkString(" -> ")}. Recursive views are not supported.")
+    }
+    viewsInExpansion.add(viewPath)
+    try {
+      action.get()
+    } finally {
+      viewsInExpansion.remove(viewsInExpansion.size() - 1)
+    }
+  }
+
+  private def quoteViewPath(viewPath: util.List[String]): String =
+    viewPath.asScala.map(EncodingUtils.escapeIdentifier).mkString(".")
+
   /** Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]]. */
   def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
 
@@ -369,17 +398,22 @@ class FlinkPlannerImpl(
         queryString: String,
         schemaPath: util.List[String],
         viewPath: util.List[String]): RelRoot = {
-      val parsed = parser.parse(queryString)
-      val originalReader = catalogReaderSupplier.apply(false)
-      val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
-        originalReader.getRootSchema,
-        List(schemaPath, schemaPath.subList(0, 1)).asJava,
-        originalReader.getTypeFactory,
-        originalReader.getConfig
+      withinViewExpansion(
+        viewPath,
+        () => {
+          val parsed = parser.parse(queryString)
+          val originalReader = catalogReaderSupplier.apply(false)
+          val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
+            originalReader.getRootSchema,
+            List(schemaPath, schemaPath.subList(0, 1)).asJava,
+            originalReader.getTypeFactory,
+            originalReader.getConfig
+          )
+          val validator = createSqlValidator(readerWithPathAdjusted)
+          val validated = validate(parsed, validator)
+          rel(validated, validator)
+        }
       )
-      val validator = createSqlValidator(readerWithPathAdjusted)
-      val validated = validate(parsed, validator)
-      rel(validated, validator)
     }
 
     override def getCluster: RelOptCluster = cluster
