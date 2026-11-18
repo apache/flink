@@ -219,14 +219,35 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             PlannerBase planner, ExecNodeConfig config);
 
     private boolean inputsContainSingleton(Transformation<T> transformation) {
-        return inputsContainSingleton()
-                || transformation.getInputs().stream()
-                        .anyMatch(
-                                input ->
-                                        input instanceof PartitionTransformation
-                                                && ((PartitionTransformation<?>) input)
-                                                                .getPartitioner()
-                                                        instanceof GlobalPartitioner);
+        return inputsContainSingleton() || hasSingletonExchangeInput(transformation);
+    }
+
+    /**
+     * Whether an input of the given transformation is a singleton exchange, although the {@link
+     * InputProperty}s of this node don't declare a SINGLETON distribution.
+     *
+     * <p>Since FLINK-41440 (Flink 2.4), physical nodes whose rule requests an input distribution
+     * declare it (see {@link InputProperty#fromInput}). This fallback is still needed for:
+     *
+     * <ul>
+     *   <li>compiled plans from before FLINK-41440, whose input properties are UNKNOWN, and
+     *   <li>nodes without a distribution requirement that directly consume a singleton exchange.
+     *       E.g. a batch Calc below which the planner pushed the singleton exchange of its consumer
+     *       (see {@code BatchPhysicalCalcBase#satisfyTraits}), or a stream Calc after a temporal
+     *       sort on processing time only, which translates to its input transformation.
+     * </ul>
+     */
+    private static boolean hasSingletonExchangeInput(Transformation<?> transformation) {
+        for (Transformation<?> input : transformation.getInputs()) {
+            final boolean isSingletonExchange =
+                    input instanceof PartitionTransformation
+                            && ((PartitionTransformation<?>) input).getPartitioner()
+                                    instanceof GlobalPartitioner;
+            if (isSingletonExchange) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether singleton distribution is required. */

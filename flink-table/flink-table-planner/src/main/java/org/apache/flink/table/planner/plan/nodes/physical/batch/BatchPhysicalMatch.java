@@ -58,7 +58,7 @@ public class BatchPhysicalMatch extends CommonPhysicalMatch implements BatchPhys
         return new BatchExecMatch(
                 unwrapTableConfig(this),
                 MatchUtil.createMatchSpec(getLogicalMatch()),
-                InputProperty.DEFAULT,
+                InputProperty.fromInput(getInput()),
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
                 getRelDetailedDescription());
     }

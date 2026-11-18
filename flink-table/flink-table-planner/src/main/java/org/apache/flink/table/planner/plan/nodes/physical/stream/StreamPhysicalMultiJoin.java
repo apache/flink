@@ -25,8 +25,6 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
-import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
-import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.MultiJoinUtil;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
@@ -505,32 +503,12 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     }
 
     private InputProperty createInputPropertyFromTrait(final RelNode input, final int inputIndex) {
-        final FlinkRelDistribution distribution =
-                input.getTraitSet().getTrait(FlinkRelDistributionTraitDef.INSTANCE());
-
-        if (distribution == null) {
+        final InputProperty requested = InputProperty.fromInput(input);
+        if (requested == InputProperty.DEFAULT) {
             return InputProperty.DEFAULT;
         }
-
-        final InputProperty.RequiredDistribution requiredDistribution;
-        switch (distribution.getType()) {
-            case HASH_DISTRIBUTED:
-                final int[] keys = distribution.getKeys().toIntArray();
-                if (keys.length == 0) {
-                    requiredDistribution = InputProperty.SINGLETON_DISTRIBUTION;
-                } else {
-                    requiredDistribution = InputProperty.hashDistribution(keys);
-                }
-                break;
-            case SINGLETON:
-                requiredDistribution = InputProperty.SINGLETON_DISTRIBUTION;
-                break;
-            default:
-                return InputProperty.DEFAULT;
-        }
-
         return InputProperty.builder()
-                .requiredDistribution(requiredDistribution)
+                .requiredDistribution(requested.getRequiredDistribution())
                 .damBehavior(InputProperty.DamBehavior.PIPELINED)
                 .priority(inputIndex)
                 .build();

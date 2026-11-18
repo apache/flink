@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -93,7 +93,7 @@ class BatchPhysicalLookupJoin(
       projectionOnTemporalTable,
       filterOnTemporalTable,
       asyncOptions.orNull,
-      InputProperty.DEFAULT,
+      deriveInputProperty(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription,
       preferCustomShuffle)
