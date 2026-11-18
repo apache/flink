@@ -31,9 +31,9 @@ import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy
  *
  * <pre>
  * keep    sequence_by  implementation
- * first   absent       {@link DeduplicateFirstArrivalFunction}
- * first   present      {@link DeduplicateKeptRowFunction}
- * last    any          {@link DeduplicateKeptRowFunction}
+ * first   absent       {@link DeduplicateEmitOnceFunction}
+ * first   present      {@link DeduplicateCurrentRowFunction}
+ * last    any          {@link DeduplicateCurrentRowFunction}
  * </pre>
  */
 @Internal
@@ -47,13 +47,17 @@ public class Deduplicate extends BuiltInSpecializedFunction {
     public UserDefinedFunction specialize(final SpecializedContext context) {
         final CallContext callContext = context.getCallContext();
         final boolean isKeepFirst = DeduplicateTypeStrategy.keep(callContext) == Keep.FIRST;
-        final boolean hasSequenceBy =
-                DeduplicateTypeStrategy.sequenceByOutputIndices(callContext).length > 0;
 
-        if (isKeepFirst && !hasSequenceBy) {
-            return new DeduplicateFirstArrivalFunction(context);
+        if (isKeepFirst) {
+            final boolean hasSequenceBy =
+                    DeduplicateTypeStrategy.sequenceByOutputIndices(callContext).length > 0;
+            if (!hasSequenceBy) {
+                return new DeduplicateEmitOnceFunction(context);
+            } else {
+                return new DeduplicateCurrentRowFunction(context);
+            }
         } else {
-            return new DeduplicateKeptRowFunction(context);
+            return new DeduplicateCurrentRowFunction(context);
         }
     }
 }
