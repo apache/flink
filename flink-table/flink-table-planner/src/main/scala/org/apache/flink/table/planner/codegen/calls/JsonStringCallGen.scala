@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, 
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.createNodeTerm
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT
 
 import org.apache.calcite.rex.{RexCall, RexProgram}
 
@@ -36,7 +37,13 @@ class JsonStringCallGen(call: RexCall, rexProgram: RexProgram) extends CallGener
       returnType: LogicalType): GeneratedExpression = {
 
     val exprs = CodeGenUtils.getExprsFromProgramOrNull(rexProgram)
-    val valueTerm = createNodeTerm(ctx, operands.head, call.operands.get(0), exprs)
+    val jsonTerm = operands.head.resultType.getTypeRoot match {
+      // toJson() already is the serialized JSON, a node and the ObjectMapper would only copy it
+      case VARIANT => s"${operands.head.resultTerm}.toJson()"
+      case _ =>
+        val valueTerm = createNodeTerm(ctx, operands.head, call.operands.get(0), exprs)
+        s"$jsonUtils.serializeJson($valueTerm)"
+    }
 
     val resultTerm = newName(ctx, "result")
     val resultTermType = primitiveTypeTermForType(returnType)
@@ -45,8 +52,7 @@ class JsonStringCallGen(call: RexCall, rexProgram: RexProgram) extends CallGener
                         |
                         |$resultTermType $resultTerm = null;
                         |if (!${operands.head.nullTerm}) {
-                        |    $resultTerm =
-                        |        $BINARY_STRING.fromString($jsonUtils.serializeJson($valueTerm));
+                        |    $resultTerm = $BINARY_STRING.fromString($jsonTerm);
                         |}
                         |""".stripMargin
 
