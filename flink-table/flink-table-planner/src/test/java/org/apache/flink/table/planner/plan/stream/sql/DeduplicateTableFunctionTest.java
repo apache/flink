@@ -32,9 +32,11 @@ import java.time.Duration;
 
 import scala.Enumeration;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Plan tests for the changelog mode and upsert key of the DEDUPLICATE built-in PTF. */
 class DeduplicateTableFunctionTest extends TableTestBase {
@@ -76,6 +78,20 @@ class DeduplicateTableFunctionTest extends TableTestBase {
                 "SELECT * FROM DEDUPLICATE("
                         + "input => TABLE user_events PARTITION BY event, "
                         + "sequence_by => DESCRIPTOR(ts))");
+    }
+
+    @Test
+    void testOnTimeIsRejectedForUpdatingOutput() {
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT * FROM DEDUPLICATE("
+                                                + "input => TABLE user_events PARTITION BY user_id, "
+                                                + "on_time => DESCRIPTOR(ts))"))
+                .satisfies(
+                        anyCauseMatches(
+                                "Time operations using the `on_time` argument are currently not "
+                                        + "supported for PTFs that consume or produce updates."));
     }
 
     @Test

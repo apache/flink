@@ -35,7 +35,7 @@ import org.apache.flink.types.RowKind;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -91,9 +91,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(ARG_KEEP, "FIRST")
                         .expectErrorMessage(
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
-                                        + "received keep => 'FIRST'. Use keep => 'first' to keep "
-                                        + "the first record per key, or keep => 'last' to keep "
-                                        + "the last one."),
+                                        + "received keep => 'FIRST'."),
                 nonLiteral("Non-literal keep", ARG_KEEP)
                         .expectErrorMessage(
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
@@ -107,9 +105,8 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         -1,
                                         ChangelogMode.insertOnly()))
                         .expectErrorMessage(
-                                "DEDUPLICATE does not support ORDER BY on its input, but received "
-                                        + "ORDER BY lsn. Use sequence_by => DESCRIPTOR(lsn) to "
-                                        + "order the records of a key."),
+                                "DEDUPLICATE does not support ORDER BY, but received ORDER BY "
+                                        + "lsn. Use sequence_by => DESCRIPTOR(lsn) instead."),
                 withDefaults(
                                 "Time attribute in PARTITION BY",
                                 new TableSemanticsMock(
@@ -120,29 +117,8 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         ChangelogMode.insertOnly()))
                         .expectErrorMessage(
                                 "DEDUPLICATE does not support a time attribute as a PARTITION BY "
-                                        + "column, but 'ts' is one. Partition by a regular column, "
-                                        + "or cast the column in a subquery first, for example "
-                                        + "CAST(ts AS TIMESTAMP_LTZ(3)) AS ts."),
-                TestSpec.forStrategy("on_time", INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(
-                                INPUT_TYPE,
-                                DataTypes.STRING(),
-                                DataTypes.DESCRIPTOR(),
-                                DataTypes.INTERVAL(DataTypes.SECOND()),
-                                DataTypes.BOOLEAN(),
-                                DataTypes.DESCRIPTOR(),
-                                DataTypes.STRING())
-                        .calledWithTableSemanticsAt(ARG_INPUT, PARTITIONED_BY_USER)
-                        .calledWithLiteralAt(ARG_KEEP, null)
-                        .calledWithLiteralAt(ARG_SEQUENCE_BY, null)
-                        .calledWithLiteralAt(ARG_STATE_TTL, null)
-                        .calledWithLiteralAt(ARG_RESET_TTL_ON_DUPLICATE, null)
-                        .calledWithLiteralAt(5, ColumnList.of("ts"))
-                        .calledWithLiteralAt(6, null)
-                        .expectErrorMessage(
-                                "DEDUPLICATE does not support on_time, but received on_time => "
-                                        + "DESCRIPTOR(ts). Use sequence_by => DESCRIPTOR(ts) to "
-                                        + "order by a timestamp column."),
+                                        + "column, but 'ts' is one. Use CAST(ts AS "
+                                        + "TIMESTAMP_LTZ(3)) in a subquery first."),
                 sequenceBy("Unknown sequence_by column", "nope")
                         .expectErrorMessage(
                                 "The sequence_by column 'nope' does not exist in the input of "
@@ -159,8 +135,8 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                 sequenceBy("Non-orderable sequence_by column", "tags")
                         .expectErrorMessage(
                                 "The sequence_by column 'tags' has type 'ARRAY<STRING>', which "
-                                        + "cannot order records. Use a numeric, character "
-                                        + "string, binary string, boolean, or date-time column."),
+                                        + "cannot order records. Use a numeric, string, boolean, "
+                                        + "or date-time column."),
                 withDefaults("Negative state_ttl", PARTITIONED_BY_USER)
                         .calledWithLiteralAt(ARG_STATE_TTL, Duration.ofSeconds(-1))
                         .expectErrorMessage(
@@ -231,13 +207,13 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     private static TestSpec sequenceBy(final String description, final String... columns) {
         return withDefaults(description, PARTITIONED_BY_USER)
-                .calledWithLiteralAt(ARG_SEQUENCE_BY, ColumnList.of(Arrays.asList(columns)));
+                .calledWithLiteralAt(ARG_SEQUENCE_BY, ColumnList.of(List.of(columns)));
     }
 
     private static CallContextMock callContext(final ColumnList sequenceBy) {
         final CallContextMock callContext = new CallContextMock();
         callContext.argumentValues =
-                Arrays.asList(
+                List.of(
                         Optional.empty(),
                         Optional.empty(),
                         Optional.of(sequenceBy),

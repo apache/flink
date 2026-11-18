@@ -119,16 +119,14 @@ public final class DeduplicateTypeStrategyUtils {
                         field ->
                                 String.format(
                                         "%s does not support a time attribute as a "
-                                                + "PARTITION BY column, but '%s' is one. Partition "
-                                                + "by a regular column, or cast the column in a "
-                                                + "subquery first, for example CAST(%s AS %s) AS %s.",
+                                                + "PARTITION BY column, but '%s' is one. Use "
+                                                + "CAST(%s AS %s) in a subquery first.",
                                         functionName,
                                         field.getName(),
                                         field.getName(),
                                         DataTypeUtils.removeTimeAttribute(field.getDataType())
                                                 .getLogicalType()
-                                                .asSummaryString(),
-                                        field.getName()));
+                                                .asSummaryString()));
     }
 
     public static Optional<String> validateKeep(
@@ -148,9 +146,7 @@ public final class DeduplicateTypeStrategyUtils {
         }
         return Optional.of(
                 String.format(
-                        "%s requires keep => 'first' or keep => 'last', but received %s. "
-                                + "Use keep => 'first' to keep the first record per key, or "
-                                + "keep => 'last' to keep the last one.",
+                        "%s requires keep => 'first' or keep => 'last', but received %s.",
                         functionName, received));
     }
 
@@ -183,8 +179,7 @@ public final class DeduplicateTypeStrategyUtils {
                         String.format(
                                 "The sequence_by column '%s' is a PARTITION BY column, which has "
                                         + "the same value for every record of a key. Use a "
-                                        + "column that is not part of PARTITION BY, such as a "
-                                        + "version or sequence number.",
+                                        + "non-PARTITION BY column.",
                                 column));
             }
             final LogicalType type = fieldTypes.get(index).getLogicalType();
@@ -192,8 +187,8 @@ public final class DeduplicateTypeStrategyUtils {
                 return Optional.of(
                         String.format(
                                 "The sequence_by column '%s' has type '%s', which cannot order "
-                                        + "records. Use a numeric, character string, binary "
-                                        + "string, boolean, or date-time column.",
+                                        + "records. Use a numeric, string, boolean, or date-time "
+                                        + "column.",
                                 column, type.asSummaryString()));
             }
         }
@@ -208,9 +203,7 @@ public final class DeduplicateTypeStrategyUtils {
         if (!callContext.isArgumentLiteral(argPos)) {
             return Optional.of(
                     "The 'state_ttl' argument must be a constant INTERVAL literal, but received a "
-                            + "non-literal expression. Use a literal such as INTERVAL '1' HOUR, "
-                            + "INTERVAL '0' to retain state indefinitely, or omit the argument "
-                            + "to fall back to 'table.exec.state.ttl'.");
+                            + "non-literal expression. Use a literal such as INTERVAL '1' HOUR.");
         }
         return callContext
                 .getArgumentValue(argPos, Duration.class)
@@ -219,10 +212,8 @@ public final class DeduplicateTypeStrategyUtils {
                         stateTtl ->
                                 String.format(
                                         "The 'state_ttl' argument must not be negative, but was "
-                                                + "'%s'. Use a positive INTERVAL to bound state "
-                                                + "retention, INTERVAL '0' to retain state "
-                                                + "indefinitely, or omit the argument to fall "
-                                                + "back to 'table.exec.state.ttl'.",
+                                                + "'%s'. Use INTERVAL '0' to retain state "
+                                                + "indefinitely.",
                                         TimeUtils.formatWithHighestUnit(stateTtl)));
     }
 
@@ -233,9 +224,7 @@ public final class DeduplicateTypeStrategyUtils {
         }
         return Optional.of(
                 "The 'reset_ttl_on_duplicate' argument must be a constant BOOLEAN literal, but "
-                        + "received a non-literal expression. Use TRUE to refresh the TTL on a "
-                        + "dropped record, FALSE to keep it, or omit the argument for the default "
-                        + "TRUE.");
+                        + "received a non-literal expression. Use TRUE or FALSE.");
     }
 
     private static List<String> sequenceBy(final CallContext callContext, final int argPos) {

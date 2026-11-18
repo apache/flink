@@ -30,15 +30,12 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
-import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.types.inference.SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
 
 /**
  * Type strategies for the {@code DEDUPLICATE} process table function.
@@ -54,7 +51,6 @@ public final class DeduplicateTypeStrategy {
     public static final int ARG_SEQUENCE_BY = 2;
     public static final int ARG_STATE_TTL = 3;
     public static final int ARG_RESET_TTL_ON_DUPLICATE = 4;
-    private static final int DECLARED_ARG_COUNT = ARG_RESET_TTL_ON_DUPLICATE + 1;
     private static final String NAME = "DEDUPLICATE";
 
     public static final InputTypeStrategy INPUT_TYPE_STRATEGY =
@@ -102,7 +98,6 @@ public final class DeduplicateTypeStrategy {
                         () ->
                                 DeduplicateTypeStrategyUtils.validatePartitionByNoTimeAttribute(
                                         tableSemantics, NAME))
-                .or(() -> validateOnTime(callContext))
                 .or(() -> DeduplicateTypeStrategyUtils.validateKeep(callContext, ARG_KEEP, NAME))
                 .or(
                         () ->
@@ -126,29 +121,9 @@ public final class DeduplicateTypeStrategy {
                         .collect(Collectors.joining(", "));
         return Optional.of(
                 String.format(
-                        "DEDUPLICATE does not support ORDER BY on its input, but received "
-                                + "ORDER BY %s. Use sequence_by => DESCRIPTOR(%s) to order the "
-                                + "records of a key.",
+                        "DEDUPLICATE does not support ORDER BY, but received ORDER BY %s. "
+                                + "Use sequence_by => DESCRIPTOR(%s) instead.",
                         columns, columns));
-    }
-
-    private static Optional<String> validateOnTime(final CallContext callContext) {
-        final int argCount = callContext.getArgumentDataTypes().size();
-        if (argCount == DECLARED_ARG_COUNT) {
-            return Optional.empty();
-        }
-        final int onTimePos = argCount - 1 - PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
-        return callContext
-                .getArgumentValue(onTimePos, ColumnList.class)
-                .map(ColumnList::getNames)
-                .filter(names -> !names.isEmpty())
-                .map(
-                        names ->
-                                String.format(
-                                        "DEDUPLICATE does not support on_time, but received "
-                                                + "on_time => DESCRIPTOR(%s). Use sequence_by => "
-                                                + "DESCRIPTOR(%s) to order by a timestamp column.",
-                                        names.get(0), names.get(0)));
     }
 
     private static ChangelogMode inferChangelogMode(final ChangelogContext changelogContext) {
