@@ -40,6 +40,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Optional;
@@ -158,6 +159,8 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
         final RelWriter terms = super.explainTerms(pw);
         terms.item("loadCompletedCondition", loadCompletedCondition);
         terms.item("loadCompletedTime", loadCompletedTime);
+        getBuildUpsertKey()
+                .ifPresent(upsertKey -> terms.item("buildUpsertKey", Arrays.toString(upsertKey)));
         if (loadCompletedIdleTimeoutMs != null) {
             terms.item("loadCompletedIdleTimeout", loadCompletedIdleTimeoutMs + " ms");
         }

@@ -50,6 +50,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.util.ImmutableBitSet;
+
 import javax.annotation.Nullable;
 
 import java.util.List;
@@ -219,10 +221,16 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
                 stateTtlMs != null ? stateTtlMs : config.getStateRetentionTime();
 
         final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(rightInputType);
-        final BuildSideSpec buildSideSpec =
-                buildUpsertKeys == null
-                        ? BuildSideSpec.multiSet()
-                        : BuildSideSpec.upsert(buildUpsertKeys);
+        final BuildSideSpec buildSideSpec;
+        if (buildUpsertKeys == null) {
+            buildSideSpec = BuildSideSpec.multiSet();
+        } else if (ImmutableBitSet.of(buildUpsertKeys)
+                .equals(ImmutableBitSet.of(joinSpec.getRightKeys()))) {
+            // The join key is the upsert key: there is one build row per keyed-state key.
+            buildSideSpec = BuildSideSpec.joinKey();
+        } else {
+            buildSideSpec = BuildSideSpec.upsert(buildUpsertKeys);
+        }
 
         final LateralSnapshotJoinOperator operator =
                 new LateralSnapshotJoinOperator(

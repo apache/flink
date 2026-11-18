@@ -43,6 +43,7 @@ public class LateralSnapshotJoinRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 LateralSnapshotJoinTestPrograms.LATERAL_SNAPSHOT_JOIN_PHASE_LOAD,
                 LateralSnapshotJoinTestPrograms.LATERAL_SNAPSHOT_JOIN_PHASE_JOIN,
+                LateralSnapshotJoinTestPrograms.LATERAL_SNAPSHOT_JOIN_JOIN_KEY_BUILD,
                 LateralSnapshotJoinTestPrograms.LATERAL_SNAPSHOT_JOIN_UPSERT_BUILD);
     }
 

@@ -311,7 +311,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThat(plan).doesNotContain("DropUpdateBefore");
         assertThat(buildUpsertKeysOf("b_upsert")).containsExactly(0);
         assertThat(compileJoinOperator("b_upsert").getBuildSideSpec().getLayout())
-                .isEqualTo(BuildSideSpec.Layout.UPSERT);
+                .isEqualTo(BuildSideSpec.Layout.JOIN_KEY);
     }
 
     @Test

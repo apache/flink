@@ -33,6 +33,8 @@ public final class BuildStateViews {
         switch (spec.getLayout()) {
             case MULTI_SET:
                 return new MultiSetBuildStateView(ctx, buildType);
+            case JOIN_KEY:
+                return new JoinKeyBuildStateView(ctx, buildType);
             case UPSERT:
                 return new UpsertBuildStateView(ctx, buildType, spec.getUpsertKeys());
             default:
