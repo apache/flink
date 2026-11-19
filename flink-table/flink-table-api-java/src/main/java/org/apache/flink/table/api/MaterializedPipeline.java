@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.StartMode;
 
 /**
  * A pending declaration of one materialized table, created by {@link Table#materializeInto(String,
@@ -36,46 +37,66 @@ public interface MaterializedPipeline {
     ObjectIdentifier getIdentifier();
 
     /**
-     * Submits this declaration with the semantics of {@code CREATE OR ALTER MATERIALIZED TABLE}.
+     * Submits this declaration with the semantics of {@code CREATE OR ALTER MATERIALIZED TABLE}. It
+     * creates the materialized table, or alters it if it exists. The methods of {@link
+     * MaterializedTableDescriptor.Builder} describe what an existing materialized table keeps.
      *
-     * <p>If the materialized table exists and its continuous refresh job is running, the job is
-     * stopped with a savepoint and a new refresh job is started, which does not restore that
-     * savepoint. This also happens if the declaration is unchanged. The stop requires a savepoint
-     * directory ({@code execution.checkpointing.savepoint-dir}); without one, this fails before the
-     * stop. If the changes are rejected or cannot be written after the stop, the materialized table
-     * is left suspended with its previous definition and the savepoint. If the new refresh job
-     * starts but the catalog cannot record it, that job is cancelled and the previous refresh job
-     * restarts from the savepoint. If the cancel fails, the materialized table is rolled back and
-     * left suspended instead.
+     * <p>If the continuous refresh job of an existing materialized table is running, the job is
+     * stopped with a savepoint and a new refresh job is started without restoring that savepoint,
+     * so its streaming state starts empty. This also happens if the declaration is unchanged. A
+     * suspended materialized table stays suspended, and a later resume starts its refresh job
+     * without state.
      *
-     * <p>A suspended materialized table is altered and stays suspended, and its stored savepoint is
-     * cleared, so a later {@code RESUME} starts the refresh job without state. A materialized table
-     * in full refresh mode is altered without changing its refresh workflow.
-     *
-     * <p>An existing materialized table keeps its freshness, comment and partition keys, so a
-     * declared one is ignored. Its options and distribution are replaced by the declared ones, as
-     * by the {@code WITH} and {@code DISTRIBUTED BY} clauses of {@code CREATE OR ALTER MATERIALIZED
-     * TABLE}. Options that are not declared are removed, and the distribution is dropped if none is
-     * declared. A declared {@link RefreshStrategy#continuous()} or {@link RefreshStrategy#full()}
-     * that differs from its refresh mode is rejected like any other rejected change, which leaves a
-     * running table suspended. If the declared schema starts with a physical column, it replaces
-     * the watermark, computed columns, virtual metadata columns and primary key of the materialized
-     * table. Otherwise, the materialized table keeps its watermark, keeps computed and virtual
-     * metadata columns that the schema no longer declares, and keeps its primary key unless the
-     * schema declares one.
+     * <p>Returns once the materialized table is created or altered and, if a refresh job is
+     * started, once that job has been submitted.
      *
      * <p>Equivalent to {@code execute(CreateMode.createOrAlter())}.
      *
-     * <p>Returns once the catalog entry is written and, if a continuous refresh job is started,
-     * once that job has been submitted.
+     * @return A handle on the materialized table.
+     * @throws ValidationException if a declared {@link RefreshStrategy} differs from the refresh
+     *     mode of the existing materialized table.
+     * @throws ValidationException if the start mode is {@code FROM_TIMESTAMP} or {@code
+     *     RESUME_OR_FROM_TIMESTAMP} without a timestamp, or has an offset that is not positive.
      */
     MaterializedTable execute();
 
     /**
+     * Like {@link #execute()}, with the given start mode in place of the descriptor's. Equivalent
+     * to {@code execute(CreateMode.createOrAlter(), startMode)}.
+     *
+     * @param startMode The start mode of the materialized table.
+     * @return A handle on the materialized table.
+     * @throws ValidationException if a declared {@link RefreshStrategy} differs from the refresh
+     *     mode of the existing materialized table.
+     * @throws ValidationException if the start mode is {@code FROM_TIMESTAMP} or {@code
+     *     RESUME_OR_FROM_TIMESTAMP} without a timestamp, or has an offset that is not positive.
+     */
+    MaterializedTable execute(StartMode startMode);
+
+    /**
      * Submits this declaration in the given mode. With {@link CreateMode#createOrAlter()}, this is
-     * {@link #execute()}. With {@link CreateMode#failIfExists()}, it fails with a {@link
-     * ValidationException} if a table or view already exists at the path. In this case the existing
-     * object is not changed, and no refresh job is started.
+     * {@link #execute()}. With {@link CreateMode#failIfExists()}, it fails if a table or view
+     * exists at the path, which is then left unchanged.
+     *
+     * @param mode What to do if an object exists at the path.
+     * @return A handle on the materialized table.
+     * @throws ValidationException if a declared {@link RefreshStrategy} differs from the refresh
+     *     mode of the existing materialized table.
+     * @throws ValidationException if the start mode is {@code FROM_TIMESTAMP} or {@code
+     *     RESUME_OR_FROM_TIMESTAMP} without a timestamp, or has an offset that is not positive.
      */
     MaterializedTable execute(CreateMode mode);
+
+    /**
+     * Like {@link #execute(CreateMode)}, with the given start mode in place of the descriptor's.
+     *
+     * @param mode What to do if an object exists at the path.
+     * @param startMode The start mode of the materialized table.
+     * @return A handle on the materialized table.
+     * @throws ValidationException if a declared {@link RefreshStrategy} differs from the refresh
+     *     mode of the existing materialized table.
+     * @throws ValidationException if the start mode is {@code FROM_TIMESTAMP} or {@code
+     *     RESUME_OR_FROM_TIMESTAMP} without a timestamp, or has an offset that is not positive.
+     */
+    MaterializedTable execute(CreateMode mode, StartMode startMode);
 }

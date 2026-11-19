@@ -23,7 +23,17 @@ import org.apache.flink.table.api.MaterializedTableDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.Interval;
+import org.apache.flink.table.catalog.Interval.TimeUnit;
+import org.apache.flink.table.catalog.IntervalFreshness;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.StartMode;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableMergeContext;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableOperationFactory;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableOperationFactory.Mode;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +45,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.sql.Timestamp;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +53,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DescriptorMaterializedTableMergeContext}. */
 class DescriptorMaterializedTableMergeContextTest {
+
+    private static final ObjectIdentifier MT =
+            ObjectIdentifier.of(
+                    CatalogManagerMocks.DEFAULT_CATALOG,
+                    CatalogManagerMocks.DEFAULT_DATABASE,
+                    "mt");
 
     private static final String PERSISTED_COLUMN_NOT_PRODUCED =
             "Failed to execute CREATE OR ALTER MATERIALIZED TABLE statement.\n"
@@ -157,11 +174,59 @@ class DescriptorMaterializedTableMergeContextTest {
                         "Immutable columns are not supported for materialized tables."));
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidStartModes")
+    void invalidStartModeIsRejectedWhenTheOperationIsBuilt(
+            StartMode startMode, String expectedMessage) throws Exception {
+        final CatalogMaterializedTable existingMaterializedTable =
+                CatalogMaterializedTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("id", DataTypes.BIGINT().notNull())
+                                        .build())
+                        .options(Map.of())
+                        .originalQuery("SELECT 1 AS id")
+                        .expandedQuery("SELECT 1 AS id")
+                        .freshness(IntervalFreshness.ofSecond("30"))
+                        .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
+                        .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
+                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.ACTIVATED)
+                        .startMode(StartMode.fromBeginning())
+                        .build();
+        tEnv.getCatalogManager()
+                .getCatalog(CatalogManagerMocks.DEFAULT_CATALOG)
+                .orElseThrow()
+                .createTable(MT.toObjectPath(), existingMaterializedTable, false);
+        final MaterializedTableOperationFactory factory =
+                new MaterializedTableOperationFactory(tEnv.getCatalogManager(), tEnv.getConfig());
+
+        assertThatThrownBy(() -> factory.build(MT, Mode.CREATE_OR_ALTER, context(null, startMode)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(expectedMessage);
+    }
+
+    private static Stream<Arguments> invalidStartModes() {
+        return Stream.of(
+                Arguments.of(
+                        StartMode.of(StartModeKind.FROM_TIMESTAMP),
+                        "Start mode 'FROM_TIMESTAMP' requires a timestamp. Create it with"
+                                + " StartMode.fromTimestamp(Instant) or StartMode.resumeOrFromTimestamp(Instant)."),
+                Arguments.of(
+                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(0, TimeUnit.SECOND)),
+                        "The start mode offset must be positive, but was: INTERVAL '0' SECOND."));
+    }
+
     private DescriptorMaterializedTableMergeContext context(@Nullable Schema declared) {
+        return context(declared, null);
+    }
+
+    private DescriptorMaterializedTableMergeContext context(
+            @Nullable Schema declared, @Nullable StartMode startMode) {
         return new DescriptorMaterializedTableMergeContext(
                 MaterializedTableDescriptor.newBuilder().schema(declared).build(),
                 tEnv.from("source").getQueryOperation(),
                 "SELECT 1",
+                startMode,
                 tEnv.getCatalogManager(),
                 "CREATE OR ALTER MATERIALIZED TABLE");
     }

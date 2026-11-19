@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.catalog.StartMode;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +50,7 @@ class MaterializedTableDescriptorTest {
                                 + "  'connector' = 'values',\n"
                                 + "  'sink.parallelism' = '4'\n"
                                 + ")\n"
+                                + "START_MODE = FROM_NOW\n"
                                 + "FRESHNESS = INTERVAL '1' MINUTE\n"
                                 + "REFRESH_MODE = CONTINUOUS");
         assertThat(MaterializedTableDescriptor.newBuilder().build().toString()).isEmpty();
@@ -63,6 +65,8 @@ class MaterializedTableDescriptorTest {
                 .hasSameHashCodeAs(descriptor);
         assertThat(descriptor.toBuilder().comment("other").build()).isNotEqualTo(descriptor);
         assertThat(descriptor.toBuilder().fullRefresh().build()).isNotEqualTo(descriptor);
+        assertThat(descriptor.toBuilder().startMode(StartMode.fromBeginning()).build())
+                .isNotEqualTo(descriptor);
     }
 
     private static MaterializedTableDescriptor fullDescriptor() {
@@ -78,6 +82,7 @@ class MaterializedTableDescriptorTest {
                 .partitionedBy("k")
                 .option("connector", "values")
                 .option(PARALLELISM, 4)
+                .startMode(StartMode.fromNow())
                 .freshness(Duration.ofMinutes(1))
                 .continuousRefresh()
                 .build();

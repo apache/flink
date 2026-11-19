@@ -30,11 +30,14 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperationFactory;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperationFactory.Mode;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
 
@@ -93,14 +96,30 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
     }
 
     @Override
+    public MaterializedTable execute(StartMode startMode) {
+        return execute(CreateMode.createOrAlter(), startMode);
+    }
+
+    @Override
     public MaterializedTable execute(CreateMode mode) {
         Preconditions.checkNotNull(mode, "Create mode must not be null.");
-        final Mode finalOperationMode = toFactoryMode(mode);
-        tableEnvironment.executeInternal(buildOperation(finalOperationMode));
+        return submit(mode, null);
+    }
+
+    @Override
+    public MaterializedTable execute(CreateMode mode, StartMode startMode) {
+        Preconditions.checkNotNull(mode, "Create mode must not be null.");
+        Preconditions.checkNotNull(startMode, "Start mode must not be null.");
+        return submit(mode, startMode);
+    }
+
+    private MaterializedTable submit(CreateMode mode, @Nullable StartMode startMode) {
+        tableEnvironment.executeInternal(
+                buildOperation(toFactoryMode(mode), resolveStartMode(startMode)));
         return new MaterializedTableImpl(identifier);
     }
 
-    private Operation buildOperation(Mode factoryMode) {
+    private Operation buildOperation(Mode factoryMode, @Nullable StartMode startMode) {
         final CatalogManager catalogManager = tableEnvironment.getCatalogManager();
         if (catalogManager.isTemporaryTable(identifier)) {
             throw new ValidationException(
@@ -132,6 +151,7 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
                                 descriptor,
                                 storedQueryOperation,
                                 serializedQuery,
+                                startMode,
                                 catalogManager,
                                 factoryMode == Mode.CREATE
                                         ? "CREATE MATERIALIZED TABLE"
@@ -152,6 +172,10 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
         }
 
         return factoryMode;
+    }
+
+    private @Nullable StartMode resolveStartMode(@Nullable StartMode startMode) {
+        return startMode != null ? startMode : descriptor.getStartMode().orElse(null);
     }
 
     @Override

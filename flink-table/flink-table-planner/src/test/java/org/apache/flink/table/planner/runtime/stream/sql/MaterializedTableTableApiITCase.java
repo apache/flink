@@ -71,6 +71,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -272,6 +273,17 @@ class MaterializedTableTableApiITCase {
         waitUntilAllTasksAreRunning(clusterClient, refreshJobId);
         assertThat(getJobStatus(refreshJobId)).isEqualTo(JobStatus.RUNNING);
         assertThat(getCheckpointInterval(refreshJobId)).isEqualTo(30 * 1000);
+    }
+
+    @Test
+    void testCreateMaterializedTableWithStartModeOverride() {
+        usersShopsQuery()
+                .materializeInto(
+                        "users_shops",
+                        usersShopsDescriptor().startMode(StartMode.resumeOrFromNow()).build())
+                .execute(CreateMode.failIfExists(), StartMode.fromNow());
+
+        assertThat(getUsersShops().getStartMode()).contains(StartMode.fromNow());
     }
 
     @Test
@@ -946,6 +958,7 @@ class MaterializedTableTableApiITCase {
                         usersShopsDescriptor()
                                 .comment("users and shops")
                                 .freshness(Duration.ofSeconds(30))
+                                .startMode(StartMode.resumeOrFromNow())
                                 .build())
                 .execute();
         final JobID oldJobId = getRefreshJobId();
@@ -976,6 +989,8 @@ class MaterializedTableTableApiITCase {
         assertThat(newTable.getDefinitionFreshness()).isEqualTo(IntervalFreshness.ofSecond("30"));
         assertThat(newTable.getPartitionKeys()).containsExactly("ds");
         assertThat(newTable.getComment()).isEqualTo("users and shops");
+        assertThat(oldTable.getStartMode()).contains(StartMode.resumeOrFromNow());
+        assertThat(newTable.getStartMode()).contains(StartMode.fromBeginning());
         assertThat(oldTable.getOptions()).containsKey("connector");
         assertThat(newTable.getOptions()).isEqualTo(Map.of("sink-insert-only", "false"));
         assertThat(oldTable.getDistribution()).isPresent();
