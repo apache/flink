@@ -39,12 +39,12 @@ arguments:
     description: "`TRUE` stores every child element and text as an array, also one that occurs once."
 
 returns:
-  description: A `VARIANT` object with one field, named after the root element. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant) describes how elements, attributes and text are stored.
+  description: A `VARIANT` object with one field, named after the root element. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#xml-to-variant) describes how elements, attributes and text are stored.
   nulls: Returns NULL if `xml_string` is NULL.
   type: "`VARIANT`, NOT NULL if `xml_string` is NOT NULL."
 
 notes:
-  - A document that isn't well-formed XML fails the job, and so does content after the root element. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant) lists what else fails. To get NULL instead, use `TRY_PARSE_XML`.
+  - A document that isn't well-formed XML fails the job, and so does content after the root element. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#xml-to-variant) lists what else fails. To get NULL instead, use `TRY_PARSE_XML`.
 
 see_also:
   - {name: TRY_PARSE_XML, ref: variant/try-parse-xml}

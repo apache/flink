@@ -30,12 +30,12 @@ arguments:
     description: An object with one field, which names the root element, such as a result of `PARSE_XML`.
 
 returns:
-  description: The XML document, without an XML declaration. [VARIANT to XML String]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-to-xml-string) describes how fields and values are written.
+  description: The XML document, without an XML declaration. [VARIANT to XML String]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#variant-to-xml-string) describes how fields and values are written.
   nulls: Returns NULL if `variant` is NULL.
   type: "`STRING`, NOT NULL if `variant` is NOT NULL."
 
 notes:
-  - "`variant` must be an object with exactly one field, and that field can't hold an array. Any other value fails the job. It also fails if a value has no XML form, such as a key with a space. [VARIANT to XML String]({{< ref \"docs/sql/built-in-functions/variant\" >}}#variant-to-xml-string) lists the cases."
+  - "`variant` must be an object with exactly one field, and that field can't hold an array. Any other value fails the job. It also fails if a value has no XML form, such as a key with a space. [VARIANT to XML String]({{< ref \"docs/sql/built-in-functions/variant/xml\" >}}#variant-to-xml-string) lists the cases."
 
 see_also:
   - {name: PARSE_XML, ref: variant/parse-xml}

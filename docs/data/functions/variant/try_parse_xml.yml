@@ -40,7 +40,7 @@ arguments:
 
 returns:
   description: A `VARIANT` object with one field, named after the root element, as `PARSE_XML` returns it.
-  nulls: Returns NULL if `xml_string` is NULL, or where `PARSE_XML` fails, such as for a document that isn't well-formed. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant) lists the documents that fail.
+  nulls: Returns NULL if `xml_string` is NULL, or where `PARSE_XML` fails, such as for a document that isn't well-formed. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#xml-to-variant) lists the documents that fail.
   type: "`VARIANT`, nullable."
 
 see_also:

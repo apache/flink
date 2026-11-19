@@ -35,7 +35,7 @@ arguments:
   - name: path
     type: CHAR, VARCHAR, STRING
     required: true
-    description: A path such as `'$.items[0].qty'`. See [Variant paths]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-paths).
+    description: A path such as `'$.items[0].qty'`. See [Variant paths]({{< ref "docs/sql/built-in-functions/variant/paths" >}}).
   - name: return_type
     type: A string literal that names a type, such as `'INT'`. In the Table API, a `DataType`
     required: false
@@ -44,7 +44,7 @@ arguments:
 
 returns:
   description: The value at `path`, cast to `return_type`. Without `return_type`, the value as a `VARIANT`.
-  nulls: Returns NULL if `variant` or `path` is NULL, if [nothing is at `path`]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-paths), or if the value is a JSON `null` and `return_type` isn't `'VARIANT'`.
+  nulls: Returns NULL if `variant` or `path` is NULL, if [nothing is at `path`]({{< ref "docs/sql/built-in-functions/variant/paths" >}}), or if the value is a JSON `null` and `return_type` isn't `'VARIANT'`.
   type: "`return_type`, nullable. Without `return_type`, `VARIANT`, nullable."
 
 notes:

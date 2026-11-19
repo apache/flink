@@ -35,7 +35,7 @@ arguments:
   - name: path
     type: CHAR, VARCHAR, STRING
     required: true
-    description: A path such as `'$.items[0].qty'`. See [Variant paths]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-paths).
+    description: A path such as `'$.items[0].qty'`. See [Variant paths]({{< ref "docs/sql/built-in-functions/variant/paths" >}}).
   - name: return_type
     type: A string literal that names a type, such as `'INT'`. In the Table API, a `DataType`
     required: false
