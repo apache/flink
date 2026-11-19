@@ -1,0 +1,109 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+{{/*
+  Returns the Markdown of one built-in function page. The title is followed by the category, the
+  summary and the related functions. Then come the same sections on every page, in this order:
+  Syntax, Arguments, Returns, Usage notes and Examples. A part is left out if the YAML file has no
+  field for it.
+*/}}
+{{ $f := .function }}
+{{ $base := "docs/sql/built-in-functions" }}
+{{ $fence := "\x60\x60\x60" }}
+{{ $sqlFence := printf "%ssql {function=%q}" $fence $f.name }}
+{{ $summary := "" }}
+{{ with $f.summary }}{{ $summary = printf "{{< function_summary >}}%s{{< /function_summary >}}" . }}{{ end }}
+{{ $lines := slice (printf "# %s" $f.name) "" "<p class=\"function-category\">Category: {{< built_in_function_category >}}</p>" "" $summary "" }}
+
+{{ with $f.see_also }}
+  {{ $links := slice }}
+  {{ range . }}
+    {{ $links = $links | append (printf "<a href=\"{{< ref %q >}}\">%s</a>" (printf "%s/%s" $base .ref) (htmlEscape .name)) }}
+  {{ end }}
+  {{ $lines = $lines | append (printf "<dl class=\"function-see-also\"><dt>See also:</dt><dd>%s</dd></dl>" (delimit $links ", ")) "" }}
+{{ end }}
+
+{{ with $f.syntax }}
+  {{ $lines = $lines | append "## Syntax" "" (printf "{{< tabs %q >}}" (printf "%s-syntax" $.slug)) }}
+  {{ range slice (slice "SQL" "sql" .sql) (slice "Java" "java" .java) (slice "Python" "python" .python) }}
+    {{ $tab := index . 0 }}
+    {{ $language := index . 1 }}
+    {{ with index . 2 }}
+      {{ $lines = $lines | append (printf "{{< tab %q >}}" $tab) (cond (eq $language "sql") $sqlFence (print $fence $language)) (trim . "\n") $fence "{{< /tab >}}" }}
+    {{ end }}
+  {{ end }}
+  {{ $lines = $lines | append "{{< /tabs >}}" "" }}
+{{ end }}
+
+{{ with $f.arguments }}
+  {{ $lines = $lines | append "## Arguments" "" "| Argument | Type | Required | Default | Description |" "|---|---|---|---|---|" }}
+  {{ range . }}
+    {{ $required := cond (eq .required true) "Yes" "No" }}
+    {{ $lines = $lines | append (printf "| `%v` | %v | %s | %v | %v |" .name .type $required (.default | default "") .description) }}
+  {{ end }}
+  {{ $lines = $lines | append "" }}
+{{ end }}
+
+{{ with $f.returns }}
+  {{ $lines = $lines | append "## Returns" "" (.description | default "") "" }}
+  {{ with .nulls }}
+    {{ $lines = $lines | append . "" }}
+  {{ end }}
+  {{ with .type }}
+    {{ $lines = $lines | append (printf "Type: %v" .) "" }}
+  {{ end }}
+{{ end }}
+
+{{ with $f.notes }}
+  {{ $lines = $lines | append "## Usage notes" "" }}
+  {{ range . }}
+    {{ $lines = $lines | append (printf "- %s" (replace (trim . "\n") "\n" "\n  ")) }}
+  {{ end }}
+  {{ $lines = $lines | append "" }}
+{{ end }}
+
+{{ with $f.examples }}
+  {{ $lines = $lines | append "## Examples" "" }}
+  {{ range . }}
+    {{ $lines = $lines | append (printf "- [%s](#%s)" .title (anchorize .title)) }}
+  {{ end }}
+  {{ $lines = $lines | append "" }}
+  {{/* An example has SQL and its result, or, for a Table API-only function, Java and Python tabs. */}}
+  {{ range $i, $example := . }}
+    {{ $lines = $lines | append (printf "### %s" .title) "" (.description | default "") "" }}
+    {{ with .sql }}
+      {{ $lines = $lines | append $sqlFence (trim . "\n") $fence "" }}
+    {{ end }}
+    {{ if or .java .python }}
+      {{ $lines = $lines | append (printf "{{< tabs %q >}}" (printf "%s-example-%d" $.slug $i)) }}
+      {{ range slice (slice "Java" "java" .java) (slice "Python" "python" .python) }}
+        {{ $tab := index . 0 }}
+        {{ $language := index . 1 }}
+        {{ with index . 2 }}
+          {{ $lines = $lines | append (printf "{{< tab %q >}}" $tab) (print $fence $language) (trim . "\n") $fence "{{< /tab >}}" }}
+        {{ end }}
+      {{ end }}
+      {{ $lines = $lines | append "{{< /tabs >}}" "" }}
+    {{ end }}
+    {{ with .result }}
+      {{ $lines = $lines | append (trim . "\n") "" }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ return delimit $lines "\n" }}

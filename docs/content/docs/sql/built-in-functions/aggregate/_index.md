@@ -2,6 +2,7 @@
 title: "Aggregate"
 weight: 1
 type: docs
+bookCollapseSection: true
 sqlFunctions: [aggregate, grouping]
 ---
 <!--

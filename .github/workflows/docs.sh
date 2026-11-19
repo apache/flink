@@ -45,7 +45,7 @@ cd ..
 hugo --source docs
 
 # generate docs into docs/target
-hugo -v --source docs --destination target
+hugo --logLevel info --source docs --destination target
 if [ $? -ne 0 ]; then
 	echo "Error building the docs"
 	exit 1

@@ -2,6 +2,7 @@
 title: "条件"
 weight: 7
 type: docs
+bookCollapseSection: true
 sqlFunctions: conditional
 ---
 <!--
