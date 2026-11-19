@@ -28,12 +28,20 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 /** Test setup for all jar-submission related handlers. */
 public class JarHandlers {
@@ -42,6 +50,7 @@ public class JarHandlers {
     final JarListHandler listHandler;
     final JarPlanHandler planHandler;
     final JarRunHandler runHandler;
+    final JarRunApplicationHandler runApplicationHandler;
     final JarDeleteHandler deleteHandler;
 
     JarHandlers(
@@ -93,6 +102,15 @@ public class JarHandlers {
                         new Configuration(),
                         executor,
                         () -> new DetachedApplicationRunner(true));
+
+        runApplicationHandler =
+                new JarRunApplicationHandler(
+                        gatewayRetriever,
+                        timeout,
+                        responseHeaders,
+                        JarRunApplicationHeaders.getInstance(),
+                        jarDir,
+                        new Configuration());
 
         deleteHandler =
                 new JarDeleteHandler(
@@ -157,6 +175,22 @@ public class JarHandlers {
         return handler.handleRequest(runRequest, restfulGateway).get();
     }
 
+    public static JarRunApplicationResponseBody runJarApplication(
+            JarRunApplicationHandler handler, String jarName, DispatcherGateway restfulGateway)
+            throws Exception {
+        final JarRunApplicationMessageParameters runParameters =
+                JarRunApplicationHeaders.getInstance().getUnresolvedMessageParameters();
+        HandlerRequest<JarRunApplicationRequestBody> runRequest =
+                HandlerRequest.resolveParametersAndCreate(
+                        new JarRunApplicationRequestBody(),
+                        runParameters,
+                        Collections.singletonMap(
+                                runParameters.jarIdPathParameter.getKey(), jarName),
+                        Collections.emptyMap(),
+                        Collections.emptyList());
+        return handler.handleRequest(runRequest, restfulGateway).get();
+    }
+
     public static void deleteJar(
             JarDeleteHandler handler, String jarName, RestfulGateway restfulGateway)
             throws Exception {
@@ -171,5 +205,30 @@ public class JarHandlers {
                         Collections.emptyMap(),
                         Collections.emptyList());
         handler.handleRequest(deleteRequest, restfulGateway).get();
+    }
+
+    /**
+     * Copies {@code sourceJar} to {@code targetJar} and adds an empty nested library {@code
+     * lib/<libraryName>}, which a {@code PackagedProgram} extracts into {@code java.io.tmpdir}.
+     */
+    public static Path copyWithNestedLibrary(Path sourceJar, Path targetJar, String libraryName)
+            throws IOException {
+        final ByteArrayOutputStream emptyJar = new ByteArrayOutputStream();
+        new JarOutputStream(emptyJar).close();
+
+        try (ZipFile source = new ZipFile(sourceJar.toFile());
+                ZipOutputStream target = new ZipOutputStream(Files.newOutputStream(targetJar))) {
+            for (ZipEntry entry : Collections.list(source.entries())) {
+                target.putNextEntry(new ZipEntry(entry.getName()));
+                try (InputStream in = source.getInputStream(entry)) {
+                    in.transferTo(target);
+                }
+                target.closeEntry();
+            }
+            target.putNextEntry(new ZipEntry("lib/" + libraryName));
+            target.write(emptyJar.toByteArray());
+            target.closeEntry();
+        }
+        return targetJar;
     }
 }

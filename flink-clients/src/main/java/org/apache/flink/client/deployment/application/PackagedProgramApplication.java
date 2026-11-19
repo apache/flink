@@ -30,8 +30,11 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramDescriptor;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.application.AbstractApplication;
@@ -52,6 +55,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -73,6 +77,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An implementation of {@link AbstractApplication} designed for executing the user's {@code
@@ -104,7 +109,16 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     @Nullable private final JarInfo userJarInfo;
 
-    private transient PackagedProgram program;
+    @Nullable private transient PackagedProgram program;
+
+    /**
+     * Whether this application built {@link #program} itself and therefore has to close it. A
+     * program that is passed in is owned by the caller, e.g. in application mode the same program
+     * is handed to a new application on every leadership grant.
+     */
+    private transient boolean ownsProgram;
+
+    private transient boolean isProgramClosed;
 
     private transient CompletableFuture<Void> applicationCompletionFuture;
 
@@ -197,8 +211,102 @@ public class PackagedProgramApplication extends AbstractApplication {
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish,
             final @Nullable JarInfo userJarInfo) {
+        this(
+                applicationId,
+                program,
+                recoveredJobInfos,
+                recoveredTerminalJobInfos,
+                configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
+                handleFatalError,
+                submitFailedJobOnApplicationError,
+                shutDownOnFinish,
+                userJarInfo,
+                false);
+    }
+
+    /**
+     * Creates an application for the given program. If {@code ownsProgram} is true, the application
+     * closes the program once it terminates or is disposed.
+     */
+    public PackagedProgramApplication(
+            final ApplicationID applicationId,
+            final PackagedProgram program,
+            final Collection<JobInfo> recoveredJobInfos,
+            final Collection<JobInfo> recoveredTerminalJobInfos,
+            final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
+            final boolean handleFatalError,
+            final boolean submitFailedJobOnApplicationError,
+            final boolean shutDownOnFinish,
+            final @Nullable JarInfo userJarInfo,
+            final boolean ownsProgram) {
+        this(
+                applicationId,
+                program.getDescriptor(),
+                program,
+                ownsProgram,
+                recoveredJobInfos,
+                recoveredTerminalJobInfos,
+                configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
+                handleFatalError,
+                submitFailedJobOnApplicationError,
+                shutDownOnFinish,
+                userJarInfo);
+    }
+
+    /**
+     * Creates an application that builds its program from the given descriptor when it is executed,
+     * and closes that program once it terminates or is disposed.
+     */
+    public PackagedProgramApplication(
+            final ApplicationID applicationId,
+            final PackagedProgramDescriptor programDescriptor,
+            final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
+            final boolean handleFatalError,
+            final boolean submitFailedJobOnApplicationError,
+            final boolean shutDownOnFinish,
+            final @Nullable JarInfo userJarInfo) {
+        this(
+                applicationId,
+                programDescriptor,
+                null,
+                true,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
+                handleFatalError,
+                submitFailedJobOnApplicationError,
+                shutDownOnFinish,
+                userJarInfo);
+    }
+
+    private PackagedProgramApplication(
+            final ApplicationID applicationId,
+            final PackagedProgramDescriptor programDescriptor,
+            final @Nullable PackagedProgram program,
+            final boolean ownsProgram,
+            final Collection<JobInfo> recoveredJobInfos,
+            final Collection<JobInfo> recoveredTerminalJobInfos,
+            final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
+            final boolean handleFatalError,
+            final boolean submitFailedJobOnApplicationError,
+            final boolean shutDownOnFinish,
+            final @Nullable JarInfo userJarInfo) {
         super(applicationId);
-        this.program = checkNotNull(program);
+        this.programDescriptor = checkNotNull(programDescriptor);
+        this.program = program;
+        this.ownsProgram = ownsProgram;
         this.recoveredJobInfos = checkNotNull(recoveredJobInfos);
         this.recoveredTerminalJobInfos = checkNotNull(recoveredTerminalJobInfos);
         this.configuration = checkNotNull(configuration);
@@ -210,7 +318,6 @@ public class PackagedProgramApplication extends AbstractApplication {
         this.submitFailedJobOnApplicationError = submitFailedJobOnApplicationError;
         this.shutDownOnFinish = shutDownOnFinish;
         this.userJarInfo = userJarInfo;
-        this.programDescriptor = program.getDescriptor();
     }
 
     @Override
@@ -336,6 +443,11 @@ public class PackagedProgramApplication extends AbstractApplication {
                             .thenCompose(Function.identity());
         }
 
+        // The job jars have been uploaded once the application terminates, so its program is no
+        // longer needed. Closing it last means a completed finishApplicationFuture implies that.
+        finishApplicationFuture =
+                finishApplicationFuture.whenComplete((ignored, t) -> closeOwnedProgram());
+
         // In Application Mode, the handleFatalError flag is set to true, and uncaught exceptions
         // are handled by the errorHandler to trigger failover.
         // In Session Mode, the handleFatalError flag may be set to false, leaving exceptions
@@ -368,6 +480,44 @@ public class PackagedProgramApplication extends AbstractApplication {
     public void dispose() {
         isDisposing = true;
         cancelFutures();
+        closeOwnedProgram();
+    }
+
+    /**
+     * Returns the program to execute. A program that this application builds or owns is configured
+     * as the source of the job jars, because the configuration may still refer to jars that another
+     * program extracted, e.g. the program the REST handler validated the request with.
+     */
+    private synchronized PackagedProgram getOrCreateProgram() throws ProgramInvocationException {
+        checkState(
+                !isProgramClosed,
+                "The program of application %s has already been closed.",
+                getApplicationId());
+        if (program == null) {
+            LOG.info("Reconstructing program from descriptor {}", programDescriptor);
+            program = programDescriptor.toPackageProgram();
+            ownsProgram = true;
+        }
+        if (ownsProgram) {
+            ConfigUtils.encodeCollectionToConfig(
+                    configuration,
+                    PipelineOptions.JARS,
+                    program.getJobJarAndDependencies(),
+                    URL::toString);
+            ConfigUtils.encodeCollectionToConfig(
+                    configuration,
+                    PipelineOptions.CLASSPATHS,
+                    program.getClasspaths(),
+                    URL::toString);
+        }
+        return program;
+    }
+
+    private synchronized void closeOwnedProgram() {
+        isProgramClosed = true;
+        if (ownsProgram && program != null) {
+            program.close();
+        }
     }
 
     private void cancelFutures() {
@@ -444,6 +594,11 @@ public class PackagedProgramApplication extends AbstractApplication {
     @VisibleForTesting
     public PackagedProgram getPackagedProgram() {
         return program;
+    }
+
+    @VisibleForTesting
+    public PackagedProgramDescriptor getProgramDescriptor() {
+        return programDescriptor;
     }
 
     private CompletableFuture<Acknowledge> onApplicationCanceledOrFailed(
@@ -679,10 +834,7 @@ public class PackagedProgramApplication extends AbstractApplication {
                         .map(JobInfo::getJobId)
                         .collect(Collectors.toList());
         try {
-            if (program == null) {
-                LOG.info("Reconstructing program from descriptor {}", programDescriptor);
-                program = programDescriptor.toPackageProgram();
-            }
+            final PackagedProgram userProgram = getOrCreateProgram();
 
             final PipelineExecutorServiceLoader executorServiceLoader =
                     new EmbeddedExecutorServiceLoader(
@@ -695,7 +847,7 @@ public class PackagedProgramApplication extends AbstractApplication {
             ClientUtils.executeProgram(
                     executorServiceLoader,
                     configuration,
-                    program,
+                    userProgram,
                     jobCountLimit,
                     streamingJobCountLimit,
                     true /* suppress sysout */,
