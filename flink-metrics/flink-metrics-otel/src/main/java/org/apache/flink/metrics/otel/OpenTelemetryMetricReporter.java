@@ -28,6 +28,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MonotonicCounter;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
@@ -251,6 +252,10 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         return TimeUnit.SECONDS.toNanos(now.getEpochSecond()) + now.getNano();
     }
 
+    private static boolean isMonotonic(Counter counter) {
+        return counter instanceof MonotonicCounter;
+    }
+
     /**
      * Note that all of the metric data structures in {@link AbstractReporter} are guarded by this,
      * so must make this synchronized.
@@ -271,7 +276,11 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
             MetricMetadata metricMetadata = counters.get(counter);
             Optional<MetricData> metricData =
                     OpenTelemetryMetricAdapter.convertCounter(
-                            collectionMetadata, count, lastCount, metricMetadata);
+                            collectionMetadata,
+                            count,
+                            lastCount,
+                            metricMetadata,
+                            isMonotonic(counter));
             metricData.ifPresent(data::add);
         }
         for (Gauge<?> gauge : gauges.keySet()) {

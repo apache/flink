@@ -20,9 +20,9 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.Internal;
 
-/** A simple low-overhead {@link org.apache.flink.metrics.Counter} that is not thread-safe. */
+/** A simple low-overhead {@link org.apache.flink.metrics.UpDownCounter} that is not thread-safe. */
 @Internal
-public class SimpleCounter implements Counter {
+public class SimpleCounter implements UpDownCounter {
 
     /** the current count. */
     private long count;

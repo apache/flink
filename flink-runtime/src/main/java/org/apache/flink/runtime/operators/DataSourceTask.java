@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -134,12 +134,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
                 tmpNumRecordsOut = ioMetricGroup.getNumRecordsOutCounter();
             } catch (Exception e) {
                 LOG.warn("An exception occurred during the metrics setup.", e);
-                tmpNumRecordsOut = new SimpleCounter();
+                tmpNumRecordsOut = new SimpleMonotonicCounter();
             }
             numRecordsOut = tmpNumRecordsOut;
         }
 
-        Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
+        Counter completedSplitsCounter =
+                ctx.getMetricGroup().monotonicCounter("numSplitsProcessed");
 
         if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
             ((RichInputFormat) this.format).setRuntimeContext(ctx);

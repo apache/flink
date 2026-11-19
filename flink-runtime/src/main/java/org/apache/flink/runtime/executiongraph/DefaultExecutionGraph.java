@@ -31,7 +31,7 @@ import org.apache.flink.core.execution.DefaultJobExecutionStatusEvent;
 import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -214,7 +214,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Nullable private InternalFailuresListener internalTaskFailuresListener;
 
     /** Counts all restarts. Used by other Gauges/Meters and does not register to metric group. */
-    private final Counter numberOfRestartsCounter = new SimpleCounter();
+    private final Counter numberOfRestartsCounter = new SimpleMonotonicCounter();
 
     // ------ Configuration of the Execution -------
 
