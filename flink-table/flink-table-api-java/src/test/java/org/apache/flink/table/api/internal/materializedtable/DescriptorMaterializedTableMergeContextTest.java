@@ -162,6 +162,7 @@ class DescriptorMaterializedTableMergeContextTest {
                 MaterializedTableDescriptor.newBuilder().schema(declared).build(),
                 tEnv.from("source").getQueryOperation(),
                 "SELECT 1",
+                null,
                 tEnv.getCatalogManager(),
                 "CREATE OR ALTER MATERIALIZED TABLE");
     }

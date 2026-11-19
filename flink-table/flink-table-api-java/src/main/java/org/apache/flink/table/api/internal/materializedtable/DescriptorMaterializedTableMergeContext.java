@@ -66,6 +66,7 @@ final class DescriptorMaterializedTableMergeContext implements MaterializedTable
     private final MaterializedTableDescriptor descriptor;
     private final QueryOperation queryOperation;
     private final String serializedQuery;
+    private final @Nullable StartMode startMode;
     private final DataTypeFactory dataTypeFactory;
     private final ResolvedSchema querySchema;
     private final String operationName;
@@ -74,11 +75,13 @@ final class DescriptorMaterializedTableMergeContext implements MaterializedTable
             MaterializedTableDescriptor descriptor,
             QueryOperation queryOperation,
             String serializedQuery,
+            @Nullable StartMode startMode,
             CatalogManager catalogManager,
             String operationName) {
         this.descriptor = descriptor;
         this.queryOperation = queryOperation;
         this.serializedQuery = serializedQuery;
+        this.startMode = startMode;
         this.dataTypeFactory = catalogManager.getDataTypeFactory();
         this.querySchema = toPhysicalSchema(queryOperation.getResolvedSchema());
         this.operationName = operationName;
@@ -183,7 +186,7 @@ final class DescriptorMaterializedTableMergeContext implements MaterializedTable
 
     @Override
     public @Nullable StartMode getStartMode() {
-        return null;
+        return startMode;
     }
 
     @Override
