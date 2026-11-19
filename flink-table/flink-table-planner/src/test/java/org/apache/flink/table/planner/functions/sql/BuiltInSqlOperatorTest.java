@@ -24,12 +24,17 @@ import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -86,20 +91,6 @@ class BuiltInSqlOperatorTest {
         assertThat(VersionedSqlOperator.unwrapIsInternal(internal)).isTrue();
         assertThat(VersionedSqlOperator.unwrapVersion(internal)).isEmpty();
 
-        // Symbols of Calcite's standard operators are allowed
-        assertThat(
-                        BuiltInSqlOperator.newBuilder(SqlStdOperatorTable.LESS_THAN)
-                                .internal()
-                                .build()
-                                .getName())
-                .isEqualTo("$<$1");
-        assertThat(
-                        BuiltInSqlOperator.newBuilder(SqlStdOperatorTable.CONCAT)
-                                .internal()
-                                .build()
-                                .getName())
-                .isEqualTo("$||$1");
-
         assertThatThrownBy(
                         () ->
                                 BuiltInSqlOperator.newBuilder(
@@ -109,6 +100,34 @@ class BuiltInSqlOperatorTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageStartingWith(
                         "Internal function '$A.B$1' does not adhere to the naming convention");
+    }
+
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("internalNamesWithSymbols")
+    void testInternalNameWithSymbols(SqlOperator operator, String expectedName) {
+        assertThat(BuiltInSqlOperator.newBuilder(operator).internal().build().getName())
+                .isEqualTo(expectedName);
+    }
+
+    /** Symbols of Calcite's standard operators that are allowed in internal names. */
+    private static Stream<Arguments> internalNamesWithSymbols() {
+        return Stream.of(
+                Arguments.of(SqlStdOperatorTable.PERCENT_REMAINDER, "$%$1"),
+                Arguments.of(SqlStdOperatorTable.BITAND_OPERATOR, "$&$1"),
+                Arguments.of(SqlStdOperatorTable.MULTIPLY, "$*$1"),
+                Arguments.of(SqlStdOperatorTable.PLUS, "$+$1"),
+                Arguments.of(SqlStdOperatorTable.MINUS, "$-$1"),
+                Arguments.of(SqlStdOperatorTable.DIVIDE, "$/$1"),
+                Arguments.of(SqlStdOperatorTable.DIVIDE_INTEGER, "$/INT$1"),
+                Arguments.of(SqlStdOperatorTable.LESS_THAN, "$<$1"),
+                Arguments.of(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, "$<=$1"),
+                Arguments.of(SqlStdOperatorTable.NOT_EQUALS, "$<>$1"),
+                Arguments.of(SqlStdOperatorTable.EQUALS, "$=$1"),
+                Arguments.of(SqlStdOperatorTable.GREATER_THAN, "$>$1"),
+                Arguments.of(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, "$>=$1"),
+                Arguments.of(SqlStdOperatorTable.BITXOR_OPERATOR, "$^$1"),
+                Arguments.of(SqlStdOperatorTable.CONCAT, "$||$1"),
+                Arguments.of(SqlStdOperatorTable.SOME_LT, "$< SOME$1"));
     }
 
     @Test

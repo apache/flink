@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlOperator;
 
 import javax.annotation.Nullable;
@@ -32,14 +34,17 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinition.DEFAULT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.qualifyFunctionName;
 
 /**
- * SQL version of {@link BuiltInFunctionDefinition} in cases where {@link BridgingSqlFunction} does
- * not apply. This is the case when the operator has a special parsing syntax or uses other
- * Calcite-specific features that are not exposed via {@link BuiltInFunctionDefinition} yet.
+ * Calcite equivalent of {@link BuiltInFunctionDefinition} for cases where {@link
+ * BridgingSqlFunction} does not apply. It allows versioning a {@link SqlOperator} or {@link
+ * SqlFunction} that has a special parsing syntax, uses Calcite-specific features that are not
+ * exposed via {@link BuiltInFunctionDefinition} yet, or is hard coded in Calcite (e.g. in the
+ * parser or {@link RexBuilder}).
  *
- * <p>The static helpers also cover regular {@link SqlOperator}s that are listed in {@link
- * FlinkSqlOperatorTable#VERSIONED_OPERATORS}. This allows to version operators that are hard coded
- * in Calcite (e.g. in the parser or {@code RexBuilder}) and can therefore not be replaced by an
- * instance of this interface.
+ * <p>Note: Always prefer {@link BuiltInFunctionDefinition} over this interface.
+ *
+ * <p>By default, a new {@link SqlOperator} has version 1. See {@link
+ * FlinkSqlOperatorTable#VERSIONED_OPERATORS} for the full process of evolving an existing operator
+ * by versioning it.
  *
  * <p>If {@link SqlOperator} were an interface, this interface would extend from it.
  */
@@ -94,17 +99,5 @@ public interface VersionedSqlOperator {
             return (VersionedSqlOperator) operator;
         }
         return FlinkSqlOperatorTable.VERSIONED_OPERATORS.get(operator);
-    }
-
-    static String extractNameFromQualifiedName(String qualifiedName) {
-        // supports all various kinds of qualified names
-        // $FUNC$1 => FUNC
-        // $IS NULL$1 => IS NULL
-        // $$CALCITE_INTERNAL$1 => $CALCITE_INTERNAL
-        int versionPos = qualifiedName.length() - 1;
-        while (Character.isDigit(qualifiedName.charAt(versionPos))) {
-            versionPos--;
-        }
-        return qualifiedName.substring(1, versionPos);
     }
 }

@@ -238,6 +238,26 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
         return String.format(INTERNAL_NAME_FORMAT, name.toUpperCase(Locale.ROOT), version);
     }
 
+    public static String extractNameFromQualifiedName(String qualifiedName) {
+        // supports all various kinds of qualified names
+        // $FUNC$1 => FUNC
+        // $IS NULL$1 => IS NULL
+        // $$CALCITE_INTERNAL$1 => $CALCITE_INTERNAL
+        return qualifiedName.substring(1, findVersionSeparator(qualifiedName));
+    }
+
+    public static int extractVersionFromQualifiedName(String qualifiedName) {
+        return Integer.parseInt(qualifiedName.substring(findVersionSeparator(qualifiedName) + 1));
+    }
+
+    private static int findVersionSeparator(String qualifiedName) {
+        int versionPos = qualifiedName.length() - 1;
+        while (Character.isDigit(qualifiedName.charAt(versionPos))) {
+            versionPos--;
+        }
+        return versionPos;
+    }
+
     // --------------------------------------------------------------------------------------------
     // Builder
     // --------------------------------------------------------------------------------------------
