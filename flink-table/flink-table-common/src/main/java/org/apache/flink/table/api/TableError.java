@@ -24,8 +24,6 @@ import org.apache.flink.api.common.errors.ErrorCategory;
 import org.apache.flink.api.common.errors.FlinkError;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -83,7 +81,6 @@ public enum TableError implements FlinkError {
             Parameter.sensitive("objectName", ObjectIdentifier.class));
 
     private final ErrorCategory category;
-    private final String sqlState;
     private final Map<ErrorAttribute, Object> attributes;
     private final String messageTemplate;
     private final List<Parameter> parameters;
@@ -94,10 +91,9 @@ public enum TableError implements FlinkError {
             String messageTemplate,
             Parameter... parameters) {
         this.category = category;
-        this.sqlState = sqlState;
-        this.attributes = Collections.singletonMap(ErrorAttribute.SQLSTATE, sqlState);
+        this.attributes = Map.of(ErrorAttribute.SQLSTATE, sqlState);
         this.messageTemplate = messageTemplate;
-        this.parameters = Collections.unmodifiableList(Arrays.asList(parameters));
+        this.parameters = List.of(parameters);
     }
 
     @Override
@@ -133,6 +129,6 @@ public enum TableError implements FlinkError {
     }
 
     private String withSqlState(String message) {
-        return message + " SQLSTATE: " + sqlState;
+        return message + " SQLSTATE: " + attributes.get(ErrorAttribute.SQLSTATE);
     }
 }

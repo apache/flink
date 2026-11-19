@@ -93,7 +93,7 @@ class FlinkErrorTest {
 
         TestError(String messageTemplate, Parameter... parameters) {
             this.messageTemplate = messageTemplate;
-            this.parameters = Arrays.asList(parameters);
+            this.parameters = List.of(parameters);
         }
 
         @Override
@@ -103,7 +103,7 @@ class FlinkErrorTest {
 
         @Override
         public Map<ErrorAttribute, Object> getAttributes() {
-            return Collections.emptyMap();
+            return Map.of();
         }
 
         @Override

@@ -26,8 +26,6 @@ import org.apache.flink.api.common.errors.FlinkThrowable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -135,7 +133,7 @@ class FlinkThrowableTest {
 
         TestError(String messageTemplate, Parameter... parameters) {
             this.messageTemplate = messageTemplate;
-            this.parameters = Arrays.asList(parameters);
+            this.parameters = List.of(parameters);
         }
 
         @Override
@@ -145,7 +143,7 @@ class FlinkThrowableTest {
 
         @Override
         public Map<ErrorAttribute, Object> getAttributes() {
-            return Collections.emptyMap();
+            return Map.of();
         }
 
         @Override

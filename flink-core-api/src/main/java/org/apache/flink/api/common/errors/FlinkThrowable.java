@@ -52,12 +52,12 @@ public interface FlinkThrowable {
      */
     @SuppressWarnings("unchecked")
     default <T> T getErrorArg(String name) {
-        final Map<String, Object> arguments = getErrorArgs();
-        if (!arguments.containsKey(name)) {
+        final Object argument = getErrorArgs().get(name);
+        if (argument == null) {
             throw new IllegalArgumentException(
                     String.format("The exception has no argument for parameter '%s'.", name));
         }
-        return (T) arguments.get(name);
+        return (T) argument;
     }
 
     /** The detail message, see {@link Throwable#getMessage()}. */

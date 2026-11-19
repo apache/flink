@@ -25,7 +25,6 @@ import org.apache.flink.api.common.errors.FlinkThrowable;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -119,6 +118,6 @@ public class FlinkException extends Exception implements FlinkThrowable {
     @PublicEvolving
     @Override
     public Map<String, Object> getErrorArgs() {
-        return errorArgs == null ? Collections.emptyMap() : errorArgs;
+        return errorArgs == null ? Map.of() : errorArgs;
     }
 }
