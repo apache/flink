@@ -38,7 +38,7 @@ public class ToAppendFunction extends BuiltInProcessTableFunction<RowData> {
         super(BuiltInFunctionDefinitions.TO_APPEND, context);
     }
 
-    public void eval(final Context ctx, final RowData input) {
+    public void eval(final RowData input) {
         final RowKind kind = input.getRowKind();
         if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
             input.setRowKind(RowKind.INSERT);

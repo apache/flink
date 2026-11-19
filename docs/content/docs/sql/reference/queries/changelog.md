@@ -44,6 +44,10 @@ The `TO_APPEND` PTF converts an updating table into an append-only table. Every 
 SELECT * FROM TO_APPEND(input => TABLE source_table)
 ```
 
+{{< hint warning >}}
+`TO_APPEND` is deliberately lossy: deletes are dropped, so a consumer cannot tell that a row was deleted. To keep deletes, use an upsert sink or [TO_CHANGELOG](#to_changelog).
+{{< /hint >}}
+
 ### Examples
 
 #### A table that changes
@@ -73,7 +77,7 @@ Flink represents these changes as a changelog: an insert (`+I`), an update (`+U`
 
 #### From a changing table to stream processing
 
-`TO_APPEND` turns a table that changes into a stream of its changes. On that stream, you can use stream processing operations that only accept append-only tables, such as windows, `OVER` aggregations, and interval joins. For example, count the order changes per hour:
+`TO_APPEND` turns a table that changes into a stream of insert-only changes. On that stream, you can use stream processing operations that only accept append-only tables, such as windows, `OVER` aggregations, and interval joins. For example, count the order changes per hour:
 
 | Change   | `orders` (with event-time attribute `ts`) |
 |:---------|:------------------------------------------|
@@ -100,7 +104,7 @@ A window emits each result once, when the window closes, and then frees its stat
 
 #### Marking a query as append-only
 
-Some queries are declared updating although they never change a row they have emitted, for example a deduplication over all columns. Here `TO_APPEND` does not change the result: it only marks the query as append-only, so its result can be used where an append-only table is required:
+Some queries are derived as updating by the planner although they never change a row they have emitted, for example a deduplication over all columns. Here `TO_APPEND` does not change the result: it only marks the query as append-only, so its result can be used where an append-only table is required:
 
 | Change   | `orders`       |
 |:---------|:---------------|
