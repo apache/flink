@@ -1585,27 +1585,25 @@ grouping:
 hashfunctions:
   - sql: MD5(string)
     table: STRING.md5()
-    description: 以 32 位十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    page: md5
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: 以 40 位十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA224(string)
-    table: STRING.sha224()
-    description: 以 56 位十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA256(string)
-    table: STRING.sha256()
-    description: 以 64 位十六进制数字的字符串形式返回 string 的 SHA-256 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA384(string)
-    table: STRING.sha384()
-    description: 以 96 位十六进制数字的字符串形式返回 string 的 SHA-384 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA512(string)
-    table: STRING.sha512()
-    description: 以 128 位十六进制数字的字符串形式返回 string 的 SHA-512 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    page: sha1
   - sql: SHA2(string, hashLength)
     table: STRING.sha2(INT)
-    description: |
-      使用 SHA-2 系列散列函数（SHA-224，SHA-256，SHA-384 或 SHA-512）返回散列值。第一个参数 string 是要散列的字符串，
-      第二个参数 hashLength 是结果的位数（224，256，384 或 512）。如果 string 或 hashLength 为 `NULL`，则返回 `NULL`。
+    page: sha2
+  - sql: SHA224(string)
+    table: STRING.sha224()
+    page: sha224
+  - sql: SHA256(string)
+    table: STRING.sha256()
+    page: sha256
+  - sql: SHA384(string)
+    table: STRING.sha384()
+    page: sha384
+  - sql: SHA512(string)
+    table: STRING.sha512()
+    page: sha512
 
 bitmap:
   - sql: BITMAP_AND(bitmap1, bitmap2)

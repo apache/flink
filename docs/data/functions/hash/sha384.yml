@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SHA384
+summary: Returns the SHA-384 hash of a string as 96 hexadecimal digits.
+
+syntax:
+  sql: SHA384(str)
+  java: $("str").sha384()
+  python: col("str").sha384
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING. In SQL, also BINARY, VARBINARY, BYTES
+    required: true
+    description: The value to hash.
+
+returns:
+  description: The SHA-384 digest of `str` as 96 lower-case hexadecimal digits. A character string is hashed as its UTF-8 bytes, a binary string as its bytes.
+  nulls: Returns NULL if `str` is NULL.
+  type: "`CHAR(96)`, NOT NULL if `str` is NOT NULL."
+
+see_also:
+  - {name: SHA2, ref: hash/sha2}
+  - {name: SHA224, ref: hash/sha224}
+  - {name: SHA256, ref: hash/sha256}
+
+examples:
+  - title: Hash each string
+    description: A NULL string returns NULL.
+    sql: |
+      SELECT str, SHA384(str) AS `SHA384(str)`
+      FROM (VALUES ('Flink'), ('Alice'), (CAST(NULL AS STRING))) AS t(str);
+    result: |
+      | str   | SHA384(str)                                                                                      |
+      |-------|--------------------------------------------------------------------------------------------------|
+      | Flink | 4a1f3a7683064a2686e2216801f7c51e680157c66034fd534837637bf043427bb5b1c3304688b6d6c116e2eaee85246a |
+      | Alice | d4b960a3af641fda19285d49b5fd31fb8640165ec09e71a5d8dc534df12df392a9d8f8a162b5735149dee65c01c41fea |
+      | NULL  | NULL                                                                                             |
+
+  - title: Hash bytes
+    description: A string is hashed as its UTF-8 bytes, so `'ä'` and its UTF-8 bytes `X'C3A4'` give the same digest.
+    sql: |
+      SELECT str, bin, SHA384(str) = SHA384(bin) AS `SHA384(str) = SHA384(bin)`
+      FROM (VALUES ('ä', X'C3A4')) AS t(str, bin);
+    result: |
+      | str | bin     | SHA384(str) = SHA384(bin) |
+      |-----|---------|---------------------------|
+      | ä   | x'c3a4' | TRUE                      |

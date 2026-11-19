@@ -1544,25 +1544,25 @@ grouping:
 hashfunctions:
   - sql: MD5(string)
     table: STRING.md5()
-    description: Returns the MD5 hash of string as a string of 32 hexadecimal digits; returns NULL if string is NULL.
+    page: md5
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: Returns the SHA-1 hash of string as a string of 40 hexadecimal digits; returns NULL if string is NULL.
-  - sql: SHA224(string)
-    table: STRING.sha224()
-    description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
-  - sql: SHA256(string)
-    table: STRING.sha256()
-    description: Returns the SHA-256 hash of string as a string of 64 hexadecimal digits; returns NULL if string is NULL.
-  - sql: SHA384(string)
-    table: STRING.sha384()
-    description: Returns the SHA-384 hash of string as a string of 96 hexadecimal digits; returns NULL if string is NULL.
-  - sql: SHA512(string)
-    table: STRING.sha512()
-    description: Returns the SHA-512 hash of string as a string of 128 hexadecimal digits; returns NULL if string is NULL.
+    page: sha1
   - sql: SHA2(string, hashLength)
     table: STRING.sha2(INT)
-    description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL.
+    page: sha2
+  - sql: SHA224(string)
+    table: STRING.sha224()
+    page: sha224
+  - sql: SHA256(string)
+    table: STRING.sha256()
+    page: sha256
+  - sql: SHA384(string)
+    table: STRING.sha384()
+    page: sha384
+  - sql: SHA512(string)
+    table: STRING.sha512()
+    page: sha512
 
 bitmap:
   - sql: BITMAP_AND(bitmap1, bitmap2)
