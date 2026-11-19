@@ -34,6 +34,7 @@ import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.util.SwarUtils;
 
 import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
 import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
@@ -49,6 +50,7 @@ import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.MappingProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonStringEncoder;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,6 +65,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -80,6 +83,12 @@ import java.util.regex.Pattern;
  */
 @Internal
 public class SqlJsonUtils {
+
+    // Chars below this are control chars, which JSON escapes.
+    private static final int FIRST_UNESCAPED_CHAR = 0x20;
+
+    private static final char QUOTE = '"';
+    private static final char BACKSLASH = '\\';
 
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final ObjectMapper MAPPER =
@@ -151,6 +160,24 @@ public class SqlJsonUtils {
             throw new TableRuntimeException(
                     "JSON object could not be serialized: " + node.asText(), e);
         }
+    }
+
+    /**
+     * Serializes {@code value} as a JSON string, the same as {@link #serializeJson} on a text node
+     * but without an {@link ObjectMapper} round trip.
+     */
+    public static String serializeJsonString(String value) {
+        // The most common escapes, quote and backslash, are found first with indexOf, which is
+        // vectorized. Then control chars, which indexOf can't search as a range, with SWAR.
+        if (value.indexOf(QUOTE) < 0 && value.indexOf(BACKSLASH) < 0) {
+            // ISO-8859-1 is how a String stores Latin-1 text, so this is a plain array copy.
+            // Other chars become '?', which isn't escaped.
+            final byte[] bytes = value.getBytes(StandardCharsets.ISO_8859_1);
+            if (!SwarUtils.containsLessThan(bytes, 0, bytes.length, FIRST_UNESCAPED_CHAR)) {
+                return '"' + value + '"';
+            }
+        }
+        return '"' + new String(JsonStringEncoder.getInstance().quoteAsString(value)) + '"';
     }
 
     public static Boolean jsonExists(String input, String pathSpec) {
