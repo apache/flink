@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -71,6 +72,7 @@ import java.util.Optional;
 @ExecNodeMetadata(
         name = "stream-exec-temporal-join",
         version = 1,
+        consumedOptions = "table.exec.temporal-join.rowtime.use-heap",
         producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -273,7 +275,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                     rightTimeAttributeIndex,
                     minRetentionTime,
                     maxRetentionTime,
-                    isLeftOuterJoin);
+                    isLeftOuterJoin,
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_TEMPORAL_JOIN_ROWTIME_USE_HEAP));
         } else {
             if (isTemporalFunctionJoin) {
                 return new TemporalProcessTimeJoinOperator(
