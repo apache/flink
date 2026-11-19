@@ -84,7 +84,7 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
     @Override
     @TestTemplate
     public void testJobWithObjectReuse() throws Exception {
-        super.testJobWithoutObjectReuse();
+        super.testJobWithObjectReuse();
     }
 
     @Override
