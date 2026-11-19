@@ -19,12 +19,14 @@
 package org.apache.flink.types.variant;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.SwarUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.CharArrayWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -35,11 +37,13 @@ import java.util.Deque;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIME_FORMATTER;
-import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
+import static org.apache.flink.types.variant.BinaryVariantUtil.metadataKeyRange;
 import static org.apache.flink.types.variant.BinaryVariantUtil.microsToInstant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.nanosToInstant;
+import static org.apache.flink.types.variant.BinaryVariantUtil.rangeLength;
+import static org.apache.flink.types.variant.BinaryVariantUtil.rangeStart;
 import static org.apache.flink.types.variant.BinaryVariantUtil.readUnsigned;
 import static org.apache.flink.types.variant.BinaryVariantUtil.unexpectedType;
 
@@ -59,6 +63,9 @@ public final class JsonVariantFormatter {
     public static final JsonVariantFormatter LENIENT = new JsonVariantFormatter(true);
 
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
+
+    // JSON requires escaping chars below this one (U+0000 to U+001F), see RFC 8259 section 7.
+    private static final int FIRST_UNESCAPED_CHAR = 0x20;
 
     private final boolean lenient;
 
@@ -131,7 +138,8 @@ public final class JsonVariantFormatter {
                                         readUnsigned(
                                                 value, offsetStart + offsetSize * i, offsetSize);
                                 childPositions[i] = dataStart + offset;
-                                keys[i] = escapeJson(getMetadataKey(metadata, id));
+                                final long key = metadataKeyRange(metadata, id);
+                                keys[i] = escapeJson(metadata, rangeStart(key), rangeLength(key));
                             }
                             sb.append('{');
                             stack.push(new ContainerFrame(childPositions, keys, '}'));
@@ -169,8 +177,11 @@ public final class JsonVariantFormatter {
                 sb.append(BinaryVariantUtil.getLong(value, pos));
                 break;
             case STRING:
-                sb.append(escapeJson(BinaryVariantUtil.getString(value, pos)));
-                break;
+                {
+                    final long str = BinaryVariantUtil.stringRange(value, pos);
+                    sb.append(escapeJson(value, rangeStart(str), rangeLength(str)));
+                    break;
+                }
             case DOUBLE:
                 {
                     final double d = BinaryVariantUtil.getDouble(value, pos);
@@ -272,10 +283,15 @@ public final class JsonVariantFormatter {
         appendQuoted(sb, text);
     }
 
-    // Escape a string so that it can be pasted into JSON structure.
-    // For example, if `str` only contains a new-line character, then the result content is "\n"
-    // (4 characters).
-    private static String escapeJson(String str) {
+    // Quote the UTF-8 string utf8[start, start + length) so that it can be pasted into JSON
+    // structure. For example, if it only contains a new-line character, then the result content is
+    // "\n" (4 characters).
+    private static String escapeJson(byte[] utf8, int start, int length) {
+        final String str = new String(utf8, start, length, StandardCharsets.UTF_8);
+        if (!SwarUtils.containsAnyOrLessThan(
+                utf8, start, length, (byte) '"', (byte) '\\', FIRST_UNESCAPED_CHAR)) {
+            return '"' + str + '"';
+        }
         try (CharArrayWriter writer = new CharArrayWriter();
                 JsonGenerator gen = JSON_FACTORY.createGenerator(writer)) {
             gen.writeString(str);

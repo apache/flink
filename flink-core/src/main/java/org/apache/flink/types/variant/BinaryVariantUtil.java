@@ -726,6 +726,14 @@ public class BinaryVariantUtil {
      * @throws VariantTypeException if the variant is malformed or does not hold a string
      */
     public static String getString(byte[] value, int pos) {
+        long range = stringRange(value, pos);
+        return new String(value, rangeStart(range), rangeLength(range), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Locates the UTF-8 bytes of the string at {@code pos}, packed like {@link #metadataKeyRange}.
+     */
+    static long stringRange(byte[] value, int pos) {
         checkIndex(pos, value.length);
         int basicType = value[pos] & BASIC_TYPE_MASK;
         int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
@@ -740,7 +748,7 @@ public class BinaryVariantUtil {
                 length = readUnsigned(value, pos + 1, U32_SIZE);
             }
             checkIndex(start + length - 1, value.length);
-            return new String(value, start, length, StandardCharsets.UTF_8);
+            return ((long) start << 32) | length;
         }
         throw unexpectedType(Type.STRING);
     }
@@ -869,7 +877,7 @@ public class BinaryVariantUtil {
      */
     public static String getMetadataKey(byte[] metadata, int id) {
         long range = metadataKeyRange(metadata, id);
-        return new String(metadata, keyStart(range), keyLength(range), StandardCharsets.UTF_8);
+        return new String(metadata, rangeStart(range), rangeLength(range), StandardCharsets.UTF_8);
     }
 
     /** Encodes an object key the way the variant metadata stores it. */
@@ -880,8 +888,8 @@ public class BinaryVariantUtil {
     /** Whether the key at {@code id} in the variant metadata is the UTF-8 encoded {@code key}. */
     static boolean metadataKeyEquals(byte[] metadata, int id, byte[] key) {
         long range = metadataKeyRange(metadata, id);
-        int start = keyStart(range);
-        int length = keyLength(range);
+        int start = rangeStart(range);
+        int length = rangeLength(range);
         return length == key.length
                 && Arrays.equals(metadata, start, start + length, key, 0, length);
     }
@@ -892,9 +900,9 @@ public class BinaryVariantUtil {
      */
     static int compareMetadataKey(byte[] metadata, int id, byte[] key) {
         long range = metadataKeyRange(metadata, id);
-        int start = keyStart(range);
+        int start = rangeStart(range);
         return Arrays.compareUnsigned(
-                metadata, start, start + keyLength(range), key, 0, key.length);
+                metadata, start, start + rangeLength(range), key, 0, key.length);
     }
 
     /**
@@ -946,7 +954,7 @@ public class BinaryVariantUtil {
      *
      * @return the start index of the key in the high 32 bits and its length in the low 32 bits
      */
-    private static long metadataKeyRange(byte[] metadata, int id) {
+    static long metadataKeyRange(byte[] metadata, int id) {
         checkIndex(0, metadata.length);
         // Extracts the highest 2 bits in the metadata header to determine the integer size of the
         // offset list.
@@ -967,11 +975,11 @@ public class BinaryVariantUtil {
         return ((long) (stringStart + offset) << 32) | (nextOffset - offset);
     }
 
-    private static int keyStart(long range) {
+    static int rangeStart(long range) {
         return (int) (range >>> 32);
     }
 
-    private static int keyLength(long range) {
+    static int rangeLength(long range) {
         return (int) range;
     }
 
