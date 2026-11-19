@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IS NULL
+summary: Returns whether a value is NULL.
+
+syntax:
+  sql: |
+    expr IS NULL
+    expr IS NOT NULL
+  java: |
+    $("expr").isNull()
+    $("expr").isNotNull()
+  python: |
+    col("expr").is_null
+    col("expr").is_not_null
+
+arguments:
+  - name: expr
+    type: Any type
+    required: true
+    description: The value to test.
+
+returns:
+  description: "`IS NULL` returns TRUE if `expr` is NULL, and FALSE otherwise. `IS NOT NULL` returns the opposite."
+  nulls: Never returns NULL.
+  type: "`BOOLEAN NOT NULL`."
+
+notes:
+  - A `ROW` whose fields are all NULL isn't NULL, so `ROW(CAST(NULL AS INT)) IS NULL` is FALSE.
+
+see_also:
+  - {name: IS DISTINCT FROM, ref: comparison/is-distinct-from}
+  - {name: COALESCE, ref: conditional/coalesce}
+
+examples:
+  - title: Test each row
+    description: Only the NULL value is NULL.
+    sql: |
+      SELECT name,
+        name IS NULL AS `name IS NULL`,
+        name IS NOT NULL AS `name IS NOT NULL`
+      FROM (VALUES ('Alice'), (CAST(NULL AS STRING)), ('')) AS t(name);
+    result: |
+      | name  | name IS NULL | name IS NOT NULL |
+      |-------|--------------|------------------|
+      | Alice | FALSE        | TRUE             |
+      | NULL  | TRUE         | FALSE            |
+      |       | FALSE        | TRUE             |
+
+  - title: IS NULL and = NULL
+    description: "`= NULL` returns NULL for every row, so a filter with it keeps no row. Use `IS NULL`."
+    sql: |
+      SELECT name,
+        name IS NULL AS `name IS NULL`,
+        name = NULL AS `name = NULL`
+      FROM (VALUES ('Alice'), (CAST(NULL AS STRING))) AS t(name);
+    result: |
+      | name  | name IS NULL | name = NULL |
+      |-------|--------------|-------------|
+      | Alice | FALSE        | NULL        |
+      | NULL  | TRUE         | NULL        |
+
+  - title: A row of NULLs
+    description: A row whose fields are all NULL isn't NULL.
+    sql: |
+      SELECT
+        ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) IS NULL AS `ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) IS NULL`,
+        CAST(NULL AS ROW<a INT, b STRING>) IS NULL AS `CAST(NULL AS ROW<a INT, b STRING>) IS NULL`;
+    result: |
+      | ROW(CAST(NULL AS INT), CAST(NULL AS STRING)) IS NULL | CAST(NULL AS ROW<a INT, b STRING>) IS NULL |
+      |------------------------------------------------------|--------------------------------------------|
+      | FALSE                                                | TRUE                                       |

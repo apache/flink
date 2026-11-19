@@ -16,107 +16,69 @@
 # under the License
 
 comparison:
-  - sql: value1 = value2
-    table: value1 === value2
-    description: 如果 value1 等于 value2 返回 `TRUE`；如果 value1 或者 value2 为 `NULL` 返回 `UNKNOW`。
-  - sql: value1 <> value2
-    table: value1 !== value2
-    description: 如果 value1 不等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 > value2
-    table: value1 > value2
-    description: 如果 value1 大于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 >= value2
-    table: value1 >= value2
-    description: 如果 value1 大于或等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 < value2
-    table: value1 < value2
-    description: 如果 value1 小于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 <= value2
-    table: value1 <= value2
-    description: 如果 value1 小于或等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value IS NULL
-    table: value.isNull
-    description: 如果值为 `NULL` 返回 `TRUE`。
-  - sql: value IS NOT NULL
-    table: value.isNotNull
-    description: 如果值不为 `NULL` 返回 `TRUE`。
+  - sql: expr BETWEEN [ ASYMMETRIC | SYMMETRIC ] lower_bound AND upper_bound
+    table: expr.between(lowerBound, upperBound)
+    page: between
+  - sql: expr NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] lower_bound AND upper_bound
+    table: expr.notBetween(lowerBound, upperBound)
+    page: between
+  - table: expr.between(lowerBound, upperBound)
+    page: between
+  - table: expr.notBetween(lowerBound, upperBound)
+    page: between
+  - sql: expr1 = expr2
+    table: expr1.isEqual(expr2)
+    page: comparison-operators
+  - sql: expr1 <> expr2
+    table: expr1.isNotEqual(expr2)
+    page: comparison-operators
+  - sql: expr1 > expr2
+    table: expr1.isGreater(expr2)
+    page: comparison-operators
+  - sql: expr1 >= expr2
+    table: expr1.isGreaterOrEqual(expr2)
+    page: comparison-operators
+  - sql: expr1 < expr2
+    table: expr1.isLess(expr2)
+    page: comparison-operators
+  - sql: expr1 <= expr2
+    table: expr1.isLessOrEqual(expr2)
+    page: comparison-operators
+  - sql: EXISTS (sub-query)
+    page: exists
+  - sql: expr IN (expr1 [, expr2]* )
+    table: expr.in(expr1, expr2)
+    page: in
+  - sql: expr NOT IN (expr1 [, expr2]* )
+    page: in
+  - sql: expr IN (sub-query)
+    table: expr.in(TABLE)
+    page: in
+  - sql: expr NOT IN (sub-query)
+    page: in
+  - sql: expr1 IS DISTINCT FROM expr2
+    page: is-distinct-from
+  - sql: expr1 IS NOT DISTINCT FROM expr2
+    page: is-distinct-from
+  - sql: expr IS NULL
+    table: expr.isNull()
+    page: is-null
+  - sql: expr IS NOT NULL
+    table: expr.isNotNull()
+    page: is-null
   - sql: IS_NAN(value)
-    table: value.isNan
-    description: 如果值为 `NaN` 返回 `TRUE`；如果值是非 `NaN` 的数值返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
-  - sql: value1 IS DISTINCT FROM value2
-    description: |
-      A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。`NULL` 视为与任何其他值相同。
-      例如 `1 IS DISTINCT FROM NULL` 返回 `TRUE`；`NULL IS DISTINCT FROM NULL` 返回 `FALSE`。
-  - sql: value1 IS NOT DISTINCT FROM value2
-    description: |
-      A 和 B 的数据类型和值都相同返回 `TRUE`。A 和 B 的数据类型和值不完全相同则返回 `FALSE`。`NULL` 视为与任何其他值相同。
-      例如 `1 IS NOT DISTINCT FROM NULL` 返回 `FALSE`；`NULL IS NOT DISTINCT FROM NULL` 返回 `TRUE`。
-  - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
-    description: |
-      默认或使用 `ASYMMETRIC` 关键字的情况下，如果 value1 大于等于 value2 且小于等于 value3 返回 `TRUE`。
-      使用 `SYMMETRIC` 关键字则 value1 在 value2 和 value3 之间返回 `TRUE`。
-      当 value2 或 value3 为 `NULL` 时，返回 `FALSE` 或 `UNKNOWN`。
-      例如 `12 BETWEEN 15 AND 12` 返回 `FALSE`；
-      `12 BETWEEN SYMMETRIC 15 AND 12` 返回 `TRUE`；
-      `12 BETWEEN 10 AND NULL` 返回 `UNKNOWN`；
-      `12 BETWEEN NULL AND 10` 返回 `FALSE`；
-      `12 BETWEEN SYMMETRIC NULL AND 12` 返回 `UNKNOWN`。
-  - sql: value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
-    description: |
-      默认或使用 `ASYMMETRIC` 关键字的情况下，如果 value1 小于 value2 或大于 value3，则返回 `TRUE`。
-      使用 `SYMMETRIC` 关键字则 value1 不在 value2 和 value3 之间返回 `TRUE`。
-      当 value2 或 value3 为 `NULL` 时，返回 `TRUE` 或 `UNKNOWN`。
-      例如 `12 NOT BETWEEN 15 AND 12` 返回 `TRUE`；
-      `12 NOT BETWEEN SYMMETRIC 15 AND 12` 返回 `FALSE`；
-      `12 NOT BETWEEN NULL AND 15` 返回 `UNKNOWN`；
-      `12 NOT BETWEEN 15 AND NULL` 返回 `TRUE`；
-      `12 NOT BETWEEN SYMMETRIC 12 AND NULL` 返回 `UNKNOWN`。
+    table: value.isNan()
+    page: is-nan
   - sql: string1 LIKE string2 [ ESCAPE char ]
     table: string1.like(string2[, char])
-    description: |
-      如果 string1 匹配 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要，可以通过 ESCAPE 子句定义包含单个字符的转义字符。默认没有转义字符。
+    page: like
   - sql: string1 NOT LIKE string2 [ ESCAPE char ]
-    description: |
-      如果 string1 与 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要，可以通过 ESCAPE 子句定义包含单个字符的转义字符。默认没有转义字符。
+    page: like
   - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
     table: string1.similar(string2)
-    description: |
-      如果 string1 匹配 SQL 正则表达式 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回
-      `UNKNOWN`。如果需要可以定义转义字符。尚不支持转义字符。
+    page: similar-to
   - sql: string1 NOT SIMILAR TO string2 [ ESCAPE char ]
-    description: |
-      如果 string1 与 SQL 正则表达式 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回
-      `UNKNOWN`。如果需要可以定义转义字符。尚不支持转义字符。
-  - sql: value1 IN (value2 [, value3]* )
-    table: value1.in(value2)
-    description: |
-      在给定列表 (value2, value3, ...) 中存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则返回
-      `TRUE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL` 则始终返回 `UNKNOWN`。例如 `4 IN (1, 2, 3)` 返回
-      `FALSE`；`1 IN (1, 2, NULL)` 返回 `TRUE`；`4 IN (1, 2, NULL)` 返回 `UNKNOWN`。
-  - sql: value1 NOT IN (value2 [, value3]* )
-    description: |
-      在给定列表 (value2, value3, ...) 中不存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则
-      返回 `FALSE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL`，则始终返回 `UNKNOWN`。例如 `4 NOT IN (1, 2, 3)`
-      返回 `TRUE`；`1 NOT IN (1, 2, NULL)` 返回 `FALSE`；`4 NOT IN (1, 2, NULL)` 返回 `UNKNOWN`。
-  - sql: EXISTS (sub-query)
-    description: |
-      如果子查询至少返回一行则返回 `TRUE`。 仅支持可以在 join 和分组操作中可以被重写的操作。对于流式查询，该操作在 join
-      和分组操作中被重写。计算查询结果所需的状态大小取决于输入行的数量，状态可能会无限增长。请在查询配置中合理配置状态保留时间，以防止状态过大。
-  - sql: value IN (sub-query)
-    table: value1.in(TABLE)
-    description: 如果 value 等于子查询结果集中的一行则返回 `TRUE`。
-  - sql: value NOT IN (sub-query)
-    description: 如果 value 不包含于子查询返回的行则返回 `TRUE`。
-  - table: value1.between(value2, value3)
-    description: |
-      如果 value1 大于或等于 value2 且小于或等于 value3 返回 `TRUE`。当 value2 或 value3 为 `NULL` 时，
-      返回 `FALSE` 或 `UNKNOWN`。
-  - table: value1.notBetween(value2, value3)
-    description: |
-      如果 value1 大于或等于 value2 且小于或等于 value3 返回 `FALSE`。当 value2 或 value3 为 `NULL` 时，
-      返回 `TRUE` 或 `UNKNOWN`。
+    page: similar-to
 
 logical:
   - sql: boolean1 OR boolean2
