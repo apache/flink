@@ -81,37 +81,31 @@ comparison:
     page: similar-to
 
 logical:
-  - sql: boolean1 OR boolean2
-    table: BOOLEAN1 || BOOLEAN2
-    description: |
-      如果 boolean1 为 `TRUE` 或 boolean2 为 `TRUE` 返回 `TRUE`。支持三值逻辑。
-      例如 `true || Null(BOOLEAN)` 返回 `TRUE`。
-  - sql: boolean1 AND boolean2
-    table: BOOLEAN1 && BOOLEAN2
-    description: |
-      如果 boolean1 和 boolean2 都为 `TRUE` 返回 `TRUE`。支持三值逻辑。
-      例如 `true && Null(BOOLEAN)` 返回 `UNKNOWN`。
-  - sql: NOT boolean
-    table: BOOLEAN.not(), not(BOOLEAN), 或者 '!BOOLEAN' (仅适用于Scala)
-    description: |
-      如果 boolean 为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 返回 `FALSE`；如果 boolean 为 `UNKNOWN`
-      返回 `UNKNOWN`。
-  - sql: boolean IS FALSE
-    table: BOOLEAN.isFalse
-    description: 如果 boolean 为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `FALSE`。
-  - sql: boolean IS NOT FALSE
-    table: BOOLEAN.isNotFalse
-    description: 如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `FALSE` 返回 `FALSE`。
-  - sql: boolean IS TRUE
-    table: BOOLEAN.isTrue
-    description: 如果 boolean 为 `TRUE` 返回 `TRUE`；如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `FALSE`。
-  - sql: boolean IS NOT TRUE
-    table: BOOLEAN.isNotTrue
-    description: 如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 返回 `FALSE`。
-  - sql: boolean IS UNKNOWN
-    description: 如果 boolean 为 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `FALSE` 返回 `FALSE`。
-  - sql: boolean IS NOT UNKNOWN
-    description: 如果 boolean 为 `TRUE` 或 `FALSE` 返回 `TRUE`；如果 boolean 为 `UNKNOWN` 返回 `FALSE`。
+  - sql: expr IS FALSE
+    table: expr.isFalse
+    page: is-false
+  - sql: expr IS NOT FALSE
+    table: expr.isNotFalse
+    page: is-false
+  - sql: expr IS TRUE
+    table: expr.isTrue
+    page: is-true
+  - sql: expr IS NOT TRUE
+    table: expr.isNotTrue
+    page: is-true
+  - sql: expr IS UNKNOWN
+    page: is-unknown
+  - sql: expr IS NOT UNKNOWN
+    page: is-unknown
+  - sql: expr1 AND expr2
+    table: expr1.and(expr2)
+    page: logical-operators
+  - sql: expr1 OR expr2
+    table: expr1.or(expr2)
+    page: logical-operators
+  - sql: NOT expr
+    table: expr.not()
+    page: logical-operators
 
 arithmetic:
   - sql: + numeric

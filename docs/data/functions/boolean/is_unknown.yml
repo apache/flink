@@ -1,0 +1,71 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IS UNKNOWN
+summary: Returns whether a condition is NULL, which SQL calls UNKNOWN for a `BOOLEAN`.
+
+syntax:
+  sql: |
+    expr IS UNKNOWN
+    expr IS NOT UNKNOWN
+
+arguments:
+  - name: expr
+    type: BOOLEAN
+    required: true
+    description: The condition to test, such as a column or a comparison.
+
+returns:
+  description: "`IS UNKNOWN` returns TRUE if `expr` is NULL, and FALSE if it is TRUE or FALSE. `IS NOT UNKNOWN` returns the opposite."
+  nulls: Never returns NULL.
+  type: "`BOOLEAN NOT NULL`."
+
+notes:
+  - For a `BOOLEAN`, `IS UNKNOWN` returns the same as `IS NULL`, and `IS NOT UNKNOWN` the same as `IS NOT NULL`. For other types, use `IS NULL`.
+  - The Table API has no method for `IS UNKNOWN`. `isNull()` in Java and `is_null` in Python return the same.
+
+see_also:
+  - {name: IS NULL, ref: comparison/is-null}
+  - {name: IS TRUE, ref: boolean/is-true}
+  - {name: IS FALSE, ref: boolean/is-false}
+
+examples:
+  - title: Test BOOLEAN values
+    description: Only the NULL value is UNKNOWN.
+    sql: |
+      SELECT flag,
+        flag IS UNKNOWN AS `flag IS UNKNOWN`,
+        flag IS NOT UNKNOWN AS `flag IS NOT UNKNOWN`
+      FROM (VALUES (TRUE), (FALSE), (CAST(NULL AS BOOLEAN))) AS t(flag);
+    result: |
+      | flag  | flag IS UNKNOWN | flag IS NOT UNKNOWN |
+      |-------|-----------------|---------------------|
+      | TRUE  | FALSE           | TRUE                |
+      | FALSE | FALSE           | TRUE                |
+      | NULL  | TRUE            | FALSE               |
+
+  - title: A comparison that can't be decided
+    description: "`qty > 10` is UNKNOWN when `qty` is NULL."
+    sql: |
+      SELECT qty, qty > 10 IS UNKNOWN AS `qty > 10 IS UNKNOWN`
+      FROM (VALUES (5), (20), (CAST(NULL AS INT))) AS t(qty);
+    result: |
+      | qty  | qty > 10 IS UNKNOWN |
+      |------|---------------------|
+      | 5    | FALSE               |
+      | 20   | FALSE               |
+      | NULL | TRUE                |

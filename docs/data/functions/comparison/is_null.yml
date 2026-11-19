@@ -46,6 +46,7 @@ notes:
 see_also:
   - {name: IS DISTINCT FROM, ref: comparison/is-distinct-from}
   - {name: COALESCE, ref: conditional/coalesce}
+  - {name: IS UNKNOWN, ref: boolean/is-unknown}
 
 examples:
   - title: Test each row

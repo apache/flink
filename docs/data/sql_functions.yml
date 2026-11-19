@@ -81,31 +81,31 @@ comparison:
     page: similar-to
 
 logical:
-  - sql: boolean1 OR boolean2
-    table: BOOLEAN1 || BOOLEAN2
-    description: Returns TRUE if BOOLEAN1 is TRUE or BOOLEAN2 is TRUE. Supports three-valued logic. E.g., true || Null(BOOLEAN) returns TRUE.
-  - sql: boolean1 AND boolean2
-    table: BOOLEAN1 && BOOLEAN2
-    description: Returns TRUE if BOOLEAN1 and BOOLEAN2 are both TRUE. Supports three-valued logic. E.g., true && Null(BOOLEAN) returns UNKNOWN.
-  - sql: NOT boolean
-    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
-    description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE; returns UNKNOWN if boolean is UNKNOWN.
-  - sql: boolean IS FALSE
-    table: BOOLEAN.isFalse
-    description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE or UNKNOWN.
-  - sql: boolean IS NOT FALSE
-    table: BOOLEAN.isNotFalse
-    description: Returns TRUE if BOOLEAN is TRUE or UNKNOWN; returns FALSE if BOOLEAN is FALSE.
-  - sql: boolean IS TRUE
-    table: BOOLEAN.isTrue
-    description: Returns TRUE if BOOLEAN is TRUE; returns FALSE if BOOLEAN is FALSE or UNKNOWN.
-  - sql: boolean IS NOT TRUE
-    table: BOOLEAN.isNotTrue
-    description: Returns TRUE if boolean is FALSE or UNKNOWN; returns FALSE if boolean is TRUE.
-  - sql: boolean IS UNKNOWN
-    description: Returns TRUE if boolean is UNKNOWN; returns FALSE if boolean is TRUE or FALSE.
-  - sql: boolean IS NOT UNKNOWN
-    description: Returns TRUE if boolean is TRUE or FALSE; returns FALSE if boolean is UNKNOWN.
+  - sql: expr IS FALSE
+    table: expr.isFalse
+    page: is-false
+  - sql: expr IS NOT FALSE
+    table: expr.isNotFalse
+    page: is-false
+  - sql: expr IS TRUE
+    table: expr.isTrue
+    page: is-true
+  - sql: expr IS NOT TRUE
+    table: expr.isNotTrue
+    page: is-true
+  - sql: expr IS UNKNOWN
+    page: is-unknown
+  - sql: expr IS NOT UNKNOWN
+    page: is-unknown
+  - sql: expr1 AND expr2
+    table: expr1.and(expr2)
+    page: logical-operators
+  - sql: expr1 OR expr2
+    table: expr1.or(expr2)
+    page: logical-operators
+  - sql: NOT expr
+    table: expr.not()
+    page: logical-operators
 
 arithmetic:
   - sql: + numeric
