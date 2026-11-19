@@ -260,6 +260,14 @@ The following table lists the type mapping from Flink type to JSON type.
 Features
 --------
 
+### Ignored parse error metric
+
+When `json.ignore-parse-errors` is `true`, the JSON format registers the counter
+`json.numMessagesWithParseErrors` under the connector's deserialization metric group.
+It counts input messages in which at least one parse or field conversion error was ignored,
+including messages that still produce rows with null fields. A top-level JSON array counts
+as one message. CDC formats such as `debezium-json` and `canal-json` do not report this metric.
+
 ### Allow top-level JSON Arrays
 
 Usually, we assume the top-level of JSON string is a stringified JSON object. Then this stringified JSON object can be converted into one SQL row.
