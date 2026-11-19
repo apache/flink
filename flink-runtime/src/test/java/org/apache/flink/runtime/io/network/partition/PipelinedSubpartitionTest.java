@@ -506,6 +506,27 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         assertThat(subpartition.pollBuffer()).isNull();
     }
 
+    @TestTemplate
+    void testTimedOutBarrierWaitsForResumeAfterAlignedBarrier() throws Exception {
+        PipelinedSubpartition subpartition = createSubpartition();
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+
+        subpartition.add(getTimeoutableBarrierBuffer(1L));
+        pollBufferAndCheckType(
+                subpartition, Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER);
+
+        // The barrier of the next checkpoint times out to unaligned while the subpartition is
+        // still blocked by the first one.
+        subpartition.add(getTimeoutableBarrierBuffer(2L));
+        subpartition.alignedBarrierTimeout(2L);
+        assertThat(subpartition.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
+        assertThat(subpartition.pollBuffer()).isNull();
+
+        subpartition.resumeConsumption();
+        assertThat(subpartition.getAvailabilityAndBacklog(true).isAvailable()).isTrue();
+        pollBufferAndCheckType(subpartition, Buffer.DataType.PRIORITIZED_EVENT_BUFFER);
+    }
+
     private BufferConsumer getTimeoutableBarrierBuffer(long checkpointId) throws IOException {
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.alignedWithTimeout(
