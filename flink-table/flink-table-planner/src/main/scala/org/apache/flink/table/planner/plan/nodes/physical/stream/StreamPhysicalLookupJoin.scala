@@ -32,7 +32,7 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 import java.util
-import java.util.Optional
+import java.util.{Collections, Optional}
 
 import scala.collection.JavaConverters._
 
@@ -48,7 +48,8 @@ class StreamPhysicalLookupJoin(
     lookupHint: Option[RelHint],
     upsertMaterialize: Boolean,
     enableLookupShuffle: Boolean = false,
-    preferCustomShuffle: Boolean = false)
+    preferCustomShuffle: Boolean = false,
+    hints: util.List[RelHint] = Collections.emptyList[RelHint]())
   extends CommonPhysicalLookupJoin(
     cluster,
     traitSet,
@@ -60,7 +61,8 @@ class StreamPhysicalLookupJoin(
     lookupHint,
     upsertMaterialize,
     enableLookupShuffle,
-    preferCustomShuffle)
+    preferCustomShuffle,
+    hints)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
@@ -77,7 +79,8 @@ class StreamPhysicalLookupJoin(
       lookupHint,
       upsertMaterialize,
       enableLookupShuffle,
-      preferCustomShuffle
+      preferCustomShuffle,
+      hints
     )
   }
 
@@ -93,7 +96,8 @@ class StreamPhysicalLookupJoin(
       lookupHint,
       upsertMaterialize,
       enableLookupShuffle,
-      preferCustomShuffle
+      preferCustomShuffle,
+      hints
     )
   }
 
