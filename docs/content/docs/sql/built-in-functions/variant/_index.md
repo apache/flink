@@ -190,8 +190,8 @@ In all of these cases, `TRY_PARSE_XML` returns `NULL`.
 ## VARIANT to XML String
 
 The `XML_STRING` function converts a `VARIANT` into an XML string. It reverses the mapping of
-`PARSE_XML`, so `PARSE_XML(XML_STRING(v))` gives `v` for any `v` from `PARSE_XML` with the same
-`force_array`. The other way around, `XML_STRING(PARSE_XML(xml))` gives the normalized document,
+`PARSE_XML`, so `PARSE_XML(XML_STRING(v), f)` gives `v` for any `v` from `PARSE_XML` with the same
+`force_array` `f`. The other way around, `XML_STRING(PARSE_XML(xml))` gives the normalized document,
 without the XML declaration, comments, and whitespace between tags, and with the attributes in the
 order of their keys. For example:
 
@@ -273,8 +273,8 @@ with `$`, the whole value, followed by steps: `.name`, `['name']` or `["name"]` 
 - Wildcards, filters, slices, negative indices and the `lax` and `strict` modes are not supported,
   so a path always names one place.
 - Trailing spaces are ignored.
-- A malformed path literal fails at planning time. Any other malformed path fails when the function
-  runs.
+- A malformed path literal fails at planning time. Any other malformed path fails the job in
+  `VARIANT_GET` and returns NULL in `TRY_VARIANT_GET`.
 
 A path points at nothing if a field is missing, an index is past the end, or a step does not match
 the kind of value, such as a field of an array. Each function describes what it does in that case.

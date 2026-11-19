@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: XML_STRING
+summary: Returns a `VARIANT` as an XML document, the inverse of `PARSE_XML`.
+
+syntax:
+  sql: XML_STRING(variant)
+  java: $("variant").xmlString()
+  python: col("variant").xml_string()
+
+arguments:
+  - name: variant
+    type: VARIANT
+    required: true
+    description: An object with one field, which names the root element, such as a result of `PARSE_XML`.
+
+returns:
+  description: The XML document, without an XML declaration. [VARIANT to XML String]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-to-xml-string) describes how fields and values are written.
+  nulls: Returns NULL if `variant` is NULL.
+  type: "`STRING`, NOT NULL if `variant` is NOT NULL."
+
+notes:
+  - "`variant` must be an object with exactly one field, and that field can't hold an array. Any other value fails the job. It also fails if a value has no XML form, such as a key with a space. [VARIANT to XML String]({{< ref \"docs/sql/built-in-functions/variant\" >}}#variant-to-xml-string) lists the cases."
+
+see_also:
+  - {name: PARSE_XML, ref: variant/parse-xml}
+  - {name: JSON_STRING, ref: json/json-string}
+
+examples:
+  - title: Write a parsed document back
+    description: The result has no declaration or comments, and its attributes are sorted.
+    sql: |
+      SELECT doc, XML_STRING(PARSE_XML(doc)) AS `XML_STRING(PARSE_XML(doc))`
+      FROM (VALUES ('<?xml version="1.0"?><!-- note --><a y="2" x="1"> <b>1</b> </a>')) AS t(doc);
+    result: |
+      | doc                                                             | XML_STRING(PARSE_XML(doc))  |
+      |-----------------------------------------------------------------|-----------------------------|
+      | <?xml version="1.0"?><!-- note --><a y="2" x="1"> <b>1</b> </a> | <a x="1" y="2"><b>1</b></a> |
+
+  - title: Convert JSON to XML
+    description: The one field of the object is the root element, an `@` field is an attribute, and an array repeats its element.
+    sql: |
+      SELECT doc, XML_STRING(PARSE_JSON(doc)) AS `XML_STRING(PARSE_JSON(doc))`
+      FROM (VALUES ('{"order": {"@id": "7", "item": ["pen", "ink"]}}')) AS t(doc);
+    result: |
+      | doc                                             | XML_STRING(PARSE_JSON(doc))                            |
+      |-------------------------------------------------|--------------------------------------------------------|
+      | {"order": {"@id": "7", "item": ["pen", "ink"]}} | <order id="7"><item>pen</item><item>ink</item></order> |
+
+  - title: Typed values
+    description: Numbers and booleans get an `xsi:type`, so `PARSE_XML` reads them back with their type.
+    sql: |
+      SELECT doc, XML_STRING(PARSE_JSON(doc)) AS `XML_STRING(PARSE_JSON(doc))`
+      FROM (VALUES ('{"order": {"qty": 2, "paid": true}}')) AS t(doc);
+    result: |
+      | doc                                 | XML_STRING(PARSE_JSON(doc))                                                                                                                                                             |
+      |-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+      | {"order": {"qty": 2, "paid": true}} | <order xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema"><paid xsi:type="xs:boolean">true</paid><qty xsi:type="xs:byte">2</qty></order> |
+
+  - title: NULL input
+    description: A NULL input returns NULL.
+    sql: |
+      SELECT doc, XML_STRING(TRY_PARSE_XML(doc)) AS `XML_STRING(TRY_PARSE_XML(doc))`
+      FROM (VALUES ('<a>x</a>'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc      | XML_STRING(TRY_PARSE_XML(doc)) |
+      |----------|--------------------------------|
+      | <a>x</a> | <a>x</a>                       |
+      | NULL     | NULL                           |

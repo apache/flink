@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TRY_VARIANT_GET
+summary: Returns the value at a path of a `VARIANT`, cast to a type, and returns NULL if the cast fails.
+
+syntax:
+  sql: TRY_VARIANT_GET(variant, path [, return_type])
+  java: |
+    $("variant").tryVariantGet(path)
+    $("variant").tryVariantGet(path, returnType)
+  python: |
+    col("variant").try_variant_get(path)
+    col("variant").try_variant_get(path, return_type)
+
+arguments:
+  - name: variant
+    type: VARIANT
+    required: true
+    description: The value to read from.
+  - name: path
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A path such as `'$.items[0].qty'`. See [Variant paths]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-paths).
+  - name: return_type
+    type: A string literal that names a type, such as `'INT'`. In the Table API, a `DataType`
+    required: false
+    default: "`'VARIANT'`"
+    description: The type to cast the value to. Any type that a `VARIANT` can be [cast to]({{< ref "docs/sql/reference/data-types" >}}#variant).
+
+returns:
+  description: The value at `path`, cast to `return_type`, as `VARIANT_GET` returns it.
+  nulls: Returns NULL where `VARIANT_GET` returns NULL, and also if the value doesn't cast to `return_type` or a `path` that isn't a literal is malformed.
+  type: "`return_type`, nullable. Without `return_type`, `VARIANT`, nullable."
+
+notes:
+  - A malformed `path` literal still fails the statement.
+
+see_also:
+  - {name: VARIANT_GET, ref: variant/variant-get}
+  - {name: TRY_CAST, ref: cast/try-cast}
+
+examples:
+  - title: A value that doesn't cast
+    description: A string and a fraction don't cast to `INT`, so they return NULL. A missing field returns NULL too.
+    sql: |
+      SELECT doc,
+        TRY_VARIANT_GET(PARSE_JSON(doc), '$.qty', 'INT') AS `TRY_VARIANT_GET(PARSE_JSON(doc), '$.qty', 'INT')`
+      FROM (VALUES ('{"qty": 2}'), ('{"qty": "two"}'), ('{"qty": 7.5}'), ('{"sku": "pen"}')) AS t(doc);
+    result: |
+      | doc            | TRY_VARIANT_GET(PARSE_JSON(doc), '$.qty', 'INT') |
+      |----------------|--------------------------------------------------|
+      | {"qty": 2}     | 2                                                |
+      | {"qty": "two"} | NULL                                             |
+      | {"qty": 7.5}   | NULL                                             |
+      | {"sku": "pen"} | NULL                                             |
+
+  - title: Malformed path from a column
+    description: A path from a column that isn't valid returns NULL.
+    sql: |
+      SELECT doc, path,
+        TRY_VARIANT_GET(PARSE_JSON(doc), path, 'INT') AS `TRY_VARIANT_GET(PARSE_JSON(doc), path, 'INT')`
+      FROM (VALUES ('{"a": 1}', '$.a'), ('{"a": 1}', '$.a['), ('{"a": 1}', 'a')) AS t(doc, path);
+    result: |
+      | doc      | path | TRY_VARIANT_GET(PARSE_JSON(doc), path, 'INT') |
+      |----------|------|-----------------------------------------------|
+      | {"a": 1} | $.a  | 1                                             |
+      | {"a": 1} | $.a[ | NULL                                          |
+      | {"a": 1} | a    | NULL                                          |
+
+  - title: Read a string as a number
+    description: Read the string, then convert it with a regular cast.
+    sql: |
+      SELECT doc,
+        TRY_VARIANT_GET(v, '$.price', 'DECIMAL(4, 2)') AS `TRY_VARIANT_GET(v, '$.price', 'DECIMAL(4, 2)')`,
+        CAST(TRY_VARIANT_GET(v, '$.price', 'STRING') AS DECIMAL(4, 2)) AS `CAST(TRY_VARIANT_GET(v, '$.price', 'STRING') AS DECIMAL(4, 2))`
+      FROM (SELECT doc, PARSE_JSON(doc) AS v
+        FROM (VALUES ('{"price": "12.50"}')) AS t(doc));
+    result: |
+      | doc                | TRY_VARIANT_GET(v, '$.price', 'DECIMAL(4, 2)') | CAST(TRY_VARIANT_GET(v, '$.price', 'STRING') AS DECIMAL(4, 2)) |
+      |--------------------|------------------------------------------------|----------------------------------------------------------------|
+      | {"price": "12.50"} | NULL                                           | 12.50                                                          |

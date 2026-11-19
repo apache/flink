@@ -44,6 +44,7 @@ notes:
 see_also:
   - {name: JSON_OBJECT, ref: json/json-object}
   - {name: JSON_ARRAY, ref: json/json-array}
+  - {name: PARSE_JSON, ref: variant/parse-json}
 
 examples:
   - title: Scalar values

@@ -942,164 +942,31 @@ json:
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
     table: STRING.parseJson([allowDuplicateKeys])
-    description: |
-      Parse a JSON string into a Variant. If the JSON string is invalid, an error will be thrown.
-      To return NULL instead of an error, use the `TRY_PARSE_JSON` function.
-      Only the first JSON value is read and content after it is ignored, so
-      `PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
-
-      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
-      parser will keep the last occurrence of all fields with the same key, otherwise when
-      `allowDuplicateKeys` is false it will throw an error. The default value of
-      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
-
-      See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
-  - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
-    table: STRING.tryParseJson([allowDuplicateKeys])
-    description: |
-      Try to parse a JSON string into a Variant if possible. If the JSON string is invalid, return
-      NULL. To throw an error instead of returning NULL, use the `PARSE_JSON` function.
-      Only the first JSON value is read and content after it is ignored, so
-      `TRY_PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
-
-      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
-      parser will keep the last occurrence of all fields with the same key, otherwise when
-      `allowDuplicateKeys` is false it will return NULL. The default value of
-      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
-
-      See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
+    page: parse-json
   - sql: PARSE_XML(xml_string[, force_array])
     table: STRING.parseXml([forceArray])
-    description: |
-      Parses an XML string into a Variant. If the XML string is invalid, an error is thrown. To
-      return NULL instead of an error, use the `TRY_PARSE_XML` function.
-
-      The result is an object with a single field for the root element. Attributes are stored as
-      `@name` fields, text as a `$` field, and child elements as fields named after their tag. An
-      element without attributes and child elements is stored as its text directly. A tag that
-      occurs more than once in an element is stored as an array. The `#` field records the order
-      of the children and text of an element.
-
-      If `force_array` is true, every child element, text, and position in a `#` field is stored
-      as an array, even if it occurs only once. This keeps the structure the same across documents
-      that repeat an element a different number of times. The default value of `force_array` is
-      false. A NULL `force_array` is treated as false.
-
-      External entities and external DTDs are not supported, and a document that references one
-      fails to parse.
-
-      ```sql
-      -- {"book":{"#":{"price":1,"title":0},"@pages":"320","price":"12.50","title":"Dune"}}
-      PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>')
-
-      -- 'Dune'
-      CAST(PARSE_XML('<book><title>Dune</title></book>')['book']['title'] AS STRING)
-
-      -- {"book":{"title":["Dune"]}}
-      PARSE_XML('<book><title>Dune</title></book>', TRUE)
-      ```
-
-      See the "XML to VARIANT" section below the function table for how XML is mapped to a Variant.
+    page: parse-xml
+  - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
+    table: STRING.tryParseJson([allowDuplicateKeys])
+    page: try-parse-json
   - sql: TRY_PARSE_XML(xml_string[, force_array])
     table: STRING.tryParseXml([forceArray])
-    description: |
-      Parses an XML string into a Variant. If the XML string is invalid, returns NULL. To throw an
-      error instead of returning NULL, use the `PARSE_XML` function.
-
-      See `PARSE_XML` for the full documentation.
-  - sql: XML_STRING(variant)
-    table: VARIANT.xmlString()
-    description: |
-      Converts a Variant into an XML string. This is the inverse of `PARSE_XML`. Returns `NULL` if
-      the argument is `NULL`.
-
-      - Fields with an `@` prefix are written as attributes, the `$` field as text, and the other
-        fields as child elements, in the order that the `#` field records.
-      - A Variant NULL is written with `xsi:nil="true"`.
-      - The text of an element without child elements gets an `xsi:type` attribute if it isn't a
-        string or a UUID, e.g. `xsi:type="xs:int"`, so that it reads back as the same type.
-        Attribute values, and text next to child elements, aren't typed and read back as strings.
-      - If the XML string uses the `xsi` or `xs` prefix, the root element declares it.
-
-      If the Variant has no XML representation, an error is thrown.
-
-      ```sql
-      -- '<book pages="320"><title>Dune</title><price>12.50</price></book>'
-      XML_STRING(PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>'))
-
-      -- '<a xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema"><b xsi:type="xs:int">5</b><c xsi:nil="true"/></a>'
-      XML_STRING(PARSE_XML('<a><b xsi:type="int">5</b><c xsi:nil="true"/></a>'))
-      ```
-
-      See the "VARIANT to XML String" section below the function table for how a Variant is mapped
-      to XML.
-  - sql: variant '[' INT ']'
-    table: VARIANT.at(INT)
-    description: |
-      If the VARIANT is an array, returns a VARIANT holding the element at the index. The index
-      starts at 1. A literal index below 1 fails during planning. Any other index out of range
-      returns NULL. If the VARIANT is not an array, an error is thrown. To return NULL instead, use
-      `VARIANT_GET`.
-  - sql: variant '[' STRING ']'
-    table: VARIANT.at(STRING)
-    description: |
-      If the VARIANT is an object that has a field with this key, returns a VARIANT holding the
-      value of the field. If the object has no such field, returns NULL. If the VARIANT is not an
-      object, an error is thrown. To return NULL instead, use `VARIANT_GET`.
-  - sql: VARIANT_GET(variant, path[, returnType])
-    table: VARIANT.variantGet(path[, returnType])
-    description: |
-      Returns the value of a Variant at a path, cast to `returnType`. Without `returnType`, the
-      value is returned as a Variant. If the value cannot be cast to `returnType`, an error is
-      thrown. To return NULL instead of an error, use the `TRY_VARIANT_GET` function. See the
-      "Variant paths" section below the function table for the path syntax.
-
-      Returns NULL if:
-
-      * `variant` or `path` is NULL,
-      * nothing is at the path, or
-      * the value at the path is a variant null and `returnType` is not `'VARIANT'`.
-
-      Without `returnType`, or with `'VARIANT'`, a variant null stays a variant null. It is not SQL
-      NULL, so `IS NULL` is false and `JSON_STRING` returns `'null'`.
-
-      `returnType` is a string literal such as `'INT'` or `'ARRAY<ROW<sku STRING, qty INT>>'`, and
-      must not be NULL. The value is cast the way `CAST(v AS returnType)` casts a Variant. The
-      result is always nullable.
-
-      ```sql
-      -- 17 of type INT
-      VARIANT_GET(PARSE_JSON('{"order_id": 17}'), '$.order_id', 'INT')
-
-      -- 2 of type INT
-      VARIANT_GET(PARSE_JSON('{"items": [{"qty": 2}]}'), '$.items[0].qty', 'INT')
-
-      -- NULL of type STRING, nothing is at the path
-      VARIANT_GET(PARSE_JSON('{"order_id": 17}'), '$.user.name', 'STRING')
-
-      -- NULL of type INT, a variant null cast to INT
-      VARIANT_GET(PARSE_JSON('{"coupon": null}'), '$.coupon', 'INT')
-
-      -- null of type VARIANT, a variant null and not SQL NULL
-      VARIANT_GET(PARSE_JSON('{"coupon": null}'), '$.coupon')
-
-      -- {"name":"ada"} of type VARIANT
-      VARIANT_GET(PARSE_JSON('{"user": {"name": "ada"}}'), '$.user')
-
-      -- fails, a Variant string does not cast to INT
-      VARIANT_GET(PARSE_JSON('{"price": "12.50"}'), '$.price', 'INT')
-      ```
+    page: try-parse-xml
   - sql: TRY_VARIANT_GET(variant, path[, returnType])
     table: VARIANT.tryVariantGet(path[, returnType])
-    description: |
-      Returns the value of a Variant at a path like `VARIANT_GET`, but returns NULL instead of an
-      error if the value cannot be cast to `returnType`, or if a path that is not a literal is
-      malformed. A malformed path literal still fails at planning time.
-
-      ```sql
-      -- NULL of type INT, a Variant string does not cast to INT
-      TRY_VARIANT_GET(PARSE_JSON('{"price": "12.50"}'), '$.price', 'INT')
-      ```
+    page: try-variant-get
+  - sql: variant '[' INT ']'
+    table: VARIANT.at(INT)
+    page: variant-subscript
+  - sql: variant '[' STRING ']'
+    table: VARIANT.at(STRING)
+    page: variant-subscript
+  - sql: VARIANT_GET(variant, path[, returnType])
+    table: VARIANT.variantGet(path[, returnType])
+    page: variant-get
+  - sql: XML_STRING(variant)
+    table: VARIANT.xmlString()
+    page: xml-string
 
 structured:
   - sql: |

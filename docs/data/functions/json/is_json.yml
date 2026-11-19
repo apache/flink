@@ -48,6 +48,7 @@ notes:
   - An object with a duplicate key is valid JSON here, although `PARSE_JSON` fails on it by default.
 
 see_also:
+  - {name: TRY_PARSE_JSON, ref: variant/try-parse-json}
   - {name: JSON_TYPE, ref: json/json-type}
 
 examples:

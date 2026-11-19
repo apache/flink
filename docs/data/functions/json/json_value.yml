@@ -76,6 +76,7 @@ notes:
 see_also:
   - {name: JSON_QUERY, ref: json/json-query}
   - {name: JSON_EXISTS, ref: json/json-exists}
+  - {name: VARIANT_GET, ref: variant/variant-get}
 
 examples:
   - title: Extract a scalar
