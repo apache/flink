@@ -211,6 +211,14 @@ abstract class AggregateReduceGroupingTestBase(withExecPlan: Boolean) extends Ta
   }
 
   @Test
+  def testAggOnLeftJoinWithNonEquiCondition(): Unit = {
+    // a3 does not determine a2 and c2, as b3 decides whether a row of T3 matches
+    verifyPlan(
+      "SELECT a3, a2, c2, COUNT(*) FROM " +
+        "(SELECT * FROM T3 LEFT JOIN T2 ON a3 = b2 AND b3 > a2) t GROUP BY a3, a2, c2")
+  }
+
+  @Test
   def testAggOnOver(): Unit = {
     verifyPlan(
       "SELECT a1, b1, c, COUNT(d1) FROM " +
