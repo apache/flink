@@ -70,15 +70,16 @@ Flink 允许用户在 Table API 和 SQL 中调用存储过程来完成一些特�
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.util.CloseableIterator;
 
 // 有多个重载 call 方法的存储过程
 public class GenerateSequenceProcedure implements Procedure {
 
-  public long[] call(ProcedureContext context, int n) {
+  public long[] call(ProcedureContext context, int n) throws Exception {
     return generate(context.getExecutionEnvironment(), n);
   }
 
-  public long[] call(ProcedureContext context, String n) {
+  public long[] call(ProcedureContext context, String n) throws Exception {
     return generate(context.getExecutionEnvironment(), Integer.parseInt(n));
   }
 
@@ -98,24 +99,34 @@ public class GenerateSequenceProcedure implements Procedure {
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.procedure.ProcedureContext
 import org.apache.flink.table.procedures.Procedure
-import scala.annotation.varargs
 
 // 有多个重载 call 方法的存储过程
 class GenerateSequenceProcedure extends Procedure {
 
-  def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
-    Array(a + b)
+  def call(context: ProcedureContext, n: Int): Array[Long] = {
+    generate(context.getExecutionEnvironment, n)
   }
 
-  def call(context: ProcedureContext, a: String, b: String): Array[Integer] = {
-    Array(Integer.valueOf(a) + Integer.valueOf(b))
+  def call(context: ProcedureContext, n: String): Array[Long] = {
+    generate(context.getExecutionEnvironment, n.toInt)
   }
 
-  @varargs // 类似 Java 的变长参数
-  def call(context: ProcedureContext, d: Double*): Array[Integer] = {
-    Array(d.sum.toInt)
+  private def generate(env: StreamExecutionEnvironment, n: Int): Array[Long] = {
+    val sequenceN = new Array[Long](n)
+    var i = 0
+    val result = env.fromSequence(0, n - 1).executeAndCollect()
+    try {
+      while (result.hasNext) {
+        sequenceN(i) = result.next()
+        i += 1
+      }
+    } finally {
+      result.close()
+    }
+    sequenceN
   }
 }
 
@@ -151,9 +162,13 @@ Flink 存储过程实现了自动的类型推导提取，通过反射从存储�
 ```java
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.InputGroup;
-import org.apache.flink.table.procedure.ProcedureContext
+import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
+
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.time.Instant;
 
 // 有多个重载 call 方法的存储过程
 public static class OverloadedProcedure implements Procedure {
@@ -201,26 +216,26 @@ import org.apache.flink.types.Row
 class OverloadedProcedure extends Procedure {
 
   // 不需要 hint
-  def call(context: ProcedureContext, a: Long, b: Long): Array[Long] = {
-    Array(a + b)
+  def call(context: ProcedureContext, a: Long, b: Long): Array[java.lang.Long] = {
+    Array[java.lang.Long](a + b)
   }
 
   // 定义 decimal 的精度和小数位
   @DataTypeHint("DECIMAL(12, 3)")
-  def call(context: ProcedureContext, a: Double, b: Double): Array[BigDecimal] = {
-    Array(BigDecimal.valueOf(a + b))
+  def call(context: ProcedureContext, a: Double, b: Double): Array[java.math.BigDecimal] = {
+    Array(java.math.BigDecimal.valueOf(a + b))
   }
 
   // 定义嵌套数据类型
   @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
-  def call(context: ProcedureContext, i: Integer): Array[Row] = {
-    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  def call(context: ProcedureContext, i: Int): Array[Row] = {
+    Array(Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i)))
   }
 
   // 允许任意类型的输入，并输出序列化定制后的值
   @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
   def call(context: ProcedureContext, @DataTypeHint(inputGroup = InputGroup.ANY) o: Object): Array[java.nio.ByteBuffer] = {
-    Array[MyUtils.serializeToByteBuffer(o)]
+    Array(MyUtils.serializeToByteBuffer(o))
   }
 }
 
@@ -247,7 +262,7 @@ import org.apache.flink.types.Row;
 
 // 为存储过程类的所有 call 方法指定同一个返回类型
 @ProcedureHint(output = @DataTypeHint("ROW<s STRING, i INT>"))
-public static class OverloadedProcedure implements Procedure {
+public static class OverloadedFunction implements Procedure {
 
   public Row[] call(ProcedureContext context, int a, int b) {
     return new Row[] {Row.of("Sum", a + b)};
@@ -329,8 +344,9 @@ class OverloadedProcedure extends Procedure {
   def call(context: ProcedureContext, o: AnyRef*): Array[AnyRef]= {
     if (o.length == 0) {
       Array(Boolean.box(false))
+    } else {
+      Array(o(0))
     }
-    Array(o(0))
   }
 }
 
@@ -368,6 +384,7 @@ public static class NamedParameterProcedure implements Procedure {
 {{< tab "Scala" >}}
 ```scala
 
+import org.apache.flink.table.annotation.ArgumentHint
 import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.annotation.ProcedureHint
 import org.apache.flink.table.procedure.ProcedureContext
@@ -377,8 +394,8 @@ import scala.annotation.varargs
 
 class NamedParameterProcedure extends Procedure {
 
-  def call(context: ProcedureContext, @ArgumentHint(name = "param1") a: Integer, @ArgumentHint(name = "param2", isOptional = true) b: Integer): Array[Integer] = {
-    Array(a + (if (b == null) 0 else b))
+  def call(context: ProcedureContext, @ArgumentHint(name = "a") a: Integer, @ArgumentHint(name = "b", isOptional = true) b: Integer): Array[Integer] = {
+    Array(a + (if (b == null) 0 else b.intValue))
   }
 }
 ```
@@ -414,6 +431,7 @@ public static class NamedParameterProcedure implements Procedure {
 {{< tab "Scala" >}}
 ```scala
 
+import org.apache.flink.table.annotation.ArgumentHint
 import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.annotation.ProcedureHint
 import org.apache.flink.table.procedure.ProcedureContext
@@ -430,7 +448,7 @@ class NamedParameterProcedure extends Procedure {
     )
   )
   def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
-    Array(a + (if (b == null) 0 else b))
+    Array(a + (if (b == null) 0 else b.intValue))
   }
 }
 ```
@@ -466,6 +484,7 @@ public static class NamedParameterProcedure implements Procedure {
 {{< tab "Scala" >}}
 ```scala
 
+import org.apache.flink.table.annotation.ArgumentHint
 import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.annotation.ProcedureHint
 import org.apache.flink.table.procedure.ProcedureContext
@@ -481,7 +500,7 @@ import scala.annotation.varargs
 )
 class NamedParameterProcedure extends Procedure {
   def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
-    Array(a + (if (b == null) 0 else b))
+    Array(a + (if (b == null) 0 else b.intValue))
   }
 }
 ```
@@ -511,10 +530,14 @@ import org.apache.flink.table.procedure.ProcedureContext;
 import org.apache.flink.table.procedures.Procedure;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 // 有内置 procedure 的 Catalog
 public class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
+
+  private static final Map<ObjectPath, Procedure> PROCEDURE_MAP = new HashMap<>();
 
   static {
     PROCEDURE_MAP.put(ObjectPath.fromString("system.generate_n"), new GenerateSequenceProcedure());
@@ -552,20 +575,22 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
 import org.apache.flink.table.procedures.Procedure;
 
+import scala.collection.JavaConverters._
+
 // 有内置 procedure 的 Catalog
 class CatalogWithBuiltInProcedure(name: String) extends GenericInMemoryCatalog(name) {
 
-  val PROCEDURE_MAP = collection.immutable.HashMap[ObjectPath, Procedure](
-    ObjectPath.fromString("system.generate_n"), new GenerateSequenceProcedure());
+  val PROCEDURE_MAP = Map[ObjectPath, Procedure](
+    ObjectPath.fromString("system.generate_n") -> new GenerateSequenceProcedure())
 
   @throws(classOf[DatabaseNotExistException])
   @throws(classOf[CatalogException])
-  override def listProcedures(dbName: String): List[String] = {
+  override def listProcedures(dbName: String): java.util.List[String] = {
     if (!databaseExists(dbName)) {
       throw new DatabaseNotExistException(getName, dbName);
     }
     PROCEDURE_MAP.keySet.filter(procedurePath => procedurePath.getDatabaseName.equals(dbName))
-      .map(procedurePath => procedurePath.getObjectName).toList
+      .map(procedurePath => procedurePath.getObjectName).toList.asJava
   }
 
   @throws(classOf[ProcedureNotExistException])
@@ -650,8 +675,8 @@ public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
   }
 }
 
-// and a factory, so that the catalog can be created from its 'type' option. Register the
-// factory in META-INF/services/org.apache.flink.table.factories.Factory.
+// 再提供一个 factory，以便通过 'type' 选项创建该 catalog。
+// 需要在 META-INF/services/org.apache.flink.table.factories.Factory 中注册该 factory。
 public static class CatalogWithBuiltInProcedureFactory implements CatalogFactory {
 
   @Override
@@ -689,32 +714,41 @@ tEnv.executeSql("call my_catalog.`system`.generate_n(5)");
 {{< tab "Scala" >}}
 ```scala
 
-import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.configuration.{ConfigOption, Configuration}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
+import org.apache.flink.table.catalog.{Catalog, CatalogDescriptor, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.catalog.exceptions.{CatalogException, ProcedureNotExistException}
+import org.apache.flink.table.factories.CatalogFactory
 import org.apache.flink.table.procedure.ProcedureContext
 import org.apache.flink.table.procedures.Procedure
+
+import java.util.Collections
 
 // 首先实现一个存储过程
 class GenerateSequenceProcedure extends Procedure {
 
-  def call(context: ProcedureContext, n: Integer): Array[Long] = {
+  def call(context: ProcedureContext, n: Int): Array[Long] = {
     val env = context.getExecutionEnvironment
-    val sequenceN = Array[Long]
-    var i = 0;
-    env.fromSequence(0, n - 1).executeAndCollect()
-      .forEachRemaining(r => {
-        sequenceN(i) = r
-        i = i + 1
-      })
-    sequenceN;
+    val sequenceN = new Array[Long](n)
+    var i = 0
+    val result = env.fromSequence(0, n - 1).executeAndCollect()
+    try {
+      while (result.hasNext) {
+        sequenceN(i) = result.next()
+        i += 1
+      }
+    } finally {
+      result.close()
+    }
+    sequenceN
   }
 }
 
 // 然后在一个自定义的 catalog 返回该 procedure
 class CatalogWithBuiltInProcedure(name: String) extends GenericInMemoryCatalog(name) {
 
-  val PROCEDURE_MAP = collection.immutable.HashMap[ObjectPath, Procedure](ObjectPath.fromString("system.generate_n"),
-    new GenerateSequenceProcedure());
+  val PROCEDURE_MAP = Map[ObjectPath, Procedure](
+    ObjectPath.fromString("system.generate_n") -> new GenerateSequenceProcedure())
 
   // 省略一些方法
   // ...  
@@ -729,9 +763,26 @@ class CatalogWithBuiltInProcedure(name: String) extends GenericInMemoryCatalog(n
   }
 }
 
-TableEnvironment tEnv = TableEnvironment.create(...)
+// 再提供一个 factory，以便通过 'type' 选项创建该 catalog。
+// 需要在 META-INF/services/org.apache.flink.table.factories.Factory 中注册该 factory。
+class CatalogWithBuiltInProcedureFactory extends CatalogFactory {
+
+  override def factoryIdentifier(): String = "catalog_with_procedures"
+
+  override def requiredOptions(): java.util.Set[ConfigOption[_]] = Collections.emptySet()
+
+  override def optionalOptions(): java.util.Set[ConfigOption[_]] = Collections.emptySet()
+
+  override def createCatalog(context: CatalogFactory.Context): Catalog =
+    new CatalogWithBuiltInProcedure(context.getName)
+}
+
+val tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
 // 注册该 catalog
-tEnv.registerCatalog("my_catalog", new CatalogWithBuiltInProcedure())
+tEnv.createCatalog(
+  "my_catalog",
+  CatalogDescriptor.of(
+    "my_catalog", Configuration.fromMap(Collections.singletonMap("type", "catalog_with_procedures"))))
 // 通过 Call 语句调用该存储过程
 tEnv.executeSql("call my_catalog.`system`.generate_n(5)")
 
