@@ -24,6 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,6 +53,38 @@ public class ArtifactUtils {
                 throw new FlinkRuntimeException(
                         String.format("Failed to create parent(s) for given base dir: %s", baseDir),
                         e);
+            }
+        }
+    }
+
+    /**
+     * Artifacts are written to a temporary file in the same directory. Once the fetch is completed,
+     * the file is moved to the target file location.
+     *
+     * <p>Fetches are skipped when an artifact is already in the target directory, which is why we
+     * need to make sure that the target file location can't contain a partially fetched file.
+     *
+     * <p>Files for fetches-in-progress are given a {@code .part} file extension so they don't get
+     * mistaken for artifacts, or cleaned up by another process sharing the same directory (e.g.
+     * standby Job Manager).
+     *
+     * @param in the artifact, which the caller closes
+     * @param targetFile where the complete artifact is put (this should not exist yet)
+     */
+    static void copyToFileWhenComplete(InputStream in, File targetFile) throws IOException {
+        final File directory = targetFile.getAbsoluteFile().getParentFile();
+        FileUtils.forceMkdir(directory);
+
+        final File partFile =
+                File.createTempFile(".fetch-" + targetFile.getName() + "-", ".part", directory);
+        boolean moved = false;
+        try {
+            FileUtils.copyToFile(in, partFile);
+            Files.move(partFile.toPath(), targetFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
+            moved = true;
+        } finally {
+            if (!moved) {
+                FileUtils.deleteQuietly(partFile);
             }
         }
     }
