@@ -49,6 +49,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.column.page.PageReadStore;
+import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
@@ -482,5 +486,73 @@ class ParquetRowDataWriterTest {
     private LocalDateTime toDateTime(Integer v) {
         v = (v > 0 ? v : -v) % 1000;
         return LocalDateTime.now().plusNanos(v).plusSeconds(v);
+    }
+
+    /**
+     * Verifies that {@code parquet.page.size.row.check.min} and {@code
+     * parquet.page.size.row.check.max} configuration keys are honoured by {@link
+     * ParquetRowDataBuilder}.
+     *
+     * <p>Before the fix, {@code FlinkParquetBuilder.createWriter()} never called {@code
+     * withMinRowCountForPageSizeCheck()} / {@code withMaxRowCountForPageSizeCheck()}, so these
+     * conf keys were silently ignored. A job writing rows with large binary fields could accumulate
+     * data across 100–10,000 rows (the defaults) before a page-size check, causing
+     * {@code java.lang.OutOfMemoryError: Size of data exceeded Integer.MAX_VALUE}.
+     */
+    @Test
+    void testRowCountForPageSizeCheckConfIsHonoured(@TempDir java.nio.file.Path folder)
+            throws IOException {
+        // Use a tiny page size (4 KB) and check after every row so the writer
+        // flushes frequently — this would OOM with the defaults on large payloads.
+        Configuration conf = new Configuration();
+        conf.setInt(ParquetOutputFormat.PAGE_SIZE, 4096);
+        conf.setInt(ParquetOutputFormat.MIN_ROW_COUNT_FOR_PAGE_SIZE_CHECK, 1);
+        conf.setInt(ParquetOutputFormat.MAX_ROW_COUNT_FOR_PAGE_SIZE_CHECK, 1);
+
+        RowType rowType =
+                RowType.of(new VarBinaryType(VarBinaryType.MAX_LENGTH));
+
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+
+        // Write rows with binary payloads larger than the page size.
+        // With row.check.min=1 the writer checks after every row and flushes before overflow.
+        byte[] largePayload = new byte[40_960]; // 40 KB — 10× the 4 KB page size
+        DataFormatConverters.DataFormatConverter<RowData, Row> converter =
+                (DataFormatConverters.DataFormatConverter<RowData, Row>)
+                        DataFormatConverters.getConverterForDataType(
+                                TypeConversions.fromLogicalToDataType(rowType));
+
+        // Write enough rows that the configured page-size check changes the emitted page count.
+        RowData rowData = converter.toInternal(Row.of((Object) largePayload));
+        for (int i = 0; i < 100; i++) {
+            writer.addElement(rowData);
+        }
+        writer.flush();
+        writer.finish();
+
+        assertThat(countPages(path, conf))
+                .as("with min=max=1 and a 4KB page size, 40KB rows should flush frequently")
+                .isGreaterThan(50);
+    }
+
+    private static int countPages(Path file, Configuration conf) throws IOException {
+        int pages = 0;
+        try (ParquetFileReader reader =
+                ParquetFileReader.open(
+                        HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(file.toUri()), conf))) {
+            ColumnDescriptor column = reader.getFileMetaData().getSchema().getColumns().get(0);
+            PageReadStore rowGroup;
+            while ((rowGroup = reader.readNextRowGroup()) != null) {
+                PageReader pageReader = rowGroup.getPageReader(column);
+                while (pageReader.readPage() != null) {
+                    pages++;
+                }
+            }
+        }
+        return pages;
     }
 }
