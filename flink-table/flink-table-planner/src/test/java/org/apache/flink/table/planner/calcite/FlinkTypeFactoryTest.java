@@ -49,6 +49,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -253,7 +254,40 @@ class FlinkTypeFactoryTest {
                                 new MapType(new CharType(1), new VarCharType(6)),
                                 new MapType(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE),
                                 new MapType(new CharType(1), new CharType(1))),
-                        new MapType(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)));
+                        new MapType(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)),
+                Arguments.of(List.of(new VariantType(false), new VariantType()), new VariantType()),
+                Arguments.of(List.of(new VariantType(false), new NullType()), new VariantType()),
+                Arguments.of(
+                        List.of(
+                                new ArrayType(new VariantType(false)),
+                                new ArrayType(new VariantType())),
+                        new ArrayType(new VariantType())),
+                // a VARIANT has no common type with another type, also when nested
+                Arguments.of(List.of(new VariantType(), VarCharType.STRING_TYPE), null),
+                Arguments.of(List.of(VarCharType.STRING_TYPE, new VariantType()), null),
+                Arguments.of(
+                        List.of(new ArrayType(new VariantType()), new ArrayType(new IntType())),
+                        null),
+                Arguments.of(
+                        List.of(
+                                new MapType(VarCharType.STRING_TYPE, new VariantType()),
+                                new MapType(VarCharType.STRING_TYPE, new IntType())),
+                        null),
+                Arguments.of(
+                        List.of(
+                                new MapType(new VariantType(), new IntType()),
+                                new MapType(VarCharType.STRING_TYPE, new IntType())),
+                        null),
+                Arguments.of(
+                        List.of(
+                                RowType.of(new IntType(), new VariantType()),
+                                RowType.of(new IntType(), new IntType())),
+                        null),
+                Arguments.of(
+                        List.of(
+                                RowType.of(new VariantType(), new IntType()),
+                                RowType.of(new VariantType())),
+                        null));
     }
 
     @MethodSource("testLeastRestrictive")
@@ -268,7 +302,10 @@ class FlinkTypeFactoryTest {
                                 input.stream()
                                         .map(typeFactory::createFieldTypeFromLogicalType)
                                         .collect(Collectors.toList())))
-                .isEqualTo(typeFactory.createFieldTypeFromLogicalType(expected));
+                .isEqualTo(
+                        expected == null
+                                ? null
+                                : typeFactory.createFieldTypeFromLogicalType(expected));
     }
 
     public static class TestClass {

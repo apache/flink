@@ -87,6 +87,7 @@ import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.MapSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ConversionUtil;
+import org.apache.calcite.util.Util;
 
 import java.lang.reflect.Type;
 import java.nio.charset.Charset;
@@ -255,6 +256,10 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
 
     @Override
     public RelDataType leastRestrictive(List<RelDataType> types) {
+        // A VARIANT is never cast implicitly, so it has no common type with any other type.
+        if (mixesVariantWithOtherType(types)) {
+            return null;
+        }
         final Optional<RelDataType> resolved = resolveAllIdenticalTypes(types);
         final RelDataType leastRestrictive =
                 resolved.orElseGet(() -> super.leastRestrictive(types));
@@ -263,6 +268,43 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
             return null;
         }
         return leastRestrictive;
+    }
+
+    // Looks inside ARRAY, MULTISET, MAP and ROW too. When their elements have no common type,
+    // Calcite still finds one for the whole type by cast, and Calcite casts a VARIANT to and from
+    // any type.
+    private static boolean mixesVariantWithOtherType(List<RelDataType> types) {
+        final List<RelDataType> typed =
+                types.stream()
+                        .filter(t -> t.getSqlTypeName() != SqlTypeName.NULL)
+                        .collect(Collectors.toList());
+        if (typed.stream().anyMatch(t -> t.getSqlTypeName() == SqlTypeName.VARIANT)) {
+            return typed.stream().anyMatch(t -> t.getSqlTypeName() != SqlTypeName.VARIANT);
+        }
+        if (typed.isEmpty()) {
+            return false;
+        }
+        if (typed.stream().allMatch(t -> t.getComponentType() != null)) {
+            return mixesVariantWithOtherType(Util.transform(typed, RelDataType::getComponentType));
+        }
+        if (typed.stream().allMatch(t -> t.getKeyType() != null)) {
+            return mixesVariantWithOtherType(Util.transform(typed, RelDataType::getKeyType))
+                    || mixesVariantWithOtherType(Util.transform(typed, RelDataType::getValueType));
+        }
+        if (typed.stream().allMatch(RelDataType::isStruct)) {
+            final int fieldCount = typed.get(0).getFieldCount();
+            if (typed.stream().anyMatch(t -> t.getFieldCount() != fieldCount)) {
+                return false;
+            }
+            for (int i = 0; i < fieldCount; i++) {
+                final int field = i;
+                if (mixesVariantWithOtherType(
+                        Util.transform(typed, t -> t.getFieldList().get(field).getType()))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private Optional<RelDataType> resolveAllIdenticalTypes(List<RelDataType> types) {
