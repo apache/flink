@@ -18,11 +18,13 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +59,28 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
 
         taskExecutorProcessSpecToPriorityAndResource = new HashMap<>();
         priorityToTaskExecutorProcessSpec = new HashMap<>();
-        maxExternalResources =
-                ResourceInformationReflector.INSTANCE.getExternalResources(maxContainerResource);
+        maxExternalResources = getExternalResources(maxContainerResource);
+    }
+
+    /**
+     * Returns the name and value of every resource type in the given resource except memory and
+     * vcores.
+     */
+    @VisibleForTesting
+    static Map<String, Long> getExternalResources(Resource resource) {
+        final ResourceInformation[] resources = resource.getResources();
+        final Map<String, Long> externalResources = new HashMap<>();
+        // YARN always puts memory and vcores first.
+        for (int i = 2; i < resources.length; i++) {
+            externalResources.put(resources[i].getName(), resources[i].getValue());
+        }
+        return externalResources;
+    }
+
+    @VisibleForTesting
+    static void setExternalResource(Resource resource, String resourceName, long amount) {
+        resource.setResourceInformation(
+                resourceName, ResourceInformation.newInstance(resourceName, amount));
     }
 
     Optional<PriorityAndResource> getPriorityAndResource(
@@ -140,8 +162,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
                             final long value = externalResource.getValue().longValue();
                             if (configKey != null) {
                                 validateExternalResourceConfig(configKey, value);
-                                ResourceInformationReflector.INSTANCE.setResourceInformation(
-                                        resource, configKey, value);
+                                setExternalResource(resource, configKey, value);
                             }
                         });
 

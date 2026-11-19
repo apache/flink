@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
-import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
@@ -29,17 +28,10 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 
 /** Utility class for Yarn tests. */
 public class YarnTestUtils {
-
-    static boolean isHadoopVersionGreaterThanOrEquals(final int major, final int minor) {
-        final String[] splitVersion = VersionInfo.getVersion().split("\\.");
-        final int[] versions = Arrays.stream(splitVersion).mapToInt(Integer::parseInt).toArray();
-        return versions[0] >= major && versions[1] >= minor;
-    }
 
     private YarnTestUtils() {
         throw new UnsupportedOperationException("This class should never be instantiated.");

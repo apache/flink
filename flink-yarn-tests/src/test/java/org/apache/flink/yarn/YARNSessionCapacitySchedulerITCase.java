@@ -59,8 +59,6 @@ import org.slf4j.event.Level;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.Arrays;
@@ -68,7 +66,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -518,7 +515,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                 LOG.info("Got report {}", rep);
             } while (rep.getYarnApplicationState() == YarnApplicationState.RUNNING);
 
-            verifyApplicationTags(rep);
+            assertThat(rep.getApplicationTags()).containsOnly("test-tag");
         } finally {
 
             // cleanup the yarn-properties file
@@ -558,33 +555,6 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                         e);
             }
         }
-    }
-
-    /**
-     * Ensures that the YARN application tags were set properly.
-     *
-     * <p>Since YARN application tags were only added in Hadoop 2.4, but Flink still supports Hadoop
-     * 2.3, reflection is required to invoke the methods. If the method does not exist, this test
-     * passes.
-     */
-    private void verifyApplicationTags(final ApplicationReport report)
-            throws InvocationTargetException, IllegalAccessException {
-
-        final Method applicationTagsMethod;
-
-        Class<ApplicationReport> clazz = ApplicationReport.class;
-        try {
-            // this method is only supported by Hadoop 2.4.0 onwards
-            applicationTagsMethod = clazz.getMethod("getApplicationTags");
-        } catch (NoSuchMethodException e) {
-            // only verify the tags if the method exists
-            return;
-        }
-
-        @SuppressWarnings("unchecked")
-        Set<String> applicationTags = (Set<String>) applicationTagsMethod.invoke(report);
-
-        assertThat(applicationTags).containsOnly("test-tag");
     }
 
     @AfterEach

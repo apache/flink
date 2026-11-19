@@ -27,7 +27,6 @@ import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
-import org.apache.hadoop.util.VersionUtil;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestTemplate;
@@ -85,15 +84,8 @@ class YarnFileStageTestS3ITCase {
         final File hadoopConfig = new File(tempFolder, "hdfs-site.xml");
         Map<String /* key */, String /* value */> parameters = new HashMap<>();
 
-        // set all different S3 fs implementation variants' configuration keys
         parameters.put("fs.s3a.access.key", S3TestCredentials.getS3AccessKey());
         parameters.put("fs.s3a.secret.key", S3TestCredentials.getS3SecretKey());
-
-        parameters.put("fs.s3.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
-        parameters.put("fs.s3.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
-
-        parameters.put("fs.s3n.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
-        parameters.put("fs.s3n.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
 
         try (PrintStream out = new PrintStream(new FileOutputStream(hadoopConfig))) {
             out.println("<?xml version=\"1.0\"?>");
@@ -110,7 +102,7 @@ class YarnFileStageTestS3ITCase {
 
         final Configuration conf = new Configuration();
         setEnv(Collections.singletonMap("HADOOP_CONF_DIR", tempFolder.getAbsolutePath()));
-        conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3;s3a;s3n");
+        conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3a");
 
         FileSystem.initialize(conf, null);
     }
@@ -145,20 +137,6 @@ class YarnFileStageTestS3ITCase {
             // clean up
             fs.delete(basePath, true);
         }
-    }
-
-    @TestTemplate
-    @RetryOnException(times = 3, exception = Exception.class)
-    void testRecursiveUploadForYarnS3n(@TempDir File tempFolder) throws Exception {
-        // skip test on Hadoop 3: https://issues.apache.org/jira/browse/HADOOP-14738
-        assumeThat(VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0)
-                .as("This test is skipped for Hadoop versions above 3")
-                .isTrue();
-
-        assumeThatThrownBy(() -> Class.forName("org.apache.hadoop.fs.s3native.NativeS3FileSystem"))
-                .as("Skipping test because NativeS3FileSystem is not in the class path")
-                .isNull();
-        testRecursiveUploadForYarn("s3n", "testYarn-s3n", tempFolder);
     }
 
     @TestTemplate

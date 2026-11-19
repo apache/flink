@@ -28,7 +28,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTestBase;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
-import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
@@ -89,7 +88,6 @@ import static org.apache.flink.yarn.YarnResourceManagerDriver.ERROR_MESSAGE_ON_S
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link YarnResourceManagerDriver}. */
 public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase<YarnWorkerNode> {
@@ -483,6 +481,28 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
+    void testContainerRequestWithTaskManagerNodeLabel() {
+        final AMRMClient.ContainerRequest containerRequest =
+                YarnResourceManagerDriver.createContainerRequest(
+                        Resource.newInstance(100, 1), Priority.newInstance(1), "flink-tm");
+
+        assertThat(containerRequest.getNodeLabelExpression()).isEqualTo("flink-tm");
+        assertThat(containerRequest.getRelaxLocality()).isTrue();
+    }
+
+    @Test
+    void testContainerRequestWithoutTaskManagerNodeLabel() {
+        for (String nodeLabel : Arrays.asList(null, "", " ")) {
+            final AMRMClient.ContainerRequest containerRequest =
+                    YarnResourceManagerDriver.createContainerRequest(
+                            Resource.newInstance(100, 1), Priority.newInstance(1), nodeLabel);
+
+            assertThat(containerRequest.getNodeLabelExpression()).isNull();
+            assertThat(containerRequest.getRelaxLocality()).isTrue();
+        }
+    }
+
+    @Test
     void testOnSuccessfulContainerCompleted() throws Exception {
         runTestOnContainerCompleted(createSuccessfulCompletedContainerStatus());
     }
@@ -757,11 +777,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                 ignored ->
                                         Collections.singletonList(
                                                 Collections.singletonList(
-                                                        ContainerRequestReflector.INSTANCE
-                                                                .getContainerRequest(
-                                                                        testingResource,
-                                                                        Priority.UNDEFINED,
-                                                                        null))))
+                                                        new AMRMClient.ContainerRequest(
+                                                                testingResource,
+                                                                null,
+                                                                null,
+                                                                Priority.UNDEFINED))))
                         .setRemoveContainerRequestConsumer(
                                 (request, handler) -> removeContainerRequestFuture.complete(null))
                         .setReleaseAssignedContainerConsumer(
@@ -864,7 +884,6 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
         @Override
         protected void validateWorkersRecoveredFromPreviousAttempt(
                 Collection<YarnWorkerNode> workers) {
-            assumeThat(HadoopUtils.isMinHadoopVersion(2, 2)).isTrue();
             assertThat(workers).hasSize(1);
 
             final ResourceID resourceId = workers.iterator().next().getResourceID();
