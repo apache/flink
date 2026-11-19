@@ -37,6 +37,9 @@ public class JoinSemanticTests extends SemanticTestBase {
                 JoinSemanticTestPrograms.LEFT_JOIN_NULLABLE_NESTED_ROW,
                 JoinSemanticTestPrograms.RIGHT_JOIN_NULLABLE_NESTED_ROW,
                 JoinSemanticTestPrograms.FULL_JOIN_NULLABLE_NESTED_ROW,
-                JoinSemanticTestPrograms.JOIN_REORDER_FILTER_ON_NULL_GENERATING_SIDE_OF_LEFT_JOIN);
+                JoinSemanticTestPrograms.JOIN_REORDER_FILTER_ON_NULL_GENERATING_SIDE_OF_LEFT_JOIN,
+                JoinSemanticTestPrograms.JOIN_REORDER_INNER_JOIN_ON_NULL_GENERATING_SIDE,
+                JoinSemanticTestPrograms.JOIN_REORDER_RIGHT_JOIN_ON_LEFT_JOIN_OF_CROSS_JOIN,
+                JoinSemanticTestPrograms.JOIN_REORDER_LEFT_JOIN_ON_TRUE_WITH_CROSS_JOIN);
     }
 }
