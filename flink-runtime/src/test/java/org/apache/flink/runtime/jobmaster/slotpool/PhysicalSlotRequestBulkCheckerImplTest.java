@@ -70,7 +70,7 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     private Supplier<Set<SlotInfo>> slotsRetriever;
 
     @BeforeAll
-    private static void setupClass() {
+    static void setupClass() {
         singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
@@ -78,14 +78,14 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     }
 
     @AfterAll
-    private static void teardownClass() {
+    static void teardownClass() {
         if (singleThreadScheduledExecutorService != null) {
             singleThreadScheduledExecutorService.shutdownNow();
         }
     }
 
     @BeforeEach
-    private void setup() {
+    void setup() {
         slots = new HashSet<>();
         slotsRetriever = () -> new HashSet<>(slots);
         bulkChecker = new PhysicalSlotRequestBulkCheckerImpl(slotsRetriever, clock);

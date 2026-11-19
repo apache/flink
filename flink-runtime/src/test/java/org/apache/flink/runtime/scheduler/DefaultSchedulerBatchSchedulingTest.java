@@ -75,7 +75,7 @@ class DefaultSchedulerBatchSchedulingTest {
     private static ComponentMainThreadExecutor mainThreadExecutor;
 
     @BeforeAll
-    private static void setupClass() {
+    static void setupClass() {
         singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
@@ -83,7 +83,7 @@ class DefaultSchedulerBatchSchedulingTest {
     }
 
     @AfterAll
-    private static void teardownClass() {
+    static void teardownClass() {
         if (singleThreadScheduledExecutorService != null) {
             singleThreadScheduledExecutorService.shutdownNow();
         }
