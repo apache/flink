@@ -44,7 +44,7 @@ class GSFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
     @BeforeAll
     static void checkCredentialsAndSetup() {
         GSTestCredentials.assumeCredentialsAvailable();
-        FileSystem.initialize(new Configuration(), null);
+        FileSystem.initialize(GSTestCredentials.createConfiguration(), null);
     }
 
     @AfterAll

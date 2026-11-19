@@ -71,7 +71,7 @@ Note that these examples are *not* exhaustive and you can use GCS in other place
 Flink provides the `flink-gs-fs-hadoop` file system to write to GCS.
 This implementation is self-contained with no dependency footprint, so there is no need to add Hadoop to the classpath to use it.
 
-`flink-gs-fs-hadoop` registers a `FileSystem` wrapper for URIs with the *gs://* scheme. It uses Google's [gcs-connector](https://mvnrepository.com/artifact/com.google.cloud.bigdataoss/gcs-connector/hadoop3-2.2.18) Hadoop library to access GCS. It also uses Google's [google-cloud-storage](https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage/2.68.0) library to provide `RecoverableWriter` support.
+`flink-gs-fs-hadoop` registers a `FileSystem` wrapper for URIs with the *gs://* scheme. It uses Google's [gcs-connector](https://mvnrepository.com/artifact/com.google.cloud.bigdataoss/gcs-connector/3.1.22) Hadoop library to access GCS. It also uses Google's [google-cloud-storage](https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage/2.79.0) library to provide `RecoverableWriter` support.
 
 This file system can be used with the [FileSystem connector]({{< ref "docs/connectors/datastream/filesystem.md" >}}).
 
@@ -84,7 +84,7 @@ cp ./opt/flink-gs-fs-hadoop-{{< version >}}.jar ./plugins/gs-fs-hadoop/
 
 ### Configuration
 
-The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v2.2.18/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v3.1.22/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 For example, `gcs-connector` has a `fs.gs.http.connect-timeout` configuration key. If you want to change it, you need to set `gs.http.connect-timeout: xyz` in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). Flink will internally translate this back to `fs.gs.http.connect-timeout`. 
 
@@ -107,13 +107,21 @@ You can also set `gcs-connector` options directly in the Hadoop `core-site.xml` 
 
 ### Authentication to access GCS
 
-Most operations on GCS require authentication. To provide authentication credentials, either:
+Most operations on GCS require authentication. `flink-gs-fs-hadoop` uses two clients, which select their credentials separately:
 
-* Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the path of the JSON credentials file, as described [here](https://cloud.google.com/docs/authentication/getting-started#setting_the_environment_variable), where JobManagers and TaskManagers run. This is the **recommended** method.
+* `gcs-connector` handles checkpoints, savepoints and all other file system access. It uses the credentials that `gs.auth.type` selects, and the credentials of the Compute Engine or GKE service account (`COMPUTE_ENGINE`) if `gs.auth.type` isn't set. See the [gcs-connector configuration](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v3.1.22/gcs/CONFIGURATION.md#authentication) for all values.
+* The `google-cloud-storage` library handles `RecoverableWriter`, which the `FileSink` uses. It uses the JSON credentials file in the `GOOGLE_APPLICATION_CREDENTIALS` environment variable, then the one in the `google.cloud.auth.service.account.json.keyfile` property in `core-site.xml`, and otherwise the [application default credentials](https://cloud.google.com/docs/authentication/application-default-credentials).
 
+To use a JSON credentials file with both clients, either:
 
-* Set the `google.cloud.auth.service.account.json.keyfile` property in `core-site.xml` to the path to the JSON credentials file (and make sure that the Hadoop configuration directory is specified to Flink as described [above](#configuration)):
-  
+* Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the path of the file, as described [here](https://cloud.google.com/docs/authentication/getting-started#setting_the_environment_variable), where JobManagers and TaskManagers run, and set `gs.auth.type` in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). This is the **recommended** method.
+
+```yaml
+gs.auth.type: APPLICATION_DEFAULT
+```
+
+* Set the `google.cloud.auth.service.account.json.keyfile` property in `core-site.xml` to the path of a service account key file (and make sure that the Hadoop configuration directory is specified to Flink as described [above](#configuration)), and set `gs.auth.type: SERVICE_ACCOUNT_JSON_KEYFILE` in the Flink configuration file:
+
 ```
 <configuration>
   <property>
@@ -123,25 +131,12 @@ Most operations on GCS require authentication. To provide authentication credent
 </configuration>
 ```
 
-For `flink-gs-fs-hadoop` to use credentials via either of these two methods, the use of service accounts for authentication must be enabled. This is enabled by default; however, it can be disabled in `core-site.xml` by setting:
-
-```
-<configuration>
-  <property>
-    <name>google.cloud.auth.service.account.enable</name>
-    <value>false</value>
-  </property>
-</configuration>
-```
+Setting `google.cloud.auth.service.account.enable` to `false` in `core-site.xml` makes `RecoverableWriter` ignore `google.cloud.auth.service.account.json.keyfile` and use the application default credentials. `gcs-connector` doesn't read this property.
 
 {{< hint warning >}}
-`gcs-connector` supports additional options to provide authentication credentials besides the `google.cloud.auth.service.account.json.keyfile` option described above. 
+The other values of `gs.auth.type`, such as `USER_CREDENTIALS` or `ACCESS_TOKEN_PROVIDER`, only apply to `gcs-connector`. `RecoverableWriter` doesn't use those credentials, so it can run as a different identity than `gcs-connector` and its operations may fail.
 
-However, if you use any of those other options, the provided credentials will not be used by the `google-cloud-storage` library, which provides `RecoverableWriter` support, so Flink recoverable-write operations would be expected to fail.
-
-For this reason, use of the `gcs-connector` authentication-credentials options other than `google.cloud.auth.service.account.json.keyfile` is **not recommended.**
-
-
+If you use the `FileSink`, set `gs.auth.type` as described above, or keep the default `COMPUTE_ENGINE` without configuring either file.
 {{< /hint >}}
 
 

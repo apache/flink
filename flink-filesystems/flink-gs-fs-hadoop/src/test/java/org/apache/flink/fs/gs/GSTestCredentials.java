@@ -51,6 +51,16 @@ class GSTestCredentials {
                 .isNotBlank();
     }
 
+    /**
+     * Returns a configuration that makes gcs-connector use application default credentials, like
+     * the Google Cloud Storage client of the recoverable writer.
+     */
+    static Configuration createConfiguration() {
+        final Configuration config = new Configuration();
+        config.setString("gs.auth.type", "APPLICATION_DEFAULT");
+        return config;
+    }
+
     /** Returns the URI of the test bucket, e.g. {@code gs://my-bucket/temp/}. */
     static String getTestBucketUri() {
         if (GCS_TEST_BUCKET == null) {
@@ -67,7 +77,7 @@ class GSTestCredentials {
      */
     static void deleteTemporaryObjects(Path basePath) {
         final GSFileSystemFactory factory = new GSFileSystemFactory();
-        factory.configure(new Configuration());
+        factory.configure(createConfiguration());
         final GSBlobStorage storage = new GSBlobStorageImpl(factory.getStorage());
         final GSBlobIdentifier base = BlobUtils.parseUri(basePath.toUri());
         final List<GSBlobIdentifier> temporaryObjects =
