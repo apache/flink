@@ -91,4 +91,8 @@ public interface ParserResource {
     @Resources.BaseMessage(
             "USING CONNECTION clause is not supported with CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements.")
     Resources.ExInst<ParseException> usingConnectionWithAsUnsupported();
+
+    @Resources.BaseMessage(
+            "''['' cannot follow the target type of ''::''. Use (x::VARIANT)[''id''] to access a field or element of the result, or ARRAY<INT> to name an array type.")
+    Resources.ExInst<ParseException> infixCastFollowedByBracket();
 }

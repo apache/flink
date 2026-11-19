@@ -3154,6 +3154,36 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testInfixCast() {
+        expr("a::int").ok("CAST(`A` AS INTEGER)");
+        expr("a::row(f0 int, f1 map<string, int>)")
+                .ok("CAST(`A` AS ROW(`F0` INTEGER, `F1` MAP< STRING, INTEGER >))");
+        expr("a::int::string").ok("CAST(CAST(`A` AS INTEGER) AS STRING)");
+        expr("a::interval day to second").ok("CAST(`A` AS INTERVAL DAY TO SECOND)");
+        expr("m['k']::int").ok("CAST(`M`['k'] AS INTEGER)");
+        expr("m['k'].f::int").ok("CAST((`M`['k'].`F`) AS INTEGER)");
+        expr("(select a from t)::int").ok("CAST((SELECT `A`\nFROM `T`) AS INTEGER)");
+
+        // Binds tighter than arithmetic, comparison, IS and unary minus.
+        expr("a::int + 1").ok("(CAST(`A` AS INTEGER) + 1)");
+        expr("a + b::int").ok("(`A` + CAST(`B` AS INTEGER))");
+        expr("(a + b)::int").ok("CAST((`A` + `B`) AS INTEGER)");
+        expr("-a::int").ok("(- CAST(`A` AS INTEGER))");
+        expr("a::int is null").ok("(CAST(`A` AS INTEGER) IS NULL)");
+
+        expr("(r::variant)['id']").ok("CAST(`R` AS VARIANT)['id']");
+        expr("r::variant^[^'id']")
+                .fails(
+                        "(?s).*'\\[' cannot follow the target type of '::'. Use \\(x::VARIANT\\)\\['id'\\] to access.*");
+
+        sql("select a::int as x from t where b::string = 'x'")
+                .ok(
+                        "SELECT CAST(`A` AS INTEGER) AS `X`\n"
+                                + "FROM `T`\n"
+                                + "WHERE (CAST(`B` AS STRING) = 'x')");
+    }
+
+    @Test
     void testAnalyzeTable() {
         sql("analyze table emp^s^").fails("(?s).*Encountered \"<EOF>\" at line 1, column 18.\n.*");
         sql("analyze table emps compute statistics").ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS");
