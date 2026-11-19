@@ -45,7 +45,7 @@ class HadoopGSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITC
         GSTestCredentials.assumeCredentialsAvailable();
         // The smallest chunk size GCS accepts, so each 7 MiB component of the *WithMultiPart
         // tests is uploaded in several chunks instead of one (the default is 16 MiB).
-        final Configuration config = new Configuration();
+        final Configuration config = GSTestCredentials.createConfiguration();
         config.set(GSFileSystemOptions.WRITER_CHUNK_SIZE, MemorySize.parse("256kb"));
         FileSystem.initialize(config, null);
         basePath = new Path(GSTestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
