@@ -45,6 +45,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ALLOW_LIST;
@@ -68,6 +70,9 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
             collectorsWithCountByMetricName = new HashMap<>();
 
     private final List<String> allowLists = new ArrayList<>();
+
+    /** Label names already reported as duplicated, so each is logged once and not per metric. */
+    private final Set<String> reportedDuplicateLabels = ConcurrentHashMap.newKeySet();
 
     @VisibleForTesting
     static String replaceInvalidChars(final String input) {
@@ -121,8 +126,16 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         List<String> dimensionValues = new LinkedList<>();
         for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
             final String key = dimension.getKey();
-            dimensionKeys.add(
-                    CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1)));
+            final String labelName =
+                    CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1));
+            if (dimensionKeys.contains(labelName)) {
+                // Prometheus refuses an exposition carrying the same label name twice and
+                // abandons the whole scrape, so reporting this metric would cost every other
+                // metric of this process as well.
+                warnAboutDuplicateLabel(labelName, metricName);
+                return;
+            }
+            dimensionKeys.add(labelName);
             dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
         }
 
@@ -155,6 +168,15 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
             addMetric(metric, dimensionValues, collector);
             collectorsWithCountByMetricName.put(
                     scopedMetricName, new AbstractMap.SimpleImmutableEntry<>(collector, count + 1));
+        }
+    }
+
+    private void warnAboutDuplicateLabel(String labelName, String metricName) {
+        if (reportedDuplicateLabels.add(labelName)) {
+            log.warn(
+                    "Multiple metric group variables map to the label name {}. Metrics carrying them, such as {}, will not be reported.",
+                    labelName,
+                    metricName);
         }
     }
 
@@ -259,6 +281,10 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         synchronized (this) {
             final AbstractMap.SimpleImmutableEntry<Collector, Integer> collectorWithCount =
                     collectorsWithCountByMetricName.get(scopedMetricName);
+            if (collectorWithCount == null) {
+                // The metric was refused, so there is nothing to remove.
+                return;
+            }
             final Integer count = collectorWithCount.getValue();
             final Collector collector = collectorWithCount.getKey();
 
