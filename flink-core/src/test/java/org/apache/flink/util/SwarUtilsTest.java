@@ -19,8 +19,14 @@
 package org.apache.flink.util;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,6 +70,30 @@ class SwarUtilsTest {
                 assertThat(contains(bytes, i + 1, LENGTH - i - 1)).isFalse();
             }
         }
+    }
+
+    // bytes from the limit up, and bytes of 0x80 and above
+    @ParameterizedTest
+    @ValueSource(bytes = {0x20, 'x', 0x7F, (byte) 0x80, (byte) 0xFF})
+    void testContainsLessThanWithoutMatch(byte b) {
+        assertThat(SwarUtils.containsLessThan(filled(b), 0, LENGTH, 0x20)).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("controlCharsAtEveryIndex")
+    void testContainsLessThan(byte b, int index) {
+        final byte[] bytes = filled((byte) 0xC3);
+        bytes[index] = b;
+        assertThat(SwarUtils.containsLessThan(bytes, 0, LENGTH, 0x20)).isTrue();
+        // an unaligned start still finds the byte, unless it's before the start
+        assertThat(SwarUtils.containsLessThan(bytes, 1, LENGTH - 1, 0x20)).isEqualTo(index > 0);
+        assertThat(SwarUtils.containsLessThan(bytes, index + 1, LENGTH - index - 1, 0x20))
+                .isFalse();
+    }
+
+    static Stream<Arguments> controlCharsAtEveryIndex() {
+        return Stream.of((byte) 0x00, (byte) '\n', (byte) 0x1F)
+                .flatMap(b -> IntStream.range(0, LENGTH).mapToObj(i -> Arguments.of(b, i)));
     }
 
     private static boolean contains(byte[] bytes) {

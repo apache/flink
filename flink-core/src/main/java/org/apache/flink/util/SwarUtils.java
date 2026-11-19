@@ -82,6 +82,28 @@ public final class SwarUtils {
         return false;
     }
 
+    /**
+     * Whether {@code bytes[offset, offset + len)} contains a byte below {@code lessThan}, comparing
+     * bytes unsigned.
+     *
+     * @param lessThan at most {@code 0x80}
+     */
+    public static boolean containsLessThan(byte[] bytes, int offset, int len, int lessThan) {
+        int i = offset;
+        final int end = offset + len;
+        for (; end - i >= Long.BYTES; i += Long.BYTES) {
+            if (hasByteLessThan(readWord(bytes, i), lessThan) != 0) {
+                return true;
+            }
+        }
+        for (; i < end; i++) {
+            if ((bytes[i] & 0xFF) < lessThan) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static long readWord(byte[] bytes, int index) {
         return (long) LONG_VIEW.get(bytes, index);
     }
