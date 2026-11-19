@@ -19,10 +19,10 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, primitiveTypeTermForType, BINARY_STRING}
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.createNodeTerm
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, isJsonObjectOrArrayOperand}
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, VARCHAR, VARIANT}
 
 import org.apache.calcite.rex.{RexCall, RexProgram}
 
@@ -37,11 +37,16 @@ class JsonStringCallGen(call: RexCall, rexProgram: RexProgram) extends CallGener
       returnType: LogicalType): GeneratedExpression = {
 
     val exprs = CodeGenUtils.getExprsFromProgramOrNull(rexProgram)
+    val operand = call.operands.get(0)
+    // JSON_OBJECT and JSON_ARRAY results are JSON already and are passed through as is
+    val isRawJson = isJsonObjectOrArrayOperand(operand, exprs)
     val jsonTerm = operands.head.resultType.getTypeRoot match {
       // toJson() already is the serialized JSON, a node and the ObjectMapper would only copy it
       case VARIANT => s"${operands.head.resultTerm}.toJson()"
+      case CHAR | VARCHAR if !isRawJson =>
+        s"$jsonUtils.serializeJsonString(${operands.head.resultTerm}.toString())"
       case _ =>
-        val valueTerm = createNodeTerm(ctx, operands.head, call.operands.get(0), exprs)
+        val valueTerm = createNodeTerm(ctx, operands.head, operand, exprs)
         s"$jsonUtils.serializeJson($valueTerm)"
     }
 
