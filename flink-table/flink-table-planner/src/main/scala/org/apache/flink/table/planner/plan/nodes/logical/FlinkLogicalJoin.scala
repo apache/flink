@@ -66,7 +66,12 @@ class FlinkLogicalJoin(
       case JoinRelType.SEMI | JoinRelType.ANTI =>
         val rightRowSize = mq.getAverageRowSize(getRight)
         val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
-        val cpuCost = leftRowCnt + rightRowCnt
+        // without equi-join keys, every left row is compared with every right row
+        val cpuCost = if (analyzeCondition().leftKeys.isEmpty) {
+          leftRowCnt * rightRowCnt
+        } else {
+          leftRowCnt + rightRowCnt
+        }
         val rowCnt = leftRowCnt + rightRowCnt
         planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
       case _ =>
