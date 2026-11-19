@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.jupiter.api.AfterEach;
@@ -36,7 +37,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
@@ -46,6 +50,7 @@ import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_R
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -221,6 +226,34 @@ public class DefaultDelegationTokenManagerTest {
         delegationTokenManager.stopTokensUpdate();
 
         assertEquals(3, startTokensUpdateCallCount.get());
+    }
+
+    @Test
+    public void startShouldRunInitialTokenUpdateOnIoExecutor() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ExecutorService ioExecutor =
+                Executors.newSingleThreadExecutor(new ExecutorThreadFactory("test-token-io"));
+        final AtomicReference<Thread> initialUpdateThread = new AtomicReference<>();
+
+        try {
+            DefaultDelegationTokenManager delegationTokenManager =
+                    new DefaultDelegationTokenManager(
+                            new Configuration(), null, scheduledExecutor, ioExecutor) {
+                        @Override
+                        void startTokensUpdate() {
+                            initialUpdateThread.set(Thread.currentThread());
+                            super.startTokensUpdate();
+                        }
+                    };
+
+            delegationTokenManager.start(tokens -> {});
+
+            assertNotNull(initialUpdateThread.get());
+            assertTrue(initialUpdateThread.get().getName().startsWith("test-token-io"));
+        } finally {
+            ioExecutor.shutdownNow();
+        }
     }
 
     @Test
