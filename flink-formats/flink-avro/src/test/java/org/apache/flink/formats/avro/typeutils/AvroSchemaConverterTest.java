@@ -46,6 +46,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -533,6 +534,87 @@ class AvroSchemaConverterTest {
         DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr);
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
         assertThat(schema).isEqualTo(new Schema.Parser().parse(schemaStr));
+    }
+
+    private static final String TIME_SCHEMA =
+            "{\"type\":\"record\",\"name\":\"t\",\"fields\":["
+                    + "{\"name\":\"millis\",\"type\":{\"type\":\"int\",\"logicalType\":\"time-millis\"}},"
+                    + "{\"name\":\"micros\",\"type\":{\"type\":\"long\",\"logicalType\":\"time-micros\"}},"
+                    + "{\"name\":\"millisOrNull\",\"type\":[\"null\",{\"type\":\"int\",\"logicalType\":\"time-millis\"}],\"default\":null},"
+                    + "{\"name\":\"microsOrNull\",\"type\":[\"null\",{\"type\":\"long\",\"logicalType\":\"time-micros\"}],\"default\":null},"
+                    + "{\"name\":\"inArray\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"long\",\"logicalType\":\"time-micros\"}}},"
+                    + "{\"name\":\"day\",\"type\":{\"type\":\"int\",\"logicalType\":\"date\"}},"
+                    + "{\"name\":\"plainInt\",\"type\":\"int\"},"
+                    + "{\"name\":\"plainLong\",\"type\":\"long\"}]}";
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testTimeLogicalTypesAreTimesByDefault(boolean legacyTimestampMapping) {
+        final RowType rowType =
+                (RowType)
+                        AvroSchemaConverter.convertToDataType(TIME_SCHEMA, legacyTimestampMapping)
+                                .getLogicalType();
+
+        assertThat(rowType.getTypeAt(0)).isEqualTo(DataTypes.TIME(3).notNull().getLogicalType());
+        assertThat(rowType.getTypeAt(1)).isEqualTo(DataTypes.TIME(6).notNull().getLogicalType());
+        assertThat(rowType.getTypeAt(2)).isEqualTo(DataTypes.TIME(3).getLogicalType());
+        assertThat(rowType.getTypeAt(3)).isEqualTo(DataTypes.TIME(6).getLogicalType());
+        assertThat(rowType.getTypeAt(4))
+                .isEqualTo(DataTypes.ARRAY(DataTypes.TIME(6).notNull()).notNull().getLogicalType());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testTimeLogicalTypesAsNumbers(boolean legacyTimestampMapping) {
+        final RowType rowType =
+                (RowType)
+                        AvroSchemaConverter.convertToDataType(
+                                        TIME_SCHEMA, legacyTimestampMapping, true)
+                                .getLogicalType();
+
+        assertThat(rowType.getTypeAt(0)).isEqualTo(DataTypes.INT().notNull().getLogicalType());
+        assertThat(rowType.getTypeAt(1)).isEqualTo(DataTypes.BIGINT().notNull().getLogicalType());
+        assertThat(rowType.getTypeAt(2)).isEqualTo(DataTypes.INT().getLogicalType());
+        assertThat(rowType.getTypeAt(3)).isEqualTo(DataTypes.BIGINT().getLogicalType());
+        assertThat(rowType.getTypeAt(4))
+                .isEqualTo(
+                        DataTypes.ARRAY(DataTypes.BIGINT().notNull()).notNull().getLogicalType());
+        // nothing else changes
+        assertThat(rowType.getTypeAt(5)).isEqualTo(DataTypes.DATE().notNull().getLogicalType());
+        assertThat(rowType.getTypeAt(6)).isEqualTo(DataTypes.INT().notNull().getLogicalType());
+        assertThat(rowType.getTypeAt(7)).isEqualTo(DataTypes.BIGINT().notNull().getLogicalType());
+    }
+
+    @Test
+    void testTimeAsNumberDoesNotTouchTimestamps() {
+        final String schema =
+                "{\"type\":\"record\",\"name\":\"t\",\"fields\":["
+                        + "{\"name\":\"ts\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}}]}";
+
+        assertThat(AvroSchemaConverter.convertToDataType(schema, false, true))
+                .isEqualTo(AvroSchemaConverter.convertToDataType(schema, false, false));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testTimeLogicalTypesAsNumbersTypeInfo(boolean legacyTimestampMapping) {
+        final TypeInformation<Row> timesInfo =
+                AvroSchemaConverter.convertToTypeInfo(TIME_SCHEMA, legacyTimestampMapping);
+        final TypeInformation<Row> numbersInfo =
+                AvroSchemaConverter.convertToTypeInfo(TIME_SCHEMA, legacyTimestampMapping, true);
+        final RowTypeInfo asTimes = (RowTypeInfo) timesInfo;
+        final RowTypeInfo asNumbers = (RowTypeInfo) numbersInfo;
+
+        assertThat(asTimes.getTypeAt(0)).isEqualTo(Types.SQL_TIME);
+        assertThat(asTimes.getTypeAt(1)).isEqualTo(Types.SQL_TIME);
+        assertThat(asTimes.getTypeAt(2)).isEqualTo(Types.SQL_TIME);
+        assertThat(asTimes.getTypeAt(3)).isEqualTo(Types.SQL_TIME);
+
+        assertThat(asNumbers.getTypeAt(0)).isEqualTo(Types.INT);
+        assertThat(asNumbers.getTypeAt(1)).isEqualTo(Types.LONG);
+        assertThat(asNumbers.getTypeAt(2)).isEqualTo(Types.INT);
+        assertThat(asNumbers.getTypeAt(3)).isEqualTo(Types.LONG);
+        assertThat(asNumbers.getTypeAt(5)).isEqualTo(Types.SQL_DATE);
     }
 
     @Test
