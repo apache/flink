@@ -819,7 +819,9 @@ public final class BuiltInFunctionDefinitions {
                                     "INPUT",
                                     Row.class,
                                     false,
-                                    EnumSet.of(StaticArgumentTrait.TABLE)),
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)),
                             StaticArgument.model(
                                     "MODEL", false, EnumSet.of(StaticArgumentTrait.MODEL)),
                             StaticArgument.scalar("ARGS", DataTypes.DESCRIPTOR(), false),
@@ -951,7 +953,8 @@ public final class BuiltInFunctionDefinitions {
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,
                                             StaticArgumentTrait.ROW_SEMANTIC_TABLE,
-                                            StaticArgumentTrait.SUPPORT_UPDATES)))
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)))
                     .outputTypeStrategy(argument(0))
                     .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
                     .build();

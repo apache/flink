@@ -182,4 +182,17 @@ public class ToChangelogTest extends TableTestBase {
                         + "produces_full_deletes => false)",
                 CHANGELOG_MODE);
     }
+
+    @Test
+    void testTimeAttributesNotForwarded() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE timed_source ("
+                                + "  id INT,"
+                                + "  ts TIMESTAMP(3),"
+                                + "  pt AS PROCTIME(),"
+                                + "  WATERMARK FOR ts AS ts"
+                                + ") WITH ('connector' = 'values')");
+        util.verifyRelPlan("SELECT * FROM TO_CHANGELOG(input => TABLE timed_source)");
+    }
 }

@@ -74,6 +74,30 @@ ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), D
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTimeAttributesNotForwarded">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE timed_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(op=[$0], id=[$1], ts=[$2], pt=[$3])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, TIMESTAMP(3) ts, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) pt)])
+   +- LogicalProject(id=[$0], ts=[$1], pt=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$1])
+         +- LogicalProject(id=[$0], ts=[$1], pt=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, timed_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,id,ts,pt], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, TIMESTAMP(3) ts, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) pt)])
++- Calc(select=[id, ts, PROCTIME_MATERIALIZE(pt) AS pt])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+      +- Calc(select=[id, ts, PROCTIME() AS pt])
+         +- TableSourceScan(table=[[default_catalog, default_database, timed_source]], fields=[id, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUpsertPartitionBy">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id, op => DESCRIPTOR(op), op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])]]>

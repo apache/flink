@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
 
 import javax.annotation.Nullable;
@@ -405,6 +406,9 @@ public class SystemTypeInference {
                                 // this whole topic is kind of vendor specific already
                                 fields.addAll(derivePassThroughFields(callContext, resolvedArgs));
                                 fields.addAll(deriveFunctionOutputFields(functionDataType));
+                                if (!preservesTimeAttributes(resolvedArgs)) {
+                                    fields.replaceAll(SystemOutputStrategy::removeTimeAttribute);
+                                }
 
                                 if (!disableSystemArgs) {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
@@ -479,6 +483,18 @@ public class SystemTypeInference {
                     .collect(Collectors.toList());
         }
 
+        /** A PTF might delay or reorder rows, which would invalidate forwarded time attributes. */
+        private boolean preservesTimeAttributes(List<StaticArgument> staticArgs) {
+            return functionKind != FunctionKind.PROCESS_TABLE
+                    || staticArgs.stream()
+                            .anyMatch(arg -> arg.is(StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES));
+        }
+
+        private static Field removeTimeAttribute(Field field) {
+            return DataTypes.FIELD(
+                    field.getName(), DataTypeUtils.removeTimeAttribute(field.getDataType()));
+        }
+
         private List<Field> deriveRowtimeField(
                 CallContext callContext, List<StaticArgument> staticArgs) {
             if (this.functionKind != FunctionKind.PROCESS_TABLE) {
@@ -512,6 +528,14 @@ public class SystemTypeInference {
                                 final int onTimeColumn =
                                         findUniqueOnTimeColumn(argName, rowType, onTimeFields);
                                 if (onTimeColumn >= 0) {
+                                    if (staticArg.is(
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)) {
+                                        throw new ValidationException(
+                                                String.format(
+                                                        "Function '%s' natively keeps the time attributes "
+                                                                + "of table argument '%s'. Remove the `on_time` argument.",
+                                                        callContext.getName(), argName));
+                                    }
                                     usedOnTimeFields.add(rowType.getFieldNames().get(onTimeColumn));
                                     onTimeColumns.add(rowType.getTypeAt(onTimeColumn));
                                     // If ORDER BY is defined, it must match the on_time column

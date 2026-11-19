@@ -47,6 +47,13 @@ public enum StaticArgumentTrait {
     SUPPORT_UPDATES(TABLE),
     REQUIRE_ON_TIME(TABLE),
 
+    /**
+     * Defines that the function emits the rows of this table argument unchanged and without
+     * reordering them across watermarks, so the time attributes of the copied columns stay valid.
+     * Reserved for built-in functions.
+     */
+    PRESERVE_TIME_ATTRIBUTES(TABLE),
+
     // For SET_SEMANTIC_TABLE
     OPTIONAL_PARTITION_BY(SET_SEMANTIC_TABLE),
 
