@@ -68,8 +68,12 @@ public class TritonOptions {
     public static final ConfigOption<String> MODEL_VERSION =
             ConfigOptions.key("model-version")
                     .stringType()
-                    .defaultValue("latest")
-                    .withDescription("Version of the model to use. Defaults to 'latest'.");
+                    .noDefaultValue()
+                    .withDescription(
+                            "Version of the model to use (e.g. '1', '2'). "
+                                    + "When omitted, the unversioned endpoint "
+                                    + "/v2/models/{name}/infer is used instead of "
+                                    + "/v2/models/{name}/versions/{version}/infer.");
 
     @Documentation.Section(
             value = {Documentation.Sections.MODEL_TRITON_COMMON},
