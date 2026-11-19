@@ -2429,8 +2429,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition IS_NAN =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("isNan")
-                    .sqlName("IS_NAN")
+                    .name("IS_NAN")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
