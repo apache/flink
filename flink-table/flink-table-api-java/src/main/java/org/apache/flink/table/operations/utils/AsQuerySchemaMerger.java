@@ -28,9 +28,11 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 
@@ -43,6 +45,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 public final class AsQuerySchemaMerger {
 
     private final DataTypeFactory dataTypeFactory;
+    private final Set<String> declaredNames = new HashSet<>();
     private final Map<String, UnresolvedColumn> declaredOnlyColumns = new LinkedHashMap<>();
     private final Map<String, UnresolvedColumn> sourceColumns = new LinkedHashMap<>();
 
@@ -64,19 +67,10 @@ public final class AsQuerySchemaMerger {
             if (this.sourceColumns.containsKey(column.getName())) {
                 throw new ValidationException(
                         String.format(
-                                "A column named '%s' already exists in the schema. ",
+                                "A column named '%s' already exists in the schema.",
                                 column.getName()));
             }
             this.sourceColumns.put(column.getName(), column);
-        }
-    }
-
-    /** Rejects a name an earlier declared-only column already uses. */
-    public void checkNotDeclared(String columnName) {
-        if (declaredOnlyColumns.containsKey(columnName)) {
-            throw new ValidationException(
-                    String.format(
-                            "A column named '%s' already exists in the schema. ", columnName));
         }
     }
 
@@ -84,12 +78,15 @@ public final class AsQuerySchemaMerger {
      * Adds a declared column.
      *
      * @param position the column's 0-based index in the declaration, used only in error messages
-     * @throws ValidationException if {@link #checkNotDeclared} rejects the name, or the column
+     * @throws ValidationException if an earlier declared column uses the same name, or the column
      *     cannot replace the query column of the same name
      */
     public void addDeclaredColumn(UnresolvedColumn column, int position) {
         final String name = column.getName();
-        checkNotDeclared(name);
+        if (!declaredNames.add(name)) {
+            throw new ValidationException(
+                    String.format("A column named '%s' already exists in the schema.", name));
+        }
         if (sourceColumns.containsKey(name)) {
             validateImplicitCastCompatibility(
                     dataTypeFactory, name, position, sourceColumns.get(name), column);

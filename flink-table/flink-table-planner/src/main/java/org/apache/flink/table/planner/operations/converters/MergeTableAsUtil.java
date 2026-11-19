@@ -56,10 +56,12 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -253,8 +255,6 @@ public class MergeTableAsUtil {
                 String name = column.getName().getSimple();
                 sinkColumnPos++;
 
-                merger.checkNotDeclared(name);
-
                 final UnresolvedColumn unresolvedSinkColumn;
                 final RelDataType relDataType;
                 if (column instanceof SqlRegularColumn) {
@@ -303,6 +303,16 @@ public class MergeTableAsUtil {
             final AsQuerySchemaMerger merger = new AsQuerySchemaMerger(sourceCols, dataTypeFactory);
             for (UnresolvedColumn sourceColumn : merger.getMergedColumns()) {
                 sourceSchemaCols.put(sourceColumn.getName(), sourceColumn);
+            }
+
+            final Set<String> listedNames = new HashSet<>();
+            for (SqlNode identifier : identifiers) {
+                final String name = ((SqlIdentifier) identifier).getSimple();
+                if (!listedNames.add(name)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "A column named '%s' already exists in the schema.", name));
+                }
             }
 
             if (identifiers.size() != sourceCols.size()) {
