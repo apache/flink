@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeNullHandling;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
@@ -45,11 +47,19 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     private static final long serialVersionUID = 1L;
 
+    /** Metric name for the number of null rowtime records dropped. */
+    public static final String METRIC_NULL_ROWTIME_RECORDS_DROPPED = "numNullRowtimeRecordsDropped";
+
+    /** Metric name for the number of null rowtime records skipped. */
+    public static final String METRIC_NULL_ROWTIME_RECORDS_SKIPPED = "numNullRowtimeRecordsSkipped";
+
     private final int rowtimeFieldIndex;
 
     private final long idleTimeout;
 
     private final WatermarkGenerator watermarkGenerator;
+
+    private final RowtimeNullHandling rowtimeNullHandling;
 
     private transient long lastWatermark;
 
@@ -74,19 +84,27 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     /** {@link PausableRelativeClock} that will be paused in case of backpressure. */
     private transient PausableRelativeClock inputActivityClock;
 
+    /** Counter for tracking the number of dropped records due to null rowtime. */
+    private transient Counter nullRowtimeRecordsDroppedCounter;
+
+    /** Counter for tracking the number of skipped records due to null rowtime. */
+    private transient Counter nullRowtimeRecordsSkippedCounter;
+
     /**
      * Create a watermark assigner operator.
      *
      * @param rowtimeFieldIndex the field index to extract event timestamp
      * @param watermarkGenerator the watermark generator
      * @param idleTimeout (idleness checking timeout)
+     * @param rowtimeNullHandling the strategy for handling null rowtime fields
      */
     public WatermarkAssignerOperator(
             StreamOperatorParameters<RowData> parameters,
             int rowtimeFieldIndex,
             WatermarkGenerator watermarkGenerator,
             long idleTimeout,
-            ProcessingTimeService processingTimeService) {
+            ProcessingTimeService processingTimeService,
+            RowtimeNullHandling rowtimeNullHandling) {
         super(parameters);
         this.rowtimeFieldIndex = rowtimeFieldIndex;
         this.watermarkGenerator = watermarkGenerator;
@@ -94,6 +112,7 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         this.idleTimeout = idleTimeout;
 
         this.processingTimeService = checkNotNull(processingTimeService);
+        this.rowtimeNullHandling = checkNotNull(rowtimeNullHandling);
     }
 
     @Override
@@ -119,6 +138,11 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
             getProcessingTimeService().registerTimer(now + timerInterval, this);
         }
 
+        // Register metrics for null rowtime handling
+        // Initialize both counters regardless of strategy to decouple setup and usage
+        nullRowtimeRecordsDroppedCounter = metrics.counter(METRIC_NULL_ROWTIME_RECORDS_DROPPED);
+        nullRowtimeRecordsSkippedCounter = metrics.counter(METRIC_NULL_ROWTIME_RECORDS_SKIPPED);
+
         FunctionUtils.setFunctionRuntimeContext(watermarkGenerator, getRuntimeContext());
         FunctionUtils.openFunction(watermarkGenerator, DefaultOpenContext.INSTANCE);
     }
@@ -134,9 +158,27 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
         RowData row = element.getValue();
         if (row.isNullAt(rowtimeFieldIndex)) {
-            throw new RuntimeException(
-                    "RowTime field should not be null,"
-                            + " please convert it to a non-null long value.");
+            switch (rowtimeNullHandling) {
+                case FAIL:
+                    throw new RuntimeException(
+                            "RowTime field at index "
+                                    + rowtimeFieldIndex
+                                    + " should not be null. "
+                                    + "Please convert it to a non-null long value, or set "
+                                    + "'table.exec.source.rowtime-null-handling' to DROP or SKIP_WATERMARK "
+                                    + "to handle null rowtime fields. Row data: "
+                                    + row);
+                case DROP:
+                    nullRowtimeRecordsDroppedCounter.inc();
+                    return;
+                case SKIP_WATERMARK:
+                    nullRowtimeRecordsSkippedCounter.inc();
+                    output.collect(element);
+                    return;
+                default:
+                    throw new IllegalStateException(
+                            "Unknown RowtimeNullHandling: " + rowtimeNullHandling);
+            }
         }
         Long watermark = watermarkGenerator.currentWatermark(row);
         if (watermark != null) {
