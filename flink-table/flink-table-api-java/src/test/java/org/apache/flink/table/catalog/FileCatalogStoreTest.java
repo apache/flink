@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.OperatingSystem;
 
 import org.assertj.core.api.ThrowableAssert;
@@ -29,6 +31,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -104,6 +108,75 @@ class FileCatalogStoreTest {
         Set<String> storedCatalogs = catalogStore.listCatalogs();
         assertThat(storedCatalogs.size()).isEqualTo(1);
         assertThat(storedCatalogs.contains(DUMMY)).isTrue();
+    }
+
+    @Test
+    void testCatalogOptionsSurviveReopening() {
+        final Configuration configuration =
+                Configuration.fromMap(
+                        Map.of(
+                                "numeric", "123",
+                                "boolean", "true",
+                                "null", "null",
+                                "alias", "*",
+                                "quoted", "'quoted'",
+                                "empty", "",
+                                "multiline", "first\nsecond",
+                                "plain", "dummy",
+                                "colon", "a: b"));
+        configuration.set(
+                ConfigOptions.key("list").stringType().asList().noDefaultValue(),
+                List.of("123", "a: b"));
+        configuration.set(
+                ConfigOptions.key("map").mapType().noDefaultValue(), Map.of("key", "true"));
+
+        final CatalogStore catalogStore = initCatalogStore();
+        catalogStore.open();
+        catalogStore.storeCatalog(DUMMY, CatalogDescriptor.of(DUMMY, configuration));
+        catalogStore.close();
+
+        final CatalogStore reopenedStore = initCatalogStore();
+        reopenedStore.open();
+        try {
+            assertThat(reopenedStore.getCatalog(DUMMY).orElseThrow().getConfiguration().toMap())
+                    .isEqualTo(configuration.toMap());
+        } finally {
+            reopenedStore.close();
+        }
+    }
+
+    @Test
+    void testDefaultDatabaseSurvivesReopening() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.set(
+                CommonCatalogOptions.CATALOG_TYPE, GenericInMemoryCatalogFactoryOptions.IDENTIFIER);
+        configuration.set(GenericInMemoryCatalogFactoryOptions.DEFAULT_DATABASE, "123");
+
+        final CatalogStore catalogStore = initCatalogStore();
+        catalogStore.open();
+        catalogStore.storeCatalog(DUMMY, CatalogDescriptor.of(DUMMY, configuration));
+        catalogStore.close();
+
+        final CatalogStore reopenedStore = initCatalogStore();
+        reopenedStore.open();
+        try {
+            final CatalogDescriptor descriptor = reopenedStore.getCatalog(DUMMY).orElseThrow();
+            final Catalog catalog =
+                    FactoryUtil.createCatalog(
+                            descriptor.getCatalogName(),
+                            descriptor.getConfiguration().toMap(),
+                            new Configuration(),
+                            getClass().getClassLoader());
+            try {
+                catalog.open();
+                assertThat(catalog.getDefaultDatabase()).isEqualTo("123");
+                assertThat(catalog.databaseExists("123")).isTrue();
+            } finally {
+                catalog.close();
+            }
+        } finally {
+            reopenedStore.close();
+        }
     }
 
     @Test
