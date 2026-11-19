@@ -501,7 +501,14 @@ Savepoints are compatible across Flink versions as indicated by the table below:
 **Note**: "Compatible" here refers specifically to compatibility of the internal data format in
 savepoints. It does not cover compatibility of SQL operators or other Upper-level changes. In
 practice, provided there are no changes to Flink SQL semantics, this state format compatibility
-typically also ensures job-level compatibility.
+typically also ensures job-level compatibility. For SQL/Table API jobs, a minor version upgrade
+(e.g. 1.18 to 1.20) can still produce an incompatible savepoint, because new optimizer rules or
+more specialized runtime operators change the execution plan. See [Table API & SQL](#table-api--sql)
+above for details.
+
+State compatibility is not guaranteed between 1.x and 2.x, as stated in the
+[Flink 2.0 release notes](https://nightlies.apache.org/flink/flink-docs-release-2.0/release-notes/flink-2.0/#misc),
+so the 2.x columns are left empty for savepoints created with a 1.x version.
 
 <table class="table table-bordered" style="font-size:8pt">
   <thead>
@@ -511,7 +518,10 @@ typically also ensures job-level compatibility.
       <th class="text-center">1.18.x</th>
       <th class="text-center">1.19.x</th>
       <th class="text-center">1.20.x</th>
-      <th class="text-center" style="width: 50%">Limitations</th>
+      <th class="text-center">2.0.x</th>
+      <th class="text-center">2.1.x</th>
+      <th class="text-center">2.2.x</th>
+      <th class="text-center" style="width: 35%">Limitations</th>
     </tr>
   </thead>
   <tbody>
@@ -521,6 +531,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -529,6 +542,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -537,6 +553,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -545,6 +564,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -553,6 +575,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -561,6 +586,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left">Don't upgrade from 1.12.x to 1.13.x with an unaligned checkpoint. Please use a savepoint for migrating.</td>
         </tr>
     <tr>
@@ -569,6 +597,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -577,6 +608,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left">
             For Table API: 1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that 
             make it difficult/impossible to restore state or upgrade to next patch version. A new 
@@ -593,6 +627,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -601,6 +638,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -609,6 +649,9 @@ typically also ensures job-level compatibility.
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -617,10 +660,49 @@ typically also ensures job-level compatibility.
           <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.20.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.0.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.1.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.2.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
