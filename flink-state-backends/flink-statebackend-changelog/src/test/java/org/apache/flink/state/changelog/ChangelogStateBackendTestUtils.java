@@ -402,17 +402,20 @@ public class ChangelogStateBackendTestUtils {
             ChangelogKeyedStateBackend<Integer> keyedBackend,
             MetricGroup metricGroup,
             CompletableFuture<Void> asyncComplete) {
-        return new PeriodicMaterializationManager(
-                new SyncMailboxExecutor(),
-                Executors.newDirectExecutorService(),
-                "testTask",
-                (message, exception) -> asyncComplete.completeExceptionally(exception),
-                keyedBackend,
-                new ChangelogMaterializationMetricGroup(metricGroup),
-                true,
-                10,
-                1,
-                "testTask");
+        PeriodicMaterializationManager manager =
+                new PeriodicMaterializationManager(
+                        new SyncMailboxExecutor(),
+                        Executors.newDirectExecutorService(),
+                        "testTask",
+                        (message, exception) -> asyncComplete.completeExceptionally(exception),
+                        keyedBackend,
+                        new ChangelogMaterializationMetricGroup(metricGroup),
+                        true,
+                        10,
+                        1,
+                        "testTask");
+        keyedBackend.registerCloseable(manager);
+        return manager;
     }
 
     /** Dummy {@link CheckpointStorageAccess}. */

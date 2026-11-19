@@ -26,7 +26,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -110,8 +110,8 @@ public class ChangelogDelegateStateTest {
 
     private void testDelegatingState(StateDescriptor descriptor, Class<?> stateClass)
             throws Exception {
-        KeyedStateBackend<Integer> delegatedBackend = null;
-        KeyedStateBackend<Integer> changelogBackend = null;
+        CheckpointableKeyedStateBackend<Integer> delegatedBackend = null;
+        CheckpointableKeyedStateBackend<Integer> changelogBackend = null;
 
         try {
             delegatedBackend = createKeyedBackend(backend.get(), env);
@@ -132,10 +132,12 @@ public class ChangelogDelegateStateTest {
                             .getClass());
         } finally {
             if (delegatedBackend != null) {
+                IOUtils.closeQuietly(delegatedBackend);
                 delegatedBackend.dispose();
             }
 
             if (changelogBackend != null) {
+                IOUtils.closeQuietly(changelogBackend);
                 changelogBackend.dispose();
             }
         }

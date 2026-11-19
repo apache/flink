@@ -187,6 +187,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
@@ -221,6 +222,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                             sharedStateRegistry);
             snapshot.discardState();
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -309,6 +311,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
@@ -353,6 +356,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             snapshot.discardState();
 
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -468,6 +472,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
@@ -536,6 +541,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             snapshot.discardState();
 
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -568,19 +574,26 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             CheckpointableKeyedStateBackend<Integer> restoredBackend =
                     restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 
-            assertThatThrownBy(
-                            () ->
-                                    restoredBackend.create(
-                                            "testPriorityQueue",
-                                            new TestType.IncompatibleTestTypeSerializer()))
-                    .hasCauseInstanceOf(StateMigrationException.class);
+            try {
+                assertThatThrownBy(
+                                () ->
+                                        restoredBackend.create(
+                                                "testPriorityQueue",
+                                                new TestType.IncompatibleTestTypeSerializer()))
+                        .hasCauseInstanceOf(StateMigrationException.class);
+            } finally {
+                IOUtils.closeQuietly(restoredBackend);
+                restoredBackend.dispose();
+            }
 
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -653,6 +666,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreKeyedBackend(newKeySerializer, snapshot);
@@ -678,6 +692,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                             sharedStateRegistry);
             snapshot.discardState();
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -753,6 +768,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                             sharedStateRegistry);
 
             // test incompatible namespace serializer; start with a freshly restored backend
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 
@@ -780,6 +796,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                             sharedStateRegistry);
             snapshot.discardState();
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -853,6 +870,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     2L,
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()));
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -876,6 +894,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(iterator).isExhausted();
             state.add(new TestType("new-entry", 777));
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -948,6 +967,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     2L,
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()));
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -974,6 +994,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(iterator).isExhausted();
             state.add(new TestType("new-entry", 777));
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -1102,6 +1123,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     2L,
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()));
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -1128,6 +1150,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(state.get(5)).isEqualTo(new TestType("bar", 278));
             state.put(17, new TestType("new-entry", 777));
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -1155,6 +1178,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                     2L,
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()));
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -1168,6 +1192,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(state.get(new TestType("bar", 278))).isEqualTo(5);
             state.put(new TestType("new-entry", 777), 17);
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
