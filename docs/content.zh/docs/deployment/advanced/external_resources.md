@@ -206,7 +206,6 @@ public class FPGAInfo implements ExternalResourceInfo {
   - 对于 Standalone 模式，集群管理员应确保已安装 NVIDIA 驱动程序，并且集群中所有节点上的 GPU 资源都是可访问的。
 
   - 对于 Yarn 上部署，管理员需要配置 Yarn 集群使其[支持 GPU 调度](https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/UsingGpus.html)。
-  请注意，所需的 Hadoop 版本是 2.10+ 和 3.1+。
 
   - 对于 Kubernetes 上部署，管理员需要保证 NVIDIA GPU 的 [Device Plugin](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/) 已在集群上安装。
   请注意，所需的 Kubernetes 版本是 1.10+。目前，Kubernetes只支持 NVIDIA GPU 和 AMD GPU。Flink 只提供了 NVIDIA GPU 的脚本，但你可以提供支持 AMD GPU 的自定义脚本，参看 [发现脚本](#discovery-script)。
