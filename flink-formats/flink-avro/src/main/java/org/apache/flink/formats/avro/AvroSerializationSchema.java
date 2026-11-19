@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.typeutils.AvroFactory;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -182,9 +183,9 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
         }
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-            Schema schema = SpecificData.get().getSchema(recordClazz);
-            this.datumWriter = new SpecificDatumWriter<>(schema);
-            this.schema = schema;
+            SpecificData specificData = AvroFactory.getSpecificDataForClass(recordClazz, cl);
+            this.schema = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
+            this.datumWriter = new SpecificDatumWriter<>(schema, specificData);
         } else {
             this.schema = new Schema.Parser().parse(this.schemaString);
             GenericData genericData = new GenericData(cl);
