@@ -131,6 +131,8 @@ gs.auth.type: APPLICATION_DEFAULT
 </configuration>
 ```
 
+Flink logs a warning at startup if `RecoverableWriter` uses one of these files and `gs.auth.type` isn't set.
+
 Setting `google.cloud.auth.service.account.enable` to `false` in `core-site.xml` makes `RecoverableWriter` ignore `google.cloud.auth.service.account.json.keyfile` and use the application default credentials. `gcs-connector` doesn't read this property.
 
 {{< hint warning >}}

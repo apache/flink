@@ -24,6 +24,9 @@ import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
+import com.google.cloud.hadoop.util.HadoopCredentialsConfiguration;
+import com.google.cloud.hadoop.util.HadoopCredentialsConfiguration.AuthenticationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +55,9 @@ public class ConfigUtils {
 
     private static final String HADOOP_OPTION_SERVICE_ACCOUNT_JSON_KEYFILE =
             "google.cloud.auth.service.account.json.keyfile";
+
+    private static final HadoopConfigurationProperty<AuthenticationType> CONNECTOR_AUTH_TYPE =
+            HadoopCredentialsConfiguration.AUTHENTICATION_TYPE_SUFFIX;
 
     /**
      * Loads the Hadoop configuration, by loading from a Hadoop conf dir (if one exists) and then
@@ -109,7 +115,7 @@ public class ConfigUtils {
     public static Optional<GoogleCredentials> getStorageCredentials(
             org.apache.hadoop.conf.Configuration hadoopConfig, ConfigContext configContext) {
 
-        // follow the same rules as for the Hadoop connector, i.e.
+        // RecoverableWriter credential order:
         // 1) only use service credentials at all if Hadoop
         // "google.cloud.auth.service.account.enable" is true (default: true)
         // 2) use GOOGLE_APPLICATION_CREDENTIALS as location of credentials, if supplied
@@ -119,6 +125,8 @@ public class ConfigUtils {
 
         // store any credentials we are to use, here
         Optional<String> credentialsPath = Optional.empty();
+        // the gcs-connector authentication type that uses the same credentials
+        AuthenticationType matchingAuthType = null;
 
         // only look for credentials if service account support is enabled
         boolean enableServiceAccount =
@@ -129,10 +137,12 @@ public class ConfigUtils {
             // "google.cloud.auth.service.account.json.keyfile" from Hadoop
             credentialsPath = configContext.getenv("GOOGLE_APPLICATION_CREDENTIALS");
             if (credentialsPath.isPresent()) {
+                matchingAuthType = AuthenticationType.APPLICATION_DEFAULT;
                 LOGGER.info(
                         "GSRecoverableWriter is using GOOGLE_APPLICATION_CREDENTIALS at {}",
                         credentialsPath.get());
             } else {
+                matchingAuthType = AuthenticationType.SERVICE_ACCOUNT_JSON_KEYFILE;
                 credentialsPath =
                         Optional.ofNullable(
                                 hadoopConfig.get(HADOOP_OPTION_SERVICE_ACCOUNT_JSON_KEYFILE));
@@ -149,6 +159,15 @@ public class ConfigUtils {
             LOGGER.info(
                     "Creating GSRecoverableWriter using credentials from {}",
                     credentialsPath.get());
+            if (!isConnectorAuthTypeSet(hadoopConfig)) {
+                LOGGER.warn(
+                        "GSRecoverableWriter uses the credentials from {}, but gcs-connector uses"
+                                + " {} credentials because 'gs.auth.type' is not set. Set"
+                                + " 'gs.auth.type' to {} to use the same credentials for both.",
+                        credentialsPath.get(),
+                        CONNECTOR_AUTH_TYPE.getDefault(),
+                        matchingAuthType);
+            }
             GoogleCredentials credentials =
                     configContext.loadStorageCredentialsFromFile(credentialsPath.get());
             return Optional.of(credentials);
@@ -156,6 +175,17 @@ public class ConfigUtils {
             LOGGER.info("Creating GSRecoverableWriter using no credentials");
             return Optional.empty();
         }
+    }
+
+    private static boolean isConnectorAuthTypeSet(
+            org.apache.hadoop.conf.Configuration hadoopConfig) {
+        // gcs-connector reads the authentication type under each of its key prefixes
+        for (String prefix : GoogleHadoopFileSystemConfiguration.CONFIG_KEY_PREFIXES) {
+            if (hadoopConfig.get(prefix + CONNECTOR_AUTH_TYPE.getKey()) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Optional<String> getGcsRootUrl(
