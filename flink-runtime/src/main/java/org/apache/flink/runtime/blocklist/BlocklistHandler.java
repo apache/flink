@@ -69,6 +69,13 @@ public interface BlocklistHandler {
      */
     void deregisterBlocklistListener(BlocklistListener blocklistListener);
 
+    /**
+     * Start the blocklist handler.
+     *
+     * @param mainThreadExecutor to use to run code in the main thread
+     */
+    void start(ComponentMainThreadExecutor mainThreadExecutor);
+
     /** Factory to instantiate {@link BlocklistHandler}. */
     interface Factory {
 
@@ -77,14 +84,12 @@ public interface BlocklistHandler {
          *
          * @param blocklistContext the blocklist context
          * @param taskManagerNodeIdRetriever to map a task manager to the node it's located on
-         * @param mainThreadExecutor to schedule the timeout check
          * @param log the logger
          * @return an instantiated blocklist handler.
          */
         BlocklistHandler create(
                 BlocklistContext blocklistContext,
                 Function<ResourceID, String> taskManagerNodeIdRetriever,
-                ComponentMainThreadExecutor mainThreadExecutor,
                 Logger log);
     }
 }
