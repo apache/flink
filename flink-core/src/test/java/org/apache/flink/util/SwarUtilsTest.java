@@ -37,39 +37,39 @@ class SwarUtilsTest {
     private static final int LENGTH = 19;
 
     @Test
-    void testIsAscii() {
+    void testIsAsciiOnAsciiRange() {
         final byte[] bytes = filled((byte) 'x');
         assertThat(SwarUtils.isAscii(bytes, 0, LENGTH)).isTrue();
         assertThat(SwarUtils.isAscii(bytes, 0, 0)).isTrue();
-
-        for (int i = 0; i < LENGTH; i++) {
-            final byte[] withNonAscii = filled((byte) 'x');
-            withNonAscii[i] = (byte) 0x80;
-            assertThat(SwarUtils.isAscii(withNonAscii, 0, LENGTH)).as("index %d", i).isFalse();
-            assertThat(SwarUtils.isAscii(withNonAscii, 1, LENGTH - 1)).isEqualTo(i == 0);
-            // the byte outside of the range doesn't count
-            assertThat(SwarUtils.isAscii(withNonAscii, i + 1, LENGTH - i - 1)).isTrue();
-        }
     }
 
-    @Test
-    void testContainsAnyOrLessThan() {
-        assertThat(contains(filled((byte) 'x'))).isFalse();
-        // bytes next to the ones searched for, and bytes of 0x80 and above
-        for (byte b : new byte[] {' ', '!', '#', '[', ']', 0x7F, (byte) 0x80, (byte) 0xFF}) {
-            assertThat(contains(filled(b))).as("byte %d", b).isFalse();
-        }
+    @ParameterizedTest
+    @MethodSource("indices")
+    void testIsAscii(int index) {
+        final byte[] bytes = filled((byte) 'x');
+        bytes[index] = (byte) 0x80;
+        assertThat(SwarUtils.isAscii(bytes, 0, LENGTH)).isFalse();
+        // an unaligned start still finds the byte, unless it's before the start
+        assertThat(SwarUtils.isAscii(bytes, 1, LENGTH - 1)).isEqualTo(index == 0);
+        assertThat(SwarUtils.isAscii(bytes, index + 1, LENGTH - index - 1)).isTrue();
+    }
 
-        for (byte b : new byte[] {'"', '\\', 0x00, 0x1F}) {
-            for (int i = 0; i < LENGTH; i++) {
-                final byte[] bytes = filled((byte) 0xC3);
-                bytes[i] = b;
-                assertThat(contains(bytes)).as("byte %d at index %d", b, i).isTrue();
-                // an unaligned start still finds the byte, unless it's before the start
-                assertThat(contains(bytes, 1, LENGTH - 1)).isEqualTo(i > 0);
-                assertThat(contains(bytes, i + 1, LENGTH - i - 1)).isFalse();
-            }
-        }
+    // bytes next to the ones searched for, and bytes of 0x80 and above
+    @ParameterizedTest
+    @ValueSource(bytes = {'x', ' ', '!', '#', '[', ']', 0x7F, (byte) 0x80, (byte) 0xFF})
+    void testContainsAnyOrLessThanWithoutMatch(byte b) {
+        assertThat(contains(filled(b), 0, LENGTH)).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("escapesAtEveryIndex")
+    void testContainsAnyOrLessThan(byte b, int index) {
+        final byte[] bytes = filled((byte) 0xC3);
+        bytes[index] = b;
+        assertThat(contains(bytes, 0, LENGTH)).isTrue();
+        // an unaligned start still finds the byte, unless it's before the start
+        assertThat(contains(bytes, 1, LENGTH - 1)).isEqualTo(index > 0);
+        assertThat(contains(bytes, index + 1, LENGTH - index - 1)).isFalse();
     }
 
     // bytes from the limit up, and bytes of 0x80 and above
@@ -91,13 +91,20 @@ class SwarUtilsTest {
                 .isFalse();
     }
 
-    static Stream<Arguments> controlCharsAtEveryIndex() {
-        return Stream.of((byte) 0x00, (byte) '\n', (byte) 0x1F)
-                .flatMap(b -> IntStream.range(0, LENGTH).mapToObj(i -> Arguments.of(b, i)));
+    static IntStream indices() {
+        return IntStream.range(0, LENGTH);
     }
 
-    private static boolean contains(byte[] bytes) {
-        return contains(bytes, 0, bytes.length);
+    static Stream<Arguments> escapesAtEveryIndex() {
+        return atEveryIndex((byte) '"', (byte) '\\', (byte) 0x00, (byte) 0x1F);
+    }
+
+    static Stream<Arguments> controlCharsAtEveryIndex() {
+        return atEveryIndex((byte) 0x00, (byte) '\n', (byte) 0x1F);
+    }
+
+    private static Stream<Arguments> atEveryIndex(Byte... bytes) {
+        return Stream.of(bytes).flatMap(b -> indices().mapToObj(i -> Arguments.of(b, i)));
     }
 
     private static boolean contains(byte[] bytes, int offset, int len) {
