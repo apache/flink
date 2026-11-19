@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
+import org.apache.flink.table.catalog.Interval;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -87,10 +88,30 @@ public final class MaterializedTableOperationFactory {
     /** Builds the operation for the declaration against the current catalog state. */
     public Operation build(
             ObjectIdentifier identifier, Mode mode, MaterializedTableMergeContext declaration) {
+        // An alter builds its table changes only after the running refresh job is stopped, so a
+        // rejected start mode must fail here to keep that job running.
+        validateStartMode(declaration.getStartMode());
         if (mode == Mode.CREATE_OR_ALTER) {
             return handleCreateOrAlter(identifier, declaration);
         }
         return handleCreate(identifier, declaration);
+    }
+
+    private static void validateStartMode(@Nullable StartMode startMode) {
+        if (startMode == null) {
+            return;
+        }
+        if (StartMode.requiresParameters(startMode.getKind()) && startMode.getTimestamp() == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Start mode '%s' requires a timestamp. Create it with StartMode.fromTimestamp(Instant) or StartMode.resumeOrFromTimestamp(Instant).",
+                            startMode.getKind()));
+        }
+        final Interval offset = startMode.getInterval();
+        if (offset != null && offset.getInterval() <= 0) {
+            throw new ValidationException(
+                    String.format("The start mode offset must be positive, but was: %s.", offset));
+        }
     }
 
     private Operation handleCreateOrAlter(
