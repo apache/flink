@@ -23,6 +23,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -38,11 +41,11 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -50,7 +53,6 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -136,6 +138,18 @@ abstract class FineGrainedSlotManagerTestBase {
         return completableFuture.get(FUTURE_TIMEOUT_SECOND, TimeUnit.SECONDS);
     }
 
+    /**
+     * Runs every scheduled task once, in scheduling order. A task that schedules itself again is
+     * not run a second time, unlike with {@link
+     * ManuallyTriggeredComponentMainThreadExecutor#triggerNonPeriodicScheduledTasks()}.
+     */
+    static void triggerScheduledTasksOnce(ManuallyTriggeredComponentMainThreadExecutor executor) {
+        final int scheduledTasks = executor.getAllNonPeriodicScheduledTask().size();
+        for (int i = 0; i < scheduledTasks; i++) {
+            executor.triggerNonPeriodicScheduledTask();
+        }
+    }
+
     static void assertFutureNotComplete(CompletableFuture<?> completableFuture) {
         assertThatFuture(completableFuture)
                 .withFailMessage("Expected to fail with a timeout.")
@@ -153,9 +167,10 @@ abstract class FineGrainedSlotManagerTestBase {
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
-        private ScheduledExecutor scheduledExecutor =
-                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
-        private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
+        private ComponentMainThreadExecutor mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        EXECUTOR_RESOURCE.getExecutor());
+        @Nullable private ManuallyTriggeredComponentMainThreadExecutor manualMainThreadExecutor;
         private FineGrainedSlotManager slotManager;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
@@ -194,8 +209,16 @@ abstract class FineGrainedSlotManagerTestBase {
             this.blockedTaskManagerChecker = blockedTaskManagerChecker;
         }
 
-        public void setScheduledExecutor(ScheduledExecutor scheduledExecutor) {
-            this.scheduledExecutor = scheduledExecutor;
+        /**
+         * Makes the test thread the slot manager's main thread; call before {@link #runTest}.
+         * {@link #runInMainThreadAndWait} triggers queued runnables, scheduled tasks are triggered
+         * on the returned executor.
+         */
+        ManuallyTriggeredComponentMainThreadExecutor useManuallyTriggeredMainThread() {
+            manualMainThreadExecutor =
+                    new ManuallyTriggeredComponentMainThreadExecutor(Thread.currentThread());
+            mainThreadExecutor = manualMainThreadExecutor;
+            return manualMainThreadExecutor;
         }
 
         void runInMainThread(Runnable runnable) {
@@ -204,13 +227,18 @@ abstract class FineGrainedSlotManagerTestBase {
 
         void runInMainThreadAndWait(RunnableWithException runnable)
                 throws InterruptedException, ExecutionException {
-            FutureUtils.runAsync(runnable, mainThreadExecutor).get();
+            final CompletableFuture<Void> future =
+                    FutureUtils.runAsync(runnable, mainThreadExecutor);
+            if (manualMainThreadExecutor != null) {
+                manualMainThreadExecutor.triggerAll();
+            }
+            future.get();
         }
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
             slotManager =
-                    FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
+                    FineGrainedSlotManagerBuilder.newBuilder()
                             .setSlotManagerConfiguration(configuration)
                             .setSlotManagerMetricGroup(slotManagerMetricGroup)
                             .setResourceTracker(resourceTracker)

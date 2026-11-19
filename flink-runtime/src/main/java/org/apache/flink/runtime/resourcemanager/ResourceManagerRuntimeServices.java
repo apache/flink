@@ -59,8 +59,7 @@ public class ResourceManagerRuntimeServices {
             ScheduledExecutor scheduledExecutor,
             SlotManagerMetricGroup slotManagerMetricGroup) {
 
-        final SlotManager slotManager =
-                createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
+        final SlotManager slotManager = createSlotManager(configuration, slotManagerMetricGroup);
 
         final JobLeaderIdService jobLeaderIdService =
                 new DefaultJobLeaderIdService(
@@ -71,12 +70,10 @@ public class ResourceManagerRuntimeServices {
 
     private static SlotManager createSlotManager(
             ResourceManagerRuntimeServicesConfiguration configuration,
-            ScheduledExecutor scheduledExecutor,
             SlotManagerMetricGroup slotManagerMetricGroup) {
         final SlotManagerConfiguration slotManagerConfiguration =
                 configuration.getSlotManagerConfiguration();
         return new FineGrainedSlotManager(
-                scheduledExecutor,
                 slotManagerConfiguration,
                 slotManagerMetricGroup,
                 new DefaultResourceTracker(),
