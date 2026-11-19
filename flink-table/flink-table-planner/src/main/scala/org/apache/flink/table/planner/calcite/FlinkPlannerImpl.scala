@@ -73,7 +73,7 @@ class FlinkPlannerImpl(
   var validator: FlinkCalciteSqlValidator = _
 
   /** Qualified names of the views that are currently being expanded, outermost first. */
-  private val viewsInExpansion = new util.ArrayList[util.List[String]]()
+  private val viewsInExpansion = new util.LinkedHashSet[util.List[String]]()
 
   def getSqlAdvisorValidator(): SqlAdvisorValidator = {
     new SqlAdvisorValidator(
@@ -366,9 +366,8 @@ class FlinkPlannerImpl(
    * rejects view definitions that reference themselves, either directly or through other views.
    */
   def withinViewExpansion[T](viewPath: util.List[String], action: Supplier[T]): T = {
-    val index = viewsInExpansion.indexOf(viewPath)
-    if (index >= 0) {
-      val cycle = viewsInExpansion.asScala.drop(index) :+ viewPath
+    if (viewsInExpansion.contains(viewPath)) {
+      val cycle = viewsInExpansion.asScala.toSeq.dropWhile(_ != viewPath) :+ viewPath
       throw new ValidationException(
         s"View ${quoteViewPath(viewPath)} references itself: " +
           s"${cycle.map(quoteViewPath).mkString(" -> ")}. Recursive views are not supported.")
@@ -377,7 +376,7 @@ class FlinkPlannerImpl(
     try {
       action.get()
     } finally {
-      viewsInExpansion.remove(viewsInExpansion.size() - 1)
+      viewsInExpansion.remove(viewPath)
     }
   }
 

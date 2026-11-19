@@ -98,16 +98,7 @@ class RecursiveViewTest {
 
     @Test
     void testQueryOnStoredRecursiveView() throws Exception {
-        final String query = "SELECT * FROM `default_catalog`.`default_database`.`v`";
-        catalog.createTable(
-                new ObjectPath(catalog.getDefaultDatabase(), "v"),
-                CatalogView.of(
-                        Schema.newBuilder().column("a", "INT").build(),
-                        null,
-                        query,
-                        query,
-                        Collections.emptyMap()),
-                false);
+        createStoredView("v", "SELECT * FROM `default_catalog`.`default_database`.`v`");
 
         assertThatThrownBy(() -> tEnv.explainSql("SELECT * FROM v"))
                 .isInstanceOf(ValidationException.class)
@@ -115,6 +106,22 @@ class RecursiveViewTest {
                         "View `default_catalog`.`default_database`.`v` references itself: "
                                 + "`default_catalog`.`default_database`.`v` -> "
                                 + "`default_catalog`.`default_database`.`v`. "
+                                + "Recursive views are not supported.");
+    }
+
+    @Test
+    void testCreateViewReadingStoredCycleOfOtherViews() throws Exception {
+        createStoredView("v2", "SELECT * FROM `default_catalog`.`default_database`.`v3`");
+        createStoredView("v3", "SELECT * FROM `default_catalog`.`default_database`.`v2`");
+
+        // The message shows only the cycle, without v1 which leads into it.
+        assertThatThrownBy(() -> tEnv.executeSql("CREATE VIEW v1 AS SELECT * FROM v2"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "View `default_catalog`.`default_database`.`v2` references itself: "
+                                + "`default_catalog`.`default_database`.`v2` -> "
+                                + "`default_catalog`.`default_database`.`v3` -> "
+                                + "`default_catalog`.`default_database`.`v2`. "
                                 + "Recursive views are not supported.");
     }
 
@@ -130,6 +137,19 @@ class RecursiveViewTest {
                                 + "`default_catalog`.`default_database`.`v`. "
                                 + "Recursive views are not supported.");
         assertThat(tEnv.listTemporaryViews()).isEmpty();
+    }
+
+    /** Stores a view in the catalog directly, without the checks of CREATE VIEW. */
+    private void createStoredView(String viewName, String query) throws Exception {
+        catalog.createTable(
+                new ObjectPath(catalog.getDefaultDatabase(), viewName),
+                CatalogView.of(
+                        Schema.newBuilder().column("a", "INT").build(),
+                        null,
+                        query,
+                        query,
+                        Collections.emptyMap()),
+                false);
     }
 
     private String expandedQuery(String viewName) {
