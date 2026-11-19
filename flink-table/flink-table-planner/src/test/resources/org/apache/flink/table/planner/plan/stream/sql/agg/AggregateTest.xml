@@ -402,6 +402,30 @@ Calc(select=[EXPR$0, CASE(($f2 = 0), null:INTEGER, EXPR$1) AS EXPR$1, CAST(($f3 
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGroupByAll">
+    <Resource name="sql">
+      <![CDATA[SELECT a, COUNT(*) FROM MyTable GROUP BY ALL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
++- LogicalProject(a=[$0])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$1])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- Calc(select=[a, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupByWithConstantKey">
     <Resource name="sql">
       <![CDATA[
