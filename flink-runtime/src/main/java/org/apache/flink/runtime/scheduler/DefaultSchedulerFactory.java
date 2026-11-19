@@ -65,6 +65,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final Logger log,
             final ExecutionPlan executionPlan,
             final Executor ioExecutor,
+            final Executor recoveryExecutor,
             final Configuration jobMasterConfiguration,
             final SlotPoolService slotPoolService,
             final ScheduledExecutorService futureExecutor,

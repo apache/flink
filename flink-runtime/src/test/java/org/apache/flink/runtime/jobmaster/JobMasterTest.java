@@ -33,6 +33,7 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -40,7 +41,11 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.events.Event;
 import org.apache.flink.events.EventBuilder;
 import org.apache.flink.events.Events;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.blocklist.BlockedNode;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.blocklist.DefaultBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -62,12 +67,14 @@ import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
@@ -102,11 +109,14 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
@@ -116,6 +126,7 @@ import org.apache.flink.runtime.shuffle.DefaultPartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.DefaultShuffleMetrics;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -136,8 +147,10 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -147,6 +160,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.MDC;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -175,6 +190,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -277,6 +295,164 @@ class JobMasterTest {
         if (rpcService != null) {
             rpcService.closeAsync();
             rpcService = null;
+        }
+    }
+
+    @Test
+    void testJobMastersBorrowSharedRecoveryPoolWithIsolatedJobContext() throws Exception {
+        configuration.set(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, 1);
+        configuration.set(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, 1);
+        final JobGraph firstJob = JobGraphTestUtils.singleNoOpJobGraph();
+        final JobGraph secondJob = JobGraphTestUtils.singleNoOpJobGraph();
+        final TestingSchedulerFactory firstFactory = new TestingSchedulerFactory();
+        final TestingSchedulerFactory secondFactory = new TestingSchedulerFactory();
+        final CountDownLatch release = new CountDownLatch(1);
+        try (BlobServer blobServer =
+                new BlobServer(configuration, temporaryFolder.toFile(), new VoidBlobStore())) {
+            final JobManagerSharedServices services =
+                    JobManagerSharedServices.fromConfiguration(
+                            configuration, blobServer, testingFatalErrorHandler);
+            JobMaster firstMaster = null;
+            JobMaster secondMaster = null;
+            try {
+                final Thread recoveryWorker =
+                        CompletableFuture.supplyAsync(
+                                        () -> {
+                                            MDC.setContextMap(
+                                                    Collections.singletonMap("worker", "recovery"));
+                                            return Thread.currentThread();
+                                        },
+                                        services.getRecoveryExecutor())
+                                .get(10, TimeUnit.SECONDS);
+                firstMaster =
+                        new JobMasterBuilder(firstJob, rpcService)
+                                .withConfiguration(configuration)
+                                .withJobManagerSharedServices(services)
+                                .withSlotPoolServiceSchedulerFactory(
+                                        DefaultSlotPoolServiceSchedulerFactory.create(
+                                                TestingSlotPoolServiceBuilder.newBuilder(),
+                                                firstFactory))
+                                .createJobMaster();
+                secondMaster =
+                        new JobMasterBuilder(secondJob, rpcService)
+                                .withConfiguration(configuration)
+                                .withJobManagerSharedServices(services)
+                                .withSlotPoolServiceSchedulerFactory(
+                                        DefaultSlotPoolServiceSchedulerFactory.create(
+                                                TestingSlotPoolServiceBuilder.newBuilder(),
+                                                secondFactory))
+                                .createJobMaster();
+                final CompletableFuture<Tuple2<Thread, String>> firstContext =
+                        new CompletableFuture<>();
+                final CompletableFuture<Void> firstRecovery =
+                        CompletableFuture.runAsync(
+                                ThrowingRunnable.unchecked(
+                                        () -> {
+                                            firstContext.complete(
+                                                    Tuple2.of(
+                                                            Thread.currentThread(),
+                                                            MDC.get(MdcUtils.JOB_ID)));
+                                            assertThat(release.await(30, TimeUnit.SECONDS))
+                                                    .isTrue();
+                                        }),
+                                firstFactory.recoveryExecutor);
+                assertThat(firstContext.get(10, TimeUnit.SECONDS))
+                        .isEqualTo(Tuple2.of(recoveryWorker, firstJob.getJobID().toHexString()));
+                final CompletableFuture<Tuple2<Thread, String>> secondContext =
+                        executorContext(secondFactory.recoveryExecutor);
+                final Tuple2<Thread, String> firstIoContext =
+                        executorContext(firstFactory.ioExecutor).get(10, TimeUnit.SECONDS);
+                final Tuple2<Thread, String> secondIoContext =
+                        executorContext(secondFactory.ioExecutor).get(10, TimeUnit.SECONDS);
+                assertThat(firstIoContext.f0.getName()).startsWith("jobmanager-io");
+                assertThat(firstIoContext.f0).isNotSameAs(recoveryWorker);
+                assertThat(firstIoContext.f1).isEqualTo(firstJob.getJobID().toHexString());
+                assertThat(secondIoContext)
+                        .isEqualTo(
+                                Tuple2.of(firstIoContext.f0, secondJob.getJobID().toHexString()));
+                assertThat(secondContext).isNotDone();
+
+                firstMaster.closeAsync().get(10, TimeUnit.SECONDS);
+
+                assertThat(((ExecutorService) services.getRecoveryExecutor()).isShutdown())
+                        .isFalse();
+                assertThat(secondContext).isNotDone();
+                release.countDown();
+                firstRecovery.get(10, TimeUnit.SECONDS);
+                assertThat(secondContext.get(10, TimeUnit.SECONDS))
+                        .isEqualTo(Tuple2.of(recoveryWorker, secondJob.getJobID().toHexString()));
+                assertThat(recoveryWorker.getName()).startsWith("jobmanager-recovery");
+                secondMaster.closeAsync().get(10, TimeUnit.SECONDS);
+
+                assertThat(
+                                CompletableFuture.supplyAsync(
+                                                MDC::getCopyOfContextMap,
+                                                services.getRecoveryExecutor())
+                                        .get(10, TimeUnit.SECONDS))
+                        .containsExactlyEntriesOf(Collections.singletonMap("worker", "recovery"));
+                assertThat(executorContext(services.getIoExecutor()).get(10, TimeUnit.SECONDS).f1)
+                        .isNull();
+                CompletableFuture.runAsync(() -> {}, services.getFutureExecutor())
+                        .get(10, TimeUnit.SECONDS);
+            } finally {
+                release.countDown();
+                try {
+                    CompletableFuture.allOf(
+                                    firstMaster == null
+                                            ? CompletableFuture.completedFuture(null)
+                                            : firstMaster.closeAsync(),
+                                    secondMaster == null
+                                            ? CompletableFuture.completedFuture(null)
+                                            : secondMaster.closeAsync())
+                            .get(10, TimeUnit.SECONDS);
+                } finally {
+                    services.shutdown();
+                }
+            }
+        }
+    }
+
+    private static CompletableFuture<Tuple2<Thread, String>> executorContext(Executor executor) {
+        return CompletableFuture.supplyAsync(
+                () -> Tuple2.of(Thread.currentThread(), MDC.get(MdcUtils.JOB_ID)), executor);
+    }
+
+    private static final class TestingSchedulerFactory implements SchedulerNGFactory {
+        private Executor ioExecutor;
+        private Executor recoveryExecutor;
+
+        @Override
+        public SchedulerNG createInstance(
+                Logger log,
+                ExecutionPlan executionPlan,
+                Executor ioExecutor,
+                Executor recoveryExecutor,
+                Configuration jobMasterConfiguration,
+                SlotPoolService slotPoolService,
+                ScheduledExecutorService futureExecutor,
+                ClassLoader userCodeLoader,
+                CheckpointRecoveryFactory checkpointRecoveryFactory,
+                Duration rpcTimeout,
+                BlobWriter blobWriter,
+                JobManagerJobMetricGroup jobManagerJobMetricGroup,
+                Duration slotRequestTimeout,
+                ShuffleMaster<?> shuffleMaster,
+                JobMasterPartitionTracker partitionTracker,
+                ExecutionDeploymentTracker executionDeploymentTracker,
+                long initializationTimestamp,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                FatalErrorHandler fatalErrorHandler,
+                JobStatusListener jobStatusListener,
+                Collection<FailureEnricher> failureEnrichers,
+                BlocklistOperations blocklistOperations) {
+            this.ioExecutor = ioExecutor;
+            this.recoveryExecutor = recoveryExecutor;
+            return TestingSchedulerNG.newBuilder().build();
+        }
+
+        @Override
+        public SchedulerType getSchedulerType() {
+            return SchedulerType.Default;
         }
     }
 
