@@ -1017,9 +1017,6 @@ With the `on_time` attribute declared, the output includes a `rowtime` column at
 watermarked time attribute, which can be used for subsequent PTF calls or time-based operations. The data type of `rowtime`
 is derived from the input's time attribute.
 
-Time attributes of table arguments are not forwarded to the output, not even in pass-through columns. Use `on_time` to get
-a time attribute in the output.
-
 #### Current Timestamp
 
 `TimeContext#time()` returns the timestamp of the currently processed event.

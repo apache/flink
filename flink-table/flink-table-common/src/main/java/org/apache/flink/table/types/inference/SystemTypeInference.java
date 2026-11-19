@@ -404,15 +404,19 @@ public class SystemTypeInference {
                                 // - Flink SESSION windows add pass-through columns at the beginning
                                 // - Oracle adds pass-through columns for all ROW semantics args, so
                                 // this whole topic is kind of vendor specific already
+                                final List<Field> rowtimeFields =
+                                        disableSystemArgs
+                                                ? List.of()
+                                                : deriveRowtimeField(callContext, resolvedArgs);
+                                // The on_time rowtime replaces any forwarded time attribute
+                                final boolean preservesTimeAttributes =
+                                        rowtimeFields.isEmpty()
+                                                && preservesTimeAttributes(resolvedArgs);
                                 fields.addAll(derivePassThroughFields(callContext, resolvedArgs));
-                                fields.addAll(deriveFunctionOutputFields(functionDataType));
-                                if (!preservesTimeAttributes(resolvedArgs)) {
-                                    fields.replaceAll(SystemOutputStrategy::removeTimeAttribute);
-                                }
-
-                                if (!disableSystemArgs) {
-                                    fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
-                                }
+                                fields.addAll(
+                                        deriveFunctionOutputFields(
+                                                functionDataType, preservesTimeAttributes));
+                                fields.addAll(rowtimeFields);
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
@@ -468,7 +472,8 @@ public class SystemTypeInference {
                     .collect(Collectors.toList());
         }
 
-        private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
+        private List<Field> deriveFunctionOutputFields(
+                DataType functionDataType, boolean preservesTimeAttributes) {
             final boolean isScalarOutput =
                     !LogicalTypeChecks.isCompositeType(functionDataType.getLogicalType());
             if (isScalarOutput) {
@@ -479,7 +484,15 @@ public class SystemTypeInference {
             final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
             final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())
-                    .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
+                    .mapToObj(
+                            pos -> {
+                                final DataType fieldType = fieldTypes.get(pos);
+                                return DataTypes.FIELD(
+                                        fieldNames.get(pos),
+                                        preservesTimeAttributes
+                                                ? fieldType
+                                                : DataTypeUtils.removeTimeAttribute(fieldType));
+                            })
                     .collect(Collectors.toList());
         }
 
@@ -487,12 +500,8 @@ public class SystemTypeInference {
         private boolean preservesTimeAttributes(List<StaticArgument> staticArgs) {
             return functionKind != FunctionKind.PROCESS_TABLE
                     || staticArgs.stream()
-                            .anyMatch(arg -> arg.is(StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES));
-        }
-
-        private static Field removeTimeAttribute(Field field) {
-            return DataTypes.FIELD(
-                    field.getName(), DataTypeUtils.removeTimeAttribute(field.getDataType()));
+                            .filter(arg -> arg.is(StaticArgumentTrait.TABLE))
+                            .allMatch(arg -> arg.is(StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES));
         }
 
         private List<Field> deriveRowtimeField(
@@ -528,14 +537,6 @@ public class SystemTypeInference {
                                 final int onTimeColumn =
                                         findUniqueOnTimeColumn(argName, rowType, onTimeFields);
                                 if (onTimeColumn >= 0) {
-                                    if (staticArg.is(
-                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)) {
-                                        throw new ValidationException(
-                                                String.format(
-                                                        "Function '%s' natively keeps the time attributes "
-                                                                + "of table argument '%s'. Remove the `on_time` argument.",
-                                                        callContext.getName(), argName));
-                                    }
                                     usedOnTimeFields.add(rowType.getFieldNames().get(onTimeColumn));
                                     onTimeColumns.add(rowType.getTypeAt(onTimeColumn));
                                     // If ORDER BY is defined, it must match the on_time column

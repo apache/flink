@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.calcite;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -446,11 +445,10 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
     }
 
     private RelNode visitTableFunctionScan(FlinkLogicalTableFunctionScan scan) {
-        final RelNode newScan = visitSimpleRel(scan);
-        final FunctionDefinition definition =
-                ShortcutUtils.unwrapFunctionDefinition(scan.getCall());
-        if (definition == null
-                || definition.getKind() != FunctionKind.PROCESS_TABLE
+        final FlinkLogicalTableFunctionScan newScan =
+                (FlinkLogicalTableFunctionScan) visitSimpleRel(scan);
+        final RexCall call = (RexCall) newScan.getCall();
+        if (!ShortcutUtils.isFunctionKind(call.getOperator(), FunctionKind.PROCESS_TABLE)
                 || !gatherProcTimeIndices(scan).isEmpty()) {
             return newScan;
         }
@@ -459,7 +457,33 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 newScan.getInputs().stream()
                         .map(this::materializeProcTime)
                         .collect(Collectors.toList());
-        return newScan.copy(newScan.getTraitSet(), newInputs);
+        final List<RexNode> newOperands =
+                call.getOperands().stream()
+                        .map(
+                                operand ->
+                                        operand instanceof RexTableArgCall
+                                                ? withInputType(
+                                                        (RexTableArgCall) operand, newInputs)
+                                                : operand)
+                        .collect(Collectors.toList());
+        return newScan.copy(
+                newScan.getTraitSet(),
+                newInputs,
+                call.clone(call.getType(), newOperands),
+                newScan.getElementType(),
+                newScan.getRowType(),
+                newScan.getColumnMappings());
+    }
+
+    private RexNode withInputType(RexTableArgCall tableArg, List<RelNode> inputs) {
+        final RelDataType inputType = inputs.get(tableArg.getInputIndex()).getRowType();
+        return tableArg.clone(
+                rexBuilder
+                        .getTypeFactory()
+                        .createStructType(
+                                RelOptUtil.getFieldTypeList(inputType),
+                                tableArg.getType().getFieldNames()),
+                List.of());
     }
 
     private RelNode visitSimpleRel(RelNode node) {

@@ -48,9 +48,9 @@ public enum StaticArgumentTrait {
     REQUIRE_ON_TIME(TABLE),
 
     /**
-     * Defines that the function emits the rows of this table argument unchanged and without
-     * reordering them across watermarks, so the time attributes of the copied columns stay valid.
-     * Reserved for built-in functions.
+     * Specifies that the function emits rows of this table argument in accordance with the
+     * watermark strategy, so that the time attributes in the output columns remain valid. Reserved
+     * for built-in functions.
      */
     PRESERVE_TIME_ATTRIBUTES(TABLE),
 

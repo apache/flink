@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -31,11 +30,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Plan tests for the TO_APPEND built-in process table function. */
 class ToAppendTest extends TableTestBase {
@@ -130,7 +127,7 @@ class ToAppendTest extends TableTestBase {
     }
 
     @Test
-    void testOnTimeNotSupported() {
+    void testOnTime() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE append_source ("
@@ -138,17 +135,16 @@ class ToAppendTest extends TableTestBase {
                                 + "  ts TIMESTAMP(3),"
                                 + "  WATERMARK FOR ts AS ts"
                                 + ") WITH ('connector' = 'values')");
-        assertThatThrownBy(
-                        () ->
-                                util.verifyRelPlan(
-                                        "SELECT * FROM TO_APPEND("
-                                                + "input => TABLE append_source, "
-                                                + "on_time => DESCRIPTOR(ts))"))
-                .satisfies(
-                        anyCauseMatches(
-                                ValidationException.class,
-                                "Function 'TO_APPEND' natively keeps the time attributes of table "
-                                        + "argument 'input'. Remove the `on_time` argument."));
+        final ResolvedSchema output =
+                util.tableEnv()
+                        .sqlQuery(
+                                "SELECT * FROM TO_APPEND("
+                                        + "input => TABLE append_source, "
+                                        + "on_time => DESCRIPTOR(ts))")
+                        .getResolvedSchema();
+        assertThat(output.getColumnNames()).containsExactly("id", "ts", "rowtime");
+        assertThat(isRowtimeAttribute(logicalType(output, "ts"))).isFalse();
+        assertThat(isRowtimeAttribute(logicalType(output, "rowtime"))).isTrue();
     }
 
     private static LogicalType logicalType(final ResolvedSchema schema, final String column) {

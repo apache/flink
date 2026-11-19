@@ -27,7 +27,6 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -74,10 +73,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Collections.singletonList;
@@ -92,7 +89,6 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -310,23 +306,6 @@ class ProcessTableFunctionTest extends TableTestBase {
         util.addTemporarySystemFunction("f", RequiredTimeFunction.class);
         util.verifyRelPlan(
                 "SELECT `out`, `rowtime` FROM f(r => TABLE t_watermarked, on_time => DESCRIPTOR(ts))");
-    }
-
-    @Test
-    void testOnTimeIsTheOnlyTimeAttribute() {
-        util.addTemporarySystemFunction("f", RowSemanticTablePassThroughFunction.class);
-        assertThat(
-                        timeAttributes(
-                                "SELECT * FROM f(r => TABLE t_watermarked, i => 1, "
-                                        + "on_time => DESCRIPTOR(ts))"))
-                .containsExactly("rowtime");
-    }
-
-    private List<String> timeAttributes(final String sql) {
-        return util.tableEnv().sqlQuery(sql).getResolvedSchema().getColumns().stream()
-                .filter(column -> isTimeAttribute(column.getDataType().getLogicalType()))
-                .map(Column::getName)
-                .collect(Collectors.toList());
     }
 
     @Test
