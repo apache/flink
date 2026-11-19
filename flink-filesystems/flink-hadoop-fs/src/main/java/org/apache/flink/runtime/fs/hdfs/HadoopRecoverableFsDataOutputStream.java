@@ -23,9 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
-import org.apache.flink.runtime.util.HadoopUtils;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -37,13 +34,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.fs.viewfs.ViewFileSystem;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
-import org.apache.hadoop.util.VersionInfo;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.EnumSet;
 
@@ -60,13 +53,9 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
 
     private static final long LEASE_TIMEOUT = 100_000L;
 
-    private static Method truncateHandle;
-
     HadoopRecoverableFsDataOutputStream(
             FileSystem fs, Path targetFile, Path tempFile, boolean noLocalWrite)
             throws IOException {
-
-        ensureTruncateInitialized();
 
         this.fs = checkNotNull(fs);
         this.targetFile = checkNotNull(targetFile);
@@ -102,8 +91,6 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
     HadoopRecoverableFsDataOutputStream(FileSystem fs, HadoopFsRecoverable recoverable)
             throws IOException {
 
-        ensureTruncateInitialized();
-
         this.fs = checkNotNull(fs);
         this.targetFile = checkNotNull(recoverable.targetFile());
         this.tempFile = checkNotNull(recoverable.tempFile());
@@ -132,24 +119,16 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
         return new HadoopFsCommitter(fs, recoverable);
     }
 
-    // ------------------------------------------------------------------------
-    //  Reflection utils for truncation
-    //    These are needed to compile against Hadoop versions before
-    //    Hadoop 2.7, which have no truncation calls for HDFS.
-    // ------------------------------------------------------------------------
-
     private static void safelyTruncateFile(
             final FileSystem fileSystem, final Path path, final HadoopFsRecoverable recoverable)
             throws IOException {
-
-        ensureTruncateInitialized();
 
         revokeLeaseByFileSystem(fileSystem, path);
 
         // truncate back and append
         boolean truncated;
         try {
-            truncated = truncate(fileSystem, path, recoverable.offset());
+            truncated = fileSystem.truncate(path, recoverable.offset());
         } catch (Exception e) {
             throw new IOException("Problem while truncating file: " + path, e);
         }
@@ -159,49 +138,6 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
             // the operation to complete and release the lease.
             revokeLeaseByFileSystem(fileSystem, path);
         }
-    }
-
-    private static void ensureTruncateInitialized() throws FlinkRuntimeException {
-        if (HadoopUtils.isMinHadoopVersion(2, 7) && truncateHandle == null) {
-            Method truncateMethod;
-            try {
-                truncateMethod = FileSystem.class.getMethod("truncate", Path.class, long.class);
-            } catch (NoSuchMethodException e) {
-                throw new FlinkRuntimeException(
-                        "Could not find a public truncate method on the Hadoop File System.");
-            }
-
-            if (!Modifier.isPublic(truncateMethod.getModifiers())) {
-                throw new FlinkRuntimeException(
-                        "Could not find a public truncate method on the Hadoop File System.");
-            }
-
-            truncateHandle = truncateMethod;
-        }
-    }
-
-    private static boolean truncate(final FileSystem hadoopFs, final Path file, final long length)
-            throws IOException {
-        if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
-            throw new IllegalStateException(
-                    "Truncation is not available in hadoop version < 2.7 , You are on Hadoop "
-                            + VersionInfo.getVersion());
-        }
-
-        if (truncateHandle != null) {
-            try {
-                return (Boolean) truncateHandle.invoke(hadoopFs, file, length);
-            } catch (InvocationTargetException e) {
-                ExceptionUtils.rethrowIOException(e.getTargetException());
-            } catch (Throwable t) {
-                throw new IOException(
-                        "Truncation of file failed because of access/linking problems with Hadoop's truncate call. "
-                                + "This is most likely a dependency conflict or class loading problem.");
-            }
-        } else {
-            throw new IllegalStateException("Truncation handle has not been initialized");
-        }
-        return false;
     }
 
     // ------------------------------------------------------------------------
