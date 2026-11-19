@@ -31,7 +31,6 @@ import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
 import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator;
 import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 
@@ -81,6 +80,8 @@ import static com.google.common.collect.Range.lessThan;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore.IDENTIFIER;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinition.extractNameFromQualifiedName;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinition.extractVersionFromQualifiedName;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.loadClass;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ALPHA;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_LOWER;
@@ -454,18 +455,18 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             return internalOperator.get();
         }
         // Try FUNC
-        final String publicName = BuiltInSqlOperator.extractNameFromQualifiedName(internalName);
+        final String publicName = extractNameFromQualifiedName(internalName);
         final Optional<SqlOperator> latestOperator =
                 lookupOptionalSqlOperator(
                         FunctionIdentifier.of(publicName), syntax, serdeContext, true);
         if (latestOperator.isPresent()) {
-            return latestOperator.get();
+            return validateVersion(internalName, latestOperator.get());
         }
 
         Optional<SqlOperator> sqlStdOperator =
                 lookupOptionalSqlStdOperator(publicName, syntax, null);
         if (sqlStdOperator.isPresent()) {
-            return sqlStdOperator.get();
+            return validateVersion(internalName, sqlStdOperator.get());
         }
 
         throw new TableException(
@@ -473,6 +474,26 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                         "Could not resolve internal system function '%s'. "
                                 + "This is a bug, please file an issue.",
                         internalName));
+    }
+
+    /**
+     * The latest version of a function is registered under its plain name. It must only restore a
+     * plan with the same version, an older version must have been registered under its qualified
+     * name.
+     */
+    private static SqlOperator validateVersion(String internalName, SqlOperator operator) {
+        final String latestName = RexNodeJsonSerializer.toQualifiedName(operator);
+        final int version = extractVersionFromQualifiedName(internalName);
+        final int latestVersion = extractVersionFromQualifiedName(latestName);
+        if (version != latestVersion) {
+            throw new TableException(
+                    String.format(
+                            "Could not resolve internal system function '%s'. "
+                                    + "Only the latest version '%s' is available. "
+                                    + "This is a bug, please file an issue.",
+                            internalName, latestName));
+        }
+        return operator;
     }
 
     private static SqlOperator deserializeInternalFunction(SqlSyntax syntax, SqlKind sqlKind) {
