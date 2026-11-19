@@ -292,4 +292,19 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                                 "NotIn",
                                 new ArrayList<>(BLOCKED_NODES)));
     }
+
+    @Test
+    void testServiceLinksNotSetByDefault() {
+        assertThat(this.resultPod.getSpec().getEnableServiceLinks()).isNull();
+    }
+
+    @Test
+    void testServiceLinksDisabled() {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_POD_SERVICE_LINKS_ENABLED, false);
+        final Pod pod =
+                new InitTaskManagerDecorator(kubernetesTaskManagerParameters)
+                        .decorateFlinkPod(baseFlinkPod)
+                        .getPodWithoutMainContainer();
+        assertThat(pod.getSpec().getEnableServiceLinks()).isFalse();
+    }
 }
