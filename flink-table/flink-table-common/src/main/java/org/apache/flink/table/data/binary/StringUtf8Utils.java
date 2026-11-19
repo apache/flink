@@ -20,10 +20,8 @@ package org.apache.flink.table.data.binary;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.util.SwarUtils;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
 import static org.apache.flink.table.data.binary.BinarySegmentUtils.allocateReuseBytes;
@@ -32,13 +30,6 @@ import static org.apache.flink.table.data.binary.BinarySegmentUtils.allocateReus
 /** Utilities for String UTF-8. */
 @Internal
 public final class StringUtf8Utils {
-
-    /** Reads 8 bytes at a time from a {@code byte[]} for the SWAR ASCII scan. */
-    private static final VarHandle LONG_VIEW =
-            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.nativeOrder());
-
-    /** High bit of each byte in a 64-bit word; a set bit marks a non-ASCII byte. */
-    private static final long ASCII_MASK = 0x8080808080808080L;
 
     private StringUtf8Utils() {
         // do not instantiate
@@ -52,7 +43,7 @@ public final class StringUtf8Utils {
         // Most real text is ASCII: route it to the JDK's compact-string path, which is a large win
         // for longer strings. Anything with a multibyte sequence goes through the hand-rolled
         // decoder; it beats the CharsetDecoder path for non-ASCII input.
-        if (isAscii(input, offset, byteLen)) {
+        if (SwarUtils.isAscii(input, offset, byteLen)) {
             // Pure ASCII: bytes map 1:1 to chars; ISO-8859-1 is an intrinsic LATIN1 copy.
             return new String(input, offset, byteLen, StandardCharsets.ISO_8859_1);
         }
@@ -63,30 +54,6 @@ public final class StringUtf8Utils {
             return new String(input, offset, byteLen, StandardCharsets.UTF_8);
         }
         return new String(chars, 0, len);
-    }
-
-    /**
-     * SWAR ASCII test: reads 8 bytes per step and checks the high bit of each via {@link
-     * #ASCII_MASK}, so a fully ASCII range is scanned ~8x faster than byte-by-byte and non-ASCII
-     * input bails at the first eight-byte block that contains a set high bit.
-     */
-    private static boolean isAscii(byte[] bytes, int offset, int len) {
-        int i = offset;
-        final int end = offset + len;
-        final int swarEnd = offset + (len & ~7);
-        while (i < swarEnd) {
-            if (((long) LONG_VIEW.get(bytes, i) & ASCII_MASK) != 0) {
-                return false;
-            }
-            i += 8;
-        }
-        while (i < end) {
-            if (bytes[i] < 0) {
-                return false;
-            }
-            i++;
-        }
-        return true;
     }
 
     public static int decodeUTF8Strict(byte[] sa, int sp, int len, char[] da) {
