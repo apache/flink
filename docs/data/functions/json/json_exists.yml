@@ -1,0 +1,112 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_EXISTS
+summary: Returns whether a JSON path finds a value in a JSON string.
+
+syntax:
+  sql: JSON_EXISTS(json_string, path [{TRUE | FALSE | UNKNOWN | ERROR} ON ERROR])
+  java: |
+    $("jsonString").jsonExists(path)
+    $("jsonString").jsonExists(path, JsonExistsOnError.TRUE)
+  python: |
+    col("json_string").json_exists(path)
+    col("json_string").json_exists(path, JsonExistsOnError.TRUE)
+
+arguments:
+  - name: json_string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The JSON text.
+  - name: path
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A JSON path. See [JSON functions]({{< ref "docs/sql/built-in-functions/json" >}}) for the syntax and the `lax` and `strict` modes.
+  - name: ON ERROR
+    type: "`TRUE`, `FALSE`, `UNKNOWN` or `ERROR`. In the Table API, `JsonExistsOnError`"
+    required: false
+    default: "`FALSE ON ERROR`"
+    description: What to return when the path raises an error. `UNKNOWN` returns NULL, and `ERROR` fails the job.
+
+returns:
+  description: TRUE if `path` finds a value in `json_string`, FALSE if it doesn't. If the path raises an error, the result of `ON ERROR`.
+  nulls: Returns NULL if `json_string` is NULL, or on an error with `UNKNOWN ON ERROR`.
+  type: "`BOOLEAN`, nullable."
+
+notes:
+  - In strict mode, the default, a missing key and invalid JSON are errors, so `ON ERROR` decides the result. It is FALSE by default and TRUE with `TRUE ON ERROR`. In lax mode, a missing key returns FALSE.
+  - A key whose value is a JSON `null` counts as missing, so `JSON_EXISTS('{"a":null}', '$.a')` is FALSE.
+  - A wildcard or a filter that matches nothing returns TRUE, such as `'$.a[*]'` on `{"a":[]}`.
+  - In lax mode, invalid JSON returns FALSE, even with `ERROR ON ERROR` or `UNKNOWN ON ERROR`. To find invalid input, use `IS JSON`.
+  - Only the first JSON value is read, and content after it is ignored. So `JSON_EXISTS('{"a":1} x', '$.a')` is TRUE.
+
+see_also:
+  - {name: JSON_VALUE, ref: json/json-value}
+  - {name: JSON_QUERY, ref: json/json-query}
+  - {name: IS JSON, ref: json/is-json}
+
+examples:
+  - title: Check whether a path exists
+    description: A path that finds a value returns TRUE, one that doesn't returns FALSE.
+    sql: |
+      SELECT doc,
+        JSON_EXISTS(doc, '$.a') AS `JSON_EXISTS(doc, '$.a')`,
+        JSON_EXISTS(doc, '$.b') AS `JSON_EXISTS(doc, '$.b')`,
+        JSON_EXISTS(doc, '$.a[0].b') AS `JSON_EXISTS(doc, '$.a[0].b')`
+      FROM (VALUES ('{"a": true}'), ('{"a": [{"b": 1}]}')) AS t(doc);
+    result: |
+      | doc               | JSON_EXISTS(doc, '$.a') | JSON_EXISTS(doc, '$.b') | JSON_EXISTS(doc, '$.a[0].b') |
+      |-------------------|-------------------------|-------------------------|------------------------------|
+      | {"a": true}       | TRUE                    | FALSE                   | FALSE                        |
+      | {"a": [{"b": 1}]} | TRUE                    | FALSE                   | TRUE                         |
+
+  - title: Strict and lax mode with ON ERROR
+    description: A missing key is an error in strict mode, so `ON ERROR` decides. In lax mode, it returns FALSE.
+    sql: |
+      SELECT doc,
+        JSON_EXISTS(doc, '$.b' TRUE ON ERROR) AS `JSON_EXISTS(doc, '$.b' TRUE ON ERROR)`,
+        JSON_EXISTS(doc, 'lax $.b' TRUE ON ERROR) AS `JSON_EXISTS(doc, 'lax $.b' TRUE ON ERROR)`,
+        JSON_EXISTS(doc, '$.b' UNKNOWN ON ERROR) AS `JSON_EXISTS(doc, '$.b' UNKNOWN ON ERROR)`
+      FROM (VALUES ('{"a": true}')) AS t(doc);
+    result: |
+      | doc         | JSON_EXISTS(doc, '$.b' TRUE ON ERROR) | JSON_EXISTS(doc, 'lax $.b' TRUE ON ERROR) | JSON_EXISTS(doc, '$.b' UNKNOWN ON ERROR) |
+      |-------------|---------------------------------------|-------------------------------------------|------------------------------------------|
+      | {"a": true} | TRUE                                  | FALSE                                     | NULL                                     |
+
+  - title: Check each row
+    description: A NULL input returns NULL.
+    sql: |
+      SELECT doc, JSON_EXISTS(doc, '$.a') AS `JSON_EXISTS(doc, '$.a')`
+      FROM (VALUES ('{"a": 1}'), ('{"b": 2}'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc      | JSON_EXISTS(doc, '$.a') |
+      |----------|-------------------------|
+      | {"a": 1} | TRUE                    |
+      | {"b": 2} | FALSE                   |
+      | NULL     | NULL                    |
+
+  - title: A JSON null
+    description: A key whose value is a JSON `null` counts as missing.
+    sql: |
+      SELECT doc,
+        JSON_EXISTS(doc, '$.a') AS `JSON_EXISTS(doc, '$.a')`,
+        JSON_EXISTS(doc, 'lax $.a') AS `JSON_EXISTS(doc, 'lax $.a')`
+      FROM (VALUES ('{"a": null}')) AS t(doc);
+    result: |
+      | doc         | JSON_EXISTS(doc, '$.a') | JSON_EXISTS(doc, 'lax $.a') |
+      |-------------|-------------------------|-----------------------------|
+      | {"a": null} | FALSE                   | FALSE                       |
