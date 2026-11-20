@@ -279,6 +279,16 @@ public class NoticeFileChecker {
                                 noticeContents.getNoticeModuleName()));
             }
 
+            // checked for every module, including those defining excess dependencies
+            for (String misorderedLine : noticeContents.getMisorderedLines()) {
+                addProblem(
+                        problemsBySeverity,
+                        Severity.CRITICAL,
+                        String.format(
+                                "Line '%s' puts the version before the classifier; the format is groupId:artifactId:classifier:version.",
+                                misorderedLine.trim()));
+            }
+
             // collect all declared dependencies from NOTICE file
             Set<Dependency> declaredDependencies = new HashSet<>();
             for (Dependency declaredDependency : noticeContents.getDeclaredDependencies()) {

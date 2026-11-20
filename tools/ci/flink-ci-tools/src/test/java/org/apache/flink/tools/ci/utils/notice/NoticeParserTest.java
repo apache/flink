@@ -77,6 +77,54 @@ class NoticeParserTest {
     }
 
     @Test
+    void testParseNoticeFileReportsVersionBeforeClassifier() {
+        final String swapped = "- io.netty:netty-transport-native-epoll:4.1.110.Final:linux-x86_64";
+        final List<String> noticeContents = Arrays.asList("some-module", swapped);
+
+        assertThat(NoticeParser.parseNoticeFile(noticeContents))
+                .hasValueSatisfying(
+                        contents -> {
+                            assertThat(contents.getDeclaredDependencies()).isEmpty();
+                            assertThat(contents.getMisorderedLines()).containsExactly(swapped);
+                        });
+    }
+
+    @Test
+    void testParseNoticeFileAcceptsVersionsThatDontStartWithADigit() {
+        final List<String> noticeContents =
+                Arrays.asList(
+                        "some-module",
+                        "- com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",
+                        "- com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.18",
+                        "- groupId:artifactId:1.2:3.4");
+
+        assertThat(NoticeParser.parseNoticeFile(noticeContents))
+                .hasValueSatisfying(
+                        contents -> {
+                            assertThat(contents.getDeclaredDependencies()).hasSize(3);
+                            assertThat(contents.getMisorderedLines()).isEmpty();
+                        });
+    }
+
+    @Test
+    void testDependencyWithClassifierRoundTrips() {
+        final Dependency dependency =
+                Dependency.create(
+                        "io.netty",
+                        "netty-transport-native-epoll",
+                        "4.1.110.Final",
+                        "linux-x86_64");
+
+        assertThat(dependency.toString())
+                .isEqualTo("io.netty:netty-transport-native-epoll:linux-x86_64:4.1.110.Final");
+        assertThat(NoticeParser.parseNoticeFile(Arrays.asList("some-module", "- " + dependency)))
+                .hasValueSatisfying(
+                        contents ->
+                                assertThat(contents.getDeclaredDependencies())
+                                        .containsExactly(dependency));
+    }
+
+    @Test
     void testParseNoticeFileMalformedDependencyIgnored() {
         final String module = "some-module";
         final Dependency dependency = Dependency.create("groupId", "artifactId", "version", null);
