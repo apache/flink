@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.5",
   "nodes" : [ {
-    "id" : 5,
+    "id" : 1,
     "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
@@ -22,7 +22,7 @@
     "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, payments]], fields=[payment_id, amount])"
   }, {
-    "id" : 6,
+    "id" : 2,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -35,11 +35,12 @@
     "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
     "description" : "Exchange(distribution=[hash[payment_id]])"
   }, {
-    "id" : 7,
+    "id" : 3,
     "type" : "stream-exec-process-table-function_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "HASH",
+        "keys" : [ 0 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
@@ -92,7 +93,7 @@
     "outputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
     "inputUpsertKeys" : [ [ ] ]
   }, {
-    "id" : 8,
+    "id" : 4,
     "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -136,22 +137,22 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[payment_id, amount])"
   } ],
   "edges" : [ {
-    "source" : 5,
-    "target" : 6,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 6,
-    "target" : 7,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 7,
-    "target" : 8,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },

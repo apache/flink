@@ -105,6 +105,27 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
     }
 
     /**
+     * Declares a function with one value state of the given type that expires after the interval of
+     * the argument at {@code ttlArgPos}, or after {@code table.exec.state.ttl} if that argument is
+     * NULL.
+     */
+    protected static LinkedHashMap<String, StateTypeStrategy> valueState(
+            final SpecializedContext context,
+            final String name,
+            final DataType valueType,
+            final int ttlArgPos) {
+        return internalState(
+                Map.entry(
+                        name,
+                        StateTypeStrategy.of(
+                                callContext ->
+                                        Optional.of(ValueView.newValueViewDataType(valueType)),
+                                context.getCallContext()
+                                        .getArgumentValue(ttlArgPos, Duration.class)
+                                        .orElse(null))));
+    }
+
+    /**
      * Declares the state entries of a specialized function in order. The strategies may infer
      * external data types, they are converted to internal ones.
      */

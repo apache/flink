@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
@@ -28,6 +27,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.TimeUtils;
@@ -92,16 +92,20 @@ public final class DeduplicateTypeStrategyUtils {
                 .toArray();
     }
 
+    /** Returns the input columns without time attributes. */
+    public static List<Field> inputFields(final TableSemantics tableSemantics) {
+        final DataType inputType = tableSemantics.dataType();
+        return DataType.getFields(
+                DataTypeUtils.replaceLogicalType(
+                        inputType,
+                        LogicalTypeUtils.removeTimeAttributes(inputType.getLogicalType())));
+    }
+
     /** Returns the output columns after the PARTITION BY columns, without time attributes. */
     public static List<Field> outputFields(final TableSemantics tableSemantics) {
-        final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
+        final List<Field> inputFields = inputFields(tableSemantics);
         return Arrays.stream(ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics))
                 .mapToObj(inputFields::get)
-                .map(
-                        field ->
-                                DataTypes.FIELD(
-                                        field.getName(),
-                                        DataTypeUtils.removeTimeAttribute(field.getDataType())))
                 .collect(Collectors.toList());
     }
 
