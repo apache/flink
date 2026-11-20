@@ -55,10 +55,12 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -258,16 +260,17 @@ public class MergeTableAsUtil {
 
             populateColumnsFromSource(sourceCols, sourceSchemaCols);
 
+            final Set<String> declaredNames = new HashSet<>();
             int sinkColumnPos = -1;
             for (SqlNode sinkColumn : sinkCols) {
                 final SqlTableColumn column = toSqlTableColumn(sinkColumn);
                 String name = column.getName().getSimple();
                 sinkColumnPos++;
 
-                if (sinkSchemaCols.containsKey(name)) {
+                if (!declaredNames.add(name)) {
                     throw new ValidationException(
                             String.format(
-                                    "A column named '%s' already exists in the schema. ", name));
+                                    "A column named '%s' already exists in the schema.", name));
                 }
 
                 final UnresolvedColumn unresolvedSinkColumn;
@@ -332,6 +335,16 @@ public class MergeTableAsUtil {
 
             populateColumnsFromSource(sourceCols, sourceSchemaCols);
 
+            final Set<String> listedNames = new HashSet<>();
+            for (SqlNode identifier : identifiers) {
+                final String name = ((SqlIdentifier) identifier).getSimple();
+                if (!listedNames.add(name)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "A column named '%s' already exists in the schema.", name));
+                }
+            }
+
             if (identifiers.size() != sourceCols.size()) {
                 throw new ValidationException(
                         "The number of columns in the column list must match the number "
@@ -368,7 +381,7 @@ public class MergeTableAsUtil {
                 if (schemaCols.containsKey(column.getName())) {
                     throw new ValidationException(
                             String.format(
-                                    "A column named '%s' already exists in the schema. ",
+                                    "A column named '%s' already exists in the schema.",
                                     column.getName()));
                 }
 
