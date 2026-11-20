@@ -1387,6 +1387,128 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                 rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", address, null, null, null));
     }
 
+    /**
+     * A DELETE of only the key that is paired with an accumulation within a bundle is joined with
+     * the stored row, so the pair loses, gains or keeps the match of the left row.
+     */
+    @Tag("miniBatchSize=10")
+    @Test
+    void testLeftJoinJoinKeyContainsUniqueKeyNonEquiKeyOnlyDeletesOfRightWithinBundle()
+            throws Exception {
+        final String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", address));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR"));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord(null, "LineOrd#1", null));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", UNKNOWN));
+        testHarness.prepareSnapshotPreBarrier(2L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE, "Ord#1", "LineOrd#1", address, "Ord#X", "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", address, null, null, null));
+
+        testHarness.processElement2(deleteRecord(null, "LineOrd#1", null));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "SHIP"));
+        testHarness.prepareSnapshotPreBarrier(3L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", address, null, null, null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "SHIP"));
+
+        testHarness.processElement2(deleteRecord(null, "LineOrd#1", null));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "TRUCK"));
+        testHarness.prepareSnapshotPreBarrier(4L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "SHIP"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "TRUCK"));
+
+        testHarness.processElement2(deleteRecord(null, "LineOrd#1", null));
+        testHarness.prepareSnapshotPreBarrier(5L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#X",
+                        "LineOrd#1",
+                        "TRUCK"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", address, null, null, null));
+    }
+
+    /**
+     * A DELETE of only the key of the outer side that is paired with an accumulation within a
+     * bundle retracts the joined rows of the stored row.
+     */
+    @Tag("miniBatchSize=10")
+    @Test
+    void testLeftJoinJoinKeyContainsUniqueKeyNonEquiKeyOnlyDeleteOfLeftWithinBundle()
+            throws Exception {
+        final String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", address));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement1(deleteRecord(null, "LineOrd#1", null));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", UNKNOWN));
+        testHarness.prepareSnapshotPreBarrier(2L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE, "Ord#1", "LineOrd#1", address, "Ord#X", "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", UNKNOWN, null, null, null));
+    }
+
+    /**
+     * Same as {@link #testLeftJoinJoinKeyContainsUniqueKeyNonEquiKeyOnlyDeletesOfRightWithinBundle}
+     * for a right side whose unique key does not contain the join key.
+     */
+    @Tag("miniBatchSize=10")
+    @Test
+    void testLeftJoinHasUniqueKeyNonEquiKeyOnlyDeleteOfRightWithinBundle() throws Exception {
+        final String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", address));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR"));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord("Ord#X", "LineOrd#1", null));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", UNKNOWN));
+        testHarness.prepareSnapshotPreBarrier(2L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE, "Ord#1", "LineOrd#1", address, "Ord#X", "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", address, null, null, null));
+    }
+
     @Tag("miniBatchSize=4")
     @Test
     void testLeftJoinJoinKeyContainsUniqueKeyWithUpdateMultipleCases() throws Exception {
