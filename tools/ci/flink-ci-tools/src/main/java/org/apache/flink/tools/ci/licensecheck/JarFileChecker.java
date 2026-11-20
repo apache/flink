@@ -84,6 +84,8 @@ public class JarFileChecker {
                     getNumLicenseFilesOutsideMetaInfDirectory(file, fileSystem.getPath("/"));
 
             numSevereIssues += getFilesWithIncompatibleLicenses(file, fileSystem.getPath("/"));
+
+            numSevereIssues += EmbeddedCodeChecker.checkJar(file, fileSystem.getPath("/"));
         }
         return numSevereIssues;
     }
