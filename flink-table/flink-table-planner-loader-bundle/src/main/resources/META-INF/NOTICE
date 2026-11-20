@@ -9,3 +9,17 @@ The following dependencies all share the same BSD license which you find under l
 - org.scala-lang:scala-compiler:2.12.7
 - org.scala-lang:scala-library:2.12.7
 - org.scala-lang:scala-reflect:2.12.7
+
+scala-compiler contains a modified version of 'ASM', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.scala-asm.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://asm.ow2.io/
+
+scala-compiler contains 'JLine' 2.14.6, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.scala-jline.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/jline/jline2
