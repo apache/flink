@@ -126,7 +126,9 @@ AND o.order_time BETWEEN s.ship_time - INTERVAL '1' HOUR AND s.ship_time
 | `delay` | 是 | 一个至少为 1 毫秒的时间长度（例如 `'5s'`）。在 `rowtime` 模式下从行的时间属性开始计算；在 `proctime` 模式下从该行被处理时的墙上时钟时间开始计算。窗口内没有匹配时，在该延迟过去后输出推测性的 null 补齐行。 |
 | `time-mode` | 否 | 取值为 `rowtime` 或 `proctime`，用于控制延迟是相对水位线（`rowtime`）还是相对墙上时钟（`proctime`）来计算。事件时间 join 默认为 `rowtime`，处理时间 join 默认为 `proctime`。在事件时间 join 上设置 `'time-mode'='proctime'` 会改为按墙上时钟触发提前触发，适用于水位线稀疏或停滞的场景；匹配和状态清理仍按事件时间进行，并且 join 会在每一侧输入上额外维护状态，用于记录待触发的提前触发。在处理时间 join 上设置 `'time-mode'='rowtime'` 会报错。 |
 
-该提示仅对 outer join（`LEFT`、`RIGHT`、`FULL`）生效。在 inner join 以及窗口跨度为负的 join 上会被忽略，这些情况仍保持仅追加。
+该提示仅对 outer join（`LEFT`、`RIGHT`、`FULL`）生效。在 inner join 以及窗口跨度为负的 join 上会被忽略，这些情况仍保持仅追加。在批模式下，该提示在所有 join 上都会被忽略。
+
+与其他查询提示一样，`EARLY_FIRE` 只作用于其所在[查询块]({{< ref "docs/sql/reference/queries/hints" >}}#什么是查询块)中的 join，写在外层查询上的提示不会作用于子查询中的 join。提前触发的 join 输出的是更新结果，因此它的输出不能作为另一个 interval join 的输入（interval join 只接受仅追加的输入），这样的查询会在规划阶段失败。
 
 **注意：** `EARLY_FIRE` 与 `table.exec.emit.early-fire.*` 配置无关，后者用于控制窗口聚合的提前触发，而非 interval join。
 
