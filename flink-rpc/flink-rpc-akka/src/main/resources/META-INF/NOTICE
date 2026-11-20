@@ -23,10 +23,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.netty:netty-handler:4.2.6.Final
 - io.netty:netty-resolver:4.2.6.Final
 - io.netty:netty-transport:4.2.6.Final
-
-
-The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
-
 - org.scala-lang.modules:scala-java8-compat_2.12:1.0.2
 - org.scala-lang:scala-library:2.12.20
 
@@ -35,8 +31,8 @@ This project bundles the following dependencies under the Creative Commons CC0 "
 - org.reactivestreams:reactive-streams:1.0.4
 
 Scala
-Copyright (c) 2002-2022 EPFL
-Copyright (c) 2011-2022 Lightbend, Inc.
+Copyright (c) 2002-2024 EPFL
+Copyright (c) 2011-2024 Lightbend, Inc.
 
 Scala includes software developed at
 LAMP/EPFL (https://lamp.epfl.ch/) and
@@ -111,3 +107,18 @@ provides utilities for the java.lang API, which can be obtained at:
     * Apache License 2.0
   * HOMEPAGE:
     * https://commons.apache.org/proper/commons-lang/
+
+scala-java8-compat
+Copyright (c) 2002-2021 EPFL
+Copyright (c) 2011-2021 Lightbend, Inc.
+
+scala-java8-compat includes software developed at
+LAMP/EPFL (https://lamp.epfl.ch/) and
+Lightbend, Inc. (https://www.lightbend.com/).
+
+Licensed under the Apache License, Version 2.0 (the "License").
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
