@@ -31,27 +31,25 @@ import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
-import java.util.Map;
+import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
 
 /**
  * {@link Deduplicate} with {@code keep => 'first'} and no {@code sequence_by}: no later record can
- * replace the first one, so only whether the key has emitted is kept in the {@code seen} state.
+ * replace the first one, so only whether the key has emitted is kept in the {@code emitted} state.
  */
 @Internal
 public class DeduplicateEmitOnceFunction extends DeduplicateFunctionBase {
 
     private static final long serialVersionUID = 1L;
 
+    private static final String EMITTED_STATE = "emitted";
+
     private transient ProjectedRowData projectedOutput;
 
     DeduplicateEmitOnceFunction(final SpecializedContext context) {
         super(
                 context,
-                internalState(
-                        Map.entry(
-                                "seen",
-                                DeduplicateUtils.stateStrategy(
-                                        context, DataTypes.BOOLEAN().notNull()))));
+                valueState(context, EMITTED_STATE, DataTypes.BOOLEAN().notNull(), ARG_STATE_TTL));
     }
 
     @Override
@@ -62,20 +60,20 @@ public class DeduplicateEmitOnceFunction extends DeduplicateFunctionBase {
 
     public void eval(
             final Context ctx,
-            final ValueView<Boolean> seen,
+            final ValueView<Boolean> emitted,
             final RowData input,
             @Nullable final StringData keep,
             @Nullable final ColumnList sequenceBy,
             @Nullable final Long stateTtl,
             @Nullable final Boolean resetTtlOnDuplicate)
             throws Exception {
-        if (seen.getValue() == null) {
+        if (emitted.getValue() == null) {
             projectedOutput.replaceRow(input);
             projectedOutput.setRowKind(RowKind.INSERT);
             collect(projectedOutput);
-            seen.setValue(true);
+            emitted.setValue(true);
         } else if (isResetTtlOnDuplicate) {
-            seen.setValue(true);
+            emitted.setValue(true);
         }
     }
 }

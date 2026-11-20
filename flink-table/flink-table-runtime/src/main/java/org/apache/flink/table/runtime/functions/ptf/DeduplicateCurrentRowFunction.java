@@ -32,9 +32,9 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.runtime.functions.ptf.DeduplicateUtils.SequenceComparator;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.ColumnList;
@@ -44,17 +44,20 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+
+import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
 
 /**
  * {@link Deduplicate} with {@code keep => 'last'}, or {@code keep => 'first'} with {@code
- * sequence_by}: a later record can replace the kept one, so the kept input row is held in the
+ * sequence_by}: a later record can replace the current one, so the current input row is held in the
  * {@code kept} state.
  */
 @Internal
 public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
 
     private static final long serialVersionUID = 1L;
+
+    private static final String CURRENT_STATE = "kept";
 
     private final Keep keepMode;
 
@@ -68,16 +71,25 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
 
     private transient ProjectedRowData projectedCandidate;
 
-    private transient ProjectedRowData projectedKept;
+    private transient ProjectedRowData projectedCurrent;
 
     private transient JoinedRowData retraction;
 
     private transient RowData emptyRow;
 
     DeduplicateCurrentRowFunction(final SpecializedContext context) {
-        super(context, internalState(Map.entry("kept", keptState(context))));
+        super(
+                context,
+                valueState(
+                        context,
+                        CURRENT_STATE,
+                        DataTypes.ROW(
+                                DeduplicateTypeStrategyUtils.inputFields(
+                                        DeduplicateUtils.tableSemantics(context))),
+                        ARG_STATE_TTL));
         this.keepMode = DeduplicateTypeStrategy.keep(context.getCallContext());
-        final List<DataTypes.Field> inputFields = DeduplicateUtils.inputFields(context);
+        final List<DataTypes.Field> inputFields =
+                DeduplicateTypeStrategyUtils.inputFields(DeduplicateUtils.tableSemantics(context));
         this.inputTypes =
                 inputFields.stream()
                         .map(field -> field.getDataType().getLogicalType())
@@ -98,7 +110,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
         }
         inputSerializer = new RowDataSerializer(inputTypes);
         projectedCandidate = ProjectedRowData.from(outputIndices);
-        projectedKept = ProjectedRowData.from(outputIndices);
+        projectedCurrent = ProjectedRowData.from(outputIndices);
         retraction = new JoinedRowData();
         emptyRow = GenericRowData.of();
     }
@@ -113,33 +125,44 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
 
     public void eval(
             final Context ctx,
-            final ValueView<RowData> keptState,
+            final ValueView<RowData> currentState,
             final RowData input,
             @Nullable final StringData keep,
             @Nullable final ColumnList sequenceBy,
             @Nullable final Long stateTtl,
             @Nullable final Boolean resetTtlOnDuplicate)
             throws Exception {
-        final BinaryRowData candidate = inputSerializer.toBinaryRow(input);
-        final BinaryRowData kept = (BinaryRowData) keptState.getValue();
-        if (kept == null) {
-            keptState.setValue(candidate.copy());
+
+        final BinaryRowData current = (BinaryRowData) currentState.getValue();
+        if (current == null) {
+            final BinaryRowData candidate = inputSerializer.toBinaryRow(input);
+            currentState.setValue(candidate.copy());
             emitCandidate(RowKind.INSERT, candidate);
             return;
         }
-        final boolean isReplacing =
-                sequenceComparator == null
-                        || DeduplicateUtils.replaces(
-                                keepMode, sequenceComparator.compare(candidate, kept));
-        if (isReplacing && !candidate.equals(kept)) {
-            keptState.setValue(candidate.copy());
-            if (isUpdateBeforeEmitted) {
-                emitRetraction(kept);
+        if (replacesCurrent(input, current)) {
+            final BinaryRowData candidate = inputSerializer.toBinaryRow(input);
+            if (!candidate.equals(current)) {
+                currentState.setValue(candidate.copy());
+                if (isUpdateBeforeEmitted) {
+                    emitRetraction(current);
+                }
+                emitCandidate(RowKind.UPDATE_AFTER, candidate);
+            } else if (isResetTtlOnDuplicate) {
+                currentState.setValue(current);
             }
-            emitCandidate(RowKind.UPDATE_AFTER, candidate);
         } else if (isResetTtlOnDuplicate) {
-            keptState.setValue(kept);
+            currentState.setValue(current);
         }
+    }
+
+    /**
+     * Without sequence_by only keep => 'last' reaches this class, so the latest arrival replaces.
+     */
+    private boolean replacesCurrent(final RowData candidate, final RowData current) {
+        return sequenceComparator == null
+                || DeduplicateUtils.replaces(
+                        keepMode, sequenceComparator.compare(candidate, current));
     }
 
     private void emitCandidate(final RowKind kind, final BinaryRowData candidate) {
@@ -148,17 +171,12 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
         collect(projectedCandidate);
     }
 
-    /** Wraps the kept row so that the row owned by state never changes its row kind. */
-    private void emitRetraction(final BinaryRowData kept) {
-        projectedKept.replaceRow(kept);
-        retraction.replace(projectedKept, emptyRow);
+    /** Wraps the current row so that the row owned by state never changes its row kind. */
+    private void emitRetraction(final BinaryRowData current) {
+        projectedCurrent.replaceRow(current);
+        retraction.replace(projectedCurrent, emptyRow);
         retraction.setRowKind(RowKind.UPDATE_BEFORE);
         collect(retraction);
-    }
-
-    private static StateTypeStrategy keptState(final SpecializedContext context) {
-        return DeduplicateUtils.stateStrategy(
-                context, DataTypes.ROW(DeduplicateUtils.inputFields(context)));
     }
 
     private static @Nullable SequenceComparator sequenceComparator(
