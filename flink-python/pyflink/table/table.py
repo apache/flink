@@ -46,7 +46,8 @@ from pyflink.util.api_stability_decorators import Deprecated, PublicEvolving
 from pyflink.util.java_utils import to_jarray
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
-__all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
+__all__ = ['Table', 'PartitionedTable', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable',
+           'WindowGroupedTable']
 
 
 @PublicEvolving()
@@ -1211,6 +1212,11 @@ class Table(object):
         INSERT-only row with a string ``op`` column indicating the original operation
         (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE).
 
+        By default, the input is processed with row semantics (each row independently). To
+        co-locate rows with the same key in the same parallel operator instance, partition the
+        input first via :func:`~pyflink.table.Table.partition_by` and invoke
+        :func:`~pyflink.table.PartitionedTable.to_changelog` with set semantics.
+
         The optional ``produces_full_deletes`` boolean controls how DELETE rows are
         emitted. When ``True`` (default), the planner inserts a ``ChangelogNormalize``
         operator for upsert sources that emit key-only deletes so the function emits
@@ -1264,6 +1270,11 @@ class Table(object):
         in the mapping; pass ``error_handling => 'SKIP'`` to silently drop those
         rows instead.
 
+        By default, the input is processed with row semantics (each row independently). To
+        co-locate rows with the same key in the same parallel operator instance, partition the
+        input first via :func:`~pyflink.table.Table.partition_by` and invoke
+        :func:`~pyflink.table.PartitionedTable.from_changelog` with set semantics.
+
         The output is a retract changelog. To emit an upsert changelog instead, combine
         ``PARTITION BY`` (set semantics on the table argument) with an ``op_mapping`` that
         maps to ``UPDATE_AFTER`` without ``UPDATE_BEFORE``. The partition key becomes the
@@ -1299,6 +1310,178 @@ class Table(object):
                  proper change operation semantics.
         """
         return Table(self._j_table.fromChangelog(to_expression_jarray(arguments)), self._t_env)
+
+    def partition_by(self, *fields: Expression) -> 'PartitionedTable':
+        """
+        Partitions the table by a set of partition keys.
+
+        Currently, partitioned table objects are intended for table arguments of process table
+        functions (PTFs) that take table arguments with set semantics.
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import col
+            >>> table.partition_by(col("key")).to_changelog().execute()
+
+        :param fields: Expressions that define the partition keys.
+        :return: A :class:`~pyflink.table.PartitionedTable`.
+        """
+        return PartitionedTable(self._j_table.partitionBy(to_expression_jarray(fields)),
+                                self._t_env)
+
+
+@PublicEvolving()
+class PartitionedTable(object):
+    """
+    A table that has been partitioned by a set of partition keys.
+
+    Currently, partitioned table objects are intended for table arguments of process table
+    functions (PTFs) that take table arguments with set semantics.
+    """
+
+    def __init__(self, j_partitioned_table, t_env):
+        self._j_partitioned_table = j_partitioned_table
+        self._t_env = t_env
+
+    def order_by(self, *fields: Expression) -> 'PartitionedTable':
+        """
+        Sorts the partitioned table within each partition.
+
+        This is useful for process table functions that need ordered input within each set
+        scoped by the key.
+
+        Note: The first sorting column must be a time attribute column in ascending order for
+        which a watermark has been declared. The watermarked column must be forwarded without any
+        modification to ensure event-time sorting. Secondary ordering columns can differ and are
+        used for deterministic ordering within the same timestamp.
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import col
+            >>> # Primary ordering by watermarked timestamp, secondary by score
+            >>> result = table.partition_by(col("key")).order_by(
+            ...     col("ts").asc, col("score").desc
+            ... ).from_changelog()
+
+        :param fields: Expressions for ordering (e.g., ``col("ts").asc, col("score").desc``).
+        :return: A partitioned and ordered :class:`~pyflink.table.PartitionedTable`.
+        """
+        return PartitionedTable(self._j_partitioned_table.orderBy(to_expression_jarray(fields)),
+                                self._t_env)
+
+    def to_changelog(self, *arguments: Expression) -> 'Table':
+        """
+        Converts this partitioned dynamic table into an append-only table with an explicit
+        operation code column using the built-in ``TO_CHANGELOG`` process table function with set
+        semantics.
+
+        Each input row - regardless of its original change operation - is emitted as an
+        INSERT-only row with a string ``op`` column indicating the original operation (INSERT,
+        UPDATE_AFTER, DELETE, etc.). With set semantics, rows for the same partition key are
+        co-located in the same parallel operator instance.
+
+        For row semantics (each row processed independently), use
+        :func:`~pyflink.table.Table.to_changelog` on the unpartitioned table.
+
+        The optional ``produces_full_deletes`` boolean controls how DELETE rows are
+        emitted. When ``True`` (default), the planner inserts a ``ChangelogNormalize``
+        operator for upsert sources that emit key-only deletes so the function emits
+        fully populated DELETE rows downstream. When ``False``, the function emits
+        partial DELETE rows that preserve the partition key and null the rest.
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import col, descriptor, lit, map_
+            >>> # Default: adds 'op' column and supports all changelog modes
+            >>> result = table.partition_by(col("id")).to_changelog()
+            >>> # Custom op column name and mapping
+            >>> result = table.partition_by(col("id")).to_changelog(
+            ...     descriptor("op_code").as_argument("op"),
+            ...     map_("INSERT", "I", "UPDATE_AFTER", "U").as_argument("op_mapping")
+            ... )
+            >>> # Deletion flag pattern: comma-separated keys map multiple change operations to
+            >>> # the same code
+            >>> result = table.partition_by(col("id")).to_changelog(
+            ...     descriptor("deleted").as_argument("op"),
+            ...     map_("INSERT, UPDATE_AFTER", "false",
+            ...          "DELETE", "true").as_argument("op_mapping")
+            ... )
+            >>> # Opt out of full-delete semantics to emit partial DELETE rows.
+            >>> result = table.partition_by(col("id")).to_changelog(
+            ...     lit(False).as_argument("produces_full_deletes")
+            ... )
+
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``produces_full_deletes``.
+        :return: An append-only :class:`~pyflink.table.Table` with output schema
+                 ``[partition_keys, op, non_partition_input_columns]``.
+        """
+        return Table(self._j_partitioned_table.toChangelog(to_expression_jarray(arguments)),
+                     self._t_env)
+
+    def from_changelog(self, *arguments: Expression) -> 'Table':
+        """
+        Converts this partitioned append-only table with an explicit operation code column into
+        a (potentially updating) dynamic table using the built-in ``FROM_CHANGELOG`` process
+        table function with set semantics.
+
+        Each input row is expected to have a string column that indicates the change operation.
+        The operation column is interpreted by the engine and removed from the output. With set
+        semantics, rows for the same partition key are co-located in the same parallel operator
+        instance, which is required when downstream operators are keyed on that column.
+
+        For row semantics (each row processed independently), use
+        :func:`~pyflink.table.Table.from_changelog` on the unpartitioned table.
+
+        Output changelog mode:
+
+        - **Retract** (default): the active ``op_mapping`` includes ``UPDATE_BEFORE`` or no
+          updates at all. The output possibly emits ``INSERT``, ``UPDATE_BEFORE``,
+          ``UPDATE_AFTER``, and ``DELETE``.
+        - **Upsert**: the ``op_mapping`` maps ``UPDATE_AFTER`` without ``UPDATE_BEFORE``. The
+          output emits ``INSERT``, ``UPDATE_AFTER``, and ``DELETE``, keyed on the partition
+          columns. An upsert mapping without ``PARTITION BY`` is rejected at validation time,
+          since upsert mode requires a key.
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import col, descriptor, lit, map_
+            >>> # Default: reads 'op' column with standard change operation names
+            >>> result = cdc_stream.partition_by(col("id")).from_changelog()
+            >>> # With custom op column name
+            >>> result = cdc_stream.partition_by(col("id")).from_changelog(
+            ...     descriptor("operation").as_argument("op")
+            ... )
+            >>> # With custom op_mapping
+            >>> result = cdc_stream.partition_by(col("id")).from_changelog(
+            ...     descriptor("op").as_argument("op"),
+            ...     map_("c, r", "INSERT",
+            ...          "ub", "UPDATE_BEFORE",
+            ...          "ua", "UPDATE_AFTER",
+            ...          "d", "DELETE").as_argument("op_mapping")
+            ... )
+            >>> # Silently skip rows with NULL or unmapped op codes instead of failing
+            >>> result = cdc_stream.partition_by(col("id")).from_changelog(
+            ...     lit("SKIP").as_argument("error_handling")
+            ... )
+            >>> # Reorder out-of-order CDC events per key by event time. The input must declare a
+            >>> # WATERMARK on the time attribute used in order_by(); the first order column must
+            >>> # be that time attribute in ASC order.
+            >>> result = cdc_stream.partition_by(col("id")).order_by(
+            ...     col("event_time").asc
+            ... ).from_changelog()
+
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``error_handling``.
+        :return: A dynamic :class:`~pyflink.table.Table` with output schema
+                 ``[partition_keys, non_partition_non_op_input_columns]``.
+        """
+        return Table(self._j_partitioned_table.fromChangelog(to_expression_jarray(arguments)),
+                     self._t_env)
 
 
 @PublicEvolving()

@@ -183,6 +183,12 @@ public interface PartitionedTable {
      * <p>For row semantics (each row processed independently), use {@link Table#toChangelog} on the
      * unpartitioned table.
      *
+     * <p>The optional {@code produces_full_deletes} boolean controls how DELETE rows are emitted.
+     * When {@code true} (default), the planner inserts a {@code ChangelogNormalize} operator for
+     * upsert sources that emit key-only deletes so the function emits fully populated DELETE rows
+     * downstream. When {@code false}, the function emits partial DELETE rows that preserve the
+     * partition key and null the rest.
+     *
      * <p>Examples:
      *
      * <pre>{@code
@@ -205,9 +211,7 @@ public interface PartitionedTable {
      *         map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      *     );
      *
-     * // Opt out of full-delete semantics. When `true` (default), DELETE rows carry the full
-     * // pre-image. When `false`, only the identifying key columns are preserved and the rest
-     * // are nulled. See in documentation for more details.
+     * // Opt out of full-delete semantics to emit partial DELETE rows.
      * Table result = table
      *     .partitionBy($("id"))
      *     .toChangelog(lit(false).asArgument("produces_full_deletes"));
