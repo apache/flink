@@ -564,6 +564,49 @@ class TaskMailboxImplTest {
         assertThat(taskMailbox.size()).isZero();
     }
 
+    /**
+     * A sustained stream of urgent mails must not prevent a round of {@link
+     * TaskMailbox#tryTakeFromBatch()} from ending (which would starve the task input): the round
+     * serves at most as many urgent mails as were pending at batch creation plus the batch size.
+     * The remaining urgent mails are served in the next round, in FIFO order.
+     */
+    @Test
+    void testUrgentMailsCannotExtendBatchUnboundedly() {
+        Mail normal1 = new Mail(NO_OP, DEFAULT_PRIORITY, "normal1");
+        Mail normal2 = new Mail(NO_OP, DEFAULT_PRIORITY, "normal2");
+        List<Mail> urgentMails = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            urgentMails.add(new Mail(urgent(), NO_OP, DEFAULT_PRIORITY, "urgent" + i));
+        }
+        taskMailbox.put(urgentMails.get(0));
+        taskMailbox.put(normal1);
+        taskMailbox.put(normal2);
+        assertThat(taskMailbox.createBatch()).isTrue();
+
+        // budget: 1 pending urgent + 2 batched mails = 3 urgent mails in this round
+        List<Mail> taken = new ArrayList<>();
+        int nextUrgent = 1;
+        Optional<Mail> mail;
+        while ((mail = taskMailbox.tryTakeFromBatch()).isPresent()) {
+            taken.add(mail.get());
+            // keep urgent mails coming while the batch is consumed
+            if (nextUrgent < urgentMails.size()) {
+                taskMailbox.put(urgentMails.get(nextUrgent++));
+            }
+        }
+        assertThat(taken)
+                .containsExactly(
+                        urgentMails.get(0),
+                        urgentMails.get(1),
+                        urgentMails.get(2),
+                        normal1,
+                        normal2);
+
+        // the next round continues with the remaining urgent mails in FIFO order
+        assertThat(taskMailbox.createBatch()).isTrue();
+        assertThat(taskMailbox.tryTakeFromBatch()).contains(urgentMails.get(3));
+    }
+
     /** Untakeable urgent mails are skipped and normal mails are taken only after urgent ones. */
     @Test
     void testTakeWithPriorityMixedUrgentAndNormalMails() {

@@ -68,9 +68,10 @@ import java.util.Optional;
  * created and consumed from the mailbox thread.
  *
  * <p>Urgent mails are the only exception to the above: they are not part of any batch, but are
- * served by {@link #tryTakeFromBatch()} before the rest of the batch (in FIFO order). Hence, urgent
- * mails must be rare and must not enqueue further urgent mails unboundedly, as that could starve
- * the task input.
+ * served by {@link #tryTakeFromBatch()} before the rest of the batch (in FIFO order), including the
+ * ones that arrive while the batch is being consumed. To keep the batch processing bounded, a round
+ * of {@link #tryTakeFromBatch()} serves at most as many urgent mails as were pending at {@link
+ * #createBatch()} plus the size of the batch; further urgent mails are served in the next round.
  *
  * <p>Also note that a batch can only be created in the {@link MailboxProcessor#runMailboxLoop()}. A
  * batch must not be extended in any of the consuming methods as we may run into task input
@@ -168,7 +169,8 @@ public interface TaskMailbox {
 
     /**
      * Returns an optional with either the oldest pending urgent mail (regardless of its priority),
-     * or else the oldest mail from the batch, or an empty optional if there is none of them.
+     * or else the oldest mail from the batch, or an empty optional if there is none of them. The
+     * number of urgent mails returned per batch is bounded (see the class documentation).
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *

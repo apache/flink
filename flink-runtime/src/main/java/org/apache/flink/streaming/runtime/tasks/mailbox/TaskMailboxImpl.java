@@ -60,7 +60,8 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State
  * themselves, no matter which thread puts them or which method takes them; a priority take may skip
  * an older urgent mail whose priority is below the requested one. Urgent mails are the only mails
  * that may be taken from {@link #tryTakeFromBatch()} although they were not part of the batch when
- * it was created.
+ * it was created. To keep a round of {@link #tryTakeFromBatch()} bounded (see {@link TaskMailbox}),
+ * the number of urgent mails it serves is limited by {@link #urgentBatchBudget}.
  */
 @ThreadSafe
 public class TaskMailboxImpl implements TaskMailbox {
@@ -104,6 +105,16 @@ public class TaskMailboxImpl implements TaskMailbox {
      * additional volatile read on the take path if there are no urgent mails.
      */
     private volatile boolean hasNewUrgentMail = false;
+
+    /**
+     * The maximum number of urgent mails that {@link #tryTakeFromBatch()} may still serve in the
+     * current round: the number of urgent mails pending at {@link #createBatch()} plus the size of
+     * the batch. That lets urgent mails arriving during the round overtake the rest of the batch in
+     * normal operation, while a sustained stream of urgent mails can't prevent the round from
+     * ending. Remaining urgent mails are served in the next round (still in FIFO order). Must only
+     * be accessed by the mailbox thread.
+     */
+    private int urgentBatchBudget = 0;
 
     public TaskMailboxImpl(@Nonnull final Thread taskMailboxThread) {
         this.taskMailboxThread = taskMailboxThread;
@@ -212,28 +223,34 @@ public class TaskMailboxImpl implements TaskMailbox {
     @Override
     public boolean createBatch() {
         checkIsMailboxThread();
-        if (hasNewMail) {
+        int pendingUrgent = 0;
+        if (hasNewMail || hasNewUrgentMail) {
             final ReentrantLock lock = this.lock;
             lock.lock();
             try {
                 batch.addAll(queue);
                 queue.clear();
                 hasNewMail = false;
+                pendingUrgent = urgentQueue.size();
             } finally {
                 lock.unlock();
             }
         }
         // pending urgent mails are served by tryTakeFromBatch, too
-        return !batch.isEmpty() || hasNewUrgentMail;
+        urgentBatchBudget = pendingUrgent + batch.size();
+        return !batch.isEmpty() || pendingUrgent > 0;
     }
 
     @Override
     public Optional<Mail> tryTakeFromBatch() {
         checkIsMailboxThread();
         checkTakeStateConditions();
-        Mail urgent = takeUrgentIfPending(Integer.MIN_VALUE, false);
-        if (urgent != null) {
-            return Optional.of(urgent);
+        if (urgentBatchBudget > 0) {
+            Mail urgent = takeUrgentIfPending(Integer.MIN_VALUE, false);
+            if (urgent != null) {
+                urgentBatchBudget--;
+                return Optional.of(urgent);
+            }
         }
         return Optional.ofNullable(batch.pollFirst());
     }
