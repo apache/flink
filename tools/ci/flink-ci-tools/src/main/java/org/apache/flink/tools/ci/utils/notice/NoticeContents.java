@@ -21,15 +21,25 @@ package org.apache.flink.tools.ci.utils.notice;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 
 import java.util.Collection;
+import java.util.Collections;
 
 /** Represents the parsed contents of a NOTICE file. */
 public class NoticeContents {
     private final String noticeModuleName;
     private final Collection<Dependency> declaredDependencies;
+    private final Collection<String> misorderedLines;
 
     public NoticeContents(String noticeModuleName, Collection<Dependency> declaredDependencies) {
+        this(noticeModuleName, declaredDependencies, Collections.emptyList());
+    }
+
+    public NoticeContents(
+            String noticeModuleName,
+            Collection<Dependency> declaredDependencies,
+            Collection<String> misorderedLines) {
         this.noticeModuleName = noticeModuleName;
         this.declaredDependencies = declaredDependencies;
+        this.misorderedLines = misorderedLines;
     }
 
     public String getNoticeModuleName() {
@@ -38,5 +48,10 @@ public class NoticeContents {
 
     public Collection<Dependency> getDeclaredDependencies() {
         return declaredDependencies;
+    }
+
+    /** Dependency lines that put the version before the classifier. */
+    public Collection<String> getMisorderedLines() {
+        return misorderedLines;
     }
 }

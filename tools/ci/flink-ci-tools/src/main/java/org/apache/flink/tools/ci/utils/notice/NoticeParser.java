@@ -53,6 +53,9 @@ public class NoticeParser {
                             + "(?<version>[^ ]*?)"
                             + "\".*");
 
+    // "4.1.110.Final" in the classifier position, i.e. a version followed by a classifier
+    private static final Pattern VERSION_LIKE = Pattern.compile("\\d+(\\.\\d+)+([.-]\\w+)*");
+
     public static Optional<NoticeContents> parseNoticeFile(Path noticeFile) throws IOException {
         // 1st line contains module name
         final List<String> noticeContents = Files.readAllLines(noticeFile);
@@ -69,15 +72,33 @@ public class NoticeParser {
         final String noticeModuleName = noticeContents.get(0);
 
         Collection<Dependency> declaredDependencies = new ArrayList<>();
+        Collection<String> misorderedLines = new ArrayList<>();
         for (String line : noticeContents) {
             Optional<Dependency> dependency = tryParsing(NOTICE_DEPENDENCY_PATTERN, line);
             if (!dependency.isPresent()) {
                 dependency = tryParsing(NOTICE_BUNDLES_DEPENDENCY_PATTERN, line);
             }
-            dependency.ifPresent(declaredDependencies::add);
+            if (dependency.isPresent() && isVersionBeforeClassifier(dependency.get())) {
+                misorderedLines.add(line);
+            } else {
+                dependency.ifPresent(declaredDependencies::add);
+            }
         }
 
-        return Optional.of(new NoticeContents(noticeModuleName, declaredDependencies));
+        return Optional.of(
+                new NoticeContents(noticeModuleName, declaredDependencies, misorderedLines));
+    }
+
+    /**
+     * The NOTICE format is groupId:artifactId:classifier:version. A line written as
+     * groupId:artifactId:version:classifier parses with the classifier as the version.
+     */
+    private static boolean isVersionBeforeClassifier(Dependency dependency) {
+        return dependency
+                .getClassifier()
+                .filter(classifier -> VERSION_LIKE.matcher(classifier).matches())
+                .filter(classifier -> !VERSION_LIKE.matcher(dependency.getVersion()).matches())
+                .isPresent();
     }
 
     private static Optional<Dependency> tryParsing(Pattern pattern, String line) {
