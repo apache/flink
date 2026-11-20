@@ -4,8 +4,56 @@ Copyright 2014-2026 The Apache Software Foundation
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
-The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - org.scala-lang:scala-compiler:2.12.21
 - org.scala-lang:scala-library:2.12.21
 - org.scala-lang:scala-reflect:2.12.21
+
+Scala
+Copyright (c) 2002-2025 EPFL
+Copyright (c) 2011-2025 Lightbend, Inc. dba Akka
+
+Scala includes software developed at
+LAMP/EPFL (https://lamp.epfl.ch/) and
+Akka (https://akka.io/).
+
+Licensed under the Apache License, Version 2.0 (the "License").
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This software includes projects with other licenses -- see `doc/LICENSE.md`.
+
+scala-compiler contains a modified version of 'ASM', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.scala-asm.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://asm.ow2.io/
+
+scala-compiler contains 'JLine' 2.14.6, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.scala-jline.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/jline/jline2
+
+scala-compiler and its Jansi native libraries contain code from 'HawtJNI', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.scala-hawtjni.txt (Eclipse Public License 1.0)
+  * HOMEPAGE:
+    * https://github.com/fusesource/hawtjni
+
+HawtJNI's NOTICE:
+
+  This product includes software developed by FuseSource Corp.
+   http://fusesource.com
+
+  This product includes software developed at
+   Progress Software Corporation and/or its  subsidiaries or affiliates.
+
+  This product includes software developed by IBM Corporation and others.
