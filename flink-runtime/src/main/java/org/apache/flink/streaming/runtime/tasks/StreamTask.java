@@ -1539,8 +1539,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         checkForcedFullSnapshotSupport(checkpointOptions);
 
+        MailboxExecutor.MailOptions mailOptions =
+                CheckpointOptions.AlignmentType.UNALIGNED == checkpointOptions.getAlignment()
+                        ? MailboxExecutor.MailOptions.urgent()
+                        : MailboxExecutor.MailOptions.options();
+
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
+                mailOptions,
                 () -> {
                     try {
                         boolean noUnfinishedInputGates =
@@ -1888,7 +1894,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event)
             throws FlinkException {
         try {
+            // Operator events must be urgent: the coordinator considers an event delivered once it
+            // is enqueued here, and it may then take a checkpoint that must include the event's
+            // effect (e.g. AddSplitEvent). Unaligned checkpoint triggers are urgent mails (see
+            // triggerCheckpointAsync), so a normal mail could be overtaken by the trigger. Urgent
+            // mails are executed in FIFO order among themselves (TaskMailboxImpl keeps them in a
+            // dedicated FIFO urgent queue served before the batch; both mails are put with the
+            // same priority), which preserves the ordering.
+            // This is also safe for an aligned trigger (a normal mail): the coordinator's gateway
+            // stays closed from its checkpoint until the task's AcknowledgeCheckpointEvent, which
+            // is sent after the task-side snapshot, so later events can't overtake the snapshot.
             mainMailboxExecutor.execute(
+                    MailboxExecutor.MailOptions.urgent(),
                     () -> operatorChain.dispatchOperatorEvent(operator, event),
                     "dispatch operator event");
         } catch (RejectedExecutionException e) {
