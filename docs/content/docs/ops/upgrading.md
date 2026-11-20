@@ -239,11 +239,7 @@ Instead of a file, the plan can also be part of the JAR of the job. Compile it o
 project, and run it with:
 
 ```java
-String plan;
-try (InputStream in = MyJob.class.getResourceAsStream("/plans/my-job.json")) {
-    plan = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-}
-tEnv.loadPlan(PlanReference.fromJsonString(plan)).execute();
+tEnv.loadPlan(PlanReference.fromResource("plans/my-job.json")).execute();
 ```
 
 Before the upgrade, stop the job with a savepoint, and start the same JAR on the new Flink version
