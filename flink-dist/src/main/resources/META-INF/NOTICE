@@ -41,3 +41,59 @@ See bundled license files for details.
 
 - javax.activation:javax.activation-api:1.2.0
 - javax.xml.bind:jaxb-api:2.3.1
+
+The native libraries of frocksdbjni and forstjni contain code from 'LevelDB', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.leveldb.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/google/leveldb
+
+The native libraries of frocksdbjni and forstjni contain code from 'Snappy', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.google-snappy.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/google/snappy
+
+The native libraries of frocksdbjni and forstjni contain code from 'LZ4', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.liblz4.txt (BSD 2-Clause License)
+  * HOMEPAGE:
+    * https://github.com/lz4/lz4
+
+The native libraries of frocksdbjni and forstjni contain code from 'xxHash', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.xxhash.txt (BSD 2-Clause License)
+  * HOMEPAGE:
+    * https://github.com/Cyan4973/xxHash
+
+The native libraries of frocksdbjni and forstjni contain code from 'Zstandard', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.zstd.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/facebook/zstd
+
+The native libraries of frocksdbjni and forstjni contain code from 'zlib', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.zlib.txt (zlib License)
+  * HOMEPAGE:
+    * https://zlib.net/
+
+The native libraries of frocksdbjni and forstjni contain code from 'bzip2', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.bzip2.txt (bzip2 License)
+  * HOMEPAGE:
+    * https://sourceware.org/bzip2/
+
+The native libraries of frocksdbjni and forstjni contain code from 'MurmurHash', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.murmurhash.txt (Public Domain)
+  * HOMEPAGE:
+    * https://sites.google.com/site/murmurhash/
