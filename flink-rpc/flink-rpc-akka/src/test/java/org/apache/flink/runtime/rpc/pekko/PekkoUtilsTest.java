@@ -277,4 +277,51 @@ class PekkoUtilsTest {
         assertThat(securityConfig.getString("key-store-type")).isEqualTo("JKS");
         assertThat(securityConfig.getString("trust-store-type")).isEqualTo("JKS");
     }
+
+    @Test
+    void getConfigSslValuesWithSpecialCharacters() {
+        final String keyStore = "C:\\path with \"quotes\"\\keystore.jks";
+        final String keyStorePassword = "pass\"word\\${foo}";
+        final String keyPassword = "key\"\\pass";
+        final String trustStorePassword = "\"trust\\\"";
+
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, keyStore);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, keyStorePassword);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, keyPassword);
+        configuration.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, trustStorePassword);
+
+        final Config config =
+                PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+        assertThat(securityConfig.getString("key-store")).isEqualTo(keyStore);
+        assertThat(securityConfig.getString("key-store-password")).isEqualTo(keyStorePassword);
+        assertThat(securityConfig.getString("key-password")).isEqualTo(keyPassword);
+        assertThat(securityConfig.getString("trust-store-password")).isEqualTo(trustStorePassword);
+    }
+
+    @Test
+    void getConfigWritesUnsetSslValuesAsNullString() {
+        final Config config =
+                PekkoUtils.getConfig(new Configuration(), new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+        assertThat(securityConfig.getString("key-store")).isEqualTo("null");
+        assertThat(securityConfig.getString("key-store-password")).isEqualTo("null");
+        assertThat(securityConfig.getString("key-password")).isEqualTo("null");
+        assertThat(securityConfig.getString("trust-store")).isEqualTo("null");
+        assertThat(securityConfig.getString("trust-store-password")).isEqualTo("null");
+    }
+
+    @Test
+    void getConfigTrimsSslAlgorithms() {
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.SSL_ALGORITHMS, "TLS_A, TLS_B ");
+
+        final Config config =
+                PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+        assertThat(securityConfig.getStringList("enabled-algorithms"))
+                .containsExactly("TLS_A", "TLS_B");
+    }
 }
