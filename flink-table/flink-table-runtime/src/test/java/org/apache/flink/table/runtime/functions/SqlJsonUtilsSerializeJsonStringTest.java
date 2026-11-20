@@ -41,7 +41,8 @@ class SqlJsonUtilsSerializeJsonStringTest {
                 // above 0xFF, with a char to escape after it
                 "ĢŜĊ",
                 "Ģ\n",
-                // one '?' byte for two chars, so the bytes are shorter than the string
+                // ISO-8859-1 can't encode the emoji, so getBytes writes one '?' for its two chars,
+                // which makes the bytes shorter than the string
                 "😀\n",
                 // Latin-1 but not ASCII, with a char to escape after it
                 "É\n",
