@@ -84,6 +84,19 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<filters combine.children="append">
+								<!-- scaladoc's web assets (jQuery and its plugins, Modernizr); Flink never
+									 generates scaladoc at runtime, so they aren't shipped -->
+								<filter>
+									<artifact>org.scala-lang:scala-compiler</artifact>
+									<excludes>
+										<exclude>jquery*.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/jquery*.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/modernizr*.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/tools.tooltip.js</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-table-planner_${scala.binary.version}</include>
