@@ -462,7 +462,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                         .map(
                                 operand ->
                                         operand instanceof RexTableArgCall
-                                                ? withInputType(
+                                                ? adjustTableArg(
                                                         (RexTableArgCall) operand, newInputs)
                                                 : operand)
                         .collect(Collectors.toList());
@@ -475,12 +475,13 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 newScan.getColumnMappings());
     }
 
-    private RexNode withInputType(RexTableArgCall tableArg, List<RelNode> inputs) {
+    private RexNode adjustTableArg(RexTableArgCall tableArg, List<RelNode> inputs) {
         final RelDataType inputType = inputs.get(tableArg.getInputIndex()).getRowType();
         return tableArg.clone(
                 rexBuilder
                         .getTypeFactory()
                         .createStructType(
+                                tableArg.getType().getStructKind(),
                                 RelOptUtil.getFieldTypeList(inputType),
                                 tableArg.getType().getFieldNames()),
                 List.of());
