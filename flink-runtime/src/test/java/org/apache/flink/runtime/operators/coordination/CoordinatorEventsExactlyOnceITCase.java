@@ -278,7 +278,7 @@ public class CoordinatorEventsExactlyOnceITCase {
      * <p>All consistency guaranteed for the coordinator apply to order or method invocations (like
      * {@link #executionAttemptFailed(int, int, Throwable)}}, {@link #subtaskReset(int, long)} or
      * {@link #checkpointCoordinator(long, CompletableFuture)}) and the order in which actions are
-     * done (sending events and completing checkpoints). Tho consistently evaluate this, but with
+     * done (sending events and completing checkpoints). To consistently evaluate this, but with
      * concurrency against the scheduler thread that calls this coordinator implements a simple
      * mailbox that moves the method handling into a separate thread, but keeps the order.
      *

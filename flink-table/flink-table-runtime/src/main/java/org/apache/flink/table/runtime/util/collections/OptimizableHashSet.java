@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.util.collections;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A type-specific hash set with with a fast, small-footprint implementation. Refer to the
- * implementation of fastutil.
+ * A type-specific hash set with a fast, small-footprint implementation. Refer to the implementation
+ * of fastutil.
  *
  * <p>Instances of this class use a hash table to represent a set. The table is enlarged as needed
  * by doubling its size when new entries are created.

@@ -74,7 +74,7 @@ In this example, we create a DataStream containing the lines of text files as St
 as new files are added to the directory. We monitor for new files each second.
 There is no need for a watermark strategy as records do not contain event timestamps.
 
-{{< tabs "continous" >}}
+{{< tabs "continuous" >}}
 {{< tab "Java" >}}
 ```java
 final FileSource<String> source =

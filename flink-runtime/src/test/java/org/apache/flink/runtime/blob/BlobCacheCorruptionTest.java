@@ -35,7 +35,7 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 /**
  * Tests how GET requests react to corrupt files when downloaded via a {@link BlobCacheService}.
  *
- * <p>Successful GET requests are tested in conjunction wit the PUT requests.
+ * <p>Successful GET requests are tested in conjunction with the PUT requests.
  */
 class BlobCacheCorruptionTest {
 

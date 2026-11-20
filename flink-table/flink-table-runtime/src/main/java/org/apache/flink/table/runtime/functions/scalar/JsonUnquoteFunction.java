@@ -118,7 +118,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
     private String unescapeValidJson(String inputStr) {
         // check for a quoted json string val and unescape
         if (inputStr.charAt(0) == '"' && inputStr.charAt(inputStr.length() - 1) == '"') {
-            // remove quotes, string len is atleast 2 here
+            // remove quotes, string len is at least 2 here
             return unescapeStr(inputStr.substring(1, inputStr.length() - 1));
         } else {
             // string representing Json - array, object or unquoted scalar val, return as-is

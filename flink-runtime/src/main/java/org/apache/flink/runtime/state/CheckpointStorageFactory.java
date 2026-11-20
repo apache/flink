@@ -38,7 +38,7 @@ public interface CheckpointStorageFactory<T extends CheckpointStorage> {
      * Creates the checkpoint storage, optionally using the given configuration.
      *
      * @param config The Flink configuration (loaded by the TaskManager).
-     * @param classLoader The clsas loader that should be used to load the checkpoint storage.
+     * @param classLoader The class loader that should be used to load the checkpoint storage.
      * @return The created checkpoint storage.
      * @throws IllegalConfigurationException If the configuration misses critical values, or
      *     specifies invalid values

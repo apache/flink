@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Show Functions sql call. The full syntax for show functions is as followings:
+ * Show Functions sql call. The full syntax for show functions is as follows:
  *
  * <pre>{@code
  * SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)

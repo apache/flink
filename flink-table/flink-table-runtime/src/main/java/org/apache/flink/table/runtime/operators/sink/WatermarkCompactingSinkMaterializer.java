@@ -184,7 +184,7 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
                             .setTimeToLive(ttlConfig.getTimeToLive().plus(Duration.ofSeconds(5)))
                             .build());
             currentValueDescriptor.enableTimeToLive(ttlConfig);
-            // slighly higher than the buffer ttl, to make this be cleared last, after all other
+            // slightly higher than the buffer ttl, to make this be cleared last, after all other
             // state is cleared
             consolidatedCheckpointIdDescriptor.enableTimeToLive(
                     StateTtlConfig.newBuilder(ttlConfig)

@@ -206,8 +206,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     }
 
     /**
-     * Build a request for bunch put. Maily used for {@link StateRequestType#MAP_PUT_ALL} and {@link
-     * StateRequestType#CLEAR}.
+     * Build a request for bunch put. Mainly used for {@link StateRequestType#MAP_PUT_ALL} and
+     * {@link StateRequestType#CLEAR}.
      *
      * @param stateRequest The state request.
      * @return The {@code ForStDBBunchPutRequest}.

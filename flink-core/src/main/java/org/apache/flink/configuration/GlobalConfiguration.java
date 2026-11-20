@@ -180,7 +180,7 @@ public final class GlobalConfiguration {
     /**
      * Flattens a nested configuration map to be only one level deep.
      *
-     * <p>Nested keys are concatinated using the {@code KEY_SEPARATOR} character. So that:
+     * <p>Nested keys are concatenated using the {@code KEY_SEPARATOR} character. So that:
      *
      * <pre>
      * keyA:
