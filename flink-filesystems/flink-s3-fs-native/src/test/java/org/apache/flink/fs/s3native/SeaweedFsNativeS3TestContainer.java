@@ -112,18 +112,13 @@ public class SeaweedFsNativeS3TestContainer
         return client;
     }
 
-    /**
-     * Sets the config required to reach this instance from the native S3 filesystem. SeaweedFS
-     * supports neither AWS chunked encoding nor trailing checksums, so both are disabled.
-     */
+    /** Sets the config required to reach this instance from the native S3 filesystem. */
     public void setS3ConfigOptions(Configuration config) {
         config.set(NativeS3FileSystemFactory.ENDPOINT, getHttpEndpoint());
         config.set(NativeS3FileSystemFactory.REGION, Region.US_EAST_1.id());
         config.set(NativeS3FileSystemFactory.ACCESS_KEY, accessKey);
         config.set(NativeS3FileSystemFactory.SECRET_KEY, secretKey);
         config.set(NativeS3FileSystemFactory.PATH_STYLE_ACCESS, true);
-        config.set(NativeS3FileSystemFactory.CHUNKED_ENCODING_ENABLED, false);
-        config.set(NativeS3FileSystemFactory.CHECKSUM_VALIDATION_ENABLED, false);
     }
 
     public void initializeFileSystem(Configuration config) {
