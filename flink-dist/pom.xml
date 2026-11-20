@@ -690,6 +690,13 @@ under the License.
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<finalName>${project.artifactId}-${project.version}</finalName>
 							<filters>
+								<filter>
+									<!-- flink-shaded-netty misspells the directory; LICENSE.boringssl.txt is in this module's licenses/ instead. -->
+									<artifact>org.apache.flink:flink-shaded-netty</artifact>
+									<excludes>
+										<exclude>META-INF/licensess/**</exclude>
+									</excludes>
+								</filter>
 								<!-- Globally exclude log4j.properties from our JAR files. -->
 								<filter>
 									<artifact>*</artifact>

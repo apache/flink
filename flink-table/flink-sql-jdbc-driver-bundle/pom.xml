@@ -102,6 +102,15 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<filters combine.children="append">
+								<filter>
+									<!-- flink-shaded-netty misspells the directory; LICENSE.boringssl.txt is in this module's licenses/ instead. -->
+									<artifact>org.apache.flink:flink-shaded-netty</artifact>
+									<excludes>
+										<exclude>META-INF/licensess/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-sql-jdbc-driver</include>

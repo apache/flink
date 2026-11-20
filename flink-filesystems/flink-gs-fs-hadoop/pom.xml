@@ -241,6 +241,13 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
+									<!-- The parts of netty-tcnative's licenses that apply are in this module's licenses directory. -->
+									<artifact>io.grpc:grpc-netty-shaded</artifact>
+									<excludes>
+										<exclude>META-INF/license/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>properties.dtd</exclude>
