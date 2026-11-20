@@ -87,6 +87,8 @@ import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests to verify state assignment operation. */
 class StateAssignmentOperationTest {
@@ -1624,5 +1626,116 @@ class StateAssignmentOperationTest {
         OperatorSubtaskState sinkAssignedState =
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0);
         assertThat(sinkAssignedState).isNotNull();
+    }
+
+    /**
+     * A rebalance exchange with in-flight data became a chained forward connection. The output
+     * state of the former upstream tail now belongs to the head of the chain, so it has no exchange
+     * left. The recovery must be rejected instead of dropping the data silently.
+     */
+    @Test
+    void testChainedOperatorWithInFlightOutputDataIsRejected() throws Exception {
+        assertChainedRecoveryRejected(false);
+    }
+
+    /**
+     * Same as {@link #testChainedOperatorWithInFlightOutputDataIsRejected()}, but for the input
+     * state of the former downstream head, which is now the tail of the chain.
+     */
+    @Test
+    void testChainedOperatorWithInFlightInputDataIsRejected() throws Exception {
+        assertChainedRecoveryRejected(true);
+    }
+
+    /**
+     * The same chained topology, but the channel state handles carry no offsets. There is no
+     * in-flight data to lose, so the recovery must succeed.
+     */
+    @Test
+    void testChainedOperatorWithoutInFlightDataIsAccepted() throws Exception {
+        for (boolean inputState : new boolean[] {false, true}) {
+            final Map<OperatorID, OperatorState> states = new HashMap<>();
+            final ExecutionJobVertex executionJobVertex =
+                    createChainedVertexWithChannelState(states, inputState, 0);
+
+            assertThatCode(
+                            () ->
+                                    new StateAssignmentOperation(
+                                                    1,
+                                                    Collections.singleton(executionJobVertex),
+                                                    states,
+                                                    false)
+                                            .assignStates())
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    private static void assertChainedRecoveryRejected(boolean inputState) throws Exception {
+        final Map<OperatorID, OperatorState> states = new HashMap<>();
+        final ExecutionJobVertex executionJobVertex =
+                createChainedVertexWithChannelState(states, inputState, 10);
+
+        assertThatThrownBy(
+                        () ->
+                                new StateAssignmentOperation(
+                                                1,
+                                                Collections.singleton(executionJobVertex),
+                                                states,
+                                                false)
+                                        .assignStates())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("data exchanges with persisted data are now chained");
+    }
+
+    /**
+     * Creates a vertex with parallelism 3 that chains {@code tail} and {@code head}, restored from
+     * a checkpoint with parallelism 2. Output state is put on the head and input state on the tail,
+     * i.e. on the operator that no longer owns the respective exchange.
+     */
+    private static ExecutionJobVertex createChainedVertexWithChannelState(
+            Map<OperatorID, OperatorState> states, boolean inputState, int numOffsets)
+            throws Exception {
+        final OperatorID tail = new OperatorID();
+        final OperatorID head = new OperatorID();
+        final int oldParallelism = 2;
+        final Random random = new Random();
+
+        final OperatorState tailState = new OperatorState(tail, oldParallelism, MAX_P);
+        final OperatorState headState = new OperatorState(head, oldParallelism, MAX_P);
+        for (int i = 0; i < oldParallelism; i++) {
+            final OperatorSubtaskState withChannelState =
+                    inputState
+                            ? OperatorSubtaskState.builder()
+                                    .setInputChannelState(
+                                            new StateObjectCollection<>(
+                                                    asList(
+                                                            createNewInputChannelStateHandle(
+                                                                    numOffsets, random))))
+                                    .build()
+                            : OperatorSubtaskState.builder()
+                                    .setResultSubpartitionState(
+                                            new StateObjectCollection<>(
+                                                    asList(
+                                                            createNewResultSubpartitionStateHandle(
+                                                                    numOffsets, random))))
+                                    .build();
+            final OperatorSubtaskState empty = OperatorSubtaskState.builder().build();
+            tailState.putState(i, inputState ? withChannelState : empty);
+            headState.putState(i, inputState ? empty : withChannelState);
+        }
+        states.put(tail, tailState);
+        states.put(head, headState);
+
+        // JobVertex operator IDs are ordered tail-first, matching StreamingJobGraphGenerator.
+        final JobVertex jobVertex =
+                new JobVertex(
+                        "chained",
+                        new JobVertexID(),
+                        asList(
+                                OperatorIDPair.generatedIDOnly(tail),
+                                OperatorIDPair.generatedIDOnly(head)));
+        jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(3);
+        return ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
     }
 }
