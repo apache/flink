@@ -221,34 +221,30 @@ class BinaryVariantTest {
                 .hasMessageContaining("nanosecond precision");
     }
 
-    @Test
-    void testNanosecondTimestampPrecisionBounds() {
-        // The first and the last value of the range, including the first second of the range, where
-        // the epoch second times 10^9 overflows although the total fits into a long.
-        assertThat(BinaryVariantUtil.nanosSinceEpoch(Instant.EPOCH.plusNanos(Long.MIN_VALUE)))
-                .isEqualTo(Long.MIN_VALUE);
-        assertThat(BinaryVariantUtil.nanosSinceEpoch(Instant.EPOCH.plusNanos(Long.MAX_VALUE)))
-                .isEqualTo(Long.MAX_VALUE);
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                // First value of the range. The epoch second times 10^9 overflows a long in the
+                // first second of the range, but the total nanoseconds fit.
+                "1677-09-21T00:12:43.145224192",
+                "1677-09-21T00:12:43.999999999",
+                "2262-04-11T23:47:16.854775807"
+            })
+    void testNanosecondTimestampPrecisionBounds(String value) {
+        final LocalDateTime dateTime = LocalDateTime.parse(value);
+        assertThat(builder.of(dateTime).getDateTime()).isEqualTo(dateTime);
 
-        for (LocalDateTime dateTime :
-                List.of(
-                        LocalDateTime.of(1677, 9, 21, 0, 12, 43, 145_224_192),
-                        LocalDateTime.of(1677, 9, 21, 0, 12, 43, 999_999_999),
-                        LocalDateTime.of(2262, 4, 11, 23, 47, 16, 854_775_807))) {
-            assertThat(builder.of(dateTime).getDateTime()).isEqualTo(dateTime);
-            assertThat(builder.of(dateTime.toInstant(ZoneOffset.UTC)).getInstant())
-                    .isEqualTo(dateTime.toInstant(ZoneOffset.UTC));
-        }
+        final Instant instant = dateTime.toInstant(ZoneOffset.UTC);
+        assertThat(builder.of(instant).getInstant()).isEqualTo(instant);
+    }
 
-        // One nanosecond outside each end of the range
-        for (Instant outside :
-                List.of(
-                        Instant.EPOCH.plusNanos(Long.MIN_VALUE).minusNanos(1),
-                        Instant.EPOCH.plusNanos(Long.MAX_VALUE).plusNanos(1))) {
-            assertThatThrownBy(() -> BinaryVariantUtil.nanosSinceEpoch(outside))
-                    .isInstanceOf(VariantTypeException.class)
-                    .hasMessageContaining("nanosecond precision");
-        }
+    @ParameterizedTest
+    @ValueSource(strings = {"1677-09-21T00:12:43.145224191", "2262-04-11T23:47:16.854775808"})
+    void testNanosecondTimestampPrecisionOutsideBounds(String value) {
+        final Instant instant = LocalDateTime.parse(value).toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> BinaryVariantUtil.nanosSinceEpoch(instant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
     }
 
     @Test

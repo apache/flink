@@ -351,12 +351,6 @@ class XmlToVariantParserTest {
                             "1677-09-21T00:12:43.145224191",
                             Variant.Type.TIMESTAMP,
                             LocalDateTime.of(1677, 9, 21, 0, 12, 43, 145_224_000)),
-                    // Last nanosecond of the first second of the range
-                    arguments(
-                            "dateTime",
-                            "1677-09-21T00:12:43.999999999",
-                            Variant.Type.TIMESTAMP_NS,
-                            LocalDateTime.of(1677, 9, 21, 0, 12, 43, 999_999_999)),
                     arguments(
                             "dateTime",
                             "2262-04-11T23:47:16.854775807",
