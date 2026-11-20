@@ -23,6 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.TestableKeyedStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
@@ -68,5 +71,18 @@ public class KeyedMultiInputStreamOperatorTestHarness<KEY, OUT>
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(idx, keySelector);
         config.serializeAllConfigs();
+    }
+
+    public int numKeyedStateEntries() {
+        KeyedStateBackend<Object> keyedStateBackend =
+                ((AbstractStreamOperatorV2<?>) operator).getKeyedStateBackend();
+        if (keyedStateBackend instanceof TestableKeyedStateBackend) {
+            return ((TestableKeyedStateBackend<?>) keyedStateBackend).numKeyValueStateEntries();
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported keyed state backend: %s",
+                            keyedStateBackend.getClass().getCanonicalName()));
+        }
     }
 }

@@ -275,7 +275,9 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                                 .collect(Collectors.toList()),
                         conditionFields,
                         createConditionFieldsEqualisers(
-                                classLoader, inputRowTypes, conditionFields));
+                                classLoader, inputRowTypes, conditionFields),
+                        MultiJoinUtil.createNullFilterFields(
+                                inputRowTypes, joinConditions, joinTypes));
 
         final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
                 createKeySelectors(planner, inputTypeInfos, keyExtractor);
@@ -352,7 +354,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final JoinKeyExtractor keyExtractor,
             final List<RuntimeChangelogMode> inputChangelogModes,
             final int[][] conditionFields,
-            final GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
+            final GeneratedRecordEqualiser[] conditionFieldsEqualisers,
+            final int[][] nullFilterFields) {
         final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
                         config, inputTypeInfos.size(), stateMetadataList);
@@ -369,7 +372,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinAttributeMap,
                 inputChangelogModes,
                 conditionFields,
-                conditionFieldsEqualisers);
+                conditionFieldsEqualisers,
+                nullFilterFields);
     }
 
     /** Returns whether the input is stored under its upsert key, see {@link MultiJoinUtil}. */

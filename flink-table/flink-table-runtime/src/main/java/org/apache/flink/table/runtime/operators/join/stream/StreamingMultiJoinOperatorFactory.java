@@ -57,6 +57,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
     private final int[][] conditionFields;
     // For each input, an equaliser of its condition fields, or null if it has none.
     private final GeneratedRecordEqualiser[] conditionFieldsEqualisers;
+    private final int[][] nullFilterFields;
 
     public StreamingMultiJoinOperatorFactory(
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
@@ -69,7 +70,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final List<RuntimeChangelogMode> inputChangelogModes,
             final int[][] conditionFields,
-            final GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
+            final GeneratedRecordEqualiser[] conditionFieldsEqualisers,
+            final int[][] nullFilterFields) {
         this.inputTypeInfos = inputTypeInfos;
         this.inputSideSpecs = inputSideSpecs;
         this.joinTypes = joinTypes;
@@ -81,6 +83,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
         this.inputChangelogModes = inputChangelogModes;
         this.conditionFields = conditionFields;
         this.conditionFieldsEqualisers = conditionFieldsEqualisers;
+        this.nullFilterFields = nullFilterFields;
     }
 
     @Override
@@ -104,7 +107,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
                         joinAttributeMap,
                         inputChangelogModes,
                         conditionFields,
-                        conditionFieldsEqualisers);
+                        conditionFieldsEqualisers,
+                        nullFilterFields);
 
         @SuppressWarnings("unchecked")
         final T castedOperator = (T) operator;
