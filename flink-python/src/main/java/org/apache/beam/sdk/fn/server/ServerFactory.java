@@ -158,7 +158,7 @@ public abstract class ServerFactory {
         private static Server createServer(List<BindableService> services, InetSocketAddress socket)
                 throws IOException {
             NettyServerBuilder builder =
-                    NettyServerBuilder.forPort(socket.getPort())
+                    NettyServerBuilder.forAddress(socket)
                             // Set the message size to max value here. The actual size is governed
                             // by the
                             // buffer size in the layers above.
