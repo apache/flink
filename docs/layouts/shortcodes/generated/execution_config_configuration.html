@@ -177,6 +177,12 @@ Operators that can be disabled include "NestedLoopJoin", "ShuffleHashJoin", "Bro
 By default no operator is disabled.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.event-time-temporal-join.version</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Which version of the event-time temporal join operator to use for newly planned queries: 1 - legacy implementation; use it to restore state created with version 1, e.g. by jobs that were submitted without a compiled plan before this option was introduced. 2 - implementation that reads state in time order on the RocksDB and ForSt state backends. The two versions have incompatible state. Compiled plans keep the version they were compiled with.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.interval-join.min-cleanup-interval</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
