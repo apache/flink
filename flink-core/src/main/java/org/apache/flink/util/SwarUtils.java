@@ -65,21 +65,7 @@ public final class SwarUtils {
      */
     public static boolean containsAnyOrLessThan(
             byte[] bytes, int offset, int len, byte b1, byte b2, int lessThan) {
-        int i = offset;
-        final int end = offset + len;
-        for (; end - i >= Long.BYTES; i += Long.BYTES) {
-            final long word = readWord(bytes, i);
-            if ((hasByte(word, b1) | hasByte(word, b2) | hasByteLessThan(word, lessThan)) != 0) {
-                return true;
-            }
-        }
-        for (; i < end; i++) {
-            final byte b = bytes[i];
-            if (b == b1 || b == b2 || (b & 0xFF) < lessThan) {
-                return true;
-            }
-        }
-        return false;
+        return containsLessThanOrAny(bytes, offset, len, true, b1, b2, lessThan);
     }
 
     /**
@@ -89,15 +75,26 @@ public final class SwarUtils {
      * @param lessThan at most {@code 0x80}
      */
     public static boolean containsLessThan(byte[] bytes, int offset, int len, int lessThan) {
+        return containsLessThanOrAny(bytes, offset, len, false, (byte) 0, (byte) 0, lessThan);
+    }
+
+    private static boolean containsLessThanOrAny(
+            byte[] bytes, int offset, int len, boolean matchBytes, byte b1, byte b2, int lessThan) {
         int i = offset;
         final int end = offset + len;
         for (; end - i >= Long.BYTES; i += Long.BYTES) {
-            if (hasByteLessThan(readWord(bytes, i), lessThan) != 0) {
+            final long word = readWord(bytes, i);
+            long found = hasByteLessThan(word, lessThan);
+            if (matchBytes) {
+                found |= hasByte(word, b1) | hasByte(word, b2);
+            }
+            if (found != 0) {
                 return true;
             }
         }
         for (; i < end; i++) {
-            if ((bytes[i] & 0xFF) < lessThan) {
+            final byte b = bytes[i];
+            if ((b & 0xFF) < lessThan || (matchBytes && (b == b1 || b == b2))) {
                 return true;
             }
         }
