@@ -134,6 +134,18 @@ class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoTableSourceSca
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl5);
+
+        String ddl6 =
+                "CREATE TABLE NestedFunctionTable (\n"
+                        + "  r1 ROW<a ROW<b STRING>>,\n"
+                        + "  r2 ROW<a ROW<b STRING>>,\n"
+                        + "  s STRING\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'r1;r2;`r1.a.b`;`r2.a.b`',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl6);
     }
 
     @Test
@@ -237,5 +249,24 @@ class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoTableSourceSca
     @Test
     void testFilterOnNestedArrayElement() {
         util.verifyRelPlan("SELECT * FROM ItemTable WHERE nested.arr[1] = 3");
+    }
+
+    @Test
+    void testNestedFilterOnFunctionResult() {
+        // FLINK-41524: a field access chain on a function result must not be pushed down
+        util.verifyRelPlan("SELECT s FROM NestedFunctionTable WHERE COALESCE(r1, r2).a.b = 'x'");
+    }
+
+    @Test
+    void testNestedFilterOnFunctionResultSingleLevel() {
+        util.verifyRelPlan("SELECT s FROM NestedFunctionTable WHERE COALESCE(r1, r2).a IS NULL");
+    }
+
+    @Test
+    void testNestedFilterOnFunctionResultMixedWithPushableFilter() {
+        // only r1.a.b = 'y' can be pushed down
+        util.verifyRelPlan(
+                "SELECT s FROM NestedFunctionTable"
+                        + " WHERE COALESCE(r1, r2).a.b = 'x' AND r1.a.b = 'y'");
     }
 }

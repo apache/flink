@@ -49,6 +49,7 @@ import java.time.{ZoneId, ZoneOffset}
 import java.util
 import java.util.{Collections, List => JList}
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -557,10 +558,13 @@ class RexNodeToExpressionConverter(
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[ResolvedExpression] = {
-    fieldAccess.getReferenceExpr match {
-      // push down on nested field inside a composite type like map or array is not supported
-      case _: RexCall => return None
-      case _ => // do nothing
+    // Only a chain of field accesses rooted at an input reference (e.g. `r.a.b`) can be
+    // converted into a NestedFieldReferenceExpression. Accesses on any other base, such as the
+    // result of a function call (e.g. `COALESCE(r1, r2).a.b`) or an item of a map or array, are
+    // not supported. Checking only the immediate base is not enough: for `f(x).a.b` the immediate
+    // base is the field access `f(x).a`.
+    if (!baseOfFieldAccessChain(fieldAccess).isInstanceOf[RexInputRef]) {
+      return None
     }
 
     relDataType match {
@@ -585,6 +589,14 @@ class RexNodeToExpressionConverter(
               FlinkTypeFactory.toLogicalType(fieldAccess.getType))))
     }
   }
+
+  /** Follows a chain of field accesses down to the expression it is applied on. */
+  @tailrec
+  private def baseOfFieldAccessChain(expr: RexNode): RexNode = expr match {
+    case fieldAccess: RexFieldAccess => baseOfFieldAccessChain(fieldAccess.getReferenceExpr)
+    case other => other
+  }
+
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[ResolvedExpression] =
     None
 
