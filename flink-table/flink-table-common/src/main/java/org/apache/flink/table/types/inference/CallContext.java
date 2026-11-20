@@ -44,6 +44,11 @@ public interface CallContext {
     /** Returns the function definition that defines the function currently being called. */
     FunctionDefinition getFunctionDefinition();
 
+    /** Returns whether the argument at the given position is a default placeholder. */
+    default boolean isArgumentDefault(int pos) {
+        return false;
+    }
+
     /** Returns whether the argument at the given position is a value literal. */
     boolean isArgumentLiteral(int pos);
 

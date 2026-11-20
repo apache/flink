@@ -38,6 +38,8 @@ public class CallContextMock implements CallContext {
 
     public FunctionDefinition functionDefinition;
 
+    public List<Boolean> argumentDefaults;
+
     public List<Boolean> argumentLiterals;
 
     public List<Boolean> argumentNulls;
@@ -62,6 +64,11 @@ public class CallContextMock implements CallContext {
     @Override
     public FunctionDefinition getFunctionDefinition() {
         return functionDefinition;
+    }
+
+    @Override
+    public boolean isArgumentDefault(int pos) {
+        return argumentDefaults.get(pos);
     }
 
     @Override
