@@ -80,6 +80,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -145,6 +146,40 @@ class TaskTest {
                         ExceptionUtils.findThrowable(
                                 task.getFailureCause(), ExpectedTestException.class))
                 .isPresent();
+    }
+
+    @Test
+    void testExceptionInCleanUpOfFailedTaskIsNotFatal() throws Exception {
+        final AtomicReference<Throwable> fatalError = new AtomicReference<>();
+        Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableWithExceptionAndFailingCleanUp.class)
+                        .setTaskManagerActions(
+                                new RecordingFatalErrorTaskManagerActions(fatalError))
+                        .build(Executors.directExecutor());
+        task.run();
+
+        assertThat(fatalError).hasValue(null);
+        assertThat(task.getExecutionState()).isSameAs(ExecutionState.FAILED);
+        assertThat(task.getFailureCause())
+                .isInstanceOf(ExpectedTestException.class)
+                .hasMessage("THIS!")
+                .hasSuppressedException(new ExpectedTestException("NOT THIS!"));
+    }
+
+    @Test
+    void testJvmFatalErrorInCleanUpOfFailedTaskIsFatal() throws Exception {
+        final AtomicReference<Throwable> fatalError = new AtomicReference<>();
+        Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableWithExceptionAndJvmFatalCleanUp.class)
+                        .setTaskManagerActions(
+                                new RecordingFatalErrorTaskManagerActions(fatalError))
+                        .build(Executors.directExecutor());
+        task.run();
+
+        assertThat(task.getExecutionState()).isSameAs(ExecutionState.FAILED);
+        assertThat(ExceptionUtils.findThrowable(fatalError.get(), UnknownError.class)).isPresent();
     }
 
     @Test
@@ -1449,6 +1484,52 @@ class TaskTest {
         public void cleanUp(Throwable throwable) throws Exception {
             getEnvironment().failExternally(new CancelTaskException("NOT THIS!"));
             super.cleanUp(throwable);
+        }
+    }
+
+    private static final class InvokableWithExceptionAndFailingCleanUp extends AbstractInvokable {
+        public InvokableWithExceptionAndFailingCleanUp(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            throw new ExpectedTestException("THIS!");
+        }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            throw new ExpectedTestException("NOT THIS!");
+        }
+    }
+
+    private static final class InvokableWithExceptionAndJvmFatalCleanUp extends AbstractInvokable {
+        public InvokableWithExceptionAndJvmFatalCleanUp(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            throw new ExpectedTestException("THIS!");
+        }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            throw new UnknownError("JVM fatal");
+        }
+    }
+
+    /** Customized TaskManagerActions that records the cause passed to notifyFatalError. */
+    private static class RecordingFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
+        private final AtomicReference<Throwable> fatalError;
+
+        RecordingFatalErrorTaskManagerActions(AtomicReference<Throwable> fatalError) {
+            this.fatalError = fatalError;
+        }
+
+        @Override
+        public void notifyFatalError(String message, Throwable cause) {
+            fatalError.set(cause);
         }
     }
 
