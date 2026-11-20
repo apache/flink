@@ -404,19 +404,15 @@ public class SystemTypeInference {
                                 // - Flink SESSION windows add pass-through columns at the beginning
                                 // - Oracle adds pass-through columns for all ROW semantics args, so
                                 // this whole topic is kind of vendor specific already
-                                final List<Field> rowtimeFields =
-                                        disableSystemArgs
-                                                ? List.of()
-                                                : deriveRowtimeField(callContext, resolvedArgs);
-                                // The on_time rowtime replaces any forwarded time attribute
-                                final boolean preservesTimeAttributes =
-                                        rowtimeFields.isEmpty()
-                                                && preservesTimeAttributes(resolvedArgs);
                                 fields.addAll(derivePassThroughFields(callContext, resolvedArgs));
                                 fields.addAll(
                                         deriveFunctionOutputFields(
-                                                functionDataType, preservesTimeAttributes));
-                                fields.addAll(rowtimeFields);
+                                                functionDataType,
+                                                preservesTimeAttributes(resolvedArgs)));
+
+                                if (!disableSystemArgs) {
+                                    fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
+                                }
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 

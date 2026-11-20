@@ -143,7 +143,7 @@ class ToAppendTest extends TableTestBase {
                                         + "on_time => DESCRIPTOR(ts))")
                         .getResolvedSchema();
         assertThat(output.getColumnNames()).containsExactly("id", "ts", "rowtime");
-        assertThat(isRowtimeAttribute(logicalType(output, "ts"))).isFalse();
+        assertThat(isRowtimeAttribute(logicalType(output, "ts"))).isTrue();
         assertThat(isRowtimeAttribute(logicalType(output, "rowtime"))).isTrue();
     }
 
