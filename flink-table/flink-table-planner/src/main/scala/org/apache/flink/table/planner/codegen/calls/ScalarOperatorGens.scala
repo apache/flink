@@ -1104,6 +1104,23 @@ object ScalarOperatorGens {
     }
     val elseAction = generateCast(ctx, operands.last, resultType, nullOnFailure = true)
 
+    // one WHEN, as in IF, nests no deeper with an else, so it needs no done flag
+    if (whens.size == 1) {
+      val (condition, trueAction) = whens.head
+      val code =
+        s"""
+           |$resultTypeTerm $resultTerm = $defaultValue;
+           |boolean $nullTerm = true;
+           |${condition.code}
+           |if (${condition.resultTerm}) {
+           |  ${assign(trueAction)}
+           |} else {
+           |  ${assign(elseAction)}
+           |}
+           |""".stripMargin.trim
+      return GeneratedExpression(resultTerm, nullTerm, code, resultType)
+    }
+
     // flat guarded blocks instead of nested else keep the splitter output flat
     val doneTerm = newName(ctx, "done")
     // A fixed size keeps a CASE with up to 10 WHENs in one chunk, without any chunk guard. Sizing
