@@ -2316,6 +2316,45 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
+#### Process resources
+
+These metrics describe the Flink JVM process itself, as opposed to the `System.*` metrics
+which describe the whole machine. The CPU usage of the process is reported by
+`Status.JVM.CPU.Load`, which does not require system resource metrics.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="3"><strong>Job-/TaskManager</strong></th>
+      <td>Process.Memory</td>
+      <td>RSS</td>
+      <td>Resident set size of the Flink process in bytes.</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Process.IO</td>
+      <td>Read</td>
+      <td>Bytes read by the Flink process since it started. On Linux only storage I/O is counted, so reads served from the page cache are excluded. Always 0 on macOS 11 and later, where OSHI cannot read per-process I/O.</td>
+    </tr>
+    <tr>
+      <td>Write</td>
+      <td>Bytes written by the Flink process since it started. On Linux only storage I/O is counted. Always 0 on macOS 11 and later, where OSHI cannot read per-process I/O.</td>
+    </tr>
+  </tbody>
+</table>
+
+On Linux these values are read from `/proc/self/status` and `/proc/self/io`, on other platforms
+through OSHI. Unlike the averages above, the RSS is a sample and the I/O values are totals since the
+process started. Both are refreshed every `metrics.system-resource-probing-interval`, and a value
+of -1 means that it could not be read.
+
 ### 预测执行
 
 以下指标可以用来衡量预测执行的有效性。
