@@ -55,7 +55,7 @@ public interface TableMetaStoreFactory extends Serializable {
 
         /**
          * After data has been inserted into the partition path, the partition may need to be
-         * created (if doesn't exists) or updated.
+         * created (if doesn't exist) or updated.
          *
          * @param partitionSpec the full spec of the target partition
          * @param partitionPath partition location path
