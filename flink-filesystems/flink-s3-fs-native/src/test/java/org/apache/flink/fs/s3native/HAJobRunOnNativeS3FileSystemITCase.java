@@ -18,22 +18,80 @@
 
 package org.apache.flink.fs.s3native;
 
-import org.junit.jupiter.api.Order;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.core.testutils.TestContainerExtension;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** HA Job Test Implementation. * */
+import java.util.Arrays;
+import java.util.Collection;
+
+/** Runs the HA job test with the default HTTP client and with the CRT client. */
+@ExtendWith(ParameterizedTestExtension.class)
 class HAJobRunOnNativeS3FileSystemITCase extends AbstractNativeS3HAJobRunITCase {
 
-    // AbstractHAJobRunITCase already registers its own extension at @Order(1), so this one must
-    // run after it.
     @RegisterExtension
-    @Order(2)
-    private static final SeaweedFsNativeS3HAClusterExtension CLUSTER_EXTENSION =
-            new SeaweedFsNativeS3HAClusterExtension(
-                    AbstractNativeS3HAJobRunITCase::createConfiguration);
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
+            SEAWEEDFS_EXTENSION =
+                    new AllCallbackWrapper<>(
+                            new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
+
+    @Parameter private boolean crtEnabled;
+
+    private MiniClusterResource cluster;
+
+    @Parameters(name = "crt={0}")
+    private static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
+
+    @BeforeEach
+    void startCluster() throws Exception {
+        cluster =
+                new MiniClusterResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(
+                                        createConfiguration(
+                                                getSeaweedFsContainer(),
+                                                getClusterId(),
+                                                crtEnabled))
+                                .build());
+        cluster.before();
+    }
+
+    @AfterEach
+    void stopCluster() {
+        if (cluster != null) {
+            cluster.after();
+        }
+    }
+
+    // Overridden without @Test so JUnit skips it; startCluster() starts a cluster per parameter.
+    @Override
+    public void testJobExecutionInHaMode(MiniCluster flinkCluster) {}
+
+    @TestTemplate
+    void testJobExecutionInHaModePerHttpClient() throws Exception {
+        runJobInHaMode(cluster.getMiniCluster());
+    }
 
     @Override
     SeaweedFsNativeS3TestContainer getSeaweedFsContainer() {
-        return CLUSTER_EXTENSION.getContainer();
+        return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
+    }
+
+    @Override
+    String getClusterId() {
+        return crtEnabled ? "test-cluster-crt" : "test-cluster";
     }
 }
