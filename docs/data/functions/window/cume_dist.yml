@@ -19,7 +19,7 @@ name: CUME_DIST
 summary: Returns the fraction of rows in the partition that come before or tie with the current row.
 
 syntax:
-  sql: CUME_DIST() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+  sql: CUME_DIST() OVER ([PARTITION BY expr [, ...]] ORDER BY expr [ASC | DESC] [, ...])
 
 returns:
   description: The number of rows that come before the current row or are its peers, by the `ORDER BY` of the window, divided by the number of rows in the partition. The value is greater than 0 and at most 1.
@@ -39,13 +39,14 @@ examples:
   - title: The cumulative distribution
     description: Bob and Cid tie, so both count each other.
     sql: |
-      SELECT name, score, CUME_DIST() OVER (ORDER BY score DESC) AS dist
+      SELECT name, score, CUME_DIST() OVER w AS `CUME_DIST() OVER w`
       FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
-      ORDER BY dist, name;
+      WINDOW w AS (ORDER BY score DESC)
+      ORDER BY score DESC, name;
     result: |
-      | name | score | dist |
-      |------|-------|------|
-      | Ann  | 90    | 0.25 |
-      | Bob  | 85    | 0.75 |
-      | Cid  | 85    | 0.75 |
-      | Dee  | 70    | 1.0  |
+      | name | score | CUME_DIST() OVER w |
+      |------|-------|--------------------|
+      | Ann  | 90    | 0.25               |
+      | Bob  | 85    | 0.75               |
+      | Cid  | 85    | 0.75               |
+      | Dee  | 70    | 1.0                |

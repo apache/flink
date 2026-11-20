@@ -57,50 +57,60 @@ examples:
   - title: Replace every match
     description: Remove both matches of the regex.
     sql: |
-      SELECT REGEXP_REPLACE('foobar', 'oo|ar', '') AS replaced;
+      SELECT str,
+        REGEXP_REPLACE(str, 'oo|ar', '') AS `REGEXP_REPLACE(str, 'oo|ar', '')`
+      FROM (VALUES ('foobar')) AS t(str);
     result: |
-      | replaced |
-      |----------|
-      | fb       |
+      | str    | REGEXP_REPLACE(str, 'oo\|ar', '') |
+      |--------|-----------------------------------|
+      | foobar | fb                                |
 
   - title: Mask a value in each row
     description: Replace every digit with `*`.
     sql: |
-      SELECT card, REGEXP_REPLACE(card, '\d', '*') AS masked
+      SELECT card,
+        REGEXP_REPLACE(card, '\d', '*') AS `REGEXP_REPLACE(card, '\d', '*')`
       FROM (VALUES ('1234-5678'), ('no card')) AS t(card);
     result: |
-      | card      | masked    |
-      |-----------|-----------|
-      | 1234-5678 | ****-**** |
-      | no card   | no card   |
+      | card      | REGEXP_REPLACE(card, '\d', '*') |
+      |-----------|---------------------------------|
+      | 1234-5678 | ****-****                       |
+      | no card   | no card                         |
 
   - title: The replacement is inserted as written
     description: "`$1` in the replacement doesn't refer to a group."
     sql: |
-      SELECT REGEXP_REPLACE('2024-01-15', '(\d+)-(\d+)-(\d+)', '$3.$2.$1') AS replaced;
+      SELECT str, regex,
+        REGEXP_REPLACE(str, regex, '$3.$2.$1') AS `REGEXP_REPLACE(str, regex, '$3.$2.$1')`
+      FROM (VALUES ('2024-01-15', '(\d+)-(\d+)-(\d+)')) AS t(str, regex);
     result: |
-      | replaced |
-      |----------|
-      | $3.$2.$1 |
+      | str        | regex             | REGEXP_REPLACE(str, regex, '$3.$2.$1') |
+      |------------|-------------------|----------------------------------------|
+      | 2024-01-15 | (\d+)-(\d+)-(\d+) | $3.$2.$1                               |
 
   - title: NULL arguments
     description: A NULL argument returns NULL.
     sql: |
-      SELECT
-        REGEXP_REPLACE(CAST(NULL AS STRING), 'o', '0') AS null_str,
-        REGEXP_REPLACE('foobar', CAST(NULL AS STRING), '0') AS null_regex,
-        REGEXP_REPLACE('foobar', 'o', CAST(NULL AS STRING)) AS null_replacement;
+      SELECT str, regex, replacement,
+        REGEXP_REPLACE(str, regex, replacement) AS `REGEXP_REPLACE(str, regex, replacement)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), 'o', '0'),
+        ('foobar', CAST(NULL AS STRING), '0'),
+        ('foobar', 'o', CAST(NULL AS STRING))) AS t(str, regex, replacement);
     result: |
-      | null_str | null_regex | null_replacement |
-      |----------|------------|------------------|
-      | NULL     | NULL       | NULL             |
+      | str    | regex | replacement | REGEXP_REPLACE(str, regex, replacement) |
+      |--------|-------|-------------|-----------------------------------------|
+      | NULL   | o     | 0           | NULL                                    |
+      | foobar | NULL  | 0           | NULL                                    |
+      | foobar | o     | NULL        | NULL                                    |
 
   - title: An invalid regular expression from a column
     description: The same regex read from a column returns NULL, and the query keeps running.
     sql: |
-      SELECT REGEXP_REPLACE(str, re, '0') AS replaced
-      FROM (VALUES ('foobar', '(')) AS t(str, re);
+      SELECT str, regex,
+        REGEXP_REPLACE(str, regex, '0') AS `REGEXP_REPLACE(str, regex, '0')`
+      FROM (VALUES ('foobar', '(')) AS t(str, regex);
     result: |
-      | replaced |
-      |----------|
-      | NULL     |
+      | str    | regex | REGEXP_REPLACE(str, regex, '0') |
+      |--------|-------|---------------------------------|
+      | foobar | (     | NULL                            |

@@ -48,11 +48,11 @@ examples:
         (TIMESTAMP '2026-01-01 10:01:00', 4),
         (TIMESTAMP '2026-01-01 10:07:00', 2),
         (TIMESTAMP '2026-01-01 10:12:00', 5)) AS t(bidtime, price);
-      SELECT window_start, window_end, SUM(price) AS total
+      SELECT window_start, window_end, SUM(price) AS `SUM(price)`
       FROM TUMBLE(TABLE bids, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
       GROUP BY window_start, window_end;
     result: |
-      | window_start            | window_end              | total |
-      |-------------------------|-------------------------|-------|
-      | 2026-01-01 10:00:00.000 | 2026-01-01 10:10:00.000 | 6     |
-      | 2026-01-01 10:10:00.000 | 2026-01-01 10:20:00.000 | 5     |
+      | window_start            | window_end              | SUM(price) |
+      |-------------------------|-------------------------|------------|
+      | 2026-01-01 10:00:00.000 | 2026-01-01 10:10:00.000 | 6          |
+      | 2026-01-01 10:10:00.000 | 2026-01-01 10:20:00.000 | 5          |

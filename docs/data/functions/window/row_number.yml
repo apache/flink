@@ -19,7 +19,7 @@ name: ROW_NUMBER
 summary: Numbers the rows of each partition, starting at 1.
 
 syntax:
-  sql: ROW_NUMBER() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+  sql: ROW_NUMBER() OVER ([PARTITION BY expr [, ...]] ORDER BY expr [ASC | DESC] [, ...])
 
 returns:
   description: The position of the current row in its partition, by the `ORDER BY` of the window, starting at 1. Every row gets its own number, also when rows tie.
@@ -39,16 +39,17 @@ examples:
   - title: Number the rows
     description: The name breaks the tie between Bob and Cid, so the numbers are the same in every run.
     sql: |
-      SELECT name, score, ROW_NUMBER() OVER (ORDER BY score DESC, name) AS rn
+      SELECT name, score, ROW_NUMBER() OVER w AS `ROW_NUMBER() OVER w`
       FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
-      ORDER BY rn;
+      WINDOW w AS (ORDER BY score DESC, name)
+      ORDER BY score DESC, name;
     result: |
-      | name | score | rn |
-      |------|-------|----|
-      | Ann  | 90    | 1  |
-      | Bob  | 85    | 2  |
-      | Cid  | 85    | 3  |
-      | Dee  | 70    | 4  |
+      | name | score | ROW_NUMBER() OVER w |
+      |------|-------|---------------------|
+      | Ann  | 90    | 1                   |
+      | Bob  | 85    | 2                   |
+      | Cid  | 85    | 3                   |
+      | Dee  | 70    | 4                   |
 
   - title: Keep the best row of each partition
     description: Keep the top scorer of each team.
