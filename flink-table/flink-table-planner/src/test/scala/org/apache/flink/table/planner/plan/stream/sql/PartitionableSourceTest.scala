@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.factories.TestValuesCatalog
@@ -126,6 +127,14 @@ class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalog
 
   @TestTemplate
   def testWithUdfAndVirtualColumn(): Unit = {
+    util.addTemporarySystemFunction("MyUdf", Func1)
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
+  }
+
+  @TestTemplate
+  def testWithUdfAndUdfMetricsEnabled(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_ENABLED, Boolean.box(true))
     util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }

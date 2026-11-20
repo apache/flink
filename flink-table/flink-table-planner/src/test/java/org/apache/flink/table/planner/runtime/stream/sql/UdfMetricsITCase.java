@@ -28,6 +28,8 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -36,14 +38,18 @@ import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.lang.invoke.MethodHandle;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -142,6 +148,51 @@ class UdfMetricsITCase {
         public void eval(Integer i) {
             collect(i);
             collect(i);
+        }
+    }
+
+    /** Calls the registered function {@code innerudf} through an expression evaluator. */
+    public static class EvaluatorCaller extends ScalarFunction implements SpecializedFunction {
+        private final ExpressionEvaluator evaluator;
+        private transient MethodHandle handle;
+
+        public EvaluatorCaller() {
+            this(null);
+        }
+
+        private EvaluatorCaller(ExpressionEvaluator evaluator) {
+            this.evaluator = evaluator;
+        }
+
+        @Override
+        public EvaluatorCaller specialize(SpecializedContext context) {
+            return new EvaluatorCaller(
+                    context.createEvaluator(
+                            "innerudf(x)", DataTypes.INT(), DataTypes.FIELD("x", DataTypes.INT())));
+        }
+
+        @Override
+        public void open(FunctionContext context) {
+            handle = evaluator.open(context);
+        }
+
+        public Integer eval(Integer i) {
+            try {
+                return (Integer) handle.invokeExact(i);
+            } catch (Throwable t) {
+                throw new FlinkRuntimeException(t);
+            }
+        }
+    }
+
+    /** Returns its timestamp unchanged and counts its calls. */
+    public static class CountingTimestampIdentity extends ScalarFunction {
+        static final AtomicInteger CALLS = new AtomicInteger();
+
+        public @DataTypeHint("TIMESTAMP(3)") LocalDateTime eval(
+                @DataTypeHint("TIMESTAMP(3)") LocalDateTime ts) {
+            CALLS.incrementAndGet();
+            return ts;
         }
     }
 
@@ -281,6 +332,50 @@ class UdfMetricsITCase {
         // eval is called once per input row (it emits two rows internally); one sample each.
         assertThat(histogram(jobId, processingTimePattern("tableudf")).getCount())
                 .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testFunctionCallingExpressionEvaluator() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("innerudf", IntDoubler.class);
+        tEnv.createTemporarySystemFunction("evaluatorudf", EvaluatorCaller.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        // The evaluator that calls innerudf is opened without a runtime context, so the call
+        // inside it must not try to register metrics.
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT evaluatorudf(id) FROM src");
+
+        assertThat(histogram(jobId, processingTimePattern("evaluatorudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testFunctionInPushedDownWatermark() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("wmudf", CountingTimestampIdentity.class);
+        String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, LocalDateTime.of(2000, 1, 1, 0, 0, 1)),
+                                Row.of(2, LocalDateTime.of(2000, 1, 1, 0, 0, 2)),
+                                Row.of(3, LocalDateTime.of(2000, 1, 1, 0, 0, 3))));
+        tEnv.executeSql(
+                "CREATE TABLE wmsrc (id INT, ts TIMESTAMP(3), WATERMARK FOR ts AS wmudf(ts)) WITH ("
+                        + "'connector' = 'values', 'bounded' = 'true', "
+                        + "'enable-watermark-push-down' = 'true', 'disable-lookup' = 'true', "
+                        + "'data-id' = '"
+                        + dataId
+                        + "')");
+        createBlackHoleSink(tEnv, "sink", "id INT");
+        CountingTimestampIdentity.CALLS.set(0);
+
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT id FROM wmsrc");
+
+        // The source opens the pushed-down watermark generator without a runtime context, so
+        // wmudf runs there without metrics. A watermark assigner operator would meter it instead.
+        assertThat(CountingTimestampIdentity.CALLS.get()).isPositive();
+        assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).isEmpty();
     }
 
     @Test
