@@ -174,3 +174,59 @@ mDNSResponder (https://opensource.apple.com/tarballs/mDNSResponder/).
     * licenses/LICENSE.dnsinfo.txt (Apple Public Source License 2.0)
   * HOMEPAGE:
     * https://www.opensource.apple.com/source/configd/configd-453.19/dnsinfo/dnsinfo.h
+
+The native libraries of frocksdbjni contain code from 'LevelDB', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.leveldb.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/google/leveldb
+
+The native libraries of frocksdbjni contain code from 'Snappy', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.google-snappy.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/google/snappy
+
+The native libraries of frocksdbjni contain code from 'LZ4', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.liblz4.txt (BSD 2-Clause License)
+  * HOMEPAGE:
+    * https://github.com/lz4/lz4
+
+The native libraries of frocksdbjni contain code from 'xxHash', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.xxhash.txt (BSD 2-Clause License)
+  * HOMEPAGE:
+    * https://github.com/Cyan4973/xxHash
+
+The native libraries of frocksdbjni contain code from 'Zstandard', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.zstd.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/facebook/zstd
+
+The native libraries of frocksdbjni contain code from 'zlib', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.zlib.txt (zlib License)
+  * HOMEPAGE:
+    * https://zlib.net/
+
+The native libraries of frocksdbjni contain code from 'bzip2', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.bzip2.txt (bzip2 License)
+  * HOMEPAGE:
+    * https://sourceware.org/bzip2/
+
+The native libraries of frocksdbjni contain code from 'MurmurHash', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.murmurhash.txt (Public Domain)
+  * HOMEPAGE:
+    * https://sites.google.com/site/murmurhash/
