@@ -58,6 +58,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   public selectedNode: NodesItemCorrect | null;
   public top = Math.max(280, Math.min(Math.round(window.innerHeight * 0.4), 500));
   public jobId: string;
+  public jobType: string | undefined;
   public timeoutId: number;
   private isTopManuallyResized = false;
 
@@ -92,6 +93,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
+        this.jobType = data.plan.type;
         if (this.jobId !== data.plan.jid || data.plan.nodes.length !== this.nodes.length) {
           this.jobId = data.plan.jid;
           this.nodes = data.plan.nodes;
