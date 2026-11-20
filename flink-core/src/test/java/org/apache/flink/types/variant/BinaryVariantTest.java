@@ -221,6 +221,32 @@ class BinaryVariantTest {
                 .hasMessageContaining("nanosecond precision");
     }
 
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                // First value of the range. The epoch second times 10^9 overflows a long in the
+                // first second of the range, but the total nanoseconds fit.
+                "1677-09-21T00:12:43.145224192",
+                "1677-09-21T00:12:43.999999999",
+                "2262-04-11T23:47:16.854775807"
+            })
+    void testNanosecondTimestampPrecisionBounds(String value) {
+        final LocalDateTime dateTime = LocalDateTime.parse(value);
+        assertThat(builder.of(dateTime).getDateTime()).isEqualTo(dateTime);
+
+        final Instant instant = dateTime.toInstant(ZoneOffset.UTC);
+        assertThat(builder.of(instant).getInstant()).isEqualTo(instant);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1677-09-21T00:12:43.145224191", "2262-04-11T23:47:16.854775808"})
+    void testNanosecondTimestampPrecisionOutsideBounds(String value) {
+        final Instant instant = LocalDateTime.parse(value).toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> BinaryVariantUtil.nanosSinceEpoch(instant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
+    }
+
     @Test
     void testMicrosecondTimestampPrecisionRange() {
         // Microsecond precision spans = +/-292.000 years around 1970
