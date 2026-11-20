@@ -30,14 +30,25 @@ import java.util.Optional;
  * A task mailbox provides read and write access to a mailbox and has a lifecycle of open ->
  * (quiesced) -> closed. Mails have a priority that can be used to retrieve only relevant letters.
  *
- * <h3>Priority and urgency</h3>
+ * <h3>Urgency and priority</h3>
  *
- * <p>The priority only decides which mails are eligible: {@link #take(int)} and {@link
- * #tryTake(int)} return only mails whose priority is at least the requested one. Urgency only
- * decides the position: urgent mails ({@link MailboxExecutor.MailOptions#isUrgent()}) are served
- * before all non-urgent mails and in FIFO order among themselves, subject to priority eligibility.
- * That is, a take returns the oldest eligible urgent mail if there is any, and otherwise the oldest
- * eligible non-urgent mail. A mail that is not eligible never blocks later eligible mails.
+ * <p>Mails are either urgent ({@link MailboxExecutor.MailOptions#isUrgent()}) or normal. Urgent
+ * mails are taken before normal mails; within each of the two groups, mails are taken in FIFO
+ * order.
+ *
+ * <p>The priority does not change this order; it only filters: {@link #take(int)} and {@link
+ * #tryTake(int)} return only mails whose priority is at least the requested one and skip (but keep)
+ * the others. That is, they return the oldest urgent mail with a sufficient priority, or else the
+ * oldest such normal mail. Effectively, the priority is a reentrance level: the mailbox loop takes
+ * mails of any priority ({@link #MIN_PRIORITY}), while an operator that yields to the mailbox (see
+ * {@link MailboxExecutor#yield()}) only takes mails of itself and of the operators after it in the
+ * chain, and mails of {@link #MAX_PRIORITY} (e.g. control mails).
+ *
+ * <pre>{@code
+ *                urgent mails (FIFO)          normal mails (FIFO)
+ * take order:   [U1, U2, U3]           ->     [N1, N2, N3]
+ * take(p):       only mails with priority >= p; the others are skipped and stay in the mailbox
+ * }</pre>
  *
  * <h3>Threading model</h3>
  *
@@ -112,13 +123,14 @@ public interface TaskMailbox {
     boolean hasMail();
 
     /**
-     * Returns an optional with either the oldest eligible mail (priority at least the given one) if
-     * there is any, or an empty optional otherwise. Urgent mails are served first (FIFO among
+     * Returns an optional with either the oldest mail with priority at least the given one if there
+     * is any, or an empty optional otherwise. Urgent mails are served first (FIFO among
      * themselves), then the remaining mails of the batch, then the other mails.
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *
-     * @return an optional with either the oldest eligible mail or an empty optional otherwise.
+     * @return an optional with either the oldest mail with a sufficient priority or an empty
+     *     optional otherwise.
      * @throws IllegalStateException if mailbox is already closed.
      */
     Optional<Mail> tryTake(int priority);
@@ -135,12 +147,12 @@ public interface TaskMailbox {
     Optional<Mail> tryTakeIgnoringDeferrable(int priority);
 
     /**
-     * This method returns the oldest eligible mail (urgent mails first, see {@link #tryTake(int)})
-     * or blocks until an eligible mail is available.
+     * This method returns the oldest mail with priority at least the given one (urgent mails first,
+     * see {@link #tryTake(int)}) or blocks until such a mail is available.
      *
      * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
      *
-     * @return the oldest eligible mail.
+     * @return the oldest mail with a sufficient priority.
      * @throws InterruptedException on interruption.
      * @throws IllegalStateException if mailbox is already closed.
      */
@@ -187,8 +199,8 @@ public interface TaskMailbox {
 
     /**
      * Enqueues the given mail to the mailbox and blocks until there is capacity for a successful
-     * put. Mails with {@link MailboxExecutor.MailOptions#isUrgent} are served before non-urgent
-     * mails, and in the order of their arrival among themselves.
+     * put. Mails with {@link MailboxExecutor.MailOptions#isUrgent} are served before normal mails,
+     * and in the order of their arrival among themselves.
      *
      * <p>Mails can be added from any thread.
      *

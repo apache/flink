@@ -332,7 +332,7 @@ public class MailboxProcessor implements Closeable {
     /**
      * Sends the given <code>mail</code> with urgent. Intended use is to control this <code>
      * MailboxProcessor</code>; no interaction with tasks should be performed. The mail is served
-     * before all non-urgent mails, but after urgent mails that are already pending (FIFO).
+     * before all normal mails, but after urgent mails that are already pending (FIFO).
      */
     private void sendControlMail(
             RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {

@@ -56,19 +56,20 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State
  * </ul>
  *
  * <p>Mails are served in the order {@code urgentQueue}, {@code batch}, {@code queue}. Within each
- * container the oldest eligible mail goes first, so urgent mails of equal priority are FIFO among
- * themselves, no matter which thread puts them or which method takes them; a priority take may skip
- * an older urgent mail whose priority is below the requested one. Urgent mails are the only mails
- * that may be taken from {@link #tryTakeFromBatch()} although they were not part of the batch when
- * it was created. To keep a round of {@link #tryTakeFromBatch()} bounded (see {@link TaskMailbox}),
- * the number of urgent mails it serves is limited by {@link #urgentBatchBudget}.
+ * container the oldest mail with a sufficient priority goes first, so urgent mails of equal
+ * priority are FIFO among themselves, no matter which thread puts them or which method takes them;
+ * a priority take may skip an older urgent mail whose priority is below the requested one. Urgent
+ * mails are the only mails that may be taken from {@link #tryTakeFromBatch()} although they were
+ * not part of the batch when it was created. To keep a round of {@link #tryTakeFromBatch()} bounded
+ * (see {@link TaskMailbox}), the number of urgent mails it serves is limited by {@link
+ * #urgentBatchBudget}.
  */
 @ThreadSafe
 public class TaskMailboxImpl implements TaskMailbox {
     /** Lock for all concurrent ops. */
     private final ReentrantLock lock = new ReentrantLock();
 
-    /** Internal queue of normal (non-urgent) mails. */
+    /** Internal queue of normal mails. */
     @GuardedBy("lock")
     private final Deque<Mail> queue = new ArrayDeque<>();
 
@@ -286,8 +287,8 @@ public class TaskMailboxImpl implements TaskMailbox {
     // ------------------------------------------------------------------------------------------------------------------
 
     /**
-     * Takes the oldest eligible urgent mail, if any, without acquiring the lock when no urgent mail
-     * is pending according to the volatile {@link #hasNewUrgentMail}.
+     * Takes the oldest urgent mail with a sufficient priority, if any, without acquiring the lock
+     * when no urgent mail is pending according to the volatile {@link #hasNewUrgentMail}.
      */
     @Nullable
     private Mail takeUrgentIfPending(int priority, boolean ignoreDeferrable) {
