@@ -360,15 +360,12 @@ object ScalarOperatorGens {
   }
 
   private def wrapExpressionIfNonEq(
+      ctx: CodeGeneratorContext,
       isNonEq: Boolean,
       equalsExpr: GeneratedExpression,
       resultType: LogicalType): GeneratedExpression = {
     if (isNonEq) {
-      GeneratedExpression(
-        s"(!${equalsExpr.resultTerm})",
-        equalsExpr.nullTerm,
-        equalsExpr.code,
-        resultType)
+      generateNot(ctx, equalsExpr, resultType)
     } else {
       equalsExpr
     }
@@ -408,6 +405,7 @@ object ScalarOperatorGens {
     // array types
     else if (isArray(left.resultType) && canEqual) {
       wrapExpressionIfNonEq(
+        ctx,
         nonEq,
         generateArrayComparison(ctx, left, right, resultType),
         resultType)
@@ -416,6 +414,7 @@ object ScalarOperatorGens {
     else if (isMap(left.resultType) && canEqual) {
       val mapType = left.resultType.asInstanceOf[MapType]
       wrapExpressionIfNonEq(
+        ctx,
         nonEq,
         generateMapComparison(
           ctx,
@@ -428,7 +427,11 @@ object ScalarOperatorGens {
     }
     // row types
     else if (isRow(left.resultType) && canEqual) {
-      wrapExpressionIfNonEq(nonEq, generateRowComparison(ctx, left, right, resultType), resultType)
+      wrapExpressionIfNonEq(
+        ctx,
+        nonEq,
+        generateRowComparison(ctx, left, right, resultType),
+        resultType)
     }
     // structured types
     else if (isStructuredType(left.resultType)) {
@@ -439,6 +442,7 @@ object ScalarOperatorGens {
             s"Equality is not supported on structured type ${left.resultType}.")
         }
         wrapExpressionIfNonEq(
+          ctx,
           nonEq,
           generateRowComparison(ctx, left, right, resultType),
           resultType)
@@ -454,6 +458,7 @@ object ScalarOperatorGens {
     else if (isMultiset(left.resultType) && canEqual) {
       val multisetType = left.resultType.asInstanceOf[MultisetType]
       wrapExpressionIfNonEq(
+        ctx,
         nonEq,
         generateMapComparison(
           ctx,
