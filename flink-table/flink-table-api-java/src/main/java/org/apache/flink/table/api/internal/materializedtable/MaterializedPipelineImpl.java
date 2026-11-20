@@ -97,7 +97,7 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
         Preconditions.checkNotNull(mode, "Create mode must not be null.");
         final Mode finalOperationMode = toFactoryMode(mode);
         tableEnvironment.executeInternal(buildOperation(finalOperationMode));
-        return new MaterializedTableImpl(identifier);
+        return MaterializedTableImpl.of(tableEnvironment, identifier);
     }
 
     private Operation buildOperation(Mode factoryMode) {

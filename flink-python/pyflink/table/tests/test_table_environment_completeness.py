@@ -45,6 +45,7 @@ class TableEnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
             "registerFunction",
             "fromCall",
             "dropMaterializedTable",
+            "fromMaterializedTable",
         }
 
 

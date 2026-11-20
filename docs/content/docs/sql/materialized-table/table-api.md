@@ -113,6 +113,21 @@ If the new refresh job starts but the catalog cannot record it, the job is cance
 job restarts from its savepoint. If that cancel fails, the materialized table is rolled back and
 left suspended instead of restarting the old job.
 
+# Looking up a Materialized Table
+
+```java
+MaterializedTable revenue = tEnv.fromMaterializedTable("revenue");
+RefreshStatus status = revenue.getRefreshStatus();
+```
+
+`fromMaterializedTable(path)` returns a handle to an existing materialized table, for example one
+created in SQL or by another program, and resolves the path like `from(path)`. The handle that
+`execute()` returns behaves the same. The refresh status and the refresh handler description are
+read from the catalog on every call. The queries, freshness and refresh mode keep the values from
+the lookup, so look the materialized table up again to see a changed definition. The lookup fails
+with a `ValidationException` if no materialized table exists at the path, or if a temporary table
+or view shadows it.
+
 # Dropping a Materialized Table
 
 ```java
