@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableMap;
@@ -531,6 +532,11 @@ public class MetricStore {
     /** Sub-structure containing metrics of a single Task. */
     @ThreadSafe
     public static class TaskMetricStore extends ComponentMetricStore {
+        private static final Pattern SUBTASK_INDEX_PATTERN = Pattern.compile("\\d+");
+
+        private static final Pattern SUBTASK_PREFIXED_METRIC_PATTERN =
+                Pattern.compile("^\\d+\\..*");
+
         private final Map<Integer, SubtaskMetricStore> subtasks;
         private final ComponentMetricStore jmOperator;
 
@@ -557,7 +563,8 @@ public class MetricStore {
 
         @Override
         boolean isTransientMetric(String name) {
-            return name.matches("^\\d+\\..*") && super.isTransientMetric(name);
+            return SUBTASK_PREFIXED_METRIC_PATTERN.matcher(name).matches()
+                    && super.isTransientMetric(name);
         }
 
         void retainSubtasks(Set<Integer> activeSubtasks) {
@@ -570,7 +577,7 @@ public class MetricStore {
                                 // clean up metrics with a pattern of
                                 // "subtaskIndex.metricName"
                                 String index = key.substring(0, Math.max(key.indexOf('.'), 0));
-                                return index.matches("\\d+")
+                                return SUBTASK_INDEX_PATTERN.matcher(index).matches()
                                         && !activeSubtasks.contains(Integer.parseInt(index));
                             });
 
