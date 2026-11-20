@@ -63,3 +63,10 @@ snappy-java's NOTICE:
   - Hadoop: Apache Hadoop is used as a dependency
     License: Apache License 2.0
     Source/Reference: https://github.com/apache/hadoop/blob/trunk/NOTICE.txt
+
+The native libraries of zstd-jni contain code from 'Zstandard', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.zstd.txt (BSD 3-Clause License)
+  * HOMEPAGE:
+    * https://github.com/facebook/zstd
