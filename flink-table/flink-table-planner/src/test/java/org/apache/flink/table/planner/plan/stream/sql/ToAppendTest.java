@@ -147,6 +147,35 @@ class ToAppendTest extends TableTestBase {
         assertThat(isRowtimeAttribute(logicalType(output, "rowtime"))).isTrue();
     }
 
+    @Test
+    void testTimeAttributesAfterSameRowTypeWithout() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE changelog_source ("
+                                + "  op STRING,"
+                                + "  id INT,"
+                                + "  ts TIMESTAMP(3),"
+                                + "  WATERMARK FOR ts AS ts"
+                                + ") WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE append_source ("
+                                + "  id INT,"
+                                + "  ts TIMESTAMP(3),"
+                                + "  WATERMARK FOR ts AS ts"
+                                + ") WITH ('connector' = 'values')");
+        final ResolvedSchema withoutTimeAttributes =
+                util.tableEnv()
+                        .sqlQuery("SELECT * FROM FROM_CHANGELOG(input => TABLE changelog_source)")
+                        .getResolvedSchema();
+        final ResolvedSchema withTimeAttributes =
+                util.tableEnv()
+                        .sqlQuery("SELECT * FROM TO_APPEND(input => TABLE append_source)")
+                        .getResolvedSchema();
+        assertThat(isRowtimeAttribute(logicalType(withoutTimeAttributes, "ts"))).isFalse();
+        assertThat(isRowtimeAttribute(logicalType(withTimeAttributes, "ts"))).isTrue();
+    }
+
     private static LogicalType logicalType(final ResolvedSchema schema, final String column) {
         return schema.getColumn(column).orElseThrow().getDataType().getLogicalType();
     }
