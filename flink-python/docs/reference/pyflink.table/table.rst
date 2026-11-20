@@ -93,6 +93,7 @@ Example:
     Table.filter
     Table.flat_aggregate
     Table.flat_map
+    Table.from_changelog
     Table.full_outer_join
     Table.get_schema
     Table.get_resolved_schema
@@ -110,10 +111,12 @@ Example:
     Table.offset
     Table.order_by
     Table.over_window
+    Table.partition_by
     Table.print_schema
     Table.rename_columns
     Table.right_outer_join
     Table.select
+    Table.to_changelog
     Table.to_pandas
     Table.union
     Table.union_all
@@ -134,6 +137,22 @@ A table that has been grouped on a set of grouping keys.
     GroupedTable.select
     GroupedTable.aggregate
     GroupedTable.flat_aggregate
+
+
+PartitionedTable
+================
+
+A table that has been partitioned on a set of partition keys, used as a table argument with set
+semantics for process table functions.
+
+.. currentmodule:: pyflink.table
+
+.. autosummary::
+    :toctree: api/
+
+    PartitionedTable.order_by
+    PartitionedTable.to_changelog
+    PartitionedTable.from_changelog
 
 
 GroupWindowedTable

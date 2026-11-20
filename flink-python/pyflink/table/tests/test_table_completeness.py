@@ -41,7 +41,6 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
             'getQueryOperation',
             'asArgument',
             'process',
-            'partitionBy',
             'materializeInto',
         }
 
