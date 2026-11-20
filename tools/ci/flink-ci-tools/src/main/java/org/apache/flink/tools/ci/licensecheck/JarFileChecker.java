@@ -35,6 +35,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,6 +45,10 @@ import java.util.stream.Stream;
 /** Checks the Jar files created by the build process. */
 public class JarFileChecker {
     private static final Logger LOG = LoggerFactory.getLogger(JarFileChecker.class);
+
+    // "licenses/LICENSE.base64.txt" or "license/NOTICE.harmony.txt", but not a URL path
+    private static final Pattern NOTICE_LICENSE_REFERENCE =
+            Pattern.compile("(?<![\\w/])licen[cs]es?/[\\w.+-]*\\w");
 
     public static int checkPath(Path path) throws Exception {
         List<Path> files = getBuildJars(path);
@@ -86,6 +93,10 @@ public class JarFileChecker {
             numSevereIssues += getFilesWithIncompatibleLicenses(file, fileSystem.getPath("/"));
 
             numSevereIssues += EmbeddedCodeChecker.checkJar(file, fileSystem.getPath("/"));
+
+            numSevereIssues +=
+                    getNumNoticeReferencesToMissingFiles(
+                            file, fileSystem.getPath("META-INF", "NOTICE"));
         }
         return numSevereIssues;
     }
@@ -138,6 +149,33 @@ public class JarFileChecker {
         }
 
         return true;
+    }
+
+    /**
+     * A NOTICE that points to licenses/LICENSE.x must ship that file in META-INF/licenses/; a
+     * pointer to a file the jar doesn't contain gives no license at all.
+     */
+    private static int getNumNoticeReferencesToMissingFiles(Path jar, Path noticeFile)
+            throws IOException {
+        if (!Files.exists(noticeFile)) {
+            return 0;
+        }
+        final Matcher matcher = NOTICE_LICENSE_REFERENCE.matcher(readFile(noticeFile));
+        final Set<String> references = new TreeSet<>();
+        while (matcher.find()) {
+            references.add(matcher.group());
+        }
+        int issues = 0;
+        for (String reference : references) {
+            if (!Files.exists(noticeFile.resolveSibling(reference))) {
+                LOG.error(
+                        "The NOTICE file in {} refers to {}, which the jar doesn't contain.",
+                        jar,
+                        reference);
+                issues++;
+            }
+        }
+        return issues;
     }
 
     private static int getFilesWithIncompatibleLicenses(Path jar, Path jarRoot) throws IOException {
