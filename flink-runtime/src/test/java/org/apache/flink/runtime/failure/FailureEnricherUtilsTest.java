@@ -25,11 +25,14 @@ import org.apache.flink.core.failure.FailureEnricherFactory;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.TestingPluginManager;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.collections.IteratorUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.event.Level;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,6 +52,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link FailureEnricherUtils} class. */
 @ExtendWith(TestLoggerExtension.class)
 class FailureEnricherUtilsTest {
+
+    @RegisterExtension
+    private final LoggerAuditingExtension loggerAuditing =
+            new LoggerAuditingExtension(FailureEnricherUtils.class, Level.WARN);
 
     @Test
     public void testGetIncludedFailureEnrichers() {
@@ -165,6 +172,12 @@ class FailureEnricherUtilsTest {
                 FailureEnricherUtils.filterInvalidEnrichers(enrichers);
         // Only one enricher is valid
         assertThat(validatedEnrichers).hasSize(1);
+        assertThat(loggerAuditing.getMessages())
+                .singleElement()
+                .asString()
+                .contains("duplicate output key [key2]")
+                .contains(AnotherTestEnricher.class.getName())
+                .contains(AndAnotherTestEnricher.class.getName());
     }
 
     @Test
