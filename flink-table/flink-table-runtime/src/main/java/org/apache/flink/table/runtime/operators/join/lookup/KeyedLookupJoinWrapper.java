@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -54,6 +56,10 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
             "The state is cleared because of state ttl. "
                     + "This will result in incorrect result. You can increase the state ttl to avoid this.";
 
+    /** Counter: retractions that don't match any row stored in state. */
+    private static final String NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME =
+            "numUnmatchedBuildRetractions";
+
     private final LookupJoinRunner lookupJoinRunner;
     private final StateTtlConfig ttlConfig;
     private final TypeSerializer<RowData> serializer;
@@ -69,6 +75,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
     private transient ValueState<RowData> uniqueState;
 
     private transient FetchedRecordListener collectListener;
+    private transient Counter numUnmatchedBuildRetractions;
 
     public KeyedLookupJoinWrapper(
             LookupJoinRunner lookupJoinRunner,
@@ -105,6 +112,10 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
         emptyRow = initEmptyRow(lookupJoinRunner.tableFieldsCount);
         collectListener = new FetchedRecordListener();
         lookupJoinRunner.collector.setCollectListener(collectListener);
+        numUnmatchedBuildRetractions =
+                getRuntimeContext()
+                        .getMetricGroup()
+                        .counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
     }
 
     private BinaryRowData initEmptyRow(int arity) {
@@ -240,10 +251,22 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
     }
 
     private void stateStaledErrorHandle() {
+        numUnmatchedBuildRetractions.inc();
         if (lenient) {
             LOG.warn(STATE_CLEARED_WARN_MSG);
         } else {
             throw new RuntimeException(STATE_CLEARED_WARN_MSG);
         }
+    }
+
+    /**
+     * Exposes the counter to tests. The counter test lives in {@code
+     * org.apache.flink.table.runtime.operators.join} while this class lives in the {@code
+     * ...join.lookup} package, so a package-private accessor is not reachable. The metric itself is
+     * not intended as public API.
+     */
+    @VisibleForTesting
+    public Counter getNumUnmatchedBuildRetractions() {
+        return numUnmatchedBuildRetractions;
     }
 }

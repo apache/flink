@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.sink;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -25,6 +26,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -84,6 +86,11 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
                     + "You can increase the state TTL to avoid this.";
     private static final Set<String> ORDERED_STATE_BACKENDS = Set.of("rocksdb", "forst");
 
+    /** Counter: retractions that don't match any accumulated row. */
+    @VisibleForTesting
+    static final String NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME =
+            "numUnmatchedBuildRetractions";
+
     private final StateTtlConfig ttlConfig;
     private final InsertConflictStrategy conflictStrategy;
     private final TypeSerializer<RowData> serializer;
@@ -108,6 +115,7 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     private transient RecordEqualiser upsertKeyEqualiser;
     private transient TimestampedCollector<RowData> collector;
     private transient boolean isOrderedStateBackend;
+    private transient Counter numUnmatchedBuildRetractions;
 
     // Reused ProjectedRowData for comparing upsertKey if hasUpsertKey.
     private transient ProjectedRowData upsertKeyProjectedRow1;
@@ -263,6 +271,10 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         initializeKeyFieldGetters();
         detectOrderedStateBackend();
         this.collector = new TimestampedCollector<>(output);
+        this.numUnmatchedBuildRetractions =
+                getRuntimeContext()
+                        .getMetricGroup()
+                        .counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
 
         this.timerService =
                 getInternalTimerService(
@@ -464,6 +476,7 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     private void retractRow(List<RowData> values, RowData retract) {
         final int index = findFirst(values, retract);
         if (index == -1) {
+            numUnmatchedBuildRetractions.inc();
             LOG.info(STATE_CLEARED_WARN_MSG);
         } else {
             // Remove first found row
@@ -569,6 +582,11 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
             }
         }
         return sb.toString();
+    }
+
+    @VisibleForTesting
+    Counter getNumUnmatchedBuildRetractions() {
+        return numUnmatchedBuildRetractions;
     }
 
     /** Factory method to create a new instance. */
