@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -31,6 +32,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryFormat;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRawValueData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -139,6 +141,17 @@ abstract class AbstractBinaryWriter implements BinaryWriter {
     public void writeBitmap(int pos, Bitmap bitmap) {
         byte[] bytes = bitmap.toBytes();
         writeBytesToVarLenPart(pos, bytes, bytes.length);
+    }
+
+    @Override
+    public void writeGeography(int pos, GeographyData geography) {
+        if (geography instanceof BinaryGeographyData) {
+            BinaryGeographyData binary = (BinaryGeographyData) geography;
+            writeSegmentsToVarLenPart(
+                    pos, binary.getSegments(), binary.getOffset(), binary.getSizeInBytes());
+        } else {
+            writeBinary(pos, geography.toBytes());
+        }
     }
 
     private DataOutputViewStreamWrapper getOutputView() {
