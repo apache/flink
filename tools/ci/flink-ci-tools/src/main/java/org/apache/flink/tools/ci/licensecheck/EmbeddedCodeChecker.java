@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -59,7 +60,11 @@ final class EmbeddedCodeChecker {
     private static final Logger LOG = LoggerFactory.getLogger(EmbeddedCodeChecker.class);
 
     private static final String LICENSES_DIRECTORY = "META-INF/licenses/";
-    private static final String NATIVE_DIRECTORY = "META-INF/native/";
+
+    // AIX libraries are archives, as in snappy-java's org/xerial/snappy/native/AIX/
+    private static final Pattern NATIVE_LIBRARY =
+            Pattern.compile(
+                    "(?i)(.*/)?[^/]+\\.(so(\\.\\d+)*|dylib|jnilib|dll)|(.*/)?native/.+\\.a");
 
     // grpc-netty-shaded renames it to META-INF/io.grpc.netty.shaded.io.netty.versions.properties
     private static final Pattern NETTY_VERSIONS_FILE =
@@ -84,11 +89,12 @@ final class EmbeddedCodeChecker {
 
     /**
      * Lists the entries of the jars nested in this jar, such as the flink-rpc-akka.jar inside
-     * flink-rpc-akka-loader. Their code justifies the licences the outer jar ships for it.
+     * flink-rpc-akka-loader, with the contents of those that a rule inspects. The outer jar ships
+     * the licences of their code.
      */
-    private static List<String> nestedEntries(Path jarRoot, List<String> entries)
-            throws IOException {
-        final List<String> nested = new ArrayList<>();
+    private static Map<String, byte[]> nestedEntries(
+            Rules rules, Path jarRoot, List<String> entries) throws IOException {
+        final Map<String, byte[]> nested = new LinkedHashMap<>();
         for (String entry : entries) {
             if (!entry.endsWith(".jar")) {
                 continue;
@@ -98,24 +104,30 @@ final class EmbeddedCodeChecker {
                 for (ZipEntry nestedEntry = in.getNextEntry();
                         nestedEntry != null;
                         nestedEntry = in.getNextEntry()) {
-                    nested.add(nestedEntry.getName());
+                    final String name = nestedEntry.getName();
+                    final boolean inspected =
+                            rules.rules.stream()
+                                    .anyMatch(
+                                            r -> r.markerContent != null && r.matchesMarker(name));
+                    nested.put(name, inspected ? readAll(in) : null);
                 }
             }
         }
         return nested;
     }
 
+    private static byte[] readAll(InputStream in) throws IOException {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final byte[] buffer = new byte[8192];
+        for (int read = in.read(buffer); read >= 0; read = in.read(buffer)) {
+            out.write(buffer, 0, read);
+        }
+        return out.toByteArray();
+    }
+
     @VisibleForTesting
     static int check(Rules rules, Path jar, Path jarRoot, List<String> entries) throws IOException {
         final Set<String> justifiedLicenses = new HashSet<>();
-        for (String nestedEntry : nestedEntries(jarRoot, entries)) {
-            for (Rule rule : rules.rules) {
-                if (rule.matchesMarker(nestedEntry)) {
-                    justifiedLicenses.addAll(rule.licenses);
-                }
-            }
-        }
-
         final Map<Rule, String> matchedRules = new LinkedHashMap<>();
         final List<String> unknownNatives = new ArrayList<>();
         final Set<String> licenseFiles = new HashSet<>();
@@ -127,22 +139,15 @@ final class EmbeddedCodeChecker {
             if (NETTY_VERSIONS_FILE.matcher(entry).matches()) {
                 versionFiles.add(entry);
             }
-            if (!entry.contains("io/netty/") && !entry.startsWith("META-INF/")) {
-                continue;
-            }
-            boolean known = false;
-            for (Rule rule : rules.rules) {
-                if (rule.matchesMarker(entry)) {
-                    matchedRules.putIfAbsent(rule, entry);
-                    known = true;
-                }
-            }
-            if (!known
-                    && entry.startsWith(NATIVE_DIRECTORY)
-                    && entry.toLowerCase(Locale.ROOT).contains("netty")
-                    && rules.nativePatterns.stream().noneMatch(p -> p.matcher(entry).matches())) {
-                unknownNatives.add(entry);
-            }
+            matchEntry(
+                    rules,
+                    entry,
+                    () -> Files.readAllBytes(jarRoot.resolve(entry)),
+                    matchedRules,
+                    unknownNatives);
+        }
+        for (Map.Entry<String, byte[]> nested : nestedEntries(rules, jarRoot, entries).entrySet()) {
+            matchEntry(rules, nested.getKey(), nested::getValue, matchedRules, unknownNatives);
         }
 
         final String notice = readNormalized(jarRoot.resolve("META-INF/NOTICE")).orElse("");
@@ -207,7 +212,7 @@ final class EmbeddedCodeChecker {
 
         for (String unknownNative : unknownNatives) {
             LOG.error(
-                    "Jar {} contains the native library {}, which embedded-code.rules doesn't know.",
+                    "Jar {} contains the native library {}, which embedded-code.rules doesn't know. Find the third-party code it links and add a rule, or list it as the project's own code.",
                     jar,
                     unknownNative);
             issues++;
@@ -218,6 +223,36 @@ final class EmbeddedCodeChecker {
         }
 
         return issues;
+    }
+
+    /** Content of an entry, read only when a rule's marker-content needs it. */
+    private interface Content {
+        byte[] get() throws IOException;
+    }
+
+    private static void matchEntry(
+            Rules rules,
+            String entry,
+            Content content,
+            Map<Rule, String> matchedRules,
+            List<String> unknownNatives)
+            throws IOException {
+        boolean known = false;
+        for (Rule rule : rules.rules) {
+            if (rule.matchesMarker(entry)
+                    && (rule.markerContent == null
+                            || rule.markerContent
+                                    .matcher(new String(content.get(), StandardCharsets.UTF_8))
+                                    .find())) {
+                matchedRules.putIfAbsent(rule, entry);
+                known = true;
+            }
+        }
+        if (!known
+                && NATIVE_LIBRARY.matcher(entry).matches()
+                && rules.nativePatterns.stream().noneMatch(p -> p.matcher(entry).matches())) {
+            unknownNatives.add(entry);
+        }
     }
 
     private static int checkNettyVersions(Rules rules, Path jar, Path versionFile)
@@ -282,6 +317,7 @@ final class EmbeddedCodeChecker {
         final List<String> licenses = new ArrayList<>();
         final List<String> noticeTexts = new ArrayList<>();
         String licenseText;
+        Pattern markerContent;
 
         Rule(String name) {
             this.name = name;
@@ -373,6 +409,9 @@ final class EmbeddedCodeChecker {
                     case "license":
                         current.licenses.add(value);
                         rules.allLicenses.add(value);
+                        break;
+                    case "marker-content":
+                        current.markerContent = Pattern.compile(value);
                         break;
                     case "license-text":
                         current.licenseText = value;

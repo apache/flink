@@ -210,7 +210,7 @@ class EmbeddedCodeCheckerTest {
         assertThat(
                         check(
                                 tempDir,
-                                FLINK_NOTICE,
+                                FLINK_NOTICE + NETTY_NOTICE,
                                 UTF8_LICENSE,
                                 UTF8_LICENSE_TEXT,
                                 "flink-rpc-akka.jar",
@@ -277,6 +277,151 @@ class EmbeddedCodeCheckerTest {
     }
 
     @Test
+    void testStaticallyLinkedLibrariesNeedTheirLicenses(@TempDir Path tempDir) throws Exception {
+        final String rocksdb = "librocksdbjni-linux64.so";
+        assertThat(check(tempDir, FLINK_NOTICE, rocksdb, "")).isEqualTo(8);
+        assertThat(
+                        check(
+                                tempDir,
+                                FLINK_NOTICE,
+                                rocksdb,
+                                "",
+                                "META-INF/licenses/LICENSE.leveldb.txt",
+                                "Copyright (c) 2011 The LevelDB Authors. All rights reserved.",
+                                "META-INF/licenses/LICENSE.google-snappy.txt",
+                                "Copyright 2011, Google Inc.",
+                                "META-INF/licenses/LICENSE.liblz4.txt",
+                                "LZ4 Library\nCopyright (c) 2011-2020, Yann Collet",
+                                "META-INF/licenses/LICENSE.xxhash.txt",
+                                "xxHash Library\nCopyright (c) 2012-2021 Yann Collet",
+                                "META-INF/licenses/LICENSE.zstd.txt",
+                                "BSD License\n\nFor Zstandard software",
+                                "META-INF/licenses/LICENSE.zlib.txt",
+                                "(C) 1995-2022 Jean-loup Gailly and Mark Adler",
+                                "META-INF/licenses/LICENSE.bzip2.txt",
+                                "copyright (C) 1996-2019 Julian R Seward.",
+                                "META-INF/licenses/LICENSE.murmurhash.txt",
+                                "All code is released to the public domain."))
+                .isZero();
+    }
+
+    @Test
+    void testSnappyJavaNeedsItsNotice(@TempDir Path tempDir) throws Exception {
+        final String snappy = "org/xerial/snappy/native/AIX/ppc64/libsnappyjava.a";
+        final Object[] licenses = {
+            snappy,
+            "",
+            "META-INF/licenses/LICENSE.google-snappy.txt",
+            "Copyright 2011, Google Inc.",
+            "META-INF/licenses/LICENSE.bitshuffle.txt",
+            "Copyright (c) 2014 Kiyoshi Masui"
+        };
+        assertThat(check(tempDir, FLINK_NOTICE, licenses)).isOne();
+        assertThat(
+                        check(
+                                tempDir,
+                                FLINK_NOTICE + " PureJavaCrc32C from apache-hadoop-common\n",
+                                licenses))
+                .isZero();
+    }
+
+    @Test
+    void testUnknownNativeLibraryRejected(@TempDir Path tempDir) throws Exception {
+        assertThat(check(tempDir, FLINK_NOTICE, "com/example/linux/x86_64/libexample.so", ""))
+                .isOne();
+        assertThat(check(tempDir, FLINK_NOTICE, "win32-x86-64/example.dll", "")).isOne();
+        assertThat(check(tempDir, FLINK_NOTICE, "com/example/native/AIX/ppc64/libexample.a", ""))
+                .isOne();
+        assertThat(check(tempDir, FLINK_NOTICE, "linux-x64/libasyncProfiler.so", "")).isZero();
+        assertThat(check(tempDir, FLINK_NOTICE, "native/libexample.a", "")).isOne();
+        assertThat(check(tempDir, FLINK_NOTICE, "lib/example.a", "")).isZero();
+    }
+
+    @Test
+    void testCodeInNestedJarNeedsLicenseInOuterJar(@TempDir Path tempDir) throws Exception {
+        final byte[] nestedJar = jarBytes(entries(UTF8_VALIDATOR, ""));
+        assertThat(
+                        check(
+                                tempDir,
+                                FLINK_NOTICE + NETTY_NOTICE,
+                                "flink-table-planner.jar",
+                                nestedJar))
+                .isOne();
+    }
+
+    @Test
+    void testMarkersMatchBundledNatives(@TempDir Path tempDir) throws Exception {
+        // entry names as they ship in forstjni, lz4-java, zstd-jni, snappy-java and scala-compiler,
+        // with the number of licenses or notices each one owes
+        final Object[][] cases = {
+            {"libforstjni-osx-arm64.jnilib", 8},
+            {"net/jpountz/util/linux/aarch64/liblz4-java.so", 2},
+            {"net/jpountz/util/windows/amd64/liblz4-java.dll", 2},
+            {"linux/amd64/libzstd-jni-1.5.5-1.so", 1},
+            {"win/amd64/libzstd-jni-1.5.5-1.dll", 1},
+            {"org/xerial/snappy/native/Mac/aarch64/libsnappyjava.dylib", 3},
+            {"scala/tools/asm/ClassReader.class", 1},
+            {"scala/tools/jline_embedded/console/ConsoleReader.class", 1},
+            {"jquery.min.js", 1},
+            {"scala/tools/nsc/doc/html/resource/lib/modernizr.custom.js", 1},
+            {"META-INF/native/linux64/libjansi.so", 0},
+            {"org/jline/nativ/Linux/x86_64/libjlinenative.so", 0},
+            {"win-x86_64/wfssl.dll", 0},
+        };
+        for (Object[] c : cases) {
+            assertThat(check(tempDir, FLINK_NOTICE, c[0], "")).as((String) c[0]).isEqualTo(c[1]);
+        }
+    }
+
+    @Test
+    void testNativeMarkerFailingItsContentCheckIsUnknown(@TempDir Path tempDir) throws Exception {
+        final Path rulesJar = tempDir.resolve("x.jar");
+        final EmbeddedCodeChecker.Rules rules =
+                EmbeddedCodeChecker.Rules.parse(
+                        Arrays.asList(
+                                "[a]",
+                                "marker = lib/libfoo\\.so",
+                                "marker-content = v2",
+                                "license = LICENSE.foo.txt"));
+        final Path root = Files.createDirectories(tempDir.resolve("root/lib"));
+        Files.write(root.resolve("libfoo.so"), "v1".getBytes(StandardCharsets.UTF_8));
+        assertThat(
+                        EmbeddedCodeChecker.check(
+                                rules,
+                                rulesJar,
+                                tempDir.resolve("root"),
+                                Arrays.asList("lib/libfoo.so")))
+                .isOne();
+        Files.write(root.resolve("libfoo.so"), "v2".getBytes(StandardCharsets.UTF_8));
+        assertThat(
+                        EmbeddedCodeChecker.check(
+                                rules,
+                                rulesJar,
+                                tempDir.resolve("root"),
+                                Arrays.asList("lib/libfoo.so")))
+                .isOne();
+    }
+
+    @Test
+    void testScalaNoticeOnlyForApacheLicensedScala(@TempDir Path tempDir) throws Exception {
+        final String scalaNotice = "Scala includes software developed at\nLAMP/EPFL\n";
+        assertThat(check(tempDir, FLINK_NOTICE, "library.properties", "version.number=2.12.7\n"))
+                .isZero();
+        assertThat(check(tempDir, FLINK_NOTICE, "library.properties", "version.number=2.12.21\n"))
+                .isOne();
+        assertThat(
+                        check(
+                                tempDir,
+                                FLINK_NOTICE + scalaNotice,
+                                "library.properties",
+                                "version.number=2.12.21\n"))
+                .isZero();
+        final byte[] nestedJar =
+                jarBytes(entries("library.properties", "version.number=2.13.16\n"));
+        assertThat(check(tempDir, FLINK_NOTICE, "flink-table-planner.jar", nestedJar)).isOne();
+    }
+
+    @Test
     void testRulesParsing() {
         final EmbeddedCodeChecker.Rules rules =
                 EmbeddedCodeChecker.Rules.parse(
@@ -288,10 +433,12 @@ class EmbeddedCodeCheckerTest {
                                 "license = LICENSE.a.txt",
                                 "license-text = A",
                                 "notice = N",
+                                "marker-content = v=1",
                                 "[natives]",
                                 "native = META-INF/native/.*"));
         assertThat(rules.rules).hasSize(1);
         assertThat(rules.rules.get(0).licenses).containsExactly("LICENSE.a.txt");
+        assertThat(rules.rules.get(0).markerContent.pattern()).isEqualTo("v=1");
         assertThat(rules.nativePatterns).hasSize(1);
         assertThat(rules.isVerified(new int[] {4, 1, 10})).isTrue();
         assertThat(rules.isVerified(new int[] {4, 1, 11})).isFalse();
