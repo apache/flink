@@ -140,7 +140,8 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                 withDefaults("Negative state_ttl", PARTITIONED_BY_USER)
                         .calledWithLiteralAt(ARG_STATE_TTL, Duration.ofSeconds(-1))
                         .expectErrorMessage(
-                                "The 'state_ttl' argument must not be negative, but was '-1 s'."),
+                                "The 'state_ttl' argument must not be negative, but was '-1 s'. "
+                                        + "Use INTERVAL '0' SECOND to retain state indefinitely."),
                 nonLiteral("Non-literal state_ttl", ARG_STATE_TTL)
                         .expectErrorMessage(
                                 "The 'state_ttl' argument must be a constant INTERVAL literal, "

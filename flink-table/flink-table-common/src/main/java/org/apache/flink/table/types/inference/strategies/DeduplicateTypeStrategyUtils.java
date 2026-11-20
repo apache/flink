@@ -212,7 +212,7 @@ public final class DeduplicateTypeStrategyUtils {
                         stateTtl ->
                                 String.format(
                                         "The 'state_ttl' argument must not be negative, but was "
-                                                + "'%s'. Use INTERVAL '0' to retain state "
+                                                + "'%s'. Use INTERVAL '0' SECOND to retain state "
                                                 + "indefinitely.",
                                         TimeUtils.formatWithHighestUnit(stateTtl)));
     }
