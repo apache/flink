@@ -128,6 +128,8 @@ AND o.order_time BETWEEN s.ship_time - INTERVAL '1' HOUR AND s.ship_time
 
 该提示仅对 outer join（`LEFT`、`RIGHT`、`FULL`）生效。在 inner join 以及窗口跨度为负的 join 上会被忽略，这些情况仍保持仅追加。在批模式下，该提示在所有 join 上都会被忽略。
 
+与其他查询提示一样，`EARLY_FIRE` 只作用于其所在[查询块]({{< ref "docs/sql/reference/queries/hints" >}}#什么是查询块)中的 join，写在外层查询上的提示不会作用于子查询中的 join。提前触发的 join 输出的是更新结果，因此它的输出不能作为另一个 interval join 的输入（interval join 只接受仅追加的输入），这样的查询会在规划阶段失败。
+
 **注意：** `EARLY_FIRE` 与 `table.exec.emit.early-fire.*` 配置无关，后者用于控制窗口聚合的提前触发，而非 interval join。
 
 Temporal Joins

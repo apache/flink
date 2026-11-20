@@ -133,6 +133,8 @@ The hint accepts the following options:
 
 The hint only affects outer joins (`LEFT`, `RIGHT`, `FULL`). It is ignored on inner joins and on joins whose window has a negative span, both of which remain append-only. In batch mode, the hint is ignored on all joins.
 
+Like other query hints, `EARLY_FIRE` applies only to the joins in the [query block]({{< ref "docs/sql/reference/queries/hints" >}}#what-are-query-blocks-) where it is written, so a hint on an outer query does not reach a join inside a subquery. An early-fire join produces an updating result, so its output cannot feed another interval join, which accepts only append-only input. Such a query fails at planning.
+
 **Note:** `EARLY_FIRE` is unrelated to the `table.exec.emit.early-fire.*` configuration, which controls early firing for windowed aggregations rather than interval joins.
 
 Temporal Joins
