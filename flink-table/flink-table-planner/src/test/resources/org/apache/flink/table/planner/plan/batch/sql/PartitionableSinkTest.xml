@@ -61,16 +61,16 @@ Sink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
-+- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], c=[$2])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[1:BIGINT], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- Sort(orderBy=[c ASC])
-   +- Calc(select=[a, 1 AS EXPR$1, c])
+   +- Calc(select=[a, 1 AS b, c])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -81,15 +81,15 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
-+- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], EXPR$2=[1:BIGINT])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[1:BIGINT], c=[1:BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
-+- Calc(select=[a, 1 AS EXPR$1, 1 AS EXPR$2])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- Calc(select=[a, 1 AS b, 1 AS c])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -101,15 +101,15 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[CAST(5:BIGINT):BIGINT], b=[CAST(1:BIGINT):BIGINT], c=[CAST(1:BIGINT):BIGINT])
-   +- LogicalValues(tuples=[[{ 0 }]])
++- LogicalProject(a=[CAST($0):BIGINT], b=[CAST(1:BIGINT):BIGINT], c=[CAST(1:BIGINT):BIGINT])
+   +- LogicalValues(tuples=[[{ 5 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- Calc(select=[CAST(5 AS BIGINT) AS a, CAST(1 AS BIGINT) AS b, CAST(1 AS BIGINT) AS c])
-   +- Values(tuples=[[{ 0 }]], values=[ZERO])
+   +- Values(tuples=[[{ 5 }]], values=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
