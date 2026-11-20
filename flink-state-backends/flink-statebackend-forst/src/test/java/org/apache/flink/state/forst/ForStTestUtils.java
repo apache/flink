@@ -41,6 +41,17 @@ public final class ForStTestUtils {
             TypeSerializer<K> keySerializer,
             Collection<KeyedStateHandle> stateHandles)
             throws IOException {
+        return createKeyedStateBackend(
+                forStStateBackend, env, keySerializer, stateHandles, TtlTimeProvider.DEFAULT);
+    }
+
+    public static <K> ForStKeyedStateBackend<K> createKeyedStateBackend(
+            ForStStateBackend forStStateBackend,
+            Environment env,
+            TypeSerializer<K> keySerializer,
+            Collection<KeyedStateHandle> stateHandles,
+            TtlTimeProvider ttlTimeProvider)
+            throws IOException {
 
         return forStStateBackend.createAsyncKeyedStateBackend(
                 new KeyedStateBackendParametersImpl<>(
@@ -51,7 +62,7 @@ public final class ForStTestUtils {
                         1,
                         new KeyGroupRange(0, 0),
                         env.getTaskKvStateRegistry(),
-                        TtlTimeProvider.DEFAULT,
+                        ttlTimeProvider,
                         new UnregisteredMetricsGroup(),
                         (name, value) -> {},
                         stateHandles,
