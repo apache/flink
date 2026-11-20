@@ -44,8 +44,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.apache.flink.table.runtime.functions.XmlVariantNames.ATTRIBUTE_PREFIX;
 import static org.apache.flink.table.runtime.functions.XmlVariantNames.ORDER_KEY;
@@ -74,10 +72,10 @@ public final class VariantToXmlWriter {
                     Variant.Type.INT,
                     Variant.Type.BIGINT);
 
-    // Any character outside of the Char production of XML 1.0, see
-    // https://www.w3.org/TR/xml/#charsets.
-    private static final Pattern NON_XML_CHAR =
-            Pattern.compile("[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\\x{10000}-\\x{10FFFF}]");
+    // Whether a char below 0x40 is valid in XML 1.0 and written as is, in a text and in an
+    // attribute value. Chars from 0x40 up to the surrogates are all written as is.
+    private static final boolean[] TEXT_PLAIN_CHARS = plainChars(false);
+    private static final boolean[] ATTRIBUTE_PLAIN_CHARS = plainChars(true);
 
     // The DOM document that names are checked with. It isn't thread-safe, so each thread has its
     // own.
@@ -135,7 +133,11 @@ public final class VariantToXmlWriter {
         while (!openElements.isEmpty()) {
             writeNextContent(openElements.peek());
         }
-        insertIntoRootTag(rootName, schemaPrefixDeclarations(root));
+        // inserting shifts the whole document, so it is skipped when there is nothing to insert
+        final String declarations = schemaPrefixDeclarations(root);
+        if (!declarations.isEmpty()) {
+            insertIntoRootTag(rootName, declarations);
+        }
         return output.toString();
     }
 
@@ -322,8 +324,16 @@ public final class VariantToXmlWriter {
     private void writeAttributeField(String elementName, String name, Variant value) {
         checkAttributeName(name);
         checkIsAttributeValue(elementName, name, value);
-        checkXmlChars(elementName, name, value);
-        writeAttribute(name, lexicalForm(value));
+        final String text = lexicalForm(value);
+        openAttribute(name, text);
+        final int nonXmlCharIndex = appendEscaped(text, true);
+        output.append('"');
+        if (nonXmlCharIndex >= 0) {
+            throw nonXmlChar(
+                    String.format("The attribute '%s' of the element '%s'", name, elementName),
+                    text,
+                    nonXmlCharIndex);
+        }
     }
 
     private static void checkIsAttributeValue(String elementName, String name, Variant value) {
@@ -368,68 +378,119 @@ public final class VariantToXmlWriter {
         output.append("</").append(name).append('>');
     }
 
-    /** The name is checked by the caller, since the writer adds xsi:nil and xsi:type itself. */
+    /** Writes xsi:nil or xsi:type, whose values the writer sets and which need no escaping. */
     private void writeAttribute(String name, String value) {
+        openAttribute(name, value);
+        output.append(value).append('"');
+    }
+
+    /** The name is checked by the caller, since the writer adds xsi:nil and xsi:type itself. */
+    private void openAttribute(String name, String value) {
         noteSchemaPrefix(name);
         if (name.equals(XSI_TYPE)) {
             // The value of an xsi:type is a name with a prefix as well, e.g. xs:int.
             noteSchemaPrefix(value);
         }
         output.append(' ').append(name).append("=\"");
-        appendEscapedAttributeValue(value);
-        output.append('"');
     }
 
-    private void writeText(String elementName, Variant text) {
-        checkIsText(elementName, text);
-        checkXmlChars(elementName, null, text);
-        appendEscapedText(lexicalForm(text));
+    private void writeText(String elementName, Variant value) {
+        checkIsText(elementName, value);
+        final String text = lexicalForm(value);
+        final int nonXmlCharIndex = appendEscaped(text, false);
+        if (nonXmlCharIndex >= 0) {
+            throw nonXmlChar(
+                    String.format("The text of the element '%s'", elementName),
+                    text,
+                    nonXmlCharIndex);
+        }
+    }
+
+    /**
+     * Appends the text escaped, and checks in the same pass for chars that XML 1.0 can't represent,
+     * not even as character references. Returns the index of the first such char, or -1 if there is
+     * none. Chars that aren't escaped are appended in runs.
+     */
+    private int appendEscaped(String text, boolean isAttribute) {
+        final boolean[] plainChars = isAttribute ? ATTRIBUTE_PLAIN_CHARS : TEXT_PLAIN_CHARS;
+        // Grow once up front. The extra room is a guess for escapes and the markup after the text,
+        // which would otherwise grow the output again.
+        final int length = text.length();
+        output.ensureCapacity(output.length() + length + length / 8 + 16);
+        int start = 0;
+        for (int i = 0; i < length; i++) {
+            final char c = text.charAt(i);
+            if (c < plainChars.length ? plainChars[c] : c < 0xD800) {
+                continue;
+            }
+            if (c < plainChars.length) {
+                final String escape = escape(c, isAttribute);
+                if (escape == null) {
+                    // a control char
+                    return i;
+                }
+                output.append(text, start, i).append(escape);
+                start = i + 1;
+            } else if (Character.isHighSurrogate(c)
+                    && i + 1 < length
+                    && Character.isLowSurrogate(text.charAt(i + 1))) {
+                // a surrogate pair encodes a char from U+10000 up, which is allowed
+                i++;
+            } else if (c < 0xE000 || c > 0xFFFD) {
+                // a lone surrogate, U+FFFE or U+FFFF
+                return i;
+            }
+        }
+        if (start == 0) {
+            output.append(text);
+        } else {
+            output.append(text, start, length);
+        }
+        return -1;
+    }
+
+    private static IllegalArgumentException nonXmlChar(String location, String text, int index) {
+        return new IllegalArgumentException(
+                String.format(
+                        "%s has the character U+%04X, which XML 1.0 doesn't allow.",
+                        location, text.codePointAt(index)));
+    }
+
+    private static boolean[] plainChars(boolean isAttribute) {
+        final boolean[] plainChars = new boolean[0x40];
+        for (char c = 0; c < plainChars.length; c++) {
+            plainChars[c] =
+                    (c >= 0x20 || isAllowedControlChar(c)) && escape(c, isAttribute) == null;
+        }
+        return plainChars;
+    }
+
+    /** The control chars that XML 1.0 allows. */
+    private static boolean isAllowedControlChar(char c) {
+        return c == '\t' || c == '\n' || c == '\r';
     }
 
     // Markup characters are escaped. A parser reads a carriage return as a line feed, and a tab or
     // a line break in an attribute value as a space, so these are written as character references.
-
-    private void appendEscapedText(String text) {
-        for (int i = 0; i < text.length(); i++) {
-            appendEscapedTextChar(text.charAt(i));
-        }
-    }
-
-    private void appendEscapedAttributeValue(String value) {
-        for (int i = 0; i < value.length(); i++) {
-            final char c = value.charAt(i);
-            switch (c) {
-                case '"':
-                    output.append("&quot;");
-                    break;
-                case '\t':
-                    output.append("&#9;");
-                    break;
-                case '\n':
-                    output.append("&#10;");
-                    break;
-                default:
-                    appendEscapedTextChar(c);
-            }
-        }
-    }
-
-    private void appendEscapedTextChar(char c) {
+    @Nullable
+    private static String escape(char c, boolean isAttribute) {
         switch (c) {
             case '&':
-                output.append("&amp;");
-                break;
+                return "&amp;";
             case '<':
-                output.append("&lt;");
-                break;
+                return "&lt;";
             case '>':
-                output.append("&gt;");
-                break;
+                return "&gt;";
             case '\r':
-                output.append("&#13;");
-                break;
+                return "&#13;";
+            case '"':
+                return isAttribute ? "&quot;" : null;
+            case '\t':
+                return isAttribute ? "&#9;" : null;
+            case '\n':
+                return isAttribute ? "&#10;" : null;
             default:
-                output.append(c);
+                return null;
         }
     }
 
@@ -469,32 +530,6 @@ public final class VariantToXmlWriter {
             return DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder().newDocument();
         } catch (ParserConfigurationException e) {
             throw new IllegalStateException(e);
-        }
-    }
-
-    /**
-     * XML 1.0 can't represent some characters, not even as character references. Only strings are
-     * checked, since the writer formats the other scalars itself. The attribute name is null for a
-     * text.
-     */
-    private static void checkXmlChars(
-            String elementName, @Nullable String attributeName, Variant scalar) {
-        if (scalar.getType() != Variant.Type.STRING) {
-            return;
-        }
-        final String text = scalar.getString();
-        final Matcher matcher = NON_XML_CHAR.matcher(text);
-        if (matcher.find()) {
-            final String location =
-                    attributeName == null
-                            ? String.format("The text of the element '%s'", elementName)
-                            : String.format(
-                                    "The attribute '%s' of the element '%s'",
-                                    attributeName, elementName);
-            throw new IllegalArgumentException(
-                    String.format(
-                            "%s has the character U+%04X, which XML 1.0 doesn't allow.",
-                            location, text.codePointAt(matcher.start())));
         }
     }
 
