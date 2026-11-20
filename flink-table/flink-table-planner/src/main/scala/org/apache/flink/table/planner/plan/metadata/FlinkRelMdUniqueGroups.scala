@@ -395,7 +395,45 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
       }
     }
 
-    leftUniqueGroups.union(ImmutableBitSet.of(outputRightUniqueGroups))
+    // On the inner side of a LEFT/RIGHT join, the real rows satisfy the join condition, so their
+    // keys of null-rejecting equi-conditions are never null. Unlike analyzeCondition(),
+    // createWithStrictEquality leaves IS NOT DISTINCT FROM out of the keys.
+    lazy val strictJoinInfo =
+      JoinInfo.createWithStrictEquality(join.getLeft, join.getRight, join.getCondition)
+    val validLeftUniqueGroups = if (joinType.generatesNullsOnLeft()) {
+      val nonNullKeys =
+        if (joinType.generatesNullsOnRight()) ImmutableBitSet.of() else strictJoinInfo.leftSet()
+      getUniqueGroupsOfNullPaddedInput(join.getLeft, leftColumns, leftUniqueGroups, nonNullKeys)
+    } else {
+      leftUniqueGroups
+    }
+    val validRightUniqueGroups = if (joinType.generatesNullsOnRight()) {
+      val nonNullKeys =
+        if (joinType.generatesNullsOnLeft()) ImmutableBitSet.of() else strictJoinInfo.rightSet()
+      getUniqueGroupsOfNullPaddedInput(join.getRight, rightColumns, rightUniqueGroups, nonNullKeys)
+    } else {
+      rightUniqueGroups
+    }
+    validLeftUniqueGroups.union(validRightUniqueGroups.shift(leftFieldCount))
+  }
+
+  /**
+   * Returns the unique groups of a join input whose rows are padded with nulls by an outer join.
+   *
+   * <p>A padded row is null on all columns of the input, so it falls into the same group as a real
+   * row whose unique group columns are all null, although the other columns of the two rows may
+   * differ. The unique groups are therefore only kept if they contain a column that is never null
+   * on the real rows. Otherwise, all requested columns are returned.
+   */
+  private def getUniqueGroupsOfNullPaddedInput(
+      input: RelNode,
+      columns: ImmutableBitSet,
+      uniqueGroups: ImmutableBitSet,
+      nonNullKeys: ImmutableBitSet): ImmutableBitSet = {
+    val fields = input.getRowType.getFieldList
+    val hasNonNullColumn =
+      uniqueGroups.exists(i => nonNullKeys.get(i) || !fields.get(i).getType.isNullable)
+    if (hasNonNullColumn) uniqueGroups else columns
   }
 
   def getUniqueGroups(

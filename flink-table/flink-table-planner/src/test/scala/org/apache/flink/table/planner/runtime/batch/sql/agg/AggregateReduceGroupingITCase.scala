@@ -380,6 +380,37 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
   }
 
   @Test
+  def testDistinctOnLeftJoinWithNullGroupingKey(): Unit = {
+    // d does not determine s after the left join: the matched row (A, null, 1) and the padded row
+    // (A, null, null) share the same c1 and d
+    checkResult(
+      "SELECT DISTINCT c1, d, s FROM T1 LEFT JOIN " +
+        "(SELECT d1 AS d, SUM(b1) AS s, MAX(a1) AS m FROM T1 GROUP BY d1) g ON b1 = m",
+      Seq(row("A", null, null), row("A", null, 1), row("B", null, 1), row("C", "Hi", 2))
+    )
+  }
+
+  @Test
+  def testDistinctOnFullJoinWithNullGroupingKey(): Unit = {
+    // d1 does not determine s after the full join: the real row (null, 1) of the left side and
+    // the null-padded rows (null, null) share the same d1
+    checkResult(
+      "SELECT DISTINCT * FROM (SELECT d1, s, c2 FROM " +
+        "(SELECT d1, SUM(b1) AS s FROM T1 GROUP BY d1) g FULL OUTER JOIN T2 ON d1 = c2) t",
+      Seq(
+        row(null, 1, null),
+        row("Hi", 2, null),
+        row("Hello", 2, null),
+        row("Hello world", 3, null),
+        row(null, null, "X"),
+        row(null, null, "Y"),
+        row(null, null, "Z"),
+        row(null, null, null)
+      )
+    )
+  }
+
+  @Test
   def testAggOnOver(): Unit = {
     checkResult(
       "SELECT a1, b1, c, COUNT(d1) FROM " +
