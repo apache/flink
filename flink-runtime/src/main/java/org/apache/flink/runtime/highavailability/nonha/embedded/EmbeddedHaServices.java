@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
@@ -45,19 +46,37 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
     private final Executor executor;
 
-    private final EmbeddedLeaderService resourceManagerLeaderService;
+    private EmbeddedLeaderService resourceManagerLeaderService;
 
-    private final EmbeddedLeaderService dispatcherLeaderService;
+    private EmbeddedLeaderService dispatcherLeaderService;
 
     private final HashMap<JobID, EmbeddedLeaderService> jobManagerLeaderServices;
 
-    private final EmbeddedLeaderService clusterRestEndpointLeaderService;
+    private EmbeddedLeaderService clusterRestEndpointLeaderService;
 
     public EmbeddedHaServices(Executor executor) {
+        super();
         this.executor = Preconditions.checkNotNull(executor);
+        this.jobManagerLeaderServices = new HashMap<>();
+        createEmbeddedLeaderServices(executor);
+    }
+
+    /**
+     * Creates services whose job result store honours {@code
+     * job-result-store.clean-job-result.ttl}. The configuration has to be passed on explicitly so
+     * that the setting also takes effect where this implementation is used, i.e. in the {@code
+     * MiniCluster} and when high availability is turned off.
+     */
+    public EmbeddedHaServices(Executor executor, Configuration configuration) {
+        super(configuration);
+        this.executor = Preconditions.checkNotNull(executor);
+        this.jobManagerLeaderServices = new HashMap<>();
+        createEmbeddedLeaderServices(executor);
+    }
+
+    private void createEmbeddedLeaderServices(Executor executor) {
         this.resourceManagerLeaderService = createEmbeddedLeaderService(executor);
         this.dispatcherLeaderService = createEmbeddedLeaderService(executor);
-        this.jobManagerLeaderServices = new HashMap<>();
         this.clusterRestEndpointLeaderService = createEmbeddedLeaderService(executor);
     }
 
