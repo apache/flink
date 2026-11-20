@@ -26,9 +26,12 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.DefaultSourceLineageVertex;
+import org.apache.flink.streaming.api.lineage.DefaultTypeDatasetFacet;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageVertex;
 import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
+import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -49,6 +52,8 @@ import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
+import org.apache.flink.table.connector.source.TransformationScanProvider;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.factories.TableFactoryHarness.ScanSourceBase;
@@ -57,6 +62,7 @@ import org.apache.flink.table.planner.lineage.TableSinkLineageVertex;
 import org.apache.flink.table.planner.lineage.TableSourceLineageVertex;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.runtime.operators.values.ValuesSource;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -65,6 +71,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
@@ -375,6 +382,37 @@ class TransformationsTest {
     }
 
     @Test
+    void testFromDataStreamPreservesSourceLineage() {
+        final StreamExecutionEnvironment execEnv =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamTableEnvironment env = StreamTableEnvironment.create(execEnv);
+        final DataStream<Integer> stream = execEnv.fromData(1, 2, 3);
+        final TransformationWithLineage<?> sourceTransform =
+                (TransformationWithLineage<?>) stream.getTransformation();
+        final SourceLineageVertex sourceVertex =
+                new SourceLineageVertex() {
+                    @Override
+                    public Boundedness boundedness() {
+                        return Boundedness.BOUNDED;
+                    }
+
+                    @Override
+                    public List<LineageDataset> datasets() {
+                        return Collections.singletonList(
+                                new DefaultLineageDataset(
+                                        "orders", "test://source", Collections.emptyMap()));
+                    }
+                };
+        sourceTransform.setLineageVertex(sourceVertex);
+
+        final Table table = env.fromDataStream(stream);
+        final Transformation<?> transform = env.toChangelogStream(table).getTransformation();
+
+        assertThat(transform.getTransitivePredecessors()).contains(sourceTransform);
+        assertThat(sourceTransform.getLineageVertex()).isSameAs(sourceVertex);
+    }
+
+    @Test
     void testDataStreamScanProviderLineage() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
@@ -392,7 +430,11 @@ class TransformationsTest {
                     public DataStream<RowData> produceDataStream(
                             ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
                         // Single-operator pipeline: returns the SourceTransformation directly
-                        return execEnv.fromData(1, 2, 3).map(i -> (RowData) null);
+                        return execEnv.fromData(
+                                InternalTypeInfo.ofFields(DataTypes.INT().getLogicalType()),
+                                GenericRowData.of(1),
+                                GenericRowData.of(2),
+                                GenericRowData.of(3));
                     }
                 };
 
@@ -445,6 +487,83 @@ class TransformationsTest {
         assertThat(datasets).hasSize(1);
         assertThat(datasets.get(0).name()).contains("T");
         assertThat(datasets.get(0).namespace()).isEqualTo("test://namespace");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, false", "true, false", "false, true"})
+    void testScanProviderUsesSourceLineage(
+            boolean multiOperatorPipeline, boolean transformationScanProvider) {
+        final StreamExecutionEnvironment execEnv =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamTableEnvironment env = StreamTableEnvironment.create(execEnv);
+        final InternalTypeInfo<RowData> typeInfo =
+                InternalTypeInfo.ofFields(DataTypes.INT().getLogicalType());
+        final DataStream<RowData> stream = execEnv.fromData(typeInfo, GenericRowData.of(1));
+        final TransformationWithLineage<RowData> sourceTransform =
+                (TransformationWithLineage<RowData>) stream.getTransformation();
+        final LineageDataset sourceDataset =
+                new DefaultLineageDataset(
+                        "source",
+                        "test://source",
+                        Collections.singletonMap("type", new DefaultTypeDatasetFacet(typeInfo)));
+        sourceTransform.setLineageVertex(
+                new DefaultSourceLineageVertex(Boundedness.BOUNDED, List.of(sourceDataset)));
+
+        final DataStreamScanProvider scanProvider =
+                new DataStreamScanProvider() {
+                    @Override
+                    public boolean isBounded() {
+                        return true;
+                    }
+
+                    @Override
+                    public DataStream<RowData> produceDataStream(
+                            ProviderContext providerContext, StreamExecutionEnvironment env) {
+                        return multiOperatorPipeline ? stream.filter(row -> true) : stream;
+                    }
+                };
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(dummySchema())
+                        .source(
+                                new ScanSourceBase() {
+                                    @Override
+                                    public ScanRuntimeProvider getScanRuntimeProvider(
+                                            ScanContext runtimeProviderContext) {
+                                        if (transformationScanProvider) {
+                                            return new TransformationScanProvider() {
+                                                @Override
+                                                public Transformation<RowData> createTransformation(
+                                                        ProviderContext providerContext) {
+                                                    return stream.getTransformation();
+                                                }
+
+                                                @Override
+                                                public boolean isBounded() {
+                                                    return true;
+                                                }
+                                            };
+                                        }
+                                        return scanProvider;
+                                    }
+                                })
+                        .build();
+        env.createTemporaryTable("T", sourceDescriptor);
+
+        final Transformation<?> transform =
+                env.toChangelogStream(env.from("T")).getTransformation();
+
+        assertThat(transform.getTransitivePredecessors()).contains(sourceTransform);
+        assertThat(sourceTransform.getLineageVertex()).isInstanceOf(TableSourceLineageVertex.class);
+        assertThat(sourceTransform.getLineageVertex().datasets())
+                .singleElement()
+                .satisfies(
+                        dataset -> {
+                            assertThat(dataset.name()).contains("T");
+                            assertThat(dataset.namespace()).isEqualTo(sourceDataset.namespace());
+                            assertThat(dataset.facets())
+                                    .containsAllEntriesOf(sourceDataset.facets());
+                        });
     }
 
     @Test
@@ -604,6 +723,99 @@ class TransformationsTest {
         assertThat(datasets.get(0).name()).contains("T");
         // Namespace should come from the connector's LineageVertex
         assertThat(datasets.get(0).namespace()).isEqualTo("test://namespace");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testDataStreamScanProviderLineageWithUnion(boolean sharedSource) {
+        final StreamExecutionEnvironment execEnv =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamTableEnvironment env = StreamTableEnvironment.create(execEnv);
+        final InternalTypeInfo<RowData> typeInfo =
+                InternalTypeInfo.ofFields(DataTypes.INT().getLogicalType());
+        final DataStream<RowData> firstSource = execEnv.fromData(typeInfo, GenericRowData.of(1));
+        final DataStream<RowData> secondSource =
+                sharedSource ? firstSource : execEnv.fromData(typeInfo, GenericRowData.of(2));
+        final TransformationWithLineage<RowData> firstSourceTransform =
+                (TransformationWithLineage<RowData>) firstSource.getTransformation();
+        final TransformationWithLineage<RowData> secondSourceTransform =
+                (TransformationWithLineage<RowData>) secondSource.getTransformation();
+        final SourceLineageVertex firstSourceVertex =
+                new DefaultSourceLineageVertex(
+                        Boundedness.BOUNDED,
+                        List.of(
+                                new DefaultLineageDataset(
+                                        "first", "test://first", Collections.emptyMap())));
+        final SourceLineageVertex secondSourceVertex =
+                sharedSource
+                        ? firstSourceVertex
+                        : new DefaultSourceLineageVertex(
+                                Boundedness.BOUNDED,
+                                List.of(
+                                        new DefaultLineageDataset(
+                                                "second",
+                                                "test://second",
+                                                Collections.emptyMap())));
+        firstSourceTransform.setLineageVertex(firstSourceVertex);
+        secondSourceTransform.setLineageVertex(secondSourceVertex);
+
+        final DataStreamScanProvider scanProvider =
+                new DataStreamScanProvider() {
+                    @Override
+                    public boolean isBounded() {
+                        return true;
+                    }
+
+                    @Override
+                    public DataStream<RowData> produceDataStream(
+                            ProviderContext providerContext, StreamExecutionEnvironment env) {
+                        return firstSource.union(secondSource).filter(row -> true);
+                    }
+                };
+        final LineageVertexProvider lineageProvider =
+                () ->
+                        () ->
+                                List.of(
+                                        new DefaultLineageDataset(
+                                                "test-source",
+                                                "test://namespace",
+                                                Collections.emptyMap()));
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(dummySchema())
+                        .source(
+                                new ScanSourceBase() {
+                                    @Override
+                                    public ScanRuntimeProvider getScanRuntimeProvider(
+                                            ScanContext runtimeProviderContext) {
+                                        return new DataStreamScanProviderWithLineage(
+                                                scanProvider, lineageProvider);
+                                    }
+                                })
+                        .build();
+        env.createTemporaryTable("T", sourceDescriptor);
+
+        final Transformation<?> transform =
+                env.toChangelogStream(env.from("T")).getTransformation();
+
+        assertThat(transform.getTransitivePredecessors())
+                .filteredOn(t -> t instanceof SourceTransformation)
+                .hasSize(sharedSource ? 1 : 2)
+                .contains(firstSourceTransform, secondSourceTransform);
+        if (sharedSource) {
+            assertThat(firstSourceTransform.getLineageVertex())
+                    .isInstanceOf(TableSourceLineageVertex.class);
+            assertThat(firstSourceTransform.getLineageVertex().datasets())
+                    .singleElement()
+                    .satisfies(
+                            dataset -> {
+                                assertThat(dataset.name()).contains("T");
+                                assertThat(dataset.namespace()).isEqualTo("test://namespace");
+                            });
+        } else {
+            assertThat(firstSourceTransform.getLineageVertex()).isSameAs(firstSourceVertex);
+            assertThat(secondSourceTransform.getLineageVertex()).isSameAs(secondSourceVertex);
+        }
     }
 
     /**

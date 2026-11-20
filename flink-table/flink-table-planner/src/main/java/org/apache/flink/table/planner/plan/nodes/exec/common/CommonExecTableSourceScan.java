@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformationWrapper;
 import org.apache.flink.streaming.api.transformations.TransformationWithLineage;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
@@ -75,6 +76,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
@@ -205,6 +207,31 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     provider.getClass().getSimpleName() + " is unsupported now.");
         }
 
+        TransformationWithLineage<?> lineageTransform = null;
+        if (sourceTransform instanceof TransformationWithLineage) {
+            lineageTransform = (TransformationWithLineage<?>) sourceTransform;
+        } else if (provider instanceof DataStreamScanProvider) {
+            // Only attach table lineage to a pipeline with one distinct source. Replacing an
+            // individual source's lineage in a multi-source pipeline would be ambiguous.
+            final List<Transformation<?>> sources =
+                    sourceTransform.getTransitivePredecessors().stream()
+                            .filter(
+                                    t ->
+                                            t instanceof SourceTransformation
+                                                    || t instanceof LegacySourceTransformation)
+                            .distinct()
+                            .collect(Collectors.toList());
+            if (sources.size() == 1) {
+                lineageTransform = (TransformationWithLineage<?>) sources.get(0);
+            }
+        }
+
+        // The source transformation may already hold connector lineage (e.g. Kafka) even when
+        // the provider does not expose it. Reuse it to preserve the namespace and facets.
+        if (!lineageVertex.isPresent() && lineageTransform != null) {
+            lineageVertex = Optional.ofNullable(lineageTransform.getLineageVertex());
+        }
+
         LineageDataset tableLineageDataset =
                 TableLineageUtils.createTableLineageDataset(
                         tableSourceSpec.getContextResolvedTable(), lineageVertex);
@@ -216,21 +243,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                                 ? Boundedness.BOUNDED
                                 : Boundedness.CONTINUOUS_UNBOUNDED);
 
-        if (sourceTransform instanceof TransformationWithLineage) {
-            ((TransformationWithLineage<RowData>) sourceTransform)
-                    .setLineageVertex(sourceLineageVertex);
-        } else {
-            // When DataStreamScanProvider returns a multi-operator pipeline, the outermost
-            // transformation may not implement TransformationWithLineage. Search the transitive
-            // predecessors to find a SourceTransformation or LegacySourceTransformation that does.
-            for (Transformation<?> predecessor : sourceTransform.getTransitivePredecessors()) {
-                if (predecessor != sourceTransform
-                        && predecessor instanceof TransformationWithLineage) {
-                    ((TransformationWithLineage<?>) predecessor)
-                            .setLineageVertex(sourceLineageVertex);
-                    break;
-                }
-            }
+        if (lineageTransform != null) {
+            lineageTransform.setLineageVertex(sourceLineageVertex);
         }
 
         if (sourceParallelismConfigured) {
