@@ -223,3 +223,17 @@ The native libraries of frocksdbjni and forstjni contain code from 'MurmurHash',
     * licenses/LICENSE.murmurhash.txt (Public Domain)
   * HOMEPAGE:
     * https://sites.google.com/site/murmurhash/
+
+The native libraries of lz4-java contain code from 'LZ4', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.liblz4.txt (BSD 2-Clause License)
+  * HOMEPAGE:
+    * https://github.com/lz4/lz4
+
+The native libraries of lz4-java contain code from 'xxHash', which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.xxhash.txt (BSD 2-Clause License)
+  * HOMEPAGE:
+    * https://github.com/Cyan4973/xxHash
