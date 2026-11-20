@@ -241,6 +241,147 @@ class MetricStoreTest {
         assertThat(subtaskMetricStore.getMetric("abc." + MetricNames.TASK_BUSY_TIME)).isNull();
     }
 
+    @Test
+    void testAddAllRemovesMetricsOfAttemptThatAreNoLongerReported() {
+        MetricStore store = setupStore(new MetricStore());
+        QueryScopeInfo.TaskQueryScopeInfo task =
+                new QueryScopeInfo.TaskQueryScopeInfo(JOB_ID.toString(), "taskid", 8, 2, "abc");
+        QueryScopeInfo.OperatorQueryScopeInfo operator =
+                new QueryScopeInfo.OperatorQueryScopeInfo(
+                        JOB_ID.toString(), "taskid", 8, 2, "opname", "abc");
+        store.add(
+                new MetricDump.HistogramDump(operator, "hist", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11));
+
+        MetricStore.TaskMetricStore taskStore =
+                store.getTaskMetricStore(JOB_ID.toString(), "taskid");
+        MetricStore.SubtaskMetricStore subtaskStore = taskStore.getSubtaskMetricStore(8);
+        MetricStore.ComponentMetricStore attemptStore = subtaskStore.getAttemptsMetricStore(2);
+        assertThat(attemptStore.metrics)
+                .containsKeys(
+                        "abc.metric5",
+                        "abc." + MetricNames.TASK_BUSY_TIME,
+                        "opname.abc.metric6",
+                        "opname.abc.metric7",
+                        "opname.abc.hist_min");
+
+        // the representative attempt 2 of subtask 8 no longer reports metric7, the busy time and
+        // the histogram
+        store.addAll(
+                Arrays.asList(
+                        new MetricDump.CounterDump(task, "metric5", 140),
+                        new MetricDump.CounterDump(operator, "metric6", 50)),
+                true);
+
+        assertThat(attemptStore.metrics)
+                .containsOnlyKeys("abc.metric5", "opname.abc.metric6")
+                .containsEntry("abc.metric5", "140")
+                .containsEntry("opname.abc.metric6", "50");
+        assertThat(attemptStore.transientMetrics).isEmpty();
+        assertThat(subtaskStore.metrics).containsOnlyKeys("abc.metric5", "opname.abc.metric6");
+        assertThat(subtaskStore.transientMetrics).isEmpty();
+        assertThat(taskStore.metrics)
+                .containsKeys("8.abc.metric5", "8.opname.abc.metric6")
+                .doesNotContainKeys(
+                        "8.abc." + MetricNames.TASK_BUSY_TIME,
+                        "8.opname.abc.metric7",
+                        "8.opname.abc.hist_min");
+        assertThat(taskStore.transientMetrics).isEmpty();
+
+        // other attempts of the subtask and other subtasks are not affected
+        assertThat(subtaskStore.getAttemptsMetricStore(1).metrics).containsOnlyKeys("abc.metric5");
+        assertThat(subtaskStore.getAttemptsMetricStore(4).metrics)
+                .containsOnlyKeys("opname.abc.metric6", "opname.abc.metric7");
+        assertThat(taskStore.metrics).containsKeys("1.opname.abc.metric6", "1.opname.abc.metric7");
+    }
+
+    @Test
+    void testAddAllKeepsMetricsOfAttemptsNotContainedInDump() {
+        MetricStore store = setupStore(new MetricStore());
+        // subtask 10 shares the "1" prefix with subtask 1 in the task metric store
+        store.add(
+                new MetricDump.CounterDump(
+                        new QueryScopeInfo.OperatorQueryScopeInfo(
+                                JOB_ID.toString(), "taskid", 10, 0, "opname", "abc"),
+                        "metric7",
+                        7));
+
+        // a dump of a TaskManager that only runs attempt 3 of subtask 1, which stopped reporting
+        // metric7
+        store.addAll(
+                Collections.singletonList(
+                        new MetricDump.CounterDump(
+                                new QueryScopeInfo.OperatorQueryScopeInfo(
+                                        JOB_ID.toString(), "taskid", 1, 3, "opname", "abc"),
+                                "metric6",
+                                5)),
+                true);
+
+        MetricStore.TaskMetricStore taskStore =
+                store.getTaskMetricStore(JOB_ID.toString(), "taskid");
+        assertThat(taskStore.getSubtaskMetricStore(1).getAttemptsMetricStore(3).metrics)
+                .containsOnlyKeys("opname.abc.metric6");
+        assertThat(taskStore.getSubtaskMetricStore(1).metrics)
+                .containsOnlyKeys("opname.abc.metric6");
+        assertThat(taskStore.metrics)
+                .doesNotContainKey("1.opname.abc.metric7")
+                .containsKeys(
+                        "1.opname.abc.metric6",
+                        "8.abc.metric5",
+                        "8.opname.abc.metric6",
+                        "8.opname.abc.metric7",
+                        "10.opname.abc.metric7");
+        assertThat(taskStore.getSubtaskMetricStore(8).getAttemptsMetricStore(2).metrics)
+                .containsKeys("abc.metric5", "opname.abc.metric6", "opname.abc.metric7");
+        assertThat(taskStore.getSubtaskMetricStore(10).getAttemptsMetricStore(0).metrics)
+                .containsOnlyKeys("opname.abc.metric7");
+    }
+
+    @Test
+    void testAddAllKeepsMetricsOfIncompleteDump() {
+        MetricStore store = setupStore(new MetricStore());
+        QueryScopeInfo.OperatorQueryScopeInfo operator =
+                new QueryScopeInfo.OperatorQueryScopeInfo(
+                        JOB_ID.toString(), "taskid", 8, 2, "opname", "abc");
+
+        store.addAll(
+                Collections.singletonList(new MetricDump.CounterDump(operator, "metric6", 50)),
+                false);
+
+        MetricStore.TaskMetricStore taskStore =
+                store.getTaskMetricStore(JOB_ID.toString(), "taskid");
+        MetricStore.SubtaskMetricStore subtaskStore = taskStore.getSubtaskMetricStore(8);
+        assertThat(subtaskStore.getAttemptsMetricStore(2).metrics)
+                .containsEntry("opname.abc.metric6", "50")
+                .containsKeys(
+                        "abc.metric5", "abc." + MetricNames.TASK_BUSY_TIME, "opname.abc.metric7");
+        assertThat(subtaskStore.metrics)
+                .containsKeys("abc.metric5", "opname.abc.metric6", "opname.abc.metric7");
+        assertThat(taskStore.metrics)
+                .containsKeys("8.abc.metric5", "8.opname.abc.metric6", "8.opname.abc.metric7");
+    }
+
+    @Test
+    void testAddAllOnlyCleansUpAttemptStoreOfNonRepresentativeAttempt() {
+        MetricStore store = setupStore(new MetricStore());
+        // attempt 1 of subtask 8 is not the representative attempt (attempt 2 is)
+        QueryScopeInfo.TaskQueryScopeInfo task =
+                new QueryScopeInfo.TaskQueryScopeInfo(JOB_ID.toString(), "taskid", 8, 1, "abc");
+
+        store.addAll(
+                Collections.singletonList(new MetricDump.CounterDump(task, "metricX", 1)), true);
+
+        MetricStore.TaskMetricStore taskStore =
+                store.getTaskMetricStore(JOB_ID.toString(), "taskid");
+        MetricStore.SubtaskMetricStore subtaskStore = taskStore.getSubtaskMetricStore(8);
+        assertThat(subtaskStore.getAttemptsMetricStore(1).metrics).containsOnlyKeys("abc.metricX");
+        assertThat(subtaskStore.metrics)
+                .doesNotContainKey("abc.metricX")
+                .containsKeys("abc.metric5", "opname.abc.metric6", "opname.abc.metric7");
+        assertThat(taskStore.metrics)
+                .doesNotContainKey("8.abc.metricX")
+                .containsKeys("8.abc.metric5", "8.opname.abc.metric6", "8.opname.abc.metric7");
+    }
+
     @Nonnull
     private static Set<Integer> getTaskMetricStoreIndexes(
             MetricStore.TaskMetricStore taskMetricStore) {
