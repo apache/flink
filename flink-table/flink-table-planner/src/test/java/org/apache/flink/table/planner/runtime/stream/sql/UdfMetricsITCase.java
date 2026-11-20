@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,11 +43,13 @@ import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.event.Level;
 
 import java.lang.invoke.MethodHandle;
 import java.time.LocalDateTime;
@@ -85,6 +88,11 @@ class UdfMetricsITCase {
                             .setNumberSlotsPerTaskManager(1)
                             .setConfiguration(reporter.addToConfiguration(new Configuration()))
                             .build());
+
+    // Metric groups log a rejected duplicate registration through the MetricGroup logger.
+    @RegisterExtension
+    private final LoggerAuditingExtension metricGroupLog =
+            new LoggerAuditingExtension(MetricGroup.class, Level.WARN);
 
     private static final List<Row> SOURCE_ROWS = Arrays.asList(Row.of(1), Row.of(2), Row.of(3));
 
@@ -125,6 +133,16 @@ class UdfMetricsITCase {
     public static class AlwaysThrows extends ScalarFunction {
         public Integer eval(Integer i) {
             throw new RuntimeException("boom");
+        }
+    }
+
+    /** Doubles an int, but throws for 3. */
+    public static class DoublerThrowingOnThree extends ScalarFunction {
+        public Integer eval(Integer i) {
+            if (i != null && i == 3) {
+                throw new RuntimeException("boom");
+            }
+            return i == null ? null : i * 2;
         }
     }
 
@@ -565,6 +583,65 @@ class UdfMetricsITCase {
                 .isEqualTo(SOURCE_ROWS.size());
         assertThat(histogram(jobId, processingTimePattern("negateudf")).getCount())
                 .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testCorrelateInvocationAndConditionShareOneHandle() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("tableudf", DuplicateRows.class);
+        tEnv.createTemporarySystemFunction("throwudf", DoublerThrowingOnThree.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        TableResult result =
+                tEnv.executeSql(
+                        "INSERT INTO sink SELECT x FROM src, "
+                                + "LATERAL TABLE(tableudf(throwudf(id))) AS T(x) "
+                                + "WHERE throwudf(x) > 0");
+        JobID jobId = result.getJobClient().get().getJobID();
+        assertThatThrownBy(result::await).isInstanceOf(Exception.class);
+
+        // The invocation calls throwudf on 1 and 2 and throws on 3. The condition, generated into
+        // the collector class of the same operator, calls it on 2, 2, 4 and 4. Both classes
+        // report to one group: 2 + 4 samples and the exception.
+        assertThat(histogram(jobId, processingTimePattern("throwudf")).getCount()).isEqualTo(6);
+        assertThat(counter(jobId, exceptionCountPattern("throwudf")).getCount()).isEqualTo(1);
+        assertThat(metricGroupLog.getMessages())
+                .noneMatch(m -> m.contains("Name collision") && m.contains("throwudf"));
+    }
+
+    @Test
+    void testLookupJoinPreFilterAndConditionShareOneHandle() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("lookupudf", IntDoubler.class);
+        String probeId = TestValuesTableFactory.registerData(SOURCE_ROWS);
+        tEnv.executeSql(
+                "CREATE TABLE probe (id INT, proctime AS PROCTIME()) WITH ("
+                        + "'connector' = 'values', 'bounded' = 'true', 'data-id' = '"
+                        + probeId
+                        + "')");
+        String dimId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(Row.of(1, 10), Row.of(2, 20), Row.of(3, 30)));
+        tEnv.executeSql(
+                "CREATE TABLE dim (id INT, v INT) WITH ("
+                        + "'connector' = 'values', 'data-id' = '"
+                        + dimId
+                        + "')");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT dim.v FROM probe "
+                                + "LEFT JOIN dim FOR SYSTEM_TIME AS OF probe.proctime "
+                                + "ON probe.id = dim.id AND lookupudf(probe.id) > 2 "
+                                + "AND lookupudf(dim.v) > probe.id");
+
+        // The probe-side predicate is generated into a pre-filter class and the other one into
+        // the join condition class of the same operator. lookupudf runs on 1, 2 and 3 in the
+        // pre-filter and on 20 and 30 in the condition: 5 samples in one group.
+        assertThat(histogram(jobId, processingTimePattern("lookupudf")).getCount()).isEqualTo(5);
     }
 
     /**

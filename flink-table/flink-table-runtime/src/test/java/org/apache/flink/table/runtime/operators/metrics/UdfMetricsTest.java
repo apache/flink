@@ -20,13 +20,18 @@ package org.apache.flink.table.runtime.operators.metrics;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.ThreadSafeSimpleCounter;
 import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -132,6 +137,45 @@ class UdfMetricsTest {
         assertThat(firstCounter.getCount()).isEqualTo(1L);
         assertThat(secondHistogram.getCount()).isZero();
         assertThat(secondCounter.getCount()).isZero();
+    }
+
+    @Test
+    void restartedOperatorGetsNewHandle() {
+        MetricGroup firstAttempt = metricListener.getMetricGroup().addGroup("operator");
+        UdfMetrics first = UdfMetrics.register(firstAttempt, "myUdf", 1);
+        ((AbstractMetricGroup<?>) firstAttempt).close();
+
+        // Same scope as the closed group, but a new group instance, as for a restarted task.
+        MetricGroup secondAttempt = metricListener.getMetricGroup().addGroup("operator");
+        UdfMetrics second = UdfMetrics.register(secondAttempt, "myUdf", 1);
+        second.update(10L);
+
+        assertThat(second).isNotSameAs(first);
+        assertThat(
+                        metricListener
+                                .getHistogram("operator", "udf", "myUdf", "udfProcessingTime")
+                                .get()
+                                .getCount())
+                .isEqualTo(1L);
+    }
+
+    @Test
+    void doesNotRetainOperatorMetricGroup() throws Exception {
+        WeakReference<MetricGroup> operatorGroup = registerOnUnreferencedGroup();
+
+        for (int i = 0; i < 10 && operatorGroup.get() != null; i++) {
+            System.gc();
+            Thread.sleep(50);
+        }
+
+        assertThat(operatorGroup.get()).isNull();
+    }
+
+    private static WeakReference<MetricGroup> registerOnUnreferencedGroup() {
+        MetricGroup operatorGroup =
+                new GenericMetricGroup(NoOpMetricRegistry.INSTANCE, null, "operator");
+        UdfMetrics.register(operatorGroup, "myUdf", 1);
+        return new WeakReference<>(operatorGroup);
     }
 
     private UdfMetrics register(String udfName, int sampleInterval) {
