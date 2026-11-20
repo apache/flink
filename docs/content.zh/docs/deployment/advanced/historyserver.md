@@ -134,6 +134,11 @@ historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<t
 
 <a name="available-requests"></a>
 
+### YARN 日志 URL
+
+在 YARN 上运行时，可以在**作业集群**（而非 HistoryServer）的配置中将 [`historyserver.yarn.log.enable-custom-url-handlers`]({{< ref "docs/deployment/config" >}}#historyserver-yarn-log-enable-custom-url-handlers) 设置为 `true`，让 JobManager 提供并归档 JobManager 和 TaskManager 的 YARN NodeManager 日志 URL。
+URL 由 JobManager 容器的 `CONTAINER_ID`、`NM_HOST`、`NM_HTTP_PORT` 和 `USER` 环境变量构造。该功能假定所有 NodeManager 使用相同的 Web 端口且使用 `http`。如果这些环境变量未设置，则使用默认的日志 URL。如果配置了上述 HistoryServer 日志 URL 模板，则其优先于归档的 URL。
+
 ## 可用的请求
 
 以下是可用的请求列表。所有请求格式样例均为 `http://hostname:8082/jobs`，下面我们仅列出了 URLs 的 *path* 部分。
