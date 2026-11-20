@@ -465,6 +465,26 @@ class UdfMetricsITCase {
     }
 
     @Test
+    void testBuiltInFunctionsNotMetered() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("userudf", IntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "t STRING, v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT TYPEOF(x), userudf(x) FROM src "
+                                + "CROSS JOIN UNNEST(ARRAY[id]) AS T(x)");
+
+        // TYPEOF and the function the planner adds for UNNEST are built-ins with a runtime class,
+        // generated through the same path as user-defined functions. Only userudf is metered.
+        assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).hasSize(1);
+        assertThat(histogram(jobId, processingTimePattern("userudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
     void testRepeatedFunctionSharesOneHandle() throws Exception {
         StreamTableEnvironment tEnv = createTableEnv(true);
         tEnv.createTemporarySystemFunction("sharedudf", IntDoubler.class);
