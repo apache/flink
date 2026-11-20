@@ -22,12 +22,17 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.client.cli.util.DummyClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.AfterAll;
@@ -35,6 +40,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
@@ -181,6 +187,73 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         assertThat(savepointSettings.getRecoveryClaimMode()).isEqualTo(expectedMode);
         assertThat(savepointSettings.getRestorePath()).isEqualTo("expectedSavepointPath");
         assertThat(savepointSettings.allowNonRestoredState()).isTrue();
+    }
+
+    @Test
+    void testClaimRestoreModeParsingWithoutSavepoint() throws Exception {
+        testRestoreModeWithoutSavepoint("--claimMode", "claim", RecoveryClaimMode.CLAIM);
+    }
+
+    @Test
+    void testNoClaimRestoreModeParsingWithoutSavepoint() throws Exception {
+        testRestoreModeWithoutSavepoint("-rm", "no_claim", RecoveryClaimMode.NO_CLAIM);
+    }
+
+    @Test
+    void testNoRestoreModeAndNoSavepointParsing() throws Exception {
+        String[] parameters = {getTestJarPath()};
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+
+        assertThat(CliFrontendParser.createSavepointRestoreSettings(commandLine))
+                .isEqualTo(SavepointRestoreSettings.none());
+    }
+
+    private void testRestoreModeWithoutSavepoint(
+            String flag, String arg, RecoveryClaimMode expectedMode) throws Exception {
+        String[] parameters = {flag, arg, getTestJarPath()};
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+
+        SavepointRestoreSettings savepointSettings =
+                ExecutionConfigAccessor.fromProgramOptions(
+                                ProgramOptions.create(commandLine), Collections.emptyList())
+                        .getSavepointRestoreSettings();
+
+        assertThat(savepointSettings.restoreSavepoint()).isFalse();
+        assertThat(savepointSettings.getRestorePath()).isNull();
+        assertThat(savepointSettings.getRecoveryClaimMode()).isEqualTo(expectedMode);
+
+        // containsKey rather than get: an explicitly requested mode must be written even when it
+        // equals the default, which is what distinguishes it from no override at all.
+        Configuration configuration = new Configuration();
+        SavepointRestoreSettings.toConfiguration(savepointSettings, configuration);
+        assertThat(configuration.containsKey(StateRecoveryOptions.RESTORE_MODE.key())).isTrue();
+        assertThat(configuration.get(StateRecoveryOptions.RESTORE_MODE)).isEqualTo(expectedMode);
+    }
+
+    @ParameterizedTest
+    @EnumSource(RecoveryClaimMode.class)
+    void testPathlessRecoveryClaimModeThroughApplicationGraph(RecoveryClaimMode mode)
+            throws Exception {
+        Configuration configuration = new Configuration();
+        SavepointRestoreSettings expected =
+                SavepointRestoreSettings.forRecoveryClaimMode(null, mode);
+        SavepointRestoreSettings.toConfiguration(expected, configuration);
+
+        StreamGraph graph =
+                new StreamGraphGenerator(
+                                Collections.emptyList(),
+                                new ExecutionConfig(),
+                                new CheckpointConfig(),
+                                configuration)
+                        .generate();
+
+        assertThat(graph.getSavepointRestoreSettings()).isEqualTo(expected);
+        assertThat(
+                        PipelineExecutorUtils.getStreamGraph(graph, configuration)
+                                .getSavepointRestoreSettings())
+                .isEqualTo(expected);
     }
 
     @Test
