@@ -974,7 +974,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY)
                     .runtimeProvided()
-                    // SNAPSHOT does not support the implicit PTF system arguments (on_time, uid)
+                    // SNAPSHOT does not support the implicit PTF system argument (uid)
                     .disableSystemArguments(true)
                     .notDeterministic()
                     .build();
