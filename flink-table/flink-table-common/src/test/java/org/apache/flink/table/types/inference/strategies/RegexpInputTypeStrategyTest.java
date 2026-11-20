@@ -47,6 +47,17 @@ class RegexpInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, null)
                         .expectArgumentTypes(DataTypes.STRING(), DataTypes.STRING()),
+                TestSpec.forStrategy("Untyped NULL string is inferred as VARCHAR", REGEXP)
+                        .calledWithArgumentTypes(DataTypes.NULL(), DataTypes.STRING())
+                        .expectArgumentTypes(DataTypes.VARCHAR(1), DataTypes.STRING()),
+                TestSpec.forStrategy("Untyped NULL regex is inferred as VARCHAR", REGEXP)
+                        .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.NULL())
+                        .calledWithLiteralAt(1, null)
+                        .expectArgumentTypes(DataTypes.STRING(), DataTypes.VARCHAR(1)),
+                TestSpec.forStrategy("Untyped NULL arguments are inferred as VARCHAR", REGEXP)
+                        .calledWithArgumentTypes(DataTypes.NULL(), DataTypes.NULL())
+                        .calledWithLiteralAt(1, null)
+                        .expectArgumentTypes(DataTypes.VARCHAR(1), DataTypes.VARCHAR(1)),
 
                 // Invalid literal regex surfaces as a ValidationException at plan time.
                 TestSpec.forStrategy("Invalid literal regex fails at plan time", REGEXP)
