@@ -29,6 +29,7 @@ import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.AsyncScalarFunction;
@@ -55,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -304,6 +306,34 @@ class UdfMetricsITCase {
 
         assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).isEmpty();
         assertThat(reporter.findMetrics(jobId, ANY_EXCEPTION_COUNT_PATTERN)).isEmpty();
+    }
+
+    @Test
+    void testInvalidSampleIntervalRejectedAtSubmission() {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL, 0);
+        tEnv.createTemporarySystemFunction("intervaludf", IntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        assertThatThrownBy(
+                        () -> tEnv.executeSql("INSERT INTO sink SELECT intervaludf(id) FROM src"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "UDF metric sample interval must be >= 1, but was 0. "
+                                + "Set 'table.exec.udf-metric.sample-interval' to 1 or more.");
+    }
+
+    @Test
+    void testInvalidSampleIntervalIgnoredWhenDisabled() {
+        StreamTableEnvironment tEnv = createTableEnv(false);
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL, 0);
+        tEnv.createTemporarySystemFunction("offintervaludf", IntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        assertThatCode(() -> execute(tEnv, "INSERT INTO sink SELECT offintervaludf(id) FROM src"))
+                .doesNotThrowAnyException();
     }
 
     @Test
