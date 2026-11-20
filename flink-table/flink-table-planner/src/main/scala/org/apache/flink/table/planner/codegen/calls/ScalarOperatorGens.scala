@@ -1143,7 +1143,8 @@ object ScalarOperatorGens {
 
   def generateDot(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
 
     // due to https://issues.apache.org/jira/browse/CALCITE-2162, expression such as
     // "array[1].a.b" won't work now.
@@ -1183,12 +1184,7 @@ object ScalarOperatorGens {
          |}
          |""".stripMargin
 
-    GeneratedExpression(
-      resultTerm,
-      nullTerm,
-      resultCode,
-      access.resultType
-    )
+    GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
   }
 
   // ----------------------------------------------------------------------------------------
@@ -1458,7 +1454,8 @@ object ScalarOperatorGens {
   def generateArrayElementAt(
       ctx: CodeGeneratorContext,
       array: GeneratedExpression,
-      index: GeneratedExpression): GeneratedExpression = {
+      index: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
     val componentInfo = array.resultType.asInstanceOf[ArrayType].getElementType
     val resultTypeTerm = primitiveTypeTermForType(componentInfo)
@@ -1478,20 +1475,21 @@ object ScalarOperatorGens {
          |   $idxStr < 0 || $idxStr >= ${array.resultTerm}.size() || $arrayIsNull;
          |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
          |""".stripMargin
-    GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, componentInfo)
+    GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, resultType)
   }
 
   def generateArrayElement(
       ctx: CodeGeneratorContext,
-      array: GeneratedExpression): GeneratedExpression = {
+      array: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
-    val resultType = array.resultType.asInstanceOf[ArrayType].getElementType
-    val resultTypeTerm = primitiveTypeTermForType(resultType)
-    val defaultValue = primitiveDefaultValue(resultType)
+    val elementType = array.resultType.asInstanceOf[ArrayType].getElementType
+    val resultTypeTerm = primitiveTypeTermForType(elementType)
+    val defaultValue = primitiveDefaultValue(elementType)
 
     val arrayLengthCode = s"${array.nullTerm} ? 0 : ${array.resultTerm}.size()"
 
-    val arrayGet = rowFieldReadAccess(0, array.resultTerm, resultType)
+    val arrayGet = rowFieldReadAccess(0, array.resultTerm, elementType)
     val arrayAccessCode =
       s"""
          |${array.code}
@@ -1645,7 +1643,8 @@ object ScalarOperatorGens {
   def generateMapGet(
       ctx: CodeGeneratorContext,
       map: GeneratedExpression,
-      key: GeneratedExpression): GeneratedExpression = {
+      key: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
     val tmpKey = newName(ctx, "key")
     val length = newName(ctx, "length")
@@ -1736,7 +1735,7 @@ object ScalarOperatorGens {
          |}
         """.stripMargin
 
-    GeneratedExpression(resultTerm, nullTerm, accessCode, valueType)
+    GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
   }
 
   def generateMapCardinality(
