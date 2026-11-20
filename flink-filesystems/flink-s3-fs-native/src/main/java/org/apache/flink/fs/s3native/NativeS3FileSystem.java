@@ -202,6 +202,18 @@ class NativeS3FileSystem extends FileSystem
         return new Path(uri);
     }
 
+    /**
+     * Returns the status of the object or prefix at {@code path}. An object whose key ends in "/"
+     * is a directory; a zero-length object is a file unless its key is such a directory marker or
+     * has children under key + "/"; a key with no object is a directory when children exist under
+     * it and is otherwise reported as not found.
+     *
+     * <p>Pinned by: NativeS3FileSystemTest#emptyObjectWithoutChildrenIsAFile,
+     * #emptyObjectWithoutLengthAndModificationHeadersIsAFile, #emptyObjectWithChildrenIsADirectory,
+     * #directoryMarkerKeyIsADirectory, #directoryMarkerKeyWithContentIsADirectory,
+     * #missingKeyWithChildrenIsADirectory, #missingKeyWithCommonPrefixIsADirectory,
+     * #missingKeyWithoutChildrenIsNotFound.
+     */
     @Override
     public FileStatus getFileStatus(Path path) throws IOException {
         checkNotClosed();
@@ -216,21 +228,27 @@ class NativeS3FileSystem extends FileSystem
 
             final HeadObjectResponse response = s3Client.headObject(request);
             final Long contentLength = response.contentLength();
-
-            // In S3, a successful HeadObject with null/zero contentLength means
-            // this is a directory marker (prefix), not an actual file
-            if (contentLength == null || contentLength == 0) {
-                LOG.debug(
-                        "HeadObject returned null/zero content length, verifying if directory: {}",
-                        key);
-                return getDirectoryStatus(s3Client, key, path);
-            }
-
-            final long size = contentLength;
             final long modificationTime =
                     (response.lastModified() != null)
                             ? response.lastModified().toEpochMilli()
                             : System.currentTimeMillis();
+
+            if (key.endsWith("/")) {
+                LOG.debug("Path is a directory marker: {}", key);
+                return S3FileStatus.withDirectory(path);
+            }
+
+            // A zero-length object is a directory when children exist under its key, and an
+            // empty file otherwise.
+            if (contentLength == null || contentLength == 0) {
+                if (hasChildren(s3Client, key)) {
+                    LOG.debug("Path is a directory: {}", key);
+                    return S3FileStatus.withDirectory(path);
+                }
+                return S3FileStatus.withFile(0L, modificationTime, path);
+            }
+
+            final long size = contentLength;
 
             LOG.trace(
                     "HeadObject successful for {} - size: {}, lastModified: {}",
@@ -275,23 +293,29 @@ class NativeS3FileSystem extends FileSystem
     }
 
     /**
-     * Checks if the given key represents a directory by listing objects with that prefix. Returns a
-     * directory {@link FileStatus} if objects exist under the prefix, otherwise throws {@link
-     * FileNotFoundException}.
+     * Returns a directory {@link FileStatus} when objects exist under the key's prefix and throws
+     * {@link FileNotFoundException} otherwise.
      */
     private FileStatus getDirectoryStatus(S3Client s3Client, String key, Path path)
             throws FileNotFoundException {
-        final String prefix = key.endsWith("/") ? key : key + "/";
-        final ListObjectsV2Request listRequest =
-                ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).maxKeys(1).build();
-        final ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
-
-        if (listResponse.contents().isEmpty() && !listResponse.hasCommonPrefixes()) {
+        if (!hasChildren(s3Client, key)) {
             throw new FileNotFoundException("File not found: " + path);
         }
 
         LOG.debug("Path is a directory: {}", key);
         return S3FileStatus.withDirectory(path);
+    }
+
+    /**
+     * Lists at most one key under {@code key + "/"} (the key itself when it already ends in "/")
+     * and reports whether the listing holds an object or a common prefix.
+     */
+    private boolean hasChildren(S3Client s3Client, String key) {
+        final String prefix = key.endsWith("/") ? key : key + "/";
+        final ListObjectsV2Request listRequest =
+                ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).maxKeys(1).build();
+        final ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
+        return !listResponse.contents().isEmpty() || !listResponse.commonPrefixes().isEmpty();
     }
 
     @Override
