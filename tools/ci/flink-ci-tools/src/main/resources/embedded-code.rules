@@ -1,0 +1,176 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# Third-party code that Netty, and Conscrypt next to it, embed in their own classes and native
+# libraries. Their jars carry none of these licenses, so every jar that contains the code has to
+# ship them.
+#
+# Each [section] is one embedded component:
+#   marker  = regex for a jar entry that contains the code (any match counts; repeatable)
+#   license = file in META-INF/licenses/ that must be present (any one of them; repeatable)
+#   license-text = text that the license file must contain
+#   notice  = text that META-INF/NOTICE must contain (all of them; repeatable)
+#   native  = regex for a native library that is Netty's own code and owes nothing extra
+# A license file listed here that no marker in the jar justifies is reported as well.
+#
+# The markers come from the file headers of Netty's main sources, from the commits that added
+# each entry to Netty's NOTICE.txt, and from the shade configuration of netty-common (JCTools),
+# for every netty-4.1.*.Final and netty-4.2.*.Final tag up to the versions below. A jar that
+# bundles a newer Netty fails until the sources of that version are checked again:
+#   git grep -n -i -E 'copyright|public domain|written by|derived from' <tag> -- '*/src/main/*' \
+#     | grep -v 'The Netty Project'
+# and NOTICE.txt of that tag is compared with the sections below.
+verified-netty = 4.1.141.Final
+verified-netty = 4.2.21.Final
+
+[netty]
+marker = (.*/)?io/netty/.+\.class
+notice = Copyright 2014 The Netty Project
+
+[jsr166y]
+marker = (.*/)?io/netty/util/internal/ThreadLocalRandom(\$.*)?\.class
+marker = (.*/)?io/netty/util/concurrent/ConcurrentSkipListIntObjMultimap(\$.*)?\.class
+marker = (.*/)?io/netty/util/internal/chmv8/.+\.class
+license = LICENSE.jsr166y.txt
+license-text = public domain
+
+[base64]
+marker = (.*/)?io/netty/handler/codec/base64/Base64(Dialect)?(\$.*)?\.class
+license = LICENSE.base64.txt
+license-text = public domain
+
+[webbit]
+marker = (.*/)?io/netty/handler/codec/http/websocketx/WebSocket(07|08|13)Frame(De|En)coder(\$.*)?\.class
+license = LICENSE.webbit.txt
+license-text = Joe Walnes
+
+# Not in Netty's NOTICE.txt; the license is in the header of Utf8Validator.java.
+[hoehrmann-utf8]
+marker = (.*/)?io/netty/handler/codec/http/websocketx/Utf8Validator(\$.*)?\.class
+license = LICENSE.hoehrmann-utf8.txt
+license-text = Bjoern Hoehrmann
+
+[slf4j]
+marker = (.*/)?io/netty/util/internal/logging/(CommonsLogger|FormattingTuple|InternalLogger|JdkLogger|Log4JLogger|MessageFormatter)(\$.*)?\.class
+license = LICENSE.slf4j.txt
+license-text = QOS.ch
+
+[harmony]
+marker = (.*/)?io/netty/util/NetUtil(\$.*)?\.class
+notice = Apache Harmony
+
+[jbzip2]
+marker = (.*/)?io/netty/handler/codec/compression/Bzip2Decoder(\$.*)?\.class
+license = LICENSE.jbzip2.txt
+license-text = Matthew J. Francis
+
+[libdivsufsort]
+marker = (.*/)?io/netty/handler/codec/compression/Bzip2DivSufSort(\$.*)?\.class
+license = LICENSE.libdivsufsort.txt
+license-text = Yuta Mori
+
+[jctools]
+marker = (.*/)?io/netty/util/internal/shaded/org/jctools/.+\.class
+marker = (.*/)?io/netty/util/concurrent/MpscAtomicIntegerArrayQueue(\$.*)?\.class
+notice = JCTools
+
+[jfastlz]
+marker = (.*/)?io/netty/handler/codec/compression/FastLz(\$.*)?\.class
+license = LICENSE.jfastlz.txt
+license-text = William Kinney
+
+[protobuf]
+marker = (.*/)?io/netty/handler/codec/protobuf/ProtobufVarint32(FrameDecoder|LengthFieldPrepender)(\$.*)?\.class
+license = LICENSE.protobuf.txt
+license-text = Google Inc.
+
+[twitter-hpack]
+marker = (.*/)?io/netty/handler/codec/http2/Hpack(Decoder|Encoder|DynamicTable|HeaderField|HuffmanDecoder|HuffmanEncoder|StaticTable|Util)(\$.*)?\.class
+marker = (.*/)?io/netty/handler/codec/http2/internal/hpack/.+\.class
+notice = twitter/hpack
+
+# Added to Netty's NOTICE.txt in 4.1.38 together with the table-driven HpackHuffmanDecoder. The
+# class itself exists since 4.1.9, so a Netty from 4.1.9 to 4.1.37 is asked for both licenses
+# needlessly; Flink bundles none that old.
+[hyper-hpack]
+marker = (.*/)?io/netty/handler/codec/http2/HpackHuffmanDecoder(\$.*)?\.class
+license = LICENSE.hyper-hpack.txt
+license-text = Cory Benfield
+
+[nghttp2-hpack]
+marker = (.*/)?io/netty/handler/codec/http2/HpackHuffmanDecoder(\$.*)?\.class
+license = LICENSE.nghttp2-hpack.txt
+license-text = Tatsuhiro Tsujikawa
+
+# Netty added this to NOTICE.txt in 2015 with the regionMatches helpers of AsciiString
+# (netty/netty@2a65ae256e); every netty-common since then contains them. The text is Netty's
+# own: many jars also carry Apache Commons Lang's NOTICE, which starts with the project name.
+[commons-lang]
+marker = (.*/)?io/netty/util/AsciiString(\$.*)?\.class
+notice = a modified portion of 'Apache Commons Lang'
+
+[dnsinfo]
+marker = META-INF/native/[^/]*netty_resolver_dns_native_macos[^/]*
+license = LICENSE.dnsinfo.txt
+license-text = Apple
+
+# netty-tcnative, classes and natives, is a fork of Tomcat Native with a NOTICE of its own.
+[tcnative]
+marker = (.*/)?io/netty/internal/tcnative/.+\.class
+marker = META-INF/native/[^/]*netty_tcnative[^/]*
+notice = Copyright 2016 The Netty Project
+notice = Tomcat Native
+
+# The tcnative natives link BoringSSL statically. BoringSSL is under the OpenSSL license before
+# February 2025 and under the Apache License 2.0 since then; the jar doesn't tell which applies.
+[tcnative-boringssl]
+marker = META-INF/native/[^/]*netty_tcnative[^/]*
+license = LICENSE.boringssl.txt
+license = LICENSE.boringssl-openssl.txt
+
+# Conscrypt 2.5.2, the version gcs-connector uses, links a BoringSSL from before February 2025.
+[conscrypt]
+marker = META-INF/native/[^/]*conscrypt_openjdk_jni[^/]*
+license = LICENSE.boringssl-openssl.txt
+license-text = OpenSSL
+
+# Conscrypt's NOTICE isn't part of its jar.
+[conscrypt-notice]
+marker = (.*/)?org/conscrypt/Conscrypt(\$.*)?\.class
+notice = Copyright 2016 The Android Open Source Project
+
+[quiche]
+marker = META-INF/native/[^/]*netty_quiche[^/]*
+license = LICENSE.quiche.txt
+license-text = Cloudflare
+
+[quiche-boringssl]
+marker = META-INF/native/[^/]*netty_quiche[^/]*
+license = LICENSE.boringssl.txt
+
+# The OpenSSL and SSLeay licenses ask binary redistributions to acknowledge the OpenSSL Project,
+# Eric Young and Tim Hudson in their documentation, as Tomcat Native's NOTICE does.
+[openssl-acknowledgment]
+marker = META-INF/licenses/LICENSE\.boringssl-openssl\.txt
+notice = OpenSSL Project
+notice = Eric Young
+notice = Tim Hudson
+
+[netty-natives]
+native = META-INF/native/[^/]*netty_transport_native_(epoll|kqueue)[^/]*
+native = META-INF/native/[^/]*netty_transport_native_io_uring[^/]*
