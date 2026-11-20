@@ -43,7 +43,10 @@ the extended interfaces for Table and DataStream independently. The interface an
 {{< img src="/fig/lineage_interfaces.png" alt="Lineage Data Model" width="80%">}}
 
 By default, Table related lineage interfaces or classes are used in Flink Table environment, thus Flink users doesn't need to touch these interfaces. The Flink community will gradually support all
-of the common connectors, such as Kafka, JDBC, Cassandra, Hive. If you have a customized connector defined, you need to have customized source/sink implementations of the LineageVertexProvider interface.
+of the common connectors, such as Kafka, JDBC, Cassandra, Hive.
+
+If you have a customized connector defined, you need to have customized source/sink implementations of the LineageVertexProvider interface. When a connector uses `DataStreamScanProvider` or `DataStreamSinkProvider`, the provider class can also implement `LineageVertexProvider` to supply lineage metadata.
+
 Within a LineageVertex, a list of Lineage Datasets are defined as metadata for Flink source/sink. 
 
 
