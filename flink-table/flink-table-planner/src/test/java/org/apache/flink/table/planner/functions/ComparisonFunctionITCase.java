@@ -28,12 +28,21 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.CHAR;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.array;
+import static org.apache.flink.table.api.Expressions.map;
+import static org.apache.flink.table.api.Expressions.row;
 
 /**
  * Tests for comparison functions such as {@link BuiltInFunctionDefinitions#EQUALS}, {@link
@@ -70,6 +79,42 @@ public class ComparisonFunctionITCase extends BuiltInFunctionTestBase {
                         .testResult($("f1").isEqual($("f2")), "f1 = f2", false, DataTypes.BOOLEAN())
                         .testResult(
                                 $("f2").isEqual($("f1")), "f2 = f1", false, DataTypes.BOOLEAN()),
+                // CASE WHEN takes the ELSE branch when the condition is NULL.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.NOT_EQUALS, "NULL ARRAY, MAP and ROW")
+                        .onFieldsWithData(null, null, null)
+                        .andDataTypes(ARRAY(INT()), MAP(STRING(), STRING()), ROW(FIELD("f", INT())))
+                        .testResult(
+                                resultSpec(
+                                        $("f0").isNotEqual(array(2)),
+                                        "f0 <> ARRAY[2]",
+                                        null,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        $("f1").isNotEqual(map("a", "b")),
+                                        "f1 <> MAP['a', 'b']",
+                                        null,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        $("f2").isNotEqual(row(2)),
+                                        "f2 <> ROW(2)",
+                                        null,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        $("f0").isNotEqual(array(2)).then("T", "F"),
+                                        "CASE WHEN f0 <> ARRAY[2] THEN 'T' ELSE 'F' END",
+                                        "F",
+                                        CHAR(1).notNull()),
+                                resultSpec(
+                                        $("f1").isNotEqual(map("a", "b")).then("T", "F"),
+                                        "CASE WHEN f1 <> MAP['a', 'b'] THEN 'T' ELSE 'F' END",
+                                        "F",
+                                        CHAR(1).notNull()),
+                                resultSpec(
+                                        $("f2").isNotEqual(row(2)).then("T", "F"),
+                                        "CASE WHEN f2 <> ROW(2) THEN 'T' ELSE 'F' END",
+                                        "F",
+                                        CHAR(1).notNull())),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.GREATER_THAN)
                         .onFieldsWithData(ltz3, ltz0, tmstmp3.minusSeconds(1))
                         .andDataTypes(TIMESTAMP_LTZ(3), TIMESTAMP_LTZ(0), TIMESTAMP(3))
