@@ -899,7 +899,18 @@ public final class BuiltInFunctionDefinitions {
                                                                                                     String,
                                                                                                     String>)
                                                                                             mapping,
-                                                                                    "DELETE"))))),
+                                                                                    "DELETE")))))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES,
+                                            // Retractions carry old timestamps, only inserts and
+                                            // updates carry the current one
+                                            TraitCondition.argMatches(
+                                                    "op_mapping",
+                                                    Map.class,
+                                                    mapping ->
+                                                            forwardsOnlyInsertsAndUpdates(
+                                                                    (Map<String, String>)
+                                                                            mapping))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
@@ -3647,6 +3658,11 @@ public final class BuiltInFunctionDefinitions {
      * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the user-provided {@code
      * op_mapping} argument.
      */
+    private static boolean forwardsOnlyInsertsAndUpdates(final Map<String, String> opMapping) {
+        return !opMappingContainsKey(opMapping, "UPDATE_BEFORE")
+                && !opMappingContainsKey(opMapping, "DELETE");
+    }
+
     private static boolean opMappingContainsKey(
             final Map<String, String> opMapping, final String key) {
         return opMapping.keySet().stream()

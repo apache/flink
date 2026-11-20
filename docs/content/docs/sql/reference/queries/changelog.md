@@ -431,6 +431,10 @@ The output schema is:
 
 All output rows have `INSERT` - the table is always append-only.
 
+### Time Attributes
+
+Time attributes of the input, such as a watermarked `ts`, stay time attributes in the output only if `op_mapping` forwards just `INSERT` and `UPDATE_AFTER`. Update-before and delete rows carry the timestamp of the previous version of the row, so with any other `op_mapping`, including the default, time columns become regular timestamps. To use event-time operations such as windows, `OVER ... ORDER BY ts` or interval joins on the output, use `op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER']` instead of filtering with `WHERE`, or use [TO_APPEND](#to_append) if you don't need the op column.
+
 ### Examples
 
 #### Basic usage

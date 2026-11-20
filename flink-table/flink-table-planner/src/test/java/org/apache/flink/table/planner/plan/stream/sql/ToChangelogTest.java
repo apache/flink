@@ -195,4 +195,20 @@ public class ToChangelogTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values')");
         util.verifyRelPlan("SELECT * FROM TO_CHANGELOG(input => TABLE timed_source)");
     }
+
+    @Test
+    void testTimeAttributesForwardedForInsertsAndUpdates() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE timed_source ("
+                                + "  id INT,"
+                                + "  ts TIMESTAMP(3),"
+                                + "  pt AS PROCTIME(),"
+                                + "  WATERMARK FOR ts AS ts"
+                                + ") WITH ('connector' = 'values')");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE timed_source, "
+                        + "op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER'])");
+    }
 }
