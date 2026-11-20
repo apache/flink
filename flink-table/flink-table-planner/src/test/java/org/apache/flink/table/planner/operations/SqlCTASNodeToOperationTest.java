@@ -101,6 +101,41 @@ class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTestBase {
     }
 
     @Test
+    void testCreateTableAsWithRepeatedColumnNames() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .options(TABLE_OPTIONS)
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        assertThatThrownBy(
+                        () ->
+                                parseAndConvert(
+                                        "create table tbl1 (f0, f0, f1) AS SELECT * FROM src1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A column named 'f0' already exists in the schema.");
+        assertThatThrownBy(
+                        () ->
+                                parseAndConvert(
+                                        "create table tbl1 (f0 int, f0 bigint) AS SELECT * FROM src1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A column named 'f0' already exists in the schema.");
+        assertThatThrownBy(
+                        () ->
+                                parseAndConvert(
+                                        "create table tbl1 (c0 int, c0 bigint) AS SELECT * FROM src1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A column named 'c0' already exists in the schema.");
+    }
+
+    @Test
     void testCreateTableAsWithColumns() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()

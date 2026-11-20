@@ -117,17 +117,8 @@ final class DescriptorMaterializedTableMergeContext implements MaterializedTable
         final AsQuerySchemaMerger merger =
                 new AsQuerySchemaMerger(querySchemaDeclaration.getColumns(), dataTypeFactory);
         final List<UnresolvedColumn> declaredColumns = declaredSchema.getColumns();
-        // Schema.Builder accepts repeated names, and the merger only rejects a repeat of a column
-        // the query doesn't produce.
-        final Set<String> declaredNames = new HashSet<>();
         for (int position = 0; position < declaredColumns.size(); position++) {
             final UnresolvedColumn column = declaredColumns.get(position);
-            if (!declaredNames.add(column.getName())) {
-                throw new ValidationException(
-                        String.format(
-                                "A column named '%s' already exists in the schema.",
-                                column.getName()));
-            }
             merger.addDeclaredColumn(withDefaultConversionClass(column), position);
         }
 
