@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.scheduling;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Source;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -218,6 +220,11 @@ abstract class ForwardEdgeParallelismMismatchITCaseBase {
 
     /** Creates a {@code source -> forward -> sink} job with the initial parallelism. */
     JobGraph createJobGraph(Source<Long, ?, ?> source) {
+        return createStreamGraph(source).getJobGraph();
+    }
+
+    /** The {@link StreamGraph} of {@link #createJobGraph}. */
+    StreamGraph createStreamGraph(Source<Long, ?, ?> source) {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(createConfiguration());
         env.setRuntimeMode(
@@ -232,7 +239,9 @@ abstract class ForwardEdgeParallelismMismatchITCaseBase {
                 .sinkTo(new DiscardingSink<>())
                 .name("sink");
 
-        return env.getStreamGraph().getJobGraph();
+        final StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setJobId(JobID.generate());
+        return streamGraph;
     }
 
     MiniCluster startMiniCluster() throws Exception {

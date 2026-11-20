@@ -25,8 +25,11 @@ import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -37,17 +40,32 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Changes the parallelism at submission time via {@link PipelineOptions#PARALLELISM_OVERRIDES},
- * which applies to all schedulers.
+ * which applies to a submitted JobGraph on all schedulers and to a submitted StreamGraph on the
+ * streaming ones.
  */
 class ForwardEdgeParallelismMismatchOverridesITCase
         extends ForwardEdgeParallelismMismatchITCaseBase {
 
-    @Parameters(name = "scheduler={0}, parallelism={1}, mode={2}")
+    @Parameter(3)
+    public boolean submitStreamGraph;
+
+    @Parameters(name = "scheduler={0}, parallelism={1}, mode={2}, streamGraph={3}")
     private static List<Object[]> parameters() {
-        return parameters(
-                Arrays.asList(
-                        SchedulerType.Default, SchedulerType.Adaptive, SchedulerType.AdaptiveBatch),
-                false);
+        final List<Object[]> parameters = new ArrayList<>();
+        for (Object[] base :
+                parameters(
+                        Arrays.asList(
+                                SchedulerType.Default,
+                                SchedulerType.Adaptive,
+                                SchedulerType.AdaptiveBatch),
+                        false)) {
+            parameters.add(new Object[] {base[0], base[1], base[2], false});
+            // the adaptive batch scheduler does not apply the overrides to a StreamGraph
+            if (base[0] != SchedulerType.AdaptiveBatch) {
+                parameters.add(new Object[] {base[0], base[1], base[2], true});
+            }
+        }
+        return parameters;
     }
 
     /**
@@ -65,18 +83,19 @@ class ForwardEdgeParallelismMismatchOverridesITCase
         overrides.put(
                 sourceId(jobGraph).toHexString(), String.valueOf(parallelismChange.newSource));
         overrides.put(sinkId(jobGraph).toHexString(), String.valueOf(parallelismChange.newSink));
-        jobGraph.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
-        return runToEnd(miniCluster, jobGraph);
+        final ExecutionPlan plan = submitStreamGraph ? createStreamGraph(createSource()) : jobGraph;
+        plan.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
+        return runToEnd(miniCluster, plan);
     }
 
     private static DataGeneratorSource<Long> createSource() {
         return new DataGeneratorSource<>(index -> index, 100, Types.LONG);
     }
 
-    private Optional<Throwable> runToEnd(MiniCluster miniCluster, JobGraph jobGraph)
+    private Optional<Throwable> runToEnd(MiniCluster miniCluster, ExecutionPlan plan)
             throws Exception {
-        miniCluster.submitJob(jobGraph).get();
-        final JobResult result = miniCluster.requestJobResult(jobGraph.getJobID()).get();
+        miniCluster.submitJob(plan).get();
+        final JobResult result = miniCluster.requestJobResult(plan.getJobID()).get();
         return result.getSerializedThrowable()
                 .map(t -> t.deserializeError(getClass().getClassLoader()));
     }

@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.DynamicCodeLoadingException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Executor;
 
@@ -33,6 +37,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class AdaptiveExecutionHandlerFactory {
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AdaptiveExecutionHandlerFactory.class);
+
     /**
      * Creates an instance of {@link AdaptiveExecutionHandler} based on the provided execution plan.
      *
@@ -40,6 +47,10 @@ public class AdaptiveExecutionHandlerFactory {
      * always use {@link NonAdaptiveExecutionHandler} if batch job recovery is enabled. This
      * limitation will be removed in the future when we adapt adaptive batch execution to batch job
      * recovery.
+     *
+     * <p>{@link PipelineOptions#PARALLELISM_OVERRIDES} is not applied to a {@link StreamGraph} that
+     * is generated incrementally: the generator sizes the inputs of a job vertex before the vertex,
+     * and with it the job vertex id the override is keyed by, exists.
      *
      * @param executionPlan The execution plan, which can be either a {@link JobGraph} or a {@link
      *     StreamGraph}.
@@ -58,15 +69,23 @@ public class AdaptiveExecutionHandlerFactory {
             throws DynamicCodeLoadingException {
         if (executionPlan instanceof JobGraph) {
             return new NonAdaptiveExecutionHandler((JobGraph) executionPlan);
-        } else {
-            checkState(executionPlan instanceof StreamGraph, "Unsupported execution plan.");
-            if (enableBatchJobRecovery) {
-                StreamGraph streamGraph = (StreamGraph) executionPlan;
-                return new NonAdaptiveExecutionHandler(streamGraph.getJobGraph(userClassLoader));
-            } else {
-                return new DefaultAdaptiveExecutionHandler(
-                        userClassLoader, (StreamGraph) executionPlan, serializationExecutor);
-            }
         }
+        checkState(executionPlan instanceof StreamGraph, "Unsupported execution plan.");
+        final StreamGraph streamGraph = (StreamGraph) executionPlan;
+        if (enableBatchJobRecovery) {
+            return new NonAdaptiveExecutionHandler(streamGraph.getJobGraph(userClassLoader));
+        }
+        if (!streamGraph
+                .getJobConfiguration()
+                .get(PipelineOptions.PARALLELISM_OVERRIDES)
+                .isEmpty()) {
+            LOG.warn(
+                    "Ignoring {} for job {}: the adaptive batch scheduler does not apply it to a"
+                            + " StreamGraph that it generates incrementally.",
+                    PipelineOptions.PARALLELISM_OVERRIDES.key(),
+                    streamGraph.getJobID());
+        }
+        return new DefaultAdaptiveExecutionHandler(
+                userClassLoader, streamGraph, serializationExecutor);
     }
 }
