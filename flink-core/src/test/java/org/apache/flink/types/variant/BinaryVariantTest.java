@@ -222,6 +222,36 @@ class BinaryVariantTest {
     }
 
     @Test
+    void testNanosecondTimestampPrecisionBounds() {
+        // The first and the last value of the range, including the first second of the range, where
+        // the epoch second times 10^9 overflows although the total fits into a long.
+        assertThat(BinaryVariantUtil.nanosSinceEpoch(Instant.EPOCH.plusNanos(Long.MIN_VALUE)))
+                .isEqualTo(Long.MIN_VALUE);
+        assertThat(BinaryVariantUtil.nanosSinceEpoch(Instant.EPOCH.plusNanos(Long.MAX_VALUE)))
+                .isEqualTo(Long.MAX_VALUE);
+
+        for (LocalDateTime dateTime :
+                List.of(
+                        LocalDateTime.of(1677, 9, 21, 0, 12, 43, 145_224_192),
+                        LocalDateTime.of(1677, 9, 21, 0, 12, 43, 999_999_999),
+                        LocalDateTime.of(2262, 4, 11, 23, 47, 16, 854_775_807))) {
+            assertThat(builder.of(dateTime).getDateTime()).isEqualTo(dateTime);
+            assertThat(builder.of(dateTime.toInstant(ZoneOffset.UTC)).getInstant())
+                    .isEqualTo(dateTime.toInstant(ZoneOffset.UTC));
+        }
+
+        // One nanosecond outside each end of the range
+        for (Instant outside :
+                List.of(
+                        Instant.EPOCH.plusNanos(Long.MIN_VALUE).minusNanos(1),
+                        Instant.EPOCH.plusNanos(Long.MAX_VALUE).plusNanos(1))) {
+            assertThatThrownBy(() -> BinaryVariantUtil.nanosSinceEpoch(outside))
+                    .isInstanceOf(VariantTypeException.class)
+                    .hasMessageContaining("nanosecond precision");
+        }
+    }
+
+    @Test
     void testMicrosecondTimestampPrecisionRange() {
         // Microsecond precision spans = +/-292.000 years around 1970
         LocalDateTime inRangeLocalDateTime = LocalDateTime.of(150_000, 1, 1, 0, 0, 0, 0);
