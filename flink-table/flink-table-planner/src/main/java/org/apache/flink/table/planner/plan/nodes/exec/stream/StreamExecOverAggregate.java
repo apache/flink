@@ -60,6 +60,7 @@ import org.apache.flink.table.runtime.operators.over.NonTimeRowsUnboundedPrecedi
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeUnboundedPrecedingFunction;
+import org.apache.flink.table.runtime.operators.over.RowTimeMultiRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRangeUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPrecedingFunction;
@@ -161,10 +162,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        if (overSpec.getGroups().size() > 1) {
-            throw new TableException("All aggregates must be computed on the same window.");
-        }
-
         final OverSpec.GroupSpec group = overSpec.getGroups().get(0);
         final int[] orderKeys = group.getSort().getFieldIndices();
         final boolean[] isAscendingOrders = group.getSort().getAscendingOrders();
@@ -217,7 +214,22 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
         final KeyedProcessFunction<RowData, RowData, RowData> overProcessFunction;
-        if (group.getLowerBound().isPreceding()
+        if (overSpec.getGroups().size() > 1) {
+            // the physical rule only accepts several windows when all of them are bounded
+            // event-time RANGE windows on the same partition and order key
+            if (timeAttribute != TimeAttribute.ROW_TIME) {
+                throw new TableException(
+                        "Several OVER windows are only supported when ordered by an event-time attribute.");
+            }
+            overProcessFunction =
+                    createMultiRangeBoundedOverProcessFunction(
+                            planner,
+                            constants,
+                            aggInputRowType,
+                            inputRowType,
+                            orderKeys[0],
+                            config);
+        } else if (group.getLowerBound().isPreceding()
                 && group.getLowerBound().isUnbounded()
                 && group.getUpperBound().isCurrentRow()) {
             // unbounded OVER window
@@ -497,40 +509,12 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             RelBuilder relBuilder,
             FlinkTypeFactory typeFactory) {
 
-        boolean[] aggCallNeedRetractions = new boolean[aggCalls.size()];
-        Arrays.fill(aggCallNeedRetractions, true);
-        AggregateInfoList aggInfoList =
-                AggregateUtil.transformToStreamAggregateInfoList(
-                        typeFactory,
-                        // use aggInputType which considers constants as input instead of
-                        // inputSchema.relDataType
-                        aggInputType,
-                        JavaScalaConversionUtil.toScala(aggCalls),
-                        aggCallNeedRetractions,
-                        true, // needInputCount,
-                        true, // isStateBackendDataViews
-                        true); // needDistinctInfo
-
-        LogicalType[] fieldTypes = inputType.getChildren().toArray(new LogicalType[0]);
-        AggsHandlerCodeGenerator generator =
-                new AggsHandlerCodeGenerator(
-                        ctx,
-                        relBuilder,
-                        JavaScalaConversionUtil.toScala(Arrays.asList(fieldTypes)),
-                        false); // copyInputField
-
-        GeneratedAggsHandleFunction genAggsHandler =
-                generator
-                        .needRetract()
-                        .needAccumulate()
-                        // over agg code gen must pass the constants
-                        .withConstants(JavaScalaConversionUtil.toScala(constants))
-                        .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList);
-
-        LogicalType[] flattenAccTypes =
-                Arrays.stream(aggInfoList.getAccTypes())
-                        .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
-                        .toArray(LogicalType[]::new);
+        final BoundedAggsHandler aggsHandler =
+                generateBoundedAggsHandler(
+                        ctx, aggCalls, constants, aggInputType, inputType, relBuilder, typeFactory);
+        final GeneratedAggsHandleFunction genAggsHandler = aggsHandler.genAggsHandler;
+        final LogicalType[] flattenAccTypes = aggsHandler.accTypes;
+        final LogicalType[] fieldTypes = inputType.getChildren().toArray(new LogicalType[0]);
 
         switch (timeAttribute) {
             case ROW_TIME:
@@ -570,6 +554,112 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         "Non-time attribute sort is not supported for bounded OVER window.");
             default:
                 throw new TableException("Unsupported bounded operation for OVER window.");
+        }
+    }
+
+    /**
+     * Create a ProcessFunction that evaluates several bounded event-time RANGE OVER windows, which
+     * share the partition and order key, and stores the input rows once.
+     */
+    private KeyedProcessFunction<RowData, RowData, RowData>
+            createMultiRangeBoundedOverProcessFunction(
+                    PlannerBase planner,
+                    List<RexLiteral> constants,
+                    RowType aggInputType,
+                    RowType inputType,
+                    int rowTimeIdx,
+                    ExecNodeConfig config) {
+        final List<OverSpec.GroupSpec> groups = overSpec.getGroups();
+        final int n = groups.size();
+        final GeneratedAggsHandleFunction[] genAggsHandlers = new GeneratedAggsHandleFunction[n];
+        final LogicalType[][] accTypes = new LogicalType[n][];
+        final long[] precedingOffsets = new long[n];
+        for (int i = 0; i < n; i++) {
+            final OverSpec.GroupSpec group = groups.get(i);
+            final Object boundValue =
+                    OverAggregateUtil.getBoundary(overSpec, group.getLowerBound());
+            if (boundValue instanceof BigDecimal) {
+                throw new TableException(
+                        "the specific value is decimal which haven not supported yet.");
+            }
+            precedingOffsets[i] = -1 * (long) boundValue;
+            // each handler gets its own context so that the generated classes do not share
+            // reusable members
+            final BoundedAggsHandler aggsHandler =
+                    generateBoundedAggsHandler(
+                            new CodeGeneratorContext(
+                                    config, planner.getFlinkContext().getClassLoader()),
+                            group.getAggCalls(),
+                            constants,
+                            aggInputType,
+                            inputType,
+                            planner.createRelBuilder(),
+                            planner.getTypeFactory());
+            genAggsHandlers[i] = aggsHandler.genAggsHandler;
+            accTypes[i] = aggsHandler.accTypes;
+        }
+        return new RowTimeMultiRangeBoundedPrecedingFunction<>(
+                genAggsHandlers,
+                accTypes,
+                inputType.getChildren().toArray(new LogicalType[0]),
+                precedingOffsets,
+                rowTimeIdx);
+    }
+
+    private BoundedAggsHandler generateBoundedAggsHandler(
+            CodeGeneratorContext ctx,
+            List<AggregateCall> aggCalls,
+            List<RexLiteral> constants,
+            RowType aggInputType,
+            RowType inputType,
+            RelBuilder relBuilder,
+            FlinkTypeFactory typeFactory) {
+        boolean[] aggCallNeedRetractions = new boolean[aggCalls.size()];
+        Arrays.fill(aggCallNeedRetractions, true);
+        AggregateInfoList aggInfoList =
+                AggregateUtil.transformToStreamAggregateInfoList(
+                        typeFactory,
+                        // use aggInputType which considers constants as input instead of
+                        // inputSchema.relDataType
+                        aggInputType,
+                        JavaScalaConversionUtil.toScala(aggCalls),
+                        aggCallNeedRetractions,
+                        true, // needInputCount,
+                        true, // isStateBackendDataViews
+                        true); // needDistinctInfo
+
+        LogicalType[] fieldTypes = inputType.getChildren().toArray(new LogicalType[0]);
+        AggsHandlerCodeGenerator generator =
+                new AggsHandlerCodeGenerator(
+                        ctx,
+                        relBuilder,
+                        JavaScalaConversionUtil.toScala(Arrays.asList(fieldTypes)),
+                        false); // copyInputField
+
+        GeneratedAggsHandleFunction genAggsHandler =
+                generator
+                        .needRetract()
+                        .needAccumulate()
+                        // over agg code gen must pass the constants
+                        .withConstants(JavaScalaConversionUtil.toScala(constants))
+                        .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList);
+
+        LogicalType[] flattenAccTypes =
+                Arrays.stream(aggInfoList.getAccTypes())
+                        .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
+                        .toArray(LogicalType[]::new);
+        return new BoundedAggsHandler(genAggsHandler, flattenAccTypes);
+    }
+
+    /** A generated aggregate handler for a bounded OVER window and its accumulator types. */
+    private static final class BoundedAggsHandler {
+        private final GeneratedAggsHandleFunction genAggsHandler;
+        private final LogicalType[] accTypes;
+
+        private BoundedAggsHandler(
+                GeneratedAggsHandleFunction genAggsHandler, LogicalType[] accTypes) {
+            this.genAggsHandler = genAggsHandler;
+            this.accTypes = accTypes;
         }
     }
 }
