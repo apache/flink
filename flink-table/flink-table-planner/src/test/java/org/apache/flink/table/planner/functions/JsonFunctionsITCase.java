@@ -1307,6 +1307,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString("x\"y"),
                                 "JSON_STRING('x\"y')",
                                 "\"x\\\"y\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString(jsonArray(JsonOnNull.ABSENT, $("f1"))),
+                                "JSON_STRING(JSON_ARRAY(f1))",
+                                "[\"ab \"]",
                                 STRING().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
                         .onFieldsWithData(
