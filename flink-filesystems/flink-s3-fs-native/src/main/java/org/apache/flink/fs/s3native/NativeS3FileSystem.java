@@ -40,10 +40,12 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -87,7 +89,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <ul>
  *   <li>{@link #getFileStatus}: Returns 403 for non-existent objects if ListBucket permission is
- *       not granted (to prevent object enumeration)
+ *       not granted (to prevent object enumeration). On a bucket-root path it issues HeadBucket
+ *       instead, which also requires ListBucket permission
  *   <li>{@link #listStatus}: Requires ListBucket permission
  *   <li>{@link #delete}: With only DeleteObject permission, deleting non-existent objects may
  *       return errors
@@ -208,6 +211,11 @@ class NativeS3FileSystem extends FileSystem
         final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
 
+        if (key.isEmpty()) {
+            // Bucket root: no object to Head; see getBucketRootStatus.
+            return getBucketRootStatus(s3Client, path);
+        }
+
         LOG.debug("Getting file status for s3://{}/{}", bucketName, key);
 
         try {
@@ -275,6 +283,29 @@ class NativeS3FileSystem extends FileSystem
     }
 
     /**
+     * Returns the {@link FileStatus} of a bucket-root path (an empty object key). Since S3 has no
+     * object to Head for the bucket root, the bucket is verified via HeadBucket (surfacing
+     * missing-bucket or permission errors) and reported as a directory, matching the behavior of
+     * flink-s3-fs-hadoop.
+     */
+    private FileStatus getBucketRootStatus(S3Client s3Client, Path path) throws IOException {
+        LOG.debug("Getting file status for bucket root: s3://{}", bucketName);
+        try {
+            s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
+        } catch (NoSuchBucketException e) {
+            throw new FileNotFoundException("Bucket not found: " + path);
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                // Some S3-compatible stores report a missing bucket as a bare 404.
+                throw new FileNotFoundException("Bucket not found: " + path);
+            }
+            throw S3ExceptionUtils.toIOException(
+                    String.format("Failed to get file status for bucket root %s", path), e);
+        }
+        return S3FileStatus.withDirectory(path);
+    }
+
+    /**
      * Checks if the given key represents a directory by listing objects with that prefix. Returns a
      * directory {@link FileStatus} if objects exist under the prefix, otherwise throws {@link
      * FileNotFoundException}.
@@ -306,8 +337,7 @@ class NativeS3FileSystem extends FileSystem
         checkNotClosed();
         final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
-        final long fileSize = getFileStatus(path).getLen();
-        return new NativeS3InputStream(s3Client, bucketName, key, fileSize, bufferSize);
+        return open(path, key, s3Client, bufferSize);
     }
 
     @Override
@@ -315,8 +345,16 @@ class NativeS3FileSystem extends FileSystem
         checkNotClosed();
         final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
-        final long fileSize = getFileStatus(path).getLen();
-        return new NativeS3InputStream(s3Client, bucketName, key, fileSize, readBufferSize);
+        return open(path, key, s3Client, readBufferSize);
+    }
+
+    private FSDataInputStream open(Path path, String key, S3Client s3Client, int bufferSize)
+            throws IOException {
+        final FileStatus status = getFileStatus(path);
+        if (status.isDir()) {
+            throw new FileNotFoundException("Cannot open " + path + " because it is a directory");
+        }
+        return new NativeS3InputStream(s3Client, bucketName, key, status.getLen(), bufferSize);
     }
 
     /**
@@ -386,6 +424,12 @@ class NativeS3FileSystem extends FileSystem
         checkNotClosed();
         final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
+
+        if (key.isEmpty()) {
+            // The bucket root resolves to a directory status; deleting it would either wipe the
+            // whole bucket or silently no-op. Match S3A and refuse.
+            throw new IOException("Cannot delete the root of a filesystem: " + path);
+        }
 
         try {
             final FileStatus status = getFileStatus(path);
