@@ -45,7 +45,7 @@ public class OpenTelemetryEventReporterProtocolTest
     }
 
     @Override
-    protected void setupAndReport(MetricConfig config) {
+    protected void setupReporter(MetricConfig config) {
         reporter.open(config);
         EventBuilder eventBuilder =
                 Event.builder(this.getClass(), TEST_EVENT_NAME)

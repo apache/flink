@@ -53,17 +53,19 @@ public class OpenTelemetryMetricReporterProtocolTest
     }
 
     @Override
-    protected void setupAndReport(MetricConfig config) {
+    protected void setupReporter(MetricConfig config) {
         reporter.open(config);
         SimpleCounter counter = new SimpleCounter();
         reporter.notifyOfAddedMetric(counter, TEST_METRIC_NAME, metricGroup);
-        reporter.report();
-        reporter.waitForLastReportToComplete();
     }
 
     @Override
     protected void assertReported() throws Exception {
         eventuallyConsumeJson(
+                () -> {
+                    reporter.report();
+                    reporter.waitForLastReportToComplete();
+                },
                 json -> assertThat(extractMetricNames(json)).contains(EXPECTED_METRIC_NAME));
     }
 
