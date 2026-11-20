@@ -101,6 +101,20 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<filters combine.children="append">
+								<!-- scaladoc's jQuery, Modernizr and SIL OFL fonts; Flink never generates scaladoc, so they aren't shipped -->
+								<filter>
+									<artifact>org.scala-lang:scala-compiler</artifact>
+									<excludes>
+										<exclude>jquery*.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/jquery*.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/modernizr*.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/tools.tooltip.js</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/lato-*</exclude>
+										<exclude>scala/tools/nsc/doc/html/resource/lib/source-code-pro-*</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<includes>
 									<!-- Explicitly include Flink APIs and Scala.
