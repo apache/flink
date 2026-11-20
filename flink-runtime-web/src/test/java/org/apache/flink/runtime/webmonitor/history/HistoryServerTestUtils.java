@@ -43,8 +43,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.ArchiveEventType.CREATED;
 
@@ -182,25 +184,13 @@ public class HistoryServerTestUtils {
                 "Timed out waiting for archive " + archiveId + " to reach CREATED state");
     }
 
-    /**
-     * Blocking archive storage for testing the LAZY load mode. Calls to {@link
-     * #putArchiveContent(String, String)} whose key contains {@code blockOnKeyPrefix} will block
-     * until {@link #releaseLatch} is counted down.
-     *
-     * <p>This is a decorator that delegates to a wrapped {@link ArchiveStorage}, so it can be used
-     * with any storage backend (e.g. {@link FileArchiveStorage} or {@link RocksDBArchiveStorage}).
-     */
-    public static class BlockingArchiveStorage<Entry> implements ArchiveStorage<Entry> {
-
-        public final CountDownLatch asyncStartLatch = new CountDownLatch(1);
-        public final CountDownLatch releaseLatch = new CountDownLatch(1);
+    /** Storage decorator for injecting failures and coordinating concurrent operations in tests. */
+    public static class DelegatingArchiveStorage<Entry> implements ArchiveStorage<Entry> {
 
         private final ArchiveStorage<Entry> delegate;
-        private final String blockOnKeyPrefix;
 
-        public BlockingArchiveStorage(ArchiveStorage<Entry> delegate, String blockOnKeyPrefix) {
+        public DelegatingArchiveStorage(ArchiveStorage<Entry> delegate) {
             this.delegate = delegate;
-            this.blockOnKeyPrefix = blockOnKeyPrefix;
         }
 
         @Override
@@ -216,19 +206,6 @@ public class HistoryServerTestUtils {
 
         @Override
         public void putArchiveContent(String key, String archiveContent) throws IOException {
-            if (key.contains(blockOnKeyPrefix)) {
-                asyncStartLatch.countDown();
-                try {
-                    boolean released = releaseLatch.await(10, TimeUnit.SECONDS);
-                    if (!released) {
-                        throw new IOException(
-                                "BlockingArchiveStorage: timed out waiting for release latch");
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("BlockingArchiveStorage: interrupted", e);
-                }
-            }
             delegate.putArchiveContent(key, archiveContent);
         }
 
@@ -255,6 +232,91 @@ public class HistoryServerTestUtils {
         @Override
         public void close() throws IOException {
             delegate.close();
+        }
+    }
+
+    /** Models a storage operation that completes despite cancellation of its calling task. */
+    static class UninterruptibleArchiveStorage<Entry> extends DelegatingArchiveStorage<Entry> {
+
+        final CountDownLatch writeStarted = new CountDownLatch(1);
+        final CountDownLatch writeFinished = new CountDownLatch(1);
+        final CompletableFuture<Void> allowWrite = new CompletableFuture<>();
+        private final AtomicBoolean blockOnce = new AtomicBoolean(true);
+        private final String blockedKey;
+
+        UninterruptibleArchiveStorage(ArchiveStorage<Entry> delegate, String blockedKey) {
+            super(delegate);
+            this.blockedKey = blockedKey;
+        }
+
+        @Override
+        public void putArchiveContent(String key, String content) throws IOException {
+            if (!blockedKey.equals(key) || !blockOnce.compareAndSet(true, false)) {
+                super.putArchiveContent(key, content);
+                return;
+            }
+            writeStarted.countDown();
+            allowWrite.orTimeout(10, TimeUnit.SECONDS).join();
+            boolean interrupted = Thread.interrupted();
+            try {
+                super.putArchiveContent(key, content);
+            } finally {
+                if (interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                writeFinished.countDown();
+            }
+        }
+    }
+
+    /** Blocks matching writes until {@link #releaseLatch} is counted down. */
+    public static class BlockingArchiveStorage<Entry> extends DelegatingArchiveStorage<Entry> {
+
+        public final CountDownLatch asyncStartLatch = new CountDownLatch(1);
+        public final CountDownLatch releaseLatch = new CountDownLatch(1);
+        final CountDownLatch readStarted = new CountDownLatch(1);
+        final CountDownLatch allowRead = new CountDownLatch(1);
+        volatile String blockedReadKey;
+
+        private final String blockOnKeyPrefix;
+
+        public BlockingArchiveStorage(ArchiveStorage<Entry> delegate, String blockOnKeyPrefix) {
+            super(delegate);
+            this.blockOnKeyPrefix = blockOnKeyPrefix;
+        }
+
+        @Nullable
+        @Override
+        public Entry getEntry(String key) throws IOException {
+            if (key.equals(blockedReadKey)) {
+                readStarted.countDown();
+                try {
+                    if (!allowRead.await(10, TimeUnit.SECONDS)) {
+                        throw new IOException("Timed out waiting to read " + key);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Read interrupted", e);
+                }
+            }
+            return super.getEntry(key);
+        }
+
+        @Override
+        public void putArchiveContent(String key, String archiveContent) throws IOException {
+            if (key.contains(blockOnKeyPrefix)) {
+                asyncStartLatch.countDown();
+                try {
+                    if (!releaseLatch.await(10, TimeUnit.SECONDS)) {
+                        throw new IOException(
+                                "BlockingArchiveStorage: timed out waiting for release latch");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("BlockingArchiveStorage: interrupted", e);
+                }
+            }
+            super.putArchiveContent(key, archiveContent);
         }
     }
 

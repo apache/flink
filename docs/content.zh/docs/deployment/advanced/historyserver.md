@@ -116,6 +116,22 @@ historyserver.archive.load.mode: LAZY
 * `historyserver.lazy.fetch.executor.common.pool-size` —— 用于常规后台存档拉取的共享线程池的大小。
 * `historyserver.lazy.fetch.executor.individual.pool-size` —— 专用于按需拉取单个存档（例如用户访问某个存档时）的高优先级线程池的大小。
 
+**本地缓存与远程保留**
+
+默认情况下，`historyserver.archive.retained-jobs` 保留的所有归档都会缓存到本地。如果希望远程保留大量历史，同时只在本地缓存最近的作业，可以设置 `historyserver.archive.cached-retained-jobs`。最近作业的缓存上限对每个归档目录分别生效。更早的归档只会从本地缓存中淘汰，当 `historyserver.archive.load.mode` 为 `LAZY` 时按需获取。这些作业不会出现在作业列表中，只能通过 URL 直接打开。
+
+通过这种方式最近查看的 `historyserver.archive.num-cached-most-recently-viewed-jobs` 个作业（默认 1 个）会保留在本地缓存中。该查看缓存上限由所有归档目录和用户共享，生产环境中如果多人查看旧作业，请调大该值。活跃请求可能暂时使本地缓存超出上限；请求释放作业后会重试延迟的淘汰操作。
+
+使用 `FILE` 存储时，本地缓存文件系统必须支持原子文件替换。如果替换失败，会保留原文件并记录错误，而不会回退到非原子覆盖。
+
+```yaml
+historyserver.archive.load.mode: LAZY
+historyserver.archive.cached-retained-jobs: 100
+historyserver.archive.retained-ttl: 30 d
+```
+
+远程目录只受 `historyserver.archive.retained-jobs` 和 `historyserver.archive.retained-ttl` 限制，且每次刷新都会列出，因此请设置 `historyserver.archive.retained-ttl` 以避免其无限增长。这些配置仅适用于作业归档。
+
 ## 日志集成
 
 Flink 本身并不提供已完成作业的日志收集功能。

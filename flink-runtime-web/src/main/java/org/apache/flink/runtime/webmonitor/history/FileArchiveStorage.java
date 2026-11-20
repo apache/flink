@@ -19,7 +19,9 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import javax.annotation.Nullable;
 
@@ -29,8 +31,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -43,8 +47,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FileArchiveStorage implements ArchiveStorage<File> {
 
+    private static final String TMP_SUFFIX = ".tmp";
+
     /** Root directory under which all archive files are stored. */
     private final Path rootPath;
+
+    private final BiConsumerWithException<Path, Path, IOException> atomicMove;
 
     /**
      * Creates a new {@link FileArchiveStorage}.
@@ -53,7 +61,16 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
      * @throws IOException if the canonical path of {@code rootPath} cannot be resolved
      */
     public FileArchiveStorage(File rootPath) throws IOException {
+        this(
+                rootPath,
+                (source, target) -> Files.move(source, target, StandardCopyOption.ATOMIC_MOVE));
+    }
+
+    @VisibleForTesting
+    FileArchiveStorage(File rootPath, BiConsumerWithException<Path, Path, IOException> atomicMove)
+            throws IOException {
         this.rootPath = checkNotNull(rootPath).getCanonicalFile().toPath();
+        this.atomicMove = checkNotNull(atomicMove);
     }
 
     @Override
@@ -92,7 +109,9 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
             return new ArrayList<>();
         }
         try (Stream<Path> entries = Files.list(directory)) {
-            return entries.map(Path::toFile).collect(Collectors.toList());
+            return entries.filter(p -> !p.getFileName().toString().endsWith(TMP_SUFFIX))
+                    .map(Path::toFile)
+                    .collect(Collectors.toList());
         }
     }
 
@@ -110,12 +129,17 @@ public class FileArchiveStorage implements ArchiveStorage<File> {
             // there may be left-over directories from the previous attempt
         }
 
-        // We overwrite existing files since this may be another attempt
-        // at fetching this archive.
-        // Existing files may be incomplete/corrupt.
-        Files.deleteIfExists(target);
-
-        Files.write(target, json.getBytes(StandardCharsets.UTF_8));
+        // We overwrite existing files since this may be another attempt at fetching this archive.
+        // The content is written to a temporary sibling file and moved into place, so concurrent
+        // readers never see a missing or partially written file. If the provider cannot replace
+        // the target atomically, fail without a non-atomic fallback that could lose valid content.
+        Path tmp = parent.resolve(target.getFileName() + "." + UUID.randomUUID() + TMP_SUFFIX);
+        try {
+            Files.write(tmp, json.getBytes(StandardCharsets.UTF_8));
+            atomicMove.accept(tmp, target);
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
     }
 
     @Override

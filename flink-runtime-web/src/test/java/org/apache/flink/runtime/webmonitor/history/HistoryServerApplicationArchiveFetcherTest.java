@@ -45,8 +45,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ClusterOptions.CLUSTER_ID;
@@ -78,6 +80,8 @@ class HistoryServerApplicationArchiveFetcherTest {
     @Parameter public ArchiveStorageFactory<Object> storageFactory;
 
     private ArchiveStorage<Object> archiveStorage;
+    private HistoryServerArchiveFetcher<Object> jobFetcher;
+    private HistoryServerApplicationArchiveFetcher<Object> applicationFetcher;
 
     private ConcurrentHashMap<String, ArchiveMetaInfo> jobMetaInfoCache;
     private ConcurrentHashMap<String, ArchiveMetaInfo> applicationMetaInfoCache;
@@ -106,6 +110,12 @@ class HistoryServerApplicationArchiveFetcherTest {
 
     @AfterEach
     void tearDown() throws Exception {
+        if (applicationFetcher != null) {
+            applicationFetcher.close();
+        }
+        if (jobFetcher != null) {
+            jobFetcher.close();
+        }
         archiveEvents.clear();
         if (archiveStorage != null) {
             archiveStorage.close();
@@ -185,21 +195,76 @@ class HistoryServerApplicationArchiveFetcherTest {
             boolean cleanupExpired, ArchiveStorage<Object> storage) throws Exception {
         List<HistoryServer.RefreshLocation> refreshDirs =
                 Collections.singletonList(createRefreshLocation(remoteArchiveRootPath));
-        return new HistoryServerApplicationArchiveFetcher<>(
-                refreshDirs,
-                localArchiveRootPath,
-                event -> archiveEvents.add(event),
-                cleanupExpired,
-                RETAIN_ALL,
-                storage,
-                jobMetaInfoCache,
-                applicationMetaInfoCache,
-                4,
-                4);
+        jobFetcher =
+                new HistoryServerArchiveFetcher<>(
+                        refreshDirs,
+                        localArchiveRootPath,
+                        event -> {},
+                        cleanupExpired,
+                        RETAIN_ALL,
+                        storage,
+                        jobMetaInfoCache,
+                        4,
+                        4);
+        applicationFetcher =
+                new HistoryServerApplicationArchiveFetcher<>(
+                        refreshDirs,
+                        localArchiveRootPath,
+                        event -> archiveEvents.add(event),
+                        cleanupExpired,
+                        RETAIN_ALL,
+                        storage,
+                        jobMetaInfoCache,
+                        applicationMetaInfoCache,
+                        4,
+                        4,
+                        jobFetcher);
+        return applicationFetcher;
     }
 
     private static String newApplicationId() {
         return new ApplicationID().toHexString();
+    }
+
+    @TestTemplate
+    void testApplicationCleanupRespectsJobRequestAndDrainsItsWriter() throws Exception {
+        String appId = newApplicationId();
+        JobID jobId = JobID.generate();
+        createApplicationArchive(appId, Collections.singletonList(jobId));
+        String detailKey = "jobs/" + jobId + "/config.json";
+        HistoryServerTestUtils.UninterruptibleArchiveStorage<Object> storage =
+                new HistoryServerTestUtils.UninterruptibleArchiveStorage<>(
+                        archiveStorage, detailKey);
+        archiveStorage = storage;
+        HistoryServerApplicationArchiveFetcher<Object> fetcher =
+                createApplicationArchiveFetcher(true, storage);
+        fetcher.fetchArchives(LAZY);
+        CompletableFuture<Void> release = null;
+        try {
+            assertThat(storage.writeStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            jobFetcher.acquireJob(jobId.toString());
+            fetcher.cleanupExpiredArchives(
+                    Collections.singletonMap(
+                            createRefreshLocation(remoteArchiveRootPath).getPath(),
+                            Collections.singleton(appId)));
+            assertThat(storage.exists("applications/" + appId + ".json")).isFalse();
+            assertThat(storage.exists("jobs/" + jobId + ".json")).isTrue();
+            assertThat(jobFetcher.getCommonFetchTask(jobId.toString())).isNotDone();
+
+            release = CompletableFuture.runAsync(() -> jobFetcher.releaseJob(jobId.toString()));
+            CompletableFuture<Void> pendingRelease = release;
+            assertThatThrownBy(() -> pendingRelease.get(200, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+        } finally {
+            storage.allowWrite.complete(null);
+            if (release != null) {
+                release.get(10, TimeUnit.SECONDS);
+            }
+        }
+        assertThat(storage.exists(detailKey)).isFalse();
+        assertThat(storage.exists("overviews/" + jobId + ".json")).isFalse();
+        assertThat(storage.exists("jobs/" + jobId + ".json")).isFalse();
+        assertThat(jobMetaInfoCache).doesNotContainKey(jobId.toString());
     }
 
     // =========================================================================
