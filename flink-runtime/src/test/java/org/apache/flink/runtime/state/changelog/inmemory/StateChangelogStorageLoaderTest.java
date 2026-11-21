@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.plugin.PluginContext;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -100,6 +101,12 @@ class StateChangelogStorageLoaderTest {
                 //noinspection unchecked
                 return (Iterator<P>) iterator;
             }
+
+            @Override
+            public void open(PluginContext context) {}
+
+            @Override
+            public void close() {}
         };
     }
 
