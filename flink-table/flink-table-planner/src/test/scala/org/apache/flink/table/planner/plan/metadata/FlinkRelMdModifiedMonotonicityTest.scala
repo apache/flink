@@ -408,17 +408,17 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
       .scan("MyTable4")
       .project(relBuilder.field(2), relBuilder.field(1))
       .build()
-    val join1 = relBuilder
-      .push(left1)
-      .push(right1)
-      .join(
-        JoinRelType.LEFT,
-        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-      .build()
-    assertEquals(
-      new RelModifiedMonotonicity(Array(CONSTANT, CONSTANT, CONSTANT, CONSTANT)),
-      mq.getRelModifiedMonotonicity(join1)
-    )
+    Seq(JoinRelType.LEFT, JoinRelType.RIGHT, JoinRelType.FULL).foreach {
+      joinType =>
+        val join = relBuilder
+          .push(left1)
+          .push(right1)
+          .join(
+            joinType,
+            relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+          .build()
+        assertNull(mq.getRelModifiedMonotonicity(join))
+    }
 
     // both input is update
     val left = relBuilder
