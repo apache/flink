@@ -27,10 +27,9 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
 import org.apache.flink.runtime.rest.ClosedRestService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -40,10 +39,10 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DispatcherResourceManagerComponent}. */
-public class DispatcherResourceManagerComponentTest extends TestLogger {
+class DispatcherResourceManagerComponentTest {
 
     @Test
-    public void unexpectedResourceManagerTermination_failsFatally() {
+    void unexpectedResourceManagerTermination_failsFatally() {
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
         final TestingResourceManagerService resourceManagerService =
@@ -75,7 +74,7 @@ public class DispatcherResourceManagerComponentTest extends TestLogger {
     }
 
     @Test
-    public void unexpectedResourceManagerTermination_ifNotRunning_doesNotFailFatally() {
+    void unexpectedResourceManagerTermination_ifNotRunning_doesNotFailFatally() {
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
         final TestingResourceManagerService resourceManagerService =

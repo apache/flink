@@ -25,10 +25,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.TestingPluginManager;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.collections.IteratorUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,16 +38,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for the {@link ExternalResourceUtils} class. */
-public class ExternalResourceUtilsTest extends TestLogger {
+class ExternalResourceUtilsTest {
 
     private static final String RESOURCE_NAME_1 = "foo";
     private static final String RESOURCE_NAME_2 = "bar";
@@ -61,7 +55,7 @@ public class ExternalResourceUtilsTest extends TestLogger {
     private static final String SUFFIX = "flink.config-key";
 
     @Test
-    public void testGetExternalResourceConfigurationKeysWithConfigKeyNotSpecifiedOrEmpty() {
+    void testGetExternalResourceConfigurationKeysWithConfigKeyNotSpecifiedOrEmpty() {
         final Configuration config = new Configuration();
         final String resourceConfigKey = "";
 
@@ -74,11 +68,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
         final Map<String, String> configMap =
                 ExternalResourceUtils.getExternalResourceConfigurationKeys(config, SUFFIX);
 
-        assertThat(configMap.entrySet(), is(empty()));
+        assertThat(configMap).isEmpty();
     }
 
     @Test
-    public void testGetExternalResourceConfigurationKeysWithConflictConfigKey() {
+    void testGetExternalResourceConfigurationKeysWithConflictConfigKey() {
         final Configuration config = new Configuration();
 
         config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
@@ -95,12 +89,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.getExternalResourceConfigurationKeys(config, SUFFIX);
 
         // Only one of the resource name would be kept.
-        assertThat(configMap.size(), is(1));
-        assertThat(configMap.values(), contains(RESOURCE_CONFIG_KEY_1));
+        assertThat(configMap.values()).containsExactly(RESOURCE_CONFIG_KEY_1);
     }
 
     @Test
-    public void testConstructExternalResourceDriversFromConfig() {
+    void testConstructExternalResourceDriversFromConfig() {
         final Configuration config = new Configuration();
         final String driverFactoryClassName = TestingExternalResourceDriverFactory.class.getName();
         final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
@@ -121,14 +114,14 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.externalResourceDriversFromConfig(
                         config, testingPluginManager);
 
-        assertThat(externalResourceDrivers.size(), is(1));
-        assertThat(
-                externalResourceDrivers.get(RESOURCE_NAME_1),
-                instanceOf(TestingExternalResourceDriver.class));
+        assertThat(externalResourceDrivers)
+                .containsOnlyKeys(RESOURCE_NAME_1)
+                .extractingByKey(RESOURCE_NAME_1)
+                .isInstanceOf(TestingExternalResourceDriver.class);
     }
 
     @Test
-    public void testNotConfiguredFactoryClass() {
+    void testNotConfiguredFactoryClass() {
         final Configuration config = new Configuration();
         final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
         plugins.put(
@@ -144,11 +137,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.externalResourceDriversFromConfig(
                         config, testingPluginManager);
 
-        assertThat(externalResourceDrivers.entrySet(), is(empty()));
+        assertThat(externalResourceDrivers).isEmpty();
     }
 
     @Test
-    public void testFactoryPluginDoesNotExist() {
+    void testFactoryPluginDoesNotExist() {
         final Configuration config = new Configuration();
         final String driverFactoryClassName = TestingExternalResourceDriverFactory.class.getName();
         final PluginManager testingPluginManager = new TestingPluginManager(Collections.emptyMap());
@@ -165,11 +158,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.externalResourceDriversFromConfig(
                         config, testingPluginManager);
 
-        assertThat(externalResourceDrivers.entrySet(), is(empty()));
+        assertThat(externalResourceDrivers).isEmpty();
     }
 
     @Test
-    public void testFactoryFailedToCreateDriver() {
+    void testFactoryFailedToCreateDriver() {
         final Configuration config = new Configuration();
         final String driverFactoryClassName =
                 TestingFailedExternalResourceDriverFactory.class.getName();
@@ -191,11 +184,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.externalResourceDriversFromConfig(
                         config, testingPluginManager);
 
-        assertThat(externalResourceDrivers.entrySet(), is(empty()));
+        assertThat(externalResourceDrivers).isEmpty();
     }
 
     @Test
-    public void testGetExternalResourceInfoProvider() {
+    void testGetExternalResourceInfoProvider() {
         final Map<String, Long> externalResourceAmountMap = new HashMap<>();
         final Map<String, ExternalResourceDriver> externalResourceDrivers = new HashMap<>();
         externalResourceAmountMap.put(RESOURCE_NAME_1, RESOURCE_AMOUNT_1);
@@ -206,11 +199,12 @@ public class ExternalResourceUtilsTest extends TestLogger {
                         ExternalResourceUtils.createStaticExternalResourceInfoProvider(
                                 externalResourceAmountMap, externalResourceDrivers);
 
-        assertNotNull(externalResourceInfoProvider.getExternalResources().get(RESOURCE_NAME_1));
+        assertThat(externalResourceInfoProvider.getExternalResources().get(RESOURCE_NAME_1))
+                .isNotNull();
     }
 
     @Test
-    public void testGetExternalResourceInfoProviderWithoutAmount() {
+    void testGetExternalResourceInfoProviderWithoutAmount() {
         final Map<String, Long> externalResourceAmountMap = new HashMap<>();
         final Map<String, ExternalResourceDriver> externalResourceDrivers = new HashMap<>();
         externalResourceDrivers.put(RESOURCE_NAME_1, new TestingExternalResourceDriver());
@@ -220,11 +214,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
                         ExternalResourceUtils.createStaticExternalResourceInfoProvider(
                                 externalResourceAmountMap, externalResourceDrivers);
 
-        assertThat(externalResourceInfoProvider.getExternalResources().entrySet(), is(empty()));
+        assertThat(externalResourceInfoProvider.getExternalResources()).isEmpty();
     }
 
     @Test
-    public void testGetExternalResourceAmountMap() {
+    void testGetExternalResourceAmountMap() {
         final Configuration config = new Configuration();
         config.set(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
@@ -237,13 +231,12 @@ public class ExternalResourceUtilsTest extends TestLogger {
         final Map<String, Long> externalResourceAmountMap =
                 ExternalResourceUtils.getExternalResourceAmountMap(config);
 
-        assertThat(externalResourceAmountMap.size(), is(1));
-        assertTrue(externalResourceAmountMap.containsKey(RESOURCE_NAME_1));
-        assertThat(externalResourceAmountMap.get(RESOURCE_NAME_1), is(RESOURCE_AMOUNT_1));
+        assertThat(externalResourceAmountMap)
+                .containsOnly(entry(RESOURCE_NAME_1, RESOURCE_AMOUNT_1));
     }
 
     @Test
-    public void testGetExternalResourceAmountMapWithIllegalAmount() {
+    void testGetExternalResourceAmountMapWithIllegalAmount() {
         final Configuration config = new Configuration();
         config.set(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
@@ -256,11 +249,11 @@ public class ExternalResourceUtilsTest extends TestLogger {
         final Map<String, Long> externalResourceAmountMap =
                 ExternalResourceUtils.getExternalResourceAmountMap(config);
 
-        assertThat(externalResourceAmountMap.entrySet(), is(empty()));
+        assertThat(externalResourceAmountMap).isEmpty();
     }
 
     @Test
-    public void testGetExternalResourcesCollection() {
+    void testGetExternalResourcesCollection() {
         final Configuration config = new Configuration();
         config.set(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
@@ -273,14 +266,12 @@ public class ExternalResourceUtilsTest extends TestLogger {
         final Collection<ExternalResource> externalResources =
                 ExternalResourceUtils.getExternalResourcesCollection(config);
 
-        assertThat(externalResources.size(), is(1));
-        assertThat(
-                externalResources,
-                contains(new ExternalResource(RESOURCE_NAME_1, RESOURCE_AMOUNT_1)));
+        assertThat(externalResources)
+                .containsExactly(new ExternalResource(RESOURCE_NAME_1, RESOURCE_AMOUNT_1));
     }
 
     @Test
-    public void testRecognizeEmptyResourceList() {
+    void testRecognizeEmptyResourceList() {
         final Configuration config = new Configuration();
         config.setString(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), ExternalResourceOptions.NONE);
@@ -292,6 +283,6 @@ public class ExternalResourceUtilsTest extends TestLogger {
         final Collection<ExternalResource> externalResources =
                 ExternalResourceUtils.getExternalResourcesCollection(config);
 
-        assertThat(externalResources, is(empty()));
+        assertThat(externalResources).isEmpty();
     }
 }

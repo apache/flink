@@ -26,45 +26,38 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.testutils.junit.utils.TempDirUtils.newFile;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FileJobGraphRetriever}. */
-public class FileJobGraphRetrieverTest {
+class FileJobGraphRetrieverTest {
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private static Path classTemporaryFolder;
 
     private static Configuration configuration;
 
     private static Path jarFileInJobGraph;
 
-    @BeforeClass
-    public static void init() throws IOException {
+    @BeforeAll
+    static void init() throws IOException {
         final Path jobGraphPath =
-                TEMPORARY_FOLDER.newFile(JOB_GRAPH_FILE_PATH.defaultValue()).toPath();
+                newFile(classTemporaryFolder, JOB_GRAPH_FILE_PATH.defaultValue()).toPath();
 
-        jarFileInJobGraph = TEMPORARY_FOLDER.newFile("jar_file_in_job_graph.jar").toPath();
+        jarFileInJobGraph = newFile(classTemporaryFolder, "jar_file_in_job_graph.jar").toPath();
 
         final JobVertex source = new JobVertex("source");
         final JobVertex target = new JobVertex("target");
@@ -84,32 +77,30 @@ public class FileJobGraphRetrieverTest {
     }
 
     @Test
-    public void testRetrieveJobGraphWithJarInUsrLibDir() throws IOException, FlinkException {
-        final File usrLibDir = temporaryFolder.newFolder("job");
+    void testRetrieveJobGraphWithJarInUsrLibDir(@TempDir File usrLibDir)
+            throws IOException, FlinkException {
         final File jarFileInUsrLibDir =
                 Files.createFile(usrLibDir.toPath().resolve("jar_file_in_job_dir.jar")).toFile();
         final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
         final Path relativeJarFileInUsrLibDirPath =
                 FileUtils.relativizePath(workingDirectory, jarFileInUsrLibDir.toPath());
-        final List<URL> expectedURLs = new ArrayList<>();
-
-        expectedURLs.add(jarFileInJobGraph.toUri().toURL());
-        expectedURLs.add(FileUtils.toURL(relativeJarFileInUsrLibDirPath));
 
         final FileJobGraphRetriever fileJobGraphRetriever =
                 FileJobGraphRetriever.createFrom(configuration, usrLibDir);
         final JobGraph jobGraphFromFile = fileJobGraphRetriever.retrieveJobGraph(configuration);
 
-        assertThat(jobGraphFromFile.getClasspaths(), containsInAnyOrder(expectedURLs.toArray()));
+        assertThat(jobGraphFromFile.getClasspaths())
+                .containsExactlyInAnyOrder(
+                        jarFileInJobGraph.toUri().toURL(),
+                        FileUtils.toURL(relativeJarFileInUsrLibDirPath));
     }
 
     @Test
-    public void testRetrieveJobGraphWithoutUsrLibDir() throws IOException, FlinkException {
+    void testRetrieveJobGraphWithoutUsrLibDir() throws IOException, FlinkException {
         final FileJobGraphRetriever fileJobGraphRetriever =
                 FileJobGraphRetriever.createFrom(configuration, null);
-        final List<URL> expectedUrls = Collections.singletonList(jarFileInJobGraph.toUri().toURL());
         final JobGraph jobGraph = fileJobGraphRetriever.retrieveJobGraph(configuration);
 
-        assertThat(jobGraph.getClasspaths(), containsInAnyOrder(expectedUrls.toArray()));
+        assertThat(jobGraph.getClasspaths()).containsExactly(jarFileInJobGraph.toUri().toURL());
     }
 }

@@ -18,54 +18,48 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ClusterEntryPointExceptionUtilsTest checks whether the OOM message enrichment works as expected.
  */
-public class ClusterEntryPointExceptionUtilsTest extends TestLogger {
+class ClusterEntryPointExceptionUtilsTest {
 
     @Test
-    public void testDirectMemoryOOMHandling() {
+    void testDirectMemoryOOMHandling() {
         OutOfMemoryError error = new OutOfMemoryError("Direct buffer memory");
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(error);
 
-        assertThat(
-                error.getMessage(),
-                is(ClusterEntryPointExceptionUtils.JM_DIRECT_OOM_ERROR_MESSAGE));
+        assertThat(error.getMessage())
+                .isEqualTo(ClusterEntryPointExceptionUtils.JM_DIRECT_OOM_ERROR_MESSAGE);
     }
 
     @Test
-    public void testMetaspaceOOMHandling() {
+    void testMetaspaceOOMHandling() {
         OutOfMemoryError error = new OutOfMemoryError("Metaspace");
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(error);
 
-        assertThat(
-                error.getMessage(),
-                is(ClusterEntryPointExceptionUtils.JM_METASPACE_OOM_ERROR_MESSAGE));
+        assertThat(error.getMessage())
+                .isEqualTo(ClusterEntryPointExceptionUtils.JM_METASPACE_OOM_ERROR_MESSAGE);
     }
 
     @Test
-    public void testHeapSpaceOOMHandling() {
+    void testHeapSpaceOOMHandling() {
         OutOfMemoryError error = new OutOfMemoryError("Java heap space");
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(error);
 
-        assertThat(
-                error.getMessage(),
-                is(ClusterEntryPointExceptionUtils.JM_HEAP_SPACE_OOM_ERROR_MESSAGE));
+        assertThat(error.getMessage())
+                .isEqualTo(ClusterEntryPointExceptionUtils.JM_HEAP_SPACE_OOM_ERROR_MESSAGE);
     }
 
     @Test
-    public void testAnyOtherOOMHandling() {
+    void testAnyOtherOOMHandling() {
         String message = "Any other message won't be changed.";
         OutOfMemoryError error = new OutOfMemoryError(message);
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(error);
 
-        assertThat(error.getMessage(), is(message));
+        assertThat(error.getMessage()).isEqualTo(message);
     }
 }
