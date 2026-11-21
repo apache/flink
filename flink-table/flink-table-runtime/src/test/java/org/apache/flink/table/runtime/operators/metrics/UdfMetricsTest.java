@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.metrics;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.ref.WeakReference;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -163,12 +165,15 @@ class UdfMetricsTest {
     void doesNotRetainOperatorMetricGroup() throws Exception {
         WeakReference<MetricGroup> operatorGroup = registerOnUnreferencedGroup();
 
-        for (int i = 0; i < 10 && operatorGroup.get() != null; i++) {
-            System.gc();
-            Thread.sleep(50);
-        }
-
-        assertThat(operatorGroup.get()).isNull();
+        // System.gc() is only a request, so keep asking until the weak reference is cleared.
+        CommonTestUtils.waitUtil(
+                () -> {
+                    System.gc();
+                    return operatorGroup.get() == null;
+                },
+                Duration.ofSeconds(30),
+                Duration.ofMillis(50),
+                "The operator metric group was not garbage collected.");
     }
 
     private static WeakReference<MetricGroup> registerOnUnreferencedGroup() {
