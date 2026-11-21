@@ -86,22 +86,25 @@ class PythonBootTests(PyFlinkTestCase):
                 "--control_endpoint", "localhost:0000",
                 "--semi_persist_dir", self.tmp_dir]
 
-        return subprocess.call(args, env=self.env)
+        return subprocess.run(args, env=self.env, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, timeout=30).returncode
 
     def test_python_boot(self):
         exit_code = self.run_boot_py()
         self.assertTrue(exit_code == 0, "the boot.py exited with non-zero code.")
+        with open(os.path.join(self.env["BOOT_LOG_DIR"], "flink-python-udf-boot.log")) as log:
+            self.assertRegex(log.read(),
+                             r"Initializing Python harness \(pid=[1-9]\d*, worker_id=1\)")
 
-    @unittest.skipIf(on_windows(), "'subprocess.check_output' in Windows always return empty "
-                                   "string, skip this test.")
+    @unittest.skipIf(on_windows(), "The Windows worker launcher has a separate exit-status path.")
     def test_param_validation(self):
-        args = [self.runner_path]
-        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
-        self.assertIn("No id provided.", exit_message)
-
-        args = [self.runner_path, "--id", "1"]
-        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
-        self.assertIn("No provision endpoint provided.", exit_message)
+        for args, message in [([], "No id provided."),
+                              (["--id", "1"], "No provision endpoint provided.")]:
+            with self.subTest(args=args):
+                result = subprocess.run([self.runner_path] + args, env=self.env,
+                                        stdout=subprocess.PIPE, text=True)
+                self.assertEqual(1, result.returncode)
+                self.assertIn(message, result.stdout)
 
     def test_set_working_directory(self):
         JProcessPythonEnvironmentManager = \
