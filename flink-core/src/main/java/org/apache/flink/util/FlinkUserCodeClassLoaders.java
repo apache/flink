@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.function.Consumer;
@@ -217,6 +218,11 @@ public class FlinkUserCodeClassLoaders {
         @Override
         public URL getResource(String name) {
             return ensureInner().getResource(name);
+        }
+
+        @Override
+        public InputStream getResourceAsStream(String name) {
+            return ensureInner().getResourceAsStream(name);
         }
 
         @Override
