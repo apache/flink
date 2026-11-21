@@ -24,7 +24,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -49,8 +51,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.example.data.Group;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.parquet.hadoop.example.GroupReadSupport;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
 import org.junit.jupiter.api.Test;
@@ -59,7 +63,11 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,6 +79,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.IDENTIFIER;
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.TIMESTAMP_TIME_UNIT;
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.WRITE_INT64_TIMESTAMP;
+import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.JULIAN_EPOCH_OFFSET_DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -164,6 +173,75 @@ class ParquetRowDataWriterTest {
     }
 
     @Test
+    void testPreEpochInt96EncodingWithUtcTimezone(@TempDir java.nio.file.Path folder)
+            throws Exception {
+        assertPreEpochInt96Encoding(folder, true);
+    }
+
+    @Test
+    void testPreEpochInt96EncodingWithoutUtcTimezone(@TempDir java.nio.file.Path folder)
+            throws Exception {
+        assertPreEpochInt96Encoding(folder, false);
+    }
+
+    @Test
+    void testPreEpochInt96RoundTripWithoutUtcTimezone(@TempDir java.nio.file.Path folder)
+            throws Exception {
+        LocalDateTime expected = LocalDateTime.of(1960, 6, 15, 12, 0, 0, 250_000_000);
+        Path path = writeTimestampFile(folder, expected, false);
+
+        ParquetColumnarRowSplitReader reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        false,
+                        true,
+                        new Configuration(),
+                        new String[] {"f0"},
+                        new DataType[] {
+                            TypeConversions.fromLogicalToDataType(new TimestampType(9))
+                        },
+                        new HashMap<>(),
+                        new int[] {0},
+                        1,
+                        path,
+                        0,
+                        Long.MAX_VALUE);
+
+        assertThat(reader.reachedEnd()).isFalse();
+        assertThat(reader.nextRecord().getTimestamp(0, 9).toLocalDateTime()).isEqualTo(expected);
+    }
+
+    @Test
+    void testPreEpochInt64EncodingWithoutUtcTimezone(@TempDir java.nio.file.Path folder)
+            throws Exception {
+        LocalDateTime expected = LocalDateTime.of(1960, 6, 15, 12, 0, 0, 250_000_000);
+        Timestamp expectedTimestamp = Timestamp.valueOf(expected);
+        Instant expectedInstant = expectedTimestamp.toInstant();
+        long expectedNanos =
+                expectedInstant.getEpochSecond() * 1_000_000_000L + expectedInstant.getNano();
+        Configuration conf = new Configuration();
+        conf.set(IDENTIFIER + "." + WRITE_INT64_TIMESTAMP.key(), "true");
+        conf.set(IDENTIFIER + "." + TIMESTAMP_TIME_UNIT.key(), "nanos");
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(
+                        RowType.of(new TimestampType(9)), conf, false);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        writer.addElement(GenericRowData.of(TimestampData.fromLocalDateTime(expected)));
+        writer.flush();
+        writer.finish();
+
+        try (ParquetReader<Group> parquetReader =
+                ParquetReader.builder(
+                                new GroupReadSupport(),
+                                new org.apache.hadoop.fs.Path(new File(path.getPath()).toURI()))
+                        .withConf(conf)
+                        .build()) {
+            assertThat(parquetReader.read().getLong("f0", 0)).isEqualTo(expectedNanos);
+        }
+    }
+
+    @Test
     void testCompression(@TempDir java.nio.file.Path folder) throws Exception {
         Configuration conf = new Configuration();
         conf.set(ParquetOutputFormat.COMPRESSION, "GZIP");
@@ -249,6 +327,56 @@ class ParquetRowDataWriterTest {
             cnt++;
         }
         assertThat(cnt).isEqualTo(number);
+    }
+
+    private void assertPreEpochInt96Encoding(java.nio.file.Path folder, boolean utcTimestamp)
+            throws Exception {
+        LocalDateTime expected = LocalDateTime.of(1960, 6, 15, 12, 0, 0, 250_000_000);
+        Path path = writeTimestampFile(folder, expected, utcTimestamp);
+        File file = new File(path.getPath());
+        Instant expectedInstant =
+                utcTimestamp
+                        ? TimestampData.fromLocalDateTime(expected).toInstant()
+                        : Timestamp.valueOf(expected).toInstant();
+
+        try (ParquetReader<Group> parquetReader =
+                ParquetReader.builder(
+                                new GroupReadSupport(), new org.apache.hadoop.fs.Path(file.toURI()))
+                        .withConf(new Configuration())
+                        .build()) {
+            ByteBuffer int96 =
+                    parquetReader
+                            .read()
+                            .getInt96("f0", 0)
+                            .toByteBuffer()
+                            .order(ByteOrder.LITTLE_ENDIAN);
+            long nanosOfDay = int96.getLong();
+            int julianDay = int96.getInt();
+
+            assertThat(nanosOfDay).isBetween(0L, java.util.concurrent.TimeUnit.DAYS.toNanos(1) - 1);
+            Instant storedInstant =
+                    Instant.ofEpochSecond(
+                            (julianDay - JULIAN_EPOCH_OFFSET_DAYS)
+                                            * java.util.concurrent.TimeUnit.DAYS.toSeconds(1)
+                                    + nanosOfDay / java.util.concurrent.TimeUnit.SECONDS.toNanos(1),
+                            nanosOfDay % java.util.concurrent.TimeUnit.SECONDS.toNanos(1));
+            assertThat(storedInstant).isEqualTo(expectedInstant);
+        }
+    }
+
+    private Path writeTimestampFile(
+            java.nio.file.Path folder, LocalDateTime timestamp, boolean utcTimestamp)
+            throws IOException {
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(
+                        RowType.of(new TimestampType(9)), new Configuration(), utcTimestamp);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        writer.addElement(GenericRowData.of(TimestampData.fromLocalDateTime(timestamp)));
+        writer.flush();
+        writer.finish();
+        return path;
     }
 
     public void complexTypeTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)

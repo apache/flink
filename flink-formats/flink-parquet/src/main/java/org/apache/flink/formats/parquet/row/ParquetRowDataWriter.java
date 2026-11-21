@@ -560,15 +560,17 @@ public class ParquetRowDataWriter {
         long nanosOfDay;
         if (utcTimestamp) {
             long mills = timestampData.getMillisecond();
-            julianDay = (int) ((mills / MILLIS_IN_DAY) + JULIAN_EPOCH_OFFSET_DAYS);
+            julianDay = (int) (Math.floorDiv(mills, MILLIS_IN_DAY) + JULIAN_EPOCH_OFFSET_DAYS);
             nanosOfDay =
-                    (mills % MILLIS_IN_DAY) * NANOS_PER_MILLISECOND
+                    Math.floorMod(mills, MILLIS_IN_DAY) * NANOS_PER_MILLISECOND
                             + timestampData.getNanoOfMillisecond();
         } else {
             Timestamp timestamp = timestampData.toTimestamp();
             long mills = timestamp.getTime();
-            julianDay = (int) ((mills / MILLIS_IN_DAY) + JULIAN_EPOCH_OFFSET_DAYS);
-            nanosOfDay = ((mills % MILLIS_IN_DAY) / 1000) * NANOS_PER_SECOND + timestamp.getNanos();
+            julianDay = (int) (Math.floorDiv(mills, MILLIS_IN_DAY) + JULIAN_EPOCH_OFFSET_DAYS);
+            nanosOfDay =
+                    (Math.floorMod(mills, MILLIS_IN_DAY) / 1000) * NANOS_PER_SECOND
+                            + timestamp.getNanos();
         }
 
         ByteBuffer buf = ByteBuffer.allocate(12);

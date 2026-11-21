@@ -142,6 +142,36 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @TestTemplate
+    void testPreEpochTimestamp() throws IOException, ExecutionException, InterruptedException {
+        String path = TempDirUtils.newFolder(super.fileTempFolder()).toURI().toString();
+        super.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE preEpochParquet (id INT, ts TIMESTAMP(3)) WITH ("
+                                        + "'connector'='filesystem',"
+                                        + "'path'='%s',"
+                                        + "%s)",
+                                path, String.join(",", formatProperties())));
+
+        super.tableEnv()
+                .executeSql(
+                        "INSERT INTO preEpochParquet VALUES "
+                                + "(1, TIMESTAMP '1960-06-15 12:00:00.000'), "
+                                + "(2, TIMESTAMP '1960-06-15 12:00:00.250'), "
+                                + "(3, TIMESTAMP '1980-06-15 12:00:00.250')")
+                .await();
+
+        List<Row> rows =
+                CollectionUtil.iteratorToList(
+                        super.tableEnv().executeSql("SELECT * FROM preEpochParquet").collect());
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of(1, java.time.LocalDateTime.of(1960, 6, 15, 12, 0)),
+                        Row.of(2, java.time.LocalDateTime.of(1960, 6, 15, 12, 0, 0, 250_000_000)),
+                        Row.of(3, java.time.LocalDateTime.of(1980, 6, 15, 12, 0, 0, 250_000_000)));
+    }
+
+    @TestTemplate
     void testParquetFilterPredicate() throws IOException, ExecutionException, InterruptedException {
         // create a temporary parquet file with number of rows slightly greater than read batch size
         String path = TempDirUtils.newFolder(super.fileTempFolder()).toURI().getPath();
