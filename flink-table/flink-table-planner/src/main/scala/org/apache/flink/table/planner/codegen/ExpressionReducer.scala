@@ -333,4 +333,7 @@ class ConstantCodeGeneratorContext(tableConfig: ReadableConfig, classLoader: Cla
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {
     super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
   }
+
+  // The generated code is evaluated while planning, without a runtime context and outside a job.
+  override def supportsUdfMetrics: Boolean = false
 }
