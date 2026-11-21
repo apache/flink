@@ -22,10 +22,15 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.TestingPluginManager;
+import org.apache.flink.core.security.token.DelegationTokenProvider;
+import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -45,22 +50,43 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.security.token.DelegationTokenContainer;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.MockDelegationTokenProvider;
+import org.apache.flink.runtime.security.token.MockDelegationTokenReceiver;
+import org.apache.flink.runtime.security.token.MockTokenService;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -68,6 +94,101 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration test cases for the {@link MiniCluster}. */
 class MiniClusterITCase {
+
+    @Test
+    @Timeout(60)
+    void startObtainsDelegationTokensOnlyOnce() throws Exception {
+        final MockDelegationTokenProvider provider =
+                new MockDelegationTokenProvider(new MockTokenService());
+        final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
+        plugins.put(DelegationTokenProvider.class, Collections.singletonList(provider).iterator());
+        plugins.put(
+                DelegationTokenReceiver.class,
+                Collections.singletonList(new MockDelegationTokenReceiver()).iterator());
+        final Configuration config = new Configuration();
+        config.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
+        final MiniClusterConfiguration cfg =
+                new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
+                        .setConfiguration(config)
+                        .setPluginManager(new TestingPluginManager(plugins))
+                        .build();
+
+        try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+            miniCluster.start();
+            // The job needs the ResourceManager, whose leader session must not obtain tokens again.
+            miniCluster.executeJobBlocking(getSimpleJob(1));
+
+            assertThat(provider.obtainCalls()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void closeAsyncShutsDownEverythingEvenIfTheDelegationTokenManagerFailsToStop()
+            throws Exception {
+        final MiniClusterWithManagerFailingToStop miniCluster =
+                new MiniClusterWithManagerFailingToStop();
+        miniCluster.start();
+
+        assertThat(miniCluster.closeAsync())
+                .as("termination of a mini cluster whose delegation token manager fails to stop")
+                .failsWithin(Duration.ofSeconds(30))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IllegalStateException.class)
+                .withMessageContaining(STOP_FAILURE_MESSAGE);
+        assertThat(miniCluster.ioExecutor.isTerminated())
+                .as("io executor, the last service which a mini cluster shuts down")
+                .isTrue();
+    }
+
+    @Test
+    @Timeout(60)
+    void startReportsItsFailureEvenIfTheDelegationTokenManagerFailsToStop() {
+        final IllegalStateException startFailure = new IllegalStateException("HA services failed");
+        final MiniClusterWithManagerFailingToStop miniCluster =
+                new MiniClusterWithManagerFailingToStop() {
+                    @Override
+                    protected HighAvailabilityServices createHighAvailabilityServices(
+                            Configuration configuration, Executor executor) {
+                        throw startFailure;
+                    }
+                };
+
+        try {
+            assertThatThrownBy(miniCluster::start)
+                    .isSameAs(startFailure)
+                    .hasSuppressedException(new IllegalStateException(STOP_FAILURE_MESSAGE));
+        } finally {
+            miniCluster.ioExecutor.shutdownNow();
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void closeAsyncDoesNotFailALeaderSessionWhichStartsWhileTheClusterIsClosed() throws Exception {
+        final MiniClusterWithGatedAttach miniCluster = new MiniClusterWithGatedAttach();
+        miniCluster.start();
+        assertThat(miniCluster.attachReached.await(30, TimeUnit.SECONDS))
+                .as("the leader session reached the delegation token manager")
+                .isTrue();
+
+        // The leader session is still starting, as it is when a test closes the cluster right
+        // after it started it. A session attaches to the manager, so the manager must still be
+        // running when the session gets there.
+        final CompletableFuture<Void> termination = miniCluster.closeAsync();
+        miniCluster.attachMayProceed.countDown();
+
+        assertThat(miniCluster.attachFinished.await(30, TimeUnit.SECONDS))
+                .as("the attach of the leader session finished")
+                .isTrue();
+        assertThat(miniCluster.attachFailure.get())
+                .as("failure of the attach of a leader session which starts while closing")
+                .isNull();
+        assertThat(termination)
+                .as("termination of a mini cluster closed while a leader session starts")
+                .succeedsWithin(Duration.ofSeconds(30));
+    }
 
     @Test
     void runJobWithSingleRpcService() throws Exception {
@@ -854,6 +975,98 @@ class MiniClusterITCase {
             for (AbstractMetricGroup<?> kid : kids) {
                 kid.close();
             }
+        }
+    }
+
+    private static final String STOP_FAILURE_MESSAGE = "cannot stop";
+
+    /** A mini cluster whose delegation token manager throws when it is stopped. */
+    private static class MiniClusterWithManagerFailingToStop extends MiniCluster {
+
+        private volatile ExecutorService ioExecutor;
+
+        MiniClusterWithManagerFailingToStop() {
+            super(new MiniClusterConfiguration.Builder().withRandomPorts().build());
+        }
+
+        @Override
+        protected DelegationTokenManager createDelegationTokenManager(
+                Configuration configuration,
+                @Nullable PluginManager pluginManager,
+                ScheduledExecutor scheduledExecutor,
+                ExecutorService ioExecutor) {
+            this.ioExecutor = ioExecutor;
+            return new NoOpDelegationTokenManager() {
+                @Override
+                public void stop() {
+                    throw new IllegalStateException(STOP_FAILURE_MESSAGE);
+                }
+            };
+        }
+    }
+
+    /**
+     * A mini cluster which holds the attach of the ResourceManager to its delegation token manager
+     * until it is told to go on. The manager is the real one, so it fails the attach if it is
+     * stopped.
+     */
+    private static class MiniClusterWithGatedAttach extends MiniCluster {
+
+        private final CountDownLatch attachReached = new CountDownLatch(1);
+        private final CountDownLatch attachMayProceed = new CountDownLatch(1);
+        private final CountDownLatch attachFinished = new CountDownLatch(1);
+        private final AtomicReference<Throwable> attachFailure = new AtomicReference<>();
+
+        MiniClusterWithGatedAttach() {
+            super(new MiniClusterConfiguration.Builder().withRandomPorts().build());
+        }
+
+        @Override
+        protected DelegationTokenManager createDelegationTokenManager(
+                Configuration configuration,
+                @Nullable PluginManager pluginManager,
+                ScheduledExecutor scheduledExecutor,
+                ExecutorService ioExecutor)
+                throws IOException {
+            final DelegationTokenManager manager =
+                    super.createDelegationTokenManager(
+                            configuration, pluginManager, scheduledExecutor, ioExecutor);
+            return new DelegationTokenManager() {
+                @Override
+                public void obtainDelegationTokens(DelegationTokenContainer container)
+                        throws Exception {
+                    manager.obtainDelegationTokens(container);
+                }
+
+                @Override
+                public void start() throws Exception {
+                    manager.start();
+                }
+
+                @Override
+                public void attachListener(Listener listener) throws Exception {
+                    attachReached.countDown();
+                    try {
+                        attachMayProceed.await();
+                        manager.attachListener(listener);
+                    } catch (Throwable t) {
+                        attachFailure.set(t);
+                        throw t;
+                    } finally {
+                        attachFinished.countDown();
+                    }
+                }
+
+                @Override
+                public void detachListener(Listener listener) {
+                    manager.detachListener(listener);
+                }
+
+                @Override
+                public void stop() {
+                    manager.stop();
+                }
+            };
         }
     }
 }

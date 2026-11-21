@@ -27,7 +27,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-class TestingDispatcherGatewayService
+public class TestingDispatcherGatewayService
         implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
 
     private final Function<JobID, CompletableFuture<Void>> onRemovedExecutionPlanFunction;

@@ -38,6 +38,7 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
@@ -119,6 +120,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -426,15 +428,14 @@ public class MiniCluster implements AutoCloseableAsync {
                                 new ExecutorThreadFactory("mini-cluster-io"));
 
                 delegationTokenManager =
-                        DefaultDelegationTokenManagerFactory.create(
+                        createDelegationTokenManager(
                                 configuration,
                                 miniClusterConfiguration.getPluginManager(),
                                 commonRpcService.getScheduledExecutor(),
                                 ioExecutor);
-                // Obtaining delegation tokens and propagating them to the local JVM receivers in a
-                // one-time fashion is required because BlobServer may connect to external file
-                // systems
-                delegationTokenManager.obtainDelegationTokens();
+                // Obtaining delegation tokens and propagating them to the local JVM receivers is
+                // required because BlobServer may connect to external file systems
+                delegationTokenManager.start();
 
                 delegationTokenReceiverRepository =
                         new DelegationTokenReceiverRepository(
@@ -498,6 +499,13 @@ public class MiniCluster implements AutoCloseableAsync {
                 clusterRestEndpointLeaderRetrievalService.start(webMonitorLeaderRetriever);
             } catch (Exception e) {
                 // cleanup everything
+                if (delegationTokenManager != null) {
+                    try {
+                        delegationTokenManager.stop();
+                    } catch (Throwable t) {
+                        e.addSuppressed(t);
+                    }
+                }
                 try {
                     close();
                 } catch (Exception ee) {
@@ -619,6 +627,17 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     @VisibleForTesting
+    protected DelegationTokenManager createDelegationTokenManager(
+            Configuration configuration,
+            @Nullable PluginManager pluginManager,
+            ScheduledExecutor scheduledExecutor,
+            ExecutorService ioExecutor)
+            throws IOException {
+        return DefaultDelegationTokenManagerFactory.create(
+                configuration, pluginManager, scheduledExecutor, ioExecutor);
+    }
+
+    @VisibleForTesting
     protected HighAvailabilityServices createHighAvailabilityServices(
             Configuration configuration, Executor executor) throws Exception {
         return haServicesFactory.createHAServices(configuration, executor);
@@ -684,9 +703,16 @@ public class MiniCluster implements AutoCloseableAsync {
                     final FutureUtils.ConjunctFuture<Void> componentsTerminationFuture =
                             FutureUtils.completeAll(componentTerminationFutures);
 
+                    // Every leader session of the ResourceManager attaches to the manager, so the
+                    // manager outlives the components. It still stops before the services which
+                    // its scheduled obtains run on.
+                    final CompletableFuture<Void> tokenManagerTerminationFuture =
+                            FutureUtils.runAfterwards(
+                                    componentsTerminationFuture, this::stopDelegationTokenManager);
+
                     final CompletableFuture<Void> metricSystemTerminationFuture =
                             FutureUtils.composeAfterwards(
-                                    componentsTerminationFuture, this::closeMetricSystem);
+                                    tokenManagerTerminationFuture, this::closeMetricSystem);
 
                     final CompletableFuture<Void> rpcServicesTerminationFuture =
                             FutureUtils.composeAfterwards(
@@ -721,6 +747,12 @@ public class MiniCluster implements AutoCloseableAsync {
             }
 
             return terminationFuture;
+        }
+    }
+
+    private void stopDelegationTokenManager() {
+        if (delegationTokenManager != null) {
+            delegationTokenManager.stop();
         }
     }
 

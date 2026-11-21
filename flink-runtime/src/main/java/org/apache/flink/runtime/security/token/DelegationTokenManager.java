@@ -23,9 +23,9 @@ import org.apache.flink.annotation.Internal;
 /**
  * Manager for delegation tokens in a Flink cluster.
  *
- * <p>When delegation token renewal is enabled, this manager will make sure long-running apps can
- * run without interruption while accessing secured services. It must contact all the configured
- * secure services to obtain delegation tokens to be distributed to the rest of the application.
+ * <p>When delegation tokens are enabled, this manager will make sure long-running apps can run
+ * without interruption while accessing secured services. It must contact all the configured secure
+ * services to obtain delegation tokens to be distributed to the rest of the application.
  */
 @Internal
 public interface DelegationTokenManager {
@@ -46,19 +46,32 @@ public interface DelegationTokenManager {
     void obtainDelegationTokens(DelegationTokenContainer container) throws Exception;
 
     /**
-     * Obtains new tokens in a one-time fashion and automatically distributes them to all local JVM
-     * receivers.
+     * Starts obtaining tokens for the lifetime of the process: obtains tokens inline, propagates
+     * them to all local JVM receivers and schedules the next obtain. Fails if the first obtain
+     * fails.
+     *
+     * <p>Tokens are obtained independently of any leadership, so a standby JobManager keeps its
+     * local receivers fresh too. Distribution to other processes is attached per leader session
+     * with {@link #attachListener(Listener)}.
      */
-    void obtainDelegationTokens() throws Exception;
+    void start() throws Exception;
 
     /**
-     * Creates a re-occurring task which obtains new tokens and automatically distributes them to
-     * all receivers (in local JVM as well as in registered task managers too). Task manager
-     * distribution must be implemented in the listener logic in order to keep the manager logic
-     * clean.
+     * Attaches the listener which distributes tokens to the rest of the cluster (task managers) for
+     * the duration of a leader session. The most recently obtained tokens are handed to the
+     * listener before this method returns, without contacting the token services. Tokens obtained
+     * later are delivered to the listener as well, never older tokens after newer ones.
      */
-    void start(Listener listener) throws Exception;
+    void attachListener(Listener listener) throws Exception;
 
-    /** Stops re-occurring token obtain task. */
+    /**
+     * Detaches the listener at the end of a leader session. Has no effect if the listener is not
+     * the attached one. A callback to the listener which is in progress is waited for, so none runs
+     * after this method returns. Obtaining tokens, and with it the update of the local JVM
+     * receivers, continues.
+     */
+    void detachListener(Listener listener);
+
+    /** Stops obtaining tokens and releases the attached listener. */
     void stop();
 }

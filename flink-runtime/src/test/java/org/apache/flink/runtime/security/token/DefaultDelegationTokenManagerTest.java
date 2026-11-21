@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.TestingPluginManager;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
-import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -33,10 +31,10 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
@@ -44,79 +42,51 @@ import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_R
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link DelegationTokenManager}. */
 public class DefaultDelegationTokenManagerTest {
 
-    @BeforeEach
-    public void beforeEach() {
-        ExceptionThrowingDelegationTokenProvider.reset();
-        ExceptionThrowingDelegationTokenReceiver.reset();
-    }
-
-    @AfterEach
-    public void afterEach() {
-        ExceptionThrowingDelegationTokenProvider.reset();
-        ExceptionThrowingDelegationTokenReceiver.reset();
-    }
-
-    @Test
-    public void isProviderEnabledMustGiveBackTrueByDefault() {
-        Configuration configuration = new Configuration();
-
-        assertTrue(DefaultDelegationTokenManager.isProviderEnabled(configuration, "test"));
-    }
-
-    @Test
-    public void isProviderEnabledMustGiveBackFalseWhenDisabled() {
-        Configuration configuration = new Configuration();
-        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".test.enabled"), false);
-
-        assertFalse(DefaultDelegationTokenManager.isProviderEnabled(configuration, "test"));
-    }
-
     @Test
     public void configurationIsNullMustFailFast() {
-        assertThrows(
-                Exception.class, () -> new DefaultDelegationTokenManager(null, null, null, null));
+        assertThatThrownBy(() -> new DefaultDelegationTokenManager(null, null, null, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("Flink configuration must not be null");
     }
 
     @Test
-    public void oneProviderThrowsExceptionMustFailFast() {
-        assertThrows(
-                Exception.class,
-                () -> {
-                    ExceptionThrowingDelegationTokenProvider.throwInInit.set(true);
-                    new DefaultDelegationTokenManager(new Configuration(), null, null, null);
-                });
+    void providerWithoutReceiverFailsTheConstruction() {
+        assertThatThrownBy(
+                        () ->
+                                new DefaultDelegationTokenManager(
+                                        disabled("hadoopfs", "hbase", "test", "throw"),
+                                        pluginManager(
+                                                List.of(
+                                                        TestingDelegationTokenProvider
+                                                                .withoutExpiry("lonely")),
+                                                List.of()),
+                                        null,
+                                        null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing receivers: lonely");
     }
 
     @Test
-    public void testAllProvidersLoaded() {
-        Configuration configuration = new Configuration();
-        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
-        DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(configuration, null, null, null);
+    void oneShotObtainHandsTheTokensOfAllProvidersToTheCaller() throws Exception {
+        final TestingDelegationTokenProvider a =
+                TestingDelegationTokenProvider.validUntil("a", 100L);
+        final TestingDelegationTokenProvider b = TestingDelegationTokenProvider.withoutExpiry("b");
+        final DelegationTokenContainer container = new DelegationTokenContainer();
 
-        assertEquals(3, delegationTokenManager.delegationTokenProviders.size());
+        manager(a, b).obtainDelegationTokens(container);
 
-        assertTrue(delegationTokenManager.isProviderLoaded("hadoopfs"));
-        assertTrue(delegationTokenManager.isReceiverLoaded("hadoopfs"));
-
-        assertTrue(delegationTokenManager.isProviderLoaded("hbase"));
-        assertTrue(delegationTokenManager.isReceiverLoaded("hbase"));
-
-        assertTrue(delegationTokenManager.isProviderLoaded("test"));
-        assertTrue(delegationTokenManager.isReceiverLoaded("test"));
-
-        assertTrue(ExceptionThrowingDelegationTokenProvider.constructed.get());
-        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
-        assertFalse(delegationTokenManager.isProviderLoaded("throw"));
-        assertFalse(delegationTokenManager.isReceiverLoaded("throw"));
+        assertThat(container.getTokens()).containsOnlyKeys("a", "b");
+        assertThat(container.getTokens().get("a")).isEqualTo(a.tokens());
+        assertThat(container.getTokens().get("b")).isEqualTo(b.tokens());
     }
 
     @Test
@@ -169,62 +139,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void checkSamePrefixedProvidersShouldNotGiveErrorsWhenNoSamePrefix() {
-        Map<String, DelegationTokenProvider> providers = new HashMap<>();
-        providers.put("s3-hadoop", new TestDelegationTokenProvider());
-        Set<String> warnings = new HashSet<>();
-        DefaultDelegationTokenManager.checkSamePrefixedProviders(providers, warnings);
-        assertTrue(warnings.isEmpty());
-    }
-
-    @Test
-    public void checkSamePrefixedProvidersShouldGiveErrorsWhenSamePrefix() {
-        Map<String, DelegationTokenProvider> providers = new HashMap<>();
-        providers.put("s3-hadoop", new TestDelegationTokenProvider());
-        providers.put("s3-presto", new TestDelegationTokenProvider());
-        Set<String> warnings = new HashSet<>();
-        DefaultDelegationTokenManager.checkSamePrefixedProviders(providers, warnings);
-        assertEquals(1, warnings.size());
-        assertEquals(
-                "Multiple providers loaded with the same prefix: s3. This might lead to unintended consequences, please consider using only one of them.",
-                warnings.iterator().next());
-    }
-
-    @Test
-    public void startTokensUpdateShouldScheduleRenewal() {
-        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-        final ManuallyTriggeredScheduledExecutorService scheduler =
-                new ManuallyTriggeredScheduledExecutorService();
-
-        ExceptionThrowingDelegationTokenProvider.addToken.set(true);
-        Configuration configuration = new Configuration();
-        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), true);
-        AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
-        DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(
-                        configuration, null, scheduledExecutor, scheduler) {
-                    @Override
-                    void startTokensUpdate() {
-                        startTokensUpdateCallCount.incrementAndGet();
-                        super.startTokensUpdate();
-                    }
-                };
-
-        delegationTokenManager.startTokensUpdate();
-        ExceptionThrowingDelegationTokenProvider.throwInUsage.set(true);
-        scheduledExecutor.triggerScheduledTasks();
-        scheduler.triggerAll();
-        ExceptionThrowingDelegationTokenProvider.throwInUsage.set(false);
-        scheduledExecutor.triggerScheduledTasks();
-        scheduler.triggerAll();
-        delegationTokenManager.stopTokensUpdate();
-
-        assertEquals(3, startTokensUpdateCallCount.get());
-    }
-
-    @Test
-    public void calculateRenewalDelayShouldConsiderRenewalRatio() {
+    public void calculateObtainDelayShouldConsiderTheTimeRatio() {
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
         configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 0.5);
@@ -232,11 +147,11 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
         Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
-        assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));
+        assertEquals(50, delegationTokenManager.calculateObtainDelay(constantClock, 200));
     }
 
     @Test
-    public void calculateRetryDelayShouldDoubleOnConsecutiveFailures() {
+    public void calculateNextRetryDelayShouldDoubleOnConsecutiveFailures() {
         long initialMs = Duration.ofSeconds(10).toMillis();
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
@@ -246,9 +161,9 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
-        long delay1 = manager.calculateRetryDelay(clock);
-        long delay2 = manager.calculateRetryDelay(clock);
-        long delay3 = manager.calculateRetryDelay(clock);
+        long delay1 = manager.calculateNextRetryDelay(clock);
+        long delay2 = manager.calculateNextRetryDelay(clock);
+        long delay3 = manager.calculateNextRetryDelay(clock);
 
         // Each delay should be within [0, 2 * initial * 2^(n-1)] accounting for ±50% jitter.
         assertTrue(delay1 >= 0 && delay1 <= initialMs * 2);
@@ -259,7 +174,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void calculateRetryDelayShouldResetAfterSuccess() {
+    public void calculateNextRetryDelayShouldResetAfterSuccess() {
         long initialMs = Duration.ofSeconds(10).toMillis();
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
@@ -270,18 +185,18 @@ public class DefaultDelegationTokenManagerTest {
 
         // Ramp up the backoff via two failures.
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
-        manager.calculateRetryDelay(clock);
-        manager.calculateRetryDelay(clock);
-        // Simulate success: reset currentRetryBackoff (as startTokensUpdate() would).
+        manager.calculateNextRetryDelay(clock);
+        manager.calculateNextRetryDelay(clock);
+        // Simulate success: reset currentRetryBackoff (as a successful obtain would).
         manager.currentRetryBackoff = initialMs;
 
-        long delayAfterReset = manager.calculateRetryDelay(clock);
+        long delayAfterReset = manager.calculateNextRetryDelay(clock);
         assertTrue(delayAfterReset >= 0 && delayAfterReset <= initialMs * 2);
         assertEquals(initialMs * 2, manager.currentRetryBackoff);
     }
 
     @Test
-    public void calculateRetryDelayShouldCapToTtlBound() {
+    public void calculateNextRetryDelayShouldCapToTtlBound() {
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
         configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, Duration.ofSeconds(10));
@@ -292,12 +207,45 @@ public class DefaultDelegationTokenManagerTest {
         // Simulate a failure close to token expiry (30 s remaining). The delay must be capped
         // so that the retry happens while the token is still valid (at most 30 s / 3 = 10 s).
         Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
-        manager.lastKnownNextRenewal = Duration.ofSeconds(30).toMillis();
+        manager.lastKnownExpiry = Duration.ofSeconds(30).toMillis();
 
-        long delay = manager.calculateRetryDelay(clock);
+        long delay = manager.calculateNextRetryDelay(clock);
 
         // Delay must not exceed the TTL cap (30 s / 3 = 10 s), with jitter the max is 10 s.
         assertTrue(delay <= Duration.ofSeconds(10).toMillis());
         assertTrue(delay >= 0);
+    }
+
+    /** Disables the providers and receivers which the service loader finds, by service name. */
+    private static Configuration disabled(String... serviceNames) {
+        final Configuration configuration = new Configuration();
+        for (String serviceName : serviceNames) {
+            configuration.set(
+                    getBooleanConfigOption(CONFIG_PREFIX + "." + serviceName + ".enabled"), false);
+        }
+        return configuration;
+    }
+
+    /** A manager with exactly these providers, each with a receiver of its own. */
+    private static DefaultDelegationTokenManager manager(
+            TestingDelegationTokenProvider... providers) {
+        final List<DelegationTokenProvider> providerList = List.of(providers);
+        final List<DelegationTokenReceiver> receivers =
+                providerList.stream()
+                        .map(provider -> new TestingDelegationTokenReceiver(provider.serviceName()))
+                        .collect(Collectors.toList());
+        return new DefaultDelegationTokenManager(
+                disabled("hadoopfs", "hbase", "test", "throw"),
+                pluginManager(providerList, receivers),
+                null,
+                null);
+    }
+
+    private static PluginManager pluginManager(
+            List<DelegationTokenProvider> providers, List<DelegationTokenReceiver> receivers) {
+        final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
+        plugins.put(DelegationTokenProvider.class, providers.iterator());
+        plugins.put(DelegationTokenReceiver.class, receivers.iterator());
+        return new TestingPluginManager(plugins);
     }
 }

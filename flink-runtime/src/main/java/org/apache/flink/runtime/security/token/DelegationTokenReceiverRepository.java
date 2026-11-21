@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.security.token.DefaultDelegationTokenManager.isProviderEnabled;
+import static org.apache.flink.runtime.security.token.DelegationTokenProviderRepository.isProviderEnabled;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 

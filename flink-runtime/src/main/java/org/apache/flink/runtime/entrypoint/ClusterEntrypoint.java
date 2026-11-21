@@ -382,14 +382,16 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             ClusterEntrypointUtils.getPoolSize(configuration),
                             new ExecutorThreadFactory("cluster-io"));
             delegationTokenManager =
-                    DefaultDelegationTokenManagerFactory.create(
+                    createDelegationTokenManager(
                             configuration,
                             pluginManager,
                             commonRpcService.getScheduledExecutor(),
                             ioExecutor);
-            // Obtaining delegation tokens and propagating them to the local JVM receivers in a
-            // one-time fashion is required because BlobServer may connect to external file systems
-            delegationTokenManager.obtainDelegationTokens();
+            // Obtaining delegation tokens and propagating them to the local JVM receivers is
+            // required because BlobServer may connect to external file systems. New tokens keep
+            // being obtained for the lifetime of the process, so a standby JobManager does not
+            // take over with aged tokens.
+            delegationTokenManager.start();
             haServices = createHaServices(configuration, ioExecutor, rpcSystem);
             blobServer =
                     BlobUtils.createBlobServer(
@@ -439,6 +441,16 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         } else {
             return String.valueOf(configuration.get(JobManagerOptions.PORT));
         }
+    }
+
+    protected DelegationTokenManager createDelegationTokenManager(
+            Configuration configuration,
+            PluginManager pluginManager,
+            ScheduledExecutor scheduledExecutor,
+            ExecutorService ioExecutor)
+            throws IOException {
+        return DefaultDelegationTokenManagerFactory.create(
+                configuration, pluginManager, scheduledExecutor, ioExecutor);
     }
 
     protected HighAvailabilityServices createHaServices(
@@ -529,6 +541,14 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             if (metricRegistry != null) {
                 terminationFutures.add(metricRegistry.closeAsync());
+            }
+
+            if (delegationTokenManager != null) {
+                try {
+                    delegationTokenManager.stop();
+                } catch (Throwable t) {
+                    exception = ExceptionUtils.firstOrSuppressed(t, exception);
+                }
             }
 
             if (ioExecutor != null) {
