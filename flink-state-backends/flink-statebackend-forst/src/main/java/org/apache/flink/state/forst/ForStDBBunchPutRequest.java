@@ -70,6 +70,10 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
                     }
                     iter.next();
                 }
+                if (!iter.isValid()) {
+                    // Invalid means either no more data or a read error.
+                    iter.status();
+                }
             }
         } else {
             for (Map.Entry<UK, UV> entry : value.entrySet()) {
