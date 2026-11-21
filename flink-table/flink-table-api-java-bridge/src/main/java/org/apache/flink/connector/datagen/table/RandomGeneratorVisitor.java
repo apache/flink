@@ -22,11 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.datagen.table.types.DataGeneratorMapper;
 import org.apache.flink.connector.datagen.table.types.DecimalDataRandomGenerator;
+import org.apache.flink.connector.datagen.table.types.RandomGeneratorFunction;
 import org.apache.flink.connector.datagen.table.types.RowDataGenerator;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
-import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
@@ -134,7 +134,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     public DataGeneratorContainer visit(BooleanType booleanType) {
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.booleanGenerator().withNullRate(config.get(nr)), nr);
+                RandomGeneratorFunction.booleanGenerator().withNullRate(config.get(nr)), nr);
     }
 
     @Override
@@ -187,7 +187,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Integer> max = maxKey.intType().defaultValue((int) Byte.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.byteGenerator(
+                RandomGeneratorFunction.byteGenerator(
                                 config.get(min).byteValue(), config.get(max).byteValue())
                         .withNullRate(config.get(nr)),
                 min,
@@ -201,7 +201,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Integer> max = maxKey.intType().defaultValue((int) Short.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.shortGenerator(
+                RandomGeneratorFunction.shortGenerator(
                                 config.get(min).shortValue(), config.get(max).shortValue())
                         .withNullRate(config.get(nr)),
                 min,
@@ -215,7 +215,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Integer> max = maxKey.intType().defaultValue(Integer.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.intGenerator(config.get(min), config.get(max))
+                RandomGeneratorFunction.intGenerator(config.get(min), config.get(max))
                         .withNullRate(config.get(nr)),
                 min,
                 max,
@@ -228,7 +228,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Long> max = maxKey.longType().defaultValue(Long.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.longGenerator(config.get(min), config.get(max))
+                RandomGeneratorFunction.longGenerator(config.get(min), config.get(max))
                         .withNullRate(config.get(nr)),
                 min,
                 max,
@@ -241,7 +241,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Float> max = maxKey.floatType().defaultValue(Float.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.floatGenerator(config.get(min), config.get(max))
+                RandomGeneratorFunction.floatGenerator(config.get(min), config.get(max))
                         .withNullRate(config.get(nr)),
                 min,
                 max,
@@ -254,7 +254,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Double> max = maxKey.doubleType().defaultValue(Double.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.doubleGenerator(config.get(min), config.get(max))
+                RandomGeneratorFunction.doubleGenerator(config.get(min), config.get(max))
                         .withNullRate(config.get(nr)),
                 min,
                 max,
@@ -284,7 +284,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Integer> max = maxKey.intType().defaultValue(120000); // Period max
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.intGenerator(config.get(min), config.get(max))
+                RandomGeneratorFunction.intGenerator(config.get(min), config.get(max))
                         .withNullRate(config.get(nr)),
                 min,
                 max,
@@ -297,7 +297,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Long> max = maxKey.longType().defaultValue(Long.MAX_VALUE);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         return DataGeneratorContainer.of(
-                RandomGenerator.longGenerator(config.get(min), config.get(max))
+                RandomGeneratorFunction.longGenerator(config.get(min), config.get(max))
                         .withNullRate(config.get(nr)),
                 min,
                 max,
@@ -348,8 +348,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         DataGeneratorContainer container =
                 arrayType.getElementType().accept(new RandomGeneratorVisitor(fieldName, config));
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
-        DataGenerator<Object[]> generator =
-                RandomGenerator.arrayGenerator(container.getGenerator(), config.get(lenOption));
+        GeneratorFunction<Long, Object[]> generator =
+                RandomGeneratorFunction.arrayGenerator(
+                        (GeneratorFunction<Long, Object>) container.getGenerator(),
+                        config.get(lenOption));
         Set<ConfigOption<?>> options = container.getOptions();
         options.add(nr);
         options.add(lenOption);
@@ -366,10 +368,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         DataGeneratorContainer container =
                 multisetType.getElementType().accept(new RandomGeneratorVisitor(fieldName, config));
 
-        DataGenerator<Map<Object, Integer>> mapGenerator =
-                RandomGenerator.mapGenerator(
-                        container.getGenerator(),
-                        RandomGenerator.intGenerator(0, 10),
+        GeneratorFunction<Long, Map<Object, Integer>> mapGenerator =
+                RandomGeneratorFunction.mapGenerator(
+                        (GeneratorFunction<Long, Object>) container.getGenerator(),
+                        RandomGeneratorFunction.intGenerator(0, 10),
                         config.get(lenOption));
 
         Set<ConfigOption<?>> options = container.getOptions();
@@ -401,10 +403,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         options.add(nr);
         options.add(lenOption);
 
-        DataGenerator<Map<Object, Object>> mapGenerator =
-                RandomGenerator.mapGenerator(
-                        keyContainer.getGenerator(),
-                        valContainer.getGenerator(),
+        GeneratorFunction<Long, Map<Object, Object>> mapGenerator =
+                RandomGeneratorFunction.mapGenerator(
+                        (GeneratorFunction<Long, Object>) keyContainer.getGenerator(),
+                        (GeneratorFunction<Long, Object>) valContainer.getGenerator(),
                         config.get(lenOption));
 
         return DataGeneratorContainer.of(
@@ -432,10 +434,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         fieldOptions.add(nr);
 
-        DataGenerator[] generators =
+        GeneratorFunction<Long, ?>[] generators =
                 fieldContainers.stream()
                         .map(DataGeneratorContainer::getGenerator)
-                        .toArray(DataGenerator[]::new);
+                        .toArray(GeneratorFunction[]::new);
 
         return DataGeneratorContainer.of(
                 new RowDataGenerator(generators, rowType.getFieldNames(), config.get(nr)),
@@ -457,10 +459,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                 .defaultValue(defaultLengthSupplier.get());
     }
 
-    private static RandomGenerator<StringData> getRandomStringGenerator(int length) {
-        return new RandomGenerator<StringData>() {
+    private static RandomGeneratorFunction<StringData> getRandomStringGenerator(int length) {
+        return new RandomGeneratorFunction<StringData>() {
             @Override
-            public StringData next() {
+            public StringData map(Long value) {
                 if (nullRate == NULL_RATE_DEFAULT
                         || ThreadLocalRandom.current().nextFloat() > nullRate) {
                     int len = generateLength(length, varLen);
@@ -471,11 +473,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         };
     }
 
-    private static RandomGenerator<TimestampData> getRandomPastTimestampGenerator(
+    private static RandomGeneratorFunction<TimestampData> getRandomPastTimestampGenerator(
             Duration maxPast) {
-        return new RandomGenerator<TimestampData>() {
+        return new RandomGeneratorFunction<TimestampData>() {
             @Override
-            public TimestampData next() {
+            public TimestampData map(Long value) {
                 if (nullRate == NULL_RATE_DEFAULT
                         || ThreadLocalRandom.current().nextFloat() > nullRate) {
                     long maxPastMillis = maxPast.toMillis();
@@ -487,10 +489,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         };
     }
 
-    private static RandomGenerator<byte[]> getRandomBytesGenerator(int length) {
-        return new RandomGenerator<byte[]>() {
+    private static RandomGeneratorFunction<byte[]> getRandomBytesGenerator(int length) {
+        return new RandomGeneratorFunction<byte[]>() {
             @Override
-            public byte[] next() {
+            public byte[] map(Long value) {
                 byte[] arr = new byte[generateLength(length, varLen)];
                 random.getRandomGenerator().nextBytes(arr);
                 return arr;
