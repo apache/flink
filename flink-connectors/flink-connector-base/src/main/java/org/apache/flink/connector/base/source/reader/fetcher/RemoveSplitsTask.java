@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** The task to finish reading some splits. */
@@ -37,17 +38,17 @@ import java.util.stream.Collectors;
 public class RemoveSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
     private static final Logger LOG = LoggerFactory.getLogger(RemoveSplitsTask.class);
 
-    private final SplitReader<?, SplitT> splitReader;
+    private final Supplier<? extends SplitReader<?, SplitT>> splitReaderSupplier;
     private final List<SplitT> removedSplits;
     private final Map<String, SplitT> assignedSplits;
     private final Consumer<Collection<String>> splitFinishedCallback;
 
     RemoveSplitsTask(
-            SplitReader<?, SplitT> splitReader,
+            Supplier<? extends SplitReader<?, SplitT>> splitReaderSupplier,
             List<SplitT> removedSplits,
             Map<String, SplitT> assignedSplits,
             Consumer<Collection<String>> splitFinishedCallback) {
-        this.splitReader = splitReader;
+        this.splitReaderSupplier = splitReaderSupplier;
         this.removedSplits = removedSplits;
         this.assignedSplits = assignedSplits;
         this.splitFinishedCallback = splitFinishedCallback;
@@ -58,7 +59,7 @@ public class RemoveSplitsTask<SplitT extends SourceSplit> implements SplitFetche
         for (SplitT s : removedSplits) {
             assignedSplits.remove(s.splitId());
         }
-        splitReader.handleSplitsChanges(new SplitsRemoval<>(removedSplits));
+        splitReaderSupplier.get().handleSplitsChanges(new SplitsRemoval<>(removedSplits));
 
         List<String> splitIds =
                 removedSplits.stream().map(SourceSplit::splitId).collect(Collectors.toList());
