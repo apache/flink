@@ -47,6 +47,13 @@ public enum StaticArgumentTrait {
     SUPPORT_UPDATES(TABLE),
     REQUIRE_ON_TIME(TABLE),
 
+    /**
+     * Specifies that the function emits rows of this table argument in accordance with the
+     * watermark strategy, so that the time attributes in the output columns remain valid. Reserved
+     * for built-in functions.
+     */
+    PRESERVE_TIME_ATTRIBUTES(TABLE),
+
     // For SET_SEMANTIC_TABLE
     OPTIONAL_PARTITION_BY(SET_SEMANTIC_TABLE),
 

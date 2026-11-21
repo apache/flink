@@ -819,7 +819,9 @@ public final class BuiltInFunctionDefinitions {
                                     "INPUT",
                                     Row.class,
                                     false,
-                                    EnumSet.of(StaticArgumentTrait.TABLE)),
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)),
                             StaticArgument.model(
                                     "MODEL", false, EnumSet.of(StaticArgumentTrait.MODEL)),
                             StaticArgument.scalar("ARGS", DataTypes.DESCRIPTOR(), false),
@@ -897,7 +899,18 @@ public final class BuiltInFunctionDefinitions {
                                                                                                     String,
                                                                                                     String>)
                                                                                             mapping,
-                                                                                    "DELETE"))))),
+                                                                                    "DELETE")))))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES,
+                                            // Retractions carry old timestamps, only inserts and
+                                            // updates carry the current one
+                                            TraitCondition.argMatches(
+                                                    "op_mapping",
+                                                    Map.class,
+                                                    mapping ->
+                                                            forwardsOnlyInsertsAndUpdates(
+                                                                    (Map<String, String>)
+                                                                            mapping))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
@@ -937,6 +950,24 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition TO_APPEND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TO_APPEND")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)))
+                    .outputTypeStrategy(argument(0))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
                     .build();
 
     /**
@@ -3626,6 +3657,11 @@ public final class BuiltInFunctionDefinitions {
      * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the user-provided {@code
      * op_mapping} argument.
      */
+    private static boolean forwardsOnlyInsertsAndUpdates(final Map<String, String> opMapping) {
+        return !opMappingContainsKey(opMapping, "UPDATE_BEFORE")
+                && !opMappingContainsKey(opMapping, "DELETE");
+    }
+
     private static boolean opMappingContainsKey(
             final Map<String, String> opMapping, final String key) {
         return opMapping.keySet().stream()

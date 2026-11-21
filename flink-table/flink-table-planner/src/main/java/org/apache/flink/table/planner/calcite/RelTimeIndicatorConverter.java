@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.calcite;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
@@ -52,6 +53,7 @@ import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -140,8 +142,9 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 || node instanceof FlinkLogicalUnion
                 || node instanceof FlinkLogicalMinus) {
             return visitSetOp((SetOp) node);
-        } else if (node instanceof FlinkLogicalTableFunctionScan
-                || node instanceof FlinkLogicalSnapshot
+        } else if (node instanceof FlinkLogicalTableFunctionScan) {
+            return visitTableFunctionScan((FlinkLogicalTableFunctionScan) node);
+        } else if (node instanceof FlinkLogicalSnapshot
                 || node instanceof FlinkLogicalRank
                 || node instanceof FlinkLogicalDistribution
                 || node instanceof FlinkLogicalWatermarkAssigner
@@ -439,6 +442,49 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 correlate.getCorrelationId(),
                 correlate.getRequiredColumns(),
                 correlate.getJoinType());
+    }
+
+    private RelNode visitTableFunctionScan(FlinkLogicalTableFunctionScan scan) {
+        final FlinkLogicalTableFunctionScan newScan =
+                (FlinkLogicalTableFunctionScan) visitSimpleRel(scan);
+        final RexCall call = (RexCall) newScan.getCall();
+        if (!ShortcutUtils.isFunctionKind(call.getOperator(), FunctionKind.PROCESS_TABLE)
+                || !gatherProcTimeIndices(scan).isEmpty()) {
+            return newScan;
+        }
+        // Proctime is only computed on access, so a PTF that does not forward it needs its value
+        final List<RelNode> newInputs =
+                newScan.getInputs().stream()
+                        .map(this::materializeProcTime)
+                        .collect(Collectors.toList());
+        final List<RexNode> newOperands =
+                call.getOperands().stream()
+                        .map(
+                                operand ->
+                                        operand instanceof RexTableArgCall
+                                                ? adjustTableArg(
+                                                        (RexTableArgCall) operand, newInputs)
+                                                : operand)
+                        .collect(Collectors.toList());
+        return newScan.copy(
+                newScan.getTraitSet(),
+                newInputs,
+                call.clone(call.getType(), newOperands),
+                newScan.getElementType(),
+                newScan.getRowType(),
+                newScan.getColumnMappings());
+    }
+
+    private RexNode adjustTableArg(RexTableArgCall tableArg, List<RelNode> inputs) {
+        final RelDataType inputType = inputs.get(tableArg.getInputIndex()).getRowType();
+        return tableArg.clone(
+                rexBuilder
+                        .getTypeFactory()
+                        .createStructType(
+                                tableArg.getType().getStructKind(),
+                                RelOptUtil.getFieldTypeList(inputType),
+                                tableArg.getType().getFieldNames()),
+                List.of());
     }
 
     private RelNode visitSimpleRel(RelNode node) {

@@ -30,8 +30,104 @@ Flink SQL provides built-in process table functions (PTFs) for working with chan
 
 | Function | Description |
 |:---------|:------------|
+| [TO_APPEND](#to_append) | Converts an updating table into an append-only table: new rows and updates are appended, deletes are dropped |
 | [FROM_CHANGELOG](#from_changelog) | Converts an append-only table with operation codes into a (potentially updating) dynamic table |
 | [TO_CHANGELOG](#to_changelog) | Converts a dynamic table into an append-only table with explicit operation codes |
+
+## TO_APPEND
+
+The `TO_APPEND` PTF converts an updating table into an append-only table. Every new row and every update is appended as a new row, and deletes are dropped. The output has the same columns as the input.
+
+### Syntax
+
+```sql
+SELECT * FROM TO_APPEND(input => TABLE source_table)
+```
+
+{{< hint warning >}}
+`TO_APPEND` is deliberately lossy: deletes are dropped, so a consumer cannot tell that a row was deleted. To keep deletes, use an upsert sink or [TO_CHANGELOG](#to_changelog).
+{{< /hint >}}
+
+### Examples
+
+#### A table that changes
+
+`customers` is a table with primary key `id`. A row is inserted, updated and finally deleted:
+
+| Change   | `customers`         |
+|:---------|:--------------------|
+| Inserted | `(1, Berlin)`       |
+| Updated  | `(1, Munich)`       |
+| Deleted  | *(empty)*           |
+
+`TO_APPEND` keeps every inserted and updated version as a new row and ignores deletes:
+
+```sql
+SELECT * FROM TO_APPEND(input => TABLE customers)
+```
+
+| Result        |
+|:--------------|
+| `(1, Berlin)` |
+| `(1, Munich)` |
+
+{{< hint info >}}
+Flink represents these changes as a changelog: an insert (`+I`), an update (`+U`, optionally preceded by `-U` with the previous version) and a delete (`-D`). `TO_APPEND` emits inserts and updates as inserts and drops `-U` and `-D`. To keep the change operation, use [TO_CHANGELOG](#to_changelog).
+{{< /hint >}}
+
+#### From a changing table to stream processing
+
+`TO_APPEND` turns a table that changes into a stream of insert-only changes. On that stream, you can use stream processing operations that only accept append-only tables, such as windows, `OVER` aggregations, and interval joins. For example, count the order changes per hour:
+
+| Change   | `orders` (with event-time attribute `ts`) |
+|:---------|:------------------------------------------|
+| Inserted | `(1, CREATED, 10:05)`                     |
+| Inserted | `(2, CREATED, 10:20)`                     |
+| Updated  | `(1, PAID, 10:40)`                        |
+| Updated  | `(1, SHIPPED, 11:10)`                     |
+
+```sql
+WITH order_changes AS (
+  SELECT * FROM TO_APPEND(input => TABLE orders)
+)
+SELECT window_start, window_end, COUNT(*) AS changes
+FROM TUMBLE(TABLE order_changes, DESCRIPTOR(ts), INTERVAL '1' HOUR)
+GROUP BY window_start, window_end
+```
+
+| Result                |
+|:----------------------|
+| `(10:00, 11:00, 3)`   |
+| `(11:00, 12:00, 1)`   |
+
+A window emits each result once, when the window closes, and then frees its state.
+
+#### Marking a query as append-only
+
+Some queries are derived as updating by the planner although they never change a row they have emitted, for example a deduplication over all columns. Here `TO_APPEND` does not change the result: it only marks the query as append-only, so its result can be used where an append-only table is required:
+
+| Change   | `orders`       |
+|:---------|:---------------|
+| Inserted | `(1, 10.50)`   |
+| Inserted | `(1, 10.50)` - retried delivery |
+
+```sql
+WITH deduplicated AS (
+  SELECT * FROM orders
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY id, amount ORDER BY id) = 1
+)
+SELECT * FROM TO_APPEND(input => TABLE deduplicated)
+```
+
+| Result        |
+|:--------------|
+| `(1, 10.50)`  |
+
+#### Table API
+
+```java
+Table result = myTable.toAppend();
+```
 
 ## FROM_CHANGELOG
 
@@ -334,6 +430,10 @@ The output schema is:
 ```
 
 All output rows have `INSERT` - the table is always append-only.
+
+### Time Attributes
+
+Time attributes of the input, such as a watermarked `ts`, stay time attributes in the output only if `op_mapping` forwards just `INSERT` and `UPDATE_AFTER`. Update-before and delete rows carry the timestamp of the previous version of the row, so with any other `op_mapping`, including the default, time columns become regular timestamps. To use event-time operations such as windows, `OVER ... ORDER BY ts` or interval joins on the output, use `op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER']` instead of filtering with `WHERE`, or use [TO_APPEND](#to_append) if you don't need the op column.
 
 ### Examples
 
