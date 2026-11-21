@@ -103,7 +103,7 @@ public class OpenTelemetryMetricReporterITCase extends OpenTelemetryTestBase {
                     JsonNode scopeMetrics =
                             json.findPath("resourceMetrics").findPath("scopeMetrics");
                     assertThat(scopeMetrics.findPath("scope").findPath("name").asText())
-                            .isEqualTo("io.confluent.flink.common.metrics");
+                            .isEqualTo("org.apache.flink.metrics.otel");
                     JsonNode metrics = scopeMetrics.findPath("metrics");
 
                     List<String> metricNames = extractMetricNames(json);
