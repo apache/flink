@@ -809,6 +809,63 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "CAST(FLOOR(CAST(f2 AS TIMESTAMP_LTZ(3)) TO MILLISECOND) AS STRING)",
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987_000_000)
                                         .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.FLOOR, "TIMESTAMP before 1970")
+                        // f0 is a Saturday on the last day of a year and f1 the last day of a
+                        // quarter, so that rounding toward 1970 moves them to the next week,
+                        // month, quarter and year. f1 and its quarter start are on the same
+                        // side of daylight saving time in most time zones.
+                        .onFieldsWithData(
+                                LocalDateTime.of(1966, 12, 31, 10, 0),
+                                LocalDateTime.of(1966, 9, 30, 10, 0))
+                        .andDataTypes(TIMESTAMP(3), TIMESTAMP(3))
+                        .testResult(
+                                $("f0").floor(TimeIntervalUnit.WEEK),
+                                "FLOOR(f0 TO WEEK)",
+                                LocalDateTime.of(1966, 12, 25, 0, 0),
+                                TIMESTAMP(3).nullable())
+                        .testResult(
+                                $("f0").floor(TimeIntervalUnit.MONTH),
+                                "FLOOR(f0 TO MONTH)",
+                                LocalDateTime.of(1966, 12, 1, 0, 0),
+                                TIMESTAMP(3).nullable())
+                        .testResult(
+                                $("f1").floor(TimeIntervalUnit.QUARTER),
+                                "FLOOR(f1 TO QUARTER)",
+                                LocalDateTime.of(1966, 7, 1, 0, 0),
+                                TIMESTAMP(3).nullable())
+                        .testResult(
+                                $("f0").floor(TimeIntervalUnit.YEAR),
+                                "FLOOR(f0 TO YEAR)",
+                                LocalDateTime.of(1966, 1, 1, 0, 0),
+                                TIMESTAMP(3).nullable())
+                        .testResult(
+                                $("f0").cast(TIMESTAMP_LTZ(3))
+                                        .floor(TimeIntervalUnit.WEEK)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f0 AS TIMESTAMP_LTZ(3)) TO WEEK) AS STRING)",
+                                LocalDateTime.of(1966, 12, 25, 0, 0).format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").cast(TIMESTAMP_LTZ(3))
+                                        .floor(TimeIntervalUnit.MONTH)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f0 AS TIMESTAMP_LTZ(3)) TO MONTH) AS STRING)",
+                                LocalDateTime.of(1966, 12, 1, 0, 0).format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").cast(TIMESTAMP_LTZ(3))
+                                        .floor(TimeIntervalUnit.QUARTER)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f1 AS TIMESTAMP_LTZ(3)) TO QUARTER) AS STRING)",
+                                LocalDateTime.of(1966, 7, 1, 0, 0).format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").cast(TIMESTAMP_LTZ(3))
+                                        .floor(TimeIntervalUnit.YEAR)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f0 AS TIMESTAMP_LTZ(3)) TO YEAR) AS STRING)",
+                                LocalDateTime.of(1966, 1, 1, 0, 0).format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
     }
 
