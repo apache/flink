@@ -30,6 +30,7 @@ import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -61,10 +62,14 @@ public class StreamPhysicalDeltaJoinForceValidator {
             return roots;
         }
 
-        // TODO FLINK-37954 full the exception message
         throw new ValidationException(
                 String.format(
-                        "The current sql doesn't support to do delta join optimization. The plan is:\n\n%s",
+                        "The current sql doesn't support to do delta join optimization. "
+                                + "The following join(s) could not be optimized into delta join:\n\n%s\n\n"
+                                + "The plan is:\n\n%s",
+                        finder.regularJoins.stream()
+                                .map(StreamPhysicalDeltaJoinForceValidator::getPlanAsString)
+                                .collect(Collectors.joining("\n")),
                         roots.stream()
                                 .map(StreamPhysicalDeltaJoinForceValidator::getPlanAsString)
                                 .collect(Collectors.joining("\n"))));
@@ -87,11 +92,13 @@ public class StreamPhysicalDeltaJoinForceValidator {
 
         private boolean deltaJoinExists = false;
         private boolean regularJoinExists = false;
+        private final List<RelNode> regularJoins = new ArrayList<>();
 
         @Override
         public void visit(RelNode node, int ordinal, @Nullable RelNode parent) {
             if (node instanceof StreamPhysicalJoin) {
                 regularJoinExists = true;
+                regularJoins.add(node);
             } else if (node instanceof StreamPhysicalDeltaJoin) {
                 deltaJoinExists = true;
             }

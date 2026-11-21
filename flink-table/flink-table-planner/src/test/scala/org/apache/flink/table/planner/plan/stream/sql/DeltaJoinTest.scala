@@ -1040,6 +1040,9 @@ class DeltaJoinTest extends TableTestBase {
             "on src1.a1 = src2.b1 " +
             "on conflict do deduplicate"))
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
+      .hasMessageContaining("The following join(s) could not be optimized into delta join:")
+      // the offending join is listed before the full plan, so users can locate it directly
+      .hasMessageContaining("Join(joinType=[InnerJoin]")
 
   }
 
