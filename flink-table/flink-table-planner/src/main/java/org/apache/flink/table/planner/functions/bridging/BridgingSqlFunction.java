@@ -61,6 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -226,6 +227,27 @@ public class BridgingSqlFunction extends SqlFunction {
     @Override
     public boolean isDeterministic() {
         return resolvedFunction.getDefinition().isDeterministic();
+    }
+
+    /**
+     * Compares the function identifier in addition to Calcite's class, name, and kind. The name is
+     * only the simple name, so without the identifier the catalog functions {@code db1.f} and
+     * {@code db2.f} would be equal, and calls to them with the same operands would be merged into
+     * one common sub-expression. Inline functions have no identifier and are compared by their
+     * generated name.
+     */
+    @Override
+    public boolean equals(@Nullable Object o) {
+        if (!super.equals(o)) {
+            return false;
+        }
+        final BridgingSqlFunction that = (BridgingSqlFunction) o;
+        return resolvedFunction.getIdentifier().equals(that.resolvedFunction.getIdentifier());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), resolvedFunction.getIdentifier());
     }
 
     // --------------------------------------------------------------------------------------------

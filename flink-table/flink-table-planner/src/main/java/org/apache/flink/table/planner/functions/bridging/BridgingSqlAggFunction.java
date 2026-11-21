@@ -37,6 +37,9 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Optionality;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.Objects;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlFunctionCategory;
@@ -170,6 +173,27 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
     @Override
     public boolean isDeterministic() {
         return resolvedFunction.getDefinition().isDeterministic();
+    }
+
+    /**
+     * Compares the function identifier in addition to Calcite's class, name, and kind. The name is
+     * only the simple name, so without the identifier the catalog functions {@code db1.agg} and
+     * {@code db2.agg} would be equal, and calls to them with the same arguments would be merged
+     * into one aggregate call. Inline functions have no identifier and are compared by their
+     * generated name.
+     */
+    @Override
+    public boolean equals(@Nullable Object o) {
+        if (!super.equals(o)) {
+            return false;
+        }
+        final BridgingSqlAggFunction that = (BridgingSqlAggFunction) o;
+        return resolvedFunction.getIdentifier().equals(that.resolvedFunction.getIdentifier());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), resolvedFunction.getIdentifier());
     }
 
     // --------------------------------------------------------------------------------------------
