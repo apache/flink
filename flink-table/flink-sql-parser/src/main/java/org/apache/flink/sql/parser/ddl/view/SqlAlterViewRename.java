@@ -42,7 +42,10 @@ public class SqlAlterViewRename extends SqlAlterView {
                 public SqlCall createCall(
                         SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
                     return new SqlAlterViewRename(
-                            pos, (SqlIdentifier) operands[0], (SqlIdentifier) operands[1]);
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlIdentifier) operands[1],
+                            ((SqlLiteral) operands[2]).booleanValue());
                 }
             };
 
@@ -50,7 +53,15 @@ public class SqlAlterViewRename extends SqlAlterView {
 
     public SqlAlterViewRename(
             SqlParserPos pos, SqlIdentifier viewIdentifier, SqlIdentifier newViewIdentifier) {
-        super(pos, viewIdentifier);
+        this(pos, viewIdentifier, newViewIdentifier, false);
+    }
+
+    public SqlAlterViewRename(
+            SqlParserPos pos,
+            SqlIdentifier viewIdentifier,
+            SqlIdentifier newViewIdentifier,
+            boolean ifExists) {
+        super(pos, viewIdentifier, ifExists);
         this.newViewIdentifier = newViewIdentifier;
     }
 
@@ -63,7 +74,8 @@ public class SqlAlterViewRename extends SqlAlterView {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, newViewIdentifier);
+        return ImmutableNullableList.of(
+                name, newViewIdentifier, SqlLiteral.createBoolean(ifExists(), SqlParserPos.ZERO));
     }
 
     @Override

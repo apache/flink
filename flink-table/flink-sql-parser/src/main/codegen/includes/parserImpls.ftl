@@ -2494,22 +2494,26 @@ SqlAlterView SqlAlterView() :
   SqlIdentifier newViewName;
   SqlNode newQuery;
   SqlParserPos asQueryKeywordPos = null;
+  boolean ifExists = false;
 }
 {
   <ALTER> <VIEW> { startPos = getPos(); }
+  ifExists = IfExistsOpt()
   viewName = CompoundIdentifier()
   (
       <RENAME> <TO>
       newViewName = CompoundIdentifier()
       {
-        return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
+        return new SqlAlterViewRename(
+                startPos.plus(getPos()), viewName, newViewName, ifExists);
       }
   |
       <AS> { asQueryKeywordPos = getPos(); }
       newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
       {
         final SqlAlterViewAs alterViewAs =
-                new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery, asQueryKeywordPos);
+                new SqlAlterViewAs(
+                        startPos.plus(getPos()), viewName, newQuery, asQueryKeywordPos, ifExists);
         return alterViewAs;
       }
   )

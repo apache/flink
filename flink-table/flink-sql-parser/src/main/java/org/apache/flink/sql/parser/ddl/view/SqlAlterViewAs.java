@@ -44,7 +44,11 @@ public class SqlAlterViewAs extends SqlAlterView {
                 public SqlCall createCall(
                         SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
                     return new SqlAlterViewAs(
-                            pos, (SqlIdentifier) operands[0], operands[1], SqlParserPos.ZERO);
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            operands[1],
+                            SqlParserPos.ZERO,
+                            ((SqlLiteral) operands[2]).booleanValue());
                 }
             };
 
@@ -57,7 +61,16 @@ public class SqlAlterViewAs extends SqlAlterView {
             SqlIdentifier viewIdentifier,
             SqlNode newQuery,
             SqlParserPos asQueryKeywordPos) {
-        super(pos, viewIdentifier);
+        this(pos, viewIdentifier, newQuery, asQueryKeywordPos, false);
+    }
+
+    public SqlAlterViewAs(
+            SqlParserPos pos,
+            SqlIdentifier viewIdentifier,
+            SqlNode newQuery,
+            SqlParserPos asQueryKeywordPos,
+            boolean ifExists) {
+        super(pos, viewIdentifier, ifExists);
         this.newQuery = newQuery;
         this.asQueryKeywordPos = asQueryKeywordPos;
     }
@@ -71,7 +84,8 @@ public class SqlAlterViewAs extends SqlAlterView {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, newQuery);
+        return ImmutableNullableList.of(
+                name, newQuery, SqlLiteral.createBoolean(ifExists(), SqlParserPos.ZERO));
     }
 
     @Override

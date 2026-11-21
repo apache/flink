@@ -21,23 +21,27 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.ddl.view.SqlAlterViewRename;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 
-import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.validateAlterView;
+import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.validateAlterViewWithIfExists;
 
 /** A converter for {@link SqlAlterViewRename}. */
 public class SqlAlterViewRenameConverter implements SqlNodeConverter<SqlAlterViewRename> {
 
     @Override
     public Operation convertSqlNode(SqlAlterViewRename alterView, ConvertContext context) {
-        validateAlterView(alterView, context);
+        if (validateAlterViewWithIfExists(alterView, context) == null) {
+            return new NopOperation();
+        }
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
                         .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
         ObjectIdentifier newViewIdentifier =
                 context.getCatalogManager()
                         .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullNewViewName()));
-        return new AlterViewRenameOperation(viewIdentifier, newViewIdentifier);
+        return new AlterViewRenameOperation(
+                viewIdentifier, newViewIdentifier, alterView.ifExists());
     }
 }
