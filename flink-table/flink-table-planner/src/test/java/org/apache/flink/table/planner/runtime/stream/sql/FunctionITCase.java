@@ -1371,6 +1371,24 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    void testCatalogScalarFunctionsWithSameNameInDifferentDatabases() {
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(List.of(Row.of("Bob"), Row.of("Alice")));
+
+        tEnv().executeSql("CREATE DATABASE db1");
+        tEnv().executeSql("CREATE DATABASE db2");
+        tEnv().createFunction("db1.f", CountingUpperScalarFunction.class);
+        tEnv().createFunction("db2.f", ClassNameScalarFunction.class);
+        tEnv().executeSql("CREATE TABLE SourceTable (s STRING) WITH ('connector' = 'COLLECTION')");
+
+        final List<Row> actual =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql("SELECT db1.f(s), db2.f(s) FROM SourceTable").collect());
+
+        assertThat(actual).containsExactly(Row.of("BOB", "String"), Row.of("ALICE", "String"));
+    }
+
+    @Test
     void testStructuredScalarFunction() throws Exception {
         final List<Row> sourceData =
                 List.of(Row.of("Bob", 42), Row.of("Alice", 12), Row.of(null, 0));
@@ -1781,6 +1799,25 @@ public class FunctionITCase extends StreamingTestBase {
                 .await();
 
         assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
+    }
+
+    @Test
+    void testCatalogAggregateFunctionsWithSameNameInDifferentDatabases() {
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(List.of(Row.of("Bob")));
+
+        tEnv().executeSql("CREATE DATABASE db1");
+        tEnv().executeSql("CREATE DATABASE db2");
+        tEnv().createFunction("db1.agg", LongestStringAggregateFunction.class);
+        tEnv().createFunction("db2.agg", RawMapViewAggregateFunction.class);
+        tEnv().executeSql("CREATE TABLE SourceTable (s STRING) WITH ('connector' = 'COLLECTION')");
+
+        final List<Row> actual =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql("SELECT db1.agg(s), db2.agg(s) FROM SourceTable")
+                                .collect());
+
+        assertThat(actual).containsExactly(Row.of("Bob", "Bob=(Bob, 3)"));
     }
 
     @Test
