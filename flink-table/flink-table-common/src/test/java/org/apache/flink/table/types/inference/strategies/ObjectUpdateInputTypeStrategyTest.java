@@ -37,9 +37,13 @@ class ObjectUpdateInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     private static final String USER_CLASS_PATH = "com.example.User";
 
+    // The attribute names are chosen such that their hash order differs from their declaration
+    // order, so that the reported list of available attributes is verified to follow the
+    // declaration order.
     private static final DataType STRUCTURED_TYPE =
             DataTypes.STRUCTURED(
                             USER_CLASS_PATH,
+                            DataTypes.FIELD("id", DataTypes.BIGINT()),
                             DataTypes.FIELD("name", DataTypes.STRING()),
                             DataTypes.FIELD("age", DataTypes.INT()))
                     .notNull();
@@ -125,6 +129,6 @@ class ObjectUpdateInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(1, "someRandomFieldName")
                         .calledWithLiteralAt(2, 42)
                         .expectErrorMessage(
-                                "The field name 'someRandomFieldName' at position 2 is not part of the structured type attributes. Available attributes: [name, age]."));
+                                "The field name 'someRandomFieldName' at position 2 is not part of the structured type attributes. Available attributes: [id, name, age]."));
     }
 }
