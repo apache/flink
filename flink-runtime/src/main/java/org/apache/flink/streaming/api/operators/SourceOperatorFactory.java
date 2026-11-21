@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SupportsSplitReassignmentOnRecovery;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -70,6 +71,13 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     /** The number of worker thread for the source coordinator. */
     private final int numCoordinatorWorkerThread;
 
+    /**
+     * Configuration for the checkpoint-duration-driven dynamic rate limit broadcast by the source
+     * coordinator to source readers that opt in via {@link
+     * org.apache.flink.api.connector.source.util.ratelimit.SupportsDynamicRateLimit}.
+     */
+    private final DynamicRateLimitParams dynamicRateLimitParams;
+
     private @Nullable String coordinatorListeningID;
 
     public SourceOperatorFactory(
@@ -88,11 +96,34 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
             Source<OUT, ?, ?> source,
             WatermarkStrategy<OUT> watermarkStrategy,
             boolean emitProgressiveWatermarks,
+            DynamicRateLimitParams dynamicRateLimitParams) {
+        this(source, watermarkStrategy, emitProgressiveWatermarks, 1, dynamicRateLimitParams);
+    }
+
+    public SourceOperatorFactory(
+            Source<OUT, ?, ?> source,
+            WatermarkStrategy<OUT> watermarkStrategy,
+            boolean emitProgressiveWatermarks,
             int numCoordinatorWorkerThread) {
+        this(
+                source,
+                watermarkStrategy,
+                emitProgressiveWatermarks,
+                numCoordinatorWorkerThread,
+                DynamicRateLimitParams.DISABLED);
+    }
+
+    public SourceOperatorFactory(
+            Source<OUT, ?, ?> source,
+            WatermarkStrategy<OUT> watermarkStrategy,
+            boolean emitProgressiveWatermarks,
+            int numCoordinatorWorkerThread,
+            DynamicRateLimitParams dynamicRateLimitParams) {
         this.source = checkNotNull(source);
         this.watermarkStrategy = checkNotNull(watermarkStrategy);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
         this.numCoordinatorWorkerThread = numCoordinatorWorkerThread;
+        this.dynamicRateLimitParams = checkNotNull(dynamicRateLimitParams);
     }
 
     public Boundedness getBoundedness() {
@@ -139,7 +170,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                                         .getJobConfiguration()
                                         .get(
                                                 CheckpointingOptions
-                                                        .PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT));
+                                                        .PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT),
+                        dynamicRateLimitParams);
 
         parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
 
@@ -159,6 +191,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 source,
                 numCoordinatorWorkerThread,
                 watermarkStrategy.getAlignmentParameters(),
+                dynamicRateLimitParams,
                 coordinatorListeningID);
     }
 
@@ -212,7 +245,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                     CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
                     Collection<? extends WatermarkDeclaration> watermarkDeclarations,
                     boolean supportsSplitReassignmentOnRecovery,
-                    boolean pauseSourcesUntilFirstCheckpoint) {
+                    boolean pauseSourcesUntilFirstCheckpoint,
+                    DynamicRateLimitParams dynamicRateLimitParams) {
 
         // jumping through generics hoops: cast the generics away to then cast them back more
         // strictly typed
@@ -246,6 +280,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 canEmitBatchOfRecords,
                 watermarkIsAlignedMap,
                 supportsSplitReassignmentOnRecovery,
-                pauseSourcesUntilFirstCheckpoint);
+                pauseSourcesUntilFirstCheckpoint,
+                dynamicRateLimitParams);
     }
 }

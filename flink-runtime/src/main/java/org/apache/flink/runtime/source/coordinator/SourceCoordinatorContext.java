@@ -409,6 +409,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     // --------- Package private additional methods for the SourceCoordinator ------------
 
+    /** Returns the current checkpoint interval, or -1 if it is unknown. */
+    long getCheckpointIntervalMillis() {
+        CheckpointCoordinator checkpointCoordinator =
+                getCoordinatorContext().getCheckpointCoordinator();
+        return checkpointCoordinator == null
+                ? -1
+                : checkpointCoordinator.getCurrentCheckpointInterval();
+    }
+
     void attemptReady(OperatorCoordinator.SubtaskGateway gateway) {
         checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
