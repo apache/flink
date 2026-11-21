@@ -55,7 +55,7 @@ class ConfigOptionTest {
         assertThat(optionWithFallbackKeys.hasFallbackKeys()).isTrue();
         for (final FallbackKey fallbackKey : optionWithFallbackKeys.fallbackKeys()) {
             assertThat(fallbackKey.isDeprecated())
-                    .as("falback key flagged as deprecated")
+                    .as("fallback key flagged as deprecated")
                     .isFalse();
         }
     }

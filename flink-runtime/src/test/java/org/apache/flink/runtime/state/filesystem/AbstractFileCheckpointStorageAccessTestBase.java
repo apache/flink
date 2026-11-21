@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Test base for file-system-based checkoint storage, such as the {@link
+ * Test base for file-system-based checkpoint storage, such as the {@link
  * MemoryBackendCheckpointStorageAccess} and the {@link FsCheckpointStorageAccess}.
  */
 public abstract class AbstractFileCheckpointStorageAccessTestBase {

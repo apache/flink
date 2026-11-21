@@ -144,7 +144,7 @@ public class TestType extends AbstractHeapPriorityQueueElement
     }
 
     /**
-     * A serializer that is meant to be compatible with any of the serializers only ofter being
+     * A serializer that is meant to be compatible with any of the serializers only after being
      * reconfigured as a new instance.
      */
     public static class ReconfigurationRequiringTestTypeSerializer extends TestTypeSerializerBase {

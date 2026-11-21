@@ -65,7 +65,7 @@ object CorrelateCodeGenerator {
             s"Currently, only table functions can be used in a correlate operation.")
     }
 
-    // adjust indicies of InputRefs to adhere to schema expected by generator
+    // adjust indices of InputRefs to adhere to schema expected by generator
     val changeInputRefIndexShuttle = new RexShuttle {
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
         new RexInputRef(inputType.getFieldCount + inputRef.getIndex, inputRef.getType)

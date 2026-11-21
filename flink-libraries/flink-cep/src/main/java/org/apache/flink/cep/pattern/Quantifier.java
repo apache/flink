@@ -37,7 +37,7 @@ import java.util.Optional;
  * </ol>
  *
  * <p>Each {@link Pattern} can be optional and have a {@link ConsumingStrategy}. Looping and Times
- * also hava an additional inner consuming strategy that is applied between accepted events in the
+ * also have an additional inner consuming strategy that is applied between accepted events in the
  * pattern.
  */
 public class Quantifier {

@@ -48,7 +48,7 @@ class _Partial(TypedDict, total=False):
     y: int
 
 
-# typing.TypedDict ignores theese markers when computing optional keys prior to python 3.11
+# typing.TypedDict ignores these markers when computing optional keys prior to python 3.11
 class _WithNotRequired(TypedDict):
     id: int
     label: typing_extensions.NotRequired[str]

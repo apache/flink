@@ -73,7 +73,7 @@ import java.util
  *        generated code will look similar to this:
  *
  * @param ctx
- *   the cotext of the code generator
+ *   the context of the code generator
  * @param nullableInput
  *   input(s) can be null.
  * @param patternNames

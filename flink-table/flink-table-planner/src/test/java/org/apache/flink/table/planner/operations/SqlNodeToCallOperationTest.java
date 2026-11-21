@@ -109,7 +109,7 @@ class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTestBase {
                         + " inputTypes: [INT NOT NULL, INT NOT NULL, INT NOT NULL], outputTypes: [STRING], arguments: [1, 2, 3])");
 
         // test call the procedure with row as result and decimal as argument as well as
-        // explict/implicit cast
+        // explicit/implicit cast
         sql = "call `system`.row_result(cast(1.2 as decimal))";
         verifyCallOperation(
                 sql,

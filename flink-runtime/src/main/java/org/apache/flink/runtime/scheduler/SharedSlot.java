@@ -51,7 +51,7 @@ import java.util.stream.Collectors;
  * slots from the underlying physical slot for {@link Execution executions} which share it.
  *
  * <p>The shared slot becomes a {@link PhysicalSlot.Payload} of its underlying physical slot once
- * the physical slot is obtained. If the allcoated physical slot gets released then it calls back
+ * the physical slot is obtained. If the allocated physical slot gets released then it calls back
  * the shared slot to release the logical slots which fail their execution payloads.
  *
  * <p>A logical slot request can be cancelled if it is not completed yet or returned by the

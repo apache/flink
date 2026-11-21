@@ -29,8 +29,8 @@ import java.util.Objects;
  * IntervalJoinSpec describes how two tables will be joined in interval join.
  *
  * <p>This class corresponds to {@link org.apache.calcite.rel.core.Join} rel node. The join
- * condition is splitted into two parts: WindowBounds and JoinSpec: 1. WindowBounds contains the
- * time range condition. 2. JoinSpec contains rest of the join condition except windowBounds.
+ * condition is split into two parts: WindowBounds and JoinSpec: 1. WindowBounds contains the time
+ * range condition. 2. JoinSpec contains rest of the join condition except windowBounds.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class IntervalJoinSpec {

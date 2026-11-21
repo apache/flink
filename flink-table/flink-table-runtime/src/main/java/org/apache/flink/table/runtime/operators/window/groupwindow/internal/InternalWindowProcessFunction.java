@@ -124,7 +124,7 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 
     /**
      * Returns the cleanup time for a window, which is {@code window.maxTimestamp +
-     * allowedLateness}. In case this leads to a value greated than {@link Long#MAX_VALUE} then a
+     * allowedLateness}. In case this leads to a value greater than {@link Long#MAX_VALUE} then a
      * cleanup time of {@link Long#MAX_VALUE} is returned.
      *
      * @param window the window whose cleanup time we are computing.

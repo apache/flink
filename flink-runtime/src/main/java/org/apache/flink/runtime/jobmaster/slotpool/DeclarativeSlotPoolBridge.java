@@ -63,7 +63,7 @@ import java.util.stream.Stream;
 /** {@link SlotPool} implementation which uses the {@link DeclarativeSlotPool} to allocate slots. */
 public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implements SlotPool {
 
-    /** Helper class to represent the fulfilled allocation infromation. */
+    /** Helper class to represent the fulfilled allocation information. */
     private static final class FulfilledAllocation {
         final AllocationID allocationID;
         final ResourceID taskExecutorID;
@@ -510,7 +510,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private void failPendingRequests(Collection<ResourceRequirement> acquiredResources) {
         // only fails streaming requests because batch jobs do not require all resources
-        // requirements to be fullfilled at the same time
+        // requirements to be fulfilled at the same time
         Predicate<PendingRequest> predicate = request -> !request.isBatchRequest();
         if (pendingRequests.values().stream().anyMatch(predicate)) {
             log.warn(

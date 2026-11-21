@@ -53,7 +53,7 @@ import java.util.concurrent.ScheduledFuture;
  * terminal state FINISHED.
  *
  * <p>This state has to cover several failure scenarios, depending on whether the savepoint
- * succeeeds/fails and the job succeeds/fails/keeps running.
+ * succeeds/fails and the job succeeds/fails/keeps running.
  *
  * <ul>
  *   <li>Savepoint succeeds, job succeeds - The happy path we like to see.

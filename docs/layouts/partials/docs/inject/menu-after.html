@@ -54,7 +54,7 @@ under the License.
   </ul>
 </li>
 
-<!-- merge languages into a single dictonary -->
+<!-- merge languages into a single dictionary -->
 {{ $translations := dict }}
 {{ range .Site.Home.AllTranslations }}
   {{ $translations = merge $translations (dict .Language.Lang .) }}

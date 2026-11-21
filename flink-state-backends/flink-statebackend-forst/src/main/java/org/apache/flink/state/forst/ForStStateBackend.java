@@ -723,7 +723,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      * Gets the configured local DB storage paths, or null, if none were configured.
      *
      * <p>Under these directories on the TaskManager, ForSt stores some metadata files. These
-     * directories do not need to be persistent, they can be ephermeral, meaning that they are lost
+     * directories do not need to be persistent, they can be ephemeral, meaning that they are lost
      * on a machine failure, because state in ForSt is persisted in checkpoints.
      *
      * <p>If nothing is configured, these directories default to the TaskManager's local temporary

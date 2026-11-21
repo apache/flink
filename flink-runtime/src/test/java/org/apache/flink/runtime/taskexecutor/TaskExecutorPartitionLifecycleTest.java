@@ -642,7 +642,7 @@ class TaskExecutorPartitionLifecycleTest {
 
             TestingInvokable.sync.awaitBlocker();
 
-            // the task is still running => the partition is in in-progress and should be tracked
+            // the task is still running => the partition is in progress and should be tracked
             assertThatFuture(startTrackingFuture)
                     .eventuallySucceeds()
                     .isEqualTo(

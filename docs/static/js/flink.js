@@ -21,7 +21,7 @@
  * Function to synchronize all tabs on a page to a given user selection. 
  * 
  * The selection of a tab group should only change if it contains an 
- * input with the given tabId. Otherwise, its current seletion should
+ * input with the given tabId. Otherwise, its current selection should
  * remain unchanged.
  * 
  * See layouts/shortcodes/tabs.html

@@ -691,7 +691,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                             notImportableHandles);
 
             if (exportedColumnFamilyMetaData.isEmpty()) {
-                // Nothing coule be exported, so we fall back to
+                // Nothing could be exported, so we fall back to
                 // #mergeStateHandlesWithCopyFromTemporaryInstance
                 int bestStateHandleForInit =
                         findTheBestStateHandleForInitial(

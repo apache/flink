@@ -173,7 +173,7 @@ public class StructuredObjectConverter<T> implements DataStructureConverter<RowD
         final int fieldCount = fieldClasses.length;
         final StringBuilder sb = new StringBuilder();
 
-        // we ignore checkstyle here for readability and preserving indention
+        // we ignore checkstyle here for readability and preserving indentation
 
         line(
                 sb,

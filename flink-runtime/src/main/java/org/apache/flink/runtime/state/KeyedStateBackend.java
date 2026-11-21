@@ -128,7 +128,7 @@ public interface KeyedStateBackend<K>
     /**
      * @return A stream of all keys for the given state and namespace. Modifications to the state
      *     during iterating over it keys are not supported. Implementations go not make any ordering
-     *     guarantees about the returned tupes. Two records with the same key or namespace may not
+     *     guarantees about the returned tuples. Two records with the same key or namespace may not
      *     be returned near each other in the stream.
      * @param state State variable for which existing keys will be returned.
      */
@@ -195,7 +195,7 @@ public interface KeyedStateBackend<K>
      * priority queue could be stored on different locations, e.g RocksDB state-backend could store
      * that on JVM heap if configuring HEAP as the time-service factory.
      *
-     * @return returns ture if safe to reuse the key-values from the state-backend.
+     * @return returns true if safe to reuse the key-values from the state-backend.
      */
     default boolean isSafeToReuseKVState() {
         return false;

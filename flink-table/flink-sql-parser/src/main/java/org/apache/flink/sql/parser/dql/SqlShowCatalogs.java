@@ -28,7 +28,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * SHOW Catalogs sql call. The full syntax for show catalogs is as followings:
+ * SHOW Catalogs sql call. The full syntax for show catalogs is as follows:
  *
  * <pre>{@code
  * SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
