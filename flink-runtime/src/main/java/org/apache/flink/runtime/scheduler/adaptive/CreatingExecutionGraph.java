@@ -95,7 +95,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
             @Nullable Throwable throwable) {
         if (throwable != null) {
             getLogger()
-                    .info(
+                    .error(
                             "Failed to go from {} to {} because the ExecutionGraph creation failed.",
                             CreatingExecutionGraph.class.getSimpleName(),
                             Executing.class.getSimpleName(),
