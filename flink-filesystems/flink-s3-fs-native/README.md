@@ -314,15 +314,15 @@ fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 # virtual-hosted-style addressing by default.
 s3.path-style-access: true
 
-# Required: many S3-compatible servers do not support AWS chunked encoding or
-# AWS-style checksum trailers used by the SDK by default.
-s3.chunked-encoding.enabled: false
-s3.checksum-validation.enabled: false
+# Only for servers that do not support AWS chunked encoding or AWS-style
+# checksum trailers, which the SDK uses by default.
+# s3.chunked-encoding.enabled: false
+# s3.checksum-validation.enabled: false
 ```
 
 The AWS SDK requires a region for custom endpoints. Use the server's region, or `us-east-1` if the server ignores it.
 
-Required compatibility flags vary by server and version. Disable checksum validation only if the server does not support it. The defaults (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) target AWS S3.
+Required compatibility flags vary by server and version. Disable checksum validation only if the server does not support it. SeaweedFS 4.49 and later support both. Earlier versions intermittently reject uploads with "The Content-Md5 you specified is not valid" ([seaweedfs#11582](https://github.com/seaweedfs/seaweedfs/issues/11582)); disable both options on those. The defaults (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) target AWS S3.
 
 ## Memory Optimization for Large Files
 
@@ -528,8 +528,6 @@ cat > $FLINK_HOME/conf/config.yaml <<EOF
 s3.endpoint: http://localhost:8333
 fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 s3.path-style-access: true
-s3.chunked-encoding.enabled: false
-s3.checksum-validation.enabled: false
 EOF
 
 $FLINK_HOME/bin/flink run YourJob.jar

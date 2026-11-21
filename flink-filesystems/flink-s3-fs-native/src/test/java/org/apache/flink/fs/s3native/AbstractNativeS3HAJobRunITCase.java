@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3native;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.highavailability.AbstractHAJobRunITCase;
@@ -39,20 +40,25 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 abstract class AbstractNativeS3HAJobRunITCase extends AbstractHAJobRunITCase {
 
-    static final String CLUSTER_ID = "test-cluster";
     private static final String JOB_RESULT_STORE_FOLDER = "jrs";
 
-    /** Provided by the concrete runner that owns the SeaweedFS cluster extension. */
+    /** Provided by the concrete runner that owns the SeaweedFS container. */
     abstract SeaweedFsNativeS3TestContainer getSeaweedFsContainer();
 
-    static Configuration createConfiguration(SeaweedFsNativeS3TestContainer container) {
+    /** Prefix of the HA storage and job result store paths, and the HA cluster id. */
+    abstract String getClusterId();
+
+    static Configuration createConfiguration(
+            SeaweedFsNativeS3TestContainer container, String clusterId, boolean crtEnabled) {
         final Configuration config = new Configuration();
         container.setS3ConfigOptions(config);
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, crtEnabled);
+        config.set(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
         config.set(JobResultStoreOptions.DELETE_ON_COMMIT, Boolean.FALSE);
         config.set(
                 JobResultStoreOptions.STORAGE_PATH,
-                s3UriWithSubPath(container, CLUSTER_ID, JOB_RESULT_STORE_FOLDER));
-        return addHaConfiguration(config, s3UriWithSubPath(container, CLUSTER_ID));
+                s3UriWithSubPath(container, clusterId, JOB_RESULT_STORE_FOLDER));
+        return addHaConfiguration(config, s3UriWithSubPath(container, clusterId));
     }
 
     private static String s3UriWithSubPath(
@@ -68,7 +74,7 @@ abstract class AbstractNativeS3HAJobRunITCase extends AbstractHAJobRunITCase {
     @Override
     protected void runAfterJobTermination() throws Exception {
         final SeaweedFsNativeS3TestContainer container = getSeaweedFsContainer();
-        final String prefix = String.join("/", CLUSTER_ID, JOB_RESULT_STORE_FOLDER);
+        final String prefix = String.join("/", getClusterId(), JOB_RESULT_STORE_FOLDER);
 
         CommonTestUtils.waitUntilCondition(
                 () -> {

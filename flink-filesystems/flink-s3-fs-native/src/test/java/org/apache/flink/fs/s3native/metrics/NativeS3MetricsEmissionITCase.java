@@ -123,8 +123,6 @@ class NativeS3MetricsEmissionITCase {
         config.set(NativeS3FileSystemFactory.SECRET_KEY, SECRET_KEY);
         config.set(NativeS3FileSystemFactory.REGION, "us-east-1");
         config.set(NativeS3FileSystemFactory.PATH_STYLE_ACCESS, true);
-        config.set(NativeS3FileSystemFactory.CHUNKED_ENCODING_ENABLED, false);
-        config.set(NativeS3FileSystemFactory.CHECKSUM_VALIDATION_ENABLED, false);
         config.set(NativeS3FileSystemFactory.METRICS_ENABLED, true);
 
         factory.configure(config);

@@ -51,7 +51,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * methods for initializing a specific {@link FileSystem}.
  *
  * <p>Sub-classes must use a {@link
- * org.apache.flink.runtime.testutils.InternalMiniClusterExtension}.
+ * org.apache.flink.runtime.testutils.InternalMiniClusterExtension}, or start their own cluster and
+ * call {@link #runJobInHaMode(MiniCluster)}.
  */
 @ExtendWith(TestLoggerExtension.class)
 public abstract class AbstractHAJobRunITCase {
@@ -85,6 +86,10 @@ public abstract class AbstractHAJobRunITCase {
     @Test
     public void testJobExecutionInHaMode(@InjectMiniCluster MiniCluster flinkCluster)
             throws Exception {
+        runJobInHaMode(flinkCluster);
+    }
+
+    protected void runJobInHaMode(MiniCluster flinkCluster) throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
         // providing a timeout helps making the test fail in case some issue occurred while
