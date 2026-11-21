@@ -36,6 +36,7 @@ import org.apache.flink.runtime.util.ResourceManagerUtils;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
@@ -106,9 +107,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private final Map<TaskExecutorProcessSpec, Queue<CompletableFuture<YarnWorkerNode>>>
             requestResourceFutures;
 
-    private final RegisterApplicationMasterResponseReflector
-            registerApplicationMasterResponseReflector;
-
     private final YarnResourceManagerClientFactory yarnResourceManagerClientFactory;
 
     private final YarnNodeManagerClientFactory yarnNodeManagerClientFactory;
@@ -166,9 +164,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                                 .toMillis());
 
         this.taskManagerNodeLabel = flinkConfig.get(YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
-
-        this.registerApplicationMasterResponseReflector =
-                new RegisterApplicationMasterResponseReflector(log);
 
         this.yarnResourceManagerClientFactory = yarnResourceManagerClientFactory;
         this.yarnNodeManagerClientFactory = yarnNodeManagerClientFactory;
@@ -358,8 +353,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private void tryUpdateApplicationBlockList() {
         Set<String> currentBlockedNodes = getBlockedNodeRetriever().getAllBlockedNodeIds();
         if (!currentBlockedNodes.equals(lastBlockedNodes)) {
-            AMRMClientAsyncReflector.INSTANCE.tryUpdateBlockList(
-                    resourceManagerClient,
+            resourceManagerClient.updateBlacklist(
                     new ArrayList<>(getDifference(currentBlockedNodes, lastBlockedNodes)),
                     new ArrayList<>(getDifference(lastBlockedNodes, currentBlockedNodes)));
             this.lastBlockedNodes.clear();
@@ -462,10 +456,18 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private void addContainerRequest(Resource resource, Priority priority) {
         // update blocklist
         tryUpdateApplicationBlockList();
-        AMRMClient.ContainerRequest containerRequest =
-                ContainerRequestReflector.INSTANCE.getContainerRequest(
-                        resource, priority, taskManagerNodeLabel);
-        resourceManagerClient.addContainerRequest(containerRequest);
+        resourceManagerClient.addContainerRequest(
+                createContainerRequest(resource, priority, taskManagerNodeLabel));
+    }
+
+    @VisibleForTesting
+    static AMRMClient.ContainerRequest createContainerRequest(
+            Resource resource, Priority priority, @Nullable String nodeLabel) {
+        if (StringUtils.isNullOrWhitespaceOnly(nodeLabel)) {
+            return new AMRMClient.ContainerRequest(resource, null, null, priority);
+        }
+        // relaxLocality is true, as in the constructor without a node label
+        return new AMRMClient.ContainerRequest(resource, null, null, priority, true, nodeLabel);
     }
 
     private void removeContainerRequest(AMRMClient.ContainerRequest pendingContainerRequest) {
@@ -592,8 +594,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private void getContainersFromPreviousAttempts(
             final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
         final List<Container> containersFromPreviousAttempts =
-                registerApplicationMasterResponseReflector.getContainersFromPreviousAttempts(
-                        registerApplicationMasterResponse);
+                registerApplicationMasterResponse.getContainersFromPreviousAttempts();
         final List<YarnWorkerNode> recoveredWorkers = new ArrayList<>();
 
         log.info(

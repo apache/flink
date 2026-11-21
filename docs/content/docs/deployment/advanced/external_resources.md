@@ -217,7 +217,6 @@ To make GPU resources accessible, certain prerequisites are needed depending on 
   - For standalone mode, administrators should ensure the NVIDIA driver is installed and GPU resources are accessible on all the nodes in the cluster.
 
   - For Yarn deployment, administrators should configure the Yarn cluster to enable [GPU scheduling](https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/UsingGpus.html).
-  Notice the required Hadoop version is 2.10+ or 3.1+.
 
   - For Kubernetes deployment, administrators should make sure the NVIDIA GPU [device plugin](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/)
   is installed. Notice the required version is 1.10+. At the moment, Kubernetes only supports NVIDIA GPU and AMD GPU. Flink only provides discovery script for NVIDIA GPUs,

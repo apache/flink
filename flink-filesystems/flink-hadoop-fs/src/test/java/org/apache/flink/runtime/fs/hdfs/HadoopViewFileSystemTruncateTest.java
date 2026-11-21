@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
-import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
@@ -64,11 +63,6 @@ class HadoopViewFileSystemTruncateTest {
     private Configuration fsViewConf;
     private FileSystem fsTarget;
     private Path targetTestRoot;
-
-    @BeforeAll
-    static void testHadoopVersion() {
-        assumeThat(HadoopUtils.isMinHadoopVersion(2, 7)).isTrue();
-    }
 
     @BeforeAll
     static void verifyOS() {

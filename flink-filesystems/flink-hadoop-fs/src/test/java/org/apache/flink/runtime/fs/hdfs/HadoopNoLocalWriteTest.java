@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.mock.Whitebox;
-import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 
@@ -60,11 +59,6 @@ public class HadoopNoLocalWriteTest {
     private static FileSystem fileSystem;
 
     private static Path basePath;
-
-    @BeforeAll
-    static void testHadoopVersion() {
-        assumeThat(HadoopUtils.isMinHadoopVersion(2, 6)).isTrue();
-    }
 
     @BeforeAll
     static void verifyOS() {

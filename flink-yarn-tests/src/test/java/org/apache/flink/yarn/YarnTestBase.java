@@ -130,9 +130,6 @@ public abstract class YarnTestBase {
 
     /** These strings are white-listed, overriding the prohibited strings. */
     protected static final Pattern[] WHITELISTED_STRINGS = {
-        // happens if yarn does not support external resources
-        Pattern.compile(
-                "ClassNotFoundException: org.apache.hadoop.yarn.api.records.ResourceInformation"),
         // occurs if a TM disconnects from a JM because it is no longer hosting any slots
         Pattern.compile("has no more allocated slots for job"),
         // can happen if another process hasn't fully started yet

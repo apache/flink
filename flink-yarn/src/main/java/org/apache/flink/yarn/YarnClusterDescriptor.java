@@ -113,8 +113,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -1504,25 +1502,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
     }
 
-    private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext)
-            throws InvocationTargetException, IllegalAccessException {
-
-        ApplicationSubmissionContextReflector reflector =
-                ApplicationSubmissionContextReflector.getInstance();
-
-        reflector.setKeepContainersAcrossApplicationAttempts(appContext, true);
-
-        reflector.setAttemptFailuresValidityInterval(
-                appContext,
+    private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) {
+        appContext.setKeepContainersAcrossApplicationAttempts(true);
+        appContext.setAttemptFailuresValidityInterval(
                 flinkConfiguration.get(
                         YarnConfigOptions.APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL));
     }
 
-    private void setApplicationTags(final ApplicationSubmissionContext appContext)
-            throws InvocationTargetException, IllegalAccessException {
-
-        final ApplicationSubmissionContextReflector reflector =
-                ApplicationSubmissionContextReflector.getInstance();
+    private void setApplicationTags(final ApplicationSubmissionContext appContext) {
         final String tagsString = flinkConfiguration.get(YarnConfigOptions.APPLICATION_TAGS);
 
         final Set<String> applicationTags = new HashSet<>();
@@ -1535,16 +1522,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             }
         }
 
-        reflector.setApplicationTags(appContext, applicationTags);
+        appContext.setApplicationTags(applicationTags);
     }
 
-    private void setApplicationNodeLabel(final ApplicationSubmissionContext appContext)
-            throws InvocationTargetException, IllegalAccessException {
-
+    private void setApplicationNodeLabel(final ApplicationSubmissionContext appContext) {
         if (nodeLabel != null) {
-            final ApplicationSubmissionContextReflector reflector =
-                    ApplicationSubmissionContextReflector.getInstance();
-            reflector.setApplicationNodeLabel(appContext, nodeLabel);
+            appContext.setNodeLabelExpression(nodeLabel);
         }
     }
 
@@ -1564,123 +1547,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         if (ctx != null) {
             appContext.setLogAggregationContext(ctx);
-        }
-    }
-
-    /**
-     * Singleton object which uses reflection to determine whether the {@link
-     * ApplicationSubmissionContext} supports various methods which, depending on the Hadoop
-     * version, may or may not be supported.
-     *
-     * <p>If an unsupported method is invoked, nothing happens.
-     *
-     * <p>Currently three methods are proxied: - setApplicationTags (>= 2.4.0) -
-     * setAttemptFailuresValidityInterval (>= 2.6.0) - setKeepContainersAcrossApplicationAttempts
-     * (>= 2.4.0) - setNodeLabelExpression (>= 2.6.0)
-     */
-    private static class ApplicationSubmissionContextReflector {
-        private static final Logger LOG =
-                LoggerFactory.getLogger(ApplicationSubmissionContextReflector.class);
-
-        private static final ApplicationSubmissionContextReflector instance =
-                new ApplicationSubmissionContextReflector(ApplicationSubmissionContext.class);
-
-        public static ApplicationSubmissionContextReflector getInstance() {
-            return instance;
-        }
-
-        private static final String APPLICATION_TAGS_METHOD_NAME = "setApplicationTags";
-        private static final String ATTEMPT_FAILURES_METHOD_NAME =
-                "setAttemptFailuresValidityInterval";
-        private static final String KEEP_CONTAINERS_METHOD_NAME =
-                "setKeepContainersAcrossApplicationAttempts";
-        private static final String NODE_LABEL_EXPRESSION_NAME = "setNodeLabelExpression";
-
-        private final Method applicationTagsMethod;
-        private final Method attemptFailuresValidityIntervalMethod;
-        private final Method keepContainersMethod;
-        @Nullable private final Method nodeLabelExpressionMethod;
-
-        private ApplicationSubmissionContextReflector(Class<ApplicationSubmissionContext> clazz) {
-            // this method is only supported by Hadoop 2.4.0 onwards
-            this.applicationTagsMethod = getMethod(clazz, APPLICATION_TAGS_METHOD_NAME, Set.class);
-
-            // this method is only supported by Hadoop 2.6.0 onwards
-            this.attemptFailuresValidityIntervalMethod =
-                    getMethod(clazz, ATTEMPT_FAILURES_METHOD_NAME, long.class);
-
-            // this method is only supported by Hadoop 2.4.0 onwards
-            this.keepContainersMethod =
-                    getMethod(clazz, KEEP_CONTAINERS_METHOD_NAME, boolean.class);
-
-            this.nodeLabelExpressionMethod =
-                    getMethod(clazz, NODE_LABEL_EXPRESSION_NAME, String.class);
-        }
-
-        private Method getMethod(Class<?> clazz, String methodName, Class<?>... paramTypes) {
-            try {
-                Method method = clazz.getMethod(methodName, paramTypes);
-                LOG.debug("{} supports method {}.", clazz.getCanonicalName(), methodName);
-                return method;
-            } catch (NoSuchMethodException e) {
-                LOG.debug("{} does not support method {}.", clazz.getCanonicalName(), methodName);
-                // assign null because the Hadoop version apparently does not support this call.
-                return null;
-            }
-        }
-
-        private void invokeMethod(
-                Method method,
-                String methodName,
-                ApplicationSubmissionContext context,
-                Object... args)
-                throws InvocationTargetException, IllegalAccessException {
-            if (method != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        methodName,
-                        context.getClass().getCanonicalName());
-                method.invoke(context, args);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        context.getClass().getCanonicalName(),
-                        methodName);
-            }
-        }
-
-        public void setApplicationTags(
-                ApplicationSubmissionContext appContext, Set<String> applicationTags)
-                throws InvocationTargetException, IllegalAccessException {
-            invokeMethod(
-                    applicationTagsMethod,
-                    APPLICATION_TAGS_METHOD_NAME,
-                    appContext,
-                    applicationTags);
-        }
-
-        public void setApplicationNodeLabel(
-                ApplicationSubmissionContext appContext, String nodeLabel)
-                throws InvocationTargetException, IllegalAccessException {
-            invokeMethod(
-                    nodeLabelExpressionMethod, NODE_LABEL_EXPRESSION_NAME, appContext, nodeLabel);
-        }
-
-        public void setAttemptFailuresValidityInterval(
-                ApplicationSubmissionContext appContext, long validityInterval)
-                throws InvocationTargetException, IllegalAccessException {
-            invokeMethod(
-                    attemptFailuresValidityIntervalMethod,
-                    ATTEMPT_FAILURES_METHOD_NAME,
-                    appContext,
-                    validityInterval);
-        }
-
-        public void setKeepContainersAcrossApplicationAttempts(
-                ApplicationSubmissionContext appContext, boolean keepContainers)
-                throws InvocationTargetException, IllegalAccessException {
-            invokeMethod(
-                    keepContainersMethod, KEEP_CONTAINERS_METHOD_NAME, appContext, keepContainers);
         }
     }
 

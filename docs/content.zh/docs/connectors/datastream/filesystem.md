@@ -969,18 +969,13 @@ PyFlink 只支持 `ConcatFileCompactor` 和 `IdenticalFileCompactor` 。
 
 #### 通用注意事项
 
-<span class="label label-danger">注意事项 1</span>：当使用的 Hadoop 版本 < 2.7 时，
-当每次 Checkpoint 时请使用 `OnCheckpointRollingPolicy` 滚动 Part 文件。原因是：如果 Part 文件 "穿越" 了 Checkpoint 的时间间隔，
-然后，从失败中恢复过来时，`FileSink` 可能会使用文件系统的 `truncate()` 方法丢弃处于 In-progress 状态文件中的未提交数据。
-这个方法在 Hadoop 2.7 版本之前是不支持的，Flink 将抛出异常。
-
-<span class="label label-danger">注意事项 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
+<span class="label label-danger">注意事项 1</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
 在 Job 正常终止时，最后一个 In-progress 状态文件不会转换为 "Finished" 状态。
 
-<span class="label label-danger">注意事项 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
+<span class="label label-danger">注意事项 2</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
 鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
 
-<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下 5 种文件系统：HDFS、 S3、OSS、ABFS 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
+<span class="label label-danger">注意事项 3</span>：目前，`FileSink` 仅支持以下 5 种文件系统：HDFS、 S3、OSS、ABFS 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 
 <a name="batch-specific"></a>
 
