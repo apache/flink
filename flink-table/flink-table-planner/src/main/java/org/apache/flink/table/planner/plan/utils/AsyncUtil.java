@@ -27,6 +27,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexNodeAndFieldIndex;
+import org.apache.calcite.rex.RexProgram;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /** Utility class for working with async function calls in RexNodes. */
 public class AsyncUtil {
@@ -101,6 +105,29 @@ public class AsyncUtil {
     /** Variant that checks that it is a function call not of any async type. */
     public static boolean isNonAsyncCall(RexNode node) {
         return node.accept(new FunctionFinder(false, false, null));
+    }
+
+    /**
+     * Expands the projection of an async calc program and checks that it has no condition and at
+     * most one async call.
+     *
+     * @param program the program of the async calc
+     * @param relName the name of the physical async calc, used in error messages
+     * @return the expanded projection
+     */
+    public static List<RexNode> expandAsyncCalcProjection(RexProgram program, String relName) {
+        List<RexNode> projection =
+                program.getProjectList().stream()
+                        .map(program::expandLocalRef)
+                        .collect(Collectors.toList());
+        if (program.getCondition() != null) {
+            throw new IllegalStateException("The condition of " + relName + " should be null.");
+        }
+        if (projection.stream().filter(AsyncUtil::containsAsyncCall).count() > 1) {
+            throw new IllegalStateException(
+                    "Only a single async projection is allowed in " + relName + ".");
+        }
+        return projection;
     }
 
     private static class FunctionFinder extends RexDefaultVisitor<Boolean> {

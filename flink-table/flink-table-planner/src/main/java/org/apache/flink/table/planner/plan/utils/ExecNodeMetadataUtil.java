@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAdaptiveJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
@@ -194,6 +195,7 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecSink.class);
                     add(BatchExecTableSourceScan.class);
                     add(BatchExecCalc.class);
+                    add(BatchExecAsyncCalc.class);
                     add(BatchExecExchange.class);
                     add(BatchExecSort.class);
                     add(BatchExecValues.class);

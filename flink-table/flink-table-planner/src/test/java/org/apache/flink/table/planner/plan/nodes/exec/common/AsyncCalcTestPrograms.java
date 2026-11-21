@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAsyncCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
+import org.apache.flink.table.planner.runtime.stream.table.AsyncCalcITCase.AsyncFuncAdd10;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -33,16 +37,22 @@ import java.time.LocalDateTime;
 import java.util.TimeZone;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 import static org.assertj.core.api.Assertions.fail;
 
-/** {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCalc}. */
+/**
+ * {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCalc} and {@link
+ * BatchExecAsyncCalc}.
+ */
 public class AsyncCalcTestPrograms {
 
-    static final TableTestProgram ASYNC_CALC_UDF_SIMPLE =
+    public static final TableTestProgram ASYNC_CALC_UDF_SIMPLE =
             TableTestProgram.of("async-calc-simple", "validates async calc node with simple UDF")
                     .setupTemporaryCatalogFunction("udf1", AsyncJavaFunc0.class)
                     .setupTableSource(
@@ -60,7 +70,7 @@ public class AsyncCalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, udf1(a) FROM source_t")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_COMPLEX =
+    public static final TableTestProgram ASYNC_CALC_UDF_COMPLEX =
             TableTestProgram.of("async-calc-complex", "validates calc node with complex UDFs")
                     .setupTemporaryCatalogFunction("udf1", AsyncJavaFunc0.class)
                     .setupTemporaryCatalogFunction("udf2", AsyncJavaFunc1.class)
@@ -126,7 +136,7 @@ public class AsyncCalcTestPrograms {
                                     + "(udf1(a) > 0 or (a * b) < 100) and b > 10")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_NESTED =
+    public static final TableTestProgram ASYNC_CALC_UDF_NESTED =
             TableTestProgram.of(
                             "async-calc-nested",
                             "validates async calc node when chained through nested calls")
@@ -146,7 +156,7 @@ public class AsyncCalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, udf1(udf1(udf1(a))) FROM source_t")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_CONDITION =
+    public static final TableTestProgram ASYNC_CALC_UDF_CONDITION =
             TableTestProgram.of(
                             "async-calc-condition",
                             "validates async calc node with the udf written in the condition of the SQL query")
@@ -166,7 +176,7 @@ public class AsyncCalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a FROM source_t WHERE udf1(a) > 6")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_FAILURE_EXCEPTION =
+    public static final TableTestProgram ASYNC_CALC_UDF_FAILURE_EXCEPTION =
             TableTestProgram.of(
                             "async-calc-failure-exception",
                             "validates async calc node that fails some number of times and then recovers after restore")
@@ -187,6 +197,105 @@ public class AsyncCalcTestPrograms {
                                     .consumedAfterRestore(Row.of(2), Row.of(3))
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT udf1(a) FROM source_t")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Without restore data
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram ASYNC_CALC_UDF_IN_FLIGHT_AT_END_OF_INPUT =
+            TableTestProgram.of(
+                            "async-calc-in-flight-at-end-of-input",
+                            "validates async calc node with calls still in flight when the input ends")
+                    .setupConfig(TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS, 5)
+                    .setupTemporarySystemFunction("udf1", AsyncFuncAdd10.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT")
+                                    .producedValues(
+                                            IntStream.range(0, 20)
+                                                    .mapToObj(Row::of)
+                                                    .toArray(Row[]::new))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "a1 INT")
+                                    .consumedValues(
+                                            IntStream.range(0, 20)
+                                                    .mapToObj(i -> Row.of(i, i + 10))
+                                                    .toArray(Row[]::new))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT a, udf1(a) FROM source_t")
+                    .build();
+
+    public static final TableTestProgram ASYNC_CALC_UDF_CORRELATE =
+            TableTestProgram.of(
+                            "async-calc-correlate",
+                            "validates async calc node computing the argument of a table function")
+                    .setupTemporarySystemFunction("udf1", AsyncUdfWithOpen.class)
+                    .setupTemporarySystemFunction("STRING_SPLIT", StringSplit.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("c STRING")
+                                    .producedValues(Row.of("a,b"), Row.of("c"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("c STRING", "s STRING")
+                                    .consumedValues(
+                                            Row.of("a,b", "$a"),
+                                            Row.of("a,b", "b"),
+                                            Row.of("c", "$c"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT c, s "
+                                    + "FROM source_t, LATERAL STRING_SPLIT(udf1(c)) AS T(s)")
+                    .build();
+
+    public static final TableTestProgram ASYNC_CALC_UDF_AGG_ON_HASH_JOIN =
+            TableTestProgram.of(
+                            "async-calc-agg-on-hash-join",
+                            "validates an aggregation on top of an async calc after a hash join")
+                    .setupConfig(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4)
+                    .setupConfig(
+                            TABLE_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+                    .setupTemporaryCatalogFunction("udf1", AsyncJavaFunc0.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT")
+                                    .producedValues(Row.of(1), Row.of(1), Row.of(2), Row.of(3))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "s BIGINT")
+                                    .consumedValues(Row.of(1, 12L), Row.of(2, 5L), Row.of(3, 7L))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT t1.a, SUM(udf1(t1.a + t2.a)) "
+                                    + "FROM source_t t1 JOIN source_t t2 ON t1.a = t2.a "
+                                    + "GROUP BY t1.a")
+                    .build();
+
+    public static final TableTestProgram ASYNC_CALC_UDF_JOIN_INPUT =
+            TableTestProgram.of(
+                            "async-calc-join-input",
+                            "validates async calc node between an aggregation and a hash join")
+                    .setupTemporaryCatalogFunction("udf1", AsyncJavaFunc0.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b INT")
+                                    .producedValues(Row.of(1, 10), Row.of(1, 11), Row.of(2, 20))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "f BIGINT", "b INT")
+                                    .consumedValues(
+                                            Row.of(1, 2L, 10), Row.of(1, 2L, 11), Row.of(2, 3L, 20))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT t1.a, t1.f, t2.b FROM "
+                                    + "(SELECT a, udf1(a) AS f FROM (SELECT a FROM source_t GROUP BY a)) t1 "
+                                    + "JOIN source_t t2 ON t1.a = t2.a")
                     .build();
 
     /** Increment input. */

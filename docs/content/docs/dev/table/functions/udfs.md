@@ -1030,6 +1030,8 @@ Naively accessing data in the external database, for example using a `ScalarFunc
 
 To address this inefficiency, there is an `AsyncScalarFunction`. Asynchronous interaction with the database means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cases to much higher streaming throughput.
 
+`AsyncScalarFunction` is supported in both streaming and batch mode.
+
 {{< img src="/fig/async_io.svg" width="50%" >}}
 
 #### Defining an AsyncScalarFunction
@@ -1118,6 +1120,8 @@ While calls to an `AsyncScalarFunction` may be completed out of the original inp
 
 #### Error Handling
 The primary way for a user to indicate an error is to call `CompletableFuture.completeExceptionally(Throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-scalar.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-scalar.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-scalar.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-scalar.timeout`]({{< ref "docs/dev/table/config#table-exec-async-scalar-timeout" >}}) expires (including all retry attempts), the job will fail.
+
+When a bounded input ends, every call that is waiting for a delayed retry is retried once immediately and no further retries happen. Any attempt that fails after the end of the input fails the job, even if fewer than `table.exec.async-scalar.max-attempts` attempts have been made.
 
 #### AsyncScalarFunction vs. ScalarFunction
 One thing to consider is if the UDF contains CPU intensive logic with no blocking calls. If so, it likely doesn't require asynchronous functionality and could use a `ScalarFunction`. If the logic involves waiting for things like network or background operations (e.g. database lookups, RPCs, or REST calls), this may be a useful way to speed things up. There are also some queries that don't support `AsyncScalarFunction`, so when in doubt, `ScalarFunction` should be used.

@@ -33,7 +33,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -63,17 +62,7 @@ public class StreamPhysicalAsyncCalc extends StreamPhysicalCalcBase {
     @Override
     public ExecNode<?> translateToExecNode() {
         List<RexNode> projection =
-                calcProgram.getProjectList().stream()
-                        .map(calcProgram::expandLocalRef)
-                        .collect(Collectors.toList());
-        if (calcProgram.getCondition() != null) {
-            throw new IllegalStateException(
-                    "The condition of StreamPhysicalAsyncCalc should be null.");
-        }
-        if (projection.stream().filter(AsyncUtil::containsAsyncCall).count() > 1) {
-            throw new IllegalStateException(
-                    "Only a single async projection is allowed in StreamPhysicalAsyncCalc.");
-        }
+                AsyncUtil.expandAsyncCalcProjection(calcProgram, getRelTypeName());
 
         return new StreamExecAsyncCalc(
                 unwrapTableConfig(this),

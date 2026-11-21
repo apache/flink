@@ -16,18 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.physical.stream;
+package org.apache.flink.table.planner.plan.rules.physical.common;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalAsyncCalc;
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalAsyncCalcRule;
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalAsyncCalcRule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.AsyncPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncSumScalarFunction;
 import org.apache.flink.table.planner.utils.JavaTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
@@ -38,12 +42,23 @@ import org.junit.jupiter.params.provider.CsvSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that JVM async conversion only accepts Java async functions. */
-class StreamPhysicalAsyncCalcRuleTest extends TableTestBase {
+class CommonPhysicalAsyncCalcRuleTest extends TableTestBase {
 
     @ParameterizedTest
-    @CsvSource({"python_async, false", "java_async, true"})
-    void testAsyncFunctionConversion(String function, boolean converts) {
-        final JavaTableTestUtil util = javaStreamTestUtil();
+    @CsvSource({
+        "true, python_async, false",
+        "true, java_async, true",
+        "false, python_async, false",
+        "false, java_async, true"
+    })
+    void testAsyncFunctionConversion(boolean isStreaming, String function, boolean converts) {
+        final JavaTableTestUtil util = isStreaming ? javaStreamTestUtil() : javaBatchTestUtil();
+        final RelOptRule rule =
+                isStreaming
+                        ? StreamPhysicalAsyncCalcRule.INSTANCE
+                        : BatchPhysicalAsyncCalcRule.INSTANCE;
+        final Class<?> asyncCalcClass =
+                isStreaming ? StreamPhysicalAsyncCalc.class : BatchPhysicalAsyncCalc.class;
         util.addTableSource(
                 "src",
                 Schema.newBuilder()
@@ -65,13 +80,9 @@ class StreamPhysicalAsyncCalcRuleTest extends TableTestBase {
                                                                         + function
                                                                         + "(a, b) FROM src")));
         final HepPlanner planner =
-                new HepPlanner(
-                        new HepProgramBuilder()
-                                .addRuleInstance(StreamPhysicalAsyncCalcRule.INSTANCE)
-                                .build());
+                new HepPlanner(new HepProgramBuilder().addRuleInstance(rule).build());
         planner.setRoot(FlinkLogicalCalc.create(calc.getInput(), calc.getProgram()));
         final RelNode result = planner.findBestExp();
-        assertThat(result)
-                .isInstanceOf(converts ? StreamPhysicalAsyncCalc.class : FlinkLogicalCalc.class);
+        assertThat(result).isInstanceOf(converts ? asyncCalcClass : FlinkLogicalCalc.class);
     }
 }
