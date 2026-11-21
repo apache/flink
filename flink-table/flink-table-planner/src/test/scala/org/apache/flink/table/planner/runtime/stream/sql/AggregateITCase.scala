@@ -105,6 +105,26 @@ class AggregateITCase(
   }
 
   @TestTemplate
+  def testAvgOnIntDoesNotOverflowWhenReducedToSumAndCount(): Unit = {
+    val data = new mutable.ListBuffer[(Int, Int)]
+    data.+=((Int.MaxValue, 1))
+    data.+=((Int.MaxValue, 1))
+    data.+=((1, 1))
+    val t = failingDataSource(data).toTable(tEnv, 'x, 'k)
+    tEnv.createTemporaryView("MaxIntTable", t)
+
+    // SUM and COUNT of the same column make the planner reduce AVG to SUM / COUNT
+    val sink = new TestingRetractSink
+    tEnv
+      .sqlQuery("SELECT AVG(x), SUM(x), COUNT(x) FROM MaxIntTable GROUP BY k")
+      .toRetractStream[Row]
+      .addSink(sink)
+      .setParallelism(1)
+    env.execute()
+    assertThat(sink.getRetractResults).isEqualTo(List("1431655765,-1,3"))
+  }
+
+  @TestTemplate
   def testMaxAggRetractWithCondition(): Unit = {
     val data = new mutable.ListBuffer[(Int, Int)]
     data.+=((1, 10))
