@@ -97,6 +97,45 @@ class JarFileCheckerTest {
     }
 
     @Test
+    void testRejectedOnNoticeReferenceToMissingLicense(@TempDir Path tempDir) throws Exception {
+        final String notice =
+                VALID_NOTICE_CONTENTS
+                        + "\n  * licenses/LICENSE.example.txt"
+                        + "\n  * https://www.apache.org/licenses/LICENSE-2.0\n";
+        final Entry license =
+                Entry.fileEntry(
+                        "text", Arrays.asList("META-INF", "licenses", "LICENSE.example.txt"));
+
+        assertThat(
+                        JarFileChecker.checkJar(
+                                createJar(
+                                        tempDir,
+                                        Entry.fileEntry(notice, VALID_NOTICE_PATH),
+                                        Entry.fileEntry(
+                                                VALID_LICENSE_CONTENTS, VALID_LICENSE_PATH))))
+                .isEqualTo(1);
+        assertThat(
+                        JarFileChecker.checkJar(
+                                createJar(
+                                        tempDir,
+                                        Entry.fileEntry(notice, VALID_NOTICE_PATH),
+                                        Entry.fileEntry(VALID_LICENSE_CONTENTS, VALID_LICENSE_PATH),
+                                        license)))
+                .isEqualTo(0);
+        assertThat(
+                        JarFileChecker.checkJar(
+                                createJar(
+                                        tempDir,
+                                        Entry.fileEntry(
+                                                VALID_NOTICE_CONTENTS
+                                                        + "\n  * license/NOTICE.harmony.txt\n",
+                                                VALID_NOTICE_PATH),
+                                        Entry.fileEntry(
+                                                VALID_LICENSE_CONTENTS, VALID_LICENSE_PATH))))
+                .isEqualTo(1);
+    }
+
+    @Test
     void testRejectedOnMissingLicenseFile(@TempDir Path tempDir) throws Exception {
         assertThat(
                         JarFileChecker.checkJar(
