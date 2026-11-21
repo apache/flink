@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
@@ -41,21 +42,30 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
+import org.apache.flink.runtime.state.v2.adaptor.MapStateAdaptor;
 import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.v2.internal.InternalReducingState;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link AsyncKeyedStateBackendAdaptor}. */
 public class AsyncKeyedStateBackendAdaptorTest {
@@ -241,6 +251,141 @@ public class AsyncKeyedStateBackendAdaptorTest {
                                     .containsExactlyInAnyOrderElementsOf(groundTruth.values());
                         });
         adaptor.close();
+    }
+
+    @Test
+    public void testMapStateNullRemovals() throws Exception {
+        CheckpointableKeyedStateBackend<String> backend = createBackend();
+        try (AsyncKeyedStateBackendAdaptor<String> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(backend)) {
+            backend.setCurrentKey("test");
+            MapState<Integer, Integer> state =
+                    adaptor.getOrCreateKeyedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            new MapStateDescriptor<>(
+                                    "nullRemovals",
+                                    BasicTypeInfo.INT_TYPE_INFO,
+                                    BasicTypeInfo.INT_TYPE_INFO));
+            assertMapStateNullRemovals(state);
+        } finally {
+            backend.dispose();
+        }
+    }
+
+    private interface IntegerMapState
+            extends InternalMapState<Integer, VoidNamespace, Integer, Integer> {}
+
+    @Test
+    public void testAsyncMapStateMutationExceptions() {
+        IOException failure = new IOException("delegate failure");
+        List<String> calls = new ArrayList<>();
+        IntegerMapState delegate =
+                (IntegerMapState)
+                        Proxy.newProxyInstance(
+                                IntegerMapState.class.getClassLoader(),
+                                new Class<?>[] {IntegerMapState.class},
+                                (proxy, method, args) -> {
+                                    calls.add(method.getName());
+                                    switch (method.getName()) {
+                                        case "put":
+                                        case "putAll":
+                                            throw failure;
+                                        case "remove":
+                                            if (Integer.valueOf(1).equals(args[0])) {
+                                                throw failure;
+                                            }
+                                            return null;
+                                        default:
+                                            throw new AssertionError(
+                                                    "Unexpected delegate call: "
+                                                            + method.getName());
+                                    }
+                                });
+        MapState<Integer, Integer> state = new MapStateAdaptor<>(delegate);
+        state.asyncPutAll(Map.of());
+        assertThat(calls).isEmpty();
+        assertThatThrownBy(() -> state.asyncPutAll(null)).isInstanceOf(NullPointerException.class);
+        assertThat(calls).isEmpty();
+
+        assertThatThrownBy(() -> state.asyncPut(1, 10))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Error while updating value to raw MapState")
+                .hasCause(failure);
+        assertThatThrownBy(() -> state.asyncPut(1, null))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Error while updating value to raw MapState")
+                .hasCause(failure);
+        assertThatThrownBy(() -> state.asyncPutAll(Collections.singletonMap(1, null)))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Error while updating values to raw MapState")
+                .hasCause(failure);
+        assertThatThrownBy(() -> state.asyncPutAll(Map.of(2, 20)))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Error while updating values to raw MapState")
+                .hasCause(failure);
+        Map<Integer, Integer> mixed = new HashMap<>();
+        mixed.put(2, 20);
+        mixed.put(3, null);
+        assertThatThrownBy(() -> state.asyncPutAll(mixed))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Error while updating values to raw MapState")
+                .hasCause(failure);
+        assertThat(mixed).containsEntry(2, 20).containsEntry(3, null).hasSize(2);
+        assertThat(calls).containsExactly("put", "remove", "remove", "putAll", "remove", "putAll");
+    }
+
+    /** Shared conformance scenario for real heap and RocksDB adaptors. */
+    public static void assertMapStateNullRemovals(MapState<Integer, Integer> state) {
+        state.asyncPutAll(Map.of(1, 10, 2, 20));
+        state.asyncPutAll(Map.copyOf(Map.of(3, 30)));
+        state.asyncPutAll(new ConcurrentHashMap<>(Map.of(4, 40)));
+        Map<Integer, Integer> changes = new HashMap<>();
+        changes.put(1, null);
+        changes.put(5, null);
+        changes.put(2, 200);
+        Map<Integer, Integer> original = new HashMap<>(changes);
+        state.asyncPutAll(Collections.unmodifiableMap(changes));
+        assertThat(changes).isEqualTo(original);
+        state.asyncContains(1).thenAccept(present -> assertThat(present).isFalse());
+        state.asyncContains(5).thenAccept(present -> assertThat(present).isFalse());
+        assertMapEntries(state, Map.of(2, 200, 3, 30, 4, 40));
+
+        state.asyncPutAll(Map.of());
+        assertMapEntries(state, Map.of(2, 200, 3, 30, 4, 40));
+        assertThatThrownBy(() -> state.asyncPutAll(null)).isInstanceOf(NullPointerException.class);
+        assertMapEntries(state, Map.of(2, 200, 3, 30, 4, 40));
+
+        changes.clear();
+        changes.put(2, null);
+        changes.put(5, null);
+        original = new HashMap<>(changes);
+        state.asyncPutAll(changes);
+        assertThat(changes).isEqualTo(original);
+        state.asyncContains(2).thenAccept(present -> assertThat(present).isFalse());
+        state.asyncContains(5).thenAccept(present -> assertThat(present).isFalse());
+        assertMapEntries(state, Map.of(3, 30, 4, 40));
+
+        state.asyncPut(3, null);
+        state.asyncPut(5, null);
+        state.asyncContains(3).thenAccept(present -> assertThat(present).isFalse());
+        state.asyncContains(5).thenAccept(present -> assertThat(present).isFalse());
+        state.asyncContains(4).thenAccept(present -> assertThat(present).isTrue());
+        assertMapEntries(state, Map.of(4, 40));
+    }
+
+    private static void assertMapEntries(
+            MapState<Integer, Integer> state, Map<Integer, Integer> expected) {
+        state.asyncEntries()
+                .thenAccept(
+                        iterator -> {
+                            Map<Integer, Integer> actual = new HashMap<>();
+                            iterator.onNext(
+                                    entry -> {
+                                        actual.put(entry.getKey(), entry.getValue());
+                                    });
+                            assertThat(actual).isEqualTo(expected);
+                        });
     }
 
     @Test

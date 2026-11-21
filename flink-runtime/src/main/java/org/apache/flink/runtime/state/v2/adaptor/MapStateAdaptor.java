@@ -22,9 +22,12 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.state.v2.internal.InternalMapState;
+import org.apache.flink.util.CollectionUtil;
 
 import java.util.Iterator;
 import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An adaptor that transforms {@link org.apache.flink.runtime.state.internal.InternalMapState} into
@@ -61,7 +64,11 @@ public class MapStateAdaptor<K, N, UK, UV>
     @Override
     public StateFuture<Void> asyncPut(UK key, UV value) {
         try {
-            delegatedState.put(key, value);
+            if (value == null) {
+                delegatedState.remove(key);
+            } else {
+                delegatedState.put(key, value);
+            }
         } catch (Exception e) {
             throw new RuntimeException("Error while updating value to raw MapState", e);
         }
@@ -79,8 +86,33 @@ public class MapStateAdaptor<K, N, UK, UV>
 
     @Override
     public StateFuture<Void> asyncPutAll(Map<UK, UV> map) {
+        checkNotNull(map, "Map must not be null");
+        if (map.isEmpty()) {
+            return StateFutureUtils.completedVoidFuture();
+        }
         try {
-            delegatedState.putAll(map);
+            boolean hasNull = false;
+            for (Map.Entry<UK, UV> entry : map.entrySet()) {
+                if (entry.getValue() == null) {
+                    hasNull = true;
+                    break;
+                }
+            }
+            if (!hasNull) {
+                delegatedState.putAll(map);
+            } else {
+                Map<UK, UV> puts = CollectionUtil.newHashMapWithExpectedSize(map.size());
+                for (Map.Entry<UK, UV> entry : map.entrySet()) {
+                    if (entry.getValue() == null) {
+                        delegatedState.remove(entry.getKey());
+                    } else {
+                        puts.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                if (!puts.isEmpty()) {
+                    delegatedState.putAll(puts);
+                }
+            }
         } catch (Exception e) {
             throw new RuntimeException("Error while updating values to raw MapState", e);
         }
