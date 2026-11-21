@@ -55,13 +55,13 @@ examples:
   - title: Test a string for a match
     description: The first regex matches in the middle of the string. The second one is anchored to the start and doesn't match.
     sql: |
-      SELECT
-        REGEXP('foobar', 'o+b') AS has_ob,
-        REGEXP('foobar', '^bar') AS starts_with_bar;
+      SELECT str, regex, REGEXP(str, regex) AS `REGEXP(str, regex)`
+      FROM (VALUES ('foobar', 'o+b'), ('foobar', '^bar')) AS t(str, regex);
     result: |
-      | has_ob | starts_with_bar |
-      |--------|-----------------|
-      | TRUE   | FALSE           |
+      | str    | regex | REGEXP(str, regex) |
+      |--------|-------|--------------------|
+      | foobar | o+b   | TRUE               |
+      | foobar | ^bar  | FALSE              |
 
   - title: Filter rows
     description: Keep the IDs that consist of `order-` and a number.
@@ -77,31 +77,33 @@ examples:
   - title: An empty regular expression
     description: An empty regex returns `FALSE`. To match an empty string, use `^$`.
     sql: |
-      SELECT
-        REGEXP('', '') AS empty_regex,
-        REGEXP('', '^$') AS anchored;
+      SELECT str, regex, REGEXP(str, regex) AS `REGEXP(str, regex)`
+      FROM (VALUES ('', ''), ('', '^$')) AS t(str, regex);
     result: |
-      | empty_regex | anchored |
-      |-------------|----------|
-      | FALSE       | TRUE     |
+      | str | regex | REGEXP(str, regex) |
+      |-----|-------|--------------------|
+      |     |       | FALSE              |
+      |     | ^$    | TRUE               |
 
   - title: NULL arguments
     description: A NULL argument returns NULL.
     sql: |
-      SELECT
-        REGEXP(CAST(NULL AS STRING), 'o+b') AS null_str,
-        REGEXP('foobar', CAST(NULL AS STRING)) AS null_regex;
+      SELECT str, regex, REGEXP(str, regex) AS `REGEXP(str, regex)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), 'o+b'),
+        ('foobar', CAST(NULL AS STRING))) AS t(str, regex);
     result: |
-      | null_str | null_regex |
-      |----------|------------|
-      | NULL     | NULL       |
+      | str    | regex | REGEXP(str, regex) |
+      |--------|-------|--------------------|
+      | NULL   | o+b   | NULL               |
+      | foobar | NULL  | NULL               |
 
   - title: An invalid regular expression from a column
     description: The same regex read from a column returns `FALSE`, and the query keeps running.
     sql: |
-      SELECT REGEXP(str, re) AS matched
-      FROM (VALUES ('foobar', '(')) AS t(str, re);
+      SELECT str, regex, REGEXP(str, regex) AS `REGEXP(str, regex)`
+      FROM (VALUES ('foobar', '(')) AS t(str, regex);
     result: |
-      | matched |
-      |---------|
-      | FALSE   |
+      | str    | regex | REGEXP(str, regex) |
+      |--------|-------|--------------------|
+      | foobar | (     | FALSE              |

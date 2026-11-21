@@ -19,7 +19,7 @@ name: REGEXP_EXTRACT_ALL
 summary: Returns the substrings that a group of a Java regular expression captures in every match.
 
 syntax:
-  sql: REGEXP_EXTRACT_ALL(str, regex [, extractIndex])
+  sql: REGEXP_EXTRACT_ALL(str, regex [, extract_index])
   java: |
     $("str").regexpExtractAll(regex)
     $("str").regexpExtractAll(regex, extractIndex)
@@ -36,20 +36,20 @@ arguments:
     type: CHAR, VARCHAR, STRING
     required: true
     description: A Java regular expression.
-  - name: extractIndex
+  - name: extract_index
     type: TINYINT, SMALLINT, INT, BIGINT
     required: false
     default: "`1`"
     description: The capturing group to return, starting at 1. `0` returns the whole match.
 
 returns:
-  description: An array with one element for each match of `regex` in `str`, in order. Each element is the text that group `extractIndex` matched. An empty array if `regex` doesn't match.
-  nulls: Returns NULL if any argument is NULL, if `extractIndex` is out of range, or if `regex` doesn't compile. An element is NULL if its group took no part in the match, such as the optional group in `'(x)?b'`.
+  description: An array with one element for each match of `regex` in `str`, in order. Each element is the text that group `extract_index` matched. An empty array if `regex` doesn't match.
+  nulls: Returns NULL if any argument is NULL, if `extract_index` is out of range, or if `regex` doesn't compile. An element is NULL if its group took no part in the match, such as the optional group in `'(x)?b'`.
   type: "`ARRAY<STRING>`, nullable."
 
 notes:
-  - "`extractIndex` defaults to `1`, while it defaults to `0` in `REGEXP_EXTRACT`. A `regex` without groups therefore returns NULL unless you pass `0`."
-  - Groups are numbered from 1, in the order of their opening parentheses. `extractIndex` is out of range when it is negative or greater than the number of groups in `regex`.
+  - "`extract_index` defaults to `1`, while it defaults to `0` in `REGEXP_EXTRACT`. A `regex` without groups therefore returns NULL unless you pass `0`."
+  - Groups are numbered from 1, in the order of their opening parentheses. `extract_index` is out of range when it is negative or greater than the number of groups in `regex`.
   - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
   - A `regex` that doesn't compile returns NULL, even a literal one.
 
@@ -62,54 +62,66 @@ examples:
   - title: Extract a group from every match
     description: Return the keys and the values of all pairs.
     sql: |
-      SELECT
-        REGEXP_EXTRACT_ALL('a=1;b=22;c=333', '(\w)=(\d+)') AS keys_group_1,
-        REGEXP_EXTRACT_ALL('a=1;b=22;c=333', '(\w)=(\d+)', 2) AS values_group_2;
+      SELECT str, n,
+        REGEXP_EXTRACT_ALL(str, '(\w)=(\d+)', n) AS `REGEXP_EXTRACT_ALL(str, '(\w)=(\d+)', n)`
+      FROM (VALUES ('a=1;b=22;c=333', 1), ('a=1;b=22;c=333', 2)) AS t(str, n);
     result: |
-      | keys_group_1 | values_group_2 |
-      |--------------|----------------|
-      | [a, b, c]    | [1, 22, 333]   |
+      | str            | n | REGEXP_EXTRACT_ALL(str, '(\w)=(\d+)', n) |
+      |----------------|---|------------------------------------------|
+      | a=1;b=22;c=333 | 1 | [a, b, c]                                |
+      | a=1;b=22;c=333 | 2 | [1, 22, 333]                             |
 
   - title: Extract the whole matches
-    description: With `extractIndex` `0`, the elements are the whole matches. A regex without groups needs it.
+    description: With `extract_index` `0`, the elements are the whole matches. A regex without groups needs it.
     sql: |
-      SELECT
-        REGEXP_EXTRACT_ALL('a=1;b=22', '\d+', 0) AS index_0,
-        REGEXP_EXTRACT_ALL('a=1;b=22', '\d+') AS omitted;
+      SELECT str,
+        REGEXP_EXTRACT_ALL(str, '\d+', 0) AS `REGEXP_EXTRACT_ALL(str, '\d+', 0)`,
+        REGEXP_EXTRACT_ALL(str, '\d+') AS `REGEXP_EXTRACT_ALL(str, '\d+')`
+      FROM (VALUES ('a=1;b=22')) AS t(str);
     result: |
-      | index_0 | omitted |
-      |---------|---------|
-      | [1, 22] | NULL    |
+      | str      | REGEXP_EXTRACT_ALL(str, '\d+', 0) | REGEXP_EXTRACT_ALL(str, '\d+') |
+      |----------|-----------------------------------|--------------------------------|
+      | a=1;b=22 | [1, 22]                           | NULL                           |
 
   - title: No match or a group out of range
     description: A regex that doesn't match returns an empty array. A group out of range returns NULL.
     sql: |
-      SELECT
-        REGEXP_EXTRACT_ALL('a=1;b=22', 'x(\d)') AS no_match,
-        REGEXP_EXTRACT_ALL('a=1;b=22', '(\w)=(\d+)', 3) AS index_3,
-        REGEXP_EXTRACT_ALL('a=1;b=22', '(\w)=(\d+)', -1) AS index_negative;
+      SELECT str, regex, n,
+        REGEXP_EXTRACT_ALL(str, regex, n) AS `REGEXP_EXTRACT_ALL(str, regex, n)`
+      FROM (VALUES
+        ('a=1;b=22', 'x(\d)', 1),
+        ('a=1;b=22', '(\w)=(\d+)', 3),
+        ('a=1;b=22', '(\w)=(\d+)', -1)) AS t(str, regex, n);
     result: |
-      | no_match | index_3 | index_negative |
-      |----------|---------|----------------|
-      | []       | NULL    | NULL           |
+      | str      | regex      | n  | REGEXP_EXTRACT_ALL(str, regex, n) |
+      |----------|------------|----|-----------------------------------|
+      | a=1;b=22 | x(\d)      | 1  | []                                |
+      | a=1;b=22 | (\w)=(\d+) | 3  | NULL                              |
+      | a=1;b=22 | (\w)=(\d+) | -1 | NULL                              |
 
   - title: A group that takes no part in a match
     description: The optional group doesn't match in the first match, so the first element is NULL.
     sql: |
-      SELECT REGEXP_EXTRACT_ALL('b xb', '(x)?b') AS optional_group;
+      SELECT str,
+        REGEXP_EXTRACT_ALL(str, '(x)?b') AS `REGEXP_EXTRACT_ALL(str, '(x)?b')`
+      FROM (VALUES ('b xb')) AS t(str);
     result: |
-      | optional_group |
-      |----------------|
-      | [NULL, x]      |
+      | str  | REGEXP_EXTRACT_ALL(str, '(x)?b') |
+      |------|----------------------------------|
+      | b xb | [NULL, x]                        |
 
   - title: NULL arguments
     description: A NULL argument returns NULL.
     sql: |
-      SELECT
-        REGEXP_EXTRACT_ALL(CAST(NULL AS STRING), '(\w)=(\d+)') AS null_str,
-        REGEXP_EXTRACT_ALL('a=1', CAST(NULL AS STRING)) AS null_regex,
-        REGEXP_EXTRACT_ALL('a=1', '(\w)=(\d+)', CAST(NULL AS INT)) AS null_index;
+      SELECT str, regex, n,
+        REGEXP_EXTRACT_ALL(str, regex, n) AS `REGEXP_EXTRACT_ALL(str, regex, n)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), '(\w)=(\d+)', 1),
+        ('a=1', CAST(NULL AS STRING), 1),
+        ('a=1', '(\w)=(\d+)', CAST(NULL AS INT))) AS t(str, regex, n);
     result: |
-      | null_str | null_regex | null_index |
-      |----------|------------|------------|
-      | NULL     | NULL       | NULL       |
+      | str  | regex      | n    | REGEXP_EXTRACT_ALL(str, regex, n) |
+      |------|------------|------|-----------------------------------|
+      | NULL | (\w)=(\d+) | 1    | NULL                              |
+      | a=1  | NULL       | 1    | NULL                              |
+      | a=1  | (\w)=(\d+) | NULL | NULL                              |

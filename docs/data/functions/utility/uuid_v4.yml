@@ -40,31 +40,33 @@ examples:
     description: The 15th character of the text is the version.
     sql: |
       SELECT
-        TYPEOF(UUID_V4()) AS result_type,
-        SUBSTRING(CAST(UUID_V4() AS STRING), 15, 1) AS version;
+        TYPEOF(UUID_V4()) AS `TYPEOF(UUID_V4())`,
+        SUBSTRING(CAST(UUID_V4() AS STRING), 15, 1) AS `SUBSTRING(CAST(UUID_V4() AS STRING), 15, 1)`;
     result: |
-      | result_type   | version |
-      |---------------|---------|
-      | UUID NOT NULL | 4       |
+      | TYPEOF(UUID_V4()) | SUBSTRING(CAST(UUID_V4() AS STRING), 15, 1) |
+      |-------------------|---------------------------------------------|
+      | UUID NOT NULL     | 4                                           |
 
   - title: A new value for every row
     description: Four rows get four different values.
     sql: |
-      SELECT COUNT(DISTINCT CAST(id AS STRING)) AS distinct_ids, COUNT(*) AS row_count
+      SELECT
+        COUNT(DISTINCT CAST(id AS STRING)) AS `COUNT(DISTINCT CAST(id AS STRING))`,
+        COUNT(*) AS `COUNT(*)`
       FROM (SELECT UUID_V4() AS id FROM (VALUES (1), (2), (3), (4)) AS t(x));
     result: |
-      | distinct_ids | row_count |
-      |--------------|-----------|
-      | 4            | 4         |
+      | COUNT(DISTINCT CAST(id AS STRING)) | COUNT(*) |
+      |------------------------------------|----------|
+      | 4                                  | 4        |
 
   - title: Convert to bytes and back
     description: Both casts convert back to the same value.
     sql: |
       SELECT
-        CAST(CAST(id AS BINARY(16)) AS UUID) = id AS bytes_round_trip,
-        CAST(CAST(id AS STRING) AS UUID) = id AS string_round_trip
+        CAST(CAST(id AS BINARY(16)) AS UUID) = id AS `CAST(CAST(id AS BINARY(16)) AS UUID) = id`,
+        CAST(CAST(id AS STRING) AS UUID) = id AS `CAST(CAST(id AS STRING) AS UUID) = id`
       FROM (SELECT UUID_V4() AS id);
     result: |
-      | bytes_round_trip | string_round_trip |
-      |------------------|-------------------|
-      | TRUE             | TRUE              |
+      | CAST(CAST(id AS BINARY(16)) AS UUID) = id | CAST(CAST(id AS STRING) AS UUID) = id |
+      |-------------------------------------------|---------------------------------------|
+      | TRUE                                      | TRUE                                  |

@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SHA2
+summary: Returns the SHA-224, SHA-256, SHA-384 or SHA-512 hash of a string as hexadecimal digits.
+
+syntax:
+  sql: SHA2(str, hash_length)
+  java: $("str").sha2(hashLength)
+  python: col("str").sha2(hash_length)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING. In SQL, also BINARY, VARBINARY, BYTES
+    required: true
+    description: The value to hash.
+  - name: hash_length
+    type: An integer type. The Table API doesn't accept BIGINT
+    required: true
+    description: The bit length of the digest, `224`, `256`, `384` or `512`.
+
+returns:
+  description: The SHA-2 digest of `str` with `hash_length` bits, as lower-case hexadecimal digits. A character string is hashed as its UTF-8 bytes, a binary string as its bytes.
+  nulls: Returns NULL if `str` or `hash_length` is NULL.
+  type: "`VARCHAR(128)` for every `hash_length`, NOT NULL if both arguments are NOT NULL."
+
+notes:
+  - A `hash_length` literal other than `224`, `256`, `384` or `512` fails the query. A value such as `0` from a column fails the job when a row with it arrives.
+  - "`SHA2(str, 256)` returns the same digest as `SHA256(str)`, and likewise for the other lengths. Only the result type differs."
+
+see_also:
+  - {name: SHA224, ref: hash/sha224}
+  - {name: SHA256, ref: hash/sha256}
+  - {name: SHA384, ref: hash/sha384}
+  - {name: SHA512, ref: hash/sha512}
+
+examples:
+  - title: Choose the digest length
+    description: 224 and 256 bits give 56 and 64 hexadecimal digits.
+    sql: |
+      SELECT str, bits, SHA2(str, bits) AS `SHA2(str, bits)`
+      FROM (VALUES ('Flink', 224), ('Flink', 256)) AS t(str, bits);
+    result: |
+      | str   | bits | SHA2(str, bits)                                                  |
+      |-------|------|------------------------------------------------------------------|
+      | Flink | 224  | acf4fcac27bd532190fc4a15d98cf430a32d7e2bef4ef1a904f27ed4         |
+      | Flink | 256  | 6f338c13e3a27831135961a08e91722fd4bd82d855de8987c44c1492cdc75c53 |
+
+  - title: Same digest as the fixed-length functions
+    description: "`SHA2` with a length returns the digest of the function for that length."
+    sql: |
+      SELECT str,
+        SHA2(str, 384) = SHA384(str) AS `SHA2(str, 384) = SHA384(str)`,
+        SHA2(str, 512) = SHA512(str) AS `SHA2(str, 512) = SHA512(str)`
+      FROM (VALUES ('Flink')) AS t(str);
+    result: |
+      | str   | SHA2(str, 384) = SHA384(str) | SHA2(str, 512) = SHA512(str) |
+      |-------|------------------------------|------------------------------|
+      | Flink | TRUE                         | TRUE                         |
+
+  - title: NULL arguments
+    description: A NULL string or a NULL length returns NULL.
+    sql: |
+      SELECT str, bits, SHA2(str, bits) AS `SHA2(str, bits)`
+      FROM (VALUES (CAST(NULL AS STRING), 256), ('Flink', CAST(NULL AS INT))) AS t(str, bits);
+    result: |
+      | str   | bits | SHA2(str, bits) |
+      |-------|------|-----------------|
+      | NULL  | 256  | NULL            |
+      | Flink | NULL | NULL            |

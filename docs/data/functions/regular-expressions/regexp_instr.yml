@@ -52,41 +52,46 @@ examples:
   - title: Find the first match
     description: Return where the first number starts.
     sql: |
-      SELECT REGEXP_INSTR('order 17, refund 4', '\d+') AS first_number;
+      SELECT str, REGEXP_INSTR(str, '\d+') AS `REGEXP_INSTR(str, '\d+')`
+      FROM (VALUES ('order 17, refund 4')) AS t(str);
     result: |
-      | first_number |
-      |--------------|
-      | 7            |
+      | str                | REGEXP_INSTR(str, '\d+') |
+      |--------------------|--------------------------|
+      | order 17, refund 4 | 7                        |
 
   - title: No match or an invalid regular expression
     description: A regex that doesn't match returns `0`. A regex that doesn't compile returns NULL.
     sql: |
-      SELECT
-        REGEXP_INSTR('order', '\d') AS no_match,
-        REGEXP_INSTR('order', '(') AS invalid_regex;
+      SELECT str,
+        REGEXP_INSTR(str, '\d') AS `REGEXP_INSTR(str, '\d')`,
+        REGEXP_INSTR(str, '(') AS `REGEXP_INSTR(str, '(')`
+      FROM (VALUES ('order')) AS t(str);
     result: |
-      | no_match | invalid_regex |
-      |----------|---------------|
-      | 0        | NULL          |
+      | str   | REGEXP_INSTR(str, '\d') | REGEXP_INSTR(str, '(') |
+      |-------|-------------------------|------------------------|
+      | order | 0                       | NULL                   |
 
   - title: Characters outside the Basic Multilingual Plane
     description: The emoji counts as two positions in `REGEXP_INSTR` and as one in `POSITION`.
     sql: |
-      SELECT
-        REGEXP_INSTR('😀ab', 'a') AS regexp_pos,
-        POSITION('a' IN '😀ab') AS char_pos;
+      SELECT str,
+        REGEXP_INSTR(str, 'a') AS `REGEXP_INSTR(str, 'a')`,
+        POSITION('a' IN str) AS `POSITION('a' IN str)`
+      FROM (VALUES ('😀ab')) AS t(str);
     result: |
-      | regexp_pos | char_pos |
-      |------------|----------|
-      | 3          | 2        |
+      | str  | REGEXP_INSTR(str, 'a') | POSITION('a' IN str) |
+      |------|------------------------|----------------------|
+      | 😀ab | 3                      | 2                    |
 
   - title: NULL arguments
     description: A NULL argument returns NULL.
     sql: |
-      SELECT
-        REGEXP_INSTR(CAST(NULL AS STRING), '\d') AS null_str,
-        REGEXP_INSTR('order 17', CAST(NULL AS STRING)) AS null_regex;
+      SELECT str, regex, REGEXP_INSTR(str, regex) AS `REGEXP_INSTR(str, regex)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), '\d'),
+        ('order 17', CAST(NULL AS STRING))) AS t(str, regex);
     result: |
-      | null_str | null_regex |
-      |----------|------------|
-      | NULL     | NULL       |
+      | str      | regex | REGEXP_INSTR(str, regex) |
+      |----------|-------|--------------------------|
+      | NULL     | \d    | NULL                     |
+      | order 17 | NULL  | NULL                     |

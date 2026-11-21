@@ -19,12 +19,12 @@ name: COALESCE
 summary: Returns the first argument that isn't NULL.
 
 syntax:
-  sql: COALESCE(value1 [, value2]*)
-  java: coalesce($("value1"), $("value2"))
-  python: coalesce(col("value1"), col("value2"))
+  sql: COALESCE(expr1 [, expr2]*)
+  java: coalesce($("expr1"), $("expr2"))
+  python: coalesce(col("expr1"), col("expr2"))
 
 arguments:
-  - name: value1, value2, ...
+  - name: expr1, expr2, ...
     type: Any type. All arguments must have a common type
     required: true
     description: The values to check, in order.
@@ -46,35 +46,38 @@ examples:
   - title: Replace NULL with a default
     description: Use `0` where the amount is missing.
     sql: |
-      SELECT id, COALESCE(amount, 0) AS amount
-      FROM (VALUES (1, 15), (2, CAST(NULL AS INT))) AS t(id, amount);
+      SELECT amount, COALESCE(amount, 0) AS `COALESCE(amount, 0)`
+      FROM (VALUES (15), (CAST(NULL AS INT))) AS t(amount);
     result: |
-      | id | amount |
-      |----|--------|
-      | 1  | 15     |
-      | 2  | 0      |
+      | amount | COALESCE(amount, 0) |
+      |--------|---------------------|
+      | 15     | 15                  |
+      | NULL   | 0                   |
 
   - title: Take the first value that is present
     description: Prefer the mobile number, then the office number.
     sql: |
-      SELECT id, COALESCE(mobile, office, 'unknown') AS phone
+      SELECT mobile, office,
+        COALESCE(mobile, office, 'unknown') AS `COALESCE(mobile, office, 'unknown')`
       FROM (VALUES
-        (1, '555-0101', '555-0199'),
-        (2, CAST(NULL AS STRING), '555-0299'),
-        (3, CAST(NULL AS STRING), CAST(NULL AS STRING))) AS t(id, mobile, office);
+        ('555-0101', '555-0199'),
+        (CAST(NULL AS STRING), '555-0299'),
+        (CAST(NULL AS STRING), CAST(NULL AS STRING))) AS t(mobile, office);
     result: |
-      | id | phone    |
-      |----|----------|
-      | 1  | 555-0101 |
-      | 2  | 555-0299 |
-      | 3  | unknown  |
+      | mobile   | office   | COALESCE(mobile, office, 'unknown') |
+      |----------|----------|-------------------------------------|
+      | 555-0101 | 555-0199 | 555-0101                            |
+      | NULL     | 555-0299 | 555-0299                            |
+      | NULL     | NULL     | unknown                             |
 
   - title: A NOT NULL default gives a NOT NULL result
     description: The column is nullable, but the default isn't.
     sql: |
-      SELECT TYPEOF(amount) AS column_type, TYPEOF(COALESCE(amount, 0)) AS result_type
+      SELECT amount,
+        TYPEOF(amount) AS `TYPEOF(amount)`,
+        TYPEOF(COALESCE(amount, 0)) AS `TYPEOF(COALESCE(amount, 0))`
       FROM (VALUES (CAST(NULL AS INT))) AS t(amount);
     result: |
-      | column_type | result_type  |
-      |-------------|--------------|
-      | INT         | INT NOT NULL |
+      | amount | TYPEOF(amount) | TYPEOF(COALESCE(amount, 0)) |
+      |--------|----------------|-----------------------------|
+      | NULL   | INT            | INT NOT NULL                |

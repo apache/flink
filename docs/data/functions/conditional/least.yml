@@ -19,12 +19,12 @@ name: LEAST
 summary: Returns the least of its arguments.
 
 syntax:
-  sql: LEAST(value1 [, value2]*)
-  java: call("LEAST", $("value1"), $("value2"))
-  python: call("LEAST", col("value1"), col("value2"))
+  sql: LEAST(expr1 [, expr2]*)
+  java: call("LEAST", $("expr1"), $("expr2"))
+  python: call("LEAST", col("expr1"), col("expr2"))
 
 arguments:
-  - name: value1, value2, ...
+  - name: expr1, expr2, ...
     type: Any comparable type, such as a number, a string or a date. All arguments must have a common type
     required: true
     description: The values to compare.
@@ -46,37 +46,42 @@ examples:
   - title: Compare columns of a row
     description: Return the smallest of three columns.
     sql: |
-      SELECT a, b, c, LEAST(a, b, c) AS r
-      FROM (VALUES (3, 7, 5), (9, 2, 4)) AS t(a, b, c);
+      SELECT x, y, z, LEAST(x, y, z) AS `LEAST(x, y, z)`
+      FROM (VALUES (3, 7, 5), (9, 2, 4)) AS t(x, y, z);
     result: |
-      | a | b | c | r |
-      |---|---|---|---|
-      | 3 | 7 | 5 | 3 |
-      | 9 | 2 | 4 | 2 |
+      | x | y | z | LEAST(x, y, z) |
+      |---|---|---|----------------|
+      | 3 | 7 | 5 | 3              |
+      | 9 | 2 | 4 | 2              |
 
   - title: Mixed numeric types
     description: An `INT` and a `DECIMAL` argument give a `DECIMAL` result.
     sql: |
-      SELECT LEAST(1, 2.5) AS r, TYPEOF(LEAST(1, 2.5)) AS r_type;
+      SELECT x, y,
+        LEAST(x, y) AS `LEAST(x, y)`,
+        TYPEOF(LEAST(x, y)) AS `TYPEOF(LEAST(x, y))`
+      FROM (VALUES (1, 2.5)) AS t(x, y);
     result: |
-      | r   | r_type                  |
-      |-----|-------------------------|
-      | 1.0 | DECIMAL(11, 1) NOT NULL |
+      | x | y   | LEAST(x, y) | TYPEOF(LEAST(x, y))     |
+      |---|-----|-------------|-------------------------|
+      | 1 | 2.5 | 1.0         | DECIMAL(11, 1) NOT NULL |
 
   - title: Strings
     description: Upper-case letters sort before lower-case ones, so `'Banana'` is less than `'apple'`.
     sql: |
-      SELECT LEAST('apple', 'Banana') AS r;
+      SELECT s1, s2, LEAST(s1, s2) AS `LEAST(s1, s2)`
+      FROM (VALUES ('apple', 'Banana')) AS t(s1, s2);
     result: |
-      | r      |
-      |--------|
-      | Banana |
+      | s1    | s2     | LEAST(s1, s2) |
+      |-------|--------|---------------|
+      | apple | Banana | Banana        |
 
   - title: A NULL argument
     description: Any NULL argument returns NULL.
     sql: |
-      SELECT LEAST(1, CAST(NULL AS INT), 3) AS r;
+      SELECT x, y, z, LEAST(x, y, z) AS `LEAST(x, y, z)`
+      FROM (VALUES (1, CAST(NULL AS INT), 3)) AS t(x, y, z);
     result: |
-      | r    |
-      |------|
-      | NULL |
+      | x | y    | z | LEAST(x, y, z) |
+      |---|------|---|----------------|
+      | 1 | NULL | 3 | NULL           |

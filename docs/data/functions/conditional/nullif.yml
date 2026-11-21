@@ -19,25 +19,25 @@ name: NULLIF
 summary: Returns NULL if two values are equal, and the first value otherwise.
 
 syntax:
-  sql: NULLIF(value1, value2)
+  sql: NULLIF(expr1, expr2)
 
 arguments:
-  - name: value1
-    type: Any type that `=` can compare with `value2`
+  - name: expr1
+    type: Any type that `=` can compare with `expr2`
     required: true
     description: The value to return.
-  - name: value2
-    type: The type of `value1`, or one comparable with it
+  - name: expr2
+    type: The type of `expr1`, or one comparable with it
     required: true
-    description: The value that turns `value1` into NULL.
+    description: The value that turns `expr1` into NULL.
 
 returns:
-  description: NULL if `value1` equals `value2`, else `value1`.
-  nulls: Returns NULL if `value1` equals `value2` or if `value1` is NULL. A NULL `value2` never equals `value1`, so the function returns `value1`.
-  type: The type of `value1`, always nullable.
+  description: NULL if `expr1` equals `expr2`, else `expr1`.
+  nulls: Returns NULL if `expr1` equals `expr2` or if `expr1` is NULL. A NULL `expr2` never equals `expr1`, so the function returns `expr1`.
+  type: The type of `expr1`, always nullable.
 
 notes:
-  - "`NULLIF(value1, value2)` is short for `CASE WHEN value1 = value2 THEN NULL ELSE value1 END`."
+  - "`NULLIF(expr1, expr2)` is short for `CASE WHEN expr1 = expr2 THEN NULL ELSE expr1 END`."
   - There is no Table API method. Use `callSql("NULLIF(a, b)")` in Java or `call_sql("NULLIF(a, b)")` in Python.
 
 see_also:
@@ -48,21 +48,21 @@ examples:
   - title: Turn a placeholder into NULL
     description: "`-1` marks a missing score."
     sql: |
-      SELECT score, NULLIF(score, -1) AS known_score
+      SELECT score, NULLIF(score, -1) AS `NULLIF(score, -1)`
       FROM (VALUES (80), (-1)) AS t(score);
     result: |
-      | score | known_score |
-      |-------|-------------|
-      | 80    | 80          |
-      | -1    | NULL        |
+      | score | NULLIF(score, -1) |
+      |-------|-------------------|
+      | 80    | 80                |
+      | -1    | NULL              |
 
   - title: NULL arguments
-    description: A NULL `value2` returns `value1`. A NULL `value1` returns NULL.
+    description: A NULL `expr2` returns `expr1`. A NULL `expr1` returns NULL.
     sql: |
-      SELECT
-        NULLIF(5, CAST(NULL AS INT)) AS null_value2,
-        NULLIF(CAST(NULL AS INT), 5) AS null_value1;
+      SELECT x, y, NULLIF(x, y) AS `NULLIF(x, y)`
+      FROM (VALUES (5, CAST(NULL AS INT)), (CAST(NULL AS INT), 5)) AS t(x, y);
     result: |
-      | null_value2 | null_value1 |
-      |-------------|-------------|
-      | 5           | NULL        |
+      | x    | y    | NULLIF(x, y) |
+      |------|------|--------------|
+      | 5    | NULL | 5            |
+      | NULL | 5    | NULL         |

@@ -52,41 +52,45 @@ examples:
   - title: Count the matches
     description: Count the numbers in a string.
     sql: |
-      SELECT REGEXP_COUNT('3 apples, 12 pears, 1 plum', '\d+') AS numbers;
+      SELECT str, REGEXP_COUNT(str, '\d+') AS `REGEXP_COUNT(str, '\d+')`
+      FROM (VALUES ('3 apples, 12 pears, 1 plum')) AS t(str);
     result: |
-      | numbers |
-      |---------|
-      | 3       |
+      | str                        | REGEXP_COUNT(str, '\d+') |
+      |----------------------------|--------------------------|
+      | 3 apples, 12 pears, 1 plum | 3                        |
 
   - title: Matches don't overlap
     description: After a match, the search continues at its end.
     sql: |
-      SELECT
-        REGEXP_COUNT('aaaa', 'aa') AS pairs,
-        REGEXP_COUNT('aaa', 'aa') AS odd_length;
+      SELECT str, REGEXP_COUNT(str, 'aa') AS `REGEXP_COUNT(str, 'aa')`
+      FROM (VALUES ('aaaa'), ('aaa')) AS t(str);
     result: |
-      | pairs | odd_length |
-      |-------|------------|
-      | 2     | 1          |
+      | str  | REGEXP_COUNT(str, 'aa') |
+      |------|-------------------------|
+      | aaaa | 2                       |
+      | aaa  | 1                       |
 
   - title: No match or an invalid regular expression
     description: A regex that doesn't match returns `0`. A regex that doesn't compile returns NULL.
     sql: |
-      SELECT
-        REGEXP_COUNT('foobar', '\d') AS no_match,
-        REGEXP_COUNT('foobar', '(') AS invalid_regex;
+      SELECT str,
+        REGEXP_COUNT(str, '\d') AS `REGEXP_COUNT(str, '\d')`,
+        REGEXP_COUNT(str, '(') AS `REGEXP_COUNT(str, '(')`
+      FROM (VALUES ('foobar')) AS t(str);
     result: |
-      | no_match | invalid_regex |
-      |----------|---------------|
-      | 0        | NULL          |
+      | str    | REGEXP_COUNT(str, '\d') | REGEXP_COUNT(str, '(') |
+      |--------|-------------------------|------------------------|
+      | foobar | 0                       | NULL                   |
 
   - title: NULL arguments
     description: A NULL argument returns NULL.
     sql: |
-      SELECT
-        REGEXP_COUNT(CAST(NULL AS STRING), 'a') AS null_str,
-        REGEXP_COUNT('banana', CAST(NULL AS STRING)) AS null_regex;
+      SELECT str, regex, REGEXP_COUNT(str, regex) AS `REGEXP_COUNT(str, regex)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), 'a'),
+        ('banana', CAST(NULL AS STRING))) AS t(str, regex);
     result: |
-      | null_str | null_regex |
-      |----------|------------|
-      | NULL     | NULL       |
+      | str    | regex | REGEXP_COUNT(str, regex) |
+      |--------|-------|--------------------------|
+      | NULL   | a     | NULL                     |
+      | banana | NULL  | NULL                     |

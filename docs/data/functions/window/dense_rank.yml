@@ -19,7 +19,7 @@ name: DENSE_RANK
 summary: Returns the rank of each row within its partition, without gaps after ties.
 
 syntax:
-  sql: DENSE_RANK() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+  sql: DENSE_RANK() OVER ([PARTITION BY expr [, ...]] ORDER BY expr [ASC | DESC] [, ...])
 
 returns:
   description: One plus the number of distinct `ORDER BY` values that come before the current row in its partition. Rows with equal `ORDER BY` values, called peers, get the same rank, and the next rank follows without a gap, such as `1, 2, 2, 3`.
@@ -38,29 +38,31 @@ examples:
   - title: Rank with ties, without gaps
     description: Bob and Cid tie for second place, and Dee comes third.
     sql: |
-      SELECT name, score, DENSE_RANK() OVER (ORDER BY score DESC) AS rnk
+      SELECT name, score, DENSE_RANK() OVER w AS `DENSE_RANK() OVER w`
       FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
-      ORDER BY rnk, name;
+      WINDOW w AS (ORDER BY score DESC)
+      ORDER BY score DESC, name;
     result: |
-      | name | score | rnk |
-      |------|-------|-----|
-      | Ann  | 90    | 1   |
-      | Bob  | 85    | 2   |
-      | Cid  | 85    | 2   |
-      | Dee  | 70    | 3   |
+      | name | score | DENSE_RANK() OVER w |
+      |------|-------|---------------------|
+      | Ann  | 90    | 1                   |
+      | Bob  | 85    | 2                   |
+      | Cid  | 85    | 2                   |
+      | Dee  | 70    | 3                   |
 
   - title: Compare with RANK
     description: "`RANK` skips 3 after the tie, `DENSE_RANK` doesn't."
     sql: |
       SELECT name, score,
-        RANK() OVER (ORDER BY score DESC) AS rnk,
-        DENSE_RANK() OVER (ORDER BY score DESC) AS dense_rnk
+        RANK() OVER w AS `RANK() OVER w`,
+        DENSE_RANK() OVER w AS `DENSE_RANK() OVER w`
       FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
-      ORDER BY rnk, name;
+      WINDOW w AS (ORDER BY score DESC)
+      ORDER BY score DESC, name;
     result: |
-      | name | score | rnk | dense_rnk |
-      |------|-------|-----|-----------|
-      | Ann  | 90    | 1   | 1         |
-      | Bob  | 85    | 2   | 2         |
-      | Cid  | 85    | 2   | 2         |
-      | Dee  | 70    | 4   | 3         |
+      | name | score | RANK() OVER w | DENSE_RANK() OVER w |
+      |------|-------|---------------|---------------------|
+      | Ann  | 90    | 1             | 1                   |
+      | Bob  | 85    | 2             | 2                   |
+      | Cid  | 85    | 2             | 2                   |
+      | Dee  | 70    | 4             | 3                   |

@@ -16,140 +16,96 @@
 # under the License
 
 comparison:
-  - sql: value1 = value2
-    table: value1 === value2
-    description: 如果 value1 等于 value2 返回 `TRUE`；如果 value1 或者 value2 为 `NULL` 返回 `UNKNOW`。
-  - sql: value1 <> value2
-    table: value1 !== value2
-    description: 如果 value1 不等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 > value2
-    table: value1 > value2
-    description: 如果 value1 大于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 >= value2
-    table: value1 >= value2
-    description: 如果 value1 大于或等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 < value2
-    table: value1 < value2
-    description: 如果 value1 小于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value1 <= value2
-    table: value1 <= value2
-    description: 如果 value1 小于或等于 value2 返回 `TRUE`；如果 value1 或 value2 为 `NULL` 返回 `UNKNOWN`。
-  - sql: value IS NULL
-    table: value.isNull
-    description: 如果值为 `NULL` 返回 `TRUE`。
-  - sql: value IS NOT NULL
-    table: value.isNotNull
-    description: 如果值不为 `NULL` 返回 `TRUE`。
+  - sql: expr BETWEEN [ ASYMMETRIC | SYMMETRIC ] lower_bound AND upper_bound
+    table: expr.between(lowerBound, upperBound)
+    page: between
+  - sql: expr NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] lower_bound AND upper_bound
+    table: expr.notBetween(lowerBound, upperBound)
+    page: between
+  - table: expr.between(lowerBound, upperBound)
+    page: between
+  - table: expr.notBetween(lowerBound, upperBound)
+    page: between
+  - sql: expr1 = expr2
+    table: expr1.isEqual(expr2)
+    page: comparison-operators
+  - sql: expr1 <> expr2
+    table: expr1.isNotEqual(expr2)
+    page: comparison-operators
+  - sql: expr1 > expr2
+    table: expr1.isGreater(expr2)
+    page: comparison-operators
+  - sql: expr1 >= expr2
+    table: expr1.isGreaterOrEqual(expr2)
+    page: comparison-operators
+  - sql: expr1 < expr2
+    table: expr1.isLess(expr2)
+    page: comparison-operators
+  - sql: expr1 <= expr2
+    table: expr1.isLessOrEqual(expr2)
+    page: comparison-operators
+  - sql: EXISTS (sub-query)
+    page: exists
+  - sql: expr IN (expr1 [, expr2]* )
+    table: expr.in(expr1, expr2)
+    page: in
+  - sql: expr NOT IN (expr1 [, expr2]* )
+    page: in
+  - sql: expr IN (sub-query)
+    table: expr.in(TABLE)
+    page: in
+  - sql: expr NOT IN (sub-query)
+    page: in
+  - sql: expr1 IS DISTINCT FROM expr2
+    page: is-distinct-from
+  - sql: expr1 IS NOT DISTINCT FROM expr2
+    page: is-distinct-from
+  - sql: expr IS NULL
+    table: expr.isNull()
+    page: is-null
+  - sql: expr IS NOT NULL
+    table: expr.isNotNull()
+    page: is-null
   - sql: IS_NAN(value)
-    table: value.isNan
-    description: 如果值为 `NaN` 返回 `TRUE`；如果值是非 `NaN` 的数值返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
-  - sql: value1 IS DISTINCT FROM value2
-    description: |
-      A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。`NULL` 视为与任何其他值相同。
-      例如 `1 IS DISTINCT FROM NULL` 返回 `TRUE`；`NULL IS DISTINCT FROM NULL` 返回 `FALSE`。
-  - sql: value1 IS NOT DISTINCT FROM value2
-    description: |
-      A 和 B 的数据类型和值都相同返回 `TRUE`。A 和 B 的数据类型和值不完全相同则返回 `FALSE`。`NULL` 视为与任何其他值相同。
-      例如 `1 IS NOT DISTINCT FROM NULL` 返回 `FALSE`；`NULL IS NOT DISTINCT FROM NULL` 返回 `TRUE`。
-  - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
-    description: |
-      默认或使用 `ASYMMETRIC` 关键字的情况下，如果 value1 大于等于 value2 且小于等于 value3 返回 `TRUE`。
-      使用 `SYMMETRIC` 关键字则 value1 在 value2 和 value3 之间返回 `TRUE`。
-      当 value2 或 value3 为 `NULL` 时，返回 `FALSE` 或 `UNKNOWN`。
-      例如 `12 BETWEEN 15 AND 12` 返回 `FALSE`；
-      `12 BETWEEN SYMMETRIC 15 AND 12` 返回 `TRUE`；
-      `12 BETWEEN 10 AND NULL` 返回 `UNKNOWN`；
-      `12 BETWEEN NULL AND 10` 返回 `FALSE`；
-      `12 BETWEEN SYMMETRIC NULL AND 12` 返回 `UNKNOWN`。
-  - sql: value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
-    description: |
-      默认或使用 `ASYMMETRIC` 关键字的情况下，如果 value1 小于 value2 或大于 value3，则返回 `TRUE`。
-      使用 `SYMMETRIC` 关键字则 value1 不在 value2 和 value3 之间返回 `TRUE`。
-      当 value2 或 value3 为 `NULL` 时，返回 `TRUE` 或 `UNKNOWN`。
-      例如 `12 NOT BETWEEN 15 AND 12` 返回 `TRUE`；
-      `12 NOT BETWEEN SYMMETRIC 15 AND 12` 返回 `FALSE`；
-      `12 NOT BETWEEN NULL AND 15` 返回 `UNKNOWN`；
-      `12 NOT BETWEEN 15 AND NULL` 返回 `TRUE`；
-      `12 NOT BETWEEN SYMMETRIC 12 AND NULL` 返回 `UNKNOWN`。
+    table: value.isNan()
+    page: is-nan
   - sql: string1 LIKE string2 [ ESCAPE char ]
     table: string1.like(string2[, char])
-    description: |
-      如果 string1 匹配 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要，可以通过 ESCAPE 子句定义包含单个字符的转义字符。默认没有转义字符。
+    page: like
   - sql: string1 NOT LIKE string2 [ ESCAPE char ]
-    description: |
-      如果 string1 与 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要，可以通过 ESCAPE 子句定义包含单个字符的转义字符。默认没有转义字符。
+    page: like
   - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
     table: string1.similar(string2)
-    description: |
-      如果 string1 匹配 SQL 正则表达式 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回
-      `UNKNOWN`。如果需要可以定义转义字符。尚不支持转义字符。
+    page: similar-to
   - sql: string1 NOT SIMILAR TO string2 [ ESCAPE char ]
-    description: |
-      如果 string1 与 SQL 正则表达式 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回
-      `UNKNOWN`。如果需要可以定义转义字符。尚不支持转义字符。
-  - sql: value1 IN (value2 [, value3]* )
-    table: value1.in(value2)
-    description: |
-      在给定列表 (value2, value3, ...) 中存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则返回
-      `TRUE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL` 则始终返回 `UNKNOWN`。例如 `4 IN (1, 2, 3)` 返回
-      `FALSE`；`1 IN (1, 2, NULL)` 返回 `TRUE`；`4 IN (1, 2, NULL)` 返回 `UNKNOWN`。
-  - sql: value1 NOT IN (value2 [, value3]* )
-    description: |
-      在给定列表 (value2, value3, ...) 中不存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则
-      返回 `FALSE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL`，则始终返回 `UNKNOWN`。例如 `4 NOT IN (1, 2, 3)`
-      返回 `TRUE`；`1 NOT IN (1, 2, NULL)` 返回 `FALSE`；`4 NOT IN (1, 2, NULL)` 返回 `UNKNOWN`。
-  - sql: EXISTS (sub-query)
-    description: |
-      如果子查询至少返回一行则返回 `TRUE`。 仅支持可以在 join 和分组操作中可以被重写的操作。对于流式查询，该操作在 join
-      和分组操作中被重写。计算查询结果所需的状态大小取决于输入行的数量，状态可能会无限增长。请在查询配置中合理配置状态保留时间，以防止状态过大。
-  - sql: value IN (sub-query)
-    table: value1.in(TABLE)
-    description: 如果 value 等于子查询结果集中的一行则返回 `TRUE`。
-  - sql: value NOT IN (sub-query)
-    description: 如果 value 不包含于子查询返回的行则返回 `TRUE`。
-  - table: value1.between(value2, value3)
-    description: |
-      如果 value1 大于或等于 value2 且小于或等于 value3 返回 `TRUE`。当 value2 或 value3 为 `NULL` 时，
-      返回 `FALSE` 或 `UNKNOWN`。
-  - table: value1.notBetween(value2, value3)
-    description: |
-      如果 value1 大于或等于 value2 且小于或等于 value3 返回 `FALSE`。当 value2 或 value3 为 `NULL` 时，
-      返回 `TRUE` 或 `UNKNOWN`。
+    page: similar-to
 
 logical:
-  - sql: boolean1 OR boolean2
-    table: BOOLEAN1 || BOOLEAN2
-    description: |
-      如果 boolean1 为 `TRUE` 或 boolean2 为 `TRUE` 返回 `TRUE`。支持三值逻辑。
-      例如 `true || Null(BOOLEAN)` 返回 `TRUE`。
-  - sql: boolean1 AND boolean2
-    table: BOOLEAN1 && BOOLEAN2
-    description: |
-      如果 boolean1 和 boolean2 都为 `TRUE` 返回 `TRUE`。支持三值逻辑。
-      例如 `true && Null(BOOLEAN)` 返回 `UNKNOWN`。
-  - sql: NOT boolean
-    table: BOOLEAN.not(), not(BOOLEAN), 或者 '!BOOLEAN' (仅适用于Scala)
-    description: |
-      如果 boolean 为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 返回 `FALSE`；如果 boolean 为 `UNKNOWN`
-      返回 `UNKNOWN`。
-  - sql: boolean IS FALSE
-    table: BOOLEAN.isFalse
-    description: 如果 boolean 为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `FALSE`。
-  - sql: boolean IS NOT FALSE
-    table: BOOLEAN.isNotFalse
-    description: 如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `FALSE` 返回 `FALSE`。
-  - sql: boolean IS TRUE
-    table: BOOLEAN.isTrue
-    description: 如果 boolean 为 `TRUE` 返回 `TRUE`；如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `FALSE`。
-  - sql: boolean IS NOT TRUE
-    table: BOOLEAN.isNotTrue
-    description: 如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 返回 `FALSE`。
-  - sql: boolean IS UNKNOWN
-    description: 如果 boolean 为 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `FALSE` 返回 `FALSE`。
-  - sql: boolean IS NOT UNKNOWN
-    description: 如果 boolean 为 `TRUE` 或 `FALSE` 返回 `TRUE`；如果 boolean 为 `UNKNOWN` 返回 `FALSE`。
+  - sql: expr IS FALSE
+    table: expr.isFalse
+    page: is-false
+  - sql: expr IS NOT FALSE
+    table: expr.isNotFalse
+    page: is-false
+  - sql: expr IS TRUE
+    table: expr.isTrue
+    page: is-true
+  - sql: expr IS NOT TRUE
+    table: expr.isNotTrue
+    page: is-true
+  - sql: expr IS UNKNOWN
+    page: is-unknown
+  - sql: expr IS NOT UNKNOWN
+    page: is-unknown
+  - sql: expr1 AND expr2
+    table: expr1.and(expr2)
+    page: logical-operators
+  - sql: expr1 OR expr2
+    table: expr1.or(expr2)
+    page: logical-operators
+  - sql: NOT expr
+    table: expr.not()
+    page: logical-operators
 
 arithmetic:
   - sql: + numeric
@@ -1024,531 +980,69 @@ collection:
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
     table: STRING.isJson([JsonType type])
-    description: |
-      判定给定字符串是否为有效的 JSON。
-
-      指定可选参数 type 将会限制 JSON 对象所允许的类型。
-      如果字符串是有效的 JSON，但不是指定的类型，则返回 `false`。默认值为 `VALUE`。
-
-      ```sql
-      -- TRUE
-      '1' IS JSON
-      '[]' IS JSON
-      '{}' IS JSON
-
-      -- TRUE
-      '"abc"' IS JSON
-      -- FALSE
-      'abc' IS JSON
-
-      -- TRUE
-      '1' IS JSON SCALAR
-      -- FALSE
-      '1' IS JSON ARRAY
-      -- FALSE
-      '1' IS JSON OBJECT
-
-      -- FALSE
-      '{}' IS JSON SCALAR
-      -- FALSE
-      '{}' IS JSON ARRAY
-      -- TRUE
-      '{}' IS JSON OBJECT
-
-      -- NULL
-      NULL IS JSON
-      NULL IS JSON SCALAR
-      NULL IS JSON OBJECT
-      NULL IS JSON ARRAY
-      ```
-  - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
-    table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
-    description: |
-      判定 JSON 字符串是否满足给定的路径搜索条件。
-
-      如果要忽略错误行为，那么将 `FALSE ON ERROR` 设为默认值。
-
-      ```sql
-      -- TRUE
-      SELECT JSON_EXISTS('{"a": true}', '$.a');
-      -- FALSE
-      SELECT JSON_EXISTS('{"a": true}', '$.b');
-      -- TRUE
-      SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
-        '$.a[0].b');
-
-      -- TRUE
-      SELECT JSON_EXISTS('{"a": true}',
-        'strict $.b' TRUE ON ERROR);
-      -- FALSE
-      SELECT JSON_EXISTS('{"a": true}',
-        'strict $.b' FALSE ON ERROR);
-      ```
-  - sql: JSON_STRING(value)
-    table: jsonString(value)
-    description: |
-      将值序列化为 JSON。
-
-      此函数返回一个包含序列化值的 JSON 字符串。如果值为 `NULL`，函数返回 `NULL`。
-
-      ```sql
-      -- NULL
-      JSON_STRING(CAST(NULL AS INT))
-
-      -- '1'
-      JSON_STRING(1)
-      -- 'true'
-      JSON_STRING(TRUE)
-      -- '"Hello, World!"'
-      JSON_STRING('Hello, World!')
-      -- '[1,2]'
-      JSON_STRING(ARRAY[1, 2])
-      -- '{"k1":"v1"}'
-      JSON_STRING(PARSE_JSON('{"k1":"v1"}'))
-      ```
-  - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
-    table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
-    description: |
-      从 JSON 字符串中提取标量。
-
-      此方法搜索给定路径表达式的 JSON 字符串，如果该路径上的值是标量则返回该值。不能返回非标量值。默认情况下返回值类型为 `STRING`。
-      可以将 `dataType` 设置不同的类型，支持的类型如下所示:
-
-      * `VARCHAR` / `STRING`
-      * `BOOLEAN`
-      * `TINYINT`
-      * `SMALLINT`
-      * `INTEGER`
-      * `BIGINT`
-      * `FLOAT`
-      * `DOUBLE`
-      * `DECIMAL`
-
-      JSON string values are coerced to the requested numeric or boolean type (for example `"42"`
-      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`).
-      Values that do not fit the requested type (overflow, non-numeric string, non-0/1 number for
-      `BOOLEAN`) are treated as an error and follow the `ON ERROR` behavior.
-
-      对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
-      `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，就会造成 `ON EMPTY` 的错误行为，并引发 `ON ERROR` 的错误。
-      
-      对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 或 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
-      当在 SQL 使用 JSON_VALUE 时，路径作为一个字符串参数已经被单引号引用了，因此你必须将属性名上的单引号转义，如`JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`。
-      
-      ```sql
-      -- "true"
-      JSON_VALUE('{"a": true}', '$.a')
-
-      -- TRUE
-      JSON_VALUE('{"a": true}', '$.a' RETURNING BOOLEAN)
-
-      -- "false"
-      JSON_VALUE('{"a": true}', 'lax $.b'
-          DEFAULT FALSE ON EMPTY)
-
-      -- "false"
-      JSON_VALUE('{"a": true}', 'strict $.b'
-          DEFAULT FALSE ON ERROR)
-
-      -- 0.998D
-      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]'
-          RETURNING DOUBLE)
-      
-      -- "right"
-      JSON_VALUE('{"contains blank": "right"}', 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)
-      ```
-  - sql: JSON_QUERY(jsonValue, path [RETURNING <dataType>] [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
-    table: STRING.jsonQuery(path [, returnType [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ] ])
-    description: |
-      Extracts JSON values from a JSON string.
-
-      The result is returned as a `STRING` by default. Using the `RETURNING` clause it can also be
-      returned as an `ARRAY` whose element type is `STRING` or any of the scalar types supported by
-      `JSON_VALUE` (`BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `FLOAT`, `DOUBLE`,
-      `DECIMAL`). Array elements are converted with the same coercion and `ON ERROR` rules as
-      `JSON_VALUE`.
-
-      `wrappingBehavior` 决定是否将提取的值包装到一个数组中，以及是否无条件地这样做，还是只有当值本身不是数组时才这样做。
-
-      `onEmpty` 和 `onError` 分别决定路径表达式为空或引发错误时的行为。默认情况下，这两种情况都会返回 `null`。其他选择是
-      使用空数组、空对象或引发错误。
-
-      ```sql
-      -- '{ "b": 1 }'
-      JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
-      -- '[1, 2]'
-      JSON_QUERY('[1, 2]', '$')
-      -- NULL
-      JSON_QUERY(CAST(NULL AS STRING), '$')
-      -- '["c1","c2"]'
-      JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}',
-          'lax $.a[*].c')
-
-      -- 将结果包装到数组中
-      -- '[{}]'
-      JSON_QUERY('{}', '$' WITH CONDITIONAL ARRAY WRAPPER)
-      -- '[1, 2]'
-      JSON_QUERY('[1, 2]', '$' WITH CONDITIONAL ARRAY WRAPPER)
-      -- '[[1, 2]]'
-      JSON_QUERY('[1, 2]', '$' WITH UNCONDITIONAL ARRAY WRAPPER)
-
-      -- 必须包装标量才能返回
-      -- NULL
-      JSON_QUERY(1, '$')
-      -- '[1]'
-      JSON_QUERY(1, '$' WITH CONDITIONAL ARRAY WRAPPER)
-
-      -- 路径表达式为空/存在错误时的行为
-      -- '{}'
-      JSON_QUERY('{}', 'lax $.invalid' EMPTY OBJECT ON EMPTY)
-      -- '[]'
-      JSON_QUERY('{}', 'strict $.invalid' EMPTY ARRAY ON ERROR)
-      ```
-  - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
-    table: jsonObject(JsonOnNull, keyValues...)
-    description: |
-      将键值对列表构建为 JSON 对象字符串。
-
-      注意，键必须是非 `NULL` 字符串字面值，而值可以是任意表达式。
-
-      这个函数返回一个 JSON 字符串。`ON NULL` 行为定义了如何处理 `NULL` 值。如果省略，则默认为 `NULL ON NULL`。
-
-      值是由另一个 JSON 构造函数调用 (`JSON_OBJECT`，`JSON_ARRAY`) 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
-
-      ```sql
-      -- '{}'
-      JSON_OBJECT()
-
-      -- '{"K1":"V1","K2":"V2"}'
-      JSON_OBJECT('K1' VALUE 'V1', 'K2' VALUE 'V2')
-
-      -- 表达式作为值
-      JSON_OBJECT('orderNo' VALUE orders.orderId)
-
-      -- ON NULL
-      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
-      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
-
-      -- '{"K1":{"K2":{"value":42}}}'
-      JSON_OBJECT('K1' VALUE JSON('{"K2": {"value": 42}}'))
-      
-      -- '{"K1":{"K2":"V"}}'
-      JSON_OBJECT(
-        KEY 'K1'
-        VALUE JSON_OBJECT(
-          KEY 'K2'
-          VALUE 'V'
-        )
-      )
-      ```
-      - sql: JSON(value)
-      table: json(value)  
-        description: |
-          需要的参数是一个原始的、预先格式化的 JSON 字符串，返回值是这个字符串对应的JSON值，而不将其作为字符串转义。
-          该函数目前只能在“JSON_OBJECT”函数中使用。它允许通过预格式化的 JSON 字符串将直接插入到生成的 JSON 结构中，而不是作为字符串值转义。
-          该函数通常用来读取外部的Json字符串，将其转成 JSON 结构存储在JSON_OBJECT。如果值为 NULL 或空，则该函数返回 NULL。
-          ```sql
-          -- {"K":{"K2":42}}
-          JSON_OBJECT('K' VALUE JSON('{"K2": 42}'))
-          -- {"K":{"K2":{"K3":42}}}
-          JSON_OBJECT('K' VALUE JSON('{"K2":{"K3":42}}'))
-          -- {"K": null}
-          JSON_OBJECT('K' VALUE JSON(''))
-          -- JSON 函数只能在 JSON_OBJECT 函数中使用
-          JSON('{"value": 42}')
-          ```
+    page: is-json
+  - sql: JSON(value)
+    table: json(value)
+    page: json
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
-    description: |
-      将数值列表构建为 JSON 数组字符串。
-
-      这个函数返回一个 JSON 字符串，值可以是任意表达式。`ON NULL` 行为定义了如何处理 `NULL` 值。如果省略，则假定 `ABSENT ON NULL` 为默认值。
-
-      元素是由另一个 JSON 构造函数调用 (`JSON_OBJECT`，`JSON_ARRAY`) 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
-
-      ```sql
-      -- '[]'
-      JSON_ARRAY()
-      -- '[1,"2"]'
-      JSON_ARRAY(1, '2')
-
-      -- 表达式作为值
-      JSON_ARRAY(orders.orderId)
-
-      -- ON NULL
-      JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL) -- '[null]'
-      JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL) -- '[]'
-
-      -- '[[1]]'
-      JSON_ARRAY(JSON_ARRAY(1))
-      ```
+    page: json-array
+  - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
+    table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
+    page: json-exists
   - sql: JSON_LENGTH(json_doc[, path])
-    table: jsonLength(jsonObject[, path])
-    description: |
-      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided.
-      
-      The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL, the json is invalid, a path function fails (e.g., .min(), .avg()), or the path is empty, malformed or does not locate a value.
-      The path must be a plain path literal such as '$.a.b'. A path carrying a 'lax'/'strict' path mode prefix raises an error.
-      eg.
-      ```sql
-        -- 2
-        JSON_LENGTH('{"1": "hello", "2": "bye bye"}')
-      
-        -- 5
-        JSON_LENGTH('[1,2,3,4,5]')
-      
-        -- 1
-        JSON_LENGTH('"hello"')
-      
-        -- 1
-        JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.2')
-      
-        -- NULL
-        JSON_LENGTH('{"1": "hello", "2": "BAD SYNTAX ->"', '$.2')
-
-        -- NULL
-        JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.[')
-
-        -- error: JSON_LENGTH does not support the 'lax'/'strict' path mode prefix
-        JSON_LENGTH('{"1": "hello", "2": "bye bye"}', 'strict $.1')
-      ```
-
-      The length is determined as follows:
-      
-        - Scalar values (number, string, boolean): has length 1.
-        - Array: has a length equal to the number of its elements.
-        - Object: has a length equal to the number of its key-value pairs.
-      
-      A wildcard path that matches 2 or more nodes returns NULL.
-      A NULL result is ambiguous - it means invalid JSON, no match, or a multi-match wildcard.
-      
-      Pair JSON_LENGTH with a helper function to handle these cases explicitly:
-        -- IS JSON separates invalid input from a real result
-        SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
-      
-        -- JSON_EXISTS separates an absent path from a present one
-        SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
-  - sql: JSON_TYPE(jsonValue[, path])
-    table: jsonType(jsonValue[, path])
-    description: |
-      Returns a string value indicating the type of jsonValue, optionally at the given JSON
-      `path`. Returns SQL `NULL` if jsonValue is SQL `NULL`, is not valid JSON, a path function fails (e.g., .min(), .avg()), or the path
-      does not resolve to exactly one value.
-
-      The possible results are `object`, `array`, `string`, `number`, `boolean` and `null` for
-      the JSON null literal.
-
-      Every number is reported as `number`,whatever its magnitude or precision.
-      Anything quoted is a `string`, including dates and date-times.
-
-      ```sql
-      -- object
-      SELECT JSON_TYPE('{"a": true}')
-
-      -- array
-      SELECT JSON_TYPE('[1, 2]')
-
-      -- null
-      SELECT JSON_TYPE('null')
-
-      -- boolean
-      SELECT JSON_TYPE('true')
-
-      -- string
-      SELECT JSON_TYPE('"Hello, World!"')
-
-      -- string
-      SELECT JSON_TYPE('"2015-01-01"')
-
-      -- number
-      SELECT JSON_TYPE('66')
-
-      -- number
-      SELECT JSON_TYPE('11.1')
-
-      -- NULL, since 68s is not valid JSON
-      SELECT JSON_TYPE('68s')
-
-      -- array, read at the given path
-      SELECT JSON_TYPE('{"a": [1, 2]}', '$.a')
-      ```
-
+    table: STRING.jsonLength([path])
+    page: json-length
+  - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonObject(JsonOnNull, keyValues...)
+    page: json-object
+  - sql: JSON_QUERY(jsonValue, path [RETURNING <dataType>] [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, returnType [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ] ])
+    page: json-query
   - sql: JSON_QUOTE(string)
-    table: STRING.JsonQuote()
-    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters (`"`, `\`, `/`, `\b`, `\f`, `\n`, `\r`, `\t`), and returning the result as a string. If the argument is NULL, the function returns NULL.
+    table: STRING.jsonQuote()
+    page: json-quote
+  - sql: JSON_STRING(value)
+    table: jsonString(value)
+    page: json-string
+  - sql: JSON_TYPE(jsonValue[, path])
+    table: STRING.jsonType([path])
+    page: json-type
   - sql: JSON_UNQUOTE(string)
-    table: STRING.JsonUnquote()
-    description: Unquotes JSON value, unescapes escaped special characters (`"`, `\`, `/`, `\b`, `\f`, `\n`, `\r`, `\t`, `\u` hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+    table: STRING.jsonUnquote()
+    page: json-unquote
+  - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
+    table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
+    page: json-value
 
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
     table: STRING.parseJson([allowDuplicateKeys])
-    description: |
-      将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，将抛出错误。如果希望返回 NULL 而不是抛出错误，
-      请使用 `TRY_PARSE_JSON` 函数。  
-      
-      Only the first JSON value is read and content after it is ignored, so
-      `PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
-
-      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
-      parser will keep the last occurrence of all fields with the same key, otherwise when
-      `allowDuplicateKeys` is false it will throw an error. The default value of
-      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
-
-      See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
-
-  - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
-    table: STRING.tryParseJson([allowDuplicateKeys])
-    description: |
-      尽可能将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，则返回 NULL。如果希望抛出错误而不是返回 NULL，
-      请使用 `PARSE_JSON` 函数。  
-      
-      Only the first JSON value is read and content after it is ignored, so
-      `TRY_PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
-
-      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
-      parser will keep the last occurrence of all fields with the same key, otherwise when
-      `allowDuplicateKeys` is false it will return NULL. The default value of
-      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
-
-      See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
-
+    page: parse-json
   - sql: PARSE_XML(xml_string[, force_array])
     table: STRING.parseXml([forceArray])
-    description: |
-      Parses an XML string into a Variant. If the XML string is invalid, an error is thrown. To
-      return NULL instead of an error, use the `TRY_PARSE_XML` function.
-
-      The result is an object with a single field for the root element. Attributes are stored as
-      `@name` fields, text as a `$` field, and child elements as fields named after their tag. An
-      element without attributes and child elements is stored as its text directly. A tag that
-      occurs more than once in an element is stored as an array. The `#` field records the order
-      of the children and text of an element.
-
-      If `force_array` is true, every child element, text, and position in a `#` field is stored
-      as an array, even if it occurs only once. This keeps the structure the same across documents
-      that repeat an element a different number of times. The default value of `force_array` is
-      false. A NULL `force_array` is treated as false.
-
-      External entities and external DTDs are not supported, and a document that references one
-      fails to parse.
-
-      ```sql
-      -- {"book":{"#":{"price":1,"title":0},"@pages":"320","price":"12.50","title":"Dune"}}
-      PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>')
-
-      -- 'Dune'
-      CAST(PARSE_XML('<book><title>Dune</title></book>')['book']['title'] AS STRING)
-
-      -- {"book":{"title":["Dune"]}}
-      PARSE_XML('<book><title>Dune</title></book>', TRUE)
-      ```
-
-      See the "XML to VARIANT" section below the function table for how XML is mapped to a Variant.
-
+    page: parse-xml
+  - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
+    table: STRING.tryParseJson([allowDuplicateKeys])
+    page: try-parse-json
   - sql: TRY_PARSE_XML(xml_string[, force_array])
     table: STRING.tryParseXml([forceArray])
-    description: |
-      Parses an XML string into a Variant. If the XML string is invalid, returns NULL. To throw an
-      error instead of returning NULL, use the `PARSE_XML` function.
-
-      See `PARSE_XML` for the full documentation.
-
-  - sql: XML_STRING(variant)
-    table: VARIANT.xmlString()
-    description: |
-      Converts a Variant into an XML string. This is the inverse of `PARSE_XML`. Returns `NULL` if
-      the argument is `NULL`.
-
-      - Fields with an `@` prefix are written as attributes, the `$` field as text, and the other
-        fields as child elements, in the order that the `#` field records.
-      - A Variant NULL is written with `xsi:nil="true"`.
-      - The text of an element without child elements gets an `xsi:type` attribute if it isn't a
-        string or a UUID, e.g. `xsi:type="xs:int"`, so that it reads back as the same type.
-        Attribute values, and text next to child elements, aren't typed and read back as strings.
-      - If the XML string uses the `xsi` or `xs` prefix, the root element declares it.
-
-      If the Variant has no XML representation, an error is thrown.
-
-      ```sql
-      -- '<book pages="320"><title>Dune</title><price>12.50</price></book>'
-      XML_STRING(PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>'))
-
-      -- '<a xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema"><b xsi:type="xs:int">5</b><c xsi:nil="true"/></a>'
-      XML_STRING(PARSE_XML('<a><b xsi:type="int">5</b><c xsi:nil="true"/></a>'))
-      ```
-
-      See the "VARIANT to XML String" section below the function table for how a Variant is mapped
-      to XML.
-
-  - sql: variant '[' INT ']'
-    table: VARIANT.at(INT)
-    description: |
-      If the VARIANT is an array, returns a VARIANT holding the element at the index. The index
-      starts at 1. A literal index below 1 fails during planning. Any other index out of range
-      returns NULL. If the VARIANT is not an array, an error is thrown. To return NULL instead, use
-      `VARIANT_GET`.
-
-  - sql: variant '[' STRING ']'
-    table: VARIANT.at(STRING)
-    description: |
-      If the VARIANT is an object that has a field with this key, returns a VARIANT holding the
-      value of the field. If the object has no such field, returns NULL. If the VARIANT is not an
-      object, an error is thrown. To return NULL instead, use `VARIANT_GET`.
-  - sql: VARIANT_GET(variant, path[, returnType])
-    table: VARIANT.variantGet(path[, returnType])
-    description: |
-      Returns the value of a Variant at a path, cast to `returnType`. Without `returnType`, the
-      value is returned as a Variant. If the value cannot be cast to `returnType`, an error is
-      thrown. To return NULL instead of an error, use the `TRY_VARIANT_GET` function. See the
-      "Variant paths" section below the function table for the path syntax.
-
-      Returns NULL if:
-
-      * `variant` or `path` is NULL,
-      * nothing is at the path, or
-      * the value at the path is a variant null and `returnType` is not `'VARIANT'`.
-
-      Without `returnType`, or with `'VARIANT'`, a variant null stays a variant null. It is not SQL
-      NULL, so `IS NULL` is false and `JSON_STRING` returns `'null'`.
-
-      `returnType` is a string literal such as `'INT'` or `'ARRAY<ROW<sku STRING, qty INT>>'`, and
-      must not be NULL. The value is cast the way `CAST(v AS returnType)` casts a Variant. The
-      result is always nullable.
-
-      ```sql
-      -- 17 of type INT
-      VARIANT_GET(PARSE_JSON('{"order_id": 17}'), '$.order_id', 'INT')
-
-      -- 2 of type INT
-      VARIANT_GET(PARSE_JSON('{"items": [{"qty": 2}]}'), '$.items[0].qty', 'INT')
-
-      -- NULL of type STRING, nothing is at the path
-      VARIANT_GET(PARSE_JSON('{"order_id": 17}'), '$.user.name', 'STRING')
-
-      -- NULL of type INT, a variant null cast to INT
-      VARIANT_GET(PARSE_JSON('{"coupon": null}'), '$.coupon', 'INT')
-
-      -- null of type VARIANT, a variant null and not SQL NULL
-      VARIANT_GET(PARSE_JSON('{"coupon": null}'), '$.coupon')
-
-      -- {"name":"ada"} of type VARIANT
-      VARIANT_GET(PARSE_JSON('{"user": {"name": "ada"}}'), '$.user')
-
-      -- fails, a Variant string does not cast to INT
-      VARIANT_GET(PARSE_JSON('{"price": "12.50"}'), '$.price', 'INT')
-      ```
+    page: try-parse-xml
   - sql: TRY_VARIANT_GET(variant, path[, returnType])
     table: VARIANT.tryVariantGet(path[, returnType])
-    description: |
-      Returns the value of a Variant at a path like `VARIANT_GET`, but returns NULL instead of an
-      error if the value cannot be cast to `returnType`, or if a path that is not a literal is
-      malformed. A malformed path literal still fails at planning time.
-
-      ```sql
-      -- NULL of type INT, a Variant string does not cast to INT
-      TRY_VARIANT_GET(PARSE_JSON('{"price": "12.50"}'), '$.price', 'INT')
-      ```
+    page: try-variant-get
+  - sql: variant '[' INT ']'
+    table: VARIANT.at(INT)
+    page: variant-subscript
+  - sql: variant '[' STRING ']'
+    table: VARIANT.at(STRING)
+    page: variant-subscript
+  - sql: VARIANT_GET(variant, path[, returnType])
+    table: VARIANT.variantGet(path[, returnType])
+    page: variant-get
+  - sql: XML_STRING(variant)
+    table: VARIANT.xmlString()
+    page: xml-string
 
 structured:
   - sql: |
@@ -1629,27 +1123,25 @@ grouping:
 hashfunctions:
   - sql: MD5(string)
     table: STRING.md5()
-    description: 以 32 位十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    page: md5
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: 以 40 位十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA224(string)
-    table: STRING.sha224()
-    description: 以 56 位十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA256(string)
-    table: STRING.sha256()
-    description: 以 64 位十六进制数字的字符串形式返回 string 的 SHA-256 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA384(string)
-    table: STRING.sha384()
-    description: 以 96 位十六进制数字的字符串形式返回 string 的 SHA-384 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
-  - sql: SHA512(string)
-    table: STRING.sha512()
-    description: 以 128 位十六进制数字的字符串形式返回 string 的 SHA-512 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    page: sha1
   - sql: SHA2(string, hashLength)
     table: STRING.sha2(INT)
-    description: |
-      使用 SHA-2 系列散列函数（SHA-224，SHA-256，SHA-384 或 SHA-512）返回散列值。第一个参数 string 是要散列的字符串，
-      第二个参数 hashLength 是结果的位数（224，256，384 或 512）。如果 string 或 hashLength 为 `NULL`，则返回 `NULL`。
+    page: sha2
+  - sql: SHA224(string)
+    table: STRING.sha224()
+    page: sha224
+  - sql: SHA256(string)
+    table: STRING.sha256()
+    page: sha256
+  - sql: SHA384(string)
+    table: STRING.sha384()
+    page: sha384
+  - sql: SHA512(string)
+    table: STRING.sha512()
+    page: sha512
 
 bitmap:
   - sql: BITMAP_AND(bitmap1, bitmap2)

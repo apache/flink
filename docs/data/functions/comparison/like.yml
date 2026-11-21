@@ -1,0 +1,105 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LIKE
+summary: Returns whether a string matches a pattern with the wildcards `%` and `_`.
+
+syntax:
+  sql: string [NOT] LIKE pattern [ESCAPE escape_char]
+  java: |
+    $("string").like(pattern)
+    $("string").like(pattern, escapeChar)
+  python: |
+    col("string").like(pattern)
+    col("string").like(pattern, escape_char)
+
+arguments:
+  - name: string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to test.
+  - name: pattern
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The pattern. `%` matches any number of characters, and `_` exactly one.
+  - name: escape_char
+    type: A single character
+    required: false
+    description: Makes the next `%`, `_` or escape character in `pattern` match itself.
+
+returns:
+  description: TRUE if `pattern` matches the whole `string`, FALSE otherwise. `NOT LIKE` returns the opposite.
+  nulls: Returns NULL if any argument is NULL.
+  type: "`BOOLEAN`, NOT NULL if all arguments are NOT NULL."
+
+notes:
+  - The match is case-sensitive. To ignore case, apply `LOWER` to `string` and use a lower-case pattern.
+  - There is no default escape character, so a backslash matches itself. To match a `%` or `_`, set one with `ESCAPE`.
+  - In `pattern`, the escape character must be followed by `%`, `_` or itself. Otherwise, the call fails.
+  - A `_` doesn't match a newline, while `%` does. So `'a' || CHR(10) || 'b' LIKE 'a_b'` is FALSE.
+
+see_also:
+  - {name: SIMILAR TO, ref: comparison/similar-to}
+  - {name: REGEXP, ref: regular-expressions/regexp}
+
+examples:
+  - title: Wildcards
+    description: "`%` matches any number of characters, and `_` exactly one. The pattern must match the whole string."
+    sql: |
+      SELECT s, pat, s LIKE pat AS `s LIKE pat`
+      FROM (VALUES ('Flink', 'F%'), ('Flink', 'Fl_nk'), ('Flink', 'lin'), ('Flink', '%lin%')) AS t(s, pat);
+    result: |
+      | s     | pat   | s LIKE pat |
+      |-------|-------|------------|
+      | Flink | F%    | TRUE       |
+      | Flink | Fl_nk | TRUE       |
+      | Flink | lin   | FALSE      |
+      | Flink | %lin% | TRUE       |
+
+  - title: Case
+    description: The match is case-sensitive.
+    sql: |
+      SELECT s,
+        s LIKE 'f%' AS `s LIKE 'f%'`,
+        LOWER(s) LIKE 'f%' AS `LOWER(s) LIKE 'f%'`
+      FROM (VALUES ('Flink')) AS t(s);
+    result: |
+      | s     | s LIKE 'f%' | LOWER(s) LIKE 'f%' |
+      |-------|-------------|--------------------|
+      | Flink | FALSE       | TRUE               |
+
+  - title: Match a percent sign
+    description: With `ESCAPE '!'`, `!%` matches a `%`.
+    sql: |
+      SELECT s, s LIKE '100!%' ESCAPE '!' AS `s LIKE '100!%' ESCAPE '!'`
+      FROM (VALUES ('100%'), ('1000')) AS t(s);
+    result: |
+      | s    | s LIKE '100!%' ESCAPE '!' |
+      |------|---------------------------|
+      | 100% | TRUE                      |
+      | 1000 | FALSE                     |
+
+  - title: Filter rows
+    description: Keep the names that don't start with `A`.
+    sql: |
+      SELECT name
+      FROM (VALUES ('Alice'), ('Bob'), ('Anna'), (CAST(NULL AS STRING))) AS t(name)
+      WHERE name NOT LIKE 'A%';
+    result: |
+      | name |
+      |------|
+      | Bob  |
