@@ -20,7 +20,7 @@ import { DatePipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, map, switchMap, takeUntil } from 'rxjs/operators';
 
 import { BlockedBadgeComponent } from '@flink-runtime-web/components/blocked-badge/blocked-badge.component';
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
@@ -72,10 +72,21 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    pollTaskManagerDetail(this.statusService.refresh$, () =>
-      this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId)
-    )
-      .pipe(takeUntil(this.destroy$))
+    this.activatedRoute.paramMap
+      .pipe(
+        map(params => params.get('taskManagerId')!),
+        distinctUntilChanged(),
+        switchMap(taskManagerId => {
+          this.taskManagerDetail = undefined;
+          this.notFound = false;
+          this.loading = true;
+          this.cdr.markForCheck();
+          return pollTaskManagerDetail(this.statusService.refresh$, () =>
+            this.taskManagerService.loadManager(taskManagerId)
+          );
+        }),
+        takeUntil(this.destroy$)
+      )
       .subscribe(({ detail, notFound }) => {
         this.taskManagerDetail = detail;
         this.notFound = notFound;
