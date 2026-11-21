@@ -380,6 +380,13 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
                     context.subtaskReset(subtaskId);
 
+                    // Remove the last watermark reported by the failed subtask so that a stale
+                    // value does not keep constraining the watermark alignment group. The
+                    // restarted attempt re-registers itself with its next ReportedWatermarkEvent.
+                    combinedWatermark
+                            .remove(subtaskId)
+                            .ifPresent(this::updateAggregatedWatermarkOfGroup);
+
                     final List<SplitT> splitsToAddBack =
                             context.getAndRemoveUncheckpointedAssignment(subtaskId, checkpointId);
                     LOG.debug(
@@ -726,17 +733,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         combinedWatermark
                 .aggregate(subtask, watermark)
-                .ifPresent(
-                        newCombinedWatermark ->
-                                coordinatorStore.computeIfPresent(
-                                        watermarkAlignmentParams.getWatermarkGroup(),
-                                        (key, oldValue) -> {
-                                            WatermarkAggregator<String> watermarkAggregator =
-                                                    (WatermarkAggregator<String>) oldValue;
-                                            watermarkAggregator.aggregate(
-                                                    operatorName, newCombinedWatermark);
-                                            return watermarkAggregator;
-                                        }));
+                .ifPresent(this::updateAggregatedWatermarkOfGroup);
+    }
+
+    private void updateAggregatedWatermarkOfGroup(Watermark newCombinedWatermark) {
+        coordinatorStore.computeIfPresent(
+                watermarkAlignmentParams.getWatermarkGroup(),
+                (key, oldValue) -> {
+                    WatermarkAggregator<String> watermarkAggregator =
+                            (WatermarkAggregator<String>) oldValue;
+                    watermarkAggregator.aggregate(operatorName, newCombinedWatermark);
+                    return watermarkAggregator;
+                });
     }
 
     private void ensureStarted() {
@@ -856,6 +864,27 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 orderedWatermarks.remove(oldWatermarkElement);
             }
             orderedWatermarks.add(watermarkElement);
+
+            Watermark newAggregatedWatermark = getAggregatedWatermark();
+            if (newAggregatedWatermark.equals(oldAggregatedWatermark)) {
+                return Optional.empty();
+            }
+            return Optional.of(newAggregatedWatermark);
+        }
+
+        /**
+         * Removes the {@link Watermark} for the given {@code key}.
+         *
+         * @return the new updated combined {@link Watermark} if the value has changed. {@code
+         *     Optional.empty()} otherwise.
+         */
+        public Optional<Watermark> remove(T key) {
+            Watermark oldAggregatedWatermark = getAggregatedWatermark();
+
+            WatermarkElement removedWatermarkElement = watermarks.remove(key);
+            if (removedWatermarkElement != null) {
+                orderedWatermarks.remove(removedWatermarkElement);
+            }
 
             Watermark newAggregatedWatermark = getAggregatedWatermark();
             if (newAggregatedWatermark.equals(oldAggregatedWatermark)) {
