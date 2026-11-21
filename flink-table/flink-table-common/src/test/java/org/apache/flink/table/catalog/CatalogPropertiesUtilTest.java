@@ -113,6 +113,26 @@ class CatalogPropertiesUtilTest {
         assertThat(testTable.getOrigin()).hasToString(deserializedTable.toString());
     }
 
+    @Test
+    void testCatalogTableSerdeKeepsOptionsStartingWithSchema() {
+        // e.g. the required 'schema-name' option of the Flink CDC Postgres source
+        final Map<String, String> options =
+                Map.of("connector", "test", "schema-name", "public", "schemaless", "true");
+        final ResolvedCatalogTable table =
+                new ResolvedCatalogTable(
+                        CatalogTable.newBuilder()
+                                .schema(Schema.newBuilder().column("f1", DataTypes.INT()).build())
+                                .options(options)
+                                .build(),
+                        ResolvedSchema.of(Column.physical("f1", DataTypes.INT())));
+
+        final Map<String, String> serializedMap =
+                CatalogPropertiesUtil.serializeCatalogTable(table, DefaultSqlFactory.INSTANCE);
+
+        assertThat(CatalogPropertiesUtil.deserializeCatalogTable(serializedMap).getOptions())
+                .isEqualTo(options);
+    }
+
     private static Stream<ResolvedCatalogBaseTable<?>> resolvedCatalogBaseTables() {
         final Schema schema =
                 Schema.newBuilder()

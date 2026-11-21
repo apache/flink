@@ -463,7 +463,7 @@ public final class CatalogPropertiesUtil {
                             return !key.startsWith(DISTRIBUTION + SEPARATOR)
                                     && !key.startsWith(CONNECTION + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
-                                    && !key.startsWith(SCHEMA)
+                                    && !key.startsWith(SCHEMA + SEPARATOR)
                                     && !key.equals(COMMENT)
                                     && !key.equals(SNAPSHOT)
                                     && !isMaterializedTableAttribute(key)
