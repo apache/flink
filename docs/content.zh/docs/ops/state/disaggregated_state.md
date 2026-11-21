@@ -98,6 +98,7 @@ this case. The supported stateful operators are:
  - Row Time Deduplicate
  - Aggregate (without distinct)
  - Join
+ - Interval Join
  - Window Join
  - Tumble / Hop / Cumulative Window Aggregate
 

@@ -21,19 +21,32 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.util
+
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class IntervalJoinITCase(mode: StateBackendMode, enableAsyncState: Boolean)
+  extends StreamingWithStateTestBase(mode) {
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   // Tests for inner join.
   /** test proctime inner join * */
@@ -1147,6 +1160,17 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "D,R-8,null"
     )
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.toList.sorted)
+  }
+}
+
+object IntervalJoinITCase {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false)))
   }
 }
 
