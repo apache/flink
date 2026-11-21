@@ -24,7 +24,7 @@
   [nzDescription]="notFoundDescription"
 ></nz-alert>
 
-<ng-container *ngIf="!isError && !notFound">
+<ng-container *ngIf="!notFound">
   <flink-job-status [isLoading]="isLoading"></flink-job-status>
   <div class="content">
     <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
@@ -33,14 +33,3 @@
     </div>
   </div>
 </ng-container>
-
-<nz-alert
-  *ngIf="isError"
-  nzShowIcon
-  nzType="warning"
-  nzMessage="Job failed during initialization of JobManager"
-  [nzDescription]="descriptionTemplateRef"
-></nz-alert>
-<ng-template #descriptionTemplateRef>
-  <pre>{{ errorDetails }}</pre>
-</ng-template>

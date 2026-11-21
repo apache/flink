@@ -37,9 +37,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 })
 export class JobDetailComponent implements OnInit, OnDestroy {
   isLoading = true;
-  isError = false;
   notFound = false;
-  errorDetails: string;
 
   // The History Server returns 404 for a job it has no archive for, not one that expired.
   readonly notFoundDescription = this.statusService.configuration.features['web-history']
@@ -79,16 +77,7 @@ export class JobDetailComponent implements OnInit, OnDestroy {
                     this.notFound = true;
                     this.isLoading = false;
                     this.cdr.markForCheck();
-                    return EMPTY;
                   }
-                  this.jobService.loadExceptions(jid, 10).subscribe(data => {
-                    this.errorDetails = data['root-exception'];
-                    this.cdr.markForCheck();
-                  });
-
-                  this.isError = true;
-                  this.isLoading = false;
-                  this.cdr.markForCheck();
                   return EMPTY;
                 })
               )
@@ -99,7 +88,6 @@ export class JobDetailComponent implements OnInit, OnDestroy {
       )
       .subscribe(() => {
         this.isLoading = false;
-        this.isError = false;
         this.cdr.markForCheck();
       });
   }
