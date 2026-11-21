@@ -320,13 +320,14 @@ A built-in function touches six modules. Each step names an example of that step
 
 - `[FLINK-XXXX][component] Description` where FLINK-XXXX is the JIRA issue number
 - `[hotfix][component] Description` for typo fixes without JIRA
+- Backports to a release branch are prefixed with `[BP-<major>.<minor>]`, e.g. `[BP-1.20][FLINK-XXXX][component] Description`
 - Each commit must have a meaningful message including the JIRA ID. If you don't know the ticket number, ask.
 - Separate cleanup/refactoring from functional changes into distinct commits
 - When AI tools were used: add `Generated-by: <Tool Name and Version>` trailer per [ASF generative tooling guidance](https://www.apache.org/legal/generative-tooling.html)
 
 ### Pull request conventions
 
-- Title format: `[FLINK-XXXX][component] Title of the pull request`
+- Title format: `[FLINK-XXXX][component] Title of the pull request`; backports use `[BP-<major>.<minor>][FLINK-XXXX][component] ...`
 - A corresponding JIRA issue is required (except hotfixes for typos)
 - Fill out the PR template completely but concisely: describe purpose, change log, testing approach, impact assessment
 - Each PR should address exactly one issue
