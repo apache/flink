@@ -16,12 +16,16 @@
 # limitations under the License.
 ################################################################################
 import asyncio
+import os
 import random
+import shutil
+import tempfile
 from typing import List
 
-from pyflink.common import Types, Row, Time, Configuration, WatermarkStrategy
-from pyflink.datastream import AsyncDataStream, AsyncFunction, \
-    StreamExecutionEnvironment, AsyncRetryStrategy
+from pyflink.common import Types, Row, Time, WatermarkStrategy
+from pyflink.datastream import AsyncDataStream, AsyncFunction, AsyncRetryStrategy, \
+    async_retry_strategies
+from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
     SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
@@ -254,6 +258,120 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         expected = ['0', '0', '0', '0', '0']
         self.assert_equals_sorted(expected, results)
 
+    def test_async_invoke_error_is_reported(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (2, 2), (3, 3)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: Row):
+                raise ValueError("failed in async_invoke")
+
+            def timeout(self, value: Row):
+                return [value[0] + value[1]]
+
+        ds = AsyncDataStream.unordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(60), 2, Types.INT())
+        ds.add_sink(self.test_sink)
+        with self.assertRaisesRegex(Exception, "failed in async_invoke"):
+            self.env.execute()
+
+    def test_none_async_result(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (2, 2), (3, 3)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: Row):
+                return None
+
+            def timeout(self, value: Row):
+                return [value[0] + value[1]]
+
+        ds = AsyncDataStream.unordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(60), 2, Types.INT())
+        ds.add_sink(self.test_sink)
+        with self.assertRaisesRegex(Exception, "The result of AsyncFunction cannot be none"):
+            self.env.execute()
+
+    def test_multiple_row_results(self):
+        for object_reuse in [False, True]:
+            with self.subTest(object_reuse=object_reuse):
+                if object_reuse:
+                    self.env.get_config().enable_object_reuse()
+                else:
+                    self.env.get_config().disable_object_reuse()
+                self.env.set_parallelism(1)
+                test_sink = DataStreamTestSinkFunction()
+                ds = self.env.from_collection(
+                    [(1, 1), (2, 2), (3, 3)],
+                    type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+                )
+
+                class MyAsyncFunction(AsyncFunction):
+
+                    async def async_invoke(self, value: Row):
+                        await asyncio.sleep(random.random() / 10)
+                        return [Row(value[0], i) for i in range(3)]
+
+                ds = AsyncDataStream.ordered_wait(
+                    ds, MyAsyncFunction(), Time.seconds(60), 2,
+                    Types.ROW([Types.INT(), Types.INT()]))
+                ds.add_sink(test_sink)
+                self.env.execute()
+                results = test_sink.get_results(False)
+                expected = ['+I[%d, %d]' % (v, i) for v in [1, 2, 3] for i in range(3)]
+                self.assert_equals(expected, results)
+
+    def test_parallelism_two(self):
+        self.env.set_parallelism(2)
+        ds = self.env.from_collection(
+            [(i, i) for i in range(1, 21)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: Row):
+                await asyncio.sleep(random.random() / 10)
+                return [value[0] + value[1]]
+
+        unordered = AsyncDataStream.unordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(60), 3, Types.INT())
+        ordered = AsyncDataStream.ordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(60), 3, Types.INT())
+        unordered.union(ordered).add_sink(self.test_sink)
+        self.env.execute()
+        results = self.test_sink.get_results(False)
+        expected = [str(2 * i) for i in range(1, 21)] * 2
+        self.assert_equals_sorted(expected, results)
+
+    def test_capacity_one_after_python_map(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_source(
+            NumberSequenceSource(1, 10), WatermarkStrategy.no_watermarks(), "numbers"
+        ).map(lambda v: v * 2, output_type=Types.LONG())
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: int):
+                await asyncio.sleep(random.random() / 10)
+                return [value + 1]
+
+        ds = AsyncDataStream.ordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(60), 1, Types.LONG())
+        ds.add_sink(self.test_sink)
+        self.env.execute()
+        results = self.test_sink.get_results(False)
+        expected = [str(v * 2 + 1) for v in range(1, 11)]
+        self.assert_equals(expected, results)
+
     def test_async_with_retry(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection(
@@ -302,27 +420,128 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
 
-class EmbeddedThreadAsyncFunctionTests(PyFlinkStreamingTestCase):
+class EmbeddedThreadAsyncFunctionTests(AsyncFunctionTests):
+    """Runs the same tests with python.execution-mode=thread."""
 
-    def test_run_async_function_in_thread_mode(self):
-        config = Configuration()
-        config.set_string("python.execution-mode", "thread")
-        env = StreamExecutionEnvironment.get_execution_environment(config)
-        ds = env.from_collection(
-            [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
-            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
-        )
+    def setUp(self) -> None:
+        super(EmbeddedThreadAsyncFunctionTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
+
+    def test_async_with_retry(self):
+        self.skipTest("Retry is not supported in thread mode yet.")
+
+    def test_restore_in_flight_inputs(self):
+        # process mode waits for in-flight inputs before a checkpoint, thread mode stores them
+        for ordered in [True, False]:
+            with self.subTest(ordered=ordered):
+                self._test_restore_in_flight_inputs(ordered)
+
+    def _test_restore_in_flight_inputs(self, ordered):
+        self.env.set_parallelism(1)
+        self.env.enable_checkpointing(100)
+        work_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, work_dir, True)
+        checkpoint_dir = os.path.join(work_dir, "checkpoints")
+        marker = os.path.join(work_dir, "failed")
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("execution.checkpointing.storage", "filesystem")
+        config.setString("execution.checkpointing.dir", "file://" + checkpoint_dir)
+        config.setString("restart-strategy.type", "fixed-delay")
+        config.setString("restart-strategy.fixed-delay.attempts", "3")
+        config.setString("restart-strategy.fixed-delay.delay", "100 ms")
+        test_sink = DataStreamTestSinkFunction()
+        ds = self.env.from_source(
+            NumberSequenceSource(1, 50), WatermarkStrategy.no_watermarks(), "numbers")
+
+        class FailOnceAsyncFunction(AsyncFunction):
+
+            def __init__(self, checkpoint_path, marker_path):
+                self._checkpoint_path = checkpoint_path
+                self._marker_path = marker_path
+
+            def _checkpoint_ids(self, completed):
+                ids = []
+                if os.path.isdir(self._checkpoint_path):
+                    for root, _, files in os.walk(self._checkpoint_path):
+                        name = os.path.basename(root)
+                        if name.startswith("chk-") and (not completed or "_metadata" in files):
+                            ids.append(int(name[len("chk-"):]))
+                return ids
+
+            async def async_invoke(self, value: int):
+                if value == 25 and not os.path.exists(self._marker_path):
+                    # Wait for a checkpoint that was triggered after this input became pending.
+                    # Checkpoints don't overlap, so one numbered two past any checkpoint that may
+                    # already be running is such a checkpoint. Then fail the job once.
+                    last_started = max(self._checkpoint_ids(completed=False), default=0)
+                    while max(self._checkpoint_ids(completed=True), default=0) < last_started + 2:
+                        await asyncio.sleep(0.01)
+                    open(self._marker_path, 'w').close()
+                    raise RuntimeError("induced failure")
+                # keep later inputs in flight as well, so that the source doesn't finish first
+                while value > 25 and not os.path.exists(self._marker_path):
+                    await asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)
+                return [value * 10]
+
+        wait = AsyncDataStream.ordered_wait if ordered else AsyncDataStream.unordered_wait
+        ds = wait(ds, FailOnceAsyncFunction(checkpoint_dir, marker), Time.seconds(60), 5,
+                  Types.LONG())
+        ds.add_sink(test_sink)
+        self.env.execute()
+
+        self.assertTrue(os.path.exists(marker))
+        results = test_sink.get_results(False)
+        # the test sink is not exactly-once, so outputs after the checkpoint can repeat, but the
+        # input that was in flight at the checkpoint must not be lost
+        self.assertEqual(sorted(set(int(r) for r in results)), [v * 10 for v in range(1, 51)])
+
+    def test_retry_strategy_rejected(self):
+        ds = self.env.from_collection([1, 2, 3], type_info=Types.INT())
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row):
-                await asyncio.sleep(2)
-                return [value[0] + value[1]]
+            async def async_invoke(self, value: int):
+                return [value]
 
-        try:
-            AsyncDataStream.unordered_wait(
-                ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
-            self.fail()
-        except Exception as e:
-            message = str(e)
-            self.assertTrue("AsyncFunction is still not supported for 'thread' mode" in message)
+        strategy = AsyncRetryStrategy.fixed_delay(
+            max_attempts=2, backoff_time_millis=100,
+            result_predicate=lambda result: False,
+            exception_predicate=lambda exception: True)
+        with self.assertRaisesRegex(
+                Exception, "AsyncFunction with retry is still not supported for 'thread' mode"):
+            AsyncDataStream.unordered_wait_with_retry(
+                ds, MyAsyncFunction(), Time.seconds(5), strategy, 2, Types.INT())
+
+    def test_no_retry_strategy_accepted(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection([1, 2, 3], type_info=Types.INT())
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: int):
+                return [value + 1]
+
+        ds = AsyncDataStream.ordered_wait_with_retry(
+            ds, MyAsyncFunction(), Time.seconds(5), async_retry_strategies.NO_RETRY_STRATEGY,
+            2, Types.INT())
+        ds.add_sink(self.test_sink)
+        self.env.execute()
+        self.assert_equals(['2', '3', '4'], self.test_sink.get_results(False))
+
+    def test_uses_embedded_async_wait_operator(self):
+        ds = self.env.from_collection([1, 2, 3], type_info=Types.INT())
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: int):
+                return [value]
+
+        ds = AsyncDataStream.unordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
+        j_factory = ds._j_data_stream.getTransformation().getOperatorFactory()
+        self.assertEqual(
+            "org.apache.flink.streaming.api.operators.python.embedded."
+            "EmbeddedPythonAsyncWaitOperatorFactory",
+            j_factory.getClass().getName())
