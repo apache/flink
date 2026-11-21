@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
@@ -198,10 +199,26 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
         if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+            // Only emit ACTIVE when transitioning from IDLE with configured timeout
+            // and NOT when current status is FINISHED
             if (isIdlenessEnabled() && currentStatus.equals(WatermarkStatus.IDLE)) {
                 // mark the channel active
+                Environment env = getContainingTask().getEnvironment();
+                LOG.debug(
+                        "WatermarkStatus change: IDLE -> ACTIVE due to MAX_WATERMARK. tmHost={}, "
+                                + "taskName={}, subtask={}, operator={}, prevStatus={}, "
+                                + "currentWatermark={}, upstreamWatermark={}",
+                        env.getTaskManagerInfo().getTaskManagerExternalAddress(),
+                        env.getTaskInfo().getTaskName(),
+                        env.getTaskInfo().getIndexOfThisSubtask(),
+                        this.getClass().getSimpleName(),
+                        currentStatus,
+                        currentWatermark,
+                        mark.getTimestamp());
                 emitWatermarkStatus(WatermarkStatus.ACTIVE);
             }
+            // If current status is FINISHED, preserve it - don't emit ACTIVE
+
             currentWatermark = Long.MAX_VALUE;
             output.emitWatermark(mark);
         }
