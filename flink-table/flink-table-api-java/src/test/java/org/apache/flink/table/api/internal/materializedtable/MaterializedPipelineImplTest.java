@@ -21,13 +21,18 @@ package org.apache.flink.table.api.internal.materializedtable;
 import org.apache.flink.table.api.CreateMode;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.MaterializedPipeline;
+import org.apache.flink.table.api.MaterializedTableDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.Interval;
+import org.apache.flink.table.catalog.Interval.TimeUnit;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.StartMode;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.TableEnvironmentMock;
@@ -156,6 +161,39 @@ class MaterializedPipelineImplTest {
                 .hasMessageContaining(NOT_EXPRESSIBLE_IN_SQL);
 
         assertThat(getPermanentTableKind()).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidStartModes")
+    void invalidStartModeIsRejected(StartMode startMode, String expectedMessage) throws Exception {
+        final MaterializedPipeline declared =
+                tEnv.from("source")
+                        .materializeInto(
+                                "mt",
+                                MaterializedTableDescriptor.newBuilder()
+                                        .startMode(startMode)
+                                        .build());
+        final MaterializedPipeline given = tEnv.from("source").materializeInto("mt");
+
+        assertThatThrownBy(declared::execute)
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(expectedMessage);
+        assertThatThrownBy(() -> given.execute(startMode))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(expectedMessage);
+        assertThat(getPermanentTableKind()).isEmpty();
+    }
+
+    private static Stream<Arguments> invalidStartModes() {
+        return Stream.of(
+                Arguments.of(
+                        StartMode.of(StartModeKind.FROM_TIMESTAMP),
+                        "Start mode 'FROM_TIMESTAMP' requires a timestamp. Create it with"
+                                + " StartMode.fromTimestamp(Instant) or StartMode.resumeOrFromTimestamp(Instant)."),
+                Arguments.of(
+                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(0, TimeUnit.SECOND)),
+                        "The start mode interval currently only supports positive integer type"
+                                + " values. But was: 0"));
     }
 
     private Optional<TableKind> getPermanentTableKind() throws Exception {

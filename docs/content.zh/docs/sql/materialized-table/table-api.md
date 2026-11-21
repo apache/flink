@@ -84,6 +84,11 @@ use `.notNull()`. See
 [CREATE MATERIALIZED TABLE]({{< ref "docs/sql/materialized-table/statements" >}}#create-or-alter-materialized-table)
 for the semantics of the clauses.
 
+A start mode additionally passed to `execute(StartMode)` or `execute(CreateMode, StartMode)`
+overrides it for that call. If neither sets one,
+[materialized-table.default-start-mode]({{< ref "docs/dev/table/config" >}}#materialized-table-default-start-mode)
+is recorded.
+
 # Redeploying
 
 `execute()` on an existing materialized table alters it, and a changed query follows the
@@ -93,9 +98,10 @@ A running continuous refresh job is stopped with a savepoint and restarted witho
 even if the declaration is unchanged, so streaming state is reset.
 
 An existing materialized table keeps its freshness, comment and partition keys, so declared ones are
-ignored. Its options and distribution are replaced by the declared ones. This means options that the
-descriptor doesn't declare are removed, and the distribution is dropped if the descriptor declares
-none. To keep them, restate them in the descriptor on every redeploy.
+ignored. Its options, distribution and start mode are replaced by the declared ones. This means
+options that the descriptor doesn't declare are removed, the distribution is dropped if the
+descriptor declares none, and the default start mode is recorded if none is set. To keep them,
+restate them in the descriptor on every redeploy.
 
 If the declared schema starts with a physical column, it replaces the watermark, computed columns,
 virtual metadata columns and primary key of the materialized table. Otherwise, the materialized

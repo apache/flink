@@ -28,13 +28,17 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.Interval;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperationFactory;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperationFactory.Mode;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
 
@@ -93,14 +97,30 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
     }
 
     @Override
+    public MaterializedTable execute(StartMode startMode) {
+        return execute(CreateMode.createOrAlter(), startMode);
+    }
+
+    @Override
     public MaterializedTable execute(CreateMode mode) {
         Preconditions.checkNotNull(mode, "Create mode must not be null.");
-        final Mode finalOperationMode = toFactoryMode(mode);
-        tableEnvironment.executeInternal(buildOperation(finalOperationMode));
+        return submit(mode, null);
+    }
+
+    @Override
+    public MaterializedTable execute(CreateMode mode, StartMode startMode) {
+        Preconditions.checkNotNull(mode, "Create mode must not be null.");
+        Preconditions.checkNotNull(startMode, "Start mode must not be null.");
+        return submit(mode, startMode);
+    }
+
+    private MaterializedTable submit(CreateMode mode, @Nullable StartMode startMode) {
+        tableEnvironment.executeInternal(
+                buildOperation(toFactoryMode(mode), resolveStartMode(startMode)));
         return new MaterializedTableImpl(identifier);
     }
 
-    private Operation buildOperation(Mode factoryMode) {
+    private Operation buildOperation(Mode factoryMode, @Nullable StartMode startMode) {
         final CatalogManager catalogManager = tableEnvironment.getCatalogManager();
         if (catalogManager.isTemporaryTable(identifier)) {
             throw new ValidationException(
@@ -132,6 +152,7 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
                                 descriptor,
                                 storedQueryOperation,
                                 serializedQuery,
+                                startMode,
                                 catalogManager,
                                 factoryMode == Mode.CREATE
                                         ? "CREATE MATERIALIZED TABLE"
@@ -152,6 +173,29 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
         }
 
         return factoryMode;
+    }
+
+    private @Nullable StartMode resolveStartMode(@Nullable StartMode startMode) {
+        final StartMode effectiveStartMode =
+                startMode != null ? startMode : descriptor.getStartMode().orElse(null);
+        if (effectiveStartMode == null) {
+            return null;
+        }
+        if (StartMode.requiresParameters(effectiveStartMode.getKind())
+                && effectiveStartMode.getTimestamp() == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Start mode '%s' requires a timestamp. Create it with StartMode.fromTimestamp(Instant) or StartMode.resumeOrFromTimestamp(Instant).",
+                            effectiveStartMode.getKind()));
+        }
+        final Interval offset = effectiveStartMode.getInterval();
+        if (offset != null && offset.getInterval() <= 0) {
+            throw new ValidationException(
+                    String.format(
+                            "The start mode interval currently only supports positive integer type values. But was: %d",
+                            offset.getInterval()));
+        }
+        return effectiveStartMode;
     }
 
     @Override

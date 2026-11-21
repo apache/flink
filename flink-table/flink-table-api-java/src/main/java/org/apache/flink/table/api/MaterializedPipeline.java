@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.StartMode;
 
 /**
  * A pending declaration of one materialized table, created by {@link Table#materializeInto(String,
@@ -53,13 +54,15 @@ public interface MaterializedPipeline {
      * in full refresh mode is altered without changing its refresh workflow.
      *
      * <p>An existing materialized table keeps its freshness, comment and partition keys, so a
-     * declared one is ignored. Its options and distribution are replaced by the declared ones, as
-     * by the {@code WITH} and {@code DISTRIBUTED BY} clauses of {@code CREATE OR ALTER MATERIALIZED
-     * TABLE}. Options that are not declared are removed, and the distribution is dropped if none is
-     * declared. A declared {@link RefreshStrategy#continuous()} or {@link RefreshStrategy#full()}
-     * that differs from its refresh mode is rejected like any other rejected change, which leaves a
-     * running table suspended. If the declared schema starts with a physical column, it replaces
-     * the watermark, computed columns, virtual metadata columns and primary key of the materialized
+     * declared one is ignored. Its options, distribution and start mode are replaced by the
+     * declared ones, as by the {@code WITH}, {@code DISTRIBUTED BY} and {@code START_MODE} clauses
+     * of {@code CREATE OR ALTER MATERIALIZED TABLE}. Options that are not declared are removed, the
+     * distribution is dropped if none is declared, and {@code
+     * materialized-table.default-start-mode} is recorded if no start mode is declared or given. A
+     * declared {@link RefreshStrategy#continuous()} or {@link RefreshStrategy#full()} that differs
+     * from its refresh mode is rejected like any other rejected change, which leaves a running
+     * table suspended. If the declared schema starts with a physical column, it replaces the
+     * watermark, computed columns, virtual metadata columns and primary key of the materialized
      * table. Otherwise, the materialized table keeps its watermark, keeps computed and virtual
      * metadata columns that the schema no longer declares, and keeps its primary key unless the
      * schema declares one.
@@ -72,10 +75,38 @@ public interface MaterializedPipeline {
     MaterializedTable execute();
 
     /**
+     * Submits this declaration with the given start mode, with the semantics of {@code CREATE OR
+     * ALTER MATERIALIZED TABLE ... START_MODE = ...}. It behaves like {@link #execute()}. The start
+     * mode is recorded in place of the descriptor's, for this call only.
+     *
+     * <p>Equivalent to {@code execute(CreateMode.createOrAlter(), startMode)}.
+     *
+     * @throws ValidationException if the start mode is {@code fromTimestamp(Instant timestamp)} or
+     *     {@code resumeOrFromTimestamp(Instant timestamp)} without a timestamp, or has an offset
+     *     that is not positive.
+     */
+    MaterializedTable execute(StartMode startMode);
+
+    /**
      * Submits this declaration in the given mode. With {@link CreateMode#createOrAlter()}, this is
      * {@link #execute()}. With {@link CreateMode#failIfExists()}, it fails with a {@link
      * ValidationException} if a table or view already exists at the path. In this case the existing
      * object is not changed, and no refresh job is started.
+     *
+     * @throws ValidationException if the start mode is {@code fromTimestamp(Instant timestamp)} or
+     *     {@code resumeOrFromTimestamp(Instant timestamp)} without a timestamp, or has an offset
+     *     that is not positive.
      */
     MaterializedTable execute(CreateMode mode);
+
+    /**
+     * Submits this declaration in the given mode with the given start mode, which overrides the
+     * descriptor's, with the semantics of {@code CREATE [OR ALTER] MATERIALIZED TABLE ...
+     * START_MODE = ...}. See {@link #execute(CreateMode)}.
+     *
+     * @throws ValidationException if the start mode is {@code fromTimestamp(Instant timestamp)} or
+     *     {@code resumeOrFromTimestamp(Instant timestamp)} without a timestamp, or has an offset
+     *     that is not positive.
+     */
+    MaterializedTable execute(CreateMode mode, StartMode startMode);
 }
