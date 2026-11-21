@@ -101,6 +101,8 @@ public class AggregateQueryOperation implements QueryOperation {
             return "1";
         } else {
             return groupingExpressions.stream()
+                    // Alias declarations define output names in SELECT but are invalid in GROUP BY.
+                    .map(OperationExpressionsUtils::unwrapAlias)
                     .map(
                             expr ->
                                     OperationExpressionsUtils.scopeReferencesWithAlias(

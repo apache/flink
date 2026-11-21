@@ -211,7 +211,9 @@ public class WindowAggregateQueryOperation implements QueryOperation {
                         : Stream.of(WINDOW_START_COLUMN, WINDOW_END_COLUMN);
         return Stream.concat(
                         groupedWindowColumns,
-                        groupingExpressions.stream().map(expr -> scopedToInput(expr, sqlFactory)))
+                        groupingExpressions.stream()
+                                .map(OperationExpressionsUtils::unwrapAlias)
+                                .map(expr -> scopedToInput(expr, sqlFactory)))
                 .collect(Collectors.joining(", "));
     }
 
