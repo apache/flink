@@ -20,6 +20,7 @@
 package org.apache.flink.state.rocksdb.restore;
 
 import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.state.rocksdb.RocksDBOperationUtils;
@@ -149,7 +150,8 @@ public class RestoredDBInstance implements AutoCloseable {
 
         for (StateMetaInfoSnapshot stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
             RegisteredStateMetaInfoBase metaInfoBase =
-                    RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+                    RegisteredKeyValueStateBackendMetaInfo.fromMetaInfoSnapshot(
+                            stateMetaInfoSnapshot);
 
             ColumnFamilyDescriptor columnFamilyDescriptor =
                     RocksDBOperationUtils.createColumnFamilyDescriptor(
