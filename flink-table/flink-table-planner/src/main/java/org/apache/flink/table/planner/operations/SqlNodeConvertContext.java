@@ -33,8 +33,12 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
@@ -131,7 +135,29 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
                         .withQuotedCasing(parserConfig.unquotedCasing())
                         .withConformance(parserConfig.conformance())
                         .withUnquotedCasing(parserConfig.unquotedCasing())
-                        .withIdentifierQuoteString(parserConfig.quoting().string));
+                        .withIdentifierQuoteString(parserConfig.quoting().string)) {
+            @Override
+            public void unparseCall(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+                if (call.getKind() == SqlKind.AS) {
+                    final List<SqlNode> operands = new ArrayList<>(call.getOperandList());
+                    for (int i = 1; i < operands.size(); i++) {
+                        final SqlNode alias = operands.get(i);
+                        if (alias instanceof SqlIdentifier) {
+                            // Otherwise Calcite unparses aliases such as CURRENT_DATE as keywords.
+                            operands.set(
+                                    i, alias.clone(alias.getParserPosition().withQuoting(true)));
+                        }
+                    }
+                    call =
+                            call.getOperator()
+                                    .createCall(
+                                            call.getFunctionQuantifier(),
+                                            call.getParserPosition(),
+                                            operands);
+                }
+                super.unparseCall(writer, call, leftPrec, rightPrec);
+            }
+        };
     }
 
     @Override
