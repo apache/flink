@@ -144,12 +144,21 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
             RelDataTypeFactory typeFactory,
             RelDataType inputRowType,
             RelDataType timeAttributeType) {
+        // window_start and window_end follow the input time attribute type (TIMESTAMP or
+        // TIMESTAMP_LTZ) but strip the time attribute metadata (rowtime/proctime markers)
+        RelDataType windowBoundType =
+                typeFactory.createTypeWithNullability(
+                        typeFactory.createSqlType(
+                                timeAttributeType.getSqlTypeName(),
+                                timeAttributeType.getPrecision()),
+                        false);
+
         return typeFactory
                 .builder()
                 .kind(inputRowType.getStructKind())
                 .addAll(inputRowType.getFieldList())
-                .add("window_start", SqlTypeName.TIMESTAMP, 3)
-                .add("window_end", SqlTypeName.TIMESTAMP, 3)
+                .add("window_start", windowBoundType)
+                .add("window_end", windowBoundType)
                 .add("window_time", typeFactory.createTypeWithNullability(timeAttributeType, false))
                 .build();
     }
