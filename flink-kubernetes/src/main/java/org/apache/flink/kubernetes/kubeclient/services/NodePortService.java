@@ -50,7 +50,8 @@ public class NodePortService extends ServiceType {
     public Optional<Endpoint> getRestEndpoint(
             Service targetService,
             NamespacedKubernetesClient internalClient,
-            KubernetesConfigOptions.NodePortAddressType nodePortAddressType) {
+            KubernetesConfigOptions.NodePortAddressType nodePortAddressType,
+            String restPortName) {
         if (targetService.getStatus() == null) {
             return Optional.empty();
         }
@@ -80,7 +81,10 @@ public class NodePortService extends ServiceType {
         }
         return StringUtils.isNullOrWhitespaceOnly(address)
                 ? Optional.empty()
-                : Optional.of(new Endpoint(address, getRestPortFromExternalService(targetService)));
+                : Optional.of(
+                        new Endpoint(
+                                address,
+                                getRestPortFromExternalService(targetService, restPortName)));
     }
 
     @Override

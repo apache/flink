@@ -76,6 +76,7 @@ import static org.assertj.core.api.Assertions.fail;
 public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     private static final int RPC_PORT = 7123;
     private static final int BLOB_SERVER_PORT = 8346;
+    private static final int EXTRA_SERVICE_PORT = 9249;
 
     private static final double JOB_MANAGER_CPU = 2.0;
     private static final int JOB_MANAGER_MEMORY = 768;
@@ -309,6 +310,62 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         assertThat(resultEndpoint).isPresent();
         assertThat(resultEndpoint.get().getAddress()).isEqualTo(hostName);
         assertThat(resultEndpoint.get().getPort()).isEqualTo(REST_PORT);
+    }
+
+    @Test
+    void testGetRestEndpointSelectsRestPortWhenServiceHasExtraPorts() {
+        mockExpectedServiceFromServerSide(
+                buildExternalServiceWithClusterIP(
+                        buildServicePort("metrics", EXTRA_SERVICE_PORT),
+                        buildServicePort(Constants.REST_PORT_NAME, REST_PORT)));
+
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+
+        assertThat(resultEndpoint).isPresent();
+        assertThat(resultEndpoint.get().getPort()).isEqualTo(REST_PORT);
+    }
+
+    @Test
+    void testGetRestEndpointUsesConfiguredRestPortName() throws Exception {
+        final String customPortName = "http-rest";
+        flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_PORT_NAME, customPortName);
+        mockExpectedServiceFromServerSide(
+                buildExternalServiceWithClusterIP(
+                        buildServicePort("metrics", EXTRA_SERVICE_PORT),
+                        buildServicePort(customPortName, REST_PORT)));
+
+        try (final Fabric8FlinkKubeClient localClient =
+                new Fabric8FlinkKubeClient(
+                        flinkConfig, kubeClient, Executors.newSingleThreadScheduledExecutor())) {
+            final Optional<Endpoint> resultEndpoint = localClient.getRestEndpoint(CLUSTER_ID);
+
+            assertThat(resultEndpoint).isPresent();
+            assertThat(resultEndpoint.get().getPort()).isEqualTo(REST_PORT);
+        }
+    }
+
+    @Test
+    void testGetRestEndpointReadsSinglePortDeployedWithAnotherName() {
+        mockExpectedServiceFromServerSide(
+                buildExternalServiceWithClusterIP(buildServicePort("http-rest", REST_PORT)));
+
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+
+        assertThat(resultEndpoint).isPresent();
+        assertThat(resultEndpoint.get().getPort()).isEqualTo(REST_PORT);
+    }
+
+    @Test
+    void testGetRestEndpointFailsWhenNoPortHasTheConfiguredName() {
+        mockExpectedServiceFromServerSide(
+                buildExternalServiceWithClusterIP(
+                        buildServicePort("metrics", EXTRA_SERVICE_PORT),
+                        buildServicePort("http-rest", REST_PORT)));
+
+        assertThatThrownBy(() -> flinkKubeClient.getRestEndpoint(CLUSTER_ID))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to find port \"" + Constants.REST_PORT_NAME + "\"")
+                .hasMessageContaining(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID));
     }
 
     @Test

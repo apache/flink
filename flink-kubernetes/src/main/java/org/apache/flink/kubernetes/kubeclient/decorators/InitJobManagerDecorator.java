@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.apache.flink.kubernetes.utils.Constants.POD_IP_FIELD_PATH;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An initializer for the JobManager {@link org.apache.flink.kubernetes.kubeclient.FlinkPod}. */
@@ -187,9 +188,18 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
         if (kubernetesJobManagerParameters.isHostNetworkEnabled()) {
             return Collections.emptyList();
         }
+        final String restPortName = kubernetesJobManagerParameters.getRestServicePortName();
+        checkArgument(
+                !Constants.JOB_MANAGER_RPC_PORT_NAME.equals(restPortName)
+                        && !Constants.BLOB_SERVER_PORT_NAME.equals(restPortName),
+                "The value of '%s' ('%s') must differ from the other JobManager container port names '%s' and '%s'.",
+                KubernetesConfigOptions.REST_SERVICE_PORT_NAME.key(),
+                restPortName,
+                Constants.JOB_MANAGER_RPC_PORT_NAME,
+                Constants.BLOB_SERVER_PORT_NAME);
         return Arrays.asList(
                 new ContainerPortBuilder()
-                        .withName(Constants.REST_PORT_NAME)
+                        .withName(restPortName)
                         .withContainerPort(kubernetesJobManagerParameters.getRestPort())
                         .build(),
                 new ContainerPortBuilder()
