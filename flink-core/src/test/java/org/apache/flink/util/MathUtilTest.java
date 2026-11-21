@@ -123,6 +123,9 @@ class MathUtilTest {
         assertThat(MathUtils.isPowerOf2(567923)).isFalse();
         assertThat(MathUtils.isPowerOf2(Integer.MAX_VALUE)).isFalse();
         assertThat(MathUtils.isPowerOf2(Long.MAX_VALUE)).isFalse();
+        assertThat(MathUtils.isPowerOf2(0)).isFalse();
+        assertThat(MathUtils.isPowerOf2(-1)).isFalse();
+        assertThat(MathUtils.isPowerOf2(Long.MIN_VALUE)).isFalse();
     }
 
     @Test
