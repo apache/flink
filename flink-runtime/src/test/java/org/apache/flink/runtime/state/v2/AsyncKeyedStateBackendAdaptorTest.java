@@ -21,11 +21,17 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ReducingState;
 import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -43,6 +49,7 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
+import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
@@ -50,6 +57,7 @@ import org.apache.flink.runtime.state.v2.internal.InternalReducingState;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -432,7 +440,82 @@ public class AsyncKeyedStateBackendAdaptorTest {
         adaptor.close();
     }
 
+    @Test
+    public void testStateTtl() throws Exception {
+        MockTtlTimeProvider timeProvider = new MockTtlTimeProvider();
+        CheckpointableKeyedStateBackend<String> keyedStateBackend = createBackend(timeProvider);
+        AsyncKeyedStateBackendAdaptor<String> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
+        keyedStateBackend.setCurrentKey("test");
+
+        ValueStateDescriptor<Integer> valueDescriptor =
+                new ValueStateDescriptor<>("value", BasicTypeInfo.INT_TYPE_INFO);
+        ListStateDescriptor<Integer> listDescriptor =
+                new ListStateDescriptor<>("list", BasicTypeInfo.INT_TYPE_INFO);
+        MapStateDescriptor<Integer, Integer> mapDescriptor =
+                new MapStateDescriptor<>(
+                        "map", BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+        ReducingStateDescriptor<Integer> reducingDescriptor =
+                new ReducingStateDescriptor<>(
+                        "reducing", Integer::sum, BasicTypeInfo.INT_TYPE_INFO);
+        AggregatingStateDescriptor<Integer, Integer, Integer> aggregatingDescriptor =
+                new AggregatingStateDescriptor<>(
+                        "aggregating",
+                        new AbstractAggregatingStateTest.SumAggregator(0),
+                        BasicTypeInfo.INT_TYPE_INFO);
+        StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Duration.ofMillis(10)).build();
+        valueDescriptor.enableTimeToLive(ttlConfig);
+        listDescriptor.enableTimeToLive(ttlConfig);
+        mapDescriptor.enableTimeToLive(ttlConfig);
+        reducingDescriptor.enableTimeToLive(ttlConfig);
+        aggregatingDescriptor.enableTimeToLive(ttlConfig);
+
+        ValueState<Integer> valueState =
+                adaptor.getOrCreateKeyedState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, valueDescriptor);
+        ListState<Integer> listState =
+                adaptor.getOrCreateKeyedState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listDescriptor);
+        MapState<Integer, Integer> mapState =
+                adaptor.getOrCreateKeyedState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mapDescriptor);
+        ReducingState<Integer> reducingState =
+                adaptor.getOrCreateKeyedState(
+                        VoidNamespace.INSTANCE,
+                        VoidNamespaceSerializer.INSTANCE,
+                        reducingDescriptor);
+        AggregatingState<Integer, Integer> aggregatingState =
+                adaptor.getOrCreateKeyedState(
+                        VoidNamespace.INSTANCE,
+                        VoidNamespaceSerializer.INSTANCE,
+                        aggregatingDescriptor);
+
+        valueState.update(1);
+        listState.add(1);
+        mapState.put(1, 1);
+        reducingState.add(1);
+        aggregatingState.add(1);
+        assertThat(valueState.value()).isEqualTo(1);
+        assertThat(listState.get()).containsExactly(1);
+        assertThat(mapState.get(1)).isEqualTo(1);
+        assertThat(reducingState.get()).isEqualTo(1);
+        assertThat(aggregatingState.get()).isEqualTo(1);
+
+        timeProvider.setCurrentTimestamp(10);
+        assertThat(valueState.value()).isNull();
+        assertThat(listState.get()).isEmpty();
+        assertThat(mapState.get(1)).isNull();
+        assertThat(reducingState.get()).isNull();
+        assertThat(aggregatingState.get()).isNull();
+        adaptor.close();
+    }
+
     private static CheckpointableKeyedStateBackend<String> createBackend() throws Exception {
+        return createBackend(TtlTimeProvider.DEFAULT);
+    }
+
+    private static CheckpointableKeyedStateBackend<String> createBackend(
+            TtlTimeProvider ttlTimeProvider) throws Exception {
         ExecutionConfig executionConfig = new ExecutionConfig();
         return new HeapKeyedStateBackendBuilder<String>(
                         new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
@@ -441,7 +524,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         128,
                         new KeyGroupRange(0, 127),
                         executionConfig,
-                        TtlTimeProvider.DEFAULT,
+                        ttlTimeProvider,
                         LatencyTrackingStateConfig.disabled(),
                         SizeTrackingStateConfig.disabled(),
                         Collections.EMPTY_LIST,

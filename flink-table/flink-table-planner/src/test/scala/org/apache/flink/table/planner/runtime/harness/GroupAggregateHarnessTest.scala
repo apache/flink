@@ -119,38 +119,19 @@ class GroupAggregateHarnessTest(
 
     // retract after clean up
     testHarness.processElement(binaryRecord(UPDATE_BEFORE, "ccc", 3L: JLong))
-    // has no output for sync state because of ttl
-    // has output for async state op because it is not supported to set ttl yet
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(DELETE, "ccc", 3L: JLong))
-    }
+    // has no output because the state has expired
 
     // accumulate
     testHarness.processElement(binaryRecord(INSERT, "aaa", 4L: JLong))
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 1L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 5L: JLong))
-    } else {
-      expectedOutput.add(binaryRecord(INSERT, "aaa", 4L: JLong))
-    }
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 4L: JLong))
 
     testHarness.processElement(binaryRecord(INSERT, "bbb", 2L: JLong))
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 1L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 3L: JLong))
-    } else {
-      expectedOutput.add(binaryRecord(INSERT, "bbb", 2L: JLong))
-    }
+    expectedOutput.add(binaryRecord(INSERT, "bbb", 2L: JLong))
 
     // retract
     testHarness.processElement(binaryRecord(INSERT, "aaa", 5L: JLong))
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 5L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 10L: JLong))
-    } else {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 4L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 9L: JLong))
-    }
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 4L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 9L: JLong))
 
     // accumulate
     testHarness.processElement(binaryRecord(INSERT, "eee", 6L: JLong))
@@ -158,32 +139,17 @@ class GroupAggregateHarnessTest(
 
     // retract
     testHarness.processElement(binaryRecord(INSERT, "aaa", 7L: JLong))
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 10L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 17L: JLong))
-    } else {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 9L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
-    }
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 9L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
 
     testHarness.processElement(binaryRecord(INSERT, "bbb", 3L: JLong))
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 3L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 6L: JLong))
-    } else {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
-    }
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
 
     // accumulate
     testHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
-    if (enableAsyncState) {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 17L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 17L: JLong))
-    } else {
-      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 16L: JLong))
-      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
-    }
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 16L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)

@@ -74,11 +74,8 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(new Watermark(102));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        // async state does not support set ttl
-        if (!enableAsyncState) {
-            expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
-            expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
-        }
+        expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
+        expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
         expectedOutput.add(new Watermark(402));
 
         // generateUpdateBefore: true, generateInsert: true
@@ -97,11 +94,8 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(new Watermark(102));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        // async state does not support set ttl
-        if (!enableAsyncState) {
-            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
-            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
-        }
+        expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
+        expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
         expectedOutput.add(new Watermark(402));
         testRowTimeDeduplicateKeepFirstRow(false, false, expectedOutput);
     }
@@ -120,16 +114,8 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        if (enableAsyncState) {
-            // async state does not support set ttl
-            expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key1", 12, 300L));
-            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
-            expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key2", 11, 301L));
-            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
-        } else {
-            expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
-            expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
-        }
+        expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
+        expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
 
         expectedOutput.add(new Watermark(402));
 
@@ -149,14 +135,8 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        if (enableAsyncState) {
-            // async state does not support set ttl
-            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
-            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
-        } else {
-            expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
-            expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
-        }
+        expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
+        expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
         expectedOutput.add(new Watermark(402));
         testRowTimeDeduplicateKeepLastRow(false, true, expectedOutput);
 
@@ -361,11 +341,8 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         testHarness.processElement(insertRecord("key2", 11, 401L));
         testHarness.processWatermark(402);
 
-        // all state has expired with sync state api, so the record ("key1", 12, 400L),
-        // ("key2", 12, 401L) will be INSERT message;
-        // the state does not expire with async state api because async state api does not support
-        // set ttl , so the record ("key1", 12, 400L), ("key2", 12, 401L) will be output with
-        // UPDATE_AFTER message
+        // all state has expired, so the record ("key1", 12, 400L), ("key2", 11, 401L) will be
+        // INSERT message
         actualOutput.addAll(testHarness.getOutput());
 
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, actualOutput);
