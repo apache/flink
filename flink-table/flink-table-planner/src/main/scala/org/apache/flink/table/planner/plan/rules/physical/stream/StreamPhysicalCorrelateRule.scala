@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelate
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCalc, StreamPhysicalCorrelate}
+import org.apache.flink.table.planner.plan.rules.physical.common.CorrelateProjectionUtils
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule.{getMergedCalc, getTableScan}
 import org.apache.flink.table.planner.plan.utils.{AsyncUtil, PythonUtil}
 
@@ -30,7 +31,11 @@ import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
+import org.apache.calcite.sql.validate.SqlValidatorUtil
+
+import java.util.Collections
 
 /** Rule that converts [[FlinkLogicalCorrelate]] to [[StreamPhysicalCorrelate]]. */
 class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
@@ -55,7 +60,7 @@ class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) 
       // right node is a table function
       case scan: FlinkLogicalTableFunctionScan =>
         PythonUtil.isNonPythonCall(scan.getCall) && AsyncUtil.isNonAsyncCall(scan.getCall)
-      // a filter is pushed above the table function
+      // a calc (filter and/or projection) is pushed above the table function
       case calc: FlinkLogicalCalc => findTableFunction(calc)
       case _ => false
     }
@@ -68,35 +73,75 @@ class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) 
       RelOptRule.convert(correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
     val right: RelNode = correlate.getInput(1)
 
-    @scala.annotation.tailrec
-    def convertToCorrelate(
-        relNode: RelNode,
-        condition: Option[RexNode]): StreamPhysicalCorrelate = {
-      relNode match {
-        case rel: RelSubset =>
-          convertToCorrelate(rel.getRelList.get(0), condition)
+    val (scan, mergedCalc) = unwrapToScan(right)
 
-        case calc: FlinkLogicalCalc =>
-          val tableScan = getTableScan(calc)
-          val newCalc = getMergedCalc(calc)
-          convertToCorrelate(
-            tableScan,
-            if (newCalc.getProgram.getCondition == null) None
-            else Some(newCalc.getProgram.expandLocalRef(newCalc.getProgram.getCondition))
-          )
-
-        case scan: FlinkLogicalTableFunctionScan =>
-          new StreamPhysicalCorrelate(
-            rel.getCluster,
-            traitSet,
-            convInput,
-            scan,
-            condition,
-            rel.getRowType,
-            correlate.getJoinType)
-      }
+    val condition: Option[RexNode] = mergedCalc.flatMap {
+      calc =>
+        val program = calc.getProgram
+        Option(program.getCondition).map(program.expandLocalRef)
     }
-    convertToCorrelate(right, None)
+
+    // Non-identity projection above the TFS cannot be folded into the physical Correlate's
+    // output rowType: the codegen concatenates the left input with the full TFS output
+    // positionally. Apply it via a wrapping Calc instead. SEMI/ANTI Correlates output only
+    // the left fields, so the projection has no effect there.
+    val needsProjectionAbove =
+      mergedCalc.exists(calc => !calc.getProgram.projectsOnlyIdentity()) &&
+        (correlate.getJoinType == JoinRelType.INNER ||
+          correlate.getJoinType == JoinRelType.LEFT)
+
+    if (needsProjectionAbove) {
+      val combinedRowType = SqlValidatorUtil.deriveJoinRowType(
+        convInput.getRowType,
+        scan.getRowType,
+        correlate.getJoinType,
+        correlate.getCluster.getTypeFactory,
+        null,
+        Collections.emptyList())
+
+      val physicalCorrelate = new StreamPhysicalCorrelate(
+        correlate.getCluster,
+        traitSet,
+        convInput,
+        scan,
+        condition,
+        combinedRowType,
+        correlate.getJoinType)
+
+      val wrappingProgram = CorrelateProjectionUtils.buildWrappingProgram(
+        mergedCalc.get.getProgram,
+        combinedRowType,
+        correlate.getRowType,
+        convInput.getRowType.getFieldCount,
+        correlate.getCluster.getRexBuilder)
+
+      new StreamPhysicalCalc(
+        correlate.getCluster,
+        traitSet,
+        physicalCorrelate,
+        wrappingProgram,
+        correlate.getRowType)
+    } else {
+      new StreamPhysicalCorrelate(
+        correlate.getCluster,
+        traitSet,
+        convInput,
+        scan,
+        condition,
+        correlate.getRowType,
+        correlate.getJoinType)
+    }
+  }
+
+  private def unwrapToScan(
+      rel: RelNode): (FlinkLogicalTableFunctionScan, Option[FlinkLogicalCalc]) = {
+    rel match {
+      case subset: RelSubset => unwrapToScan(subset.getRelList.get(0))
+      case calc: FlinkLogicalCalc =>
+        val merged = getMergedCalc(calc)
+        (getTableScan(merged), Some(merged))
+      case scan: FlinkLogicalTableFunctionScan => (scan, None)
+    }
   }
 
 }
