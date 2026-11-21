@@ -35,9 +35,12 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link ForStStateExecutor}. */
@@ -229,6 +232,179 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
     }
 
     @Test
+    void testExecuteMapPutAllWithNullValues() throws Exception {
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(true, false, 3, 1, db, writeOptions);
+            ForStMapState<Integer, VoidNamespace, String, String> state =
+                    buildForStMapState("map-put-all-null-values");
+            try {
+                HashMap<String, String> initialValues = new HashMap<>();
+                initialValues.put("removed", "old");
+                initialValues.put("updated", "old");
+                initialValues.put("retained", "old");
+                executeMapPutAll(forStStateExecutor, state, 1, initialValues);
+
+                HashMap<String, String> updates = new HashMap<>();
+                updates.put("removed", null);
+                updates.put("missing", null);
+                updates.put("updated", "new");
+                updates.put("added", "new");
+                StateRequest<?, ?, ?, ?> updateRequest =
+                        executeMapPutAll(forStStateExecutor, state, 1, updates);
+
+                assertThat(((TestAsyncFuture<?>) updateRequest.getFuture()).future)
+                        .isCompletedWithValue(null);
+                assertMapValue(forStStateExecutor, state, 1, "removed", null);
+                assertMapContains(forStStateExecutor, state, 1, "removed", false);
+                assertMapValue(forStStateExecutor, state, 1, "missing", null);
+                assertMapContains(forStStateExecutor, state, 1, "missing", false);
+                assertMapValue(forStStateExecutor, state, 1, "updated", "new");
+                assertMapContains(forStStateExecutor, state, 1, "updated", true);
+                assertMapValue(forStStateExecutor, state, 1, "added", "new");
+                assertMapContains(forStStateExecutor, state, 1, "added", true);
+                assertMapValue(forStStateExecutor, state, 1, "retained", "old");
+                assertMapContains(forStStateExecutor, state, 1, "retained", true);
+            } finally {
+                forStStateExecutor.shutdown();
+            }
+        }
+    }
+
+    @Test
+    void testExecuteMapPutAllWithOnlyNullValues() throws Exception {
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(true, false, 3, 1, db, writeOptions);
+            ForStMapState<Integer, VoidNamespace, String, String> state =
+                    buildForStMapState("map-put-all-only-null-values");
+            try {
+                HashMap<String, String> initialValues = new HashMap<>();
+                initialValues.put("first", "one");
+                initialValues.put("second", "two");
+                executeMapPutAll(forStStateExecutor, state, 1, initialValues);
+
+                HashMap<String, String> removals = new HashMap<>();
+                removals.put("first", null);
+                removals.put("second", null);
+                removals.put("missing", null);
+                executeMapPutAll(forStStateExecutor, state, 1, removals);
+
+                assertMapValue(forStStateExecutor, state, 1, "first", null);
+                assertMapContains(forStStateExecutor, state, 1, "first", false);
+                assertMapValue(forStStateExecutor, state, 1, "second", null);
+                assertMapContains(forStStateExecutor, state, 1, "second", false);
+                assertMapValue(forStStateExecutor, state, 1, "missing", null);
+                assertMapContains(forStStateExecutor, state, 1, "missing", false);
+                assertMapIsEmpty(forStStateExecutor, state, 1, true);
+            } finally {
+                forStStateExecutor.shutdown();
+            }
+        }
+    }
+
+    @Test
+    void testExecuteEmptyMapPutAllLeavesStateUnchanged() throws Exception {
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(true, false, 3, 1, db, writeOptions);
+            ForStMapState<Integer, VoidNamespace, String, String> state =
+                    buildForStMapState("empty-map-put-all");
+            try {
+                HashMap<String, String> initialValues = new HashMap<>();
+                initialValues.put("existing", "value");
+                executeMapPutAll(forStStateExecutor, state, 1, initialValues);
+
+                StateRequest<?, ?, ?, ?> emptyRequest =
+                        executeMapPutAll(forStStateExecutor, state, 1, new HashMap<>());
+
+                assertThat(((TestAsyncFuture<?>) emptyRequest.getFuture()).future)
+                        .isCompletedWithValue(null);
+                assertMapValue(forStStateExecutor, state, 1, "existing", "value");
+            } finally {
+                forStStateExecutor.shutdown();
+            }
+        }
+    }
+
+    @Test
+    void testMapPutAllPreservesRequestOrder() throws Exception {
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(true, false, 3, 1, db, writeOptions);
+            ForStMapState<Integer, VoidNamespace, String, String> state =
+                    buildForStMapState("map-put-all-order");
+            try {
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                        forStStateExecutor.createRequestContainer();
+                requests.offer(
+                        buildMapRequest(
+                                state,
+                                StateRequestType.MAP_PUT,
+                                1,
+                                Tuple2.of("before-bulk", "single"),
+                                0));
+                HashMap<String, String> bulkValues = new HashMap<>();
+                bulkValues.put("before-bulk", "bulk");
+                bulkValues.put("after-bulk", "bulk");
+                bulkValues.put("removed-after-bulk", "bulk");
+                bulkValues.put("missing", null);
+                requests.offer(
+                        buildMapRequest(state, StateRequestType.MAP_PUT_ALL, 1, bulkValues, 0));
+                requests.offer(
+                        buildMapRequest(
+                                state,
+                                StateRequestType.MAP_PUT,
+                                1,
+                                Tuple2.of("after-bulk", "single"),
+                                0));
+                requests.offer(
+                        buildMapRequest(
+                                state, StateRequestType.MAP_REMOVE, 1, "removed-after-bulk", 0));
+
+                forStStateExecutor.executeBatchRequests(requests).get(30, TimeUnit.SECONDS);
+
+                assertMapValue(forStStateExecutor, state, 1, "before-bulk", "bulk");
+                assertMapValue(forStStateExecutor, state, 1, "after-bulk", "single");
+                assertMapValue(forStStateExecutor, state, 1, "removed-after-bulk", null);
+                assertMapContains(forStStateExecutor, state, 1, "removed-after-bulk", false);
+                assertMapValue(forStStateExecutor, state, 1, "missing", null);
+                assertMapContains(forStStateExecutor, state, 1, "missing", false);
+            } finally {
+                forStStateExecutor.shutdown();
+            }
+        }
+    }
+
+    @Test
+    void testMapPutAllRejectsNullMapWithoutClearingState() throws Exception {
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(true, false, 3, 1, db, writeOptions);
+            ForStMapState<Integer, VoidNamespace, String, String> state =
+                    buildForStMapState("null-map-put-all");
+            try {
+                HashMap<String, String> initialValues = new HashMap<>();
+                initialValues.put("existing", "value");
+                executeMapPutAll(forStStateExecutor, state, 1, initialValues);
+
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                        forStStateExecutor.createRequestContainer();
+                StateRequest<?, ?, ?, ?> request =
+                        buildMapRequest(state, StateRequestType.MAP_PUT_ALL, 1, null, 0);
+
+                assertThatThrownBy(() -> requests.offer(request))
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("MAP_PUT_ALL");
+                assertThat(requests.isEmpty()).isTrue();
+                assertMapValue(forStStateExecutor, state, 1, "existing", "value");
+            } finally {
+                forStStateExecutor.shutdown();
+            }
+        }
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void testExecuteAggregatingStateRequest() throws Exception {
         ForStStateExecutor forStStateExecutor =
@@ -333,6 +509,79 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
             assertThat(((TestAsyncFuture<Integer>) request.getFuture()).getCompletedResult())
                     .isEqualTo(1);
         }
+    }
+
+    private StateRequest<?, ?, ?, ?> executeMapPutAll(
+            ForStStateExecutor executor,
+            ForStMapState<Integer, VoidNamespace, String, String> state,
+            int key,
+            Map<String, String> values)
+            throws Exception {
+        AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                executor.createRequestContainer();
+        StateRequest<?, ?, ?, ?> request =
+                buildMapRequest(state, StateRequestType.MAP_PUT_ALL, key, values, 0);
+        requests.offer(request);
+        executor.executeBatchRequests(requests).get(30, TimeUnit.SECONDS);
+        return request;
+    }
+
+    private void assertMapValue(
+            ForStStateExecutor executor,
+            ForStMapState<Integer, VoidNamespace, String, String> state,
+            int key,
+            String userKey,
+            String expectedValue)
+            throws Exception {
+        assertThat(readMapValue(executor, state, key, userKey)).isEqualTo(expectedValue);
+    }
+
+    private void assertMapContains(
+            ForStStateExecutor executor,
+            ForStMapState<Integer, VoidNamespace, String, String> state,
+            int key,
+            String userKey,
+            boolean expectedPresent)
+            throws Exception {
+        AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                executor.createRequestContainer();
+        StateRequest<?, ?, ?, ?> request =
+                buildMapRequest(state, StateRequestType.MAP_CONTAINS, key, userKey, 0);
+        requests.offer(request);
+        executor.executeBatchRequests(requests).get(30, TimeUnit.SECONDS);
+        Boolean present = (Boolean) ((TestAsyncFuture<?>) request.getFuture()).getCompletedResult();
+        assertThat(present).isEqualTo(expectedPresent);
+    }
+
+    private void assertMapIsEmpty(
+            ForStStateExecutor executor,
+            ForStMapState<Integer, VoidNamespace, String, String> state,
+            int key,
+            boolean expectedEmpty)
+            throws Exception {
+        AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                executor.createRequestContainer();
+        StateRequest<?, ?, ?, ?> request =
+                buildMapRequest(state, StateRequestType.MAP_IS_EMPTY, key, null, 0);
+        requests.offer(request);
+        executor.executeBatchRequests(requests).get(30, TimeUnit.SECONDS);
+        Boolean empty = (Boolean) ((TestAsyncFuture<?>) request.getFuture()).getCompletedResult();
+        assertThat(empty).isEqualTo(expectedEmpty);
+    }
+
+    private String readMapValue(
+            ForStStateExecutor executor,
+            ForStMapState<Integer, VoidNamespace, String, String> state,
+            int key,
+            String userKey)
+            throws Exception {
+        AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                executor.createRequestContainer();
+        StateRequest<?, ?, ?, ?> request =
+                buildMapRequest(state, StateRequestType.MAP_GET, key, userKey, 0);
+        requests.offer(request);
+        executor.executeBatchRequests(requests).get(30, TimeUnit.SECONDS);
+        return (String) ((TestAsyncFuture<?>) request.getFuture()).getCompletedResult();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
