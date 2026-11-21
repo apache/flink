@@ -227,6 +227,41 @@ class ConfigurationUtilsTest {
     }
 
     @Test
+    void testParseTempDirectoriesWithCommaSeparator() {
+        final Configuration configuration = new Configuration();
+        configuration.set(CoreOptions.TMP_DIRS, "first,second");
+
+        assertThat(ConfigurationUtils.parseTempDirectories(configuration))
+                .containsExactly("first", "second");
+    }
+
+    @Test
+    void testParseTempDirectoriesWithSystemPathSeparator() {
+        final Configuration configuration = new Configuration();
+        configuration.set(CoreOptions.TMP_DIRS, "first" + File.pathSeparator + "second");
+
+        assertThat(ConfigurationUtils.parseTempDirectories(configuration))
+                .containsExactly("first", "second");
+    }
+
+    @Test
+    void testParseTempDirectoriesWithLiteralPipe() {
+        final Configuration configuration = new Configuration();
+        configuration.set(CoreOptions.TMP_DIRS, "first|second");
+
+        assertThat(ConfigurationUtils.parseTempDirectories(configuration))
+                .containsExactly("first|second");
+    }
+
+    @Test
+    void testParseTempDirectoriesWithEmptyValue() {
+        final Configuration configuration = new Configuration();
+        configuration.set(CoreOptions.TMP_DIRS, "");
+
+        assertThat(ConfigurationUtils.parseTempDirectories(configuration)).isEmpty();
+    }
+
+    @Test
     void testRandomTempDirectorySelection() {
         final Configuration configuration = new Configuration();
         final StringBuilder tempDirectories = new StringBuilder();
