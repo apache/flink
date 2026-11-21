@@ -495,10 +495,13 @@ class DistinctAggCodeGen(
                """.stripMargin
             GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, internalAccType)
           } else {
+            // getJavaObject() is null for an accumulator that was read back from state,
+            // the raw value only holds bytes at that point
             val code =
               s"""
                  |${expr.code}
-                 |$distinctAccTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
+                 |$distinctAccTerm =
+                 |  ${genToExternalConverter(ctx, externalAccType, expr.resultTerm)};
               """.stripMargin
             GeneratedExpression(distinctAccTerm, NEVER_NULL, code, internalAccType)
           }
