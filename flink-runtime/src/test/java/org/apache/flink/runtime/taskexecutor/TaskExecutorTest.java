@@ -1934,6 +1934,88 @@ class TaskExecutorTest {
     }
 
     /**
+     * Tests that {@link TaskExecutor#prepareForTermination()} proactively disconnects from the
+     * ResourceManager, and - unlike an ordinary disconnect - does not attempt to reconnect
+     * afterwards.
+     */
+    @Test
+    void testPrepareForTerminationDisconnectsFromResourceManagerWithoutReconnecting()
+            throws Exception {
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_EXTENSION.getExecutor());
+        final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                new LocalUnresolvedTaskManagerLocation();
+        final TaskExecutor taskExecutor =
+                createTaskExecutor(
+                        new TaskManagerServicesBuilder()
+                                .setTaskSlotTable(taskSlotTable)
+                                .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
+                                .build());
+
+        taskExecutor.start();
+
+        try {
+            final TestingResourceManagerGateway testingResourceManagerGateway =
+                    new TestingResourceManagerGateway();
+            final ClusterInformation clusterInformation = new ClusterInformation("foobar", 1234);
+            final CompletableFuture<RegistrationResponse> registrationResponseFuture =
+                    CompletableFuture.completedFuture(
+                            new TaskExecutorRegistrationSuccess(
+                                    new InstanceID(),
+                                    ResourceID.generate(),
+                                    clusterInformation,
+                                    null));
+            final BlockingQueue<ResourceID> registrationQueue = new ArrayBlockingQueue<>(1);
+            final CompletableFuture<ResourceID> disconnectTaskManagerFuture =
+                    new CompletableFuture<>();
+            final OneShotLatch slotReportReceived = new OneShotLatch();
+
+            testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+                    taskExecutorRegistration -> {
+                        registrationQueue.offer(taskExecutorRegistration.getResourceId());
+                        return registrationResponseFuture;
+                    });
+            testingResourceManagerGateway.setDisconnectTaskExecutorConsumer(
+                    tuple -> disconnectTaskManagerFuture.complete(tuple.f0));
+            testingResourceManagerGateway.setSendSlotReportFunction(
+                    ignored -> {
+                        slotReportReceived.trigger();
+                        return CompletableFuture.completedFuture(Acknowledge.get());
+                    });
+            rpc.registerGateway(
+                    testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+            resourceManagerLeaderRetriever.notifyListener(
+                    testingResourceManagerGateway.getAddress(),
+                    testingResourceManagerGateway.getFencingToken().toUUID());
+
+            final ResourceID firstRegistrationAttempt = registrationQueue.take();
+            assertThat(firstRegistrationAttempt)
+                    .isEqualTo(unresolvedTaskManagerLocation.getResourceID());
+
+            // Wait until the TaskExecutor has actually finished establishing the ResourceManager
+            // connection (registration alone does not guarantee this has happened yet) - otherwise
+            // prepareForTermination() may run before there is a connection to close.
+            slotReportReceived.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            taskExecutor.prepareForTermination();
+
+            final ResourceID disconnectedResourceId =
+                    disconnectTaskManagerFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            assertThat(disconnectedResourceId)
+                    .isEqualTo(unresolvedTaskManagerLocation.getResourceID());
+
+            assertThat(registrationQueue.poll(500L, TimeUnit.MILLISECONDS))
+                    .withFailMessage(
+                            "A TaskExecutor preparing for termination must not try to "
+                                    + "re-register with the ResourceManager it just disconnected from.")
+                    .isNull();
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
+        }
+    }
+
+    /**
      * Tests that the {@link TaskExecutor} sends the initial slot report after it registered at the
      * ResourceManager.
      */
