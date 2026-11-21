@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.DistributionType;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAsyncCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
@@ -188,6 +189,7 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                         || source instanceof BatchExecPythonAsyncCalc
                         || source instanceof BatchExecSort
                         || source instanceof BatchExecCorrelate
+                        || source instanceof BatchExecAsyncCorrelate
                         || source instanceof BatchExecPythonCorrelate)) {
             ExecEdge newEdge =
                     addExchangeAndReconnectEdge(

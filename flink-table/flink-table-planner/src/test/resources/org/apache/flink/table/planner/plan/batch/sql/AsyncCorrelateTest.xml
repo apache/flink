@@ -1,0 +1,172 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAsyncCorrelate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable, LATERAL asyncTableFunc(a)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCorrelate(invocation=[asyncTableFunc($0)], correlate=[table(asyncTableFunc(a))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCorrelateIsNotMergedIntoMultipleInput">
+    <Resource name="sql">
+      <![CDATA[SELECT t1.a, t1.s, t2.b FROM (SELECT a, s FROM (SELECT a FROM MyTable GROUP BY a), LATERAL asyncTableFunc(a) AS T(s)) t1 JOIN MyTable t2 ON t1.a = t2.a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], s=[$1], b=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalProject(a=[$0], s=[$1])
+   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :     :- LogicalAggregate(group=[{0}])
+   :     :  +- LogicalProject(a=[$0])
+   :     :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   :     +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) s)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, s, b])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, s, a0, b], build=[left])
+   :- Exchange(distribution=[keep_input_as_is[hash[a]]])
+   :  +- AsyncCorrelate(invocation=[asyncTableFunc($0)], correlate=[table(asyncTableFunc(a))], select=[a,s], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) s)], joinType=[INNER])
+   :     +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+   :        +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
+   :           +- Exchange(distribution=[hash[a]])
+   :              +- LocalHashAggregate(groupBy=[a], select=[a])
+   :                 +- Calc(select=[a])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCorrelateLeftJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable LEFT JOIN LATERAL asyncTableFunc(a) ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCorrelate(invocation=[asyncTableFunc($0)], correlate=[table(asyncTableFunc(a))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCorrelateWithFilterInLeftSide">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable, LATERAL asyncTableFunc(a) AS T(s) WHERE a > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalFilter(condition=[>($0, 1)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, s])
++- AsyncCorrelate(invocation=[asyncTableFunc($0)], correlate=[table(asyncTableFunc(a))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
+   +- Calc(select=[a, b, c], where=[(a > 1)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCorrelateWithRightSelectStar">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable, LATERAL (SELECT * FROM asyncTableFunc(a) AS T(s))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(s=[$0])
+      +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCorrelate(invocation=[asyncTableFunc($0)], correlate=[table(asyncTableFunc(a))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncCorrelateWithScalarArgument">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable, LATERAL asyncTableFunc(mySum(a, 10))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[asyncTableFunc(mySum($cor0.a, 10))], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, s])
++- AsyncCorrelate(invocation=[asyncTableFunc($3)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,f0,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER f0, VARCHAR(2147483647) s)], joinType=[INNER])
+   +- Calc(select=[a, b, c, mySum(a, 10) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConstantAsyncTableFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM asyncTableFunc(1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(s=[$0])
++- LogicalTableFunctionScan(invocation=[asyncTableFunc(1)], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AsyncCorrelate(invocation=[asyncTableFunc(1)], correlate=[table(asyncTableFunc(1))], select=[s], rowType=[RecordType(VARCHAR(2147483647) s)], joinType=[INNER])
++- Values(tuples=[[{  }]], values=[])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
