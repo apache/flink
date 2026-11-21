@@ -23,41 +23,36 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultDispatcherRunner}. */
-public class DefaultDispatcherRunnerTest extends TestLogger {
+class DefaultDispatcherRunnerTest {
 
     private TestingLeaderElection leaderElection;
     private TestingFatalErrorHandler testingFatalErrorHandler;
     private TestingDispatcherLeaderProcessFactory testingDispatcherLeaderProcessFactory;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         leaderElection = new TestingLeaderElection();
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         testingDispatcherLeaderProcessFactory =
                 TestingDispatcherLeaderProcessFactory.defaultValue();
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         leaderElection.close();
 
         if (testingFatalErrorHandler != null) {
@@ -67,16 +62,16 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
     }
 
     @Test
-    public void testLeaderElectionLifecycle() throws Exception {
-        assertTrue(leaderElection.isStopped());
+    void testLeaderElectionLifecycle() throws Exception {
+        assertThat(leaderElection.isStopped()).isTrue();
         try (final DispatcherRunner unusedDisptacherRunner = createDispatcherRunner()) {
-            assertFalse(leaderElection.isStopped());
+            assertThat(leaderElection.isStopped()).isFalse();
         }
-        assertTrue(leaderElection.isStopped());
+        assertThat(leaderElection.isStopped()).isTrue();
     }
 
     @Test
-    public void closeAsync_doesNotCompleteUncompletedShutDownFuture() throws Exception {
+    void closeAsync_doesNotCompleteUncompletedShutDownFuture() throws Exception {
         final DispatcherRunner dispatcherRunner = createDispatcherRunner();
 
         final CompletableFuture<Void> terminationFuture = dispatcherRunner.closeAsync();
@@ -84,11 +79,11 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
         final CompletableFuture<ApplicationStatus> shutDownFuture =
                 dispatcherRunner.getShutDownFuture();
-        assertThat(shutDownFuture.isDone(), is(false));
+        assertThat(shutDownFuture).isNotDone();
     }
 
     @Test
-    public void getShutDownFuture_whileRunning_forwardsDispatcherLeaderProcessShutDownRequest()
+    void getShutDownFuture_whileRunning_forwardsDispatcherLeaderProcessShutDownRequest()
             throws Exception {
         final UUID leaderSessionId = UUID.randomUUID();
         final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
@@ -105,17 +100,17 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture =
                     dispatcherRunner.getShutDownFuture();
 
-            assertFalse(dispatcherShutDownFuture.isDone());
+            assertThat(dispatcherShutDownFuture).isNotDone();
 
             final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
             shutDownFuture.complete(finalApplicationStatus);
 
-            assertThat(dispatcherShutDownFuture.get(), is(finalApplicationStatus));
+            assertThat(dispatcherShutDownFuture.get()).isEqualTo(finalApplicationStatus);
         }
     }
 
     @Test
-    public void getShutDownFuture_afterClose_ignoresDispatcherLeaderProcessShutDownRequest()
+    void getShutDownFuture_afterClose_ignoresDispatcherLeaderProcessShutDownRequest()
             throws Exception {
         final UUID leaderSessionId = UUID.randomUUID();
         final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
@@ -132,24 +127,22 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture =
                     dispatcherRunner.getShutDownFuture();
 
-            assertFalse(dispatcherShutDownFuture.isDone());
+            assertThat(dispatcherShutDownFuture).isNotDone();
 
             dispatcherRunner.closeAsync();
 
             final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
             shutDownFuture.complete(finalApplicationStatus);
 
-            try {
-                dispatcherShutDownFuture.get(10L, TimeUnit.MILLISECONDS);
-                fail(
-                        "The dispatcher runner should no longer react to the dispatcher leader process's shut down request if it has been terminated.");
-            } catch (TimeoutException expected) {
-            }
+            assertThatFuture(dispatcherShutDownFuture)
+                    .as(
+                            "The dispatcher runner should no longer react to the dispatcher leader process's shut down request if it has been terminated.")
+                    .willNotCompleteWithin(Duration.ofMillis(10L));
         }
     }
 
     @Test
-    public void getShutDownFuture_newLeader_ignoresOldDispatcherLeaderProcessShutDownRequest()
+    void getShutDownFuture_newLeader_ignoresOldDispatcherLeaderProcessShutDownRequest()
             throws Exception {
         final UUID firstLeaderSessionId = UUID.randomUUID();
         final UUID secondLeaderSessionId = UUID.randomUUID();
@@ -170,19 +163,19 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture =
                     dispatcherRunner.getShutDownFuture();
 
-            assertFalse(dispatcherShutDownFuture.isDone());
+            assertThat(dispatcherShutDownFuture).isNotDone();
 
             leaderElection.isLeader(secondLeaderSessionId);
 
             final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
             shutDownFuture.complete(finalApplicationStatus);
 
-            assertFalse(dispatcherShutDownFuture.isDone());
+            assertThat(dispatcherShutDownFuture).isNotDone();
         }
     }
 
     @Test
-    public void revokeLeadership_withExistingLeader_stopsLeaderProcess() throws Exception {
+    void revokeLeadership_withExistingLeader_stopsLeaderProcess() throws Exception {
         final UUID leaderSessionId = UUID.randomUUID();
 
         final OneShotLatch startLatch = new OneShotLatch();
@@ -211,8 +204,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
     }
 
     @Test
-    public void grantLeadership_withExistingLeader_waitsForTerminationOfFirstLeader()
-            throws Exception {
+    void grantLeadership_withExistingLeader_waitsForTerminationOfFirstLeader() throws Exception {
         final UUID firstLeaderSessionId = UUID.randomUUID();
         final UUID secondLeaderSessionId = UUID.randomUUID();
 
@@ -229,32 +221,32 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
             leaderElection.isLeader(firstLeaderSessionId);
 
-            assertThat(firstTestingDispatcherLeaderProcess.isStarted(), is(true));
+            assertThat(firstTestingDispatcherLeaderProcess.isStarted()).isTrue();
 
             leaderElection.isLeader(secondLeaderSessionId);
 
-            assertThat(secondTestingDispatcherLeaderProcess.isStarted(), is(false));
+            assertThat(secondTestingDispatcherLeaderProcess.isStarted()).isFalse();
             firstTestingDispatcherLeaderProcess.terminateProcess();
-            assertThat(secondTestingDispatcherLeaderProcess.isStarted(), is(true));
+            assertThat(secondTestingDispatcherLeaderProcess.isStarted()).isTrue();
             secondTestingDispatcherLeaderProcess
                     .terminateProcess(); // make the dispatcherRunner terminate
         }
     }
 
     @Test
-    public void grantLeadership_validLeader_confirmsLeaderSession() throws Exception {
+    void grantLeadership_validLeader_confirmsLeaderSession() throws Exception {
         final UUID leaderSessionId = UUID.randomUUID();
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
             final LeaderInformation leaderInformation =
                     leaderElection.isLeader(leaderSessionId).join();
 
-            assertThat(leaderInformation.getLeaderSessionID(), is(leaderSessionId));
+            assertThat(leaderInformation.getLeaderSessionID()).isEqualTo(leaderSessionId);
         }
     }
 
     @Test
-    public void grantLeadership_oldLeader_doesNotConfirmLeaderSession() throws Exception {
+    void grantLeadership_oldLeader_doesNotConfirmLeaderSession() throws Exception {
         final UUID leaderSessionId = UUID.randomUUID();
         final CompletableFuture<String> contenderConfirmationFuture = new CompletableFuture<>();
         final TestingDispatcherLeaderProcess testingDispatcherLeaderProcess =
@@ -273,12 +265,12 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             // complete the confirmation future after losing the leadership
             contenderConfirmationFuture.complete("leader address");
 
-            assertThat(leaderElection.hasLeadershipAsync(leaderSessionId).get(), is(false));
+            assertThat(leaderElection.hasLeadershipAsync(leaderSessionId).get()).isFalse();
         }
     }
 
     @Test
-    public void
+    void
             grantLeadership_multipleLeaderChanges_lastDispatcherLeaderProcessWaitsForOthersToTerminateBeforeItStarts()
                     throws Exception {
         final UUID firstLeaderSession = UUID.randomUUID();
@@ -320,11 +312,11 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
             firstDispatcherLeaderProcessTerminationFuture.complete(null);
 
-            assertThat(thirdDispatcherLeaderProcessHasBeenStartedFuture.isDone(), is(false));
+            assertThat(thirdDispatcherLeaderProcessHasBeenStartedFuture).isNotDone();
 
             secondDispatcherLeaderProcessTerminationFuture.complete(null);
 
-            assertThat(thirdDispatcherLeaderProcessHasBeenStartedFuture.isDone(), is(true));
+            assertThat(thirdDispatcherLeaderProcessHasBeenStartedFuture).isDone();
         } finally {
             firstDispatcherLeaderProcessTerminationFuture.complete(null);
             secondDispatcherLeaderProcessTerminationFuture.complete(null);

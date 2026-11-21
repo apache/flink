@@ -30,13 +30,11 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.flink.shaded.guava33.com.google.common.base.Ticker;
 
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -51,16 +49,14 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.generateApplicationDetails;
 import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.generateJobDetails;
 import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.generateTerminalArchivedApplications;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.apache.flink.runtime.dispatcher.ArchivedApplicationStoreTestUtils.partiallyEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MemoryArchivedApplicationStore}. */
-class MemoryArchivedApplicationStoreTest extends TestLogger {
+class MemoryArchivedApplicationStoreTest {
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
     /**
@@ -80,22 +76,18 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
                 createDefaultArchivedApplicationStore()) {
 
             // check that the store is empty
-            assertEquals(0, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isZero();
 
             archivedApplicationStore.put(expectedArchivedApplication);
 
             // check that we have persisted the given application
-            assertEquals(1, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isOne();
 
-            assertThat(
-                    archivedApplicationStore.get(applicationId).orElse(null),
-                    new ArchivedApplicationStoreTestUtils.PartialArchivedApplicationMatcher(
-                            expectedArchivedApplication));
+            assertThat(archivedApplicationStore.get(applicationId))
+                    .hasValueSatisfying(partiallyEqualTo(expectedArchivedApplication));
 
-            assertThat(
-                    archivedApplicationStore.getExecutionGraphInfo(jobId).orElse(null),
-                    new ArchivedApplicationStoreTestUtils.PartialExecutionGraphInfoMatcher(
-                            expectedExecutionGraphInfo));
+            assertThat(archivedApplicationStore.getExecutionGraphInfo(jobId))
+                    .hasValueSatisfying(partiallyEqualTo(expectedExecutionGraphInfo));
         }
     }
 
@@ -104,7 +96,7 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
     void testUnknownGet() throws IOException {
         try (final ArchivedApplicationStore archivedApplicationStore =
                 createDefaultArchivedApplicationStore()) {
-            assertNull(archivedApplicationStore.get(new ApplicationID()).orElse(null));
+            assertThat(archivedApplicationStore.get(new ApplicationID())).isEmpty();
         }
     }
 
@@ -132,7 +124,7 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
                 archivedApplicationStore.put(executionGraphInfo);
             }
 
-            assertEquals(expectedJobsOverview, archivedApplicationStore.getJobsOverview());
+            assertThat(archivedApplicationStore.getJobsOverview()).isEqualTo(expectedJobsOverview);
         }
     }
 
@@ -151,9 +143,8 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
                 archivedApplicationStore.put(archivedApplication);
             }
 
-            assertThat(
-                    archivedApplicationStore.getJobDetails(),
-                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+            assertThat(archivedApplicationStore.getJobDetails())
+                    .containsExactlyInAnyOrderElementsOf(jobDetails);
         }
     }
 
@@ -173,9 +164,8 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
                 archivedApplicationStore.put(archivedApplication);
             }
 
-            assertThat(
-                    archivedApplicationStore.getApplicationDetails(),
-                    Matchers.containsInAnyOrder(applicationDetails.toArray()));
+            assertThat(archivedApplicationStore.getApplicationDetails())
+                    .containsExactlyInAnyOrderElementsOf(applicationDetails);
         }
     }
 
@@ -203,7 +193,7 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
             archivedApplicationStore.put(archivedApplication);
 
             // there should one application
-            assertEquals(1, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isOne();
 
             manualTicker.advanceTime(expirationTime.toMillis(), TimeUnit.MILLISECONDS);
 
@@ -211,11 +201,11 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
             scheduledExecutor.triggerScheduledTasks();
 
             // check that the store is empty
-            assertEquals(0, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isZero();
 
-            assertNull(archivedApplicationStore.get(applicationId).orElse(null));
+            assertThat(archivedApplicationStore.get(applicationId)).isEmpty();
 
-            assertNull(archivedApplicationStore.getExecutionGraphInfo(jobId).orElse(null));
+            assertThat(archivedApplicationStore.getExecutionGraphInfo(jobId)).isEmpty();
         }
     }
 
@@ -228,14 +218,14 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
         try (final ArchivedApplicationStore archivedApplicationStore =
                 createDefaultArchivedApplicationStore()) {
 
-            assertEquals(0, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isZero();
 
             archivedApplicationStore.put(archivedApplication);
 
-            assertEquals(1, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isOne();
 
             archivedApplicationStore.close();
-            assertEquals(0, archivedApplicationStore.size());
+            assertThat(archivedApplicationStore.size()).isZero();
         }
     }
 
@@ -263,19 +253,18 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
             for (ArchivedApplication archivedApplication : oldArchivedApplications) {
                 archivedApplicationStore.put(archivedApplication);
                 // no more than the configured maximum capacity
-                assertTrue(archivedApplicationStore.size() <= maxCapacity);
+                assertThat(archivedApplicationStore.size()).isLessThanOrEqualTo(maxCapacity);
             }
 
             for (ArchivedApplication archivedApplication : newArchivedApplications) {
                 archivedApplicationStore.put(archivedApplication);
                 // equals to the configured maximum capacity
-                assertEquals(maxCapacity, archivedApplicationStore.size());
+                assertThat(archivedApplicationStore.size()).isEqualTo(maxCapacity);
             }
 
             // the older applications are purged
-            assertThat(
-                    archivedApplicationStore.getApplicationDetails(),
-                    Matchers.containsInAnyOrder(applicationDetails.toArray()));
+            assertThat(archivedApplicationStore.getApplicationDetails())
+                    .containsExactlyInAnyOrderElementsOf(applicationDetails);
         }
     }
 
@@ -288,7 +277,7 @@ class MemoryArchivedApplicationStoreTest extends TestLogger {
         return new MemoryArchivedApplicationStore(
                 Duration.ofHours(1),
                 maximumCapacity,
-                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
+                new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()),
                 Ticker.systemTicker());
     }
 }

@@ -35,33 +35,34 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
+import static org.apache.flink.testutils.junit.utils.TempDirUtils.newFolder;
+
 /** Abstract test for the {@link Dispatcher} component. */
-public class AbstractDispatcherTest extends TestLogger {
+class AbstractDispatcherTest {
 
     static TestingRpcService rpcService;
 
     static final Duration TIMEOUT = Duration.ofMinutes(1L);
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
-    @AfterClass
-    public static void teardownClass() throws Exception {
+    @AfterAll
+    static void teardownClass() throws Exception {
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService);
             rpcService = null;
@@ -74,13 +75,11 @@ public class AbstractDispatcherTest extends TestLogger {
                 () -> status.equals(dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get()));
     }
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir Path temporaryFolder;
 
-    @Rule
-    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
-            new TestingFatalErrorHandlerResource();
-
-    @Rule public TestName name = new TestName();
+    @RegisterExtension
+    final TestingFatalErrorHandlerExtension testingFatalErrorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
 
     Configuration configuration;
 
@@ -90,8 +89,8 @@ public class AbstractDispatcherTest extends TestLogger {
 
     HeartbeatServices heartbeatServices;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         heartbeatServices = new HeartbeatServicesImpl(1000L, 10000L);
 
         haServices = new TestingHighAvailabilityServices();
@@ -103,8 +102,7 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices.setApplicationResultStore(new EmbeddedApplicationResultStore());
 
         configuration = new Configuration();
-        blobServer =
-                new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
+        blobServer = new BlobServer(configuration, newFolder(temporaryFolder), new VoidBlobStore());
     }
 
     protected TestingDispatcher.Builder createTestingDispatcherBuilder() {
@@ -118,12 +116,13 @@ public class AbstractDispatcherTest extends TestLogger {
                 .setApplicationResultStore(haServices.getApplicationResultStore())
                 .setJobManagerRunnerFactory(JobMasterServiceLeadershipRunnerFactory.INSTANCE)
                 .setCleanupRunnerFactory(CheckpointResourcesCleanupRunnerFactory.INSTANCE)
-                .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
+                .setFatalErrorHandler(
+                        testingFatalErrorHandlerExtension.getTestingFatalErrorHandler())
                 .setBlobServer(blobServer);
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         if (haServices != null) {
             haServices.closeWithOptionalClean(true);
         }
