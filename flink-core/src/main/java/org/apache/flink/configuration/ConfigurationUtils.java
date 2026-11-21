@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
@@ -46,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class ConfigurationUtils {
 
     private static final String[] EMPTY = new String[0];
+
+    private static final Pattern LINE_BREAK_PATTERN = Pattern.compile("\\R");
 
     /**
      * @return extracted {@link MetricOptions#SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL} or {@code
@@ -213,7 +216,8 @@ public class ConfigurationUtils {
      * output.
      *
      * <p>Each entry in the returned list represents a single line that can be written directly to a
-     * file.
+     * file. In the flat format, line breaks in string values, together with the whitespace around
+     * them, are replaced by a single space, so that every entry stays on one line.
      *
      * <p>Example input (flat map configuration data):
      *
@@ -252,11 +256,33 @@ public class ConfigurationUtils {
             return YamlParserUtils.convertAndDumpYamlFromFlatMap(
                     Collections.unmodifiableMap(configuration.confData));
         } else {
-            Map<String, String> fileWritableMap = configuration.toFileWritableMap();
-            return fileWritableMap.entrySet().stream()
-                    .map(entry -> entry.getKey() + ": " + entry.getValue())
+            // goes through addAllToProperties so that DelegatingConfiguration exports its entries
+            final Properties rawEntries = new Properties();
+            configuration.addAllToProperties(rawEntries);
+            return rawEntries.entrySet().stream()
+                    .map(
+                            entry ->
+                                    entry.getKey()
+                                            + ": "
+                                            + YamlParserUtils.toYAMLString(
+                                                    joinLines(entry.getValue())))
                     .collect(Collectors.toList());
         }
+    }
+
+    /**
+     * The flattened lines are read line by line by the bash scripts (see {@code bin/config.sh}). A
+     * multi-line string, e.g. from a YAML block scalar, would otherwise be dumped as a block that
+     * spans several lines, and everything after its first line would be lost.
+     */
+    private static Object joinLines(Object value) {
+        if (value instanceof String && LINE_BREAK_PATTERN.matcher((String) value).find()) {
+            return Arrays.stream(LINE_BREAK_PATTERN.split((String) value))
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty())
+                    .collect(Collectors.joining(" "));
+        }
+        return value;
     }
 
     /**
