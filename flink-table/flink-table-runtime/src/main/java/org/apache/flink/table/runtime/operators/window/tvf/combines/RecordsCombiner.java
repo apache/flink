@@ -36,8 +36,7 @@ public interface RecordsCombiner {
     /**
      * Combines the buffered data into state based on the given window-key pair.
      *
-     * @param windowKey the window-key pair that the buffered data belong to, the window-key object
-     *     is reused.
+     * @param windowKey the window-key pair that the buffered data belong to.
      * @param records the buffered data, the iterator and {@link RowData} objects are reused.
      */
     void combine(WindowKey windowKey, Iterator<RowData> records) throws Exception;

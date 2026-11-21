@@ -49,6 +49,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
     private final RecordsCombiner combineFunction;
     private final WindowBytesMultiMap recordsBuffer;
+    private final WindowKeySerializer windowKeySerializer;
     private final WindowKey reuseWindowKey;
     private final AbstractRowDataSerializer<RowData> recordSerializer;
     private final ZoneId shiftTimeZone;
@@ -72,7 +73,8 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                 new WindowBytesMultiMap(
                         operatorOwner, memoryManager, memorySize, keySer, inputSer.getArity());
         this.recordSerializer = inputSer;
-        this.reuseWindowKey = new WindowKeySerializer(keySer).createInstance();
+        this.windowKeySerializer = new WindowKeySerializer(keySer);
+        this.reuseWindowKey = windowKeySerializer.createInstance();
         this.requiresCopy = requiresCopy;
         this.shiftTimeZone = shiftTimeZone;
     }
@@ -117,7 +119,13 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             KeyValueIterator<WindowKey, Iterator<RowData>> entryIterator =
                     recordsBuffer.getEntryIterator(requiresCopy);
             while (entryIterator.advanceNext()) {
-                combineFunction.combine(entryIterator.getKey(), entryIterator.getValue());
+                WindowKey windowKey = entryIterator.getKey();
+                // When requiresCopy=true the iterator already returned a fresh copy.
+                // Otherwise it reuses a mutable WindowKey, so we must copy here before
+                // it escapes into the timer queue via combine().
+                combineFunction.combine(
+                        requiresCopy ? windowKey : windowKeySerializer.copy(windowKey),
+                        entryIterator.getValue());
             }
             recordsBuffer.reset();
             // reset trigger time
