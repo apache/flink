@@ -56,7 +56,7 @@ class GSRecoverableWriterITCase {
     @BeforeAll
     static void checkCredentialsAndSetup() throws Exception {
         GSTestCredentials.assumeCredentialsAvailable();
-        FileSystem.initialize(new Configuration(), null);
+        FileSystem.initialize(GSTestCredentials.createConfiguration(), null);
         basePath = new Path(GSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
         fileSystem = basePath.getFileSystem();
     }
