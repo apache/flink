@@ -18,7 +18,16 @@
 
 package org.apache.flink.fs.gs;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobStorageImpl;
+import org.apache.flink.fs.gs.utils.BlobUtils;
+
 import javax.annotation.Nullable;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assumptions.assumeThat;
 
@@ -49,5 +58,22 @@ class GSTestCredentials {
                     "GCS test bucket not available (IT_CASE_GCS_BUCKET not set)");
         }
         return "gs://" + GCS_TEST_BUCKET + "/temp/";
+    }
+
+    /**
+     * Deletes the temporary objects the recoverable writer created for files under {@code
+     * basePath}. They live under the in-progress prefix at the bucket root, outside {@code
+     * basePath}, and only a commit removes them, so uncommitted streams leave them behind.
+     */
+    static void deleteTemporaryObjects(Path basePath) {
+        final GSFileSystemFactory factory = new GSFileSystemFactory();
+        factory.configure(new Configuration());
+        final GSBlobStorage storage = new GSBlobStorageImpl(factory.getStorage());
+        final GSBlobIdentifier base = BlobUtils.parseUri(basePath.toUri());
+        final List<GSBlobIdentifier> temporaryObjects =
+                storage.list(base.bucketName, BlobUtils.getTemporaryObjectPartialName(base));
+        if (!temporaryObjects.isEmpty()) {
+            storage.delete(temporaryObjects);
+        }
     }
 }
