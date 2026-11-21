@@ -70,6 +70,8 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
     private final boolean isInternal;
 
+    private final boolean isOnTimeArgumentDisabled;
+
     private final SqlCallSyntax sqlCallSyntax;
 
     private final @Nullable ChangelogModeStrategy changelogModeStrategy;
@@ -87,6 +89,7 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
             boolean isRuntimeProvided,
             String runtimeClass,
             boolean isInternal,
+            boolean isOnTimeArgumentDisabled,
             @Nullable ChangelogModeStrategy changelogModeStrategy) {
         this.name = checkNotNull(name, "Name must not be null.");
         this.sqlName = sqlName;
@@ -97,6 +100,7 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
         this.isRuntimeProvided = isRuntimeProvided;
         this.runtimeClass = runtimeClass;
         this.isInternal = isInternal;
+        this.isOnTimeArgumentDisabled = isOnTimeArgumentDisabled;
         this.sqlCallSyntax = sqlCallSyntax;
         this.changelogModeStrategy = changelogModeStrategy;
         validateFunction(this.name, this.version, this.isInternal);
@@ -133,6 +137,10 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
     public boolean isInternal() {
         return isInternal;
+    }
+
+    public boolean isOnTimeArgumentDisabled() {
+        return isOnTimeArgumentDisabled;
     }
 
     /**
@@ -284,6 +292,8 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
         private boolean isInternal = false;
 
+        private boolean isOnTimeArgumentDisabled = false;
+
         private SqlCallSyntax sqlCallSyntax = SqlCallSyntax.FUNCTION;
 
         private @Nullable ChangelogModeStrategy changelogModeStrategy;
@@ -335,6 +345,12 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
         public Builder disableSystemArguments(boolean disableSystemArguments) {
             this.typeInferenceBuilder.disableSystemArguments(disableSystemArguments);
+            return this;
+        }
+
+        /** Rejects the {@code on_time} system argument of a PTF but keeps {@code uid}. */
+        public Builder disableOnTimeArgument(boolean disableOnTimeArgument) {
+            this.isOnTimeArgumentDisabled = disableOnTimeArgument;
             return this;
         }
 
@@ -455,6 +471,7 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
                     isRuntimeProvided,
                     runtimeClass,
                     isInternal,
+                    isOnTimeArgumentDisabled,
                     changelogModeStrategy);
         }
     }

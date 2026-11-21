@@ -256,7 +256,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             final TypeInference inference =
                     definition.getTypeInference(resolutionContext.typeFactory());
             if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
-                return SystemTypeInference.of(definition.getKind(), inference);
+                return SystemTypeInference.of(definition, inference);
             } else {
                 return null;
             }
