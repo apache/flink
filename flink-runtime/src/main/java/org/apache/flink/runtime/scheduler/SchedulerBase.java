@@ -626,6 +626,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     protected abstract long getNumberOfRescales();
 
+    protected abstract long getNumberOfExecutionGraphCreationRetries();
+
     protected MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
         // blocking partition always need mark finished.
         return ResultPartitionType::isBlockingOrBlockingPersistentResultPartition;
@@ -673,6 +675,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 executionGraph,
                 this::getNumberOfRestarts,
                 this::getNumberOfRescales,
+                this::getNumberOfExecutionGraphCreationRetries,
                 executionStateMetricsRegistrars,
                 executionGraph::registerJobStatusListener,
                 executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
@@ -686,6 +689,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             JobStatusProvider jobStatusProvider,
             Gauge<Long> numberOfRestarts,
             Gauge<Long> numberOfRescales,
+            Gauge<Long> numberOfExecutionGraphCreationRetries,
             Collection<? extends MetricsRegistrar> metricsRegistrars,
             Consumer<JobStatusListener> jobStatusListenerRegistrar,
             long initializationTimestamp,
@@ -694,6 +698,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
         metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts::getValue);
         metrics.gauge(MetricNames.NUM_RESCALES, numberOfRescales::getValue);
+        metrics.gauge(
+                MetricNames.NUM_EXECUTION_GRAPH_CREATION_RETRIES,
+                numberOfExecutionGraphCreationRetries::getValue);
 
         final JobStatusMetrics jobStatusMetrics =
                 new JobStatusMetrics(initializationTimestamp, jobStatusMetricsSettings);

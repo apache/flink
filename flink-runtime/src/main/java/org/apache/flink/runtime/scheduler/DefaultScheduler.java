@@ -234,6 +234,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     @Override
+    protected long getNumberOfExecutionGraphCreationRetries() {
+        // It is always 0 for DefaultScheduler.
+        return 0;
+    }
+
+    @Override
     protected void cancelAllPendingSlotRequestsInternal() {
         getSchedulingTopology()
                 .getVertices()
