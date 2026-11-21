@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
@@ -35,8 +36,12 @@ public class UpperLimitExceptionParameter extends MessageQueryParameter<Integer>
     }
 
     @Override
-    public Integer convertStringToValue(String value) {
-        return Integer.valueOf(value);
+    public Integer convertStringToValue(String value) throws ConversionException {
+        final int maxExceptions = Integer.parseInt(value);
+        if (maxExceptions < 0) {
+            throw new ConversionException(KEY + " must not be negative, was: " + maxExceptions);
+        }
+        return maxExceptions;
     }
 
     @Override

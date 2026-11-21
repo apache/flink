@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for the {@link ApplicationExceptionsHandler}. */
 class ApplicationExceptionsHandlerTest {
@@ -276,6 +277,13 @@ class ApplicationExceptionsHandlerTest {
                 handler.handleRequest(oversizedRequest, testingRestfulGateway).get();
 
         assertThat(response.getExceptionHistory().getEntries()).hasSize(historySize);
+    }
+
+    @Test
+    void testNegativeMaxExceptionsIsRejected() {
+        assertThatThrownBy(() -> createRequest(archivedApplication.getApplicationId(), -1))
+                .isInstanceOf(HandlerRequestException.class)
+                .hasMessageContaining(UpperLimitExceptionParameter.KEY);
     }
 
     @Test
