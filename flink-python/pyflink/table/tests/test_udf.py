@@ -539,6 +539,37 @@ class UserDefinedFunctionTests(object):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 2]", "+I[1, 2]", "+I[1, 2]"])
 
+    def test_null_values(self):
+        child = DataTypes.ROW([DataTypes.FIELD("x", DataTypes.BIGINT())])
+        t = self.t_env.sql_query(
+            "SELECT CAST(NULL AS TINYINT) AS `tinyint`,"
+            " CAST(NULL AS SMALLINT) AS `smallint`,"
+            " CAST(NULL AS INT) AS `int`,"
+            " CAST(NULL AS FLOAT) AS `float`,"
+            " CAST(NULL AS TIME) AS `time`,"
+            " CAST(NULL AS MAP<STRING, BIGINT>) AS `map`,"
+            " CAST(NULL AS ROW<x BIGINT>) AS `row`,"
+            " ARRAY[CAST(ROW(1) AS ROW<x BIGINT>), CAST(NULL AS ROW<x BIGINT>)] AS `row_array`,"
+            " MAP['k', CAST(NULL AS ROW<x BIGINT>)] AS `row_map`")
+        types = [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.FLOAT(),
+                 DataTypes.TIME(), DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()), child,
+                 DataTypes.ARRAY(child), DataTypes.MAP(DataTypes.STRING(), child)]
+
+        # Pass each value through unchanged, so a null must survive both directions.
+        identities = [udf(lambda v: v, result_type=data_type)(expr.col(name))
+                      for name, data_type in zip(t.get_schema().get_field_names(), types)]
+        with t.select(*identities).execute().collect() as results:
+            actual = [tuple(row) for row in results]
+        self.assertEqual(
+            actual, [(None, None, None, None, None, None, None, [Row(1), None], {"k": None})])
+
+        # Return None from functions whose input is not null.
+        nones = [udf(lambda v: None, result_type=data_type)(t.row_array)
+                 for data_type in (DataTypes.TINYINT(), DataTypes.INT(), child)]
+        with t.select(*nones).execute().collect() as results:
+            actual = [tuple(row) for row in results]
+        self.assertEqual(actual, [(None, None, None)])
+
     def test_all_data_types_expression(self):
         @udf(result_type=DataTypes.BOOLEAN())
         def boolean_func(bool_param):

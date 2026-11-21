@@ -481,11 +481,19 @@ public final class PythonTypeUtils {
         }
 
         public final IN toInternal(OUT value) {
-            return dataFormatConverter.toInternal(toInternalImpl(value));
+            return dataFormatConverter.toInternal(toInternalOrNull(value));
         }
 
         public final OUT toExternal(RowData row, int column) {
-            return toExternalImpl(dataFormatConverter.toExternal(row, column));
+            return toExternalOrNull(dataFormatConverter.toExternal(row, column));
+        }
+
+        final INTER toInternalOrNull(OUT value) {
+            return value == null ? null : toInternalImpl(value);
+        }
+
+        final OUT toExternalOrNull(INTER value) {
+            return value == null ? null : toExternalImpl(value);
         }
 
         abstract INTER toInternalImpl(OUT value);
@@ -658,7 +666,7 @@ public final class PythonTypeUtils {
             Object[] fieldValues = (Object[]) value[1];
 
             for (int i = 0; i < fieldValues.length; i++) {
-                reuseRow.setField(i, fieldDataConverters[i].toInternalImpl(fieldValues[i]));
+                reuseRow.setField(i, fieldDataConverters[i].toInternalOrNull(fieldValues[i]));
             }
             return reuseRow;
         }
@@ -669,7 +677,8 @@ public final class PythonTypeUtils {
 
             reuseExternalRow[0] = (long) value.getKind().toByteValue();
             for (int i = 0; i < value.getArity(); i++) {
-                reuseExternalRowData[i] = fieldDataConverters[i].toExternalImpl(value.getField(i));
+                reuseExternalRowData[i] =
+                        fieldDataConverters[i].toExternalOrNull(value.getField(i));
             }
 
             return reuseExternalRow;
@@ -701,7 +710,7 @@ public final class PythonTypeUtils {
             T[] array = (T[]) Array.newInstance(componentClass, value.length);
 
             for (int i = 0; i < value.length; i++) {
-                array[i] = (T) elementConverter.toInternalImpl(value[i]);
+                array[i] = (T) elementConverter.toInternalOrNull(value[i]);
             }
 
             return array;
@@ -713,7 +722,7 @@ public final class PythonTypeUtils {
             Object[] array = new Object[value.length];
 
             for (int i = 0; i < value.length; i++) {
-                array[i] = elementConverter.toExternalImpl(value[i]);
+                array[i] = elementConverter.toExternalOrNull(value[i]);
             }
 
             return array;
@@ -746,8 +755,8 @@ public final class PythonTypeUtils {
 
             for (Map.Entry<?, ?> entry : value.entrySet()) {
                 map.put(
-                        keyConverter.toInternalImpl(entry.getKey()),
-                        valueConverter.toInternalImpl(entry.getValue()));
+                        keyConverter.toInternalOrNull(entry.getKey()),
+                        valueConverter.toInternalOrNull(entry.getValue()));
             }
 
             return map;
@@ -760,8 +769,8 @@ public final class PythonTypeUtils {
 
             for (Map.Entry<?, ?> entry : value.entrySet()) {
                 map.put(
-                        keyConverter.toExternalImpl(entry.getKey()),
-                        valueConverter.toExternalImpl(entry.getValue()));
+                        keyConverter.toExternalOrNull(entry.getKey()),
+                        valueConverter.toExternalOrNull(entry.getValue()));
             }
             return map;
         }
