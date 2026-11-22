@@ -590,6 +590,20 @@ class BinaryVariantTest {
     }
 
     @Test
+    void testNegativeStringLength() {
+        final BinaryVariant string = (BinaryVariant) builder.of("x".repeat(64));
+        // A long string stores its length in the 4 little-endian bytes after the header; a high
+        // bit in the last one is a length that doesn't fit into an int.
+        final byte[] value = string.getValue().clone();
+        value[4] = (byte) 0x80;
+        final Variant malformed = new BinaryVariant(value, string.getMetadata());
+
+        assertThatThrownBy(malformed::getString)
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    @Test
     void testGetFieldWithGetterWhenIndexChanges() {
         final List<Variant> objects =
                 List.of(
