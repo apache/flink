@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.util.SwarUtils;
 
 import javax.annotation.Nonnull;
 
@@ -311,8 +312,20 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
 
     /** Returns the number of UTF-8 code points in the string. */
     public int numChars() {
+        if (binarySection == null) {
+            // the count of the UTF-8 bytes without encoding them: a lone surrogate is encoded as
+            // '?', so it is one character, like a surrogate pair. Once there are bytes, they are
+            // counted, since a string decoded from invalid UTF-8 can have a different count
+            return javaObject.codePointCount(0, javaObject.length());
+        }
         ensureMaterialized();
         if (inFirstSegment()) {
+            final byte[] array = binarySection.segments[0].getHeapMemory();
+            if (array != null
+                    && SwarUtils.isAscii(array, binarySection.offset, binarySection.sizeInBytes)) {
+                // one character per byte
+                return binarySection.sizeInBytes;
+            }
             int len = 0;
             for (int i = 0;
                     i < binarySection.sizeInBytes;
