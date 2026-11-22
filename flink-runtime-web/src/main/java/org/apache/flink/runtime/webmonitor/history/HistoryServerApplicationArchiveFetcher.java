@@ -89,8 +89,7 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
             ArchiveStorage<Entry> archiveStorage,
             ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
             ConcurrentHashMap<String, ArchiveMetaInfo> applicationArchiveMetaInfoCache,
-            int lazyFetchExecutorCommonPoolSize,
-            int lazyFetchExecutorIndividualPoolSize)
+            LazyFetchTaskRegistry lazyFetchTaskRegistry)
             throws IOException {
         super(
                 refreshDirs,
@@ -100,8 +99,7 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
                 retainedStrategy,
                 archiveStorage,
                 archiveMetaInfoCache,
-                lazyFetchExecutorCommonPoolSize,
-                lazyFetchExecutorIndividualPoolSize);
+                lazyFetchTaskRegistry);
 
         this.applicationArchiveMetaInfoCache = applicationArchiveMetaInfoCache;
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {

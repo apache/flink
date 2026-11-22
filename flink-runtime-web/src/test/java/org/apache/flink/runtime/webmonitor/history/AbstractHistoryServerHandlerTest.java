@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -50,8 +51,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.configuration.ClusterOptions.CLUSTER_ID;
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.EAGER;
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerTestUtils.createApplicationArchive;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerTestUtils.createJobArchive;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerTestUtils.createRefreshLocation;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -142,6 +145,7 @@ public class AbstractHistoryServerHandlerTest {
         ConcurrentHashMap<String, ArchiveMetaInfo> jobMetaInfoCache = new ConcurrentHashMap<>();
         ConcurrentHashMap<String, ArchiveMetaInfo> applicationMetaInfoCache =
                 new ConcurrentHashMap<>();
+        LazyFetchTaskRegistry lazyFetchTaskRegistry = new LazyFetchTaskRegistry(4, 4);
 
         HistoryServerArchiveFetcher<T> archiveFetcher =
                 new HistoryServerArchiveFetcher<>(
@@ -152,8 +156,7 @@ public class AbstractHistoryServerHandlerTest {
                         HistoryServerTestUtils.RETAIN_ALL,
                         storage,
                         jobMetaInfoCache,
-                        4,
-                        4);
+                        lazyFetchTaskRegistry);
         HistoryServerApplicationArchiveFetcher<T> applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,
@@ -164,8 +167,7 @@ public class AbstractHistoryServerHandlerTest {
                         storage,
                         jobMetaInfoCache,
                         applicationMetaInfoCache,
-                        4,
-                        4);
+                        lazyFetchTaskRegistry);
 
         return handlerCtor.create(storage, mode, archiveFetcher, applicationArchiveFetcher, webDir);
     }
@@ -364,6 +366,66 @@ public class AbstractHistoryServerHandlerTest {
         // Give the detail request enough time to reach
         // waitLazyFetchArchiveFinished and block on the still-suspended async
         // detail task. It must not have completed yet.
+        Thread.sleep(500);
+        assertThat(detailFuture.isDone()).isFalse();
+
+        blockingArchiveStorage.releaseLatch.countDown();
+
+        detailFuture.get(10, TimeUnit.SECONDS);
+        assertThat(detailResponse.get().f0).isEqualTo(200);
+        assertThat(detailResponse.get().f1).contains(jobId.toString());
+        assertThat(blockingArchiveStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
+    }
+
+    /**
+     * Tests that in {@code LAZY} mode a job that belongs to an application gets the same
+     * wait-for-detail behaviour as a job that was archived on its own.
+     */
+    @TestTemplate
+    void testLazyModeLoadResourceForApplicationJob() throws Exception {
+        startServer(LAZY);
+
+        JobID jobId = JobID.generate();
+        createApplicationArchive(
+                remoteArchiveRootPath.toFile(),
+                CLUSTER_ID.defaultValue(),
+                new ApplicationID().toHexString(),
+                Collections.singletonList(jobId));
+
+        // Phase 1: requesting /jobs/overview makes the application fetcher parse the application
+        // archive and write the overview keys of its jobs; the detail key is queued for an
+        // asynchronous write that is now blocked on releaseLatch.
+        Tuple2<Integer, String> overviewResponse =
+                HttpUtils.getFromHTTP(baseUrl + "/jobs/overview");
+        assertThat(overviewResponse.f0).isEqualTo(200);
+        assertThat(overviewResponse.f1).contains(jobId.toString());
+
+        HistoryServerTestUtils.BlockingArchiveStorage<?> blockingArchiveStorage =
+                (HistoryServerTestUtils.BlockingArchiveStorage<?>) handler.archiveStorage;
+        boolean asyncReached = blockingArchiveStorage.asyncStartLatch.await(10, TimeUnit.SECONDS);
+        assertThat(asyncReached).isTrue();
+
+        // Phase 1 keys are present, but the detail key is still blocked.
+        assertThat(blockingArchiveStorage.exists("overviews/" + jobId + ".json")).isTrue();
+        assertThat(blockingArchiveStorage.exists("jobs/" + jobId + ".json")).isTrue();
+        assertThat(blockingArchiveStorage.exists("jobs/" + jobId + "/config.json")).isFalse();
+
+        // Phase 2: a request for /jobs/<jobId>/config must wait for the asynchronous task that
+        // was scheduled by the application fetcher. Issue it on a separate thread, verify it is
+        // still in flight, then release the latch.
+        AtomicReference<Tuple2<Integer, String>> detailResponse = new AtomicReference<>();
+        CompletableFuture<Void> detailFuture =
+                CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                detailResponse.set(
+                                        HttpUtils.getFromHTTP(
+                                                baseUrl + "/jobs/" + jobId + "/config"));
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+
         Thread.sleep(500);
         assertThat(detailFuture.isDone()).isFalse();
 

@@ -82,6 +82,7 @@ class HistoryServerApplicationArchiveFetcherTest {
     private ConcurrentHashMap<String, ArchiveMetaInfo> jobMetaInfoCache;
     private ConcurrentHashMap<String, ArchiveMetaInfo> applicationMetaInfoCache;
     private List<HistoryServerArchiveFetcher.ArchiveEvent> archiveEvents;
+    private LazyFetchTaskRegistry lazyFetchTaskRegistry;
 
     @Parameters(name = "storageFactory={0}")
     private static Collection<ArchiveStorageFactory<?>> storageFactories() {
@@ -102,11 +103,16 @@ class HistoryServerApplicationArchiveFetcherTest {
         applicationMetaInfoCache = new ConcurrentHashMap<>();
         archiveEvents = new ArrayList<>();
         archiveStorage = storageFactory.create(localArchiveRootPath);
+        lazyFetchTaskRegistry = new LazyFetchTaskRegistry(4, 4);
     }
 
     @AfterEach
     void tearDown() throws Exception {
         archiveEvents.clear();
+        if (lazyFetchTaskRegistry != null) {
+            lazyFetchTaskRegistry.close();
+            lazyFetchTaskRegistry = null;
+        }
         if (archiveStorage != null) {
             archiveStorage.close();
             archiveStorage = null;
@@ -194,8 +200,7 @@ class HistoryServerApplicationArchiveFetcherTest {
                 storage,
                 jobMetaInfoCache,
                 applicationMetaInfoCache,
-                4,
-                4);
+                lazyFetchTaskRegistry);
     }
 
     private static String newApplicationId() {
@@ -327,6 +332,48 @@ class HistoryServerApplicationArchiveFetcherTest {
         waitForArchiveLoaded(jobMetaInfoCache, jobId.toString());
         assertThat(blockingStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
         assertThat(jobMetaInfoCache.get(jobId.toString()).getEventType()).isEqualTo(CREATED);
+    }
+
+    /**
+     * Tests that a detail task scheduled by the application fetcher is visible to a {@link
+     * HistoryServerArchiveFetcher} that shares the same {@link LazyFetchTaskRegistry}.
+     */
+    @TestTemplate
+    void testLazyFetchTasksAreSharedWithJobFetcher() throws Exception {
+        String appId = newApplicationId();
+        JobID jobId = JobID.generate();
+        createApplicationArchive(appId, Collections.singletonList(jobId));
+
+        HistoryServerTestUtils.BlockingArchiveStorage<Object> blockingStorage =
+                new HistoryServerTestUtils.BlockingArchiveStorage<>(
+                        archiveStorage, "jobs/" + jobId + "/config");
+        // Replace the field so that close() in tearDown() releases the underlying storage too.
+        archiveStorage = blockingStorage;
+
+        HistoryServerApplicationArchiveFetcher<Object> applicationFetcher =
+                createApplicationArchiveFetcher(false, blockingStorage);
+        HistoryServerArchiveFetcher<Object> jobFetcher =
+                new HistoryServerArchiveFetcher<>(
+                        Collections.singletonList(createRefreshLocation(remoteArchiveRootPath)),
+                        localArchiveRootPath,
+                        event -> archiveEvents.add(event),
+                        false,
+                        RETAIN_ALL,
+                        blockingStorage,
+                        jobMetaInfoCache,
+                        lazyFetchTaskRegistry);
+
+        applicationFetcher.fetchArchives(LAZY);
+        assertThat(blockingStorage.asyncStartLatch.await(10, TimeUnit.SECONDS)).isTrue();
+
+        // The task was scheduled by the application fetcher, yet the job fetcher must see it.
+        assertThat(jobFetcher.getCommonFetchTask(jobId.toString())).isNotNull();
+        assertThat(jobFetcher.getCommonFetchTask(jobId.toString())).isNotDone();
+
+        // ... and waiting through the job fetcher must block until the detail content is written.
+        blockingStorage.releaseLatch.countDown();
+        jobFetcher.waitLazyFetchArchiveFinished(jobId.toString());
+        assertThat(blockingStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
     }
 
     @TestTemplate

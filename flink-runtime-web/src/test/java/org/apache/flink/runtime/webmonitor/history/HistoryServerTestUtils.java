@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.history.ArchivePathUtils;
 import org.apache.flink.runtime.history.FsJsonArchivist;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.messages.ApplicationsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -39,8 +44,10 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -105,6 +112,78 @@ public class HistoryServerTestUtils {
         Path archivePath = new Path(baseDir.toURI().toString(), jobId.toString());
         FsJsonArchivist.writeArchivedJsons(archivePath, archives);
         return archivePath;
+    }
+
+    /**
+     * Create an application archive at {@code baseDir/<clusterId>/applications/<applicationId>/}
+     * which contains an {@code application-summary} archive (representing the application overview)
+     * and one job archive per job in {@code jobs/}.
+     *
+     * <pre>{@code
+     * baseDir/
+     * └── <cluster-id>/
+     *     └── applications/
+     *         └── <application-id>/
+     *             ├── application-summary
+     *             └── jobs/
+     *                 ├── <job-id-1>
+     *                 └── ...
+     * }</pre>
+     *
+     * @param baseDir base directory under which the archive will be written
+     * @param clusterId cluster id (must be a hex string parseable by {@link
+     *     ApplicationID#fromHexString})
+     * @param applicationId application id (must be a hex string parseable by {@link
+     *     ApplicationID#fromHexString})
+     * @param jobIds job ids whose archives are to be placed under the {@code jobs/} subdir
+     * @return the application archive directory {@link Path}
+     */
+    static Path createApplicationArchive(
+            File baseDir, String clusterId, String applicationId, List<JobID> jobIds)
+            throws Exception {
+        File applicationDir =
+                new File(
+                        baseDir,
+                        clusterId + "/" + ArchivePathUtils.APPLICATIONS_DIR + "/" + applicationId);
+        Files.createDirectories(applicationDir.toPath());
+
+        // Mock the application-summary archive
+        Map<String, Integer> jobInfo = new HashMap<>();
+        jobInfo.put("FINISHED", jobIds.size());
+        ApplicationDetails applicationDetails =
+                new ApplicationDetails(
+                        ApplicationID.fromHexString(applicationId),
+                        "test-app",
+                        0L,
+                        1L,
+                        1L,
+                        "FINISHED",
+                        jobInfo);
+        String applicationOverviewJson =
+                OBJECT_MAPPER.writeValueAsString(
+                        new MultipleApplicationsDetails(Collections.singleton(applicationDetails)));
+
+        // Write the application-summary archive
+        List<ArchivedJson> archives = new ArrayList<>();
+        archives.add(new ArchivedJson(ApplicationsOverviewHeaders.URL, applicationOverviewJson));
+        // mock a simple /applications/<applicationid>.json
+        archives.add(
+                new ArchivedJson(
+                        "/applications/" + applicationId, "{\"id\":\"" + applicationId + "\"}"));
+        FsJsonArchivist.writeArchivedJsons(
+                new Path(
+                        applicationDir.toURI().toString(),
+                        ArchivePathUtils.APPLICATION_ARCHIVE_NAME),
+                archives);
+
+        // Write the job archives under the jobs/ subdir
+        File jobsDir = new File(applicationDir, ArchivePathUtils.JOBS_DIR);
+        Files.createDirectories(jobsDir.toPath());
+        for (JobID jobId : jobIds) {
+            createJobArchive(jobsDir, jobId, true);
+        }
+
+        return new Path(applicationDir.toURI().toString());
     }
 
     /** Create a legacy job archive at {@code directory/<jobId>} with only {@code /joboverview}. */
