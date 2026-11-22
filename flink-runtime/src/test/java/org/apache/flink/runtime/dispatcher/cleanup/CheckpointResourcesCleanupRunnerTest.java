@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -505,6 +506,26 @@ class CheckpointResourcesCleanupRunnerTest {
         final CompletableFuture<ExecutionGraphInfo> response =
                 testInstance.requestJob(TIMEOUT_FOR_REQUESTS);
         assertThat(response).isCompletedWithValueMatching(assertion::apply);
+    }
+
+    @Test
+    void testFailedJobResultWithoutCauseGetsPlaceholderCause() throws Exception {
+        final CheckpointResourcesCleanupRunner testInstance =
+                new TestInstanceBuilder()
+                        .withJobResult(createJobResult(new JobID(), JobStatus.FAILED))
+                        .build();
+        testInstance.start();
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                testInstance
+                        .getResultFuture()
+                        .get()
+                        .getExecutionGraphInfo()
+                        .getArchivedExecutionGraph();
+
+        assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
+        assertThat(JobResult.createFrom(archivedExecutionGraph).getJobStatus())
+                .hasValue(JobStatus.FAILED);
     }
 
     private static JobResult createDummySuccessJobResult() {

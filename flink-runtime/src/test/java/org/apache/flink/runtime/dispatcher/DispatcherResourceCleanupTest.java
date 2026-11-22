@@ -419,6 +419,33 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertThat(markAsCleanFuture.get(), is(jobId));
     }
 
+    @Test
+    public void testDispatcherTerminationWaitsForJobCleanup() throws Exception {
+        final CompletableFuture<Void> globalCleanupCompletionFuture = new CompletableFuture<>();
+        final TestingResourceCleanerFactory resourceCleanerFactory =
+                TestingResourceCleanerFactory.builder()
+                        .withGloballyCleanableResource(
+                                (ignoredJobId, ignoredExecutor) -> globalCleanupCompletionFuture)
+                        .build();
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitApplication(
+                        createTestingDispatcherBuilder()
+                                .setResourceCleanerFactory(resourceCleanerFactory),
+                        0);
+
+        finishJobAndApplication(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+        final CompletableFuture<Void> dispatcherTerminationFuture = dispatcher.closeAsync();
+
+        assertThatThrownBy(() -> dispatcherTerminationFuture.get(10L, TimeUnit.MILLISECONDS))
+                .as("The Dispatcher must not terminate before the job cleanup has finished.")
+                .isInstanceOf(TimeoutException.class);
+
+        globalCleanupCompletionFuture.complete(null);
+
+        dispatcherTerminationFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
     /**
      * Tests that the previous JobManager needs to be completely terminated before a new job with
      * the same {@link JobID} is started.
