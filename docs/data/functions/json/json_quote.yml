@@ -1,0 +1,82 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_QUOTE
+summary: Returns a string as a quoted JSON string.
+
+syntax:
+  sql: JSON_QUOTE(string)
+  java: $("string").jsonQuote()
+  python: col("string").json_quote()
+
+arguments:
+  - name: string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to quote.
+
+returns:
+  description: The string in double quotes. A double quote, a backslash, a slash and the control characters backspace, form feed, newline, carriage return and tab are escaped, such as `\"` and `\n`. Every non-ASCII character is escaped as `\uXXXX`.
+  nulls: Returns NULL if `string` is NULL.
+  type: "`STRING`, NOT NULL if `string` is NOT NULL."
+
+notes:
+  - Other control characters, such as `CHR(1)`, aren't escaped, so the result isn't valid JSON.
+  - A character above U+FFFF, such as an emoji, is escaped wrongly, and `JSON_UNQUOTE` doesn't give it back. The result still passes `IS JSON`.
+  - "`JSON_STRING` quotes a string as JSON without these two problems."
+
+see_also:
+  - {name: JSON_UNQUOTE, ref: json/json-unquote}
+  - {name: JSON_STRING, ref: json/json-string}
+
+examples:
+  - title: Quote a string
+    description: Double quotes, backslashes and slashes are escaped. A NULL string returns NULL.
+    sql: |
+      SELECT s, JSON_QUOTE(s) AS `JSON_QUOTE(s)`
+      FROM (VALUES ('Hello, World!'), ('say "hi"'), ('a/b\c'), (CAST(NULL AS STRING))) AS t(s);
+    result: |
+      | s             | JSON_QUOTE(s)   |
+      |---------------|-----------------|
+      | Hello, World! | "Hello, World!" |
+      | say "hi"      | "say \"hi\""    |
+      | a/b\c         | "a\/b\\c"       |
+      | NULL          | NULL            |
+
+  - title: Control characters and non-ASCII characters
+    description: A tab, `CHR(9)`, and a newline, `CHR(10)`, are written as escape sequences, and non-ASCII characters as `\u` escapes.
+    sql: |
+      SELECT n, JSON_QUOTE(CHR(n)) AS `JSON_QUOTE(CHR(n))`
+      FROM (VALUES (9), (10), (233)) AS t(n);
+    result: |
+      | n   | JSON_QUOTE(CHR(n)) |
+      |-----|--------------------|
+      | 9   | "\t"               |
+      | 10  | "\n"               |
+      | 233 | "\u00e9"           |
+
+  - title: Characters above U+FFFF
+    description: An emoji is escaped wrongly and doesn't come back from `JSON_UNQUOTE`.
+    sql: |
+      SELECT s,
+        JSON_QUOTE(s) AS `JSON_QUOTE(s)`,
+        JSON_UNQUOTE(JSON_QUOTE(s)) = s AS `JSON_UNQUOTE(JSON_QUOTE(s)) = s`
+      FROM (VALUES ('😀')) AS t(s);
+    result: |
+      | s  | JSON_QUOTE(s)   | JSON_UNQUOTE(JSON_QUOTE(s)) = s |
+      |----|-----------------|---------------------------------|
+      | 😀 | "\u1f600\ude00" | FALSE                           |

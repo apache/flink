@@ -20,18 +20,18 @@ summary: Returns the result of the first branch whose condition holds.
 
 syntax:
   sql: |
-    CASE value WHEN value1 [, value2]* THEN result1 [WHEN ... THEN ...]* [ELSE result_else] END
+    CASE expr WHEN expr1 [, expr2]* THEN result1 [WHEN ... THEN ...]* [ELSE result_else] END
     CASE WHEN condition1 THEN result1 [WHEN ... THEN ...]* [ELSE result_else] END
 
 arguments:
-  - name: value
+  - name: expr
     type: Any type that `=` can compare with each WHEN value
     required: false
     description: In the first form, the value that each WHEN compares with its values.
-  - name: value1, value2, ...
-    type: The type of `value`, or one comparable with it
+  - name: expr1, expr2, ...
+    type: The type of `expr`, or one comparable with it
     required: false
-    description: In the first form, the values of a WHEN. The branch is taken if `value` equals one of them.
+    description: In the first form, the values of a WHEN. The branch is taken if `expr` equals one of them.
   - name: condition1, ...
     type: BOOLEAN
     required: false
@@ -48,7 +48,7 @@ returns:
 
 notes:
   - The WHEN branches are checked in order, and only the result of the chosen branch is evaluated.
-  - A NULL condition counts as not met. In the first form, a NULL `value` matches no WHEN, because `NULL = x` is never true. To test for NULL, use the second form with `WHEN value IS NULL`.
+  - A NULL condition counts as not met. In the first form, a NULL `expr` matches no WHEN, because `NULL = x` is never true. To test for NULL, use the second form with `WHEN expr IS NULL`.
 
 see_also:
   - {name: IF, ref: conditional/if}
@@ -60,57 +60,57 @@ examples:
     description: Compare a value with the values of each WHEN. A WHEN can list several values.
     sql: |
       SELECT n,
-        CASE n WHEN 1 THEN 'one' WHEN 2, 3 THEN 'few' ELSE 'many' END AS label
+        CASE n WHEN 1 THEN 'one' WHEN 2, 3 THEN 'few' ELSE 'many' END AS `CASE n WHEN 1 THEN 'one' WHEN 2, 3 THEN 'few' ELSE 'many' END`
       FROM (VALUES (1), (3), (7)) AS t(n);
     result: |
-      | n | label |
-      |---|-------|
-      | 1 | one   |
-      | 3 | few   |
-      | 7 | many  |
+      | n | CASE n WHEN 1 THEN 'one' WHEN 2, 3 THEN 'few' ELSE 'many' END |
+      |---|---------------------------------------------------------------|
+      | 1 | one                                                           |
+      | 3 | few                                                           |
+      | 7 | many                                                          |
 
   - title: Put values into ranges
     description: Check a condition in each WHEN. The first one that holds wins.
     sql: |
       SELECT score,
-        CASE WHEN score >= 90 THEN 'A' WHEN score >= 75 THEN 'B' ELSE 'C' END AS grade
+        CASE WHEN score >= 90 THEN 'A' WHEN score >= 75 THEN 'B' ELSE 'C' END AS `CASE WHEN score >= 90 THEN 'A' WHEN score >= 75 THEN 'B' ELSE 'C' END`
       FROM (VALUES (95), (80), (60)) AS t(score);
     result: |
-      | score | grade |
-      |-------|-------|
-      | 95    | A     |
-      | 80    | B     |
-      | 60    | C     |
+      | score | CASE WHEN score >= 90 THEN 'A' WHEN score >= 75 THEN 'B' ELSE 'C' END |
+      |-------|-----------------------------------------------------------------------|
+      | 95    | A                                                                     |
+      | 80    | B                                                                     |
+      | 60    | C                                                                     |
 
   - title: No branch applies and there is no ELSE
     description: The result is NULL.
     sql: |
-      SELECT CASE WHEN n > 10 THEN 'big' END AS size
+      SELECT n, CASE WHEN n > 10 THEN 'big' END AS `CASE WHEN n > 10 THEN 'big' END`
       FROM (VALUES (3)) AS t(n);
     result: |
-      | size |
-      |------|
-      | NULL |
+      | n | CASE WHEN n > 10 THEN 'big' END |
+      |---|---------------------------------|
+      | 3 | NULL                            |
 
   - title: Test for NULL
     description: A NULL value matches no WHEN of the first form. The second form can test it with `IS NULL`.
     sql: |
-      SELECT
-        CASE n WHEN 1 THEN 'one' ELSE 'other' END AS first_form,
-        CASE WHEN n IS NULL THEN 'missing' ELSE 'present' END AS second_form
+      SELECT n,
+        CASE n WHEN 1 THEN 'one' ELSE 'other' END AS `CASE n WHEN 1 THEN 'one' ELSE 'other' END`,
+        CASE WHEN n IS NULL THEN 'missing' ELSE 'present' END AS `CASE WHEN n IS NULL THEN 'missing' ELSE 'present' END`
       FROM (VALUES (CAST(NULL AS INT))) AS t(n);
     result: |
-      | first_form | second_form |
-      |------------|-------------|
-      | other      | missing     |
+      | n    | CASE n WHEN 1 THEN 'one' ELSE 'other' END | CASE WHEN n IS NULL THEN 'missing' ELSE 'present' END |
+      |------|-------------------------------------------|-------------------------------------------------------|
+      | NULL | other                                     | missing                                               |
 
   - title: Only the chosen branch is evaluated
     description: The division doesn't run for the row with `0`.
     sql: |
-      SELECT d, CASE WHEN d <> 0 THEN 100 / d ELSE -1 END AS ratio
+      SELECT d, CASE WHEN d <> 0 THEN 100 / d ELSE -1 END AS `CASE WHEN d <> 0 THEN 100 / d ELSE -1 END`
       FROM (VALUES (4), (0)) AS t(d);
     result: |
-      | d | ratio |
-      |---|-------|
-      | 4 | 25    |
-      | 0 | -1    |
+      | d | CASE WHEN d <> 0 THEN 100 / d ELSE -1 END |
+      |---|-------------------------------------------|
+      | 4 | 25                                        |
+      | 0 | -1                                        |

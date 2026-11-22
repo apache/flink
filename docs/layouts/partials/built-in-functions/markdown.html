@@ -101,7 +101,11 @@ under the License.
       {{ $lines = $lines | append "{{< /tabs >}}" "" }}
     {{ end }}
     {{ with .result }}
-      {{ $lines = $lines | append (trim . "\n") "" }}
+      {{ $result := trim . "\n" }}
+      {{ if hasPrefix $result "|" }}
+        {{ $result = partial "built-in-functions/result-table.html" $result }}
+      {{ end }}
+      {{ $lines = $lines | append $result "" }}
     {{ end }}
   {{ end }}
 {{ end }}

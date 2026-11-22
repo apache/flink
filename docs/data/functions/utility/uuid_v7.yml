@@ -41,19 +41,21 @@ examples:
     description: The 15th character of the text is the version.
     sql: |
       SELECT
-        TYPEOF(UUID_V7()) AS result_type,
-        SUBSTRING(CAST(UUID_V7() AS STRING), 15, 1) AS version;
+        TYPEOF(UUID_V7()) AS `TYPEOF(UUID_V7())`,
+        SUBSTRING(CAST(UUID_V7() AS STRING), 15, 1) AS `SUBSTRING(CAST(UUID_V7() AS STRING), 15, 1)`;
     result: |
-      | result_type   | version |
-      |---------------|---------|
-      | UUID NOT NULL | 7       |
+      | TYPEOF(UUID_V7()) | SUBSTRING(CAST(UUID_V7() AS STRING), 15, 1) |
+      |-------------------|---------------------------------------------|
+      | UUID NOT NULL     | 7                                           |
 
   - title: A new value for every row
     description: Four rows get four different values.
     sql: |
-      SELECT COUNT(DISTINCT CAST(id AS STRING)) AS distinct_ids, COUNT(*) AS row_count
+      SELECT
+        COUNT(DISTINCT CAST(id AS STRING)) AS `COUNT(DISTINCT CAST(id AS STRING))`,
+        COUNT(*) AS `COUNT(*)`
       FROM (SELECT UUID_V7() AS id FROM (VALUES (1), (2), (3), (4)) AS t(x));
     result: |
-      | distinct_ids | row_count |
-      |--------------|-----------|
-      | 4            | 4         |
+      | COUNT(DISTINCT CAST(id AS STRING)) | COUNT(*) |
+      |------------------------------------|----------|
+      | 4                                  | 4        |

@@ -1,0 +1,88 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IS TRUE
+summary: Returns whether a condition is TRUE. Unlike `= TRUE`, it returns FALSE instead of NULL for a NULL condition.
+
+syntax:
+  sql: |
+    expr IS TRUE
+    expr IS NOT TRUE
+  java: |
+    $("expr").isTrue()
+    $("expr").isNotTrue()
+  python: |
+    col("expr").is_true
+    col("expr").is_not_true
+
+arguments:
+  - name: expr
+    type: BOOLEAN
+    required: true
+    description: The condition to test, such as a column or a comparison.
+
+returns:
+  description: "`IS TRUE` returns TRUE if `expr` is TRUE, and FALSE if it is FALSE or NULL. `IS NOT TRUE` returns the opposite: TRUE if `expr` is FALSE or NULL."
+  nulls: Never returns NULL.
+  type: "`BOOLEAN NOT NULL`."
+
+see_also:
+  - {name: IS FALSE, ref: boolean/is-false}
+  - {name: IS UNKNOWN, ref: boolean/is-unknown}
+  - {name: Logical operators, ref: boolean/logical-operators}
+
+examples:
+  - title: IS TRUE and = TRUE
+    description: For a NULL value, `= TRUE` returns NULL, while `IS TRUE` returns FALSE.
+    sql: |
+      SELECT flag,
+        flag IS TRUE AS `flag IS TRUE`,
+        flag IS NOT TRUE AS `flag IS NOT TRUE`,
+        flag = TRUE AS `flag = TRUE`
+      FROM (VALUES (TRUE), (FALSE), (CAST(NULL AS BOOLEAN))) AS t(flag);
+    result: |
+      | flag  | flag IS TRUE | flag IS NOT TRUE | flag = TRUE |
+      |-------|--------------|------------------|-------------|
+      | TRUE  | TRUE         | FALSE            | TRUE        |
+      | FALSE | FALSE        | TRUE             | FALSE       |
+      | NULL  | FALSE        | TRUE             | NULL        |
+
+  - title: Keep the rows that aren't TRUE
+    description: Unlike `WHERE NOT active`, this keeps row 3, whose `active` is NULL.
+    sql: |
+      SELECT id, active
+      FROM (VALUES (1, TRUE), (2, FALSE), (3, CAST(NULL AS BOOLEAN))) AS t(id, active)
+      WHERE active IS NOT TRUE;
+    result: |
+      | id | active |
+      |----|--------|
+      | 2  | FALSE  |
+      | 3  | NULL   |
+
+  - title: Test a comparison that can be NULL
+    description: "`qty > 10` is NULL when `qty` is NULL, and `IS TRUE` turns it into FALSE."
+    sql: |
+      SELECT qty,
+        qty > 10 AS `qty > 10`,
+        (qty > 10) IS TRUE AS `(qty > 10) IS TRUE`
+      FROM (VALUES (5), (20), (CAST(NULL AS INT))) AS t(qty);
+    result: |
+      | qty  | qty > 10 | (qty > 10) IS TRUE |
+      |------|----------|--------------------|
+      | 5    | FALSE    | FALSE              |
+      | 20   | TRUE     | TRUE               |
+      | NULL | NULL     | FALSE              |

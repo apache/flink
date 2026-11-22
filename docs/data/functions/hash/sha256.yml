@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SHA256
+summary: Returns the SHA-256 hash of a string as 64 hexadecimal digits.
+
+syntax:
+  sql: SHA256(str)
+  java: $("str").sha256()
+  python: col("str").sha256
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING. In SQL, also BINARY, VARBINARY, BYTES
+    required: true
+    description: The value to hash.
+
+returns:
+  description: The SHA-256 digest of `str` as 64 lower-case hexadecimal digits. A character string is hashed as its UTF-8 bytes, a binary string as its bytes.
+  nulls: Returns NULL if `str` is NULL.
+  type: "`CHAR(64)`, NOT NULL if `str` is NOT NULL."
+
+see_also:
+  - {name: SHA2, ref: hash/sha2}
+  - {name: SHA224, ref: hash/sha224}
+  - {name: SHA384, ref: hash/sha384}
+
+examples:
+  - title: Hash each string
+    description: A NULL string returns NULL.
+    sql: |
+      SELECT str, SHA256(str) AS `SHA256(str)`
+      FROM (VALUES ('Flink'), ('Alice'), (CAST(NULL AS STRING))) AS t(str);
+    result: |
+      | str   | SHA256(str)                                                      |
+      |-------|------------------------------------------------------------------|
+      | Flink | 6f338c13e3a27831135961a08e91722fd4bd82d855de8987c44c1492cdc75c53 |
+      | Alice | 3bc51062973c458d5a6f2d8d64a023246354ad7e064b1e4e009ec8a0699a3043 |
+      | NULL  | NULL                                                             |
+
+  - title: Hash bytes
+    description: A string is hashed as its UTF-8 bytes, so `'ä'` and its UTF-8 bytes `X'C3A4'` give the same digest.
+    sql: |
+      SELECT str, bin, SHA256(str) = SHA256(bin) AS `SHA256(str) = SHA256(bin)`
+      FROM (VALUES ('ä', X'C3A4')) AS t(str, bin);
+    result: |
+      | str | bin     | SHA256(str) = SHA256(bin) |
+      |-----|---------|---------------------------|
+      | ä   | x'c3a4' | TRUE                      |

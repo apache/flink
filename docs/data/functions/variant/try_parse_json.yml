@@ -1,0 +1,91 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TRY_PARSE_JSON
+summary: Parses a JSON string into a `VARIANT`, and returns NULL for invalid JSON.
+
+syntax:
+  sql: TRY_PARSE_JSON(json_string [, allow_duplicate_keys])
+  java: |
+    $("json_string").tryParseJson()
+    $("json_string").tryParseJson(allowDuplicateKeys)
+  python: |
+    col("json_string").try_parse_json()
+    col("json_string").try_parse_json(allow_duplicate_keys)
+
+arguments:
+  - name: json_string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The JSON text.
+  - name: allow_duplicate_keys
+    type: BOOLEAN. In the Table API, a literal
+    required: false
+    default: "`FALSE`"
+    description: "`TRUE` keeps the last value of a key that occurs more than once in an object. With `FALSE`, such a key returns NULL."
+
+returns:
+  description: A `VARIANT` that holds the JSON value of `json_string`, as `PARSE_JSON` returns it.
+  nulls: Returns NULL if `json_string` is NULL, or where `PARSE_JSON` fails, such as for invalid JSON or a duplicate key. A JSON `null` becomes a variant null, which isn't SQL NULL.
+  type: "`VARIANT`, nullable."
+
+notes:
+  - Only the first JSON value is read, and content after it is ignored. So `TRY_PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`, not NULL.
+
+see_also:
+  - {name: PARSE_JSON, ref: variant/parse-json}
+  - {name: TRY_VARIANT_GET, ref: variant/try-variant-get}
+  - {name: IS JSON, ref: json/is-json}
+
+examples:
+  - title: Invalid JSON
+    description: A truncated object and `NaN` aren't valid JSON, so they return NULL.
+    sql: |
+      SELECT doc,
+        JSON_STRING(TRY_PARSE_JSON(doc)) AS `JSON_STRING(TRY_PARSE_JSON(doc))`
+      FROM (VALUES ('{"qty": 2}'), ('{"qty":'), ('NaN'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc        | JSON_STRING(TRY_PARSE_JSON(doc)) |
+      |------------|----------------------------------|
+      | {"qty": 2} | {"qty":2}                        |
+      | {"qty":    | NULL                             |
+      | NaN        | NULL                             |
+      | NULL       | NULL                             |
+
+  - title: Duplicate keys
+    description: Without `allow_duplicate_keys` `TRUE`, a duplicate key returns NULL.
+    sql: |
+      SELECT doc,
+        JSON_STRING(TRY_PARSE_JSON(doc)) AS `JSON_STRING(TRY_PARSE_JSON(doc))`,
+        JSON_STRING(TRY_PARSE_JSON(doc, TRUE)) AS `JSON_STRING(TRY_PARSE_JSON(doc, TRUE))`
+      FROM (VALUES ('{"a": 1, "a": 2}')) AS t(doc);
+    result: |
+      | doc              | JSON_STRING(TRY_PARSE_JSON(doc)) | JSON_STRING(TRY_PARSE_JSON(doc, TRUE)) |
+      |------------------|----------------------------------|----------------------------------------|
+      | {"a": 1, "a": 2} | NULL                             | {"a":2}                                |
+
+  - title: Skip rows that aren't JSON
+    description: Keep only the rows whose payload parses.
+    sql: |
+      SELECT doc
+      FROM (VALUES ('{"qty": 2}'), ('not json'), ('[1, 2]')) AS t(doc)
+      WHERE TRY_PARSE_JSON(doc) IS NOT NULL;
+    result: |
+      | doc        |
+      |------------|
+      | {"qty": 2} |
+      | [1, 2]     |

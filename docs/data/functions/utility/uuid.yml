@@ -40,20 +40,22 @@ examples:
     description: The 15th character is the version.
     sql: |
       SELECT
-        CHAR_LENGTH(UUID()) AS len,
-        SUBSTRING(UUID(), 15, 1) AS version,
-        TYPEOF(UUID()) AS result_type;
+        CHAR_LENGTH(UUID()) AS `CHAR_LENGTH(UUID())`,
+        SUBSTRING(UUID(), 15, 1) AS `SUBSTRING(UUID(), 15, 1)`,
+        TYPEOF(UUID()) AS `TYPEOF(UUID())`;
     result: |
-      | len | version | result_type       |
-      |-----|---------|-------------------|
-      | 36  | 4       | CHAR(36) NOT NULL |
+      | CHAR_LENGTH(UUID()) | SUBSTRING(UUID(), 15, 1) | TYPEOF(UUID())    |
+      |---------------------|--------------------------|-------------------|
+      | 36                  | 4                        | CHAR(36) NOT NULL |
 
   - title: A new value for every row
     description: Four rows get four different values.
     sql: |
-      SELECT COUNT(DISTINCT id) AS distinct_ids, COUNT(*) AS row_count
+      SELECT
+        COUNT(DISTINCT id) AS `COUNT(DISTINCT id)`,
+        COUNT(*) AS `COUNT(*)`
       FROM (SELECT UUID() AS id FROM (VALUES (1), (2), (3), (4)) AS t(x));
     result: |
-      | distinct_ids | row_count |
-      |--------------|-----------|
-      | 4            | 4         |
+      | COUNT(DISTINCT id) | COUNT(*) |
+      |--------------------|----------|
+      | 4                  | 4        |

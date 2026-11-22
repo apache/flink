@@ -19,28 +19,28 @@ name: IFNULL
 summary: Returns a replacement if a value is NULL, and the value otherwise.
 
 syntax:
-  sql: IFNULL(input, null_replacement)
-  java: $("input").ifNull(nullReplacement)
-  python: col("input").if_null(null_replacement)
+  sql: IFNULL(expr, null_replacement)
+  java: $("expr").ifNull(nullReplacement)
+  python: col("expr").if_null(null_replacement)
 
 arguments:
-  - name: input
+  - name: expr
     type: Any type
     required: true
     description: The value to return if it isn't NULL.
   - name: null_replacement
-    type: A type that has a common type with `input`
+    type: A type that has a common type with `expr`
     required: true
-    description: The value to return if `input` is NULL.
+    description: The value to return if `expr` is NULL.
 
 returns:
-  description: "`input` if it isn't NULL, else `null_replacement`."
+  description: "`expr` if it isn't NULL, else `null_replacement`."
   nulls: Returns NULL if both arguments are NULL.
   type: The common type of both arguments. NOT NULL if either argument is NOT NULL.
 
 notes:
-  - "`IFNULL(input, null_replacement)` returns the same value as `COALESCE(input, null_replacement)`."
-  - "`null_replacement` is evaluated only if `input` is NULL."
+  - "`IFNULL(expr, null_replacement)` returns the same value as `COALESCE(expr, null_replacement)`."
+  - "`null_replacement` is evaluated only if `expr` is NULL."
 
 see_also:
   - {name: COALESCE, ref: conditional/coalesce}
@@ -50,20 +50,20 @@ examples:
   - title: Replace NULL
     description: Use `'n/a'` where the name is missing.
     sql: |
-      SELECT id, IFNULL(name, 'n/a') AS name
-      FROM (VALUES (1, 'Alice'), (2, CAST(NULL AS STRING))) AS t(id, name);
+      SELECT name, IFNULL(name, 'n/a') AS `IFNULL(name, 'n/a')`
+      FROM (VALUES ('Alice'), (CAST(NULL AS STRING))) AS t(name);
     result: |
-      | id | name  |
-      |----|-------|
-      | 1  | Alice |
-      | 2  | n/a   |
+      | name  | IFNULL(name, 'n/a') |
+      |-------|---------------------|
+      | Alice | Alice               |
+      | NULL  | n/a                 |
 
   - title: The result type
     description: A NOT NULL replacement gives a NOT NULL result, in the common type of both arguments.
     sql: |
-      SELECT TYPEOF(IFNULL(n, CAST(0 AS BIGINT))) AS result_type
+      SELECT n, TYPEOF(IFNULL(n, CAST(0 AS BIGINT))) AS `TYPEOF(IFNULL(n, CAST(0 AS BIGINT)))`
       FROM (VALUES (CAST(NULL AS INT))) AS t(n);
     result: |
-      | result_type     |
-      |-----------------|
-      | BIGINT NOT NULL |
+      | n    | TYPEOF(IFNULL(n, CAST(0 AS BIGINT))) |
+      |------|--------------------------------------|
+      | NULL | BIGINT NOT NULL                      |

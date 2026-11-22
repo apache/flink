@@ -1,0 +1,92 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SIMILAR TO
+summary: Returns whether a string matches a SQL regular expression.
+
+syntax:
+  sql: string [NOT] SIMILAR TO pattern [ESCAPE escape_char]
+  java: $("string").similar(pattern)
+  python: col("string").similar(pattern)
+
+arguments:
+  - name: string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to test.
+  - name: pattern
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A SQL regular expression. `%` and `_` work as in `LIKE`, and `|`, `( )`, `*`, `+`, `?`, `{m,n}` and bracket expressions such as `[a-z]` and `[[:digit:]]` as in a regular expression.
+  - name: escape_char
+    type: A single character. Not available in the Table API
+    required: false
+    description: Makes the next special character in `pattern` match itself.
+
+returns:
+  description: TRUE if `pattern` matches the whole `string`, FALSE otherwise. `NOT SIMILAR TO` returns the opposite.
+  nulls: Returns NULL if any argument is NULL.
+  type: "`BOOLEAN`, NOT NULL if all arguments are NOT NULL."
+
+notes:
+  - A `.` matches any character except a newline, as in a Java regular expression. To match a dot, write `[.]`. Escaping a `.` with `ESCAPE` fails.
+  - A `_` doesn't match a newline either, while `%` does. So `'a' || CHR(10) || 'b' SIMILAR TO 'a_b'` is FALSE.
+  - The match is case-sensitive.
+  - An invalid `pattern` fails the job.
+
+see_also:
+  - {name: LIKE, ref: comparison/like}
+  - {name: REGEXP, ref: regular-expressions/regexp}
+
+examples:
+  - title: Alternation and repetition
+    description: The pattern must match the whole string.
+    sql: |
+      SELECT s,
+        s SIMILAR TO '(cat|dog)s?' AS `s SIMILAR TO '(cat|dog)s?'`,
+        s SIMILAR TO '[[:digit:]]{3}' AS `s SIMILAR TO '[[:digit:]]{3}'`
+      FROM (VALUES ('cats'), ('dog'), ('123'), ('1234')) AS t(s);
+    result: |
+      | s    | s SIMILAR TO '(cat\|dog)s?' | s SIMILAR TO '[[:digit:]]{3}' |
+      |------|-----------------------------|-------------------------------|
+      | cats | TRUE                        | FALSE                         |
+      | dog  | TRUE                        | FALSE                         |
+      | 123  | FALSE                       | TRUE                          |
+      | 1234 | FALSE                       | FALSE                         |
+
+  - title: A dot
+    description: A `.` matches any character, while `[.]` matches only a dot.
+    sql: |
+      SELECT s, pat, s SIMILAR TO pat AS `s SIMILAR TO pat`
+      FROM (VALUES ('abc', 'a.c'), ('abc', 'a[.]c'), ('a.c', 'a[.]c')) AS t(s, pat);
+    result: |
+      | s   | pat   | s SIMILAR TO pat |
+      |-----|-------|------------------|
+      | abc | a.c   | TRUE             |
+      | abc | a[.]c | FALSE            |
+      | a.c | a[.]c | TRUE             |
+
+  - title: Match a percent sign
+    description: With `ESCAPE '!'`, `!%` matches a `%`.
+    sql: |
+      SELECT s, s SIMILAR TO '100!%' ESCAPE '!' AS `s SIMILAR TO '100!%' ESCAPE '!'`
+      FROM (VALUES ('100%'), ('1000')) AS t(s);
+    result: |
+      | s    | s SIMILAR TO '100!%' ESCAPE '!' |
+      |------|---------------------------------|
+      | 100% | TRUE                            |
+      | 1000 | FALSE                           |

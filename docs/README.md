@@ -306,13 +306,24 @@ Every page has the same sections, in this order. A section is left out when the 
 |-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Summary     | One sentence on what the function returns. The category table shows it too.                                                                                   |
 | See also    | Related functions, listed under the summary.                                                                                                                  |
-| Syntax      | The SQL call, and the Java and Python Table API calls where they exist. There is no Scala tab, since the Scala API is deprecated.                             |
+| Syntax      | The SQL call, and the Java and Python Table API calls where they exist and can be called. There is no Scala tab, since the Scala API is deprecated.           |
 | Arguments   | For each argument: the accepted types in plain words, whether it is required, its default and what it means.                                                  |
 | Returns     | What the function returns, then the cases that return NULL, then the return type and whether it is nullable.                                                  |
 | Usage notes | What a user of the function needs and can't tell from the sections above, such as limits and determinism.                                                     |
 | Examples    | A list of the scenarios, then each scenario with a title, one sentence, the SQL and its result. A Table API-only function shows Java and Python code instead. |
 
 NULL handling has no section of its own. It goes into Returns, and the examples show it.
+
+Name an argument that takes any expression `expr`, or `expr1`, `expr2` when there are several, as other engines do: `expr1 = expr2`, `LAG(expr [, n])`. Give an argument with a fixed type or role a name that says so, such as `str`, `pattern` or `lower_bound`. Write the names in snake_case, such as `json_string`. The Java tab writes the same names in camelCase. Don't name an argument or an alias in an example after an SQL keyword, such as `type`, `key` or `default`. The syntax highlighter colors those like SQL, so write `data_type`, `field_name` or `default_value` instead.
+
+Make each example readable from its result alone. Put the inputs in a `VALUES` table and select them first, so each row shows its input next to its result. Name each result column after its expression, with the expression as a quoted alias:
+
+```sql
+SELECT qty, price, qty > 10 AND price > 10 AS `qty > 10 AND price > 10`
+FROM (VALUES (5, 20.0), (50, 8.0)) AS t(qty, price);
+```
+
+An example of literals only becomes one row per case. A window function names its window, as in `RANK() OVER w`, to keep the column name short. Keep a literal where the literal is the point, such as a literal argument that fails the statement.
 
 ### What to leave out
 
@@ -327,7 +338,7 @@ A page tells a user how to use the function, not everything the code does. Leave
 
 A page describes the current behavior, also where it's a bug that users would plausibly hit. Say what happens, such as "comes back as `-1` instead of NULL", and show it in an example where you can. The bug itself goes to Jira, with what the behavior should be. A fix that changes the behavior updates the page in the same PR.
 
-In the YAML, quote a value only where YAML needs it: when it starts with a backtick, ends with a colon, or contains `: ` or ` #`. End the description of an example with a period, not a colon, so that it needs no quotes.
+In the YAML, quote a value only where YAML needs it: when it starts with a backtick, ends with a colon, or contains `: ` or ` #`, and when it is `y`, `n`, `yes`, `no`, `on` or `off`, which Hugo reads as a boolean. End the description of an example with a period, not a colon, so that it needs no quotes.
 
 ### Accuracy
 

@@ -35,32 +35,32 @@ examples:
   - title: The database of a new session
     description: A new session starts in `default_database`.
     sql: |
-      SELECT CURRENT_DATABASE() AS db;
+      SELECT CURRENT_DATABASE() AS `CURRENT_DATABASE()`;
     result: |
-      | db               |
-      |------------------|
-      | default_database |
+      | CURRENT_DATABASE() |
+      |--------------------|
+      | default_database   |
 
   - title: After switching the database
     description: "`USE` changes the current database."
     sql: |
       CREATE DATABASE sales;
       USE sales;
-      SELECT CURRENT_DATABASE() AS db;
+      SELECT CURRENT_DATABASE() AS `CURRENT_DATABASE()`;
     result: |
-      | db    |
-      |-------|
-      | sales |
+      | CURRENT_DATABASE() |
+      |--------------------|
+      | sales              |
 
   - title: A view reads the current database of the query
     description: The view was created in `d1`, but the query runs in `d2`.
     sql: |
       CREATE DATABASE d1;
-      CREATE VIEW d1.whoami AS SELECT CURRENT_DATABASE() AS db;
+      CREATE VIEW d1.whoami AS SELECT CURRENT_DATABASE() AS `CURRENT_DATABASE()`;
       CREATE DATABASE d2;
       USE d2;
-      SELECT db FROM d1.whoami;
+      SELECT * FROM d1.whoami;
     result: |
-      | db |
-      |----|
-      | d2 |
+      | CURRENT_DATABASE() |
+      |--------------------|
+      | d2                 |

@@ -1,0 +1,113 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: PARSE_JSON
+summary: Parses a JSON string into a `VARIANT`, and fails on invalid JSON.
+
+syntax:
+  sql: PARSE_JSON(json_string [, allow_duplicate_keys])
+  java: |
+    $("json_string").parseJson()
+    $("json_string").parseJson(allowDuplicateKeys)
+  python: |
+    col("json_string").parse_json()
+    col("json_string").parse_json(allow_duplicate_keys)
+
+arguments:
+  - name: json_string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The JSON text.
+  - name: allow_duplicate_keys
+    type: BOOLEAN. In the Table API, a literal
+    required: false
+    default: "`FALSE`"
+    description: "`TRUE` keeps the last value of a key that occurs more than once in an object. With `FALSE`, such a key fails the call."
+
+returns:
+  description: A `VARIANT` that holds the JSON value of `json_string`. The [VARIANT]({{< ref "docs/sql/reference/data-types" >}}#variant) type describes how each JSON value is stored.
+  nulls: Returns NULL if `json_string` is NULL. A JSON `null` becomes a variant null, which isn't SQL NULL, so `PARSE_JSON('null') IS NULL` is FALSE.
+  type: "`VARIANT`, NOT NULL if `json_string` is NOT NULL."
+
+notes:
+  - Invalid JSON fails the job. To get NULL instead, use `TRY_PARSE_JSON`.
+  - Only the first JSON value is read, and content after it is ignored, so `PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
+  - An object doesn't keep the order of its fields. `JSON_STRING` returns them sorted by name.
+  - A value larger than 16 MiB fails.
+
+see_also:
+  - {name: TRY_PARSE_JSON, ref: variant/try-parse-json}
+  - {name: VARIANT_GET, ref: variant/variant-get}
+  - {name: JSON_STRING, ref: json/json-string}
+
+examples:
+  - title: Parse JSON and read its fields
+    description: Parse a JSON object once, then read its fields with subscripts and casts.
+    sql: |
+      SELECT doc,
+        CAST(v['user'] AS STRING) AS `CAST(v['user'] AS STRING)`,
+        CAST(v['items'][1]['qty'] AS INT) AS `CAST(v['items'][1]['qty'] AS INT)`
+      FROM (SELECT doc, PARSE_JSON(doc) AS v
+        FROM (VALUES ('{"user": "ada", "items": [{"qty": 2}, {"qty": 5}]}')) AS t(doc));
+    result: |
+      | doc                                                | CAST(v['user'] AS STRING) | CAST(v['items'][1]['qty'] AS INT) |
+      |----------------------------------------------------|---------------------------|-----------------------------------|
+      | {"user": "ada", "items": [{"qty": 2}, {"qty": 5}]} | ada                       | 2                                 |
+
+  - title: Parse each row
+    description: Any JSON value works, the fields of an object come back sorted, and a NULL input returns NULL.
+    sql: |
+      SELECT doc, JSON_STRING(PARSE_JSON(doc)) AS `JSON_STRING(PARSE_JSON(doc))`
+      FROM (VALUES ('{"b": 1, "a": [true, null]}'), ('42'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc                         | JSON_STRING(PARSE_JSON(doc)) |
+      |-----------------------------|------------------------------|
+      | {"b": 1, "a": [true, null]} | {"a":[true,null],"b":1}      |
+      | 42                          | 42                           |
+      | NULL                        | NULL                         |
+
+  - title: JSON null and SQL NULL
+    description: A JSON `null` is a variant null, not SQL NULL.
+    sql: |
+      SELECT doc, PARSE_JSON(doc) IS NULL AS `PARSE_JSON(doc) IS NULL`
+      FROM (VALUES ('null'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc  | PARSE_JSON(doc) IS NULL |
+      |------|-------------------------|
+      | null | FALSE                   |
+      | NULL | TRUE                    |
+
+  - title: Duplicate keys
+    description: With `allow_duplicate_keys` `TRUE`, the last value of a duplicate key is kept.
+    sql: |
+      SELECT doc,
+        JSON_STRING(PARSE_JSON(doc, TRUE)) AS `JSON_STRING(PARSE_JSON(doc, TRUE))`
+      FROM (VALUES ('{"a": 1, "a": 2}')) AS t(doc);
+    result: |
+      | doc              | JSON_STRING(PARSE_JSON(doc, TRUE)) |
+      |------------------|------------------------------------|
+      | {"a": 1, "a": 2} | {"a":2}                            |
+
+  - title: Content after the first value
+    description: Only the first JSON value is read.
+    sql: |
+      SELECT doc, JSON_STRING(PARSE_JSON(doc)) AS `JSON_STRING(PARSE_JSON(doc))`
+      FROM (VALUES ('{"a": 1} {"a": 2}')) AS t(doc);
+    result: |
+      | doc               | JSON_STRING(PARSE_JSON(doc)) |
+      |-------------------|------------------------------|
+      | {"a": 1} {"a": 2} | {"a":1}                      |

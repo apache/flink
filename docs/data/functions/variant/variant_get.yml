@@ -1,0 +1,125 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: VARIANT_GET
+summary: Returns the value at a path of a `VARIANT`, cast to a type, and fails if the cast fails.
+
+syntax:
+  sql: VARIANT_GET(variant, path [, return_type])
+  java: |
+    $("variant").variantGet(path)
+    $("variant").variantGet(path, returnType)
+  python: |
+    col("variant").variant_get(path)
+    col("variant").variant_get(path, return_type)
+
+arguments:
+  - name: variant
+    type: VARIANT
+    required: true
+    description: The value to read from.
+  - name: path
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A path such as `'$.items[0].qty'`. See [Variant paths]({{< ref "docs/sql/built-in-functions/variant/paths" >}}).
+  - name: return_type
+    type: A string literal that names a type, such as `'INT'`. In the Table API, a `DataType`
+    required: false
+    default: "`'VARIANT'`"
+    description: The type to cast the value to. Any type that a `VARIANT` can be [cast to]({{< ref "docs/sql/reference/data-types" >}}#variant).
+
+returns:
+  description: The value at `path`, cast to `return_type`. Without `return_type`, the value as a `VARIANT`.
+  nulls: Returns NULL if `variant` or `path` is NULL, if [nothing is at `path`]({{< ref "docs/sql/built-in-functions/variant/paths" >}}), or if the value is a JSON `null` and `return_type` isn't `'VARIANT'`.
+  type: "`return_type`, nullable. Without `return_type`, `VARIANT`, nullable."
+
+notes:
+  - A value that doesn't cast to `return_type` fails the job, such as a string to `INT`. To get NULL instead, use `TRY_VARIANT_GET`.
+  - A malformed `path` literal fails the statement. A malformed `path` from a column fails the job.
+
+see_also:
+  - {name: TRY_VARIANT_GET, ref: variant/try-variant-get}
+  - {name: VARIANT subscript, ref: variant/variant-subscript}
+  - {name: JSON_VALUE, ref: json/json-value}
+
+examples:
+  - title: Read values with a type
+    description: Read three values of an order. Array indices in a path start at 0.
+    sql: |
+      SELECT doc,
+        VARIANT_GET(v, '$.order_id', 'INT') AS `VARIANT_GET(v, '$.order_id', 'INT')`,
+        VARIANT_GET(v, '$.user.name', 'STRING') AS `VARIANT_GET(v, '$.user.name', 'STRING')`,
+        VARIANT_GET(v, '$.items[0].qty', 'INT') AS `VARIANT_GET(v, '$.items[0].qty', 'INT')`
+      FROM (SELECT doc, PARSE_JSON(doc) AS v
+        FROM (VALUES ('{"order_id": 17, "user": {"name": "ada"}, "items": [{"qty": 2}, {"qty": 5}]}')) AS t(doc));
+    result: |
+      | doc                                                                          | VARIANT_GET(v, '$.order_id', 'INT') | VARIANT_GET(v, '$.user.name', 'STRING') | VARIANT_GET(v, '$.items[0].qty', 'INT') |
+      |------------------------------------------------------------------------------|-------------------------------------|-----------------------------------------|-----------------------------------------|
+      | {"order_id": 17, "user": {"name": "ada"}, "items": [{"qty": 2}, {"qty": 5}]} | 17                                  | ada                                     | 2                                       |
+
+  - title: Read a value as a VARIANT
+    description: Without `return_type`, the result is a `VARIANT`, which `JSON_STRING` turns into JSON text.
+    sql: |
+      SELECT doc,
+        JSON_STRING(VARIANT_GET(PARSE_JSON(doc), '$.user')) AS `JSON_STRING(VARIANT_GET(PARSE_JSON(doc), '$.user'))`
+      FROM (VALUES ('{"user": {"name": "ada"}}')) AS t(doc);
+    result: |
+      | doc                       | JSON_STRING(VARIANT_GET(PARSE_JSON(doc), '$.user')) |
+      |---------------------------|-----------------------------------------------------|
+      | {"user": {"name": "ada"}} | {"name":"ada"}                                      |
+
+  - title: Read an array of rows
+    description: A `return_type` can be a constructed type.
+    sql: |
+      SELECT doc,
+        VARIANT_GET(PARSE_JSON(doc), '$.items', 'ARRAY<ROW<qty INT>>') AS `VARIANT_GET(PARSE_JSON(doc), '$.items', 'ARRAY<ROW<qty INT>>')`
+      FROM (VALUES ('{"items": [{"qty": 2}, {"qty": 5}]}')) AS t(doc);
+    result: |
+      | doc                                 | VARIANT_GET(PARSE_JSON(doc), '$.items', 'ARRAY<ROW<qty INT>>') |
+      |-------------------------------------|----------------------------------------------------------------|
+      | {"items": [{"qty": 2}, {"qty": 5}]} | [(2), (5)]                                                     |
+
+  - title: Nothing at the path and JSON null
+    description: A missing field, a step on the wrong kind of value and a JSON `null` read as `INT` return NULL. Read as a `VARIANT`, a JSON `null` stays `null`.
+    sql: |
+      SELECT doc,
+        VARIANT_GET(v, '$.user.name', 'STRING') AS `VARIANT_GET(v, '$.user.name', 'STRING')`,
+        VARIANT_GET(v, '$.order_id[0]', 'INT') AS `VARIANT_GET(v, '$.order_id[0]', 'INT')`,
+        VARIANT_GET(v, '$.coupon', 'INT') AS `VARIANT_GET(v, '$.coupon', 'INT')`,
+        JSON_STRING(VARIANT_GET(v, '$.coupon')) AS `JSON_STRING(VARIANT_GET(v, '$.coupon'))`
+      FROM (SELECT doc, PARSE_JSON(doc) AS v
+        FROM (VALUES ('{"order_id": 17, "coupon": null}')) AS t(doc));
+    result: |
+      | doc                              | VARIANT_GET(v, '$.user.name', 'STRING') | VARIANT_GET(v, '$.order_id[0]', 'INT') | VARIANT_GET(v, '$.coupon', 'INT') | JSON_STRING(VARIANT_GET(v, '$.coupon')) |
+      |----------------------------------|-----------------------------------------|----------------------------------------|-----------------------------------|-----------------------------------------|
+      | {"order_id": 17, "coupon": null} | NULL                                    | NULL                                   | NULL                              | null                                    |
+
+  - title: Path from a column
+    description: Each row reads its own path.
+    sql: |
+      SELECT doc, path,
+        VARIANT_GET(PARSE_JSON(doc), path, 'INT') AS `VARIANT_GET(PARSE_JSON(doc), path, 'INT')`
+      FROM (VALUES
+        ('{"a": 1, "b": {"c": 2}}', '$.a'),
+        ('{"a": 1, "b": {"c": 2}}', '$.b.c'),
+        ('{"a": 1, "b": {"c": 2}}', '$.d')) AS t(doc, path);
+    result: |
+      | doc                     | path  | VARIANT_GET(PARSE_JSON(doc), path, 'INT') |
+      |-------------------------|-------|-------------------------------------------|
+      | {"a": 1, "b": {"c": 2}} | $.a   | 1                                         |
+      | {"a": 1, "b": {"c": 2}} | $.b.c | 2                                         |
+      | {"a": 1, "b": {"c": 2}} | $.d   | NULL                                      |

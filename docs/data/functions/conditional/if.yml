@@ -60,41 +60,45 @@ examples:
   - title: Choose between two values
     description: Label each amount.
     sql: |
-      SELECT amount, IF(amount > 100, 'large', 'small') AS size
+      SELECT amount,
+        IF(amount > 100, 'large', 'small') AS `IF(amount > 100, 'large', 'small')`
       FROM (VALUES (250), (40)) AS t(amount);
     result: |
-      | amount | size  |
-      |--------|-------|
-      | 250    | large |
-      | 40     | small |
+      | amount | IF(amount > 100, 'large', 'small') |
+      |--------|------------------------------------|
+      | 250    | large                              |
+      | 40     | small                              |
 
   - title: A NULL condition
     description: A NULL condition returns `false_value`.
     sql: |
-      SELECT IF(CAST(NULL AS BOOLEAN), 'yes', 'no') AS answer;
+      SELECT b, IF(b, 'yes', 'no') AS `IF(b, 'yes', 'no')`
+      FROM (VALUES (CAST(NULL AS BOOLEAN))) AS t(b);
     result: |
-      | answer |
-      |--------|
-      | no     |
+      | b    | IF(b, 'yes', 'no') |
+      |------|--------------------|
+      | NULL | no                 |
 
   - title: Mixed numeric types
     description: An `INT` and a `DECIMAL` value give a `DECIMAL` result.
     sql: |
-      SELECT IF(b, 1, 2.5) AS val, TYPEOF(IF(b, 1, 2.5)) AS val_type
+      SELECT b,
+        IF(b, 1, 2.5) AS `IF(b, 1, 2.5)`,
+        TYPEOF(IF(b, 1, 2.5)) AS `TYPEOF(IF(b, 1, 2.5))`
       FROM (VALUES (TRUE)) AS t(b);
     result: |
-      | val | val_type                |
-      |-----|-------------------------|
-      | 1.0 | DECIMAL(11, 1) NOT NULL |
+      | b    | IF(b, 1, 2.5) | TYPEOF(IF(b, 1, 2.5))   |
+      |------|---------------|-------------------------|
+      | TRUE | 1.0           | DECIMAL(11, 1) NOT NULL |
 
   - title: TIMESTAMP values with different precisions
     description: "`IF` uses the precision of `true_value` and drops the milliseconds. `CASE` keeps them."
     sql: |
-      SELECT
-        IF(b, TIMESTAMP '2026-01-01 12:30:45', TIMESTAMP '2026-01-01 12:30:45.123') AS with_if,
-        CASE WHEN b THEN TIMESTAMP '2026-01-01 12:30:45' ELSE TIMESTAMP '2026-01-01 12:30:45.123' END AS with_case
-      FROM (VALUES (FALSE)) AS t(b);
+      SELECT b, ts0, ts3,
+        IF(b, ts0, ts3) AS `IF(b, ts0, ts3)`,
+        CASE WHEN b THEN ts0 ELSE ts3 END AS `CASE WHEN b THEN ts0 ELSE ts3 END`
+      FROM (VALUES (FALSE, TIMESTAMP '2026-01-01 12:30:45', TIMESTAMP '2026-01-01 12:30:45.123')) AS t(b, ts0, ts3);
     result: |
-      | with_if             | with_case               |
-      |---------------------|-------------------------|
-      | 2026-01-01 12:30:45 | 2026-01-01 12:30:45.123 |
+      | b     | ts0                 | ts3                     | IF(b, ts0, ts3)     | CASE WHEN b THEN ts0 ELSE ts3 END |
+      |-------|---------------------|-------------------------|---------------------|-----------------------------------|
+      | FALSE | 2026-01-01 12:30:45 | 2026-01-01 12:30:45.123 | 2026-01-01 12:30:45 | 2026-01-01 12:30:45.123           |

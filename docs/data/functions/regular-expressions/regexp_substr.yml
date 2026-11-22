@@ -52,31 +52,35 @@ examples:
   - title: Return the first match
     description: Return the first number of each string. The last row has none.
     sql: |
-      SELECT note, REGEXP_SUBSTR(note, '\d+') AS first_number
+      SELECT note, REGEXP_SUBSTR(note, '\d+') AS `REGEXP_SUBSTR(note, '\d+')`
       FROM (VALUES ('order 17, refund 4'), ('42 items'), ('none')) AS t(note);
     result: |
-      | note               | first_number |
-      |--------------------|--------------|
-      | order 17, refund 4 | 17           |
-      | 42 items           | 42           |
-      | none               | NULL         |
+      | note               | REGEXP_SUBSTR(note, '\d+') |
+      |--------------------|----------------------------|
+      | order 17, refund 4 | 17                         |
+      | 42 items           | 42                         |
+      | none               | NULL                       |
 
   - title: An invalid regular expression
     description: A regex that doesn't compile returns NULL, even a literal one.
     sql: |
-      SELECT REGEXP_SUBSTR('order 17', '(') AS invalid_regex;
+      SELECT str, REGEXP_SUBSTR(str, '(') AS `REGEXP_SUBSTR(str, '(')`
+      FROM (VALUES ('order 17')) AS t(str);
     result: |
-      | invalid_regex |
-      |---------------|
-      | NULL          |
+      | str      | REGEXP_SUBSTR(str, '(') |
+      |----------|-------------------------|
+      | order 17 | NULL                    |
 
   - title: NULL arguments
     description: A NULL argument returns NULL.
     sql: |
-      SELECT
-        REGEXP_SUBSTR(CAST(NULL AS STRING), '\d+') AS null_str,
-        REGEXP_SUBSTR('order 17', CAST(NULL AS STRING)) AS null_regex;
+      SELECT str, regex,
+        REGEXP_SUBSTR(str, regex) AS `REGEXP_SUBSTR(str, regex)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), '\d+'),
+        ('order 17', CAST(NULL AS STRING))) AS t(str, regex);
     result: |
-      | null_str | null_regex |
-      |----------|------------|
-      | NULL     | NULL       |
+      | str      | regex | REGEXP_SUBSTR(str, regex) |
+      |----------|-------|---------------------------|
+      | NULL     | \d+   | NULL                      |
+      | order 17 | NULL  | NULL                      |

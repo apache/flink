@@ -19,10 +19,10 @@ name: NTILE
 summary: Divides the rows of each partition into a number of buckets and returns the bucket of each row.
 
 syntax:
-  sql: NTILE(n) OVER ([PARTITION BY expression [, ...]] [ORDER BY expression [ASC | DESC] [, ...]])
+  sql: NTILE(n) OVER ([PARTITION BY expr [, ...]] [ORDER BY expr [ASC | DESC] [, ...]])
 
 arguments:
-  - name: n
+  - name: "n"
     type: INT literal
     required: true
     description: The number of buckets. It must be greater than 0.
@@ -46,28 +46,30 @@ examples:
   - title: Split rows into buckets
     description: Six rows in four buckets. The first two buckets get two rows each.
     sql: |
-      SELECT n, NTILE(4) OVER (ORDER BY n) AS bucket
+      SELECT n, NTILE(4) OVER w AS `NTILE(4) OVER w`
       FROM (VALUES (1), (2), (3), (4), (5), (6)) AS t(n)
+      WINDOW w AS (ORDER BY n)
       ORDER BY n;
     result: |
-      | n | bucket |
-      |---|--------|
-      | 1 | 1      |
-      | 2 | 1      |
-      | 3 | 2      |
-      | 4 | 2      |
-      | 5 | 3      |
-      | 6 | 4      |
+      | n | NTILE(4) OVER w |
+      |---|-----------------|
+      | 1 | 1               |
+      | 2 | 1               |
+      | 3 | 2               |
+      | 4 | 2               |
+      | 5 | 3               |
+      | 6 | 4               |
 
   - title: More buckets than rows
     description: Each row gets a bucket of its own.
     sql: |
-      SELECT n, NTILE(5) OVER (ORDER BY n) AS bucket
+      SELECT n, NTILE(5) OVER w AS `NTILE(5) OVER w`
       FROM (VALUES (1), (2), (3)) AS t(n)
+      WINDOW w AS (ORDER BY n)
       ORDER BY n;
     result: |
-      | n | bucket |
-      |---|--------|
-      | 1 | 1      |
-      | 2 | 2      |
-      | 3 | 3      |
+      | n | NTILE(5) OVER w |
+      |---|-----------------|
+      | 1 | 1               |
+      | 2 | 2               |
+      | 3 | 3               |

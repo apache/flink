@@ -19,7 +19,7 @@ name: PERCENT_RANK
 summary: Returns the relative rank of each row in its partition, as a fraction from 0 to 1.
 
 syntax:
-  sql: PERCENT_RANK() OVER ([PARTITION BY expression [, ...]] ORDER BY expression [ASC | DESC] [, ...])
+  sql: PERCENT_RANK() OVER ([PARTITION BY expr [, ...]] ORDER BY expr [ASC | DESC] [, ...])
 
 returns:
   description: "`(rank - 1) / (rows - 1)`, where `rank` is the `RANK` of the current row and `rows` is the number of rows in the partition. The first row gets `0.0`, and a partition with one row gets `0.0`."
@@ -38,13 +38,14 @@ examples:
   - title: The relative rank
     description: With four rows, the ranks 1, 2, 2 and 4 become 0, 1/3, 1/3 and 1.
     sql: |
-      SELECT name, score, PERCENT_RANK() OVER (ORDER BY score DESC) AS pct
+      SELECT name, score, PERCENT_RANK() OVER w AS `PERCENT_RANK() OVER w`
       FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
-      ORDER BY pct, name;
+      WINDOW w AS (ORDER BY score DESC)
+      ORDER BY score DESC, name;
     result: |
-      | name | score | pct                |
-      |------|-------|--------------------|
-      | Ann  | 90    | 0.0                |
-      | Bob  | 85    | 0.3333333333333333 |
-      | Cid  | 85    | 0.3333333333333333 |
-      | Dee  | 70    | 1.0                |
+      | name | score | PERCENT_RANK() OVER w |
+      |------|-------|-----------------------|
+      | Ann  | 90    | 0.0                   |
+      | Bob  | 85    | 0.3333333333333333    |
+      | Cid  | 85    | 0.3333333333333333    |
+      | Dee  | 70    | 1.0                   |

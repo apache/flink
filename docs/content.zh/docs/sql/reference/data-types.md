@@ -1548,15 +1548,15 @@ To store one of these values, cast the number to a `VARIANT` instead of parsing 
 `CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
 
 `PARSE_XML` maps an XML document to an object, see
-[XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant" >}}#xml-to-variant), and
+[XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#xml-to-variant), and
 `XML_STRING` maps it back, see
-[VARIANT to XML String]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-to-xml-string).
+[VARIANT to XML String]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#variant-to-xml-string).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
 to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`. `VARIANT_GET` and
 `TRY_VARIANT_GET` read the value at a
-[path]({{< ref "docs/sql/built-in-functions/variant" >}}#variant-paths) such as `'$.items[0].qty'`
+[path]({{< ref "docs/sql/built-in-functions/variant/paths" >}}) such as `'$.items[0].qty'`
 and cast it by the same rules, returning `NULL` when nothing is at the path.
 
 | Stored kind     | Succeeds for                                          |
