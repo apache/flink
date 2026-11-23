@@ -29,20 +29,26 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.TestContainerExtension;
 
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/** Exercises native S3 filesystem operations directly. */
+/**
+ * Exercises native S3 filesystem operations directly. Tests that send requests run with the default
+ * HTTP client and with the CRT client.
+ */
 class NativeS3FileSystemITCase {
 
     @RegisterExtension
@@ -51,27 +57,38 @@ class NativeS3FileSystemITCase {
                     new AllCallbackWrapper<>(
                             new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
 
-    private static FileSystem fs;
-    private static String bucketUri;
+    private NativeS3FileSystem fs;
 
     private static SeaweedFsNativeS3TestContainer container() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 
-    @BeforeAll
-    static void setUp() throws Exception {
+    private void createFs(boolean crtEnabled) throws Exception {
+        createFs(crtEnabled, NativeS3FileSystemFactory.DELETE_BATCH_ENABLED.defaultValue());
+    }
+
+    private void createFs(boolean crtEnabled, boolean batchingEnabled) throws Exception {
         final Configuration config = new Configuration();
         container().setS3ConfigOptions(config);
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, crtEnabled);
+        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, batchingEnabled);
 
         final NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
         factory.configure(config);
-
-        bucketUri = container().getS3UriForDefaultBucket();
-        fs = factory.create(URI.create(bucketUri + "/"));
+        fs = (NativeS3FileSystem) factory.create(URI.create(bucketUri() + "/"));
     }
 
-    @Test
-    void testWriteReadAndStat() throws Exception {
+    @AfterEach
+    void closeFs() throws Exception {
+        if (fs != null) {
+            fs.closeAsync().get();
+        }
+    }
+
+    @ParameterizedTest(name = "crt={0}")
+    @ValueSource(booleans = {false, true})
+    void testWriteReadAndStat(boolean crtEnabled) throws Exception {
+        createFs(crtEnabled);
         final Path file = path("dir/" + UUID.randomUUID() + ".txt");
         final byte[] data = "hello seaweedfs".getBytes(StandardCharsets.UTF_8);
         write(file, data);
@@ -81,8 +98,10 @@ class NativeS3FileSystemITCase {
         assertThat(read(file, data.length)).isEqualTo(data);
     }
 
-    @Test
-    void testListRenameDelete() throws Exception {
+    @ParameterizedTest(name = "crt={0}")
+    @ValueSource(booleans = {false, true})
+    void testListRenameDelete(boolean crtEnabled) throws Exception {
+        createFs(crtEnabled);
         final String dir = "listdir-" + UUID.randomUUID();
         final Path a = path(dir + "/a.txt");
         final Path b = path(dir + "/b.txt");
@@ -104,40 +123,45 @@ class NativeS3FileSystemITCase {
     }
 
     @Test
-    void testMkdirsDoesNotThrowOnObjectStore() {
+    void testMkdirsDoesNotThrowOnObjectStore() throws Exception {
+        createFs(false);
         // S3 has no real directories, so mkdirs() on an object store is a no-op that must not
         // throw, even though nothing is actually created.
         assertThatCode(() -> fs.mkdirs(path("mkdir-" + UUID.randomUUID())))
                 .doesNotThrowAnyException();
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void testRecursiveDeleteManyFiles(boolean batchingEnabled) throws Exception {
-        final Configuration config = new Configuration();
-        container().setS3ConfigOptions(config);
-        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, batchingEnabled);
+    private static Stream<Arguments> crtAndBatching() {
+        return Stream.of(
+                Arguments.of(false, false),
+                Arguments.of(false, true),
+                Arguments.of(true, false),
+                Arguments.of(true, true));
+    }
 
-        final NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
-        factory.configure(config);
-        final FileSystem targetFs = factory.create(URI.create(bucketUri + "/"));
+    @ParameterizedTest(name = "crt={0}, batching={1}")
+    @MethodSource("crtAndBatching")
+    void testRecursiveDeleteManyFiles(boolean crtEnabled, boolean batchingEnabled)
+            throws Exception {
+        createFs(crtEnabled, batchingEnabled);
 
         final String dir = "bulk-delete-" + UUID.randomUUID();
         final int numFiles = 25;
         for (int i = 0; i < numFiles; i++) {
             write(
-                    targetFs,
                     path(dir + "/file-" + i + ".txt"),
                     ("data-" + i).getBytes(StandardCharsets.UTF_8));
         }
 
-        assertThat(targetFs.listStatus(path(dir))).hasSize(numFiles);
-        assertThat(targetFs.delete(path(dir), true)).isTrue();
-        assertThat(targetFs.exists(path(dir))).isFalse();
+        assertThat(fs.listStatus(path(dir))).hasSize(numFiles);
+        assertThat(fs.delete(path(dir), true)).isTrue();
+        assertThat(fs.exists(path(dir))).isFalse();
     }
 
-    @Test
-    void testRecoverableWriterMultipartCommit() throws Exception {
+    @ParameterizedTest(name = "crt={0}")
+    @ValueSource(booleans = {false, true})
+    void testRecoverableWriterMultipartCommit(boolean crtEnabled) throws Exception {
+        createFs(crtEnabled);
         final Path file = path("recoverable-" + UUID.randomUUID() + ".bin");
         // Bigger than the S3 multipart minimum part size so the commit exercises a real
         // multipart upload rather than a single-shot put.
@@ -154,21 +178,21 @@ class NativeS3FileSystemITCase {
         assertThat(read(file, data.length)).isEqualTo(data);
     }
 
+    private static String bucketUri() {
+        return container().getS3UriForDefaultBucket();
+    }
+
     private static Path path(String name) {
-        return new Path(bucketUri + "/" + name);
+        return new Path(bucketUri() + "/" + name);
     }
 
-    private static void write(Path path, byte[] data) throws Exception {
-        write(fs, path, data);
-    }
-
-    private static void write(FileSystem targetFs, Path path, byte[] data) throws Exception {
-        try (FSDataOutputStream out = targetFs.create(path, FileSystem.WriteMode.OVERWRITE)) {
+    private void write(Path path, byte[] data) throws Exception {
+        try (FSDataOutputStream out = fs.create(path, FileSystem.WriteMode.OVERWRITE)) {
             out.write(data);
         }
     }
 
-    private static byte[] read(Path path, int length) throws Exception {
+    private byte[] read(Path path, int length) throws Exception {
         final byte[] target = new byte[length];
         try (FSDataInputStream in = fs.open(path)) {
             int offset = 0;

@@ -45,9 +45,11 @@ abstract class AbstractNativeS3HAJobRunITCase extends AbstractHAJobRunITCase {
     /** Provided by the concrete runner that owns the SeaweedFS cluster extension. */
     abstract SeaweedFsNativeS3TestContainer getSeaweedFsContainer();
 
-    static Configuration createConfiguration(SeaweedFsNativeS3TestContainer container) {
+    static Configuration createConfiguration(
+            SeaweedFsNativeS3TestContainer container, boolean crtEnabled) {
         final Configuration config = new Configuration();
         container.setS3ConfigOptions(config);
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, crtEnabled);
         config.set(JobResultStoreOptions.DELETE_ON_COMMIT, Boolean.FALSE);
         config.set(
                 JobResultStoreOptions.STORAGE_PATH,

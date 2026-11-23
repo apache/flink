@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3native;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** HA Job Test Implementation. * */
+/** Runs the HA job test with the default HTTP client. */
 class HAJobRunOnNativeS3FileSystemITCase extends AbstractNativeS3HAJobRunITCase {
 
     // AbstractHAJobRunITCase already registers its own extension at @Order(1), so this one must
@@ -30,7 +30,7 @@ class HAJobRunOnNativeS3FileSystemITCase extends AbstractNativeS3HAJobRunITCase 
     @Order(2)
     private static final SeaweedFsNativeS3HAClusterExtension CLUSTER_EXTENSION =
             new SeaweedFsNativeS3HAClusterExtension(
-                    AbstractNativeS3HAJobRunITCase::createConfiguration);
+                    container -> createConfiguration(container, false));
 
     @Override
     SeaweedFsNativeS3TestContainer getSeaweedFsContainer() {
