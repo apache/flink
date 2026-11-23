@@ -153,8 +153,8 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
                 right2LeftLookupChain,
                 deltaJoinAssociation.getAllBinaryInputTableSourceSpecs(),
                 deltaJoinAssociation.getJoinTree(),
-                InputProperty.DEFAULT,
-                InputProperty.DEFAULT,
+                InputProperty.fromInput(getLeft()),
+                InputProperty.fromInput(getRight()),
                 FlinkTypeFactory.toLogicalRowType(rowType),
                 getRelDetailedDescription(),
                 asyncLookupOptions);

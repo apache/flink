@@ -87,6 +87,9 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr($("f0").isNotNull())
                         .withField("f0", DataTypes.BOOLEAN())
                         .expectStr("`f0` IS NOT NULL"),
+                TestSpec.forExpr($("f0").isNan())
+                        .withField("f0", DataTypes.DOUBLE())
+                        .expectStr("IS_NAN(`f0`)"),
                 TestSpec.forExpr($("f0").isTrue())
                         .withField("f0", DataTypes.BOOLEAN())
                         .expectStr("`f0` IS TRUE"),

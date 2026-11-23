@@ -1,0 +1,146 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: Comparison operators
+summary: Returns whether two values are equal, different, or in a given order, with `=`, `<>`, `<`, `<=`, `>` and `>=`.
+
+syntax:
+  sql: |
+    expr1 = expr2
+    expr1 <> expr2
+    expr1 < expr2
+    expr1 <= expr2
+    expr1 > expr2
+    expr1 >= expr2
+  java: |
+    $("expr1").isEqual(expr2)
+    $("expr1").isNotEqual(expr2)
+    $("expr1").isLess(expr2)
+    $("expr1").isLessOrEqual(expr2)
+    $("expr1").isGreater(expr2)
+    $("expr1").isGreaterOrEqual(expr2)
+  python: |
+    col("expr1") == expr2
+    col("expr1") != expr2
+    col("expr1") < expr2
+    col("expr1") <= expr2
+    col("expr1") > expr2
+    col("expr1") >= expr2
+
+arguments:
+  - name: expr1, expr2
+    type: Two comparable values, such as two numbers, two strings or two dates
+    required: true
+    description: The values to compare.
+
+returns:
+  description: TRUE if the comparison holds, FALSE if it doesn't.
+  nulls: Returns NULL if either value is NULL, also if both are.
+  type: "`BOOLEAN`, NOT NULL if both values are NOT NULL."
+
+notes:
+  - Strings compare by character code, so the comparison is case-sensitive, and upper-case ASCII letters sort before lower-case ones. Trailing spaces count, also those of a `CHAR(n)` value, so `CAST('a' AS CHAR(3)) = 'a'` is FALSE.
+  - "`<`, `<=`, `>` and `>=` cast a string to a number when they compare it with one, so `'10' < 9` is FALSE. A string that isn't a number fails the job. `=` and `<>` don't accept a string and a number."
+  - "`=` and `<>` don't cast a string that they compare with a `BOOLEAN`, so `TRUE = 'true'` is FALSE instead of TRUE."
+  - A `TIMESTAMP` compared with a `TIMESTAMP_LTZ` is read in the session [time zone]({{< ref "docs/sql/timezone" >}}).
+  - To compare values that can be NULL, use `IS DISTINCT FROM`.
+  - "`!=` isn't supported. Use `<>`."
+
+see_also:
+  - {name: IS DISTINCT FROM, ref: comparison/is-distinct-from}
+  - {name: BETWEEN, ref: comparison/between}
+  - {name: IN, ref: comparison/in}
+
+examples:
+  - title: Compare numbers
+    description: Apply four operators to three pairs.
+    sql: |
+      SELECT a, b,
+        a = b AS `a = b`,
+        a <> b AS `a <> b`,
+        a < b AS `a < b`,
+        a >= b AS `a >= b`
+      FROM (VALUES (1, 2), (2, 2), (3, 2)) AS t(a, b);
+    result: |
+      | a | b | a = b | a <> b | a < b | a >= b |
+      |---|---|-------|--------|-------|--------|
+      | 1 | 2 | FALSE | TRUE   | TRUE  | FALSE  |
+      | 2 | 2 | TRUE  | FALSE  | FALSE | TRUE   |
+      | 3 | 2 | FALSE | TRUE   | FALSE | TRUE   |
+
+  - title: A NULL value
+    description: A NULL value returns NULL, also when both values are NULL.
+    sql: |
+      SELECT a, b,
+        a = b AS `a = b`,
+        a < b AS `a < b`
+      FROM (VALUES (1, CAST(NULL AS INT)), (CAST(NULL AS INT), CAST(NULL AS INT))) AS t(a, b);
+    result: |
+      | a    | b    | a = b | a < b |
+      |------|------|-------|-------|
+      | 1    | NULL | NULL  | NULL  |
+      | NULL | NULL | NULL  | NULL  |
+
+  - title: Compare strings
+    description: The comparison is case-sensitive, and upper-case ASCII letters sort before lower-case ones.
+    sql: |
+      SELECT s1, s2,
+        s1 = s2 AS `s1 = s2`,
+        s1 < s2 AS `s1 < s2`
+      FROM (VALUES ('apple', 'banana'), ('Apple', 'apple'), ('Zebra', 'apple')) AS t(s1, s2);
+    result: |
+      | s1    | s2     | s1 = s2 | s1 < s2 |
+      |-------|--------|---------|---------|
+      | apple | banana | FALSE   | TRUE    |
+      | Apple | apple  | FALSE   | TRUE    |
+      | Zebra | apple  | FALSE   | TRUE    |
+
+  - title: A string and a number
+    description: The string is cast to a number, so `'10'` is greater than `9`.
+    sql: |
+      SELECT s, n,
+        s < n AS `s < n`,
+        s > n AS `s > n`
+      FROM (VALUES ('10', 9)) AS t(s, n);
+    result: |
+      | s  | n | s < n | s > n |
+      |----|---|-------|-------|
+      | 10 | 9 | FALSE | TRUE  |
+
+  - title: Arrays, maps and rows
+    description: "`=` and `<>` compare arrays, maps and rows."
+    sql: |
+      SELECT
+        ARRAY[1, 2] = ARRAY[1, 2] AS `ARRAY[1, 2] = ARRAY[1, 2]`,
+        MAP['a', 1] <> MAP['a', 2] AS `MAP['a', 1] <> MAP['a', 2]`,
+        ROW(1, 'a') = ROW(1, 'a') AS `ROW(1, 'a') = ROW(1, 'a')`;
+    result: |
+      | ARRAY[1, 2] = ARRAY[1, 2] | MAP['a', 1] <> MAP['a', 2] | ROW(1, 'a') = ROW(1, 'a') |
+      |---------------------------|----------------------------|---------------------------|
+      | TRUE                      | TRUE                       | TRUE                      |
+
+  - title: Filter rows
+    description: Keep the orders with an amount of at least 100.
+    sql: |
+      SELECT id, amount
+      FROM (VALUES (1, 50), (2, 150), (3, 100)) AS orders(id, amount)
+      WHERE amount >= 100;
+    result: |
+      | id | amount |
+      |----|--------|
+      | 2  | 150    |
+      | 3  | 100    |

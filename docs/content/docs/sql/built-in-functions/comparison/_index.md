@@ -2,6 +2,7 @@
 title: "Comparison"
 weight: 6
 type: docs
+bookCollapseSection: true
 sqlFunctions: comparison
 ---
 <!--

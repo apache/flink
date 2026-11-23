@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: NULLIF
+summary: Returns NULL if two values are equal, and the first value otherwise.
+
+syntax:
+  sql: NULLIF(expr1, expr2)
+
+arguments:
+  - name: expr1
+    type: Any type that `=` can compare with `expr2`
+    required: true
+    description: The value to return.
+  - name: expr2
+    type: The type of `expr1`, or one comparable with it
+    required: true
+    description: The value that turns `expr1` into NULL.
+
+returns:
+  description: NULL if `expr1` equals `expr2`, else `expr1`.
+  nulls: Returns NULL if `expr1` equals `expr2` or if `expr1` is NULL. A NULL `expr2` never equals `expr1`, so the function returns `expr1`.
+  type: The type of `expr1`, always nullable.
+
+notes:
+  - "`NULLIF(expr1, expr2)` is short for `CASE WHEN expr1 = expr2 THEN NULL ELSE expr1 END`."
+  - There is no Table API method. Use `callSql("NULLIF(a, b)")` in Java or `call_sql("NULLIF(a, b)")` in Python.
+
+see_also:
+  - {name: CASE, ref: conditional/case}
+  - {name: COALESCE, ref: conditional/coalesce}
+
+examples:
+  - title: Turn a placeholder into NULL
+    description: "`-1` marks a missing score."
+    sql: |
+      SELECT score, NULLIF(score, -1) AS `NULLIF(score, -1)`
+      FROM (VALUES (80), (-1)) AS t(score);
+    result: |
+      | score | NULLIF(score, -1) |
+      |-------|-------------------|
+      | 80    | 80                |
+      | -1    | NULL              |
+
+  - title: NULL arguments
+    description: A NULL `expr2` returns `expr1`. A NULL `expr1` returns NULL.
+    sql: |
+      SELECT x, y, NULLIF(x, y) AS `NULLIF(x, y)`
+      FROM (VALUES (5, CAST(NULL AS INT)), (CAST(NULL AS INT), 5)) AS t(x, y);
+    result: |
+      | x    | y    | NULLIF(x, y) |
+      |------|------|--------------|
+      | 5    | NULL | 5            |
+      | NULL | 5    | NULL         |

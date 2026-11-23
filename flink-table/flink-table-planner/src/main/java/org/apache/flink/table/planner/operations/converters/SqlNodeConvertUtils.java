@@ -109,8 +109,14 @@ public class SqlNodeConvertUtils {
                 relational.project(), () -> context.toQuotedSqlString(validated));
     }
 
-    /** convert the query part of a VIEW statement into a {@link CatalogView}. */
+    /**
+     * Converts the query part of a VIEW statement into a {@link CatalogView}.
+     *
+     * <p>Fails if the query references the view with the given identifier, directly or through
+     * other views.
+     */
     static CatalogView toCatalogView(
+            ObjectIdentifier viewIdentifier,
             SqlNode query,
             SqlParserPos asQueryKeywordPos,
             List<SqlNode> viewFields,
@@ -130,7 +136,13 @@ public class SqlNodeConvertUtils {
 
         String expandedQuery = context.toQuotedSqlString(validateQuery);
 
-        PlannerQueryOperation operation = toQueryOperation(validateQuery, context);
+        // Converting the query expands the views it references. Doing so as part of the
+        // expansion of the defined view rejects a query that leads back to that view.
+        PlannerQueryOperation operation =
+                context.getFlinkPlanner()
+                        .withinViewExpansion(
+                                viewIdentifier.toList(),
+                                () -> toQueryOperation(validateQuery, context));
         ResolvedSchema schema = operation.getResolvedSchema();
 
         // the view column list in CREATE VIEW is optional, if it's not empty, we should update

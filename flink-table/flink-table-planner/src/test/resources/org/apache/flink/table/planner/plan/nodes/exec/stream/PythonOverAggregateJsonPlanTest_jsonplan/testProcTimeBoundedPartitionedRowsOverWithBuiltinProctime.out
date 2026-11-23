@@ -243,7 +243,8 @@
     },
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "HASH",
+        "keys" : [ 0 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0

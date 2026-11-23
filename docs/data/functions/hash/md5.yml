@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: MD5
+summary: Returns the MD5 hash of a string as 32 hexadecimal digits.
+
+syntax:
+  sql: MD5(str)
+  java: $("str").md5()
+  python: col("str").md5
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING. In SQL, also BINARY, VARBINARY, BYTES
+    required: true
+    description: The value to hash.
+
+returns:
+  description: The MD5 digest of `str` as 32 lower-case hexadecimal digits. A character string is hashed as its UTF-8 bytes, a binary string as its bytes.
+  nulls: Returns NULL if `str` is NULL.
+  type: "`CHAR(32)`, NOT NULL if `str` is NOT NULL."
+
+see_also:
+  - {name: SHA256, ref: hash/sha256}
+  - {name: SHA2, ref: hash/sha2}
+
+examples:
+  - title: Hash each string
+    description: A NULL string returns NULL.
+    sql: |
+      SELECT str, MD5(str) AS `MD5(str)`
+      FROM (VALUES ('Flink'), ('Alice'), (CAST(NULL AS STRING))) AS t(str);
+    result: |
+      | str   | MD5(str)                         |
+      |-------|----------------------------------|
+      | Flink | 4438f9fa6205bdb2a850e66c2d313d01 |
+      | Alice | 64489c85dc2fe0787b85cd87214b3810 |
+      | NULL  | NULL                             |
+
+  - title: Hash bytes
+    description: A string is hashed as its UTF-8 bytes, so `'ä'` and its UTF-8 bytes `X'C3A4'` give the same digest.
+    sql: |
+      SELECT str, bin, MD5(str) = MD5(bin) AS `MD5(str) = MD5(bin)`
+      FROM (VALUES ('ä', X'C3A4')) AS t(str, bin);
+    result: |
+      | str | bin     | MD5(str) = MD5(bin) |
+      |-----|---------|---------------------|
+      | ä   | x'c3a4' | TRUE                |

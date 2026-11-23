@@ -2,6 +2,7 @@
 title: "哈希"
 weight: 9
 type: docs
+bookCollapseSection: true
 sqlFunctions: hashfunctions
 ---
 <!--

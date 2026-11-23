@@ -115,7 +115,7 @@ class StreamPhysicalChangelogNormalize(
       uniqueKeys,
       generateUpdateBefore,
       filterCondition,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

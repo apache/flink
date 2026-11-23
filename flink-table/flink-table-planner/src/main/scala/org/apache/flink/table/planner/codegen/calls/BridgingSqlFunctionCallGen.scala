@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen._
-import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{generateFunctionAwareCall, DefaultExpressionEvaluatorFactory}
+import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{generateFunctionAwareCall, udfMetricNameOf, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -79,7 +79,7 @@ class BridgingSqlFunctionCallGen(call: RexCall, rexProgram: RexProgram) extends 
       skipIfArgsNull = false,
       // Only the true user-UDF entry opts into metrics; lookup/ML/vector reuse the same util with
       // the default None and stay un-instrumented.
-      udfMetricName = Some(function.getName)
+      udfMetricName = Some(udfMetricNameOf(function))
     )
   }
 }

@@ -2,6 +2,7 @@
 title: "JSON"
 weight: 10
 type: docs
+bookCollapseSection: true
 sqlFunctions: json
 ---
 <!--

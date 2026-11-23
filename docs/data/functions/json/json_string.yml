@@ -1,0 +1,113 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_STRING
+summary: Returns a value as JSON text.
+
+syntax:
+  sql: JSON_STRING(expr)
+  java: jsonString(expr)
+  python: json_string(expr)
+
+arguments:
+  - name: expr
+    type: Any type except UUID and intervals. A `MAP` needs character string keys
+    required: true
+    description: The value to write as JSON.
+
+returns:
+  description: The JSON text of `expr`. A number or a `BOOLEAN` becomes a JSON number or boolean, a string a JSON string, an `ARRAY` a JSON array, and a `MAP`, a `ROW` or a `VARIANT` object a JSON object. NULL values inside `expr` become `null`. A `FLOAT` or `DOUBLE` NaN or infinity becomes a JSON string, such as `"NaN"`.
+  nulls: Returns NULL if `expr` is NULL.
+  type: "`STRING`, NOT NULL if `expr` is NOT NULL."
+
+notes:
+  - The fields of a `MAP` or a `ROW` come out sorted by name, not in their declared order.
+  - Dates, times and timestamps are written as ISO 8601 strings, such as `"2024-03-05T10:15:30.5"`. A `TIMESTAMP_LTZ` is written in UTC with a `Z`, whatever the session time zone.
+  - Binary strings are written as Base64 strings.
+  - A string is written as a JSON string, also when it holds JSON text. To write the text as JSON, parse it with `PARSE_JSON` first. A `JSON_OBJECT` or `JSON_ARRAY` call written as the argument is written as JSON.
+  - A `FLOAT` value is written with the digits of a `DOUBLE`, such as `1.100000023841858` instead of `1.1`.
+
+see_also:
+  - {name: JSON_OBJECT, ref: json/json-object}
+  - {name: JSON_ARRAY, ref: json/json-array}
+  - {name: PARSE_JSON, ref: variant/parse-json}
+
+examples:
+  - title: Scalar values
+    description: Numbers and booleans become JSON literals, strings are quoted and escaped, and binary strings become Base64.
+    sql: |
+      SELECT
+        JSON_STRING(1) AS `JSON_STRING(1)`,
+        JSON_STRING(TRUE) AS `JSON_STRING(TRUE)`,
+        JSON_STRING('Hello, "World"') AS `JSON_STRING('Hello, "World"')`,
+        JSON_STRING(CAST('Test' AS BYTES)) AS `JSON_STRING(CAST('Test' AS BYTES))`,
+        JSON_STRING(CAST(NULL AS INT)) AS `JSON_STRING(CAST(NULL AS INT))`;
+    result: |
+      | JSON_STRING(1) | JSON_STRING(TRUE) | JSON_STRING('Hello, "World"') | JSON_STRING(CAST('Test' AS BYTES)) | JSON_STRING(CAST(NULL AS INT)) |
+      |----------------|-------------------|-------------------------------|------------------------------------|--------------------------------|
+      | 1              | true              | "Hello, \"World\""            | "VGVzdA=="                         | NULL                           |
+
+  - title: Dates and timestamps
+    description: Temporal values become ISO 8601 strings. A `TIMESTAMP_LTZ` is written in UTC.
+    sql: |
+      SELECT
+        JSON_STRING(DATE '2024-03-05') AS `JSON_STRING(DATE '2024-03-05')`,
+        JSON_STRING(TIME '10:15:30') AS `JSON_STRING(TIME '10:15:30')`,
+        JSON_STRING(TIMESTAMP '2024-03-05 10:15:30.5') AS `JSON_STRING(TIMESTAMP '2024-03-05 10:15:30.5')`,
+        JSON_STRING(TO_TIMESTAMP_LTZ(0, 3)) AS `JSON_STRING(TO_TIMESTAMP_LTZ(0, 3))`;
+    result: |
+      | JSON_STRING(DATE '2024-03-05') | JSON_STRING(TIME '10:15:30') | JSON_STRING(TIMESTAMP '2024-03-05 10:15:30.5') | JSON_STRING(TO_TIMESTAMP_LTZ(0, 3)) |
+      |--------------------------------|------------------------------|------------------------------------------------|-------------------------------------|
+      | "2024-03-05"                   | "10:15:30"                   | "2024-03-05T10:15:30.5"                        | "1970-01-01T00:00:00Z"              |
+
+  - title: Collections and rows
+    description: An array becomes a JSON array. A map and a row become objects with their fields sorted by name.
+    sql: |
+      SELECT
+        JSON_STRING(ARRAY[1, 2, CAST(NULL AS INT)]) AS `JSON_STRING(ARRAY[1, 2, CAST(NULL AS INT)])`,
+        JSON_STRING(MAP['b', 1, 'a', 2]) AS `JSON_STRING(MAP['b', 1, 'a', 2])`,
+        JSON_STRING(CAST(ROW(1, 'Alice') AS ROW<id INT, name STRING>)) AS `JSON_STRING(CAST(ROW(1, 'Alice') AS ROW<id INT, name STRING>))`;
+    result: |
+      | JSON_STRING(ARRAY[1, 2, CAST(NULL AS INT)]) | JSON_STRING(MAP['b', 1, 'a', 2]) | JSON_STRING(CAST(ROW(1, 'Alice') AS ROW<id INT, name STRING>)) |
+      |---------------------------------------------|----------------------------------|----------------------------------------------------------------|
+      | [1,2,null]                                  | {"a":2,"b":1}                    | {"id":1,"name":"Alice"}                                        |
+
+  - title: A string that holds JSON
+    description: A string becomes a JSON string. Parse it into a `VARIANT` first to write it as JSON.
+    sql: |
+      SELECT doc,
+        JSON_STRING(doc) AS `JSON_STRING(doc)`,
+        JSON_STRING(PARSE_JSON(doc)) AS `JSON_STRING(PARSE_JSON(doc))`
+      FROM (VALUES ('{"a":1}'), ('[1, 2]')) AS t(doc);
+    result: |
+      | doc     | JSON_STRING(doc) | JSON_STRING(PARSE_JSON(doc)) |
+      |---------|------------------|------------------------------|
+      | {"a":1} | "{\"a\":1}"      | {"a":1}                      |
+      | [1, 2]  | "[1, 2]"         | [1,2]                        |
+
+  - title: FLOAT values
+    description: A `FLOAT` gets the digits of a `DOUBLE`, while a cast to `STRING` doesn't.
+    sql: |
+      SELECT f,
+        JSON_STRING(f) AS `JSON_STRING(f)`,
+        CAST(f AS STRING) AS `CAST(f AS STRING)`
+      FROM (VALUES (CAST(1.1 AS FLOAT)), (CAST(0.1 AS FLOAT))) AS t(f);
+    result: |
+      | f   | JSON_STRING(f)      | CAST(f AS STRING) |
+      |-----|---------------------|-------------------|
+      | 1.1 | 1.100000023841858   | 1.1               |
+      | 0.1 | 0.10000000149011612 | 0.1               |

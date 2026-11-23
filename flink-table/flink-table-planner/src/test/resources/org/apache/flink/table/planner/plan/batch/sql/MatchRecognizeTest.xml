@@ -65,9 +65,10 @@ Match(partitionBy=[symbol], measures=[FINAL(A.price) AS dPrice], rowsPerMatch=[O
          +- LocalHashAggregate(groupBy=[symbol, price], select=[symbol, price])
             +- Calc(select=[symbol, price])
                +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$1, 0), 0)}])
-                  +- Calc(select=[symbol, price, tax, PROCTIME() AS ts_ltz])
-                     +- Exchange(distribution=[hash[symbol]])
-                        +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, price, tax])
+                  +- Exchange(distribution=[keep_input_as_is[hash[symbol]]])
+                     +- Calc(select=[symbol, price, tax, PROCTIME() AS ts_ltz])
+                        +- Exchange(distribution=[hash[symbol]])
+                           +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, price, tax])
 ]]>
     </Resource>
   </TestCase>

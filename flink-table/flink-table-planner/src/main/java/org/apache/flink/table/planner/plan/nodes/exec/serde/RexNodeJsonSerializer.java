@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
+import org.apache.flink.table.planner.functions.sql.VersionedSqlOperator;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
@@ -402,7 +402,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         if (operator instanceof BridgingSqlFunction) {
             final BridgingSqlFunction function = (BridgingSqlFunction) operator;
             serializeBridgingSqlFunction(
-                    function.getName(),
+                    function,
                     function.getResolvedFunction(),
                     gen,
                     serializerProvider,
@@ -410,7 +410,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         } else if (operator instanceof BridgingSqlAggFunction) {
             final BridgingSqlAggFunction function = (BridgingSqlAggFunction) operator;
             serializeBridgingSqlFunction(
-                    function.getName(),
+                    function,
                     function.getResolvedFunction(),
                     gen,
                     serializerProvider,
@@ -426,19 +426,19 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 // We assume that all regular SqlOperators are internal. Only the function
                 // definitions
                 // stack is exposed to the user and can thus be external.
-                gen.writeStringField(
-                        FIELD_NAME_INTERNAL_NAME, BuiltInSqlOperator.toQualifiedName(operator));
+                gen.writeStringField(FIELD_NAME_INTERNAL_NAME, toQualifiedName(operator));
             }
         }
     }
 
     private static void serializeBridgingSqlFunction(
-            String summaryName,
+            SqlOperator operator,
             ContextResolvedFunction resolvedFunction,
             JsonGenerator gen,
             SerializerProvider serializerProvider,
             boolean serializeCatalogObjects)
             throws IOException {
+        final String summaryName = operator.getName();
         final FunctionDefinition definition = resolvedFunction.getDefinition();
         if (definition instanceof ScalarFunctionDefinition
                 || definition instanceof TableFunctionDefinition
@@ -448,9 +448,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         }
 
         if (definition instanceof BuiltInFunctionDefinition) {
-            final BuiltInFunctionDefinition builtInFunction =
-                    (BuiltInFunctionDefinition) definition;
-            gen.writeStringField(FIELD_NAME_INTERNAL_NAME, builtInFunction.getQualifiedName());
+            gen.writeStringField(FIELD_NAME_INTERNAL_NAME, toQualifiedName(operator));
         } else if (resolvedFunction.isAnonymous()) {
             serializeInlineFunction(summaryName, definition, gen);
         } else if (resolvedFunction.isTemporary()) {
@@ -581,5 +579,29 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                         objectIdentifier.asSummaryString(),
                         TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS.key(),
                         CatalogPlanCompilation.IDENTIFIER));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Shared helpers
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the name that is written to {@link #FIELD_NAME_INTERNAL_NAME} for a built-in function
+     * or a regular {@link SqlOperator}. Logic shared with {@link RexNodeJsonDeserializer}.
+     */
+    public static String toQualifiedName(SqlOperator operator) {
+        final ContextResolvedFunction resolvedFunction;
+        if (operator instanceof BridgingSqlFunction) {
+            resolvedFunction = ((BridgingSqlFunction) operator).getResolvedFunction();
+        } else if (operator instanceof BridgingSqlAggFunction) {
+            resolvedFunction = ((BridgingSqlAggFunction) operator).getResolvedFunction();
+        } else {
+            return VersionedSqlOperator.toQualifiedName(operator);
+        }
+        final FunctionDefinition definition = resolvedFunction.getDefinition();
+        if (definition instanceof BuiltInFunctionDefinition) {
+            return ((BuiltInFunctionDefinition) definition).getQualifiedName();
+        }
+        return VersionedSqlOperator.toQualifiedName(operator);
     }
 }

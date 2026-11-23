@@ -1,0 +1,100 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInputWithoutUpsertKey">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE names)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) name)])
+   +- LogicalProject(name=[$0])
+      +- LogicalProject(name=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[name], rowType=[RecordType(VARCHAR(2147483647) name)], changelogMode=[I])
++- Calc(select=[name], changelogMode=[I,UB,UA,D])
+   +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRetractSource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE retract_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- DropUpdateBefore(changelogMode=[I,UA,D])
+   +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithFullDeletes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_full_deletes)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source_with_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_source_with_full_deletes]], fields=[id, name], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithPartialDeletes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE upsert_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

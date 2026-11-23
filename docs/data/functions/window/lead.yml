@@ -1,0 +1,122 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LEAD
+summary: Returns a value from a row after the current row in its partition.
+
+syntax:
+  sql: LEAD(expr [, n [, default_value]]) OVER ([PARTITION BY expr [, ...]] [ORDER BY expr [ASC | DESC] [, ...]])
+  java: |
+    lead($("expr"))
+    lead($("expr"), n)
+    lead($("expr"), n, defaultValue)
+  python: |
+    lead(col("expr"))
+    lead(col("expr"), n)
+    lead(col("expr"), n, default_value)
+
+arguments:
+  - name: expr
+    type: A number, a boolean, a string, a `DATE`, a `TIME` or a `TIMESTAMP`
+    required: true
+    description: The value to read from the other row.
+  - name: "n"
+    type: An integer
+    required: false
+    default: "`1`"
+    description: How many rows after the current row to look. `0` returns the value of the current row. A negative offset looks the other way, so `LEAD(x, -1)` returns the same as `LAG(x, 1)` in batch mode.
+  - name: default_value
+    type: The type of `expr`
+    required: false
+    default: NULL
+    description: The value to return if there is no row at that offset. It is evaluated on the current row. Give it exactly the type of `expr`, such as `CAST(0 AS BIGINT)` for a `BIGINT` expression. A wider type, such as a `BIGINT` default for an `INT` expression, fails the query.
+
+returns:
+  description: The value of `expr` in the row that comes `n` rows after the current row in its partition, by the `ORDER BY` of the window.
+  nulls: Returns NULL if there is no such row and `default_value` is NULL or omitted, or if that row has a NULL value and `default_value` is nullable or omitted.
+  type: The type of `expr`. NOT NULL if `default_value` is NOT NULL.
+
+notes:
+  - The window can't have a frame clause, such as `ROWS BETWEEN 1 PRECEDING AND CURRENT ROW`.
+  - Without an `ORDER BY`, the order of the rows is undefined.
+  - Not supported in streaming mode.
+  - With a NOT NULL `default_value`, a NULL value in that row doesn't come back as NULL. Depending on the query, it comes back as a placeholder, such as `-1` for an `INT`, or the job fails. To get NULL, omit `default_value` or use a column that can be NULL.
+  - "`IGNORE NULLS` is accepted but has no effect, so a NULL value in that row still comes back."
+
+see_also:
+  - {name: LAG, ref: window/lag}
+  - {name: ROW_NUMBER, ref: window/row-number}
+
+examples:
+  - title: Compare each row with its neighbor
+    description: Return the score of the row after each row.
+    sql: |
+      SELECT name, score, LEAD(score) OVER w AS `LEAD(score) OVER w`
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      WINDOW w AS (ORDER BY score DESC, name)
+      ORDER BY score DESC, name;
+    result: |
+      | name | score | LEAD(score) OVER w |
+      |------|-------|--------------------|
+      | Ann  | 90    | 85                 |
+      | Bob  | 85    | 85                 |
+      | Cid  | 85    | 70                 |
+      | Dee  | 70    | NULL               |
+
+  - title: An offset and a default
+    description: Look two rows after, and return `0` where there is no such row.
+    sql: |
+      SELECT name, score, LEAD(score, 2, 0) OVER w AS `LEAD(score, 2, 0) OVER w`
+      FROM (VALUES ('Ann', 90), ('Bob', 85), ('Cid', 85), ('Dee', 70)) AS t(name, score)
+      WINDOW w AS (ORDER BY score DESC, name)
+      ORDER BY score DESC, name;
+    result: |
+      | name | score | LEAD(score, 2, 0) OVER w |
+      |------|-------|--------------------------|
+      | Ann  | 90    | 85                       |
+      | Bob  | 85    | 70                       |
+      | Cid  | 85    | 0                        |
+      | Dee  | 70    | 0                        |
+
+  - title: Within each partition
+    description: The rows of one team don't see the rows of another.
+    sql: |
+      SELECT team, name, score, LEAD(name) OVER w AS `LEAD(name) OVER w`
+      FROM (VALUES ('red', 'Ann', 90), ('red', 'Bob', 85), ('red', 'Cid', 70), ('blue', 'Eve', 95), ('blue', 'Fay', 80)) AS t(team, name, score)
+      WINDOW w AS (PARTITION BY team ORDER BY score DESC)
+      ORDER BY team, score DESC;
+    result: |
+      | team | name | score | LEAD(name) OVER w |
+      |------|------|-------|-------------------|
+      | blue | Eve  | 95    | Fay               |
+      | blue | Fay  | 80    | NULL              |
+      | red  | Ann  | 90    | Bob               |
+      | red  | Bob  | 85    | Cid               |
+      | red  | Cid  | 70    | NULL              |
+
+  - title: A NULL value with a NOT NULL default
+    description: Row 1 reads the NULL in row 2, but gets `-1`, because `default_value` is NOT NULL.
+    sql: |
+      SELECT id, LEAD(x, 1, 0) OVER w AS `LEAD(x, 1, 0) OVER w`
+      FROM (VALUES (1, 10), (2, CAST(NULL AS INT)), (3, 30)) AS t(id, x)
+      WINDOW w AS (ORDER BY id);
+    result: |
+      | id | LEAD(x, 1, 0) OVER w |
+      |----|----------------------|
+      | 1  | -1                   |
+      | 2  | 30                   |
+      | 3  | 0                    |

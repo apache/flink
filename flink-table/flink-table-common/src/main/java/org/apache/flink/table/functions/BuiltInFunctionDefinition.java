@@ -207,12 +207,13 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     }
 
     // --------------------------------------------------------------------------------------------
-    // Shared with BuiltInSqlOperator and BuiltInSqlFunction in planner
+    // Shared with VersionedSqlOperator in planner
     // --------------------------------------------------------------------------------------------
 
-    // note that for SQL operators the name can contain spaces and dollar signs
+    // note that for SQL operators the name can contain spaces, dollar signs, and the symbols of
+    // Calcite's standard operators (e.g. $<=$1 or $||$1)
     private static final Pattern INTERNAL_NAME_PATTERN =
-            Pattern.compile("\\$[A-Z0-9_ $]+\\$[1-9][0-9]*");
+            Pattern.compile("\\$[A-Z0-9_ $%&*+/<=>^|-]+\\$[1-9][0-9]*");
 
     private static final String INTERNAL_NAME_FORMAT = "$%s$%s";
 
@@ -235,6 +236,26 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
     public static String qualifyFunctionName(String name, int version) {
         return String.format(INTERNAL_NAME_FORMAT, name.toUpperCase(Locale.ROOT), version);
+    }
+
+    public static String extractNameFromQualifiedName(String qualifiedName) {
+        // supports all various kinds of qualified names
+        // $FUNC$1 => FUNC
+        // $IS NULL$1 => IS NULL
+        // $$CALCITE_INTERNAL$1 => $CALCITE_INTERNAL
+        return qualifiedName.substring(1, findVersionSeparator(qualifiedName));
+    }
+
+    public static int extractVersionFromQualifiedName(String qualifiedName) {
+        return Integer.parseInt(qualifiedName.substring(findVersionSeparator(qualifiedName) + 1));
+    }
+
+    private static int findVersionSeparator(String qualifiedName) {
+        int versionPos = qualifiedName.length() - 1;
+        while (Character.isDigit(qualifiedName.charAt(versionPos))) {
+            versionPos--;
+        }
+        return versionPos;
     }
 
     // --------------------------------------------------------------------------------------------
