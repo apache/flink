@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.entry;
 
 /** IT cases for connection statements. */
 @ExtendWith(ParameterizedTestExtension.class)
-class ConnectionITCase {
+class ConnectionITCase extends AbstractTestBase {
 
     @Parameter public boolean isBatch;
 
