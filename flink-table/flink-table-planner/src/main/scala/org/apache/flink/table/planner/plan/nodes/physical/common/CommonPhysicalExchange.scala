@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
@@ -27,7 +26,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
-import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.core.Exchange
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
@@ -109,20 +107,6 @@ abstract class CommonPhysicalExchange(
   }
 
   protected def getRequiredDistribution: RequiredDistribution = {
-    relDistribution.getType match {
-      case Type.ANY => InputProperty.ANY_DISTRIBUTION
-      case Type.BROADCAST_DISTRIBUTED => InputProperty.BROADCAST_DISTRIBUTION
-      case Type.SINGLETON => InputProperty.SINGLETON_DISTRIBUTION
-      case Type.HASH_DISTRIBUTED =>
-        val keys = relDistribution.getKeys.asScala.map(_.intValue()).toArray
-        if (keys.isEmpty) {
-          InputProperty.SINGLETON_DISTRIBUTION
-        } else {
-          // Hash Shuffle requires not empty keys
-          InputProperty.hashDistribution(keys)
-        }
-      case _ =>
-        throw new TableException(s"Unsupported distribution type: ${relDistribution.getType}")
-    }
+    InputProperty.toRequiredDistribution(relDistribution)
   }
 }

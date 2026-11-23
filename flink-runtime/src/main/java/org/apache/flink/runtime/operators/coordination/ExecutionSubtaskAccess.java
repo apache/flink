@@ -25,7 +25,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.Collection;
@@ -58,7 +57,7 @@ final class ExecutionSubtaskAccess implements SubtaskAccess {
                 .thenAccept(
                         (state) ->
                                 futuresTracker.failAllFutures(
-                                        new FlinkException("Task is no longer running")));
+                                        new TaskNotRunningException("Task is no longer running")));
     }
 
     @Override

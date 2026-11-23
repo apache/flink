@@ -1,0 +1,115 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: VARIANT subscript
+summary: Returns the element at an index of a `VARIANT` array, or the field with a name of a `VARIANT` object.
+
+syntax:
+  sql: |
+    variant[n]
+    variant[field_name]
+  java: |
+    $("variant").at(n)
+    $("variant").at(fieldName)
+  python: |
+    col("variant").at(n)
+    col("variant").at(field_name)
+
+arguments:
+  - name: variant
+    type: VARIANT
+    required: true
+    description: An array or an object.
+  - name: "n"
+    type: TINYINT, SMALLINT, INT, BIGINT
+    required: true
+    description: For an array, the position of the element, starting at 1.
+  - name: field_name
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: For an object, the name of the field. Names are case-sensitive.
+
+returns:
+  description: A `VARIANT` with the element or the value of the field. Cast it to read a SQL value, such as `CAST(v['qty'] AS INT)`.
+  nulls: Returns NULL if an argument is NULL, if the object has no field `field_name`, or if the array has no element at `n`. A field that holds a JSON `null` returns a variant null, which isn't SQL NULL.
+  type: "`VARIANT`, nullable."
+
+notes:
+  - Array indices start at 1, while the paths of `VARIANT_GET` start at 0. A literal `n` below 1 fails the statement.
+  - A subscript on the wrong kind of value fails the job, such as an `n` on an object or a `field_name` on a string. So does a `field_name` on a JSON `null` in a chain, such as `v['a']['b']` when `a` is `null`. `VARIANT_GET` returns NULL in these cases.
+
+see_also:
+  - {name: VARIANT_GET, ref: variant/variant-get}
+  - {name: PARSE_JSON, ref: variant/parse-json}
+
+examples:
+  - title: Read fields and elements
+    description: Chain subscripts to walk into the value. Array indices start at 1.
+    sql: |
+      SELECT doc,
+        JSON_STRING(v['user']['name']) AS `JSON_STRING(v['user']['name'])`,
+        JSON_STRING(v['items'][1]) AS `JSON_STRING(v['items'][1])`,
+        CAST(v['items'][2]['qty'] AS INT) AS `CAST(v['items'][2]['qty'] AS INT)`
+      FROM (SELECT doc, PARSE_JSON(doc) AS v
+        FROM (VALUES ('{"user": {"name": "ada"}, "items": [{"qty": 2}, {"qty": 5}]}')) AS t(doc));
+    result: |
+      | doc                                                          | JSON_STRING(v['user']['name']) | JSON_STRING(v['items'][1]) | CAST(v['items'][2]['qty'] AS INT) |
+      |--------------------------------------------------------------|--------------------------------|----------------------------|-----------------------------------|
+      | {"user": {"name": "ada"}, "items": [{"qty": 2}, {"qty": 5}]} | "ada"                          | {"qty":2}                  | 5                                 |
+
+  - title: Missing fields and elements
+    description: A missing field and an index past the end return NULL. A field that holds a JSON `null` returns a variant null, which isn't NULL.
+    sql: |
+      SELECT doc,
+        v['nope'] IS NULL AS `v['nope'] IS NULL`,
+        v['items'][3] IS NULL AS `v['items'][3] IS NULL`,
+        v['coupon'] IS NULL AS `v['coupon'] IS NULL`
+      FROM (SELECT doc, PARSE_JSON(doc) AS v
+        FROM (VALUES ('{"items": [1, 2], "coupon": null}')) AS t(doc));
+    result: |
+      | doc                               | v['nope'] IS NULL | v['items'][3] IS NULL | v['coupon'] IS NULL |
+      |-----------------------------------|-------------------|-----------------------|---------------------|
+      | {"items": [1, 2], "coupon": null} | TRUE              | TRUE                  | FALSE               |
+
+  - title: Key and index from columns
+    description: The key and the index can come from columns.
+    sql: |
+      SELECT doc, field_name, n,
+        JSON_STRING(PARSE_JSON(doc)[field_name][n]) AS `JSON_STRING(PARSE_JSON(doc)[field_name][n])`
+      FROM (VALUES
+        ('{"a": [10, 20]}', 'a', 1),
+        ('{"a": [10, 20]}', 'a', 3),
+        ('{"a": [10, 20]}', 'b', 1)) AS t(doc, field_name, n);
+    result: |
+      | doc             | field_name | n | JSON_STRING(PARSE_JSON(doc)[field_name][n]) |
+      |-----------------|------------|---|---------------------------------------------|
+      | {"a": [10, 20]} | a          | 1 | 10                                          |
+      | {"a": [10, 20]} | a          | 3 | NULL                                        |
+      | {"a": [10, 20]} | b          | 1 | NULL                                        |
+
+  - title: Rows without a field
+    description: A missing field and a JSON `null` both cast to NULL.
+    sql: |
+      SELECT doc,
+        CAST(PARSE_JSON(doc)['qty'] AS INT) AS `CAST(PARSE_JSON(doc)['qty'] AS INT)`
+      FROM (VALUES ('{"qty": 2}'), ('{"sku": "pen"}'), ('{"qty": null}')) AS t(doc);
+    result: |
+      | doc            | CAST(PARSE_JSON(doc)['qty'] AS INT) |
+      |----------------|-------------------------------------|
+      | {"qty": 2}     | 2                                   |
+      | {"sku": "pen"} | NULL                                |
+      | {"qty": null}  | NULL                                |

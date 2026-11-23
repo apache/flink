@@ -26,7 +26,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
@@ -54,6 +56,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -306,6 +310,61 @@ class TransformationsTest {
                         "\\[\\d+\\]\\:TableSourceScan\\(table=\\[\\[default_catalog, default_database, T\\]\\], fields=\\[i\\]\\)"));
     }
 
+    /**
+     * Operators whose input requires a SINGLETON distribution must be pinned to parallelism 1 and
+     * max parallelism 1. Otherwise, rescaling the operator routes all records to the first subtask,
+     * which does not necessarily own the key group of the (empty) state key.
+     */
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                // interval join without equi-join keys
+                "SELECT a.i FROM T a JOIN T b ON b.ts >= a.ts AND b.ts < a.ts + INTERVAL '5' MINUTE",
+                // temporal sort
+                "SELECT i FROM T ORDER BY ts",
+                // MATCH_RECOGNIZE without PARTITION BY
+                "SELECT * FROM T MATCH_RECOGNIZE (ORDER BY ts MEASURES A.i AS ai PATTERN (A B) "
+                        + "DEFINE A AS A.i > 0, B AS B.i < 0)",
+                // regular join without equi-join keys
+                "SELECT a.i FROM T a JOIN T b ON a.i < b.i",
+                // global aggregation
+                "SELECT COUNT(*) FROM T",
+                // singleton input without exchange (satisfied by the inner limit)
+                "SELECT * FROM (SELECT * FROM T LIMIT 10) LIMIT 5"
+            })
+    void testSingletonInputPinsParallelism(String query) {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        tEnv.createTemporaryTable(
+                "T",
+                TableDescriptor.forConnector("datagen")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("i", DataTypes.INT())
+                                        .column("ts", DataTypes.TIMESTAMP(3))
+                                        .watermark("ts", "ts")
+                                        .build())
+                        .build());
+
+        final List<Transformation<?>> keyedTransformations =
+                tEnv
+                        .toChangelogStream(tEnv.sqlQuery(query))
+                        .getTransformation()
+                        .getTransitivePredecessors()
+                        .stream()
+                        .filter(TransformationsTest::isKeyed)
+                        .collect(Collectors.toList());
+
+        assertThat(keyedTransformations)
+                .isNotEmpty()
+                .allSatisfy(
+                        t -> {
+                            assertThat(t.getParallelism()).isEqualTo(1);
+                            assertThat(t.getMaxParallelism()).isEqualTo(1);
+                        });
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -536,6 +595,17 @@ class TransformationsTest {
                         .build();
 
         env.createTemporaryTable("T", sourceDescriptor);
+    }
+
+    private static boolean isKeyed(Transformation<?> transformation) {
+        if (transformation instanceof OneInputTransformation) {
+            return ((OneInputTransformation<?, ?>) transformation).getStateKeySelector() != null;
+        }
+        if (transformation instanceof TwoInputTransformation) {
+            return ((TwoInputTransformation<?, ?, ?>) transformation).getStateKeySelector1()
+                    != null;
+        }
+        return false;
     }
 
     /** Follows the inputs of a transformation with a single input down to the source. */

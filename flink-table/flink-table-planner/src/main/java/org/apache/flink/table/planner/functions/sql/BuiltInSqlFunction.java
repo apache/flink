@@ -52,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>For simple functions, use the provided builder. Otherwise, this class can also be extended.
  */
 @Internal
-public class BuiltInSqlFunction extends SqlFunction implements BuiltInSqlOperator {
+public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOperator {
 
     private final @Nullable Integer version;
 
@@ -84,7 +84,7 @@ public class BuiltInSqlFunction extends SqlFunction implements BuiltInSqlOperato
         this.isDeterministic = isDeterministic;
         this.isInternal = isInternal;
         this.monotonicity = monotonicity;
-        validateFunction(name, version, isInternal);
+        validateFunction(name, this.version, isInternal);
     }
 
     protected BuiltInSqlFunction(

@@ -128,7 +128,7 @@ public class AsyncStateAppendOnlyTopNFunction extends AbstractAsyncStateTopNFunc
                                 .asyncPut(sortKey, new ArrayList<>(inputs))
                                 .thenAccept(
                                         VOID -> {
-                                            if (outputRankNumber || hasOffset()) {
+                                            if (emitsChangelogPerRank) {
                                                 // the without-number-algorithm can't handle topN
                                                 // with offset,
                                                 // so use the with-number-algorithm to handle offset

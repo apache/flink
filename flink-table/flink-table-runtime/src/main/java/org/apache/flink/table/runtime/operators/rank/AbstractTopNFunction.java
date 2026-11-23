@@ -72,6 +72,8 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected final boolean outputRankNumber;
 
+    protected final boolean emitsChangelogPerRank;
+
     protected final InternalTypeInfo<RowData> inputRowType;
 
     protected final KeySelector<RowData, RowData> sortKeySelector;
@@ -150,7 +152,27 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         this.generateUpdateBefore = generateUpdateBefore;
         this.inputRowType = inputRowType;
         this.outputRankNumber = outputRankNumber;
+        this.emitsChangelogPerRank = !emitsChangelogPerRow(rankRange, outputRankNumber);
         this.sortKeySelector = sortKeySelector;
+    }
+
+    /**
+     * Whether a Top-N emits its changes per row instead of per rank.
+     *
+     * <ul>
+     *   <li>Per row: a row that enters the Top-N gets an INSERT, a row that drops out gets a
+     *       DELETE. This is cheaper, but only works without the rank number in the output and when
+     *       the Top-N includes rank 1, e.g. the top 3.
+     *   <li>Per rank: each change says which row now holds a rank. Used in all other cases, e.g.
+     *       when the rank number is in the output or for only ranks 2 to 3.
+     * </ul>
+     */
+    public static boolean emitsChangelogPerRow(RankRange rankRange, boolean outputRankNumber) {
+        // A variable rank range always starts at rank 1
+        final boolean includesRankOne =
+                !(rankRange instanceof ConstantRankRange)
+                        || ((ConstantRankRange) rankRange).getRankStart() == 1;
+        return !outputRankNumber && includesRankOne;
     }
 
     @Override
@@ -280,11 +302,6 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected boolean isInRankRange(long rank, long rankEnd) {
         return rank <= rankEnd && rank >= rankStart;
-    }
-
-    protected boolean hasOffset() {
-        // rank start is 1-based
-        return rankStart > 1;
     }
 
     private RowData createOutputRow(RowData inputRow, long rank, RowKind rowKind) {

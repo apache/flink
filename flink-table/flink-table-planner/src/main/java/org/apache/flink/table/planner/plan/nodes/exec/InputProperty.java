@@ -20,10 +20,18 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.calcite.rel.RelDistribution;
+import org.apache.calcite.rel.RelNode;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -58,11 +66,10 @@ public class InputProperty {
     /**
      * Returns a place-holder required distribution.
      *
-     * <p>Currently {@link InputProperty} is only used for deadlock breakup and multi-input in batch
-     * mode, so for {@link ExecNode}s not affecting the algorithm we use this place-holder.
-     *
-     * <p>We should fill out the detailed {@link InputProperty} for each sub-class of {@link
-     * ExecNode} in the future.
+     * <p>It is used for inputs that don't require a specific distribution or whose {@link ExecNode}
+     * does not declare it. Declared distributions are used by the batch exec node graph processors
+     * (e.g. for deadlock breakup, multiple inputs, or forward hash exchanges) and for pinning the
+     * parallelism of operators with a SINGLETON input to 1.
      */
     public static final RequiredDistribution UNKNOWN_DISTRIBUTION =
             new RequiredDistribution(DistributionType.UNKNOWN) {};
@@ -149,6 +156,73 @@ public class InputProperty {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Creates the {@link InputProperty} for an input whose distribution has been requested by the
+     * physical rule that created the consuming node.
+     *
+     * <p>Physical rules request a distribution by converting the input to a trait set with the
+     * required distribution. The planner satisfies the request either with an exchange or with an
+     * input that already provides the distribution (e.g. a sort that produces a singleton output).
+     * If the distribution is requested strictly (as all stream physical rules do), the input's
+     * distribution trait is exactly the requested distribution. The {@link ExecNode} uses it, for
+     * example, to pin the parallelism and max parallelism of operators with a SINGLETON input to 1.
+     *
+     * <p>Inputs without a requested distribution use {@link #DEFAULT} instead. Batch nodes whose
+     * rule requests a non-strict distribution use {@link #fromSingletonInput} instead.
+     */
+    public static InputProperty fromInput(RelNode input) {
+        final FlinkRelDistribution distribution = getDistribution(input);
+        if (distribution == null || distribution.getType() == RelDistribution.Type.ANY) {
+            return DEFAULT;
+        }
+        return builder().requiredDistribution(toRequiredDistribution(distribution)).build();
+    }
+
+    /**
+     * Creates the {@link InputProperty} for an input that only declares a SINGLETON distribution if
+     * the input is singleton. Other distributions are not declared.
+     *
+     * <p>In contrast to {@link #fromInput(RelNode)}, this method can also be used for batch nodes.
+     * Their input's distribution trait might not match the requested distribution exactly (e.g. a
+     * non-strict hash or a pushed down range distribution), but a singleton input always requires
+     * the consuming operator to run with a parallelism of 1.
+     */
+    public static InputProperty fromSingletonInput(RelNode input, DamBehavior damBehavior) {
+        final FlinkRelDistribution distribution = getDistribution(input);
+        final boolean isSingleton =
+                distribution != null && distribution.getType() == RelDistribution.Type.SINGLETON;
+        return builder()
+                .requiredDistribution(isSingleton ? SINGLETON_DISTRIBUTION : UNKNOWN_DISTRIBUTION)
+                .damBehavior(damBehavior)
+                .build();
+    }
+
+    private static @Nullable FlinkRelDistribution getDistribution(RelNode input) {
+        return input.getTraitSet().getTrait(FlinkRelDistributionTraitDef.INSTANCE());
+    }
+
+    /** Converts a Calcite/Flink distribution trait into a {@link RequiredDistribution}. */
+    public static RequiredDistribution toRequiredDistribution(RelDistribution distribution) {
+        switch (distribution.getType()) {
+            case ANY:
+                return ANY_DISTRIBUTION;
+            case BROADCAST_DISTRIBUTED:
+                return BROADCAST_DISTRIBUTION;
+            case SINGLETON:
+                return SINGLETON_DISTRIBUTION;
+            case HASH_DISTRIBUTED:
+                final int[] keys = distribution.getKeys().stream().mapToInt(i -> i).toArray();
+                if (keys.length == 0) {
+                    return SINGLETON_DISTRIBUTION;
+                }
+                // Hash shuffle requires non-empty keys
+                return hashDistribution(keys);
+            default:
+                throw new TableException(
+                        "Unsupported distribution type: " + distribution.getType());
+        }
     }
 
     /** Builder of the {@link InputProperty}. */

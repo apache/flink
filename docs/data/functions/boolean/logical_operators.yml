@@ -1,0 +1,116 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: Logical operators
+summary: Returns whether both conditions hold with `AND`, whether either holds with `OR`, or the opposite of a condition with `NOT`.
+
+syntax:
+  sql: |
+    expr1 AND expr2
+    expr1 OR expr2
+    NOT expr
+  java: |
+    $("expr1").and($("expr2"))
+    and($("expr1"), $("expr2"), ...)
+    $("expr1").or($("expr2"))
+    or($("expr1"), $("expr2"), ...)
+    $("expr").not()
+    not($("expr"))
+  python: |
+    col("expr1") & col("expr2")
+    and_(col("expr1"), col("expr2"), ...)
+    col("expr1") | col("expr2")
+    or_(col("expr1"), col("expr2"), ...)
+    ~col("expr")
+    not_(col("expr"))
+
+arguments:
+  - name: expr1, expr2
+    type: BOOLEAN
+    required: true
+    description: The conditions that `AND` and `OR` combine. In the Table API, `and` and `or` take two or more conditions.
+  - name: expr
+    type: BOOLEAN
+    required: true
+    description: The condition that `NOT` negates.
+
+returns:
+  description: "`AND` returns TRUE if both conditions are TRUE. `OR` returns TRUE if either condition is TRUE. `NOT` returns TRUE for FALSE and FALSE for TRUE."
+  nulls: Returns NULL if a condition is NULL and the result depends on it. If `x` is NULL, `FALSE AND x` is FALSE and `TRUE OR x` is TRUE, while `TRUE AND x`, `FALSE OR x` and `NOT x` are NULL.
+  type: "`BOOLEAN`, nullable if a condition is nullable."
+
+notes:
+  - Comparisons and `IS` tests bind tighter than `NOT`, `NOT` tighter than `AND`, and `AND` tighter than `OR`. So `NOT qty > 10` means `NOT (qty > 10)`, and `a OR b AND c` means `a OR (b AND c)`.
+  - "`WHERE NOT active` drops the rows where `active` is NULL, as `WHERE active` does. To keep them, use `WHERE active IS NOT TRUE`."
+
+see_also:
+  - {name: IS TRUE, ref: boolean/is-true}
+  - {name: IS FALSE, ref: boolean/is-false}
+  - {name: IS UNKNOWN, ref: boolean/is-unknown}
+
+examples:
+  - title: Combine conditions
+    description: Test two conditions on each row.
+    sql: |
+      SELECT qty, price,
+        qty > 10 AND price > 10 AS `qty > 10 AND price > 10`,
+        qty > 10 OR price > 10 AS `qty > 10 OR price > 10`,
+        NOT qty > 10 AS `NOT qty > 10`
+      FROM (VALUES (5, 20.0), (50, 8.0), (12, 15.0)) AS t(qty, price);
+    result: |
+      | qty | price | qty > 10 AND price > 10 | qty > 10 OR price > 10 | NOT qty > 10 |
+      |-----|-------|-------------------------|------------------------|--------------|
+      | 5   | 20.0  | FALSE                   | TRUE                   | TRUE         |
+      | 50  | 8.0   | FALSE                   | TRUE                   | FALSE        |
+      | 12  | 15.0  | TRUE                    | TRUE                   | FALSE        |
+
+  - title: NULL conditions
+    description: A NULL condition gives NULL only if the result depends on it.
+    sql: |
+      SELECT a, b,
+        a AND b AS `a AND b`,
+        a OR b AS `a OR b`,
+        NOT b AS `NOT b`
+      FROM (VALUES (TRUE, CAST(NULL AS BOOLEAN)), (FALSE, CAST(NULL AS BOOLEAN))) AS t(a, b);
+    result: |
+      | a     | b    | a AND b | a OR b | NOT b |
+      |-------|------|---------|--------|-------|
+      | TRUE  | NULL | NULL    | TRUE   | NULL  |
+      | FALSE | NULL | FALSE   | NULL   | NULL  |
+
+  - title: AND before OR
+    description: Without parentheses, `AND` is applied before `OR`.
+    sql: |
+      SELECT x, y, z,
+        x OR y AND z AS `x OR y AND z`,
+        (x OR y) AND z AS `(x OR y) AND z`
+      FROM (VALUES (TRUE, TRUE, FALSE)) AS t(x, y, z);
+    result: |
+      | x    | y    | z     | x OR y AND z | (x OR y) AND z |
+      |------|------|-------|--------------|----------------|
+      | TRUE | TRUE | FALSE | TRUE         | FALSE          |
+
+  - title: Filter rows
+    description: A row whose condition is NULL is dropped. Row 2 has no `qty`, so `qty > 10` is NULL.
+    sql: |
+      SELECT id
+      FROM (VALUES (1, 20, 'EU'), (2, CAST(NULL AS INT), 'EU'), (3, 20, 'US')) AS t(id, qty, region)
+      WHERE qty > 10 AND region = 'EU';
+    result: |
+      | id |
+      |----|
+      | 1  |

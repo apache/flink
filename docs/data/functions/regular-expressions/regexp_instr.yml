@@ -1,0 +1,97 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: REGEXP_INSTR
+summary: Returns the position of the first match of a Java regular expression in a string.
+
+syntax:
+  sql: REGEXP_INSTR(str, regex)
+  java: $("str").regexpInstr(regex)
+  python: col("str").regexp_instr(regex)
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The string to search.
+  - name: regex
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A Java regular expression.
+
+returns:
+  description: The position in `str` where the first match of `regex` starts, counting from 1. `0` if `regex` doesn't match.
+  nulls: Returns NULL if any argument is NULL or if `regex` doesn't compile.
+  type: "`INT`, nullable."
+
+notes:
+  - Positions count UTF-16 code units, so a character outside the Basic Multilingual Plane, such as an emoji, counts as 2. `POSITION` counts it as 1.
+  - "`regex` uses the syntax of `java.util.regex.Pattern`. A backslash is a regular character in a SQL string literal, so write `'\\d'` for a digit."
+  - A `regex` that doesn't compile returns NULL, even a literal one.
+
+see_also:
+  - {name: REGEXP_SUBSTR, ref: regular-expressions/regexp-substr}
+  - {name: REGEXP_COUNT, ref: regular-expressions/regexp-count}
+  - {name: POSITION, ref: string-and-binary}
+
+examples:
+  - title: Find the first match
+    description: Return where the first number starts.
+    sql: |
+      SELECT str, REGEXP_INSTR(str, '\d+') AS `REGEXP_INSTR(str, '\d+')`
+      FROM (VALUES ('order 17, refund 4')) AS t(str);
+    result: |
+      | str                | REGEXP_INSTR(str, '\d+') |
+      |--------------------|--------------------------|
+      | order 17, refund 4 | 7                        |
+
+  - title: No match or an invalid regular expression
+    description: A regex that doesn't match returns `0`. A regex that doesn't compile returns NULL.
+    sql: |
+      SELECT str,
+        REGEXP_INSTR(str, '\d') AS `REGEXP_INSTR(str, '\d')`,
+        REGEXP_INSTR(str, '(') AS `REGEXP_INSTR(str, '(')`
+      FROM (VALUES ('order')) AS t(str);
+    result: |
+      | str   | REGEXP_INSTR(str, '\d') | REGEXP_INSTR(str, '(') |
+      |-------|-------------------------|------------------------|
+      | order | 0                       | NULL                   |
+
+  - title: Characters outside the Basic Multilingual Plane
+    description: The emoji counts as two positions in `REGEXP_INSTR` and as one in `POSITION`.
+    sql: |
+      SELECT str,
+        REGEXP_INSTR(str, 'a') AS `REGEXP_INSTR(str, 'a')`,
+        POSITION('a' IN str) AS `POSITION('a' IN str)`
+      FROM (VALUES ('😀ab')) AS t(str);
+    result: |
+      | str  | REGEXP_INSTR(str, 'a') | POSITION('a' IN str) |
+      |------|------------------------|----------------------|
+      | 😀ab | 3                      | 2                    |
+
+  - title: NULL arguments
+    description: A NULL argument returns NULL.
+    sql: |
+      SELECT str, regex, REGEXP_INSTR(str, regex) AS `REGEXP_INSTR(str, regex)`
+      FROM (VALUES
+        (CAST(NULL AS STRING), '\d'),
+        ('order 17', CAST(NULL AS STRING))) AS t(str, regex);
+    result: |
+      | str      | regex | REGEXP_INSTR(str, regex) |
+      |----------|-------|--------------------------|
+      | NULL     | \d    | NULL                     |
+      | order 17 | NULL  | NULL                     |

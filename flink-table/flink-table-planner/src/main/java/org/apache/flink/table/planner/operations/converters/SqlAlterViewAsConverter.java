@@ -45,6 +45,7 @@ public class SqlAlterViewAsConverter implements SqlNodeConverter<SqlAlterViewAs>
 
         CatalogView newView =
                 toCatalogView(
+                        viewIdentifier,
                         newQuery,
                         alterView.getAsQueryKeywordPos(),
                         Collections.emptyList(),

@@ -138,4 +138,24 @@ class SetOperatorsTest extends TableTestBase {
   def testIntersectWithOuterProject(): Unit = {
     util.verifyExecPlan("SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)")
   }
+
+  @Test
+  def testIntersectAllWithOuterProject(): Unit = {
+    util.verifyExecPlan("SELECT a FROM (SELECT a, b FROM T1 INTERSECT ALL SELECT d, e FROM T2)")
+  }
+
+  @Test
+  def testMinusAllWithOuterProject(): Unit = {
+    util.verifyExecPlan("SELECT a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)")
+  }
+
+  @Test
+  def testUnionAllWithOuterProject(): Unit = {
+    util.verifyExecPlan("SELECT a FROM (SELECT a, b FROM T1 UNION ALL SELECT d, e FROM T2)")
+  }
+
+  @Test
+  def testMinusAllWithOuterPermutation(): Unit = {
+    util.verifyExecPlan("SELECT b, a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)")
+  }
 }

@@ -2,6 +2,7 @@
 title: "Utility"
 weight: 16
 type: docs
+bookCollapseSection: true
 sqlFunctions: utility
 ---
 <!--

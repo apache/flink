@@ -113,6 +113,19 @@ public class WatermarkOutputMultiplexer {
     }
 
     /**
+     * Returns true if every registered output has reported that it is idle, vacuously if none is
+     * registered. An output that has not reported anything yet counts as not idle.
+     */
+    public boolean allOutputsIdle() {
+        return combinedWatermarkStatus.allOutputsIdle();
+    }
+
+    /** Returns true if any registered output has reported that it is active. */
+    public boolean hasActiveOutput() {
+        return combinedWatermarkStatus.hasActiveOutput();
+    }
+
+    /**
      * Returns an immediate {@link WatermarkOutput} for the given output ID.
      *
      * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred

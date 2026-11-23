@@ -32,6 +32,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.operations.utils.AsQuerySchemaMerger;
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -55,10 +56,12 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -241,34 +244,16 @@ public class MergeTableAsUtil {
             this.typeFactory = typeFactory;
         }
 
-        /**
-         * Merges the sink columns with the source columns. The resulted schema will contain columns
-         * of the sink schema first, followed by the columns of the source schema.
-         *
-         * <p>If a column in the sink schema is already defined in the source schema, then the types
-         * of the columns overrides the types of the columns in the source schema. The column
-         * position in the schema stays the same as defined in the source schema.
-         *
-         * <p>Column types overridden follows the same implicit cast rules defined for INSERT INTO
-         * statements.
-         */
+        /** Merges the sink columns onto the source columns; see {@link AsQuerySchemaMerger}. */
         private void mergeColumns(List<SqlNode> sinkCols, List<UnresolvedColumn> sourceCols) {
-            Map<String, UnresolvedColumn> sinkSchemaCols = new LinkedHashMap<>();
-            Map<String, UnresolvedColumn> sourceSchemaCols = new LinkedHashMap<>();
-
-            populateColumnsFromSource(sourceCols, sourceSchemaCols);
+            final AsQuerySchemaMerger merger = new AsQuerySchemaMerger(sourceCols, dataTypeFactory);
+            registerSourceFieldTypes(sourceCols);
 
             int sinkColumnPos = -1;
             for (SqlNode sinkColumn : sinkCols) {
                 final SqlTableColumn column = toSqlTableColumn(sinkColumn);
                 String name = column.getName().getSimple();
                 sinkColumnPos++;
-
-                if (sinkSchemaCols.containsKey(name)) {
-                    throw new ValidationException(
-                            String.format(
-                                    "A column named '%s' already exists in the schema. ", name));
-                }
 
                 final UnresolvedColumn unresolvedSinkColumn;
                 final RelDataType relDataType;
@@ -293,28 +278,13 @@ public class MergeTableAsUtil {
 
                 regularAndMetadataFieldNamesToTypes.put(name, relDataType);
 
-                if (sourceSchemaCols.containsKey(name)) {
-                    // If the column is already defined in the source schema, then check if
-                    // the types are compatible.
-                    validateImplicitCastCompatibility(
-                            dataTypeFactory,
-                            name,
-                            sinkColumnPos,
-                            sourceSchemaCols.get(name),
-                            unresolvedSinkColumn);
-
-                    // Replace the source schema column with the new sink schema column, which
-                    // keeps the position of the source schema column but with the data type
-                    // of the sink column.
-                    sourceSchemaCols.put(name, unresolvedSinkColumn);
-                } else {
-                    sinkSchemaCols.put(name, unresolvedSinkColumn);
-                }
+                merger.addDeclaredColumn(unresolvedSinkColumn, sinkColumnPos);
             }
 
             columns.clear();
-            columns.putAll(sinkSchemaCols);
-            columns.putAll(sourceSchemaCols);
+            for (UnresolvedColumn mergedColumn : merger.getMergedColumns()) {
+                columns.put(mergedColumn.getName(), mergedColumn);
+            }
         }
 
         private SqlTableColumn toSqlTableColumn(SqlNode sinkColumn) {
@@ -330,7 +300,20 @@ public class MergeTableAsUtil {
             Map<String, UnresolvedColumn> sinkSchemaCols = new LinkedHashMap<>();
             Map<String, UnresolvedColumn> sourceSchemaCols = new LinkedHashMap<>();
 
-            populateColumnsFromSource(sourceCols, sourceSchemaCols);
+            final AsQuerySchemaMerger merger = new AsQuerySchemaMerger(sourceCols, dataTypeFactory);
+            for (UnresolvedColumn sourceColumn : merger.getMergedColumns()) {
+                sourceSchemaCols.put(sourceColumn.getName(), sourceColumn);
+            }
+
+            final Set<String> listedNames = new HashSet<>();
+            for (SqlNode identifier : identifiers) {
+                final String name = ((SqlIdentifier) identifier).getSimple();
+                if (!listedNames.add(name)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "A column named '%s' already exists in the schema.", name));
+                }
+            }
 
             if (identifiers.size() != sourceCols.size()) {
                 throw new ValidationException(
@@ -352,31 +335,12 @@ public class MergeTableAsUtil {
             columns.putAll(sinkSchemaCols);
         }
 
-        /**
-         * Populates the schema columns from the source schema. The source schema is expected to
-         * contain only physical columns.
-         */
-        private void populateColumnsFromSource(
-                List<UnresolvedColumn> columns, Map<String, UnresolvedColumn> schemaCols) {
+        private void registerSourceFieldTypes(List<UnresolvedColumn> columns) {
             for (UnresolvedColumn column : columns) {
-                if (!(column instanceof UnresolvedPhysicalColumn)) {
-                    throw new ValidationException(
-                            "Computed columns and metadata columns are not expected "
-                                    + "in the source schema.");
-                }
-
-                if (schemaCols.containsKey(column.getName())) {
-                    throw new ValidationException(
-                            String.format(
-                                    "A column named '%s' already exists in the schema. ",
-                                    column.getName()));
-                }
-
                 String name = column.getName();
                 LogicalType sourceColumnType =
                         getLogicalType(dataTypeFactory, ((UnresolvedPhysicalColumn) column));
 
-                schemaCols.put(column.getName(), column);
                 regularAndMetadataFieldNamesToTypes.put(
                         name, typeFactory.createFieldTypeFromLogicalType(sourceColumnType));
             }

@@ -1,0 +1,99 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_ARRAY
+summary: Returns a JSON array built from its arguments.
+
+syntax:
+  sql: JSON_ARRAY([expr [, ...]] [{NULL | ABSENT} ON NULL])
+  java: jsonArray(JsonOnNull.ABSENT, expr1, expr2, ...)
+
+arguments:
+  - name: expr
+    type: Any type that `JSON_STRING` accepts
+    required: false
+    description: An element of the array, written as `JSON_STRING` writes it.
+  - name: ON NULL
+    type: "`NULL ON NULL` or `ABSENT ON NULL`. In the Table API, `JsonOnNull.NULL` or `JsonOnNull.ABSENT`"
+    required: false
+    default: "`ABSENT ON NULL`"
+    description: "`NULL ON NULL` writes a NULL value as `null`. `ABSENT ON NULL` leaves it out."
+
+returns:
+  description: A JSON array with an element for each value, in order, as a string. Without values, `[]`.
+  nulls: Never returns NULL.
+  type: "`STRING NOT NULL`."
+
+notes:
+  - The default is `ABSENT ON NULL`, unlike `JSON_OBJECT`. A NULL value is left out.
+  - A `JSON_OBJECT`, `JSON_ARRAY` or `JSON` call as the value is inserted as JSON. Any other string is inserted as a JSON string, also the result of `JSON_ARRAYAGG` or `JSON_QUERY`. A `JSON_OBJECT` or `JSON_ARRAY` from a subquery, a view or a `CASE` can come out either way, depending on the query. Wrap a value in `JSON` to always insert it as JSON.
+  - A SQL `ARRAY` value becomes one nested JSON array, so `JSON_ARRAY(ARRAY[1, 2])` returns `[[1,2]]`. To write a SQL `ARRAY` as a JSON array, use `JSON_STRING`.
+
+see_also:
+  - {name: JSON_OBJECT, ref: json/json-object}
+  - {name: JSON, ref: json/json}
+  - {name: JSON_ARRAYAGG, ref: aggregate}
+
+examples:
+  - title: Build an array
+    description: The elements keep their order.
+    sql: |
+      SELECT n, s, b, d,
+        JSON_ARRAY(n, s, b, d) AS `JSON_ARRAY(n, s, b, d)`,
+        JSON_ARRAY() AS `JSON_ARRAY()`
+      FROM (VALUES (1, 'two', TRUE, DATE '2024-03-05')) AS t(n, s, b, d);
+    result: |
+      | n | s   | b    | d          | JSON_ARRAY(n, s, b, d)      | JSON_ARRAY() |
+      |---|-----|------|------------|-----------------------------|--------------|
+      | 1 | two | TRUE | 2024-03-05 | [1,"two",true,"2024-03-05"] | []           |
+
+  - title: NULL values
+    description: By default, a NULL value is left out. With `NULL ON NULL`, it is written as `null`.
+    sql: |
+      SELECT n,
+        JSON_ARRAY(1, n, 3) AS `JSON_ARRAY(1, n, 3)`,
+        JSON_ARRAY(1, n, 3 NULL ON NULL) AS `JSON_ARRAY(1, n, 3 NULL ON NULL)`
+      FROM (VALUES (CAST(NULL AS INT))) AS t(n);
+    result: |
+      | n    | JSON_ARRAY(1, n, 3) | JSON_ARRAY(1, n, 3 NULL ON NULL) |
+      |------|---------------------|----------------------------------|
+      | NULL | [1,3]               | [1,null,3]                       |
+
+  - title: Nested arrays and objects
+    description: A `JSON_ARRAY`, `JSON_OBJECT` or `JSON` call as a value is inserted as JSON. A string is inserted as a JSON string.
+    sql: |
+      SELECT
+        JSON_ARRAY(JSON_ARRAY(1, 2)) AS `JSON_ARRAY(JSON_ARRAY(1, 2))`,
+        JSON_ARRAY(JSON_OBJECT('k' VALUE 'v')) AS `JSON_ARRAY(JSON_OBJECT('k' VALUE 'v'))`,
+        JSON_ARRAY(JSON('{"x":[1]}')) AS `JSON_ARRAY(JSON('{"x":[1]}'))`,
+        JSON_ARRAY('[3]') AS `JSON_ARRAY('[3]')`;
+    result: |
+      | JSON_ARRAY(JSON_ARRAY(1, 2)) | JSON_ARRAY(JSON_OBJECT('k' VALUE 'v')) | JSON_ARRAY(JSON('{"x":[1]}')) | JSON_ARRAY('[3]') |
+      |------------------------------|----------------------------------------|-------------------------------|-------------------|
+      | [[1,2]]                      | [{"k":"v"}]                            | [{"x":[1]}]                   | ["[3]"]           |
+
+  - title: A SQL array
+    description: A SQL `ARRAY` becomes one element. `JSON_STRING` writes its elements instead.
+    sql: |
+      SELECT arr,
+        JSON_ARRAY(arr) AS `JSON_ARRAY(arr)`,
+        JSON_STRING(arr) AS `JSON_STRING(arr)`
+      FROM (VALUES (ARRAY[1, 2])) AS t(arr);
+    result: |
+      | arr    | JSON_ARRAY(arr) | JSON_STRING(arr) |
+      |--------|-----------------|------------------|
+      | [1, 2] | [[1,2]]         | [1,2]            |

@@ -20,6 +20,7 @@ package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
@@ -41,7 +42,39 @@ import java.util.stream.Collectors;
 @Internal
 public final class MaterializedTableSchemaUtils {
 
+    /** The column kind of a physical column. */
+    public static final String PHYSICAL_COLUMN_KIND = "physical";
+
+    /** The column kind of a persisted (non-virtual) metadata column. */
+    public static final String METADATA_PERSISTED_COLUMN_KIND = "metadata persisted";
+
+    private static final String PERSISTED_COLUMN_NOT_USED_IN_QUERY =
+            "Failed to execute %s statement.\n"
+                    + "Invalid schema. All persisted (physical and metadata) columns "
+                    + "in the schema part need to be present in the query part.\n"
+                    + "However, %s column `%s` could not be found in the query.";
+
     private MaterializedTableSchemaUtils() {}
+
+    /**
+     * Rejects a declared persisted column that the query does not produce.
+     *
+     * @param columnKind the column kind, {@link #PHYSICAL_COLUMN_KIND} or {@link
+     *     #METADATA_PERSISTED_COLUMN_KIND}
+     * @param operationName the SQL statement name, e.g. {@code "CREATE OR ALTER MATERIALIZED
+     *     TABLE"}
+     */
+    public static void checkPersistedColumnProducedByQuery(
+            String columnName, String columnKind, Set<String> queryColumns, String operationName) {
+        if (!queryColumns.contains(columnName)) {
+            throw new ValidationException(
+                    String.format(
+                            PERSISTED_COLUMN_NOT_USED_IN_QUERY,
+                            operationName,
+                            columnKind,
+                            columnName));
+        }
+    }
 
     /**
      * Computes the column-level {@link TableChange}s between a materialized table's current schema

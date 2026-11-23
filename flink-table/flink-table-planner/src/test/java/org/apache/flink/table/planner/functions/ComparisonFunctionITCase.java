@@ -28,6 +28,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
@@ -88,6 +91,26 @@ public class ComparisonFunctionITCase extends BuiltInFunctionTestBase {
                         .testResult($("f1").isLess($("f0")), "f1 < f0", true, DataTypes.BOOLEAN())
                         // compare different types, same precision
                         .testResult($("f0").isLess($("f2")), "f0 < f2", false, DataTypes.BOOLEAN())
-                        .testResult($("f2").isLess($("f0")), "f2 < f0", true, DataTypes.BOOLEAN()));
+                        .testResult($("f2").isLess($("f0")), "f2 < f0", true, DataTypes.BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_NAN)
+                        // a non-finite number can't be a field literal, so it is cast from a
+                        // string at runtime
+                        .onFieldsWithData("NaN", "Infinity", 1.5, null)
+                        .andDataTypes(STRING(), STRING(), DOUBLE(), DOUBLE())
+                        .testResult(
+                                $("f0").cast(DOUBLE()).isNan(),
+                                "IS_NAN(CAST(f0 AS DOUBLE))",
+                                true,
+                                BOOLEAN())
+                        .testResult(
+                                $("f1").cast(DOUBLE()).isNan(),
+                                "IS_NAN(CAST(f1 AS DOUBLE))",
+                                false,
+                                BOOLEAN())
+                        .testResult($("f2").isNan(), "IS_NAN(f2)", false, BOOLEAN())
+                        .testResult($("f3").isNan(), "IS_NAN(f3)", null, BOOLEAN())
+                        .testSqlValidationError(
+                                "ISNAN(f2)",
+                                "No match found for function signature ISNAN(<NUMERIC>)"));
     }
 }

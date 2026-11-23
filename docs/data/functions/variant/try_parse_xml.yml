@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TRY_PARSE_XML
+summary: Parses an XML document into a `VARIANT`, and returns NULL for invalid XML.
+
+syntax:
+  sql: TRY_PARSE_XML(xml_string [, force_array])
+  java: |
+    $("xml_string").tryParseXml()
+    $("xml_string").tryParseXml(forceArray)
+  python: |
+    col("xml_string").try_parse_xml()
+    col("xml_string").try_parse_xml(force_array)
+
+arguments:
+  - name: xml_string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: An XML 1.0 document with one root element.
+  - name: force_array
+    type: BOOLEAN
+    required: false
+    default: "`FALSE`"
+    description: "`TRUE` stores every child element and text as an array, also one that occurs once."
+
+returns:
+  description: A `VARIANT` object with one field, named after the root element, as `PARSE_XML` returns it.
+  nulls: Returns NULL if `xml_string` is NULL, or where `PARSE_XML` fails, such as for a document that isn't well-formed. [XML to VARIANT]({{< ref "docs/sql/built-in-functions/variant/xml" >}}#xml-to-variant) lists the documents that fail.
+  type: "`VARIANT`, nullable."
+
+see_also:
+  - {name: PARSE_XML, ref: variant/parse-xml}
+  - {name: XML_STRING, ref: variant/xml-string}
+  - {name: TRY_PARSE_JSON, ref: variant/try-parse-json}
+
+examples:
+  - title: Invalid XML
+    description: An unclosed element and a second root element return NULL.
+    sql: |
+      SELECT doc, JSON_STRING(TRY_PARSE_XML(doc)) AS `JSON_STRING(TRY_PARSE_XML(doc))`
+      FROM (VALUES
+        ('<order id="7"><item>pen</item></order>'),
+        ('<order>'),
+        ('<a/><b/>'),
+        (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc                                    | JSON_STRING(TRY_PARSE_XML(doc))    |
+      |----------------------------------------|------------------------------------|
+      | <order id="7"><item>pen</item></order> | {"order":{"@id":"7","item":"pen"}} |
+      | <order>                                | NULL                               |
+      | <a/><b/>                               | NULL                               |
+      | NULL                                   | NULL                               |
+
+  - title: Force arrays
+    description: With `force_array` `TRUE`, an element that occurs once is stored as an array.
+    sql: |
+      SELECT doc,
+        JSON_STRING(TRY_PARSE_XML(doc, TRUE)) AS `JSON_STRING(TRY_PARSE_XML(doc, TRUE))`
+      FROM (VALUES ('<order><item>pen</item></order>')) AS t(doc);
+    result: |
+      | doc                             | JSON_STRING(TRY_PARSE_XML(doc, TRUE)) |
+      |---------------------------------|---------------------------------------|
+      | <order><item>pen</item></order> | {"order":{"item":["pen"]}}            |

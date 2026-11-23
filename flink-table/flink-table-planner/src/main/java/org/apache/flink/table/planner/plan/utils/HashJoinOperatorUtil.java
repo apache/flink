@@ -58,6 +58,7 @@ public class HashJoinOperatorUtil {
             long estimatedRightRowCount,
             boolean tryDistinctBuildRow,
             long managedMemory,
+            long externalBufferMemory,
             ReadableConfig config,
             ClassLoader classLoader) {
         LogicalType[] keyFieldTypes =
@@ -123,10 +124,6 @@ public class HashJoinOperatorUtil {
                         joinType.isRightOuter(),
                         joinType == FlinkJoinType.SEMI,
                         joinType == FlinkJoinType.ANTI);
-
-        long externalBufferMemory =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-                        .getBytes();
 
         // sort merge join function
         SortMergeJoinFunction sortMergeJoinFunction =
