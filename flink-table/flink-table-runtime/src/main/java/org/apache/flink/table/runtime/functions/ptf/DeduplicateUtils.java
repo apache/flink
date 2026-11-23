@@ -21,22 +21,18 @@ package org.apache.flink.table.runtime.functions.ptf;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
+import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.lang.invoke.MethodHandle;
+import java.util.stream.IntStream;
 
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.ifThenElse;
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_INPUT;
 
 /** Record ordering of the built-in deduplication PTFs. */
@@ -67,47 +63,31 @@ public final class DeduplicateUtils {
 
         private final int[] indices;
 
-        private final DataType[] types;
+        private final GeneratedComparator comparator;
 
-        private final ExpressionEvaluator[] evaluators;
+        private transient ProjectedRowData projectedLeft;
 
-        private transient MethodHandle[] compareHandles;
-
-        private transient RowData.FieldGetter[] getters;
+        private transient ProjectedRowData projectedRight;
 
         /** Creates a comparator of the columns at {@code indices}, which have the given types. */
         public SequenceComparator(
                 final SpecializedContext context, final int[] indices, final DataType[] types) {
             this.indices = indices;
-            this.types = types;
-            this.evaluators = new ExpressionEvaluator[types.length];
-            for (int i = 0; i < types.length; i++) {
-                final DataType type = types[i].notNull().toInternal();
-                evaluators[i] =
-                        context.createEvaluator(
-                                ifThenElse(
-                                        $("a").isLess($("b")),
-                                        -1,
-                                        ifThenElse($("a").isGreater($("b")), 1, 0)),
-                                DataTypes.INT().notNull(),
-                                DataTypes.FIELD("a", type),
-                                DataTypes.FIELD("b", type));
-            }
+            final DataTypes.Field[] fields =
+                    IntStream.range(0, types.length)
+                            .mapToObj(i -> DataTypes.FIELD("f" + i, types[i]))
+                            .toArray(DataTypes.Field[]::new);
+            this.comparator = context.createComparator(DataTypes.ROW(fields).toInternal());
         }
 
-        public void open(final FunctionContext context) throws Exception {
-            compareHandles = new MethodHandle[types.length];
-            getters = new RowData.FieldGetter[types.length];
-            for (int i = 0; i < types.length; i++) {
-                compareHandles[i] = evaluators[i].open(context);
-                getters[i] = RowData.createFieldGetter(types[i].getLogicalType(), indices[i]);
-            }
+        public void open(final FunctionContext context) {
+            comparator.open(context);
+            projectedLeft = ProjectedRowData.from(indices);
+            projectedRight = ProjectedRowData.from(indices);
         }
 
-        public void close() throws Exception {
-            for (final ExpressionEvaluator evaluator : evaluators) {
-                evaluator.close();
-            }
+        public void close() {
+            comparator.close();
         }
 
         /**
@@ -115,29 +95,9 @@ public final class DeduplicateUtils {
          * equal to, or after the right one.
          */
         public int compare(final RowData left, final RowData right) {
-            for (int i = 0; i < types.length; i++) {
-                final int order =
-                        compare(
-                                i,
-                                getters[i].getFieldOrNull(left),
-                                getters[i].getFieldOrNull(right));
-                if (order != 0) {
-                    return order;
-                }
-            }
-            return 0;
-        }
-
-        private int compare(
-                final int column, @Nullable final Object left, @Nullable final Object right) {
-            if (left == null || right == null) {
-                return left == null ? (right == null ? 0 : -1) : 1;
-            }
-            try {
-                return (int) compareHandles[column].invoke(left, right);
-            } catch (Throwable t) {
-                throw new FlinkRuntimeException(t);
-            }
+            projectedLeft.replaceRow(left);
+            projectedRight.replaceRow(right);
+            return comparator.compare(projectedLeft, projectedRight);
         }
     }
 
