@@ -19,6 +19,7 @@
 package org.apache.flink.formats.parquet.row;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
@@ -223,11 +224,13 @@ class ParquetRowDataWriterTest {
 
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        writer.addElement(GenericRowData.of(GeographyData.fromBytes(POINT_WKB)));
-        writer.flush();
-        writer.finish();
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            writer.addElement(GenericRowData.of(GeographyData.fromBytes(POINT_WKB)));
+            writer.flush();
+            writer.finish();
+        }
 
         try (ParquetFileReader fileReader =
                 ParquetFileReader.open(new LocalInputFile(new File(path.getPath()).toPath()))) {
@@ -254,7 +257,7 @@ class ParquetRowDataWriterTest {
             assertThat(geoMetadata.get("columns").get("f0").has("crs")).isFalse();
         }
 
-        ParquetColumnarRowSplitReader reader =
+        try (ParquetColumnarRowSplitReader reader =
                 ParquetSplitReaderUtil.genPartColumnarRowReader(
                         true,
                         true,
@@ -268,11 +271,12 @@ class ParquetRowDataWriterTest {
                         50,
                         path,
                         0,
-                        Long.MAX_VALUE);
+                        Long.MAX_VALUE)) {
 
-        assertThat(reader.reachedEnd()).isFalse();
-        assertThat(reader.nextRecord().getGeography(0).toBytes()).isEqualTo(POINT_WKB);
-        assertThat(reader.reachedEnd()).isTrue();
+            assertThat(reader.reachedEnd()).isFalse();
+            assertThat(reader.nextRecord().getGeography(0).toBytes()).isEqualTo(POINT_WKB);
+            assertThat(reader.reachedEnd()).isTrue();
+        }
     }
 
     @Test
@@ -294,32 +298,32 @@ class ParquetRowDataWriterTest {
                                 + "000000000000F03F0000000000000040000000000000F03F");
         byte[] polygonWkb =
                 bytesFromHex(
-                        "010300000001000000050000000000000000000000000000000000000000000000"
-                                + "00000000000000000000000F03F000000000000F03F000000000000F03F"
-                                + "000000000000F03F000000000000000000000000000000000000000000000000");
+                        "0103000000010000000500000000000000000000000000000000000000000000"
+                                + "0000000000000000000000F03F000000000000F03F000000000000F03F000000"
+                                + "000000F03F000000000000000000000000000000000000000000000000");
         byte[] multiPointWkb =
                 bytesFromHex(
                         "0104000000020000000101000000000000000000F03F000000000000F03F"
                                 + "010100000000000000000000400000000000000040");
         byte[] multiLineStringWkb =
                 bytesFromHex(
-                        "010500000002000000010200000002000000000000000000000000000000000000"
-                                + "000000000000000F03F000000000000F03F010200000002000000000000"
-                                + "0000000040000000000000004000000000000008400000000000000840");
+                        "0105000000020000000102000000020000000000000000000000000000000000"
+                                + "0000000000000000F03F000000000000F03F0102000000020000000000000000"
+                                + "000040000000000000004000000000000008400000000000000840");
         byte[] multiPolygonWkb =
                 bytesFromHex(
-                        "010600000002000000010300000001000000050000000000000000000000000000"
-                                + "000000000000000000000000000000000000000000F03F000000000000F03F"
-                                + "000000000000F03F000000000000F03F00000000000000000000000000000000"
-                                + "00000000000000000103000000010000000500000000000000000000040000000"
-                                + "00000000040000000000000004000000000000008400000000000000840000000"
-                                + "0000000840000000000000084000000000000000400000000000000040000000"
-                                + "0000000040");
+                        "0106000000020000000103000000010000000500000000000000000000000000"
+                                + "0000000000000000000000000000000000000000F03F000000000000F03F0000"
+                                + "00000000F03F000000000000F03F000000000000000000000000000000000000"
+                                + "0000000000000103000000010000000500000000000000000000400000000000"
+                                + "0000400000000000000040000000000000084000000000000008400000000000"
+                                + "0008400000000000000840000000000000004000000000000000400000000000"
+                                + "000040");
         byte[] geometryCollectionWkb =
                 bytesFromHex(
-                        "0107000000020000000101000000000000000000F03F0000000000000040"
-                                + "010200000002000000000000000000000000000000000000000000000000"
-                                + "0000F03F000000000000F03F");
+                        "0107000000020000000101000000000000000000F03F00000000000000400102"
+                                + "0000000200000000000000000000000000000000000000000000000000F03F00"
+                                + "0000000000F03F");
 
         List<RowData> rows = new ArrayList<>();
         rows.add(
@@ -357,13 +361,15 @@ class ParquetRowDataWriterTest {
 
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        for (RowData row : rows) {
-            writer.addElement(row);
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            for (RowData row : rows) {
+                writer.addElement(row);
+            }
+            writer.flush();
+            writer.finish();
         }
-        writer.flush();
-        writer.finish();
 
         try (ParquetFileReader fileReader =
                 ParquetFileReader.open(new LocalInputFile(new File(path.getPath()).toPath()))) {
@@ -436,19 +442,21 @@ class ParquetRowDataWriterTest {
 
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        writer.addElement(
-                GenericRowData.of(
-                        1L,
-                        new GenericArrayData(
-                                new Object[] {
-                                    GeographyData.fromBytes(POINT_WKB),
-                                    GeographyData.fromBytes(SECOND_POINT_WKB),
-                                    null
-                                })));
-        writer.flush();
-        writer.finish();
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            writer.addElement(
+                    GenericRowData.of(
+                            1L,
+                            new GenericArrayData(
+                                    new Object[] {
+                                        GeographyData.fromBytes(POINT_WKB),
+                                        GeographyData.fromBytes(SECOND_POINT_WKB),
+                                        null
+                                    })));
+            writer.flush();
+            writer.finish();
+        }
 
         try (ParquetColumnarRowSplitReader reader =
                 ParquetSplitReaderUtil.genPartColumnarRowReader(
@@ -510,16 +518,18 @@ class ParquetRowDataWriterTest {
 
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(ROW_TYPE, conf, utcTimestamp);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        for (int i = 0; i < number; i++) {
-            writer.addElement(CONVERTER.toInternal(rows.get(i)));
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            for (int i = 0; i < number; i++) {
+                writer.addElement(CONVERTER.toInternal(rows.get(i)));
+            }
+            writer.flush();
+            writer.finish();
         }
-        writer.flush();
-        writer.finish();
 
         // verify
-        ParquetColumnarRowSplitReader reader =
+        try (ParquetColumnarRowSplitReader reader =
                 ParquetSplitReaderUtil.genPartColumnarRowReader(
                         utcTimestamp,
                         true,
@@ -533,14 +543,15 @@ class ParquetRowDataWriterTest {
                         50,
                         path,
                         0,
-                        Long.MAX_VALUE);
-        int cnt = 0;
-        while (!reader.reachedEnd()) {
-            Row row = CONVERTER.toExternal(reader.nextRecord());
-            assertThat(row).isEqualTo(rows.get(cnt));
-            cnt++;
+                        Long.MAX_VALUE)) {
+            int cnt = 0;
+            while (!reader.reachedEnd()) {
+                Row row = CONVERTER.toExternal(reader.nextRecord());
+                assertThat(row).isEqualTo(rows.get(cnt));
+                cnt++;
+            }
+            assertThat(cnt).isEqualTo(number);
         }
-        assertThat(cnt).isEqualTo(number);
     }
 
     public void complexTypeTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
@@ -559,13 +570,15 @@ class ParquetRowDataWriterTest {
 
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(ROW_TYPE_COMPLEX, conf, utcTimestamp);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        for (int i = 0; i < number; i++) {
-            writer.addElement(CONVERTER_COMPLEX.toInternal(rows.get(i)));
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            for (int i = 0; i < number; i++) {
+                writer.addElement(CONVERTER_COMPLEX.toInternal(rows.get(i)));
+            }
+            writer.flush();
+            writer.finish();
         }
-        writer.flush();
-        writer.finish();
 
         File file = new File(path.getPath());
         final List<Row> fileContent = readParquetFile(file);
@@ -577,15 +590,17 @@ class ParquetRowDataWriterTest {
         Path path = new Path(folder.toString(), UUID.randomUUID().toString());
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(MAP_ROW_TYPE, conf, utcTimestamp);
-        final BulkWriter<RowData> rowDataBulkWriter =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        Map<String, String> mapData = new HashMap<>();
-        mapData.put(null, "v1");
-        final Row row = Row.of(mapData);
-        assertThatThrownBy(
-                        () -> rowDataBulkWriter.addElement(MAP_CONVERTER.toInternal(row)),
-                        "Parquet does not support null keys in a map. See https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
-                .isInstanceOf(RuntimeException.class);
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            final BulkWriter<RowData> rowDataBulkWriter = factory.create(output);
+            Map<String, String> mapData = new HashMap<>();
+            mapData.put(null, "v1");
+            final Row row = Row.of(mapData);
+            assertThatThrownBy(
+                            () -> rowDataBulkWriter.addElement(MAP_CONVERTER.toInternal(row)),
+                            "Parquet does not support null keys in a map. See https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
+                    .isInstanceOf(RuntimeException.class);
+        }
     }
 
     public void nestedArrayAndMapTest(
@@ -611,13 +626,15 @@ class ParquetRowDataWriterTest {
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(
                         NESTED_ARRAY_MAP_TYPE, conf, utcTimestamp);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        for (int i = 0; i < number; i++) {
-            writer.addElement(NESTED_ARRAY_MAP_CONVERTER.toInternal(rows.get(i)));
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            for (int i = 0; i < number; i++) {
+                writer.addElement(NESTED_ARRAY_MAP_CONVERTER.toInternal(rows.get(i)));
+            }
+            writer.flush();
+            writer.finish();
         }
-        writer.flush();
-        writer.finish();
 
         File file = new File(path.getPath());
         final List<Row> fileContent = readNestedArrayAndMap(file);
@@ -639,13 +656,15 @@ class ParquetRowDataWriterTest {
         ParquetWriterFactory<RowData> factory =
                 ParquetRowDataBuilder.createWriterFactory(
                         NESTED_ARRAY_ROW_TYPE, conf, utcTimestamp);
-        BulkWriter<RowData> writer =
-                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
-        for (int i = 0; i < number; i++) {
-            writer.addElement(NESTED_ARRAY_ROW_CONVERTER.toInternal(rows.get(i)));
+        try (FSDataOutputStream output =
+                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE)) {
+            BulkWriter<RowData> writer = factory.create(output);
+            for (int i = 0; i < number; i++) {
+                writer.addElement(NESTED_ARRAY_ROW_CONVERTER.toInternal(rows.get(i)));
+            }
+            writer.flush();
+            writer.finish();
         }
-        writer.flush();
-        writer.finish();
 
         File file = new File(path.getPath());
         final List<Row> fileContent = readNestedArrayAndRowParquetFile(file);

@@ -128,6 +128,9 @@ cdef class DoubleCoderImpl(FieldCoderImpl):
 cdef class BinaryCoderImpl(FieldCoderImpl):
     pass
 
+cdef class GeographyCoderImpl(FieldCoderImpl):
+    pass
+
 cdef class CharCoderImpl(FieldCoderImpl):
     pass
 

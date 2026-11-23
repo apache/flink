@@ -639,6 +639,22 @@ class CodersTest(PyFlinkTestCase):
         coder = BinaryCoder()
         self.check_coder(coder, b'pyflink')
 
+    def test_geography_coder_from_proto(self):
+        from pyflink.common import Row
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        from pyflink.fn_execution.coders import GeographyCoder, from_proto
+
+        field_type = flink_fn_execution_pb2.Schema.FieldType(
+            type_name=flink_fn_execution_pb2.Schema.GEOGRAPHY, nullable=True)
+        coder = from_proto(field_type)
+        self.assertIsInstance(coder, GeographyCoder)
+        point = bytes.fromhex('0101000000000000000000f03f0000000000000040')
+        self.assertEqual(b'\x01\x00\x00\x00\x15' + point, coder.get_impl().encode(point))
+        self.check_coder(coder, point)
+        self.check_coder(RowCoder([coder], ['g']), Row(g=point), Row(g=None))
+        with self.assertRaisesRegex(ValueError, 'Unsupported GEOGRAPHY serializer format version'):
+            coder.get_impl().decode(b'\x02\x00\x00\x00\x15' + point)
+
     def test_char_coder(self):
         coder = CharCoder()
         self.check_coder(coder, 'flink', '🐿')

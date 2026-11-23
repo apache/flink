@@ -64,11 +64,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for {@link RowDataSerializer}. */
 abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 
-    private static final byte[] POINT_WKB =
-            new byte[] {
-                1, GeographyData.POINT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-            };
-
     private final RowDataSerializer serializer;
     private final RowData[] testData;
 
@@ -203,31 +198,36 @@ final class SimpleRowDataSerializerTest extends RowDataSerializerTest {
         InternalTypeInfo<RowData> typeInfo =
                 InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
 
-            return typeInfo.toRowSerializer();
-        }
+        return typeInfo.toRowSerializer();
+    }
+}
+
+final class RowDataSerializerWithGeographyTest extends RowDataSerializerTest {
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, GeographyData.POINT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            };
+
+    public RowDataSerializerWithGeographyTest() {
+        super(getRowSerializer(), getData());
     }
 
-    final class RowDataSerializerWithGeographyTest extends RowDataSerializerTest {
-        public RowDataSerializerWithGeographyTest() {
-            super(getRowSerializer(), getData());
-        }
+    private static RowData[] getData() {
+        GenericRowData row1 = new GenericRowData(1);
+        row1.setField(0, GeographyData.fromBytes(POINT_WKB));
 
-        private static RowData[] getData() {
-            GenericRowData row1 = new GenericRowData(1);
-            row1.setField(0, GeographyData.fromBytes(POINT_WKB));
+        GenericRowData row2 = new GenericRowData(1);
+        row2.setField(0, null);
 
-            GenericRowData row2 = new GenericRowData(1);
-            row2.setField(0, null);
-
-            return new RowData[] {row1, row2};
-        }
-
-        private static RowDataSerializer getRowSerializer() {
-            InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new GeographyType());
-
-            return typeInfo.toRowSerializer();
-        }
+        return new RowData[] {row1, row2};
     }
+
+    private static RowDataSerializer getRowSerializer() {
+        InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new GeographyType());
+
+        return typeInfo.toRowSerializer();
+    }
+}
 
 final class LargeRowDataSerializerTest extends RowDataSerializerTest {
     LargeRowDataSerializerTest() {

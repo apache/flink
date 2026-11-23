@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.GeographyData;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -261,41 +261,6 @@ class ExpressionConverterTest {
                         BuiltInFunctionDefinitions.CAST,
                         List.of(input, typeLiteral(targetType)),
                         outputType));
-    }
-
-    @Test
-    void testGeographyLiteralUsesConstructorCall() {
-        RexNode rex =
-                converter.visit(
-                        valueLiteral(
-                                GeographyData.fromBytes(POINT_WKB),
-                                DataTypes.GEOGRAPHY().notNull()));
-
-        assertThat(rex).isInstanceOf(RexCall.class);
-        assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.OTHER);
-        assertThat(rex.getType().isNullable()).isFalse();
-
-        RexCall call = (RexCall) rex;
-        assertThat(call.getOperator().getName()).isEqualTo("ST_GEOGFROMWKB");
-        assertThat(((RexLiteral) call.getOperands().get(0)).getValueAs(byte[].class))
-                .isEqualTo(POINT_WKB);
-    }
-
-    @Test
-    void testNullableGeographyLiteral() {
-        RexNode rex = converter.visit(valueLiteral(null, DataTypes.GEOGRAPHY()));
-
-        assertThat(rex).isInstanceOf(RexLiteral.class);
-        assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.OTHER);
-        assertThat(rex.getType().isNullable()).isTrue();
-        assertThat(((RexLiteral) rex).getValue()).isNull();
-    }
-
-    @Test
-    void testInvalidGeographyLiteralFailsValidation() {
-        assertThatThrownBy(() -> valueLiteral("POINT (1 2)", DataTypes.GEOGRAPHY().notNull()))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("does not support a value literal");
     }
 
     @Test

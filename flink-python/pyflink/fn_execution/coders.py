@@ -36,11 +36,12 @@ from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, D
     ExternalTypeInfo
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, create_arrow_schema, to_arrow_type, TimestampType, ArrayType, MapType, \
-    MapType, BinaryType,, GeographyType, NullType, CharType
+    LocalZonedTimestampType, RowType, RowField, create_arrow_schema, TimestampType, \
+    ArrayType, MapType, BinaryType, GeographyType, NullType, CharType
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
+           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder',
+           'GeographyCoder', 'CharCoder',
            'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder', 'InstantCoder',
            'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
            'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder',
@@ -490,6 +491,15 @@ class BinaryCoder(FieldCoder):
         return coder_impl.BinaryCoderImpl()
 
 
+class GeographyCoder(FieldCoder):
+    """
+    Coder for GEOGRAPHY values represented as WKB bytes.
+    """
+
+    def get_impl(self):
+        return coder_impl.GeographyCoderImpl()
+
+
 class CharCoder(FieldCoder):
     """
     Coder for Character String.
@@ -687,6 +697,7 @@ def from_proto(field_type):
         type_name.DOUBLE: DoubleCoder(),
         type_name.BINARY: BinaryCoder(),
         type_name.VARBINARY: BinaryCoder(),
+        type_name.GEOGRAPHY: GeographyCoder(),
         type_name.CHAR: CharCoder(),
         type_name.VARCHAR: CharCoder(),
         type_name.DATE: DateCoder(),

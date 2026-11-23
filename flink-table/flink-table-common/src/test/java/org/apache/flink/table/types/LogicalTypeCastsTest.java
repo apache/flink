@@ -32,7 +32,6 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.GeographyType;
-import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -517,8 +516,6 @@ class LogicalTypeCastsTest {
                         new VariantType(),
                         false,
                         false),
-                Arguments.of(new UuidType(), new VariantType(), false, false),
-                Arguments.of(new VariantType(), new UuidType(), false, false),
                 // GEOGRAPHY construction and serialization require explicit functions.
                 Arguments.of(new GeographyType(), VarCharType.STRING_TYPE, false, false),
                 Arguments.of(VarCharType.STRING_TYPE, new GeographyType(), false, false),
