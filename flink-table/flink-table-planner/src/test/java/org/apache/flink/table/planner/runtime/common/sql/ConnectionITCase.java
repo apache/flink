@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -244,6 +245,30 @@ class ConnectionITCase extends AbstractTestBase {
                 .containsExactly(Row.of("prod_conn"));
         assertThat(collectRows("SHOW CONNECTIONS NOT LIKE 'prod_%'"))
                 .containsExactly(Row.of("tmp_conn"));
+    }
+
+    @TestTemplate
+    void testShowConnectionsRejectsMissingDatabase() {
+        assertThatThrownBy(() -> tEnv.executeSql("SHOW CONNECTIONS FROM missing_db"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Database 'missing_db' does not exist in catalog '%s'.",
+                        catalogManager().getCurrentCatalog());
+    }
+
+    @TestTemplate
+    void testShowConnectionsRejectsMissingCatalog() {
+        assertThatThrownBy(() -> tEnv.executeSql("SHOW CONNECTIONS IN missing_cat.db"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Catalog missing_cat does not exist");
+    }
+
+    @TestTemplate
+    void testShowConnectionsRejectsInvalidDatabaseIdentifier() {
+        assertThatThrownBy(() -> tEnv.executeSql("SHOW CONNECTIONS FROM a.b.c"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "SHOW CONNECTIONS from/in identifier [ a.b.c ] format error, it should be [catalog_name.]database_name.");
     }
 
     @TestTemplate
