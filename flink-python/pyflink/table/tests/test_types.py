@@ -738,7 +738,14 @@ class DataTypeVerificationTests(PyFlinkTestCase):
             (decimal.Decimal("1.0"), DataTypes.DECIMAL(10, 0)),
 
             # Binary
+            (b"\x01", DataTypes.BINARY(1)),
             (bytearray([1]), DataTypes.BINARY(1)),
+            (b"\x01\x02", DataTypes.VARBINARY(2)),
+
+            # Geography
+            (bytes([
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F,
+                0, 0, 0, 0, 0, 0, 0, 0x40]), DataTypes.GEOGRAPHY()),
 
             # Date/Time/Timestamp
             (datetime.date(2000, 1, 2), DataTypes.DATE()),
@@ -867,6 +874,7 @@ class DataTypeConvertTests(PyFlinkTestCase):
         test_types = [DataTypes.STRING(),
                       DataTypes.BOOLEAN(),
                       DataTypes.BYTES(),
+                      DataTypes.GEOGRAPHY(),
                       DataTypes.TINYINT(),
                       DataTypes.SMALLINT(),
                       DataTypes.INT(),
@@ -892,7 +900,8 @@ class DataTypeConvertTests(PyFlinkTestCase):
                       JDataTypes.BINARY(2).notNull(),
                       JDataTypes.VARCHAR(30).notNull(),
                       JDataTypes.CHAR(50).notNull(),
-                      JDataTypes.DECIMAL(20, 10).notNull()]
+                      JDataTypes.DECIMAL(20, 10).notNull(),
+                      JDataTypes.GEOGRAPHY().notNull()]
 
         converted_python_types = [_from_java_data_type(item) for item in java_types]
 
@@ -902,7 +911,8 @@ class DataTypeConvertTests(PyFlinkTestCase):
                     DataTypes.BINARY(2, False),
                     DataTypes.VARCHAR(30, False),
                     DataTypes.CHAR(50, False),
-                    DataTypes.DECIMAL(20, 10, False)]
+                    DataTypes.DECIMAL(20, 10, False),
+                    DataTypes.GEOGRAPHY(False)]
         self.assertEqual(converted_python_types, expected)
 
     def test_array_type(self):

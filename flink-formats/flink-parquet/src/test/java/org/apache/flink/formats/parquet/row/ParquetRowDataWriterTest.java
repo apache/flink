@@ -22,9 +22,14 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
+import org.apache.flink.formats.parquet.utils.GeoParquetMetadataUtil;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -33,6 +38,7 @@ import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -43,16 +49,23 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
+import org.apache.parquet.io.LocalInputFile;
+import org.apache.parquet.schema.PrimitiveType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -76,6 +89,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ParquetRowDataBuilder} and {@link ParquetRowDataWriter}. */
 class ParquetRowDataWriterTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
+
+    private static final byte[] SECOND_POINT_WKB =
+            new byte[] {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 8, 0x40};
 
     private static final RowType ROW_TYPE =
             RowType.of(
@@ -190,6 +213,275 @@ class ParquetRowDataWriterTest {
         complexTypeTest(folder, conf, false);
         invalidTypeTest(folder, conf, true);
         invalidTypeTest(folder, conf, false);
+    }
+
+    @Test
+    void testGeographyType(@TempDir java.nio.file.Path folder) throws Exception {
+        RowType rowType = RowType.of(new GeographyType());
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        writer.addElement(GenericRowData.of(GeographyData.fromBytes(POINT_WKB)));
+        writer.flush();
+        writer.finish();
+
+        try (ParquetFileReader fileReader =
+                ParquetFileReader.open(new LocalInputFile(new File(path.getPath()).toPath()))) {
+            PrimitiveType field =
+                    fileReader.getFileMetaData().getSchema().getType(0).asPrimitiveType();
+            assertThat(field.getPrimitiveTypeName())
+                    .isEqualTo(PrimitiveType.PrimitiveTypeName.BINARY);
+            assertThat(field.getLogicalTypeAnnotation()).isNull();
+
+            JsonNode geoMetadata =
+                    OBJECT_MAPPER.readTree(
+                            fileReader
+                                    .getFileMetaData()
+                                    .getKeyValueMetaData()
+                                    .get(GeoParquetMetadataUtil.GEO_METADATA_KEY));
+            assertThat(geoMetadata.get("version").asText())
+                    .isEqualTo(GeoParquetMetadataUtil.GEOPARQUET_VERSION);
+            assertThat(geoMetadata.get("primary_column").asText()).isEqualTo("f0");
+            assertThat(geoMetadata.get("columns").get("f0").get("encoding").asText())
+                    .isEqualTo("WKB");
+            assertThat(geoMetadata.get("columns").get("f0").get("geometry_types").size()).isZero();
+            assertThat(geoMetadata.get("columns").get("f0").get("edges").asText())
+                    .isEqualTo("spherical");
+            assertThat(geoMetadata.get("columns").get("f0").has("crs")).isFalse();
+        }
+
+        ParquetColumnarRowSplitReader reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        true,
+                        true,
+                        conf,
+                        rowType.getFieldNames().toArray(new String[0]),
+                        rowType.getChildren().stream()
+                                .map(TypeConversions::fromLogicalToDataType)
+                                .toArray(DataType[]::new),
+                        new HashMap<>(),
+                        IntStream.range(0, rowType.getFieldCount()).toArray(),
+                        50,
+                        path,
+                        0,
+                        Long.MAX_VALUE);
+
+        assertThat(reader.reachedEnd()).isFalse();
+        assertThat(reader.nextRecord().getGeography(0).toBytes()).isEqualTo(POINT_WKB);
+        assertThat(reader.reachedEnd()).isTrue();
+    }
+
+    @Test
+    void testGeoParquetMixedSchemaRoundTrip(@TempDir java.nio.file.Path folder) throws Exception {
+        RowType rowType =
+                RowType.of(
+                        new BigIntType(),
+                        new GeographyType(),
+                        new VarCharType(VarCharType.MAX_LENGTH),
+                        new BooleanType(),
+                        new TimestampType(3),
+                        new GeographyType());
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+
+        byte[] lineStringWkb =
+                bytesFromHex(
+                        "01020000000300000000000000000000000000000000000000000000000000F03F"
+                                + "000000000000F03F0000000000000040000000000000F03F");
+        byte[] polygonWkb =
+                bytesFromHex(
+                        "010300000001000000050000000000000000000000000000000000000000000000"
+                                + "00000000000000000000000F03F000000000000F03F000000000000F03F"
+                                + "000000000000F03F000000000000000000000000000000000000000000000000");
+        byte[] multiPointWkb =
+                bytesFromHex(
+                        "0104000000020000000101000000000000000000F03F000000000000F03F"
+                                + "010100000000000000000000400000000000000040");
+        byte[] multiLineStringWkb =
+                bytesFromHex(
+                        "010500000002000000010200000002000000000000000000000000000000000000"
+                                + "000000000000000F03F000000000000F03F010200000002000000000000"
+                                + "0000000040000000000000004000000000000008400000000000000840");
+        byte[] multiPolygonWkb =
+                bytesFromHex(
+                        "010600000002000000010300000001000000050000000000000000000000000000"
+                                + "000000000000000000000000000000000000000000F03F000000000000F03F"
+                                + "000000000000F03F000000000000F03F00000000000000000000000000000000"
+                                + "00000000000000000103000000010000000500000000000000000000040000000"
+                                + "00000000040000000000000004000000000000008400000000000000840000000"
+                                + "0000000840000000000000084000000000000000400000000000000040000000"
+                                + "0000000040");
+        byte[] geometryCollectionWkb =
+                bytesFromHex(
+                        "0107000000020000000101000000000000000000F03F0000000000000040"
+                                + "010200000002000000000000000000000000000000000000000000000000"
+                                + "0000F03F000000000000F03F");
+
+        List<RowData> rows = new ArrayList<>();
+        rows.add(
+                GenericRowData.of(
+                        1L,
+                        GeographyData.fromBytes(POINT_WKB),
+                        org.apache.flink.table.data.StringData.fromString("Point"),
+                        true,
+                        TimestampData.fromLocalDateTime(LocalDateTime.of(2026, 7, 27, 10, 0)),
+                        GeographyData.fromBytes(lineStringWkb)));
+        rows.add(
+                GenericRowData.of(
+                        2L,
+                        GeographyData.fromBytes(polygonWkb),
+                        org.apache.flink.table.data.StringData.fromString("Polygon"),
+                        false,
+                        TimestampData.fromLocalDateTime(LocalDateTime.of(2026, 7, 27, 10, 1)),
+                        GeographyData.fromBytes(multiPointWkb)));
+        rows.add(
+                GenericRowData.of(
+                        3L,
+                        GeographyData.fromBytes(multiLineStringWkb),
+                        org.apache.flink.table.data.StringData.fromString("MultiLineString"),
+                        true,
+                        TimestampData.fromLocalDateTime(LocalDateTime.of(2026, 7, 27, 10, 2)),
+                        GeographyData.fromBytes(multiPolygonWkb)));
+        rows.add(
+                GenericRowData.of(
+                        4L,
+                        null,
+                        org.apache.flink.table.data.StringData.fromString("GeometryCollection"),
+                        false,
+                        TimestampData.fromLocalDateTime(LocalDateTime.of(2026, 7, 27, 10, 3)),
+                        GeographyData.fromBytes(geometryCollectionWkb)));
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        for (RowData row : rows) {
+            writer.addElement(row);
+        }
+        writer.flush();
+        writer.finish();
+
+        try (ParquetFileReader fileReader =
+                ParquetFileReader.open(new LocalInputFile(new File(path.getPath()).toPath()))) {
+            JsonNode geoMetadata =
+                    OBJECT_MAPPER.readTree(
+                            fileReader
+                                    .getFileMetaData()
+                                    .getKeyValueMetaData()
+                                    .get(GeoParquetMetadataUtil.GEO_METADATA_KEY));
+
+            assertThat(geoMetadata.get("version").asText())
+                    .isEqualTo(GeoParquetMetadataUtil.GEOPARQUET_VERSION);
+            assertThat(geoMetadata.get("primary_column").asText()).isEqualTo("f1");
+            assertThat(geoMetadata.get("columns").has("f1")).isTrue();
+            assertThat(geoMetadata.get("columns").has("f5")).isTrue();
+            assertThat(geoMetadata.get("columns").get("f1").get("encoding").asText())
+                    .isEqualTo("WKB");
+            assertThat(geoMetadata.get("columns").get("f5").get("encoding").asText())
+                    .isEqualTo("WKB");
+            assertThat(geoMetadata.get("columns").get("f1").get("geometry_types").size()).isZero();
+            assertThat(geoMetadata.get("columns").get("f5").get("geometry_types").size()).isZero();
+            assertThat(geoMetadata.get("columns").get("f1").get("edges").asText())
+                    .isEqualTo("spherical");
+            assertThat(geoMetadata.get("columns").get("f5").get("edges").asText())
+                    .isEqualTo("spherical");
+        }
+
+        try (ParquetColumnarRowSplitReader reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        true,
+                        true,
+                        conf,
+                        rowType.getFieldNames().toArray(new String[0]),
+                        rowType.getChildren().stream()
+                                .map(TypeConversions::fromLogicalToDataType)
+                                .toArray(DataType[]::new),
+                        new HashMap<>(),
+                        IntStream.range(0, rowType.getFieldCount()).toArray(),
+                        50,
+                        path,
+                        0,
+                        Long.MAX_VALUE)) {
+            int index = 0;
+            while (!reader.reachedEnd()) {
+                RowData row = reader.nextRecord();
+                RowData expected = rows.get(index++);
+
+                assertThat(row.getLong(0)).isEqualTo(expected.getLong(0));
+                if (expected.isNullAt(1)) {
+                    assertThat(row.isNullAt(1)).isTrue();
+                } else {
+                    assertThat(row.getGeography(1).toBytes())
+                            .isEqualTo(expected.getGeography(1).toBytes());
+                }
+                assertThat(row.getString(2).toString()).isEqualTo(expected.getString(2).toString());
+                assertThat(row.getBoolean(3)).isEqualTo(expected.getBoolean(3));
+                assertThat(row.getTimestamp(4, 3)).isEqualTo(expected.getTimestamp(4, 3));
+                assertThat(row.getGeography(5).toBytes())
+                        .isEqualTo(expected.getGeography(5).toBytes());
+            }
+            assertThat(index).isEqualTo(rows.size());
+        }
+    }
+
+    @Test
+    void testNestedGeographyType(@TempDir java.nio.file.Path folder) throws Exception {
+        RowType rowType = RowType.of(new BigIntType(), new ArrayType(true, new GeographyType()));
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        writer.addElement(
+                GenericRowData.of(
+                        1L,
+                        new GenericArrayData(
+                                new Object[] {
+                                    GeographyData.fromBytes(POINT_WKB),
+                                    GeographyData.fromBytes(SECOND_POINT_WKB),
+                                    null
+                                })));
+        writer.flush();
+        writer.finish();
+
+        try (ParquetColumnarRowSplitReader reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        true,
+                        true,
+                        conf,
+                        rowType.getFieldNames().toArray(new String[0]),
+                        rowType.getChildren().stream()
+                                .map(TypeConversions::fromLogicalToDataType)
+                                .toArray(DataType[]::new),
+                        new HashMap<>(),
+                        IntStream.range(0, rowType.getFieldCount()).toArray(),
+                        50,
+                        path,
+                        0,
+                        Long.MAX_VALUE)) {
+            assertThat(reader.reachedEnd()).isFalse();
+            RowData row = reader.nextRecord();
+            assertThat(row.getLong(0)).isEqualTo(1L);
+            assertThat(row.getArray(1).size()).isEqualTo(3);
+            assertThat(row.getArray(1).getGeography(0).toBytes()).isEqualTo(POINT_WKB);
+            assertThat(row.getArray(1).getGeography(1).toBytes()).isEqualTo(SECOND_POINT_WKB);
+            assertThat(row.getArray(1).isNullAt(2)).isTrue();
+            assertThat(reader.reachedEnd()).isTrue();
+        }
+    }
+
+    private static byte[] bytesFromHex(String hex) {
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+        }
+        return bytes;
     }
 
     private void innerTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)

@@ -36,10 +36,12 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -193,6 +195,8 @@ public final class PythonBridgeUtils {
                 } else {
                     return pickler.dumps(obj);
                 }
+            } else if (dataType instanceof GeographyType) {
+                return pickler.dumps(((GeographyData) obj).toBytes());
             } else if (dataType instanceof RowType) {
                 Row tmpRow = (Row) obj;
                 LogicalType[] tmpRowFieldTypes =

@@ -515,7 +515,7 @@ public class DefaultSchedulerTest {
     }
 
     @Test
-    void skipDeploymentIfVertexVersionOutdated() {
+    void skipDeploymentIfVertexVersionOutdated() throws InterruptedException {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
         final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
@@ -543,6 +543,7 @@ public class DefaultSchedulerTest {
 
         testExecutionSlotAllocator.enableAutoCompletePendingRequests();
         taskRestartExecutor.triggerScheduledTasks();
+        testExecutionOperations.awaitDeployedExecutions(2);
 
         assertThat(testExecutionOperations.getDeployedVertices())
                 .contains(sourceExecutionVertexId, sinkExecutionVertexId);
