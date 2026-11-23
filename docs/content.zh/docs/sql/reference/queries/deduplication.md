@@ -83,7 +83,6 @@ SELECT * FROM DEDUPLICATE(
   [keep => 'first' | 'last',]
   [sequence_by => DESCRIPTOR(col[, ...]),]
   [state_ttl => INTERVAL '1' HOUR,]
-  [reset_ttl_on_duplicate => true | false,]
   [uid => 'my-id']
 )
 ```
@@ -95,8 +94,7 @@ SELECT * FROM DEDUPLICATE(
 | `input` | Yes | The append-only input table. `PARTITION BY` is required and its columns are the key of the output.|
 | `keep` | No | `'first'` (default) keeps the earliest arrival or the smallest `sequence_by` value, `'last'` keeps the latest arrival or the greatest. Must be a literal. Arrival order is not deterministic across reruns, use `sequence_by` for a repeatable result. |
 | `sequence_by` | No | One or more columns that order the records of a key instead of their arrival. The first column decides, later columns break ties, and `NULL` orders below every other value. On a tie, the later arrival wins for `'last'` and the earlier one for `'first'`. Columns must be numeric, string, binary, boolean or date-time, and not part of `PARTITION BY`. |
-| `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
-| `reset_ttl_on_duplicate` | No | Whether a record that is dropped refreshes the TTL of its key. Defaults to `true`. Has no effect without a TTL. |
+| `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. Every record of a key, including a dropped duplicate, restarts the TTL. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
 
 
 ### Output

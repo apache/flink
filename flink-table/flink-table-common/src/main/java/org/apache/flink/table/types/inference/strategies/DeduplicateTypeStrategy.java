@@ -50,7 +50,6 @@ public final class DeduplicateTypeStrategy {
     public static final int ARG_KEEP = 1;
     public static final int ARG_SEQUENCE_BY = 2;
     public static final int ARG_STATE_TTL = 3;
-    public static final int ARG_RESET_TTL_ON_DUPLICATE = 4;
     private static final String NAME = "DEDUPLICATE";
 
     public static final InputTypeStrategy INPUT_TYPE_STRATEGY =
@@ -103,11 +102,7 @@ public final class DeduplicateTypeStrategy {
                         () ->
                                 DeduplicateTypeStrategyUtils.validateSequenceBy(
                                         callContext, tableSemantics, ARG_SEQUENCE_BY, NAME))
-                .or(() -> DeduplicateTypeStrategyUtils.validateStateTtl(callContext, ARG_STATE_TTL))
-                .or(
-                        () ->
-                                DeduplicateTypeStrategyUtils.validateResetTtlOnDuplicate(
-                                        callContext, ARG_RESET_TTL_ON_DUPLICATE));
+                .or(() -> DeduplicateTypeStrategyUtils.validateStateTtl(callContext, ARG_STATE_TTL));
     }
 
     private static Optional<String> validateNoOrderBy(final TableSemantics tableSemantics) {

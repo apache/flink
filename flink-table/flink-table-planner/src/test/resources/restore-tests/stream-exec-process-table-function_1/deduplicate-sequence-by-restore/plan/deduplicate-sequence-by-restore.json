@@ -42,13 +42,14 @@
     "type" : "stream-exec-process-table-function_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "HASH",
+        "keys" : [ 0 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
     "outputType" : "ROW<`customer_id` VARCHAR(2147483647), `city` VARCHAR(2147483647), `lsn` BIGINT>",
-    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'first', DESCRIPTOR(_UTF-16LE'lsn'), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[customer_id,city,lsn], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])",
+    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'first', DESCRIPTOR(_UTF-16LE'lsn'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[customer_id,city,lsn], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])",
     "uid" : "DEDUPLICATE",
     "functionCall" : {
       "kind" : "CALL",
@@ -76,11 +77,6 @@
         "syntax" : "SPECIAL",
         "internalName" : "$DEFAULT$1",
         "type" : "INTERVAL SECOND(6)"
-      }, {
-        "kind" : "CALL",
-        "syntax" : "SPECIAL",
-        "internalName" : "$DEFAULT$1",
-        "type" : "BOOLEAN"
       }, {
         "kind" : "CALL",
         "syntax" : "SPECIAL",
@@ -132,7 +128,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
-    "upsertMaterializeStrategy" : "MAP",
+    "upsertMaterializeStrategy" : "VALUE",
     "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {

@@ -986,9 +986,7 @@ public final class BuiltInFunctionDefinitions {
                             StaticArgument.scalar("keep", DataTypes.STRING(), true),
                             StaticArgument.scalar("sequence_by", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
-                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true),
-                            StaticArgument.scalar(
-                                    "reset_ttl_on_duplicate", DataTypes.BOOLEAN(), true))
+                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true))
                     .changelogModeStrategy(DeduplicateTypeStrategy.CHANGELOG_MODE_STRATEGY)
                     .inputTypeStrategy(DeduplicateTypeStrategy.INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(DeduplicateTypeStrategy.OUTPUT_TYPE_STRATEGY)

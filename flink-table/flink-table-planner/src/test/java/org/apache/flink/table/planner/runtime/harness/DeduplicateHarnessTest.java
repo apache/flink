@@ -31,40 +31,25 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Harness tests for {@code reset_ttl_on_duplicate} of the built-in DEDUPLICATE PTF. */
+/** Harness tests for the state TTL of the built-in DEDUPLICATE PTF. */
 class DeduplicateHarnessTest {
 
     private static final Function<RowData, String> PAYMENT =
             row -> row.getString(0) + ", " + row.getInt(1);
 
-    private static Stream<Arguments> resetTtlOnDuplicate() {
-        final List<String> refreshed = List.of("+I[p1, 50]@10:00", "+I[p1, 50]@10:20");
-        final List<String> notRefreshed =
-                List.of("+I[p1, 50]@10:00", "+I[p1, 50]@10:07", "+I[p1, 50]@10:20");
-        return Stream.of(
-                Arguments.of("first", true, refreshed),
-                Arguments.of("first", false, notRefreshed),
-                Arguments.of("last", true, refreshed),
-                Arguments.of("last", false, notRefreshed));
-    }
-
-    @ParameterizedTest(name = "keep={0}, reset_ttl_on_duplicate={1}")
-    @MethodSource("resetTtlOnDuplicate")
-    void testTimeBoundedDeduplication(
-            final String keep, final boolean resetTtlOnDuplicate, final List<String> expected)
-            throws Exception {
+    @ParameterizedTest(name = "keep={0}")
+    @ValueSource(strings = {"first", "last"})
+    void testDuplicateResetsTtl(final String keep) throws Exception {
         try (KeyedMultiInputStreamOperatorTestHarness<RowData, ?> harness =
                 createHarness(
                         "SELECT * FROM DEDUPLICATE("
@@ -72,16 +57,13 @@ class DeduplicateHarnessTest {
                                 + "keep => '"
                                 + keep
                                 + "', "
-                                + "state_ttl => INTERVAL '5' MINUTES, "
-                                + "reset_ttl_on_duplicate => "
-                                + resetTtlOnDuplicate
-                                + ")")) {
+                                + "state_ttl => INTERVAL '5' MINUTES)")) {
             final List<String> output = new ArrayList<>();
             for (final String time : List.of("10:00", "10:04", "10:07", "10:20")) {
                 output.addAll(process(harness, time, PAYMENT, payment(50)));
             }
 
-            assertThat(output).isEqualTo(expected);
+            assertThat(output).containsExactly("+I[p1, 50]@10:00", "+I[p1, 50]@10:20");
         }
     }
 

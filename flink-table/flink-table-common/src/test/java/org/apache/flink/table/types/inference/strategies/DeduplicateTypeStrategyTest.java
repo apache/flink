@@ -42,7 +42,6 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_INPUT;
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_KEEP;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_RESET_TTL_ON_DUPLICATE;
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_SEQUENCE_BY;
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.CHANGELOG_MODE_STRATEGY;
@@ -68,8 +67,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
         INPUT_TYPE,
         DataTypes.STRING(),
         DataTypes.DESCRIPTOR(),
-        DataTypes.INTERVAL(DataTypes.SECOND()),
-        DataTypes.BOOLEAN()
+        DataTypes.INTERVAL(DataTypes.SECOND())
     };
 
     private static final TableSemanticsMock PARTITIONED_BY_USER =
@@ -85,7 +83,6 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(ARG_KEEP, "last")
                         .calledWithLiteralAt(ARG_SEQUENCE_BY, ColumnList.of("lsn", "ts"))
                         .calledWithLiteralAt(ARG_STATE_TTL, Duration.ofHours(1))
-                        .calledWithLiteralAt(ARG_RESET_TTL_ON_DUPLICATE, false)
                         .expectArgumentTypes(ARGUMENT_TYPES),
                 withDefaults("Invalid keep", PARTITIONED_BY_USER)
                         .calledWithLiteralAt(ARG_KEEP, "FIRST")
@@ -145,12 +142,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                 nonLiteral("Non-literal state_ttl", ARG_STATE_TTL)
                         .expectErrorMessage(
                                 "The 'state_ttl' argument must be a constant INTERVAL literal, "
-                                        + "but received a non-literal expression."),
-                nonLiteral("Non-literal reset_ttl_on_duplicate", ARG_RESET_TTL_ON_DUPLICATE)
-                        .expectErrorMessage(
-                                "The 'reset_ttl_on_duplicate' argument must be a constant "
-                                        + "BOOLEAN literal, but received a non-literal "
-                                        + "expression."));
+                                        + "but received a non-literal expression."));
     }
 
     @Test
@@ -189,8 +181,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                 .calledWithTableSemanticsAt(ARG_INPUT, tableSemantics)
                 .calledWithLiteralAt(ARG_KEEP, null)
                 .calledWithLiteralAt(ARG_SEQUENCE_BY, null)
-                .calledWithLiteralAt(ARG_STATE_TTL, null)
-                .calledWithLiteralAt(ARG_RESET_TTL_ON_DUPLICATE, null);
+                .calledWithLiteralAt(ARG_STATE_TTL, null);
     }
 
     private static TestSpec nonLiteral(final String description, final int argument) {
@@ -198,7 +189,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                 TestSpec.forStrategy(description, INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(ARGUMENT_TYPES)
                         .calledWithTableSemanticsAt(ARG_INPUT, PARTITIONED_BY_USER);
-        for (int pos = ARG_KEEP; pos <= ARG_RESET_TTL_ON_DUPLICATE; pos++) {
+        for (int pos = ARG_KEEP; pos <= ARG_STATE_TTL; pos++) {
             if (pos != argument) {
                 spec.calledWithLiteralAt(pos, null);
             }
@@ -218,7 +209,6 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                         Optional.empty(),
                         Optional.empty(),
                         Optional.of(sequenceBy),
-                        Optional.empty(),
                         Optional.empty());
         callContext.tableSemantics = Map.of(ARG_INPUT, PARTITIONED_BY_USER);
         return callContext;

@@ -221,16 +221,6 @@ public final class DeduplicateTypeStrategyUtils {
                                         TimeUtils.formatWithHighestUnit(stateTtl)));
     }
 
-    public static Optional<String> validateResetTtlOnDuplicate(
-            final CallContext callContext, final int argPos) {
-        if (callContext.isArgumentNull(argPos) || callContext.isArgumentLiteral(argPos)) {
-            return Optional.empty();
-        }
-        return Optional.of(
-                "The 'reset_ttl_on_duplicate' argument must be a constant BOOLEAN literal, but "
-                        + "received a non-literal expression. Use TRUE or FALSE.");
-    }
-
     private static List<String> sequenceBy(final CallContext callContext, final int argPos) {
         return callContext
                 .getArgumentValue(argPos, ColumnList.class)

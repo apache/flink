@@ -64,15 +64,14 @@ public class DeduplicateEmitOnceFunction extends DeduplicateFunctionBase {
             final RowData input,
             @Nullable final StringData keep,
             @Nullable final ColumnList sequenceBy,
-            @Nullable final Long stateTtl,
-            @Nullable final Boolean resetTtlOnDuplicate)
+            @Nullable final Long stateTtl)
             throws Exception {
         if (emitted.getValue() == null) {
             projectedOutput.replaceRow(input);
             projectedOutput.setRowKind(RowKind.INSERT);
             collect(projectedOutput);
             emitted.setValue(true);
-        } else if (isResetTtlOnDuplicate) {
+        } else if (isTtlEnabled) {
             emitted.setValue(true);
         }
     }

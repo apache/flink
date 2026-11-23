@@ -269,7 +269,6 @@ public class DeduplicateTestPrograms {
                                     + "keep => 'last', "
                                     + "sequence_by => DESCRIPTOR(lsn), "
                                     + "state_ttl => INTERVAL '1' DAY, "
-                                    + "reset_ttl_on_duplicate => true, "
                                     + "uid => 'customer-changes-dedup')")
                     .runSql(
                             "INSERT INTO prices_last SELECT * FROM DEDUPLICATE("

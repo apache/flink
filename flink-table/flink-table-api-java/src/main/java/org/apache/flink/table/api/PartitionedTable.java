@@ -316,7 +316,7 @@ public interface PartitionedTable {
      * }</pre>
      *
      * @param arguments optional named arguments for {@code keep}, {@code sequence_by}, {@code
-     *     state_ttl}, {@code reset_ttl_on_duplicate}, and {@code uid}
+     *     state_ttl}, and {@code uid}
      * @return an updating {@link Table} with output schema {@code [partition_keys,
      *     non_partition_input_columns]}
      */

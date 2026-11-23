@@ -46,7 +46,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
-    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[payment_id,amount], rowType=[RecordType(VARCHAR(2147483647) payment_id, INTEGER amount)])",
+    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[payment_id,amount], rowType=[RecordType(VARCHAR(2147483647) payment_id, INTEGER amount)])",
     "uid" : "DEDUPLICATE",
     "functionCall" : {
       "kind" : "CALL",
@@ -71,11 +71,6 @@
         "syntax" : "SPECIAL",
         "internalName" : "$DEFAULT$1",
         "type" : "INTERVAL SECOND(6)"
-      }, {
-        "kind" : "CALL",
-        "syntax" : "SPECIAL",
-        "internalName" : "$DEFAULT$1",
-        "type" : "BOOLEAN"
       }, {
         "kind" : "CALL",
         "syntax" : "SPECIAL",
@@ -124,7 +119,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
-    "upsertMaterializeStrategy" : "MAP",
+    "upsertMaterializeStrategy" : "VALUE",
     "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {

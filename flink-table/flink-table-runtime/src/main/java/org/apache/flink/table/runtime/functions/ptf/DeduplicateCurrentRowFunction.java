@@ -129,8 +129,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
             final RowData input,
             @Nullable final StringData keep,
             @Nullable final ColumnList sequenceBy,
-            @Nullable final Long stateTtl,
-            @Nullable final Boolean resetTtlOnDuplicate)
+            @Nullable final Long stateTtl)
             throws Exception {
 
         final BinaryRowData current = (BinaryRowData) currentState.getValue();
@@ -148,10 +147,10 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
                     emitRetraction(current);
                 }
                 emitCandidate(RowKind.UPDATE_AFTER, candidate);
-            } else if (isResetTtlOnDuplicate) {
+            } else if (isTtlEnabled) {
                 currentState.setValue(current);
             }
-        } else if (isResetTtlOnDuplicate) {
+        } else if (isTtlEnabled) {
             currentState.setValue(current);
         }
     }

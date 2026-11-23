@@ -30,7 +30,6 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.IDLE_STATE_RETENTION;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_RESET_TTL_ON_DUPLICATE;
 import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
 
 /** Base class of the {@link Deduplicate} implementations. */
@@ -41,7 +40,7 @@ abstract class DeduplicateFunctionBase extends BuiltInProcessTableFunction<RowDa
 
     protected final int[] outputIndices;
 
-    protected final boolean isResetTtlOnDuplicate;
+    protected final boolean isTtlEnabled;
 
     DeduplicateFunctionBase(
             final SpecializedContext context,
@@ -55,8 +54,6 @@ abstract class DeduplicateFunctionBase extends BuiltInProcessTableFunction<RowDa
                 callContext
                         .getArgumentValue(ARG_STATE_TTL, Duration.class)
                         .orElseGet(() -> context.getConfiguration().get(IDLE_STATE_RETENTION));
-        this.isResetTtlOnDuplicate =
-                callContext.getArgumentValue(ARG_RESET_TTL_ON_DUPLICATE, Boolean.class).orElse(true)
-                        && !effectiveTtl.isZero();
+        this.isTtlEnabled = !effectiveTtl.isZero();
     }
 }
