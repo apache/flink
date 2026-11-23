@@ -23,6 +23,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlFactory;
@@ -42,16 +43,92 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.Expressions.array;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.map;
 import static org.apache.flink.table.api.Expressions.nullOf;
+import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ResolvedExpression#asSerializableString(SqlFactory)}. */
 @ExtendWith(MiniClusterExtension.class)
 public class LiteralExpressionsSerializationITCase {
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
+
+    private static final String POINT_WKB_HEX = "0101000000000000000000f03f0000000000000040";
+
+    @Test
+    void testGeographySqlSerialization() {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        final GeographyData geography = GeographyData.fromBytes(POINT_WKB);
+        final Table t =
+                env.fromValues(1)
+                        .select(
+                                lit(geography, DataTypes.GEOGRAPHY().notNull()),
+                                lit(null, DataTypes.GEOGRAPHY()),
+                                array(
+                                        lit(geography, DataTypes.GEOGRAPHY().notNull()),
+                                        lit(null, DataTypes.GEOGRAPHY())),
+                                map(
+                                        lit("a", DataTypes.STRING().notNull()),
+                                        lit(geography, DataTypes.GEOGRAPHY().notNull())),
+                                row(
+                                        lit(geography, DataTypes.GEOGRAPHY().notNull()),
+                                        lit(null, DataTypes.GEOGRAPHY())));
+
+        final ProjectQueryOperation operation = (ProjectQueryOperation) t.getQueryOperation();
+        final List<String> expressions =
+                operation.getProjectList().stream()
+                        .map(
+                                resolvedExpression ->
+                                        resolvedExpression.asSerializableString(
+                                                DefaultSqlFactory.INSTANCE))
+                        .collect(Collectors.toList());
+
+        assertThat(expressions.get(0)).isEqualTo("ST_GEOGFROMWKB(X'" + POINT_WKB_HEX + "')");
+        assertThat(expressions.get(1)).isEqualTo("CAST(NULL AS GEOGRAPHY)");
+        assertThat(expressions.get(2))
+                .contains("ST_GEOGFROMWKB(X'" + POINT_WKB_HEX + "')")
+                .contains("CAST(NULL AS GEOGRAPHY)");
+        assertThat(expressions.get(3))
+                .isEqualTo("MAP['a', ST_GEOGFROMWKB(X'" + POINT_WKB_HEX + "')]");
+        assertThat(expressions.get(4))
+                .contains("ST_GEOGFROMWKB(X'" + POINT_WKB_HEX + "')")
+                .contains("CAST(NULL AS GEOGRAPHY)");
+
+        final TableResult tableResult =
+                env.sqlQuery(String.format("SELECT %s", String.join(", ", expressions))).execute();
+        final Row result = CollectionUtil.iteratorToList(tableResult.collect()).get(0);
+
+        assertGeography(result.getField(0));
+        assertThat(result.getField(1)).isNull();
+
+        final Object arrayField = result.getField(2);
+        final List<?> arrayValue =
+                arrayField instanceof List
+                        ? (List<?>) arrayField
+                        : Arrays.asList((Object[]) arrayField);
+        assertThat(arrayValue).hasSize(2);
+        assertGeography(arrayValue.get(0));
+        assertThat(arrayValue.get(1)).isNull();
+
+        final Map<?, ?> mapValue = (Map<?, ?>) result.getField(3);
+        assertThat(mapValue).hasSize(1);
+        assertGeography(mapValue.get("a"));
+
+        final Row rowValue = (Row) result.getField(4);
+        assertGeography(rowValue.getField(0));
+        assertThat(rowValue.getField(1)).isNull();
+    }
 
     @Test
     void testSqlSerialization() {
@@ -191,5 +268,10 @@ public class LiteralExpressionsSerializationITCase {
                                 maxDayDuration,
                                 defaultPeriod,
                                 derivedLargePeriod));
+    }
+
+    private static void assertGeography(Object value) {
+        assertThat(value).isInstanceOf(GeographyData.class);
+        assertThat(((GeographyData) value).toBytes()).isEqualTo(POINT_WKB);
     }
 }
