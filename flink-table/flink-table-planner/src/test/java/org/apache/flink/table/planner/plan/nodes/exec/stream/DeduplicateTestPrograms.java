@@ -158,7 +158,7 @@ public class DeduplicateTestPrograms {
     public static final TableTestProgram SEQUENCE_BY =
             TableTestProgram.of(
                             "deduplicate-sequence-by",
-                            "with sequence_by, 'last' keeps the greatest and 'first' the smallest "
+                            "with sequence_by, 'last' keeps the highest and 'first' the lowest "
                                     + "value, a tie goes to the later arrival for 'last' and to "
                                     + "the earlier one for 'first', later columns break ties, a "
                                     + "NULL orders below every other value, NaN ties with every "

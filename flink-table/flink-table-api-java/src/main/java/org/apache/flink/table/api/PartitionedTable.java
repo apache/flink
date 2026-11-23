@@ -295,8 +295,8 @@ public interface PartitionedTable {
      * Keeps one row per partition key using the built-in {@code DEDUPLICATE} process table
      * function. The result is an updating table with the partition columns as its upsert key.
      *
-     * <p>{@code keep => 'first'} (default) keeps the earliest arrival or the smallest {@code
-     * sequence_by} value, {@code keep => 'last'} keeps the latest arrival or the greatest value.
+     * <p>{@code keep => 'first'} (default) keeps the earliest arrival or the lowest {@code
+     * sequence_by} value, {@code keep => 'last'} keeps the latest arrival or the highest value.
      *
      * <p>Examples:
      *
@@ -306,7 +306,7 @@ public interface PartitionedTable {
      *     .partitionBy($("payment_id"))
      *     .deduplicate();
      *
-     * // Keep the version with the greatest 'lsn' per customer, with bounded state retention
+     * // Keep the version with the highest 'lsn' per customer, with bounded state retention
      * Table result = customerChanges
      *     .partitionBy($("customer_id"))
      *     .deduplicate(
