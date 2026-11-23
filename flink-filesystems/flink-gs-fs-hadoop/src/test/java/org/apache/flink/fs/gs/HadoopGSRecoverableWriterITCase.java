@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterITCase;
 
@@ -58,6 +59,34 @@ class HadoopGSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITC
         if (!skipped) {
             GSTestCredentials.deleteTemporaryObjects(basePath);
         }
+    }
+
+    @Test
+    void testCommitWithNoDataCreatesEmptyObject() throws Exception {
+        final Path path = new Path(basePathForTest, "part-0");
+
+        getRecoverableWriter().open(path).closeForCommit().commit();
+
+        assertThat(getFileSystem().getFileStatus(path).getLen()).isZero();
+    }
+
+    @Test
+    void testCommitOfRecoveredStreamDeletesTemporaryObjects() throws Exception {
+        final Path path = new Path(basePathForTest, "part-0");
+        final RecoverableWriter writer = getRecoverableWriter();
+
+        final RecoverableFsDataOutputStream stream = writer.open(path);
+        stream.write(bytesOf("THIS IS A TEST 1."));
+        final RecoverableWriter.ResumeRecoverable recoverable = stream.persist();
+
+        final RecoverableFsDataOutputStream recovered = writer.recover(recoverable);
+        recovered.write(bytesOf("THIS IS A TEST 2."));
+        final RecoverableFsDataOutputStream.Committer committer = recovered.closeForCommit();
+        assertThat(GSTestCredentials.listTemporaryObjects(path)).hasSize(2);
+
+        committer.commit();
+
+        assertThat(GSTestCredentials.listTemporaryObjects(path)).isEmpty();
     }
 
     @Test

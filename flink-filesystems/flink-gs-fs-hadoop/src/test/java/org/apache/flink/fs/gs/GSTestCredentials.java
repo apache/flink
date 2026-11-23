@@ -25,10 +25,17 @@ import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.storage.GSBlobStorageImpl;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
@@ -66,14 +73,39 @@ class GSTestCredentials {
      * basePath}, and only a commit removes them, so uncommitted streams leave them behind.
      */
     static void deleteTemporaryObjects(Path basePath) {
-        final GSFileSystemFactory factory = new GSFileSystemFactory();
-        factory.configure(new Configuration());
-        final GSBlobStorage storage = new GSBlobStorageImpl(factory.getStorage());
+        final GSBlobStorage storage = new GSBlobStorageImpl(createStorage());
         final GSBlobIdentifier base = BlobUtils.parseUri(basePath.toUri());
         final List<GSBlobIdentifier> temporaryObjects =
                 storage.list(base.bucketName, BlobUtils.getTemporaryObjectPartialName(base));
         if (!temporaryObjects.isEmpty()) {
             storage.delete(temporaryObjects);
         }
+        // A batch delete reports a failed deletion as false, the same as a missing object.
+        assertThat(listTemporaryObjects(basePath))
+                .as("Temporary objects left for %s", basePath)
+                .isEmpty();
+    }
+
+    /**
+     * Lists the names of the temporary objects of the file at {@code path}, or of all files under
+     * it. Uses the GCS client directly rather than {@link GSBlobStorageImpl}, which is under test.
+     */
+    static List<String> listTemporaryObjects(Path path) {
+        final GSBlobIdentifier id = BlobUtils.parseUri(path.toUri());
+        final Page<Blob> blobs =
+                createStorage()
+                        .list(
+                                id.bucketName,
+                                Storage.BlobListOption.prefix(
+                                        BlobUtils.getTemporaryObjectPartialName(id)));
+        return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
+                .map(Blob::getName)
+                .collect(Collectors.toList());
+    }
+
+    private static Storage createStorage() {
+        final GSFileSystemFactory factory = new GSFileSystemFactory();
+        factory.configure(new Configuration());
+        return factory.getStorage();
     }
 }
