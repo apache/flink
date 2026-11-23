@@ -159,7 +159,7 @@ Known Limitations:
 Aggregate Functions
 -------------------
 
-The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result. 
+The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result.
 
 {{< sql_functions "aggregate" >}}
 
@@ -194,10 +194,10 @@ To implement your own table functions, see [user-defined table functions]({{< re
 Time Interval and Point Unit Specifiers
 ---------------------------------------
 
-The following table lists specifiers for time interval and time point units. 
+The following table lists specifiers for time interval and time point units.
 
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
-Plural works for SQL only. 
+Plural works for SQL only.
 
 | Time Interval Unit       | Time Point Unit                |
 |:-------------------------|:-------------------------------|
@@ -350,8 +350,3 @@ table.select(
 {{< /tabs >}}
 
 {{< top >}}
-
-
-
-
-
