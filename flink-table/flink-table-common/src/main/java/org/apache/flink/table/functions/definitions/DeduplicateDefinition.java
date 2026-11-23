@@ -69,6 +69,7 @@ public final class DeduplicateDefinition {
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,
                                             StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
                                             StaticArgumentTrait.NO_ORDER_BY)),
                             StaticArgument.scalar("keep", DataTypes.STRING(), true),
                             StaticArgument.scalar("sequence_by", DataTypes.DESCRIPTOR(), true),
@@ -147,6 +148,8 @@ public final class DeduplicateDefinition {
         if (emitsOnlyInserts(changelogContext)) {
             return ChangelogMode.insertOnly();
         }
+        final ChangelogMode inputMode = changelogContext.getTableChangelogMode(ARG_INPUT);
+        final boolean isDeleteInput = inputMode != null && inputMode.contains(RowKind.DELETE);
         final ChangelogMode requiredMode = changelogContext.getRequiredChangelogMode();
         final ChangelogMode.Builder builder =
                 ChangelogMode.newBuilder()
@@ -154,6 +157,9 @@ public final class DeduplicateDefinition {
                         .addContainedKind(RowKind.UPDATE_AFTER);
         if (requiredMode != null && requiredMode.contains(RowKind.UPDATE_BEFORE)) {
             builder.addContainedKind(RowKind.UPDATE_BEFORE);
+        }
+        if (isDeleteInput) {
+            builder.addContainedKind(RowKind.DELETE);
         }
         return builder.build();
     }

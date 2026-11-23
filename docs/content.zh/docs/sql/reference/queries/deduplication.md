@@ -73,7 +73,7 @@ WHERE row_num = 1
 
 {{< label Streaming >}}
 
-The `DEDUPLICATE` process table function (PTF) keeps the first or the last row per key of an append-only table, as long as the state of the key is retained. Rows are ordered by arrival or by `sequence_by` columns.
+The `DEDUPLICATE` process table function (PTF) keeps the first or the last row per key of an append-only or updating table, as long as the state of the key is retained. Rows are ordered by arrival or by `sequence_by` columns.
 
 ### Syntax
 
@@ -92,7 +92,7 @@ SELECT * FROM DEDUPLICATE(
 
 | Parameter | Required | Description |
 |:----------|:---------|:------------|
-| `input` | Yes | The append-only input table. `PARTITION BY` is required and its columns are the key of the output.|
+| `input` | Yes | The input table, append-only or updating. `PARTITION BY` is required and its columns are the key of the output. For updating input, the `PARTITION BY` columns must contain an upsert key of the input.|
 | `keep` | No | `'first'` (default) keeps the earliest arrival or the lowest `sequence_by` value, `'last'` keeps the latest arrival or the highest. Must be a literal. Arrival order is not deterministic across reruns, use `sequence_by` for a repeatable result. |
 | `sequence_by` | No | One or more columns that order the records of a key instead of their arrival, ascending, with strings and binaries compared lexicographically. The first column decides, later columns break ties, and `NULL` orders below every other value. On a tie, the later arrival wins for `'last'` and the earlier one for `'first'`. Columns must be of a type that `ORDER BY` supports, and not part of `PARTITION BY`. |
 | `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. Every record of a key, including a dropped duplicate, restarts the TTL. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
@@ -106,10 +106,10 @@ The output columns are the `PARTITION BY` columns, in the order listed, followed
 
 The result has one row per key. When a later row replaces the kept one, the row of that key is updated, so the result must be written to a table that accepts updates, for example one with a primary key on the `PARTITION BY` columns.
 
-With `keep => 'first'` and no `sequence_by`, the kept row of a key never changes, so the result only contains inserts and can be written to an append-only table.
+On append-only input with `keep => 'first'` and no `sequence_by`, the kept row of a key never changes, so the result only contains inserts and can be written to an append-only table.
 
 {{< hint info >}}
-The first record of a key is emitted as `+I`. A record that replaces the kept one is emitted as `+U`, preceded by `-U` if the consumer needs retractions. A record that equals the kept one, or does not replace it, emits nothing. See [Updates and Changelogs]({{< ref "docs/dev/table/functions/ptfs" >}}#updates-and-changelogs).
+The first record of a key is emitted as `+I`. A record that replaces the kept one is emitted as `+U`, preceded by `-U` if the consumer needs retractions. A record that equals the kept one, or does not replace it, emits nothing. On updating input, `+U` is handled as a new record, `-U` is ignored, and `-D` removes the kept row, regardless of `sequence_by`, and is emitted as `-D` with that row. A retraction does not fall back to an earlier row, so the next record of the key is emitted as `+I`. See [Updates and Changelogs]({{< ref "docs/dev/table/functions/ptfs" >}}#updates-and-changelogs).
 {{< /hint >}}
 
 ### Examples
@@ -233,6 +233,32 @@ GROUP BY window_start, window_end;
 | `(10:10, 1)`    |
 
 The repeated `e1` is not counted. The first copy of a row is kept even if it arrives late, so a later window can drop it.
+
+#### Updating input
+
+A CDC table with primary key `customer_id`:
+
+| `customers_cdc`          |
+|:-------------------------|
+| `+I(c1, Berlin, 100)`    |
+| `+U(c1, Munich, 120)`    |
+| `+U(c1, Hamburg, 110)`   |
+| `-D(c1)`                 |
+| `+U(c1, Bremen, 115)`    |
+
+```sql
+SELECT * FROM DEDUPLICATE(
+  input => TABLE customers_cdc PARTITION BY customer_id,
+  keep => 'last',
+  sequence_by => DESCRIPTOR(lsn))
+```
+
+| Changes of the result    |                          |
+|:-------------------------|:-------------------------|
+| `+I(c1, Berlin, 100)`    |                          |
+| `+U(c1, Munich, 120)`    |                          |
+| `-D(c1, Munich, 120)`    | `Hamburg` → dropped      |
+| `+I(c1, Bremen, 115)`    | no state → first record  |
 
 #### Composite key
 

@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
@@ -246,6 +249,134 @@ public class DeduplicateTestPrograms {
                             "INSERT INTO sink SELECT * FROM DEDUPLICATE("
                                     + "input => TABLE sessions PARTITION BY (device, user_id), "
                                     + "keep => 'last')")
+                    .build();
+
+    public static final TableTestProgram UPDATING_INPUT =
+            TableTestProgram.of(
+                            "deduplicate-updating-input",
+                            "-D retracts the kept row, +U without state is a first record, "
+                                    + "and -U is ignored")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("customers_cdc")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING",
+                                            "lsn BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "c1", "Berlin", 100L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Munich", 120L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Hamburg", 110L),
+                                            Row.ofKind(RowKind.DELETE, "c1", null, null),
+                                            Row.ofKind(RowKind.DELETE, "c1", null, null),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Bremen", 115L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING",
+                                            "lsn BIGINT")
+                                    .consumedValues(
+                                            "+I[c1, Berlin, 100]",
+                                            "+U[c1, Munich, 120]",
+                                            "-D[c1, Munich, 120]",
+                                            "+I[c1, Bremen, 115]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE customers_cdc PARTITION BY customer_id, "
+                                    + "keep => 'last', "
+                                    + "sequence_by => DESCRIPTOR(lsn))")
+                    .build();
+
+    public static final TableTestProgram UPDATING_INPUT_KEEP_FIRST =
+            TableTestProgram.of(
+                            "deduplicate-updating-input-keep-first",
+                            "keep first on updating input drops +U, and -D retracts the kept row")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("customers_cdc")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "c1", "Berlin"),
+                                            Row.ofKind(RowKind.INSERT, "c2", "Paris"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Munich"),
+                                            Row.ofKind(RowKind.DELETE, "c1", null),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c2", "Lyon"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Bremen"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING")
+                                    .consumedValues(
+                                            "+I[c1, Berlin]",
+                                            "+I[c2, Paris]",
+                                            "-D[c1, Berlin]",
+                                            "+I[c1, Bremen]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE customers_cdc PARTITION BY customer_id, "
+                                    + "keep => 'first')")
+                    .build();
+
+    public static final TableTestProgram RETRACT_INPUT =
+            TableTestProgram.of(
+                            "deduplicate-retract-input",
+                            "-U is ignored and the +U that follows replaces the kept row")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("customers_cdc")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "c1", "Berlin"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "c1", "Berlin"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Munich"),
+                                            Row.ofKind(RowKind.DELETE, "c1", "Munich"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING")
+                                    .consumedValues(
+                                            "+I[c1, Berlin]", "+U[c1, Munich]", "-D[c1, Munich]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE customers_cdc PARTITION BY customer_id, "
+                                    + "keep => 'last')")
+                    .build();
+
+    public static final TableTestProgram UPDATING_INPUT_WITHOUT_UPSERT_KEY =
+            TableTestProgram.of(
+                            "deduplicate-updating-input-without-upsert-key",
+                            "updating input whose PARTITION BY does not contain an upsert key "
+                                    + "is rejected")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("customers_cdc")
+                                    .addSchema(CUSTOMER_UPSERT_SCHEMA)
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "c1", "Berlin", 100L))
+                                    .build())
+                    .runFailingSql(
+                            "SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE customers_cdc PARTITION BY city)",
+                            ValidationException.class,
+                            "DEDUPLICATE on updating input requires the PARTITION BY columns to "
+                                    + "contain an upsert key of the input. PARTITION BY columns: "
+                                    + "(city). Upsert keys of the input: none. Partition "
+                                    + "by the columns of an upsert key, or use ROW_NUMBER(), which "
+                                    + "falls back to the previous row of a key after a "
+                                    + "retraction.")
                     .build();
 
     public static final TableTestProgram SEQUENCE_BY =

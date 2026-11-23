@@ -49,9 +49,9 @@ import static org.apache.flink.table.functions.definitions.DeduplicateDefinition
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
 
 /**
- * {@link Deduplicate} with {@code keep => 'last'}, or {@code keep => 'first'} with {@code
- * sequence_by}: a later record can replace the current one, so the current input row is held in the
- * {@code kept} state.
+ * {@link Deduplicate} with {@code keep => 'last'}, {@code keep => 'first'} with {@code
+ * sequence_by}, or {@code keep => 'first'} on input with deletes: the current input row is held in
+ * the {@code kept} state, so that a later record can replace it or a delete can retract it.
  */
 @Internal
 public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
@@ -127,8 +127,17 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
             @Nullable final ColumnList sequenceBy,
             @Nullable final Long stateTtl)
             throws Exception {
-
+        if (input.getRowKind() == RowKind.UPDATE_BEFORE) {
+            return;
+        }
         final BinaryRowData current = (BinaryRowData) currentState.getValue();
+        if (input.getRowKind() == RowKind.DELETE) {
+            if (current != null) {
+                currentState.clear();
+                emitStateRow(RowKind.DELETE, current);
+            }
+            return;
+        }
         if (current == null) {
             final BinaryRowData candidate = inputSerializer.toBinaryRow(input);
             currentState.setValue(candidate.copy());
@@ -140,7 +149,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
             if (!candidate.equals(current)) {
                 currentState.setValue(candidate.copy());
                 if (isUpdateBeforeEmitted) {
-                    emitRetraction(current);
+                    emitStateRow(RowKind.UPDATE_BEFORE, current);
                 }
                 emitCandidate(RowKind.UPDATE_AFTER, candidate);
             } else if (isTtlEnabled) {
@@ -151,13 +160,11 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
         }
     }
 
-    /**
-     * Without sequence_by only keep => 'last' reaches this class, so the latest arrival replaces.
-     */
     private boolean replacesCurrent(final RowData candidate, final RowData current) {
-        return sequenceComparator == null
-                || DeduplicateUtils.replaces(
-                        keepMode, sequenceComparator.compare(candidate, current));
+        if (sequenceComparator == null) {
+            return keepMode == Keep.LAST;
+        }
+        return DeduplicateUtils.replaces(keepMode, sequenceComparator.compare(candidate, current));
     }
 
     private void emitCandidate(final RowKind kind, final BinaryRowData candidate) {
@@ -167,10 +174,10 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
     }
 
     /** Wraps the current row so that the row owned by state never changes its row kind. */
-    private void emitRetraction(final BinaryRowData current) {
+    private void emitStateRow(final RowKind kind, final BinaryRowData current) {
         projectedCurrent.replaceRow(current);
         retraction.replace(projectedCurrent, emptyRow);
-        retraction.setRowKind(RowKind.UPDATE_BEFORE);
+        retraction.setRowKind(kind);
         collect(retraction);
     }
 
