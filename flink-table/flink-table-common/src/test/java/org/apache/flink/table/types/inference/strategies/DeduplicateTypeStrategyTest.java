@@ -127,7 +127,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
     }
 
     @Test
-    void testOutputExcludesPartitionKeysAndTimeAttributes() {
+    void testOutputExcludesPartitionKeys() {
         assertThat(OUTPUT_TYPE_STRATEGY.inferType(callContext(ColumnList.of())))
                 .contains(
                         DataTypes.ROW(

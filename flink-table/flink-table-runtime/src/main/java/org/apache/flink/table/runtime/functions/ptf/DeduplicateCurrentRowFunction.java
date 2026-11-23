@@ -34,7 +34,6 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.ColumnList;
@@ -84,12 +83,12 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
                         context,
                         CURRENT_STATE,
                         DataTypes.ROW(
-                                DeduplicateTypeStrategyUtils.inputFields(
-                                        DeduplicateUtils.tableSemantics(context))),
+                                DataType.getFields(
+                                        DeduplicateUtils.tableSemantics(context).dataType())),
                         ARG_STATE_TTL));
         this.keepMode = DeduplicateTypeStrategy.keep(context.getCallContext());
         final List<DataTypes.Field> inputFields =
-                DeduplicateTypeStrategyUtils.inputFields(DeduplicateUtils.tableSemantics(context));
+                DataType.getFields(DeduplicateUtils.tableSemantics(context).dataType());
         this.inputTypes =
                 inputFields.stream()
                         .map(field -> field.getDataType().getLogicalType())
