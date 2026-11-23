@@ -193,11 +193,61 @@ class ValidateAndExtractColumnChangesTest {
                                 TableChange.modifyColumnComment(
                                         physical("a", DataTypes.INT()).withComment("old"), "new"))),
                 TestSpec.of(
-                        "reorder persisted columns is silent (DDL order is arbitrary)",
+                        "declared schema reorders persisted columns, positions emitted",
                         schema(physical("a", DataTypes.INT()), physical("b", DataTypes.STRING())),
                         schema(physical("b", DataTypes.STRING()), physical("a", DataTypes.INT())),
                         true,
+                        List.of(
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()), ColumnPosition.first()),
+                                TableChange.modifyColumnPosition(
+                                        physical("a", DataTypes.INT()),
+                                        ColumnPosition.after("b")))),
+                TestSpec.of(
+                        "declared computed column moved does not emit a persisted position change",
+                        schema(
+                                computed("c", expr(DataTypes.INT())),
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING())),
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                computed("c", expr(DataTypes.INT())),
+                                physical("b", DataTypes.STRING())),
+                        true,
                         List.of()),
+                TestSpec.of(
+                        "declared schema anchors a moved column on the previous persisted column",
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                computed("comp", expr(DataTypes.INT())),
+                                physical("b", DataTypes.STRING())),
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                physical("x", DataTypes.STRING()),
+                                computed("comp", expr(DataTypes.INT())),
+                                physical("b", DataTypes.STRING())),
+                        true,
+                        List.of(
+                                TableChange.add(physical("x", DataTypes.STRING())),
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.after("x")))),
+                TestSpec.of(
+                        "declared virtual metadata column becoming persisted in place emits no position change",
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                metadata("m", DataTypes.STRING(), null, true),
+                                physical("b", DataTypes.STRING())),
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                metadata("m", DataTypes.STRING(), null, false),
+                                physical("b", DataTypes.STRING())),
+                        true,
+                        List.of(
+                                new TableChange.ModifyColumn(
+                                        metadata("m", DataTypes.STRING(), null, true),
+                                        metadata("m", DataTypes.STRING(), null, false),
+                                        null))),
                 TestSpec.of(
                         "add computed column",
                         schema(physical("a", DataTypes.INT())),

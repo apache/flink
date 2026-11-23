@@ -116,6 +116,48 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                 .hasMessageContaining("Column mismatch at position 3");
     }
 
+    /**
+     * A column list that inserts a new column before the last one stores the query order, as the
+     * same statement without a list does. The refresh job writes the query by position.
+     */
+    @Test
+    void testCreateOrAlterColumnListInsertingAColumnStoresQueryOrder()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        createMaterializedTableInCatalog(
+                "CREATE MATERIALIZED TABLE mt4 AS SELECT a, b FROM t1", "mt4");
+
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation)
+                        parse(
+                                "CREATE OR ALTER MATERIALIZED TABLE mt4 (x STRING) AS SELECT a, 'X' AS x, b FROM t1");
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+        assertThat(op.getNewTable().getUnresolvedSchema().getColumns())
+                .map(Schema.UnresolvedColumn::getName)
+                .containsExactly("a", "x", "b");
+    }
+
+    /**
+     * A column list that turns the computed column {@code c} into a persisted one stores it where
+     * the query selects it, last here, so {@code a} and {@code b} move ahead of it. Like the same
+     * statement without a list, that reorders the persisted columns and is rejected.
+     */
+    @Test
+    void testCreateOrAlterColumnListPersistingComputedColumnSelectedLastIsRejected()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        createMaterializedTableInCatalog(
+                "CREATE MATERIALIZED TABLE mt3 (c AS a + 1) AS SELECT a, b FROM t1", "mt3");
+
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation)
+                        parse(
+                                "CREATE OR ALTER MATERIALIZED TABLE mt3 (c BIGINT) AS SELECT a, b, a + 1 AS c FROM t1");
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column mismatch at position 1");
+    }
+
     /** A bare column list naming the columns in their existing order changes nothing. */
     @Test
     void testAlterMaterializedTableColumnListMatchingOrderIsNoOp() {

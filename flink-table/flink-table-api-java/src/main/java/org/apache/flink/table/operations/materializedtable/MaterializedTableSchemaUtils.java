@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /** Utils for materialized table schema. */
@@ -84,9 +85,10 @@ public final class MaterializedTableSchemaUtils {
      *
      * <ul>
      *   <li>{@code add} — a column absent from the old schema (nullable when query-derived);
-     *   <li>{@code modifyColumnPosition} — an existing column the query moved; the query order is
-     *       authoritative, so a reorder surfaces here (and is later rejected). A DDL column list
-     *       keeps its own order and emits no reposition;
+     *   <li>{@code modifyColumnPosition} — an old column whose position among the ranked columns
+     *       (see below) changed; the query order is authoritative, so a reorder surfaces here.
+     *       {@code validateChanges} rejects it if it displaces an old column, and accepts a shift
+     *       behind a new column;
      *   <li>{@code modifyPhysicalColumnType} — a physical-type change. For a query-derived schema a
      *       tightening nullability flip (nullable to NOT NULL) is tolerated as an inference
      *       artifact, while a loosening flip is surfaced; a DDL-defined schema surfaces any
@@ -97,40 +99,51 @@ public final class MaterializedTableSchemaUtils {
      *       columns are retained when the schema is query-derived.
      * </ul>
      *
-     * <p>Existing columns are ranked among the columns that survive into the new schema, so
-     * retained non-persisted columns do not skew the position diff.
+     * <p>An old column is ranked among the columns that survive into the new schema, judged by its
+     * kind in the new schema. When {@code schemaDeclared}, only persisted columns are ranked, so
+     * declared non-persisted columns do not skew the position diff; otherwise every surviving
+     * column is ranked.
      */
     public static List<TableChange> validateAndExtractColumnChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema, boolean schemaDeclared) {
         final List<Column> oldColumns = oldSchema.getColumns();
         final List<Column> newColumns = newSchema.getColumns();
-        final Set<String> newColumnNames =
-                newColumns.stream().map(Column::getName).collect(Collectors.toSet());
-        // Position each old column among the columns that survive into the new schema, so retained
-        // non-persisted columns (absent from the query projection) do not skew the position diff.
+        // A declared schema may place its non-persisted columns anywhere, so only persisted
+        // columns are ranked there.
+        final Predicate<Column> ranked = schemaDeclared ? Column::isPersisted : column -> true;
+        final Set<String> newRankedNames =
+                newColumns.stream().filter(ranked).map(Column::getName).collect(Collectors.toSet());
         final Map<String, Tuple2<Column, Integer>> oldByName = new HashMap<>();
         int nextPosition = 0;
         for (final Column oldColumn : oldColumns) {
             final Integer position =
-                    newColumnNames.contains(oldColumn.getName()) ? nextPosition++ : null;
+                    newRankedNames.contains(oldColumn.getName()) ? nextPosition++ : null;
             oldByName.put(oldColumn.getName(), Tuple2.of(oldColumn, position));
         }
         final Set<String> seen = new HashSet<>();
         final List<TableChange> changes = new ArrayList<>();
-        for (int newIndex = 0; newIndex < newColumns.size(); newIndex++) {
-            final Column newColumn = newColumns.get(newIndex);
+        int newPosition = 0;
+        String previousRankedName = null;
+        for (final Column newColumn : newColumns) {
             seen.add(newColumn.getName());
             final Tuple2<Column, Integer> oldEntry = oldByName.get(newColumn.getName());
+            if (ranked.test(newColumn)) {
+                if (oldEntry != null && oldEntry.f1 != null && oldEntry.f1 != newPosition) {
+                    changes.add(
+                            TableChange.modifyColumnPosition(
+                                    oldEntry.f0,
+                                    previousRankedName == null
+                                            ? ColumnPosition.first()
+                                            : ColumnPosition.after(previousRankedName)));
+                }
+                previousRankedName = newColumn.getName();
+                newPosition++;
+            }
             if (oldEntry == null) {
                 changes.add(addChange(newColumn, schemaDeclared));
                 continue;
             }
             final Column oldColumn = oldEntry.f0;
-            // The query order is authoritative, so reposition a column the query moved; a
-            // DDL-defined schema keeps the arbitrary DDL order.
-            if (!schemaDeclared) {
-                applyPositionChanges(newColumns, oldEntry, newIndex, changes);
-            }
             if (oldColumn.isPhysical()
                     && newColumn.isPhysical()
                     && typeChanged(oldColumn, newColumn, schemaDeclared)) {
@@ -173,22 +186,6 @@ public final class MaterializedTableSchemaUtils {
             changes.add(TableChange.dropColumn(entry.getKey()));
         }
         return changes;
-    }
-
-    private static void applyPositionChanges(
-            List<Column> newColumns,
-            Tuple2<Column, Integer> oldColumnToPosition,
-            int currentPosition,
-            List<TableChange> changes) {
-        Column oldColumn = oldColumnToPosition.f0;
-        int oldPosition = oldColumnToPosition.f1;
-        if (oldPosition != currentPosition) {
-            ColumnPosition position =
-                    currentPosition == 0
-                            ? ColumnPosition.first()
-                            : ColumnPosition.after(newColumns.get(currentPosition - 1).getName());
-            changes.add(TableChange.modifyColumnPosition(oldColumn, position));
-        }
     }
 
     private static TableChange.AddColumn addChange(Column column, boolean schemaDeclared) {
