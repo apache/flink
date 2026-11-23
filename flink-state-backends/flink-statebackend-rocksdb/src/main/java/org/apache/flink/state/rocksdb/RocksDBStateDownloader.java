@@ -47,9 +47,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -86,7 +88,12 @@ public class RocksDBStateDownloader implements Closeable {
         CloseableRegistry internalCloser = new CloseableRegistry();
         // Make sure we also react to external close signals.
         closeableRegistry.registerCloseable(internalCloser);
-        AtomicReference<Throwable> rawException = new AtomicReference<>();
+        // The failures of the individual downloads are recorded while they happen instead of
+        // being read off the conjunct future: CompletableFuture#get unwraps the CompletionException
+        // and thereby drops the suppressed exceptions that carry the failures of the other
+        // downloads, and it does not guarantee that dependent stages (e.g. a whenComplete callback
+        // capturing the aggregated exception) have finished running when it returns.
+        Queue<Throwable> downloadFailures = new ConcurrentLinkedQueue<>();
         try {
             // We have to wait for all futures to be completed, to make sure in
             // case of failure that we will clean up all the files
@@ -96,14 +103,10 @@ public class RocksDBStateDownloader implements Closeable {
                                     .map(
                                             runnable ->
                                                     CompletableFuture.runAsync(
-                                                            runnable,
+                                                            recordFailure(
+                                                                    runnable, downloadFailures),
                                                             transfer.getExecutorService()))
                                     .collect(Collectors.toList()));
-
-            // Capture the raw CompletionException before get() strips it. get() unwraps
-            // CompletionException to its cause (RuntimeException), losing the suppressed list
-            // that holds all parallel thread failures. whenComplete fires before get() unblocks.
-            downloadFuture.whenComplete((v, t) -> rawException.set(t));
 
             Exception interruptedException = null;
             while (!downloadFuture.isDone() || downloadFuture.isCompletedExceptionally()) {
@@ -123,8 +126,7 @@ public class RocksDBStateDownloader implements Closeable {
                     .map(StateHandleDownloadSpec::getDownloadDestination)
                     .map(Path::toFile)
                     .forEach(FileUtils::deleteDirectoryQuietly);
-            Throwable raw = rawException.get();
-            throw buildDownloadException(raw != null ? raw : e);
+            throw buildDownloadException(downloadFailures, e);
         } finally {
             // Unregister and close the internal closer.
             if (closeableRegistry.unregisterCloseable(internalCloser)) {
@@ -265,6 +267,23 @@ public class RocksDBStateDownloader implements Closeable {
     }
 
     /**
+     * Wraps a single download so that its failure is recorded before it is propagated to the {@link
+     * FutureUtils.ConjunctFuture} that aggregates all downloads. Recording the failures where they
+     * happen makes the aggregated error independent of the order in which the downloads complete
+     * and of the exception wrapping applied by {@link CompletableFuture}.
+     */
+    private static Runnable recordFailure(Runnable download, Queue<Throwable> downloadFailures) {
+        return () -> {
+            try {
+                download.run();
+            } catch (Throwable t) {
+                downloadFailures.add(t);
+                throw t;
+            }
+        };
+    }
+
+    /**
      * Builds a descriptive {@link IOException} from a potentially cascaded failure across multiple
      * parallel download threads.
      *
@@ -273,11 +292,20 @@ public class RocksDBStateDownloader implements Closeable {
      * strips the wrapper chain of each collected failure to reach the real {@link IOException},
      * deduplicates by type and message, and returns either the single unique cause directly or a
      * merged exception listing all distinct failures.
+     *
+     * @param downloadFailures the failures recorded by the individual downloads
+     * @param fallback the failure that made waiting for the downloads fail, used if the downloads
+     *     themselves did not report a failure (e.g. because they could not even be scheduled)
      */
-    private static IOException buildDownloadException(Throwable rawException) {
+    private static IOException buildDownloadException(
+            Collection<Throwable> downloadFailures, Exception fallback) {
+        final Stream<? extends Throwable> failures =
+                downloadFailures.isEmpty()
+                        ? Stream.<Throwable>of(fallback)
+                        : downloadFailures.stream();
         Map<String, Throwable> unique = new LinkedHashMap<>();
-        Stream.concat(Stream.of(rawException), Stream.of(rawException.getSuppressed()))
-                .map(t -> ExceptionUtils.stripException(t, CompletionException.class))
+        failures.map(t -> ExceptionUtils.stripException(t, CompletionException.class))
+                .map(t -> ExceptionUtils.stripException(t, ExecutionException.class))
                 .map(t -> ExceptionUtils.stripException(t, RuntimeException.class))
                 .forEach(t -> unique.putIfAbsent(t.getClass().getName() + ":" + t.getMessage(), t));
 
