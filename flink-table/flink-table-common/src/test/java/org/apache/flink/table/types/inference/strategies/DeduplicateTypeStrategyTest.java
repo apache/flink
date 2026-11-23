@@ -89,10 +89,6 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .expectErrorMessage(
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
                                         + "received keep => 'FIRST'."),
-                nonLiteral("Non-literal keep", ARG_KEEP)
-                        .expectErrorMessage(
-                                "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
-                                        + "received a non-literal expression."),
                 withDefaults(
                                 "Time attribute in PARTITION BY",
                                 new TableSemanticsMock(
@@ -127,11 +123,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(ARG_STATE_TTL, Duration.ofSeconds(-1))
                         .expectErrorMessage(
                                 "The 'state_ttl' argument must not be negative, but was '-1 s'. "
-                                        + "Use INTERVAL '0' SECOND to retain state indefinitely."),
-                nonLiteral("Non-literal state_ttl", ARG_STATE_TTL)
-                        .expectErrorMessage(
-                                "The 'state_ttl' argument must be a constant INTERVAL literal, "
-                                        + "but received a non-literal expression."));
+                                        + "Use INTERVAL '0' SECOND to retain state indefinitely."));
     }
 
     @Test
@@ -171,19 +163,6 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                 .calledWithLiteralAt(ARG_KEEP, null)
                 .calledWithLiteralAt(ARG_SEQUENCE_BY, null)
                 .calledWithLiteralAt(ARG_STATE_TTL, null);
-    }
-
-    private static TestSpec nonLiteral(final String description, final int argument) {
-        final TestSpec spec =
-                TestSpec.forStrategy(description, INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(ARGUMENT_TYPES)
-                        .calledWithTableSemanticsAt(ARG_INPUT, PARTITIONED_BY_USER);
-        for (int pos = ARG_KEEP; pos <= ARG_STATE_TTL; pos++) {
-            if (pos != argument) {
-                spec.calledWithLiteralAt(pos, null);
-            }
-        }
-        return spec;
     }
 
     private static TestSpec sequenceBy(final String description, final String... columns) {

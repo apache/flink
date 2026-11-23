@@ -33,6 +33,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
@@ -120,8 +121,7 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                         StateTypeStrategy.of(
                                 callContext ->
                                         Optional.of(ValueView.newValueViewDataType(valueType)),
-                                context.getCallContext()
-                                        .getArgumentValue(ttlArgPos, Duration.class)
+                                CallContextUtils.getStateTtl(context.getCallContext(), ttlArgPos)
                                         .orElse(null))));
     }
 

@@ -30,9 +30,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
-import org.apache.flink.util.TimeUtils;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -47,33 +45,8 @@ public final class DeduplicateTypeStrategyUtils {
     /** Which record of a key is kept. */
     @Internal
     public enum Keep {
-        FIRST("first"),
-        LAST("last");
-
-        private final String value;
-
-        Keep(final String value) {
-            this.value = value;
-        }
-
-        /** Returns the mode for an argument value, or empty if the value names no mode. */
-        public static Optional<Keep> fromValue(final String value) {
-            return Arrays.stream(values()).filter(keep -> keep.value.equals(value)).findFirst();
-        }
-    }
-
-    /** Returns the {@code keep} argument, or {@link Keep#FIRST} when it is omitted. */
-    public static Keep keep(final CallContext callContext, final int argPos) {
-        return callContext
-                .getArgumentValue(argPos, String.class)
-                .map(
-                        value ->
-                                Keep.fromValue(value)
-                                        .orElseThrow(
-                                                () ->
-                                                        new IllegalStateException(
-                                                                "Validated keep argument expected.")))
-                .orElse(Keep.FIRST);
+        FIRST,
+        LAST
     }
 
     /**
@@ -133,27 +106,6 @@ public final class DeduplicateTypeStrategyUtils {
                                                 .asSummaryString()));
     }
 
-    public static Optional<String> validateKeep(
-            final CallContext callContext, final int argPos, final String functionName) {
-        if (callContext.isArgumentNull(argPos)) {
-            return Optional.empty();
-        }
-        final String received;
-        if (!callContext.isArgumentLiteral(argPos)) {
-            received = "a non-literal expression";
-        } else {
-            final String value = callContext.getArgumentValue(argPos, String.class).orElse(null);
-            if (value == null || Keep.fromValue(value).isPresent()) {
-                return Optional.empty();
-            }
-            received = String.format("keep => '%s'", value);
-        }
-        return Optional.of(
-                String.format(
-                        "%s requires keep => 'first' or keep => 'last', but received %s.",
-                        functionName, received));
-    }
-
     public static Optional<String> validateSequenceBy(
             final CallContext callContext,
             final TableSemantics tableSemantics,
@@ -197,28 +149,6 @@ public final class DeduplicateTypeStrategyUtils {
             }
         }
         return Optional.empty();
-    }
-
-    public static Optional<String> validateStateTtl(
-            final CallContext callContext, final int argPos) {
-        if (callContext.isArgumentNull(argPos)) {
-            return Optional.empty();
-        }
-        if (!callContext.isArgumentLiteral(argPos)) {
-            return Optional.of(
-                    "The 'state_ttl' argument must be a constant INTERVAL literal, but received a "
-                            + "non-literal expression. Use a literal such as INTERVAL '1' HOUR.");
-        }
-        return callContext
-                .getArgumentValue(argPos, Duration.class)
-                .filter(Duration::isNegative)
-                .map(
-                        stateTtl ->
-                                String.format(
-                                        "The 'state_ttl' argument must not be negative, but was "
-                                                + "'%s'. Use INTERVAL '0' SECOND to retain state "
-                                                + "indefinitely.",
-                                        TimeUtils.formatWithHighestUnit(stateTtl)));
     }
 
     private static List<String> sequenceBy(final CallContext callContext, final int argPos) {

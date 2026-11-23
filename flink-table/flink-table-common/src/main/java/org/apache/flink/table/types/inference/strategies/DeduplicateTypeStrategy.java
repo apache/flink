@@ -20,7 +20,6 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext;
 import org.apache.flink.table.functions.ChangelogModeStrategy;
@@ -30,6 +29,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.types.RowKind;
 
 import java.util.List;
@@ -76,7 +76,8 @@ public final class DeduplicateTypeStrategy {
 
     /** Returns the {@code keep} argument, or {@link Keep#FIRST} when it is omitted. */
     public static Keep keep(final CallContext callContext) {
-        return DeduplicateTypeStrategyUtils.keep(callContext, ARG_KEEP);
+        return CallContextUtils.getEnumArgument(callContext, ARG_KEEP, Keep.class)
+                .orElse(Keep.FIRST);
     }
 
     /**
@@ -92,12 +93,15 @@ public final class DeduplicateTypeStrategy {
         final TableSemantics tableSemantics = tableSemantics(callContext);
         return DeduplicateTypeStrategyUtils.validatePartitionByNoTimeAttribute(
                         tableSemantics, NAME)
-                .or(() -> DeduplicateTypeStrategyUtils.validateKeep(callContext, ARG_KEEP, NAME))
+                .or(
+                        () ->
+                                CallContextUtils.validateEnumArgument(
+                                        callContext, ARG_KEEP, "keep", NAME, Keep.class))
                 .or(
                         () ->
                                 DeduplicateTypeStrategyUtils.validateSequenceBy(
                                         callContext, tableSemantics, ARG_SEQUENCE_BY, NAME))
-                .or(() -> DeduplicateTypeStrategyUtils.validateStateTtl(callContext, ARG_STATE_TTL));
+                .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
     }
 
     private static ChangelogMode inferChangelogMode(final ChangelogContext changelogContext) {
@@ -113,12 +117,7 @@ public final class DeduplicateTypeStrategy {
     }
 
     private static TableSemantics tableSemantics(final CallContext callContext) {
-        return callContext
-                .getTableSemantics(ARG_INPUT)
-                .orElseThrow(
-                        () ->
-                                new ValidationException(
-                                        "First argument must be a table for DEDUPLICATE."));
+        return CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
     }
 
     private DeduplicateTypeStrategy() {}

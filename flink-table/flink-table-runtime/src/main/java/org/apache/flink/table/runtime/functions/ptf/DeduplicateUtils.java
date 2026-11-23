@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
@@ -43,9 +44,7 @@ import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeS
 public final class DeduplicateUtils {
 
     public static TableSemantics tableSemantics(final SpecializedContext context) {
-        return context.getCallContext()
-                .getTableSemantics(ARG_INPUT)
-                .orElseThrow(() -> new IllegalStateException("Table argument expected."));
+        return CallContextUtils.getTableSemanticsOrThrow(context.getCallContext(), ARG_INPUT);
     }
 
     /**
