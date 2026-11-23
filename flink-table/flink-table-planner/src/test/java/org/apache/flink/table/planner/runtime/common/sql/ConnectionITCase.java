@@ -73,8 +73,7 @@ class ConnectionITCase extends AbstractTestBase {
 
     @TestTemplate
     void testCreateTemporaryConnection() {
-        tEnv.executeSql(
-                "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' " + "WITH ('k' = 'v')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' WITH ('k' = 'v')");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
