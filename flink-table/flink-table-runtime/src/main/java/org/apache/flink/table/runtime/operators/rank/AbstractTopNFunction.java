@@ -101,6 +101,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected Counter invalidCounter;
     private JoinedRowData outputRow;
+    private GenericRowData rankRow;
 
     // metrics
     protected long hitCount = 0L;
@@ -179,6 +180,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
         outputRow = new JoinedRowData();
+        rankRow = new GenericRowData(outputRankNumber ? 1 : 0);
 
         // compile comparator
         sortKeyComparator =
@@ -306,16 +308,11 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     private RowData createOutputRow(RowData inputRow, long rank, RowKind rowKind) {
         if (outputRankNumber) {
-            GenericRowData rankRow = new GenericRowData(1);
             rankRow.setField(0, rank);
-
-            outputRow.replace(inputRow, rankRow);
-            outputRow.setRowKind(rowKind);
-            return outputRow;
-        } else {
-            inputRow.setRowKind(rowKind);
-            return inputRow;
         }
+        outputRow.replace(inputRow, rankRow);
+        outputRow.setRowKind(rowKind);
+        return outputRow;
     }
 
     /**

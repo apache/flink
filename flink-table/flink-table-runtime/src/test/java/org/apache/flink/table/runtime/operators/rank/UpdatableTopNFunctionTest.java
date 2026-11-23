@@ -18,8 +18,17 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.TestTemplate;
 
@@ -30,6 +39,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link UpdatableTopNFunction}. */
 class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
@@ -57,6 +67,45 @@ class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
     @Override
     boolean supportedAsyncState() {
         return false;
+    }
+
+    @TestTemplate
+    void testOffsetUpdatesDoNotChangeOtherStateRows() throws Exception {
+        assertOtherStateRowsKeepInsertKind(3L, 11);
+        assertOtherStateRowsKeepInsertKind(1L, 21);
+    }
+
+    private void assertOtherStateRowsKeepInsertKind(long updatedId, int newScore) throws Exception {
+        AbstractTopNFunction func =
+                createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 3), true, false);
+        try (OneInputStreamOperatorTestHarness<RowData, RowData> harness =
+                createTestHarness(func)) {
+            harness.setStateBackend(new EmbeddedRocksDBStateBackend());
+            harness.open();
+            harness.processElement(insertRecord("book", 1L, 12));
+            harness.processElement(insertRecord("book", 2L, 19));
+            harness.processElement(insertRecord("book", 3L, 20));
+            harness.processElement(updateAfterRecord("book", updatedId, newScore));
+            harness.snapshot(0L, 0L);
+
+            MapStateDescriptor<RowData, Tuple2<RowData, Integer>> descriptor =
+                    new MapStateDescriptor<>(
+                            "data-state-with-update",
+                            rowKeySelector.getProducedType(),
+                            new TupleTypeInfo<>(inputRowType, Types.INT));
+            descriptor.enableTimeToLive(ttlConfig);
+            MapState<RowData, Tuple2<RowData, Integer>> state =
+                    harness.getOperator()
+                            .getPartitionedState(
+                                    VoidNamespace.INSTANCE,
+                                    VoidNamespaceSerializer.INSTANCE,
+                                    descriptor);
+            assertThat(state.values())
+                    .filteredOn(value -> value.f0.getLong(1) != updatedId)
+                    .hasSize(2)
+                    .extracting(value -> value.f0.getRowKind())
+                    .containsOnly(RowKind.INSERT);
+        }
     }
 
     @TestTemplate
