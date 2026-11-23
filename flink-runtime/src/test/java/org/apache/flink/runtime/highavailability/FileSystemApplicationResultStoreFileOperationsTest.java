@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.util.FileUtils;
@@ -43,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.highavailability.ApplicationResultStoreContractTest.DUMMY_APPLICATION_RESULT_ENTRY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the internal {@link FileSystemApplicationResultStore} mechanisms. */
 @ExtendWith(TestLoggerExtension.class)
@@ -342,5 +345,21 @@ public class FileSystemApplicationResultStoreFileOperationsTest {
                 temporaryFolder.toURI().getPath(),
                 entry.getApplicationId().toString()
                         + FileSystemApplicationResultStore.FILE_EXTENSION);
+    }
+
+    @Test
+    void testFromConfigurationRejectsOtherStorageTypes() {
+        final Configuration configuration = new Configuration();
+        configuration.set(ApplicationResultStoreOptions.STORAGE_PATH, basePath.toString());
+        configuration.set(
+                ApplicationResultStoreOptions.STORAGE_TYPE,
+                ApplicationResultStoreOptions.StorageType.KUBERNETES);
+
+        assertThatThrownBy(
+                        () ->
+                                FileSystemApplicationResultStore.fromConfiguration(
+                                        configuration, manuallyTriggeredExecutor))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining(ApplicationResultStoreOptions.STORAGE_TYPE.key());
     }
 }
