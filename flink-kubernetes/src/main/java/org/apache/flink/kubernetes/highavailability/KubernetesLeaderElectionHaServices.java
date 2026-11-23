@@ -30,6 +30,8 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
+import org.apache.flink.runtime.highavailability.ApplicationResultStoreOptions;
 import org.apache.flink.runtime.highavailability.FileSystemApplicationResultStore;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -114,7 +116,8 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
                 blobStoreService,
                 createJobResultStore(
                         kubeClient, configuration, clusterId, lockIdentity, ioExecutor),
-                FileSystemApplicationResultStore.fromConfiguration(configuration, ioExecutor));
+                createApplicationResultStore(
+                        kubeClient, configuration, clusterId, lockIdentity, ioExecutor));
 
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(clusterId);
@@ -170,6 +173,38 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
         }
     }
 
+    private static ApplicationResultStore createApplicationResultStore(
+            FlinkKubeClient kubeClient,
+            Configuration configuration,
+            String clusterId,
+            String lockIdentity,
+            Executor ioExecutor)
+            throws IOException {
+        final ApplicationResultStoreOptions.StorageType storageType =
+                configuration.get(ApplicationResultStoreOptions.STORAGE_TYPE);
+        final boolean deleteOnCommit =
+                configuration.get(ApplicationResultStoreOptions.DELETE_ON_COMMIT);
+        LOG.info(
+                "Will be using {} application result store (deleteOnCommit={}).",
+                storageType,
+                deleteOnCommit);
+        switch (storageType) {
+            case KUBERNETES:
+                return new KubernetesApplicationResultStore(
+                        kubeClient,
+                        getApplicationResultStoreConfigMap(clusterId),
+                        clusterId,
+                        createLeadershipCheck(
+                                kubeClient, getClusterConfigMap(clusterId), lockIdentity),
+                        deleteOnCommit,
+                        ioExecutor);
+            case FILE_SYSTEM:
+            default:
+                return FileSystemApplicationResultStore.fromConfiguration(
+                        configuration, ioExecutor);
+        }
+    }
+
     @Override
     protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
         return new DefaultLeaderRetrievalService(
@@ -212,7 +247,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     }
 
     /**
-     * The leadership check of the job result store: whether the leader annotation of the cluster
+     * The leadership check of the result stores: whether the leader annotation of the cluster
      * ConfigMap names the given lock identity.
      */
     @VisibleForTesting
@@ -231,6 +266,11 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     @VisibleForTesting
     static String getJobResultStoreConfigMap(String clusterId) {
         return clusterId + NAME_SEPARATOR + "job-result-store-config-map";
+    }
+
+    @VisibleForTesting
+    static String getApplicationResultStoreConfigMap(String clusterId) {
+        return clusterId + NAME_SEPARATOR + "application-result-store-config-map";
     }
 
     @Override
@@ -270,6 +310,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
 
         kubeClient.deleteConfigMap(getClusterConfigMap()).get();
         maybeCleanupJobResultStoreConfigMap();
+        maybeCleanupApplicationResultStoreConfigMap();
 
         ExceptionUtils.tryRethrowException(exception);
     }
@@ -279,6 +320,14 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
                         == JobResultStoreOptions.StorageType.KUBERNETES
                 && configuration.get(JobResultStoreOptions.DELETE_ON_COMMIT)) {
             kubeClient.deleteConfigMap(getJobResultStoreConfigMap(clusterId)).get();
+        }
+    }
+
+    private void maybeCleanupApplicationResultStoreConfigMap() throws Exception {
+        if (configuration.get(ApplicationResultStoreOptions.STORAGE_TYPE)
+                        == ApplicationResultStoreOptions.StorageType.KUBERNETES
+                && configuration.get(ApplicationResultStoreOptions.DELETE_ON_COMMIT)) {
+            kubeClient.deleteConfigMap(getApplicationResultStoreConfigMap(clusterId)).get();
         }
     }
 

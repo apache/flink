@@ -18,12 +18,14 @@
 
 package org.apache.flink.kubernetes.highavailability;
 
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.runtime.highavailability.ApplicationResultStoreOptions;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -48,9 +50,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
 /**
- * IT case for the {@link KubernetesJobResultStore} wired through the Kubernetes HA services of a
- * {@code MiniCluster} against a real Kubernetes cluster: a terminated job ends up in the job result
- * store ConfigMap, and the Dispatcher rejects its job ID afterwards.
+ * IT case for the {@link KubernetesJobResultStore} and the {@link KubernetesApplicationResultStore}
+ * wired through the Kubernetes HA services of a {@code MiniCluster} against a real Kubernetes
+ * cluster: a terminated job ends up in the job result store ConfigMap, its application in the
+ * application result store ConfigMap, and the Dispatcher rejects the job ID afterwards.
  */
 class KubernetesJobResultStoreMiniClusterITCase {
 
@@ -90,6 +93,8 @@ class KubernetesJobResultStoreMiniClusterITCase {
     void testTerminatedJobIsRecordedInTheConfigMap() throws Exception {
         final String configMapName =
                 KubernetesLeaderElectionHaServices.getJobResultStoreConfigMap(CLUSTER_ID);
+        final String applicationConfigMapName =
+                KubernetesLeaderElectionHaServices.getApplicationResultStoreConfigMap(CLUSTER_ID);
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         final JobID jobId = jobGraph.getJobID();
         final String key = jobId.toHexString();
@@ -109,6 +114,25 @@ class KubernetesJobResultStoreMiniClusterITCase {
             assertThat(configMap.getData())
                     .containsOnly(entry(key, KubernetesJobResultStore.CLEAN_VALUE));
 
+            // The application of a job submitted on its own has the job's ID; it is marked as
+            // clean after the job, and the clean entry keeps the result.
+            final String cleanFinishedPrefix =
+                    KubernetesApplicationResultStore.CLEAN_PREFIX
+                            + ApplicationState.FINISHED.name()
+                            + ":";
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            getStoredEntry(applicationConfigMapName, key)
+                                    .filter(value -> value.startsWith(cleanFinishedPrefix))
+                                    .isPresent());
+            assertThat(
+                            kubernetesExtension
+                                    .getFlinkKubeClient()
+                                    .getConfigMap(applicationConfigMapName)
+                                    .get()
+                                    .getData())
+                    .containsOnlyKeys(key);
+
             final JobGraph duplicate = JobGraphTestUtils.singleNoOpJobGraph();
             duplicate.setJobID(jobId);
             assertThatThrownBy(
@@ -124,6 +148,10 @@ class KubernetesJobResultStoreMiniClusterITCase {
                                             .isPresent());
         } finally {
             kubernetesExtension.getFlinkKubeClient().deleteConfigMap(configMapName).get();
+            kubernetesExtension
+                    .getFlinkKubeClient()
+                    .deleteConfigMap(applicationConfigMapName)
+                    .get();
         }
     }
 
@@ -146,8 +174,12 @@ class KubernetesJobResultStoreMiniClusterITCase {
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryPath.toAbsolutePath().toString());
         configuration.set(
                 JobResultStoreOptions.STORAGE_TYPE, JobResultStoreOptions.StorageType.KUBERNETES);
-        // Retain the clean entry so that the test can inspect it.
+        configuration.set(
+                ApplicationResultStoreOptions.STORAGE_TYPE,
+                ApplicationResultStoreOptions.StorageType.KUBERNETES);
+        // Retain the clean entries so that the test can inspect them.
         configuration.set(JobResultStoreOptions.DELETE_ON_COMMIT, false);
+        configuration.set(ApplicationResultStoreOptions.DELETE_ON_COMMIT, false);
         return configuration;
     }
 }

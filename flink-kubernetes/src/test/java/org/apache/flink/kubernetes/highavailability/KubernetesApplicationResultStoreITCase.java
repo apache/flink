@@ -63,7 +63,8 @@ class KubernetesApplicationResultStoreITCase {
         final Configuration configuration = kubernetesExtension.getConfiguration();
         final String clusterId = CLUSTER_ID_PREFIX + System.currentTimeMillis();
         final String clusterConfigMapName = clusterId + "-cluster-config-map";
-        final String configMapName = clusterId + "-application-result-store-config-map";
+        final String configMapName =
+                KubernetesLeaderElectionHaServices.getApplicationResultStoreConfigMap(clusterId);
 
         final FlinkKubeClient[] kubeClients = new FlinkKubeClient[JOB_MANAGER_NUM];
         final KubernetesLeaderElector[] leaderElectors =

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.highavailability.ApplicationResultStoreOptions;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -57,9 +58,10 @@ import static org.apache.flink.kubernetes.utils.Constants.EXECUTION_PLAN_STORE_K
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * IT case for the persistent job result stores under the Kubernetes HA services of a {@code
+ * IT case for the persistent result stores under the Kubernetes HA services of a {@code
  * MiniCluster}, against a real Kubernetes cluster. The test runs once per {@link
- * JobResultStoreOptions.StorageType}: the file system store and the ConfigMap store.
+ * JobResultStoreOptions.StorageType}, with the job result store and the application result store on
+ * the same storage: the file system stores, or the ConfigMap stores.
  */
 class PersistentJobResultStoreITCase {
 
@@ -81,6 +83,9 @@ class PersistentJobResultStoreITCase {
 
     private final String jobResultStoreConfigMap =
             KubernetesLeaderElectionHaServices.getJobResultStoreConfigMap(clusterId);
+
+    private final String applicationResultStoreConfigMap =
+            KubernetesLeaderElectionHaServices.getApplicationResultStoreConfigMap(clusterId);
 
     /**
      * A JobManager fails over after it wrote the dirty entry of a terminated job and before it
@@ -196,6 +201,10 @@ class PersistentJobResultStoreITCase {
 
     private void deleteConfigMaps() throws Exception {
         kubernetesExtension.getFlinkKubeClient().deleteConfigMap(jobResultStoreConfigMap).get();
+        kubernetesExtension
+                .getFlinkKubeClient()
+                .deleteConfigMap(applicationResultStoreConfigMap)
+                .get();
         kubernetesExtension.getFlinkKubeClient().deleteConfigMap(clusterConfigMap).get();
     }
 
@@ -213,8 +222,17 @@ class PersistentJobResultStoreITCase {
         configuration.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryPath.toAbsolutePath().toString());
         configuration.set(JobResultStoreOptions.STORAGE_TYPE, storageType);
-        // Retain the clean entry so that the tests can inspect it.
+        configuration.set(
+                ApplicationResultStoreOptions.STORAGE_TYPE, applicationStorageType(storageType));
+        // Retain the clean entries so that the tests can inspect them.
         configuration.set(JobResultStoreOptions.DELETE_ON_COMMIT, false);
+        configuration.set(ApplicationResultStoreOptions.DELETE_ON_COMMIT, false);
         return configuration;
+    }
+
+    /** The application result store goes on the same storage as the job result store. */
+    private static ApplicationResultStoreOptions.StorageType applicationStorageType(
+            JobResultStoreOptions.StorageType storageType) {
+        return ApplicationResultStoreOptions.StorageType.valueOf(storageType.name());
     }
 }
