@@ -21,8 +21,11 @@ package org.apache.flink.types.variant;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.variant.Variant.Type;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -61,6 +64,9 @@ import java.util.UUID;
  */
 @Internal
 public class BinaryVariantUtil {
+    private static final VarHandle LITTLE_ENDIAN_INT_VIEW =
+            MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
+
     public static final int BASIC_TYPE_BITS = 2;
     public static final int BASIC_TYPE_MASK = 0x3;
     public static final int TYPE_INFO_MASK = 0x3F;
@@ -357,6 +363,14 @@ public class BinaryVariantUtil {
     static int readUnsigned(byte[] bytes, int pos, int numBytes) {
         checkIndex(pos, bytes.length);
         checkIndex(pos + numBytes - 1, bytes.length);
+        if (numBytes == U32_SIZE) {
+            // one read instead of four
+            final int result = (int) LITTLE_ENDIAN_INT_VIEW.get(bytes, pos);
+            if (result < 0) {
+                throw malformedVariant();
+            }
+            return result;
+        }
         int result = 0;
         // Similar to the `readLong` loop, but all bytes should be unsign-extended.
         for (int i = 0; i < numBytes; ++i) {
