@@ -119,9 +119,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         RowType leftType = (RowType) leftInputEdge.getOutputType();
         RowType rightType = (RowType) rightInputEdge.getOutputType();
 
-        long externalBufferMemory =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-                        .getBytes();
+        long externalBufferMemory = JoinUtil.getExternalBufferMemory(config);
         long sortMemory =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         int externalBufferNum = 1;
@@ -151,6 +149,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                         leftIsSmaller,
                         filterNulls,
                         managedMemory,
+                        externalBufferMemory,
                         planner.getFlinkContext().getClassLoader());
 
         Transformation<RowData> leftInputTransform =

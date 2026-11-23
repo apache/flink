@@ -55,6 +55,8 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoinGenerator {
 
     private final long managedMemory;
 
+    private final long externalBufferMemory;
+
     public AdaptiveJoinOperatorGenerator(
             int[] leftKeys,
             int[] rightKeys,
@@ -67,7 +69,8 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoinGenerator {
             long leftRowCount,
             long rightRowCount,
             boolean tryDistinctBuildRow,
-            long managedMemory) {
+            long managedMemory,
+            long externalBufferMemory) {
         this.leftKeys = leftKeys;
         this.rightKeys = rightKeys;
         this.filterNulls = filterNulls;
@@ -80,6 +83,7 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoinGenerator {
         this.rightRowCount = rightRowCount;
         this.tryDistinctBuildRow = tryDistinctBuildRow;
         this.managedMemory = managedMemory;
+        this.externalBufferMemory = externalBufferMemory;
     }
 
     @Override
@@ -106,6 +110,7 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoinGenerator {
                     rightRowCount,
                     tryDistinctBuildRow,
                     managedMemory,
+                    externalBufferMemory,
                     config,
                     classLoader);
         } else {
@@ -120,6 +125,7 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoinGenerator {
                     leftIsBuild,
                     filterNulls,
                     managedMemory,
+                    externalBufferMemory,
                     classLoader);
         }
     }

@@ -1,0 +1,80 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_UNQUOTE
+summary: Returns the content of a quoted JSON string, with its escape sequences decoded.
+
+syntax:
+  sql: JSON_UNQUOTE(string)
+  java: $("string").jsonUnquote()
+  python: col("string").json_unquote()
+
+arguments:
+  - name: string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A JSON string in double quotes.
+
+returns:
+  description: The string without its double quotes, with its escape sequences decoded, such as `\"`, `\n` and `\u00e9`.
+  nulls: Returns NULL if `string` is NULL.
+  type: "`STRING`, NOT NULL if `string` is NOT NULL."
+
+notes:
+  - A value that doesn't start and end with a double quote comes back unchanged, such as a JSON number, array or object. So does a value that isn't valid JSON, such as one with an invalid escape sequence or with a tab that isn't escaped.
+  - A value that starts with a JSON string and ends with a double quote is unquoted, even if it isn't one JSON string. `JSON_UNQUOTE('"a"b"')` returns `a"b`.
+
+see_also:
+  - {name: JSON_QUOTE, ref: json/json-quote}
+  - {name: JSON_VALUE, ref: json/json-value}
+
+examples:
+  - title: Unquote a JSON string
+    description: The quotes are removed and escape sequences are decoded.
+    sql: |
+      SELECT s, JSON_UNQUOTE(s) AS `JSON_UNQUOTE(s)`
+      FROM (VALUES ('"Hello, World!"'), ('"say \"hi\" a\/b \u00e9"')) AS t(s);
+    result: |
+      | s                        | JSON_UNQUOTE(s) |
+      |--------------------------|-----------------|
+      | "Hello, World!"          | Hello, World!   |
+      | "say \"hi\" a\/b \u00e9" | say "hi" a/b é  |
+
+  - title: Values that aren't quoted JSON strings
+    description: They come back unchanged, and NULL returns NULL.
+    sql: |
+      SELECT s, JSON_UNQUOTE(s) AS `JSON_UNQUOTE(s)`
+      FROM (VALUES ('[1, 2]'), ('abc'), ('"abc'), ('"a\qb"'), ('42'), (CAST(NULL AS STRING))) AS t(s);
+    result: |
+      | s      | JSON_UNQUOTE(s) |
+      |--------|-----------------|
+      | [1, 2] | [1, 2]          |
+      | abc    | abc             |
+      | "abc   | "abc            |
+      | "a\qb" | "a\qb"          |
+      | 42     | 42              |
+      | NULL   | NULL            |
+
+  - title: An unescaped quote inside
+    description: The value isn't one JSON string, but it is unquoted.
+    sql: |
+      SELECT s, JSON_UNQUOTE(s) AS `JSON_UNQUOTE(s)`
+      FROM (VALUES ('"a"b"')) AS t(s);
+    result: |
+      | s     | JSON_UNQUOTE(s) |
+      |-------|-----------------|
+      | "a"b" | a"b             |

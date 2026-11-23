@@ -58,6 +58,7 @@ import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.CHAR;
 import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
@@ -1284,6 +1285,34 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(CAST(NULL AS STRING))",
                                 null,
                                 STRING().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData("a\"b\\c\nd\001", "ab ", "HÉLLo 😀")
+                        .andDataTypes(STRING().notNull(), CHAR(3).notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString($("f0")),
+                                "JSON_STRING(f0)",
+                                "\"a\\\"b\\\\c\\nd\\u0001\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f1")),
+                                "JSON_STRING(f1)",
+                                "\"ab \"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f2")),
+                                "JSON_STRING(f2)",
+                                "\"HÉLLo 😀\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString("x\"y"),
+                                "JSON_STRING('x\"y')",
+                                "\"x\\\"y\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString(jsonArray(JsonOnNull.ABSENT, $("f1"))),
+                                "JSON_STRING(JSON_ARRAY(f1))",
+                                "[\"ab \"]",
+                                STRING().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
                         .onFieldsWithData(
                                 "V",

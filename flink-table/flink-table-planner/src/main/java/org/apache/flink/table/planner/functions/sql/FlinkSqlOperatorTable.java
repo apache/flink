@@ -1290,4 +1290,58 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     .operandTypeChecker(OperandTypes.NILADIC)
                     .notDeterministic()
                     .build();
+
+    // --------------------------------------------------------------------------------------------
+    // VERSIONED OPERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Maps operators that are not a {@link VersionedSqlOperator} to the {@link BuiltInSqlOperator}
+     * that defines their latest version in a compiled plan.
+     *
+     * <p>Use it for operators that cannot be replaced by a {@link BuiltInSqlFunction}, for example
+     * because Calcite references them directly in the parser or {@code RexBuilder}. When the
+     * runtime behavior of such an operator {@code OP} changes from version 1 to 2:
+     *
+     * <ul>
+     *   <li>Add a public constant {@code OP_V1} built with {@code
+     *       BuiltInSqlOperator.newBuilder(OP).version(1).internal().build()}. Its name {@code
+     *       $OP$1} registers it in this table for restoring compiled plans. It is internal to not
+     *       expose it when listing functions.
+     *   <li>Add a private constant {@code OP_V2} built with {@code
+     *       BuiltInSqlOperator.newBuilder(OP).version(2).build()}. It is private to not register
+     *       it, the planner keeps using {@code OP}.
+     *   <li>Add the entry {@code OP -> OP_V2}. Compiled plans then contain {@code $OP$2} for {@code
+     *       OP}. {@code OP_V1} needs no entry, it is versioned itself and restores {@code $OP$1} by
+     *       name.
+     *   <li>Match on both {@code OP} and {@code OP_V1} wherever the operator is compared by
+     *       identity, such as during code generation.
+     * </ul>
+     *
+     * <p>In summary:
+     *
+     * <pre>{@code
+     * FlinkSqlOperatorTable {
+     *   // used during planning, compiled as $OP$2
+     *   public static final SqlOperator OP = SqlStdOperatorTable.OP;
+     *
+     *   // registered as $OP$1 but not listed, restored from older compiled plans
+     *   public static final BuiltInSqlOperator OP_V1 =
+     *       BuiltInSqlOperator.newBuilder(OP).version(1).internal().build();
+     *
+     *   // not registered, only defines the version of OP
+     *   private static final BuiltInSqlOperator OP_V2 =
+     *       BuiltInSqlOperator.newBuilder(OP).version(2).build();
+     *
+     *   public static final Map<SqlOperator, BuiltInSqlOperator> VERSIONED_OPERATORS =
+     *       Map.of(OP, OP_V2);
+     * }
+     *
+     * ExprCodeGenerator {
+     *   case OP => // latest behavior
+     *   case OP_V1 => // behavior of version 1
+     * }
+     * }</pre>
+     */
+    public static final Map<SqlOperator, BuiltInSqlOperator> VERSIONED_OPERATORS = Map.of();
 }

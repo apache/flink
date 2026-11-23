@@ -2,6 +2,7 @@
 title: "Date & Time"
 weight: 8
 type: docs
+bookCollapseSection: true
 sqlFunctions: temporal
 ---
 <!--

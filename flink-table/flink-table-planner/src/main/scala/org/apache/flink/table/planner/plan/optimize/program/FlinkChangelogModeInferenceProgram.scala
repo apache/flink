@@ -1419,8 +1419,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                     && consumesUpserts
                     && !tableArg.is(StaticArgumentTrait.REQUIRE_FULL_DELETE)
                   ) {
-                    this
-                      .visit(child, deleteOnKeyOrNone(modifyKindSet))
+                    visitChild(child, deleteOnKeyOrNone(modifyKindSet))
                       .orElse(this.visit(child, fullDeleteOrNone(modifyKindSet)))
                   } else {
                     this.visit(child, fullDeleteOrNone(modifyKindSet))
@@ -1630,21 +1629,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       }
 
+    /**
+     * Like [[visit]], but returns None if the child does not provide exactly the required trait.
+     */
+    private def visitChild(
+        child: StreamPhysicalRel,
+        requiredTrait: DeleteKindTrait): Option[StreamPhysicalRel] = {
+      this
+        .visit(child, requiredTrait)
+        .filter(_.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE).satisfies(requiredTrait))
+    }
+
     private def visitChildren(
         parent: StreamPhysicalRel,
         requiredChildrenTrait: DeleteKindTrait): Option[List[StreamPhysicalRel]] = {
       val newChildren = for (child <- parent.getInputs) yield {
-        this.visit(child.asInstanceOf[StreamPhysicalRel], requiredChildrenTrait) match {
+        visitChild(child.asInstanceOf[StreamPhysicalRel], requiredChildrenTrait) match {
           case None =>
             // return None if one of the children can't satisfy
             return None
-          case Some(newChild) =>
-            val providedTrait = newChild.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
-            if (!providedTrait.satisfies(requiredChildrenTrait)) {
-              // the provided trait can't satisfy required trait, thus we should return None.
-              return None
-            }
-            newChild
+          case Some(newChild) => newChild
         }
       }
       Some(newChildren.toList)

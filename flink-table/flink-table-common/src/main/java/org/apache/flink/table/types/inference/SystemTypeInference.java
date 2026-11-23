@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
 
 import javax.annotation.Nullable;
@@ -404,7 +405,10 @@ public class SystemTypeInference {
                                 // - Oracle adds pass-through columns for all ROW semantics args, so
                                 // this whole topic is kind of vendor specific already
                                 fields.addAll(derivePassThroughFields(callContext, resolvedArgs));
-                                fields.addAll(deriveFunctionOutputFields(functionDataType));
+                                fields.addAll(
+                                        deriveFunctionOutputFields(
+                                                functionDataType,
+                                                preservesTimeAttributes(resolvedArgs)));
 
                                 if (!disableSystemArgs) {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
@@ -464,7 +468,8 @@ public class SystemTypeInference {
                     .collect(Collectors.toList());
         }
 
-        private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
+        private List<Field> deriveFunctionOutputFields(
+                DataType functionDataType, boolean preservesTimeAttributes) {
             final boolean isScalarOutput =
                     !LogicalTypeChecks.isCompositeType(functionDataType.getLogicalType());
             if (isScalarOutput) {
@@ -475,8 +480,24 @@ public class SystemTypeInference {
             final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
             final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())
-                    .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
+                    .mapToObj(
+                            pos -> {
+                                final DataType fieldType = fieldTypes.get(pos);
+                                return DataTypes.FIELD(
+                                        fieldNames.get(pos),
+                                        preservesTimeAttributes
+                                                ? fieldType
+                                                : DataTypeUtils.removeTimeAttribute(fieldType));
+                            })
                     .collect(Collectors.toList());
+        }
+
+        /** A PTF might delay or reorder rows, which would invalidate forwarded time attributes. */
+        private boolean preservesTimeAttributes(List<StaticArgument> staticArgs) {
+            return functionKind != FunctionKind.PROCESS_TABLE
+                    || staticArgs.stream()
+                            .filter(arg -> arg.is(StaticArgumentTrait.TABLE))
+                            .allMatch(arg -> arg.is(StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES));
         }
 
         private List<Field> deriveRowtimeField(

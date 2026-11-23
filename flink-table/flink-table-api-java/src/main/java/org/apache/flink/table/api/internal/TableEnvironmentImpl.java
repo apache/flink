@@ -119,6 +119,7 @@ import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperation;
 import org.apache.flink.table.operations.utils.ExecutableOperationUtils;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
@@ -884,6 +885,29 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } catch (ValidationException e) {
             return false;
         }
+    }
+
+    @Override
+    public boolean dropMaterializedTable(String path) {
+        return dropMaterializedTable(path, true);
+    }
+
+    @Override
+    public boolean dropMaterializedTable(String path, boolean ignoreIfNotExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        final ObjectIdentifier identifier = getObjectIdentifierFromPath(path);
+        if (ignoreIfNotExists && !isPermanentMaterializedTable(identifier)) {
+            return false;
+        }
+        executeInternal(new DropMaterializedTableOperation(identifier, ignoreIfNotExists));
+        return true;
+    }
+
+    private boolean isPermanentMaterializedTable(ObjectIdentifier identifier) {
+        return catalogManager
+                .getUnresolvedTable(identifier)
+                .map(table -> table.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE)
+                .orElse(false);
     }
 
     @Override

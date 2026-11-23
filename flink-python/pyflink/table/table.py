@@ -1250,6 +1250,23 @@ class Table(object):
         """
         return Table(self._j_table.toChangelog(to_expression_jarray(arguments)), self._t_env)
 
+    def to_append(self) -> 'Table':
+        """
+        Converts this table into an append-only table using the built-in ``TO_APPEND``
+        process table function.
+
+        Every new row and every update is appended as a new row, and deletes are dropped.
+        The output has the same columns as the input.
+
+        Example:
+        ::
+
+            >>> result = table.to_append()
+
+        :return: An append-only :class:`~pyflink.table.Table` with the input columns.
+        """
+        return Table(self._j_table.toAppend(), self._t_env)
+
     def from_changelog(self, *arguments: Expression) -> 'Table':
         """
         Converts this append-only table with an explicit operation code column into a

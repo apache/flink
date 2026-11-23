@@ -49,7 +49,8 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
             'explainPlan',
             'registerFunction',
             'scan',
-            'registerTable'}
+            'registerTable',
+            'dropMaterializedTable'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

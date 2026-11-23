@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SHA512
+summary: Returns the SHA-512 hash of a string as 128 hexadecimal digits.
+
+syntax:
+  sql: SHA512(str)
+  java: $("str").sha512()
+  python: col("str").sha512
+
+arguments:
+  - name: str
+    type: CHAR, VARCHAR, STRING. In SQL, also BINARY, VARBINARY, BYTES
+    required: true
+    description: The value to hash.
+
+returns:
+  description: The SHA-512 digest of `str` as 128 lower-case hexadecimal digits. A character string is hashed as its UTF-8 bytes, a binary string as its bytes.
+  nulls: Returns NULL if `str` is NULL.
+  type: "`CHAR(128)`, NOT NULL if `str` is NOT NULL."
+
+see_also:
+  - {name: SHA2, ref: hash/sha2}
+  - {name: SHA224, ref: hash/sha224}
+  - {name: SHA256, ref: hash/sha256}
+
+examples:
+  - title: Hash each string
+    description: A NULL string returns NULL.
+    sql: |
+      SELECT str, SHA512(str) AS `SHA512(str)`
+      FROM (VALUES ('Flink'), ('Alice'), (CAST(NULL AS STRING))) AS t(str);
+    result: |
+      | str   | SHA512(str)                                                                                                                      |
+      |-------|----------------------------------------------------------------------------------------------------------------------------------|
+      | Flink | 9b7245deade2206af856b32c80d9bc11c2c371f2a2a736d1cd38273d4b6830e4bcc3c0b1196f3e19f4ea13f1185dc938a9b59179057001fde63de80afc5c6481 |
+      | Alice | 299403b3d6b5c6244fc0ec6f278cb8c233734f0c156c6b8c214341fd6f8f7c781b9b2a137a09329032b9d58e8a37060690521a7d93631d43699efce8106085c9 |
+      | NULL  | NULL                                                                                                                             |
+
+  - title: Hash bytes
+    description: A string is hashed as its UTF-8 bytes, so `'ä'` and its UTF-8 bytes `X'C3A4'` give the same digest.
+    sql: |
+      SELECT str, bin, SHA512(str) = SHA512(bin) AS `SHA512(str) = SHA512(bin)`
+      FROM (VALUES ('ä', X'C3A4')) AS t(str, bin);
+    result: |
+      | str | bin     | SHA512(str) = SHA512(bin) |
+      |-----|---------|---------------------------|
+      | ä   | x'c3a4' | TRUE                      |

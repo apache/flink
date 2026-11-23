@@ -60,6 +60,11 @@ Flink's [Hive documentation]({{< ref "docs/connectors/table/hive/overview" >}}) 
 {{< hint warning >}} The Hive Metastore stores all meta-object names in lower case. This is unlike `GenericInMemoryCatalog` which is case-sensitive
 {{< /hint >}}
 
+### StateCatalog
+
+The `StateCatalog` is a read-only catalog that exposes the state in savepoints and checkpoints as tables, one database per snapshot.
+See the [State Catalog documentation]({{< ref "docs/libs/state_processor_api" >}}#state-catalog) for more details on setting up the catalog.
+
 ### User-Defined Catalog
 
 Catalogs are pluggable and users can develop custom catalogs by implementing the `Catalog` interface.

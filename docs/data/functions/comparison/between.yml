@@ -1,0 +1,105 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: BETWEEN
+summary: Returns whether a value lies between two bounds, including the bounds.
+
+syntax:
+  sql: expr [NOT] BETWEEN [ASYMMETRIC | SYMMETRIC] lower_bound AND upper_bound
+  java: |
+    $("expr").between(lowerBound, upperBound)
+    $("expr").notBetween(lowerBound, upperBound)
+  python: |
+    col("expr").between(lower_bound, upper_bound)
+    col("expr").not_between(lower_bound, upper_bound)
+
+arguments:
+  - name: expr
+    type: Any ordered type, such as a number, a string or a date
+    required: true
+    description: The value to test.
+  - name: lower_bound, upper_bound
+    type: Types comparable with `expr`
+    required: true
+    description: The bounds. With `SYMMETRIC`, they can come in either order.
+
+returns:
+  description: TRUE if `expr` is at least `lower_bound` and at most `upper_bound`, FALSE otherwise. `NOT BETWEEN` returns the opposite.
+  nulls: Returns NULL if `expr` is NULL. A NULL bound returns NULL, unless the other bound decides the result, such as in `12 BETWEEN 15 AND NULL`, which is FALSE. With `SYMMETRIC`, a NULL bound always returns NULL.
+  type: "`BOOLEAN`, NOT NULL if all three values are NOT NULL."
+
+notes:
+  - "`ASYMMETRIC` is the default, so `lower_bound` must come first. With the bounds swapped, no value lies between them."
+  - The Table API methods are `ASYMMETRIC`.
+
+see_also:
+  - {name: Comparison operators, ref: comparison/comparison-operators}
+  - {name: IN, ref: comparison/in}
+
+examples:
+  - title: The bounds are included
+    description: Both bounds lie between them.
+    sql: |
+      SELECT x,
+        x BETWEEN 10 AND 20 AS `x BETWEEN 10 AND 20`,
+        x NOT BETWEEN 10 AND 20 AS `x NOT BETWEEN 10 AND 20`
+      FROM (VALUES (5), (10), (15), (20)) AS t(x);
+    result: |
+      | x  | x BETWEEN 10 AND 20 | x NOT BETWEEN 10 AND 20 |
+      |----|---------------------|-------------------------|
+      | 5  | FALSE               | TRUE                    |
+      | 10 | TRUE                | FALSE                   |
+      | 15 | TRUE                | FALSE                   |
+      | 20 | TRUE                | FALSE                   |
+
+  - title: ASYMMETRIC and SYMMETRIC
+    description: With the bounds swapped, only `SYMMETRIC` finds the value.
+    sql: |
+      SELECT x, low, high,
+        x BETWEEN low AND high AS `x BETWEEN low AND high`,
+        x BETWEEN SYMMETRIC low AND high AS `x BETWEEN SYMMETRIC low AND high`
+      FROM (VALUES (12, 15, 12)) AS t(x, low, high);
+    result: |
+      | x  | low | high | x BETWEEN low AND high | x BETWEEN SYMMETRIC low AND high |
+      |----|-----|------|------------------------|----------------------------------|
+      | 12 | 15  | 12   | FALSE                  | TRUE                             |
+
+  - title: NULL bounds
+    description: A NULL bound returns NULL, unless the other bound already rules out the value, which it never does with `SYMMETRIC`.
+    sql: |
+      SELECT x, low, high,
+        x BETWEEN low AND high AS `x BETWEEN low AND high`,
+        x BETWEEN SYMMETRIC low AND high AS `x BETWEEN SYMMETRIC low AND high`
+      FROM (VALUES (12, 10, CAST(NULL AS INT)), (12, CAST(NULL AS INT), 10), (12, CAST(NULL AS INT), 15)) AS t(x, low, high);
+    result: |
+      | x  | low  | high | x BETWEEN low AND high | x BETWEEN SYMMETRIC low AND high |
+      |----|------|------|------------------------|----------------------------------|
+      | 12 | 10   | NULL | NULL                   | NULL                             |
+      | 12 | NULL | 10   | FALSE                  | NULL                             |
+      | 12 | NULL | 15   | NULL                   | NULL                             |
+
+  - title: Filter dates
+    description: Keep the orders of March.
+    sql: |
+      SELECT id, order_date
+      FROM (VALUES (1, DATE '2024-02-29'), (2, DATE '2024-03-01'), (3, DATE '2024-03-31'), (4, DATE '2024-04-01')) AS t(id, order_date)
+      WHERE order_date BETWEEN DATE '2024-03-01' AND DATE '2024-03-31';
+    result: |
+      | id | order_date |
+      |----|------------|
+      | 2  | 2024-03-01 |
+      | 3  | 2024-03-31 |

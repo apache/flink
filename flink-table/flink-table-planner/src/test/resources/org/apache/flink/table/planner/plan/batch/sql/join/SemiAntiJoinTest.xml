@@ -16,6 +16,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testEquiExistsPushedBelowJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT p_brand, ps_suppkey FROM partsupp, part
+WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45'
+AND EXISTS (
+    SELECT 1 FROM supplier WHERE s_suppkey = ps_suppkey AND s_comment LIKE '%Complaints%')
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(p_brand=[$3], ps_suppkey=[$1])
++- LogicalFilter(condition=[AND(=($2, $0), <>($3, _UTF-16LE'Brand#45'), EXISTS({
+LogicalFilter(condition=[AND(=($0, $cor0.ps_suppkey), LIKE($1, _UTF-16LE'%Complaints%'))])
+  LogicalTableScan(table=[[default_catalog, default_database, supplier, source: [TestTableSource(s_suppkey, s_comment)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, partsupp, source: [TestTableSource(ps_partkey, ps_suppkey)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, part, source: [TestTableSource(p_partkey, p_brand, p_size)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[p_brand, ps_suppkey])
++- HashJoin(joinType=[InnerJoin], where=[=(p_partkey, ps_partkey)], select=[ps_partkey, ps_suppkey, p_partkey, p_brand], isBroadcast=[true], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- HashJoin(joinType=[LeftSemiJoin], where=[=(s_suppkey, ps_suppkey)], select=[ps_partkey, ps_suppkey], isBroadcast=[true], build=[right])
+   :     :- LegacyTableSourceScan(table=[[default_catalog, default_database, partsupp, source: [TestTableSource(ps_partkey, ps_suppkey)]]], fields=[ps_partkey, ps_suppkey])
+   :     +- Exchange(distribution=[broadcast])
+   :        +- Calc(select=[s_suppkey], where=[LIKE(s_comment, '%Complaints%')])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, supplier, source: [TestTableSource(s_suppkey, s_comment)]]], fields=[s_suppkey, s_comment])
+   +- Calc(select=[p_partkey, p_brand], where=[<>(p_brand, 'Brand#45')])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, part, source: [TestTableSource(p_partkey, p_brand, p_size)]]], fields=[p_partkey, p_brand, p_size])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExistsAndNotExists">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
@@ -2022,6 +2058,44 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNonEquiExistsStaysAboveJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT p_brand, ps_suppkey FROM partsupp, part
+WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45'
+AND EXISTS (
+    SELECT 1 FROM supplier WHERE s_suppkey > ps_suppkey AND s_comment LIKE '%Complaints%')
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(p_brand=[$3], ps_suppkey=[$1])
++- LogicalFilter(condition=[AND(=($2, $0), <>($3, _UTF-16LE'Brand#45'), EXISTS({
+LogicalFilter(condition=[AND(>($0, $cor0.ps_suppkey), LIKE($1, _UTF-16LE'%Complaints%'))])
+  LogicalTableScan(table=[[default_catalog, default_database, supplier, source: [TestTableSource(s_suppkey, s_comment)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, partsupp, source: [TestTableSource(ps_partkey, ps_suppkey)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, part, source: [TestTableSource(p_partkey, p_brand, p_size)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[p_brand, ps_suppkey])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[>(s_suppkey, ps_suppkey)], select=[ps_suppkey, p_brand], build=[right])
+   :- Calc(select=[ps_suppkey, p_brand])
+   :  +- HashJoin(joinType=[InnerJoin], where=[=(p_partkey, ps_partkey)], select=[ps_partkey, ps_suppkey, p_partkey, p_brand], build=[right])
+   :     :- Exchange(distribution=[hash[ps_partkey]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, partsupp, source: [TestTableSource(ps_partkey, ps_suppkey)]]], fields=[ps_partkey, ps_suppkey])
+   :     +- Exchange(distribution=[hash[p_partkey]])
+   :        +- Calc(select=[p_partkey, p_brand], where=[<>(p_brand, 'Brand#45')])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, part, source: [TestTableSource(p_partkey, p_brand, p_size)]]], fields=[p_partkey, p_brand, p_size])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[s_suppkey], where=[LIKE(s_comment, '%Complaints%')])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, supplier, source: [TestTableSource(s_suppkey, s_comment)]]], fields=[s_suppkey, s_comment])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNotExistsWithCorrelated_NonEquiCondition1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < r.d)]]>
@@ -2683,6 +2757,45 @@ Calc(select=[a])
    +- Exchange(distribution=[hash[f]])
       +- Calc(select=[f])
          +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNullAwareNotInStaysAboveJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT p_brand, ps_suppkey FROM partsupp, part
+WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45'
+AND ps_suppkey NOT IN (
+    SELECT s_suppkey FROM supplier WHERE s_comment LIKE '%Complaints%')
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(p_brand=[$3], ps_suppkey=[$1])
++- LogicalFilter(condition=[AND(=($2, $0), <>($3, _UTF-16LE'Brand#45'), NOT(IN($1, {
+LogicalProject(s_suppkey=[$0])
+  LogicalFilter(condition=[LIKE($1, _UTF-16LE'%Complaints%')])
+    LogicalTableScan(table=[[default_catalog, default_database, supplier, source: [TestTableSource(s_suppkey, s_comment)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, partsupp, source: [TestTableSource(ps_partkey, ps_suppkey)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, part, source: [TestTableSource(p_partkey, p_brand, p_size)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[p_brand, ps_suppkey])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(IS NULL(ps_suppkey), IS NULL(s_suppkey), =(ps_suppkey, s_suppkey))], select=[ps_suppkey, p_brand], build=[right])
+   :- Calc(select=[ps_suppkey, p_brand])
+   :  +- HashJoin(joinType=[InnerJoin], where=[=(p_partkey, ps_partkey)], select=[ps_partkey, ps_suppkey, p_partkey, p_brand], build=[right])
+   :     :- Exchange(distribution=[hash[ps_partkey]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, partsupp, source: [TestTableSource(ps_partkey, ps_suppkey)]]], fields=[ps_partkey, ps_suppkey])
+   :     +- Exchange(distribution=[hash[p_partkey]])
+   :        +- Calc(select=[p_partkey, p_brand], where=[<>(p_brand, 'Brand#45')])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, part, source: [TestTableSource(p_partkey, p_brand, p_size)]]], fields=[p_partkey, p_brand, p_size])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[s_suppkey], where=[LIKE(s_comment, '%Complaints%')])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, supplier, source: [TestTableSource(s_suppkey, s_comment)]]], fields=[s_suppkey, s_comment])
 ]]>
     </Resource>
   </TestCase>

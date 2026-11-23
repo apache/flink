@@ -43,6 +43,9 @@ public class CalcTestPrograms {
 
     private static final VariantBuilder VARIANT_BUILDER = Variant.newBuilder();
 
+    // GROUP BY output is a reused row, so the Calc above it reads strings from reused memory
+    private static final String REUSED = "(SELECT s, j FROM t GROUP BY s, j)";
+
     // --------------------------------------------------------------------------------------------
     // With restore data
     // --------------------------------------------------------------------------------------------
@@ -696,5 +699,70 @@ public class CalcTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT COALESCE(a, b) AS x, COALESCE(c, d) AS y FROM t")
+                    .build();
+
+    private static SinkTestStep stringSink(final String name, final Row... rows) {
+        final String[] schema = {"a STRING", "b STRING"};
+        return SinkTestStep.newBuilder(name)
+                .addSchema(Arrays.copyOf(schema, rows[0].getArity()))
+                .consumedValues(rows)
+                .build();
+    }
+
+    public static final TableTestProgram CALC_ON_REUSED_INPUT_ROWS =
+            TableTestProgram.of(
+                            "calc-on-reused-input-rows",
+                            "validates Calc results when the input row is reused between records")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("s STRING", "j STRING")
+                                    .producedValues(
+                                            Row.of("Aa", "{\"a\":1}"),
+                                            Row.of("Bb", "{\"a\":2}"),
+                                            Row.of("Cc", "{\"a\":3}"))
+                                    .build())
+                    .setupTableSink(
+                            stringSink(
+                                    "lower_sink",
+                                    Row.of("Aa", "aa"),
+                                    Row.of("Bb", "bb"),
+                                    Row.of("Cc", "cc")))
+                    .setupTableSink(
+                            stringSink(
+                                    "json_sink",
+                                    Row.of("1", "{\"a\":1}"),
+                                    Row.of("2", "{\"a\":2}"),
+                                    Row.of("3", "{\"a\":3}")))
+                    .setupTableSink(stringSink("filter_sink", Row.of("1"), Row.of("3")))
+                    .setupTableSink(
+                            stringSink("case_sink", Row.of("1"), Row.of("2x"), Row.of("3x")))
+                    // Calc output kept by a downstream aggregate and join
+                    .setupTableSink(stringSink("agg_sink", Row.of("cc", "aa")))
+                    .setupTableSink(
+                            stringSink(
+                                    "join_sink",
+                                    Row.of("aa", "{\"a\":1}"),
+                                    Row.of("bb", "{\"a\":2}"),
+                                    Row.of("cc", "{\"a\":3}")))
+                    .runSql("INSERT INTO lower_sink SELECT s, LOWER(s) FROM " + REUSED)
+                    .runSql(
+                            "INSERT INTO json_sink SELECT JSON_VALUE(j, '$.a'), JSON_QUERY(j, '$') FROM "
+                                    + REUSED)
+                    .runSql(
+                            "INSERT INTO filter_sink SELECT JSON_VALUE(j, '$.a') FROM "
+                                    + REUSED
+                                    + " WHERE JSON_VALUE(j, '$.a') <> '2'")
+                    .runSql(
+                            "INSERT INTO case_sink SELECT CASE WHEN s LIKE 'A%' THEN JSON_VALUE(j, '$.a') "
+                                    + "ELSE JSON_VALUE(j, '$.a') || 'x' END FROM "
+                                    + REUSED)
+                    .runSql(
+                            "INSERT INTO agg_sink SELECT MAX(l), MIN(l) FROM (SELECT LOWER(s) AS l FROM "
+                                    + REUSED
+                                    + ")")
+                    .runSql(
+                            "INSERT INTO join_sink SELECT x.l, y.j FROM (SELECT LOWER(s) AS l, s FROM "
+                                    + REUSED
+                                    + ") x JOIN t y ON x.s = y.s")
                     .build();
 }

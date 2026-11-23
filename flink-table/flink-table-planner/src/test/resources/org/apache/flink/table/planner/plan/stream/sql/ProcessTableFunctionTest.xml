@@ -683,6 +683,25 @@ ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null]
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUpsertInputWithRowSemanticsAndFullDeletes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE t_full_delete_upsert_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+   +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t_full_delete_upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[EXPR$0], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, t_full_delete_upsert_source]], fields=[name, score], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUpsertInputWithRowSemanticsFilteredOnNonKeyColumn">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(r => TABLE v)]]>

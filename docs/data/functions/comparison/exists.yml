@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: EXISTS
+summary: Returns whether a sub-query returns at least one row.
+
+syntax:
+  sql: "[NOT] EXISTS (subquery)"
+
+arguments:
+  - name: subquery
+    type: A query
+    required: true
+    description: The query to run. Only whether it returns a row matters, not its columns. It can refer to columns of the outer query.
+
+returns:
+  description: TRUE if `subquery` returns at least one row, also a row of NULLs, and FALSE otherwise. `NOT EXISTS` returns the opposite.
+  nulls: Never returns NULL.
+  type: "`BOOLEAN NOT NULL`."
+
+notes:
+  - Unlike `NOT IN`, `NOT EXISTS` isn't affected by NULLs in the sub-query.
+  - In streaming mode, `EXISTS` runs as a join that keeps state, which can grow without bound. See [EXISTS]({{< ref "docs/sql/reference/queries/set-ops" >}}#exists). With `NOT EXISTS`, a row that the query emits is retracted when a matching row arrives later.
+  - The Table API has no method for `EXISTS`.
+
+see_also:
+  - {name: IN, ref: comparison/in}
+
+examples:
+  - title: Rows with a match
+    description: Keep the customers that have an order.
+    sql: |
+      SELECT name
+      FROM (VALUES ('alice'), ('bob'), ('carol')) AS cust(name)
+      WHERE EXISTS (SELECT 1 FROM (VALUES ('alice'), ('carol'), ('alice')) AS o(customer) WHERE o.customer = cust.name);
+    result: |
+      | name  |
+      |-------|
+      | alice |
+      | carol |
+
+  - title: Rows without a match
+    description: Unlike `NOT IN`, `NOT EXISTS` keeps the rows without a match, although the blocked list contains a NULL.
+    sql: |
+      SELECT name
+      FROM (VALUES ('alice'), ('bob'), ('carol')) AS cust(name)
+      WHERE NOT EXISTS (SELECT 1 FROM (VALUES ('alice'), (CAST(NULL AS STRING))) AS b(blocked) WHERE b.blocked = cust.name);
+    result: |
+      | name  |
+      |-------|
+      | bob   |
+      | carol |

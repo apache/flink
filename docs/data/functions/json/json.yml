@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON
+summary: Inserts JSON text into `JSON_OBJECT` or `JSON_ARRAY` as JSON, not as a string.
+
+syntax:
+  sql: JSON(expr)
+  java: json(expr)
+  python: json(expr)
+
+arguments:
+  - name: expr
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: JSON text, such as a column of JSON documents.
+
+returns:
+  description: The JSON value of `expr`, as a value of the enclosing `JSON_OBJECT` or `JSON_ARRAY`. Whitespace is removed, and the fields of an object are sorted by key.
+  nulls: Returns NULL if `expr` is NULL, empty or only whitespace. The enclosing call then applies its `ON NULL` rule. The JSON text `null` is a JSON `null`, not NULL.
+  type: "`STRING`."
+
+notes:
+  - Use it only as a value of `JSON_OBJECT` or `JSON_ARRAY`. In other places, such as in `JSON_STRING` or `JSON_ARRAYAGG`, it fails the statement.
+  - Invalid JSON fails the job. Only the first JSON value is read, and content after it is ignored.
+  - Use it to insert JSON from a value that isn't a `JSON_OBJECT` or `JSON_ARRAY` call, such as a string column, or the result of `JSON_ARRAYAGG` or `JSON_QUERY`.
+
+see_also:
+  - {name: JSON_OBJECT, ref: json/json-object}
+  - {name: JSON_ARRAY, ref: json/json-array}
+
+examples:
+  - title: JSON text from a column
+    description: Without `JSON`, the text is inserted as a JSON string.
+    sql: |
+      SELECT doc,
+        JSON_OBJECT('payload' VALUE doc) AS `JSON_OBJECT('payload' VALUE doc)`,
+        JSON_OBJECT('payload' VALUE JSON(doc)) AS `JSON_OBJECT('payload' VALUE JSON(doc))`
+      FROM (VALUES ('{"a": 1}'), ('[1, 2]')) AS t(doc);
+    result: |
+      | doc      | JSON_OBJECT('payload' VALUE doc) | JSON_OBJECT('payload' VALUE JSON(doc)) |
+      |----------|----------------------------------|----------------------------------------|
+      | {"a": 1} | {"payload":"{\"a\": 1}"}         | {"payload":{"a":1}}                    |
+      | [1, 2]   | {"payload":"[1, 2]"}             | {"payload":[1,2]}                      |
+
+  - title: Nest an aggregate
+    description: "`JSON_ARRAYAGG` returns a string, so wrap it in `JSON` to insert it as JSON."
+    sql: |
+      SELECT k,
+        JSON_OBJECT('k' VALUE k, 'items' VALUE JSON(JSON_ARRAYAGG(n))) AS `JSON_OBJECT('k' VALUE k, 'items' VALUE JSON(JSON_ARRAYAGG(n)))`
+      FROM (VALUES ('a', 1), ('a', 2), ('b', 3)) AS t(k, n)
+      GROUP BY k;
+    result: |
+      | k | JSON_OBJECT('k' VALUE k, 'items' VALUE JSON(JSON_ARRAYAGG(n))) |
+      |---|----------------------------------------------------------------|
+      | a | {"items":[1,2],"k":"a"}                                        |
+      | b | {"items":[3],"k":"b"}                                          |
+
+  - title: Empty and NULL text
+    description: An empty string returns NULL, so the enclosing `JSON_OBJECT` writes `null`, or leaves the field out with `ABSENT ON NULL`. The JSON text `null` is kept.
+    sql: |
+      SELECT doc,
+        JSON_OBJECT('k' VALUE JSON(doc)) AS `JSON_OBJECT('k' VALUE JSON(doc))`,
+        JSON_OBJECT('k' VALUE JSON(doc) ABSENT ON NULL) AS `JSON_OBJECT('k' VALUE JSON(doc) ABSENT ON NULL)`
+      FROM (VALUES (''), ('null')) AS t(doc);
+    result: |
+      | doc  | JSON_OBJECT('k' VALUE JSON(doc)) | JSON_OBJECT('k' VALUE JSON(doc) ABSENT ON NULL) |
+      |------|----------------------------------|-------------------------------------------------|
+      |      | {"k":null}                       | {}                                              |
+      | null | {"k":null}                       | {"k":null}                                      |

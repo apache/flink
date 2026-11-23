@@ -81,7 +81,7 @@ class BatchPhysicalSort(
     new BatchExecSort(
       unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.fromSingletonInput(getInput, InputProperty.DamBehavior.END_INPUT),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

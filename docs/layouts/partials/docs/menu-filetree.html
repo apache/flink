@@ -62,13 +62,15 @@ under the License.
   {{ if .Page.Params.sectionBreak }}
   	<br/>
   {{ end }}
-  {{ if .Page.Params.bookCollapseSection }}
+  {{/* A collapsible section links to itself only if it has text of its own. .Content would also
+       count the license comment. .Plain drops the comment but keeps the newline after it, so trim
+       it. A collapsible section shows the arrow only if it has pages to expand. */}}
+  {{ $collapsible := .Page.Params.bookCollapseSection }}
+  {{ $hasText := and $collapsible (trim .Page.Plain " \t\r\n") }}
+  {{ if and $collapsible (where .Page.Pages "Params.bookhidden" "ne" true) }}
     <input type="checkbox" id="section-{{ md5 .Page }}" class="toggle" {{ if or $current $ancestor }}checked{{ end }} />
     <label for="section-{{ md5 .Page }}" class="flex justify-between">
-      {{- /* A section with text of its own links to it, and the arrow still toggles the children.
-             .Content would also count the license comment. .Plain drops the comment but keeps the
-             newline after it, so trim it. */ -}}
-      {{- if trim .Page.Plain " \t\r\n" -}}
+      {{- if $hasText -}}
         <a href="{{ .Page.Permalink }}" class="{{ if $current }} active{{ end }}">
           {{- partial "docs/title" .Page -}}
         </a>
@@ -77,7 +79,7 @@ under the License.
       {{- end -}}
       <span>▾</span>
     </label>
-  {{ else if .Page.Content }}
+  {{ else if and .Page.Content (or $hasText (not $collapsible)) }}
     <a href="{{ .Page.Permalink }}" class="{{ if $current }} active{{ end }}">
       {{- partial "docs/title" .Page -}}
     </a>

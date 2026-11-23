@@ -819,7 +819,9 @@ public final class BuiltInFunctionDefinitions {
                                     "INPUT",
                                     Row.class,
                                     false,
-                                    EnumSet.of(StaticArgumentTrait.TABLE)),
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)),
                             StaticArgument.model(
                                     "MODEL", false, EnumSet.of(StaticArgumentTrait.MODEL)),
                             StaticArgument.scalar("ARGS", DataTypes.DESCRIPTOR(), false),
@@ -897,7 +899,18 @@ public final class BuiltInFunctionDefinitions {
                                                                                                     String,
                                                                                                     String>)
                                                                                             mapping,
-                                                                                    "DELETE"))))),
+                                                                                    "DELETE")))))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES,
+                                            // Retractions carry old timestamps, only inserts and
+                                            // updates carry the current one
+                                            TraitCondition.argMatches(
+                                                    "op_mapping",
+                                                    Map.class,
+                                                    mapping ->
+                                                            forwardsOnlyInsertsAndUpdates(
+                                                                    (Map<String, String>)
+                                                                            mapping))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
@@ -939,6 +952,24 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition TO_APPEND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TO_APPEND")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)))
+                    .outputTypeStrategy(argument(0))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
+                    .build();
+
     /**
      * Built-in proxy function for the LATERAL SNAPSHOT temporal join.
      *
@@ -974,7 +1005,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY)
                     .runtimeProvided()
-                    // SNAPSHOT does not support the implicit PTF system arguments (on_time, uid)
+                    // SNAPSHOT does not support the implicit PTF system argument (uid)
                     .disableSystemArguments(true)
                     .notDeterministic()
                     .build();
@@ -2429,8 +2460,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition IS_NAN =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("isNan")
-                    .sqlName("IS_NAN")
+                    .name("IS_NAN")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
@@ -3627,6 +3657,11 @@ public final class BuiltInFunctionDefinitions {
      * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the user-provided {@code
      * op_mapping} argument.
      */
+    private static boolean forwardsOnlyInsertsAndUpdates(final Map<String, String> opMapping) {
+        return !opMappingContainsKey(opMapping, "UPDATE_BEFORE")
+                && !opMappingContainsKey(opMapping, "DELETE");
+    }
+
     private static boolean opMappingContainsKey(
             final Map<String, String> opMapping, final String key) {
         return opMapping.keySet().stream()

@@ -55,7 +55,7 @@ class StreamPhysicalMatch(
     new StreamExecMatch(
       unwrapTableConfig(this),
       MatchUtil.createMatchSpec(logicalMatch),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

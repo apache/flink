@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.planner.plan.common.SemiAntiJoinTestStats
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -572,5 +573,49 @@ class SemiAntiJoinTest extends TableTestBase {
       " AND EXISTS (SELECT COUNT(l) FROM t2 where n like 'Test' GROUP BY l)" +
       " AND NOT EXISTS (SELECT * FROM r WHERE l.b <> r.e)"
     util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testNullAwareNotInStaysAboveJoin(): Unit = {
+    // A null-aware NOT IN over nullable columns becomes an anti join on
+    // (a = b) OR ((a = b) IS NULL), which has no equi-join keys.
+    SemiAntiJoinTestStats.addTables(util)
+    val sqlQuery =
+      """
+        |SELECT p_brand, ps_suppkey FROM partsupp, part
+        |WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45'
+        |AND ps_suppkey NOT IN (
+        |    SELECT s_suppkey FROM supplier WHERE s_comment LIKE '%Complaints%')
+        |""".stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testNonEquiExistsStaysAboveJoin(): Unit = {
+    // A correlated EXISTS whose only correlation is non-equi becomes a semi join on
+    // s_suppkey > ps_suppkey, which has no equi-join keys.
+    SemiAntiJoinTestStats.addTables(util)
+    val sqlQuery =
+      """
+        |SELECT p_brand, ps_suppkey FROM partsupp, part
+        |WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45'
+        |AND EXISTS (
+        |    SELECT 1 FROM supplier WHERE s_suppkey > ps_suppkey AND s_comment LIKE '%Complaints%')
+        |""".stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testEquiExistsPushedBelowJoin(): Unit = {
+    // With an equi-join key the semi join is cheap, so it may be pushed below the join.
+    SemiAntiJoinTestStats.addTables(util)
+    val sqlQuery =
+      """
+        |SELECT p_brand, ps_suppkey FROM partsupp, part
+        |WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45'
+        |AND EXISTS (
+        |    SELECT 1 FROM supplier WHERE s_suppkey = ps_suppkey AND s_comment LIKE '%Complaints%')
+        |""".stripMargin
+    util.verifyRelPlan(sqlQuery)
   }
 }

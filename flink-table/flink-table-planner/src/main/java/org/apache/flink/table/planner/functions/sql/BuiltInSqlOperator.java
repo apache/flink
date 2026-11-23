@@ -20,76 +20,204 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 
+import org.apache.calcite.plan.Strong;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.validate.SqlMonotonicity;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.DEFAULT_VERSION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.qualifyFunctionName;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinition.validateFunction;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * SQL version of {@link BuiltInFunctionDefinition} in cases where {@link BridgingSqlFunction} does
- * not apply. This is the case when the operator has a special parsing syntax or uses other
- * Calcite-specific features that are not exposed via {@link BuiltInFunctionDefinition} yet.
+ * A versioned copy of an existing {@link SqlOperator} that cannot be replaced by a {@link
+ * BuiltInSqlFunction}, for example because Calcite references it directly in the parser or {@code
+ * RexBuilder}.
  *
- * <p>If {@link SqlOperator} were an interface, this interface would extend from it.
+ * <p>The operator behaves like the wrapped operator during planning. The latest version only
+ * defines the version of the wrapped operator in {@link FlinkSqlOperatorTable#VERSIONED_OPERATORS}.
+ * Older versions are registered in {@link FlinkSqlOperatorTable} for restoring compiled plans and
+ * must be matched on during code generation, see {@link FlinkSqlOperatorTable#VERSIONED_OPERATORS}
+ * for details.
+ *
+ * <p>The name includes the version (e.g. {@code $ITEM$1}), which makes older versions accessible
+ * for restoring compiled plans without conflicting with the wrapped operator. Similar to {@link
+ * BuiltInFunctionDefinition}, older versions should be internal to not expose them when listing
+ * functions. For internal operators, the version is only part of the name.
  */
 @Internal
-public interface BuiltInSqlOperator {
+public final class BuiltInSqlOperator extends SqlOperator implements VersionedSqlOperator {
 
-    /**
-     * @see BuiltInFunctionDefinition#getVersion()
-     */
-    Optional<Integer> getVersion();
+    private final SqlOperator operator;
 
-    /**
-     * @see BuiltInFunctionDefinition#isInternal()
-     */
-    boolean isInternal();
+    private final @Nullable Integer version;
 
-    /**
-     * @see BuiltInFunctionDefinition#getQualifiedName()
-     */
-    String getQualifiedName();
+    private final boolean isInternal;
+
+    private BuiltInSqlOperator(SqlOperator operator, int version, boolean isInternal) {
+        super(
+                qualifyFunctionName(operator.getName(), version),
+                operator.getKind(),
+                operator.getLeftPrec(),
+                operator.getRightPrec(),
+                operator.getReturnTypeInference(),
+                operator.getOperandTypeInference(),
+                operator.getOperandTypeChecker());
+        this.operator = operator;
+        this.version = isInternal ? null : version;
+        this.isInternal = isInternal;
+        validateFunction(isInternal ? getName() : operator.getName(), this.version, isInternal);
+    }
+
+    /** Builder for a versioned copy of the given operator. */
+    public static Builder newBuilder(SqlOperator operator) {
+        return new Builder(operator);
+    }
+
+    @Override
+    public Optional<Integer> getVersion() {
+        return Optional.ofNullable(version);
+    }
+
+    @Override
+    public boolean isInternal() {
+        return isInternal;
+    }
+
+    @Override
+    public String getQualifiedName() {
+        return getName();
+    }
 
     // --------------------------------------------------------------------------------------------
+    // Delegation to the wrapped operator
+    // --------------------------------------------------------------------------------------------
 
-    static Optional<Integer> unwrapVersion(SqlOperator operator) {
-        if (operator instanceof BuiltInSqlOperator) {
-            final BuiltInSqlOperator builtInSqlOperator = (BuiltInSqlOperator) operator;
-            return builtInSqlOperator.isInternal()
-                    ? Optional.empty()
-                    : builtInSqlOperator.getVersion();
-        }
-        return Optional.of(DEFAULT_VERSION);
+    @Override
+    public SqlSyntax getSyntax() {
+        return operator.getSyntax();
     }
 
-    static boolean unwrapIsInternal(SqlOperator operator) {
-        if (operator instanceof BuiltInSqlOperator) {
-            return ((BuiltInSqlOperator) operator).isInternal();
-        }
-        return false;
+    @Override
+    public SqlOperandCountRange getOperandCountRange() {
+        return operator.getOperandCountRange();
     }
 
-    static String toQualifiedName(SqlOperator operator) {
-        if (operator instanceof BuiltInSqlOperator) {
-            final BuiltInSqlOperator builtInSqlOperator = (BuiltInSqlOperator) operator;
-            return builtInSqlOperator.getQualifiedName();
-        }
-        return qualifyFunctionName(operator.getName(), DEFAULT_VERSION);
+    @Override
+    public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+        return operator.checkOperandTypes(callBinding, throwOnFailure);
     }
 
-    static String extractNameFromQualifiedName(String qualifiedName) {
-        // supports all various kinds of qualified names
-        // $FUNC$1 => FUNC
-        // $IS NULL$1 => IS NULL
-        // $$CALCITE_INTERNAL$1 => $CALCITE_INTERNAL
-        int versionPos = qualifiedName.length() - 1;
-        while (Character.isDigit(qualifiedName.charAt(versionPos))) {
-            versionPos--;
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+        return operator.inferReturnType(opBinding);
+    }
+
+    @Override
+    public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+        return operator.deriveType(validator, scope, call);
+    }
+
+    @Override
+    public void validateCall(
+            SqlCall call,
+            SqlValidator validator,
+            SqlValidatorScope scope,
+            SqlValidatorScope operandScope) {
+        operator.validateCall(call, validator, scope, operandScope);
+    }
+
+    @Override
+    public SqlNode rewriteCall(SqlValidator validator, SqlCall call) {
+        return operator.rewriteCall(validator, call);
+    }
+
+    @Override
+    public void unparse(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+        operator.unparse(writer, call, leftPrec, rightPrec);
+    }
+
+    @Override
+    public String getAllowedSignatures(String opNameToUse) {
+        return operator.getAllowedSignatures(opNameToUse);
+    }
+
+    @Override
+    public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+        return operator.getMonotonicity(call);
+    }
+
+    @Override
+    public boolean isDeterministic() {
+        return operator.isDeterministic();
+    }
+
+    @Override
+    public boolean isDynamicFunction() {
+        return operator.isDynamicFunction();
+    }
+
+    @Override
+    public Supplier<Strong.Policy> getStrongPolicyInference() {
+        return operator.getStrongPolicyInference();
+    }
+
+    @Override
+    public Boolean isSafeOperator() {
+        return operator.isSafeOperator();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Builder
+    // --------------------------------------------------------------------------------------------
+
+    /** Builder for fluent definition of versioned built-in operators. */
+    public static final class Builder {
+
+        private final SqlOperator operator;
+
+        private int version = DEFAULT_VERSION;
+
+        private boolean isInternal = false;
+
+        private Builder(SqlOperator operator) {
+            this.operator = checkNotNull(operator);
         }
-        return qualifiedName.substring(1, versionPos);
+
+        /**
+         * @see BuiltInFunctionDefinition.Builder#version(int)
+         */
+        public Builder version(int version) {
+            this.version = version;
+            return this;
+        }
+
+        /**
+         * @see BuiltInFunctionDefinition.Builder#internal()
+         */
+        public Builder internal() {
+            this.isInternal = true;
+            return this;
+        }
+
+        public BuiltInSqlOperator build() {
+            return new BuiltInSqlOperator(operator, version, isInternal);
+        }
     }
 }

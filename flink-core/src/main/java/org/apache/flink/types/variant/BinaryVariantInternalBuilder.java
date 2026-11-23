@@ -807,7 +807,12 @@ public class BinaryVariantInternalBuilder {
                     break;
                 }
             case VALUE_STRING:
-                appendString(parser.getText());
+                // getText() would join a long value's segments with a per-char StringBuilder
+                appendString(
+                        new String(
+                                parser.getTextCharacters(),
+                                parser.getTextOffset(),
+                                parser.getTextLength()));
                 break;
             case VALUE_NUMBER_INT:
                 try {

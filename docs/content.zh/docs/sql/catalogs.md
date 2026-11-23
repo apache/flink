@@ -55,6 +55,11 @@ Flink 的 [Hive 文档]({{< ref "docs/connectors/table/hive/overview" >}}) 提�
 
 <span class="label label-danger">警告</span> Hive Metastore 以小写形式存储所有元数据对象名称。而 `GenericInMemoryCatalog` 区分大小写。
 
+### StateCatalog
+
+`StateCatalog` 是一个只读 Catalog，它将 savepoint 和 checkpoint 中的状态以表的形式暴露出来，每个快照对应一个数据库。
+参考 [State Catalog 文档]({{< ref "docs/libs/state_processor_api" >}}#state-catalog) 获取关于配置 State Catalog 的详细信息。
+
 ### 用户自定义 Catalog
 
 Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自定义 Catalog。

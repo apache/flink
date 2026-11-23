@@ -16,11 +16,13 @@ Both methods require you to execute commands in the directory of this module (`d
 
 #### Using Hugo Docker image:
 
+The image tag pins the same Hugo version as `setup_hugo.sh`. An older Hugo can't build the docs.
+
 ```sh
 $ git submodule update --init --recursive
 $ ./setup_docs.sh
-$ docker pull jakejarvis/hugo-extended:latest
-$ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
+$ docker pull hugomods/hugo:exts-0.126.3
+$ docker run -v $(pwd):/src -p 1313:1313 hugomods/hugo:exts-0.126.3 hugo server --buildDrafts --buildFuture --bind 0.0.0.0
 ```
 
 #### Local Hugo installation:
@@ -283,3 +285,62 @@ Renders a link to a file in the Apache Flink Python Documentation.
 ```
 
 Renders a link to the apache flink download page. 
+
+## Built-in function pages
+
+Pages for built-in SQL functions live under `content/docs/sql/built-in-functions/<category>/`. They aren't written in Markdown. A content adapter generates each page, in English and Chinese, from one YAML file in `data/functions/`.
+
+### Adding a function
+
+1. Add `data/functions/<category>/<name>.yml`. `<category>` is the directory of the category under `content/docs/sql/built-in-functions/`, such as `regular-expressions`. `<name>` is the function name in lower case, such as `regexp_extract`, and the page is served at `<category>/regexp-extract/`. Use `data/functions/regular-expressions/regexp_extract.yml` as the reference for the fields.
+2. Add a row for the function to its category in `data/sql_functions.yml` and `data/sql_functions_zh.yml`. Keep the rows in alphabetical order of the function name, the order of the pages in the sidebar. Give it `sql`, `table` and `page: regexp-extract`, without a `description`. The table shows the function's name, links it to the page and shows the page's summary.
+3. Build the docs as described above and check the page in both languages. A broken `ref` fails the build, locally and in CI.
+
+The Chinese page renders the same YAML, so the English text is its placeholder until someone translates it. If you aren't a native Chinese speaker, don't translate: add no Chinese file and leave the translation to native speakers. A translation goes in `data/functions_zh/<category>/<name>.yml`, and the fields it sets replace the English ones.
+
+### What goes on a page
+
+Every page has the same sections, in this order. A section is left out when the YAML has no field for it.
+
+| Section     | What it says                                                                                                                                                  |
+|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Summary     | One sentence on what the function returns. The category table shows it too.                                                                                   |
+| See also    | Related functions, listed under the summary.                                                                                                                  |
+| Syntax      | The SQL call, and the Java and Python Table API calls where they exist and can be called. There is no Scala tab, since the Scala API is deprecated.           |
+| Arguments   | For each argument: the accepted types in plain words, whether it is required, its default and what it means.                                                  |
+| Returns     | What the function returns, then the cases that return NULL, then the return type and whether it is nullable.                                                  |
+| Usage notes | What a user of the function needs and can't tell from the sections above, such as limits and determinism.                                                     |
+| Examples    | A list of the scenarios, then each scenario with a title, one sentence, the SQL and its result. A Table API-only function shows Java and Python code instead. |
+
+NULL handling has no section of its own. It goes into Returns, and the examples show it.
+
+Name an argument that takes any expression `expr`, or `expr1`, `expr2` when there are several, as other engines do: `expr1 = expr2`, `LAG(expr [, n])`. Give an argument with a fixed type or role a name that says so, such as `str`, `pattern` or `lower_bound`. Write the names in snake_case, such as `json_string`. The Java tab writes the same names in camelCase. Don't name an argument or an alias in an example after an SQL keyword, such as `type`, `key` or `default`. The syntax highlighter colors those like SQL, so write `data_type`, `field_name` or `default_value` instead.
+
+Make each example readable from its result alone. Put the inputs in a `VALUES` table and select them first, so each row shows its input next to its result. Name each result column after its expression, with the expression as a quoted alias:
+
+```sql
+SELECT qty, price, qty > 10 AND price > 10 AS `qty > 10 AND price > 10`
+FROM (VALUES (5, 20.0), (50, 8.0)) AS t(qty, price);
+```
+
+An example of literals only becomes one row per case. A window function names its window, as in `RANK() OVER w`, to keep the column name short. Keep a literal where the literal is the point, such as a literal argument that fails the statement.
+
+### What to leave out
+
+A page tells a user how to use the function, not everything the code does. Leave out:
+
+- Behavior that all functions share, such as that an untyped `NULL` needs a cast, or that arguments of the wrong type fail at planning time.
+- Internal behavior, such as how the planner rewrites a call or how its code is generated.
+- Exact error messages. Say when a call fails instead, such as "Not supported in streaming mode."
+- Types and inputs that few users would try. Name the accepted types in plain words, as other engines do, such as "Any comparable type".
+- Common sense, such as that a call needs its parentheses.
+- Jira tickets. A ticket number on a page goes stale when the ticket is fixed.
+
+A page describes the current behavior, also where it's a bug that users would plausibly hit. Say what happens, such as "comes back as `-1` instead of NULL", and show it in an example where you can. The bug itself goes to Jira, with what the behavior should be. A fix that changes the behavior updates the page in the same PR.
+
+In the YAML, quote a value only where YAML needs it: when it starts with a backtick, ends with a colon, or contains `: ` or ` #`, and when it is `y`, `n`, `yes`, `no`, `on` or `off`, which Hugo reads as a boolean. End the description of an example with a period, not a colon, so that it needs no quotes.
+
+### Accuracy
+
+- Check every statement against the code rather than against earlier docs: the type strategies of the function in `BuiltInFunctionDefinitions`, its runtime implementation and its tests.
+- Every result in an example comes from running its SQL, including NULL results.

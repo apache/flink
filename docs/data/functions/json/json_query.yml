@@ -1,0 +1,176 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_QUERY
+summary: Returns the JSON object or array at a JSON path of a JSON string.
+
+syntax:
+  sql: |
+    JSON_QUERY(json_string, path
+      [RETURNING data_type]
+      [{WITHOUT | WITH [CONDITIONAL | UNCONDITIONAL]} [ARRAY] WRAPPER]
+      [{NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR} ON EMPTY]
+      [{NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR} ON ERROR])
+  java: |
+    $("jsonString").jsonQuery(path)
+    $("jsonString").jsonQuery(path, returnType)
+    $("jsonString").jsonQuery(path, wrappingBehavior)
+    $("jsonString").jsonQuery(path, returnType, wrappingBehavior)
+    $("jsonString").jsonQuery(path, wrappingBehavior, onEmpty, onError)
+    $("jsonString").jsonQuery(path, returnType, wrappingBehavior, onEmpty, onError)
+  python: |
+    col("json_string").json_query(path)
+    col("json_string").json_query(path, wrapping_behavior, on_empty, on_error)
+
+arguments:
+  - name: json_string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The JSON text.
+  - name: path
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A JSON path. See [JSON functions]({{< ref "docs/sql/built-in-functions/json" >}}) for the syntax and the `lax` and `strict` modes.
+  - name: RETURNING
+    type: STRING, or an ARRAY of a type that `JSON_VALUE` returns. Python supports only STRING
+    required: false
+    default: "`STRING`"
+    description: The result type. With an `ARRAY` type, each scalar element is converted as `JSON_VALUE` converts a value. In an `ARRAY<STRING>`, an array or object element comes back as JSON text.
+  - name: WRAPPER
+    type: "`WITHOUT`, `WITH CONDITIONAL` or `WITH UNCONDITIONAL`. In the Table API, `JsonQueryWrapper`"
+    required: false
+    default: "`WITHOUT ARRAY WRAPPER`"
+    description: Whether to wrap the result in an array. `CONDITIONAL` wraps it unless it is an array. `WITH WRAPPER` alone means `UNCONDITIONAL`.
+  - name: ON EMPTY
+    type: "`NULL`, `EMPTY ARRAY`, `EMPTY OBJECT` or `ERROR`. In the Table API, `JsonQueryOnEmptyOrError`"
+    required: false
+    default: "`NULL ON EMPTY`"
+    description: What to return when the path finds nothing in lax mode. `ERROR` fails the job.
+  - name: ON ERROR
+    type: "`NULL`, `EMPTY ARRAY`, `EMPTY OBJECT` or `ERROR`. In the Table API, `JsonQueryOnEmptyOrError`"
+    required: false
+    default: "`NULL ON ERROR`"
+    description: What to return when the path raises an error. `ERROR` fails the job.
+
+returns:
+  description: The JSON array or object at `path`, as compact JSON text with the fields of each object sorted by name. With an `ARRAY` result type, a SQL `ARRAY` of its elements.
+  nulls: Returns NULL if `json_string` or `path` is NULL, or if `ON EMPTY` or `ON ERROR` applies with `NULL`, the default.
+  type: The `RETURNING` type, nullable.
+
+notes:
+  - A scalar at `path`, such as a string or a number, needs a wrapper. Without one, it goes to `ON ERROR` in strict mode and to `ON EMPTY` in lax mode. To read a scalar, use `JSON_VALUE`.
+  - In strict mode, the default, a missing key, a JSON `null` and invalid JSON go to `ON ERROR`. In lax mode, they go to `ON EMPTY`.
+  - A path with a wildcard, a filter or `..` returns its matches as an array, also for one match or none. `WITH UNCONDITIONAL ARRAY WRAPPER` wraps that array again, so it returns `[[1,2]]` for two matches, while `WITH CONDITIONAL ARRAY WRAPPER` leaves it as it is.
+  - With an `ARRAY` result type, an object at `path` or one element that doesn't convert sends the call to `ON ERROR`, also in lax mode.
+  - Only the first JSON value is read, and content after it is ignored. So `JSON_QUERY('{"a":1} x', '$')` returns `{"a":1}`.
+
+see_also:
+  - {name: JSON_VALUE, ref: json/json-value}
+  - {name: JSON_EXISTS, ref: json/json-exists}
+
+examples:
+  - title: Extract an object or an array
+    description: The result is compact JSON text.
+    sql: |
+      SELECT doc, JSON_QUERY(doc, '$.a') AS `JSON_QUERY(doc, '$.a')`
+      FROM (VALUES ('{ "a": { "b": 1 } }'), ('{ "a": [1, 2] }'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc                 | JSON_QUERY(doc, '$.a') |
+      |---------------------|------------------------|
+      | { "a": { "b": 1 } } | {"b":1}                |
+      | { "a": [1, 2] }     | [1,2]                  |
+      | NULL                | NULL                   |
+
+  - title: Wrap the result in an array
+    description: A conditional wrapper wraps a value that isn't an array. An unconditional wrapper always wraps.
+    sql: |
+      SELECT doc,
+        JSON_QUERY(doc, '$' WITH CONDITIONAL ARRAY WRAPPER) AS `JSON_QUERY(doc, '$' WITH CONDITIONAL ARRAY WRAPPER)`,
+        JSON_QUERY(doc, '$' WITH UNCONDITIONAL ARRAY WRAPPER) AS `JSON_QUERY(doc, '$' WITH UNCONDITIONAL ARRAY WRAPPER)`
+      FROM (VALUES ('{}'), ('[1, 2]')) AS t(doc);
+    result: |
+      | doc    | JSON_QUERY(doc, '$' WITH CONDITIONAL ARRAY WRAPPER) | JSON_QUERY(doc, '$' WITH UNCONDITIONAL ARRAY WRAPPER) |
+      |--------|-----------------------------------------------------|-------------------------------------------------------|
+      | {}     | [{}]                                                | [{}]                                                  |
+      | [1, 2] | [1,2]                                               | [[1,2]]                                               |
+
+  - title: A scalar needs a wrapper
+    description: Without a wrapper, a scalar at the path returns NULL.
+    sql: |
+      SELECT doc,
+        JSON_QUERY(doc, '$.a') AS `JSON_QUERY(doc, '$.a')`,
+        JSON_QUERY(doc, '$.a' WITH CONDITIONAL ARRAY WRAPPER) AS `JSON_QUERY(doc, '$.a' WITH CONDITIONAL ARRAY WRAPPER)`
+      FROM (VALUES ('{"a": "x"}')) AS t(doc);
+    result: |
+      | doc        | JSON_QUERY(doc, '$.a') | JSON_QUERY(doc, '$.a' WITH CONDITIONAL ARRAY WRAPPER) |
+      |------------|------------------------|-------------------------------------------------------|
+      | {"a": "x"} | NULL                   | ["x"]                                                 |
+
+  - title: ON EMPTY and ON ERROR
+    description: In strict mode, a missing key and a scalar go to `ON ERROR`. In lax mode, they go to `ON EMPTY`.
+    sql: |
+      SELECT doc,
+        JSON_QUERY(doc, '$.a' EMPTY ARRAY ON EMPTY EMPTY OBJECT ON ERROR) AS `JSON_QUERY(doc, '$.a' EMPTY ARRAY ON EMPTY EMPTY OBJECT ON ERROR)`,
+        JSON_QUERY(doc, 'lax $.a' EMPTY ARRAY ON EMPTY EMPTY OBJECT ON ERROR) AS `JSON_QUERY(doc, 'lax $.a' EMPTY ARRAY ON EMPTY EMPTY OBJECT ON ERROR)`
+      FROM (VALUES ('{"b": 1}'), ('{"a": 1}')) AS t(doc);
+    result: |
+      | doc      | JSON_QUERY(doc, '$.a' EMPTY ARRAY ON EMPTY EMPTY OBJECT ON ERROR) | JSON_QUERY(doc, 'lax $.a' EMPTY ARRAY ON EMPTY EMPTY OBJECT ON ERROR) |
+      |----------|-------------------------------------------------------------------|-----------------------------------------------------------------------|
+      | {"b": 1} | {}                                                                | []                                                                    |
+      | {"a": 1} | {}                                                                | []                                                                    |
+
+  - title: Return an ARRAY
+    description: With `RETURNING ARRAY<STRING>`, the result is a SQL `ARRAY`.
+    sql: |
+      SELECT doc,
+        JSON_QUERY(doc, '$.tags') AS `JSON_QUERY(doc, '$.tags')`,
+        JSON_QUERY(doc, 'lax $.tags' RETURNING ARRAY<STRING> EMPTY ARRAY ON EMPTY) AS `JSON_QUERY(doc, 'lax $.tags' RETURNING ARRAY<STRING> EMPTY ARRAY ON EMPTY)`
+      FROM (VALUES ('{"tags":["x","y"]}'), ('{"tags":"z"}'), ('{"id":1}'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc                | JSON_QUERY(doc, '$.tags') | JSON_QUERY(doc, 'lax $.tags' RETURNING ARRAY<STRING> EMPTY ARRAY ON EMPTY) |
+      |--------------------|---------------------------|----------------------------------------------------------------------------|
+      | {"tags":["x","y"]} | ["x","y"]                 | [x, y]                                                                     |
+      | {"tags":"z"}       | NULL                      | []                                                                         |
+      | {"id":1}           | NULL                      | []                                                                         |
+      | NULL               | NULL                      | NULL                                                                       |
+
+  - title: Typed ARRAY elements
+    description: Each element is converted as `JSON_VALUE` converts a value, and one element that doesn't convert makes the result NULL.
+    sql: |
+      SELECT doc,
+        JSON_QUERY(doc, '$' RETURNING ARRAY<INT>) AS `JSON_QUERY(doc, '$' RETURNING ARRAY<INT>)`,
+        JSON_QUERY(doc, '$' RETURNING ARRAY<BOOLEAN>) AS `JSON_QUERY(doc, '$' RETURNING ARRAY<BOOLEAN>)`
+      FROM (VALUES ('["1", " 2 ", 3.7]'), ('[true, "yes", 0]'), ('[1, null]')) AS t(doc);
+    result: |
+      | doc               | JSON_QUERY(doc, '$' RETURNING ARRAY<INT>) | JSON_QUERY(doc, '$' RETURNING ARRAY<BOOLEAN>) |
+      |-------------------|-------------------------------------------|-----------------------------------------------|
+      | ["1", " 2 ", 3.7] | [1, 2, 3]                                 | NULL                                          |
+      | [true, "yes", 0]  | NULL                                      | [TRUE, TRUE, FALSE]                           |
+      | [1, null]         | [1, NULL]                                 | [TRUE, NULL]                                  |
+
+  - title: Wildcards
+    description: Wildcard matches come back as an array, and an unconditional wrapper wraps that array again.
+    sql: |
+      SELECT doc,
+        JSON_QUERY(doc, '$.a[*].c') AS `JSON_QUERY(doc, '$.a[*].c')`,
+        JSON_QUERY(doc, '$.a[*].c' WITH UNCONDITIONAL ARRAY WRAPPER) AS `JSON_QUERY(doc, '$.a[*].c' WITH UNCONDITIONAL ARRAY WRAPPER)`
+      FROM (VALUES ('{"a":[{"c":1},{"c":2}]}'), ('{"a":[{"c":1}]}')) AS t(doc);
+    result: |
+      | doc                     | JSON_QUERY(doc, '$.a[*].c') | JSON_QUERY(doc, '$.a[*].c' WITH UNCONDITIONAL ARRAY WRAPPER) |
+      |-------------------------|-----------------------------|--------------------------------------------------------------|
+      | {"a":[{"c":1},{"c":2}]} | [1,2]                       | [[1,2]]                                                      |
+      | {"a":[{"c":1}]}         | [1]                         | [[1]]                                                        |
