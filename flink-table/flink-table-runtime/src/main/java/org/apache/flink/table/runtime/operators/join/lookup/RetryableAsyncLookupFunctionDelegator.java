@@ -18,20 +18,28 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
 
+import org.apache.flink.shaded.guava33.com.google.common.math.LongMath;
+
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A delegator holds user's {@link AsyncLookupFunction} to handle retries. */
 public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
+
+    private static final long serialVersionUID = 2779862427737869086L;
 
     private final AsyncLookupFunction userLookupFunction;
 
@@ -40,6 +48,11 @@ public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
     private final boolean retryEnabled;
 
     private transient Predicate<Collection<RowData>> retryResultPredicate;
+
+    private transient ProcessingTimeService processingTimeService;
+
+    /** Pending retry timers guarded by this instance. Null when retries are stopped. */
+    private transient Map<CompletableFuture<Collection<RowData>>, ScheduledFuture<?>> retryTimers;
 
     public RetryableAsyncLookupFunctionDelegator(
             @Nonnull AsyncLookupFunction userLookupFunction,
@@ -52,9 +65,18 @@ public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        userLookupFunction.open(context);
         retryResultPredicate =
                 retryStrategy.getRetryPredicate().resultPredicate().orElse(ignore -> false);
+        if (retryEnabled) {
+            checkNotNull(
+                    processingTimeService, "The lookup retry needs a processing time service.");
+            retryTimers = new HashMap<>();
+        }
+        userLookupFunction.open(context);
+    }
+
+    void setProcessingTimeService(ProcessingTimeService processingTimeService) {
+        this.processingTimeService = processingTimeService;
     }
 
     @Override
@@ -78,24 +100,58 @@ public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
                 (result, throwable) -> {
                     if (retryResultPredicate.test(result)
                             && retryStrategy.canRetry(currentAttempts)) {
-                        long backoff = retryStrategy.getBackoffTimeMillis(currentAttempts);
-                        try {
-                            Thread.sleep(backoff);
-                        } catch (InterruptedException e) {
-                            // Do not raise an error when interrupted, just complete with last
-                            // result intermediately.
-                            resultFuture.complete(result);
-                            return;
-                        }
-                        lookupWithRetry(resultFuture, currentAttempts + 1, keyRow);
+                        scheduleRetry(resultFuture, currentAttempts, keyRow);
                     } else {
                         resultFuture.complete(result);
                     }
                 });
     }
 
+    private synchronized void scheduleRetry(
+            CompletableFuture<Collection<RowData>> resultFuture,
+            int currentAttempts,
+            RowData keyRow) {
+        if (retryTimers == null) {
+            return;
+        }
+        long retryTimestamp =
+                LongMath.saturatedAdd(
+                        processingTimeService.getCurrentProcessingTime(),
+                        retryStrategy.getBackoffTimeMillis(currentAttempts));
+        // The operator's processing time service dispatches timer callbacks to the task mailbox.
+        ScheduledFuture<?> timer =
+                processingTimeService.registerTimer(
+                        retryTimestamp,
+                        timestamp -> retryLookup(resultFuture, currentAttempts + 1, keyRow));
+        retryTimers.put(resultFuture, timer);
+    }
+
+    private void retryLookup(
+            CompletableFuture<Collection<RowData>> resultFuture,
+            int currentAttempts,
+            RowData keyRow) {
+        synchronized (this) {
+            // A timer callback can already be queued in the mailbox when retries are stopped.
+            if (retryTimers == null || retryTimers.remove(resultFuture) == null) {
+                return;
+            }
+        }
+        try {
+            lookupWithRetry(resultFuture, currentAttempts, keyRow);
+        } catch (Throwable ignored) {
+            // The previous whenCompleteAsync callback captured synchronous retry failures in its
+            // unused completion stage. Leave the result pending for the operator timeout.
+        }
+    }
+
     @Override
     public void close() throws Exception {
+        synchronized (this) {
+            if (retryTimers != null) {
+                retryTimers.values().forEach(timer -> timer.cancel(false));
+                retryTimers = null;
+            }
+        }
         userLookupFunction.close();
         super.close();
     }

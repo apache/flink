@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
 import org.apache.flink.streaming.util.retryable.RetryPredicates;
@@ -27,6 +28,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.runtime.operators.join.lookup.LookupRetryTestUtils;
 import org.apache.flink.table.runtime.operators.join.lookup.ResultRetryStrategy;
 import org.apache.flink.table.runtime.operators.join.lookup.RetryableAsyncLookupFunctionDelegator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -41,10 +43,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.table.data.StringData.fromString;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link RetryableAsyncLookupFunctionDelegator}. */
 class RetryableAsyncLookupFunctionDelegatorTest {
@@ -72,7 +81,10 @@ class RetryableAsyncLookupFunctionDelegatorTest {
 
     private RetryableAsyncLookupFunctionDelegator createDelegator(
             ResultRetryStrategy retryStrategy) {
-        return new RetryableAsyncLookupFunctionDelegator(userLookupFunc, retryStrategy);
+        RetryableAsyncLookupFunctionDelegator delegator =
+                new RetryableAsyncLookupFunctionDelegator(userLookupFunc, retryStrategy);
+        LookupRetryTestUtils.setProcessingTimeService(delegator, new TestProcessingTimeService());
+        return delegator;
     }
 
     private final RowDataHarnessAssertor assertor =
@@ -127,6 +139,126 @@ class RetryableAsyncLookupFunctionDelegatorTest {
                     Collections.singleton(delegator.asyncLookup(key)));
         }
         delegator.close();
+    }
+
+    @Test
+    void testRetryBackoffDoesNotBlockLookupCompletionExecutor() throws Exception {
+        try (LookupTestContext test = new LookupTestContext()) {
+            long backoff = MINUTES.toMillis(1);
+            RowData key = GenericRowData.of(1);
+            AtomicInteger submissions = new AtomicInteger();
+            CompletableFuture<Collection<RowData>> firstAttempt = test.newLookupFuture();
+            RetryableAsyncLookupFunctionDelegator delegator =
+                    test.open(
+                            backoff,
+                            ignored ->
+                                    submissions.getAndIncrement() == 0
+                                            ? firstAttempt
+                                            : CompletableFuture.completedFuture(data.get(key)));
+            CompletableFuture<Collection<RowData>> result = delegator.asyncLookup(key);
+
+            firstAttempt.complete(Collections.emptyList());
+            test.awaitCompletionExecutor();
+            assertThat(submissions).hasValue(1);
+            assertThat(result).isNotDone();
+
+            test.processingTimeService.advance(backoff);
+            assertThat(result.get(10, SECONDS)).isEqualTo(data.get(key));
+        }
+    }
+
+    @Test
+    void testRetryDoesNotOverlapNextLookupSubmission() throws Exception {
+        try (LookupTestContext test = new LookupTestContext()) {
+            RowData firstKey = GenericRowData.of(1);
+            RowData secondKey = GenericRowData.of(3);
+            CompletableFuture<Collection<RowData>> firstAttempt = test.newLookupFuture();
+            CompletableFuture<Collection<RowData>> secondAttempt = new CompletableFuture<>();
+            AtomicBoolean retryStarted = new AtomicBoolean();
+            RetryableAsyncLookupFunctionDelegator delegator =
+                    test.open(
+                            1,
+                            key -> {
+                                if (key.equals(secondKey)) {
+                                    // Process the miss while the next call is still submitting.
+                                    firstAttempt.complete(Collections.emptyList());
+                                    test.awaitCompletionExecutor();
+                                    assertThat(retryStarted)
+                                            .as("retry started during the next lookup submission")
+                                            .isFalse();
+                                    return secondAttempt;
+                                }
+                                if (!firstAttempt.isDone()) {
+                                    return firstAttempt;
+                                }
+                                retryStarted.set(true);
+                                return CompletableFuture.completedFuture(data.get(key));
+                            });
+            CompletableFuture<Collection<RowData>> firstResult = delegator.asyncLookup(firstKey);
+            CompletableFuture<Collection<RowData>> secondResult = delegator.asyncLookup(secondKey);
+
+            test.processingTimeService.advance(1);
+            assertThat(firstResult.get(10, SECONDS)).isEqualTo(data.get(firstKey));
+
+            secondAttempt.complete(data.get(secondKey));
+            assertThat(secondResult.get(10, SECONDS)).isEqualTo(data.get(secondKey));
+        }
+    }
+
+    private static final class LookupTestContext implements AutoCloseable {
+        private final ExecutorService completionExecutor = Executors.newSingleThreadExecutor();
+        private final TestProcessingTimeService processingTimeService =
+                new TestProcessingTimeService();
+        private RetryableAsyncLookupFunctionDelegator delegator;
+
+        CompletableFuture<Collection<RowData>> newLookupFuture() {
+            return new CompletableFuture<>() {
+                @Override
+                public Executor defaultExecutor() {
+                    return completionExecutor;
+                }
+            };
+        }
+
+        void awaitCompletionExecutor() {
+            try {
+                completionExecutor.submit(() -> {}).get(10, SECONDS);
+            } catch (Exception e) {
+                throw new AssertionError("The lookup completion executor did not make progress", e);
+            }
+        }
+
+        RetryableAsyncLookupFunctionDelegator open(
+                long backoff, Function<RowData, CompletableFuture<Collection<RowData>>> lookup)
+                throws Exception {
+            AsyncLookupFunction lookupFunction =
+                    new AsyncLookupFunction() {
+                        @Override
+                        public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
+                            return lookup.apply(keyRow);
+                        }
+                    };
+            delegator =
+                    new RetryableAsyncLookupFunctionDelegator(
+                            lookupFunction,
+                            ResultRetryStrategy.fixedDelayRetry(
+                                    1, backoff, RetryPredicates.EMPTY_RESULT_PREDICATE));
+            processingTimeService.setCurrentTime(0);
+            LookupRetryTestUtils.setProcessingTimeService(delegator, processingTimeService);
+            delegator.open(new FunctionContext(null));
+            return delegator;
+        }
+
+        @Override
+        public void close() throws Exception {
+            try {
+                if (delegator != null) {
+                    delegator.close();
+                }
+            } finally {
+                completionExecutor.shutdownNow();
+            }
+        }
     }
 
     /** The {@link TestingAsyncLookupFunction} is a {@link AsyncLookupFunction} for testing. */

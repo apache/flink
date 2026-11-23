@@ -643,11 +643,9 @@ then we can enable delayed retry when Order's record can not lookup the new reco
 
 
 #### Trouble Shooting
-When turning on the delayed retry lookup, it is more likely to encounter a backpressure problem in 
-the lookup node, this can be quickly confirmed via the 'Thread Dump' on the 'Task Manager' page of web ui.
-From async and sync lookups respectively, call stack of thread sleep will appear in:
-1. async lookup：`RetryableAsyncLookupFunctionDelegator`
-2. sync lookup：`RetryableLookupFunctionDelegator`
+Delayed lookup retries can cause backpressure in the lookup node. For synchronous lookups,
+the Task Manager's thread dump can show a sleeping thread in `RetryableLookupFunctionDelegator`.
+Asynchronous lookups awaiting a retry occupy slots in the async buffer until they complete.
 
 {{< hint info >}}
 Note:
