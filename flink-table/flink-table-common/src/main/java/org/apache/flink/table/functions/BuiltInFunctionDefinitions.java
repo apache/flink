@@ -982,7 +982,8 @@ public final class BuiltInFunctionDefinitions {
                                     false,
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,
-                                            StaticArgumentTrait.SET_SEMANTIC_TABLE)),
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.NO_ORDER_BY)),
                             StaticArgument.scalar("keep", DataTypes.STRING(), true),
                             StaticArgument.scalar("sequence_by", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(

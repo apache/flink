@@ -94,17 +94,6 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
                                         + "received a non-literal expression."),
                 withDefaults(
-                                "ORDER BY",
-                                new TableSemanticsMock(
-                                        INPUT_TYPE,
-                                        new int[] {0},
-                                        new int[] {3},
-                                        -1,
-                                        ChangelogMode.insertOnly()))
-                        .expectErrorMessage(
-                                "DEDUPLICATE does not support ORDER BY, but received ORDER BY "
-                                        + "lsn. Use sequence_by => DESCRIPTOR(lsn) instead."),
-                withDefaults(
                                 "Time attribute in PARTITION BY",
                                 new TableSemanticsMock(
                                         INPUT_TYPE,

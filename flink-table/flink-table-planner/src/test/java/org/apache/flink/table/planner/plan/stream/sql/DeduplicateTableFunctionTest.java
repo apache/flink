@@ -65,6 +65,22 @@ class DeduplicateTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testOrderByIsRejected() {
+        assertThatThrownBy(
+                        () ->
+                                util.tableEnv()
+                                        .explainSql(
+                                                "SELECT * FROM DEDUPLICATE(input => TABLE "
+                                                        + "user_events PARTITION BY user_id "
+                                                        + "ORDER BY ts, keep => 'last')"))
+                .satisfies(
+                        anyCauseMatches(
+                                "Table argument 'input' does not support an ORDER BY clause. "
+                                        + "Remove it, and use an argument of the function to "
+                                        + "order records if the function offers one."));
+    }
+
+    @Test
     void testRetractingConsumer() {
         verifyPlan(
                 "SELECT event, COUNT(*) AS users FROM DEDUPLICATE("

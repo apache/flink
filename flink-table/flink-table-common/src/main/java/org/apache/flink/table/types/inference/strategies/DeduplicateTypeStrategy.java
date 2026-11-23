@@ -32,10 +32,8 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.types.RowKind;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Type strategies for the {@code DEDUPLICATE} process table function.
@@ -92,33 +90,14 @@ public final class DeduplicateTypeStrategy {
 
     private static Optional<String> validate(final CallContext callContext) {
         final TableSemantics tableSemantics = tableSemantics(callContext);
-        return validateNoOrderBy(tableSemantics)
-                .or(
-                        () ->
-                                DeduplicateTypeStrategyUtils.validatePartitionByNoTimeAttribute(
-                                        tableSemantics, NAME))
+        return DeduplicateTypeStrategyUtils.validatePartitionByNoTimeAttribute(
+                        tableSemantics, NAME)
                 .or(() -> DeduplicateTypeStrategyUtils.validateKeep(callContext, ARG_KEEP, NAME))
                 .or(
                         () ->
                                 DeduplicateTypeStrategyUtils.validateSequenceBy(
                                         callContext, tableSemantics, ARG_SEQUENCE_BY, NAME))
                 .or(() -> DeduplicateTypeStrategyUtils.validateStateTtl(callContext, ARG_STATE_TTL));
-    }
-
-    private static Optional<String> validateNoOrderBy(final TableSemantics tableSemantics) {
-        if (tableSemantics.orderByColumns().length == 0) {
-            return Optional.empty();
-        }
-        final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
-        final String columns =
-                Arrays.stream(tableSemantics.orderByColumns())
-                        .mapToObj(fieldNames::get)
-                        .collect(Collectors.joining(", "));
-        return Optional.of(
-                String.format(
-                        "DEDUPLICATE does not support ORDER BY, but received ORDER BY %s. "
-                                + "Use sequence_by => DESCRIPTOR(%s) instead.",
-                        columns, columns));
     }
 
     private static ChangelogMode inferChangelogMode(final ChangelogContext changelogContext) {
