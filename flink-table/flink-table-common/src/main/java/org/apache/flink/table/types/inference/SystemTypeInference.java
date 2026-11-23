@@ -858,6 +858,16 @@ public class SystemTypeInference {
                                 staticArg.getName()));
             }
 
+            if (staticArg.is(StaticArgumentTrait.NO_ORDER_BY)
+                    && semantics.orderByColumns().length > 0) {
+                throw new ValidationException(
+                        String.format(
+                                "Table argument '%s' does not support an ORDER BY clause. "
+                                        + "Remove it, and use an argument of the function to "
+                                        + "order records if the function offers one.",
+                                staticArg.getName()));
+            }
+
             checkOrderBy(staticArg, semantics);
         }
 
