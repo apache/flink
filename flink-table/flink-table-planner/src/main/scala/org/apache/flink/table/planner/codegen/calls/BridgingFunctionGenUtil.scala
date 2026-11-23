@@ -27,13 +27,14 @@ import org.apache.flink.table.data.binary.{BinaryRawValueData, BinaryStringData}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, unresolvedCall, unresolvedRef}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions._
-import org.apache.flink.table.functions.SpecializedFunction.{ExpressionEvaluator, ExpressionEvaluatorFactory}
+import org.apache.flink.table.functions.SpecializedFunction.{ExpressionEvaluator, ExpressionEvaluatorFactory, GeneratedComparator}
 import org.apache.flink.table.functions.UserDefinedFunctionHelper._
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexFactory}
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.AsyncCodeGenerator.DEFAULT_DELEGATING_FUTURE_TERM
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.codegen.sort.GeneratedComparatorUtils
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -850,6 +851,10 @@ object BridgingFunctionGenUtil {
             s"Unable to create an expression evaluator for expression: $expression",
             t)
       }
+    }
+
+    override def createComparator(dataType: DataType): GeneratedComparator = {
+      GeneratedComparatorUtils.create(tableConfig, classLoader, dataType)
     }
 
     /**

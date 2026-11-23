@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -113,6 +114,52 @@ public interface SpecializedFunction extends FunctionDefinition {
          */
         ExpressionEvaluator createEvaluator(
                 BuiltInFunctionDefinition function, DataType outputDataType, DataType... args);
+
+        /**
+         * Creates a serializable comparator for values of the given data type, which orders them
+         * ascending with NULL before every other value.
+         *
+         * <p>The comparator uses the same ordering as {@code ORDER BY}. A {@code ROW} type is
+         * compared field by field, and the compared values are {@link RowData}. Any other type is
+         * compared as a single value. Types that cannot be ordered are rejected during planning.
+         *
+         * <p>Initialize the comparator in {@link UserDefinedFunction#open(FunctionContext)} by
+         * calling {@link GeneratedComparator#open(FunctionContext)}.
+         *
+         * @param dataType type of the compared values, which are expected in the internal data
+         *     structure of the type, see {@link DataType#toInternal()}
+         */
+        GeneratedComparator createComparator(DataType dataType);
+    }
+
+    /**
+     * Serializable comparator that can be passed into a {@link UserDefinedFunction}. An instance is
+     * not thread-safe and must be opened before values are compared.
+     *
+     * @see ExpressionEvaluatorFactory#createComparator(DataType)
+     */
+    @PublicEvolving
+    interface GeneratedComparator extends Serializable {
+
+        /**
+         * Initializes the runtime implementation.
+         *
+         * <p>This method should be called in {@link UserDefinedFunction#open(FunctionContext)}.
+         */
+        void open(FunctionContext context);
+
+        /**
+         * Returns a negative number, zero, or a positive number if the left value orders before,
+         * equal to, or after the right one. Both values are internal data structures.
+         */
+        int compare(Object left, Object right);
+
+        /**
+         * Closes the runtime implementation.
+         *
+         * <p>This method should be called in {@link UserDefinedFunction#close()}.
+         */
+        default void close() {}
     }
 
     /**
