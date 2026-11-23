@@ -40,6 +40,12 @@ import static org.apache.flink.table.planner.plan.utils.SetOpRewriteUtil.generat
  * {@link Join}.
  *
  * <p>Only handle the case of input size 2.
+ *
+ * <p>{@link #BATCH_INSTANCE} also removes duplicates from the right input. The SEMI join only
+ * checks whether a match exists, so duplicates on the right are wasted work. Removing them before
+ * the join also lets the planner see the real size of the right input when it picks the build side.
+ * Streaming uses {@link #INSTANCE}, because the extra aggregate would add state and change the job
+ * graph.
  */
 @Value.Enclosing
 public class ReplaceIntersectWithSemiJoinRule
@@ -47,6 +53,15 @@ public class ReplaceIntersectWithSemiJoinRule
 
     public static final ReplaceIntersectWithSemiJoinRule INSTANCE =
             ReplaceIntersectWithSemiJoinRule.ReplaceIntersectWithSemiJoinRuleConfig.DEFAULT
+                    .toRule();
+
+    public static final ReplaceIntersectWithSemiJoinRule BATCH_INSTANCE =
+            ReplaceIntersectWithSemiJoinRule.ReplaceIntersectWithSemiJoinRuleConfig.DEFAULT
+                    .withDescription("ReplaceIntersectWithSemiJoinRule:distinctRightInput")
+                    .as(
+                            ReplaceIntersectWithSemiJoinRule.ReplaceIntersectWithSemiJoinRuleConfig
+                                    .class)
+                    .withIsDistinctRightInput(true)
                     .toRule();
 
     private ReplaceIntersectWithSemiJoinRule(ReplaceIntersectWithSemiJoinRuleConfig config) {
@@ -71,6 +86,9 @@ public class ReplaceIntersectWithSemiJoinRule
 
         relBuilder.push(left);
         relBuilder.push(right);
+        if (config.isDistinctRightInput()) {
+            relBuilder.distinct();
+        }
         relBuilder
                 .join(JoinRelType.SEMI, conditions)
                 .aggregate(
@@ -89,6 +107,15 @@ public class ReplaceIntersectWithSemiJoinRule
                         .withOperandSupplier(b0 -> b0.operand(Intersect.class).anyInputs())
                         .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
                         .withDescription("ReplaceIntersectWithSemiJoinRule");
+
+        /** Whether to remove duplicates from the right input before the SEMI join. */
+        @Value.Default
+        default boolean isDistinctRightInput() {
+            return false;
+        }
+
+        /** Sets {@link #isDistinctRightInput()}. */
+        ReplaceIntersectWithSemiJoinRuleConfig withIsDistinctRightInput(boolean distinctRightInput);
 
         @Override
         default ReplaceIntersectWithSemiJoinRule toRule() {

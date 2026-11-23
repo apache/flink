@@ -17,8 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql
 
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.AbstractDataType
@@ -29,6 +32,11 @@ import org.junit.jupiter.api.{BeforeEach, Test}
 class SetOperatorsTest extends TableTestBase {
 
   private val util = batchTestUtil()
+
+  private val itemAttributes = "SELECT i_brand_id, i_class_id, i_category_id FROM item"
+
+  private val itemAttributesPerSale =
+    "SELECT i_brand_id, i_class_id, i_category_id FROM sales JOIN item ON s_item_sk = i_item_sk"
 
   @BeforeEach
   def before(): Unit = {
@@ -84,6 +92,14 @@ class SetOperatorsTest extends TableTestBase {
   }
 
   @Test
+  def testIntersectRightInputWithDuplicates(): Unit = {
+    // Without duplicates the right input is no larger than the left, so the planner no longer
+    // builds the hash table on the left input and probes it with every right row.
+    addTablesWithDuplicateKeys()
+    util.verifyExecPlan(s"$itemAttributes INTERSECT $itemAttributesPerSale")
+  }
+
+  @Test
   def testIntersectLeftIsEmpty(): Unit = {
     util.verifyExecPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
   }
@@ -96,6 +112,14 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testMinus(): Unit = {
     util.verifyExecPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2")
+  }
+
+  @Test
+  def testMinusRightInputWithDuplicates(): Unit = {
+    // Without duplicates the right input is no larger than the left, so the planner no longer
+    // builds the hash table on the left input and probes it with every right row.
+    addTablesWithDuplicateKeys()
+    util.verifyExecPlan(s"$itemAttributes EXCEPT $itemAttributesPerSale")
   }
 
   @Test
@@ -157,5 +181,25 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testMinusAllWithOuterPermutation(): Unit = {
     util.verifyExecPlan("SELECT b, a FROM (SELECT a, b FROM T1 EXCEPT ALL SELECT d, e FROM T2)")
+  }
+
+  /**
+   * As in TPC-DS q14, the right input repeats the attributes of a small table once per sales row,
+   * and the planner has no NDV for them, so the physical build-side distinct doesn't apply.
+   */
+  private def addTablesWithDuplicateKeys(): Unit = {
+    val intType = BasicTypeInfo.INT_TYPE_INFO
+    util.addTableSource(
+      "item",
+      Array[TypeInformation[_]](intType, intType, intType, intType),
+      Array("i_item_sk", "i_brand_id", "i_class_id", "i_category_id"),
+      FlinkStatistic.builder().tableStats(new TableStats(10000L)).build()
+    )
+    util.addTableSource(
+      "sales",
+      Array[TypeInformation[_]](intType),
+      Array("s_item_sk"),
+      FlinkStatistic.builder().tableStats(new TableStats(800000L)).build()
+    )
   }
 }

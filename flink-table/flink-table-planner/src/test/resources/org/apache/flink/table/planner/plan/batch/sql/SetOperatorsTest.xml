@@ -33,13 +33,14 @@ LogicalIntersect(all=[false])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[c], select=[c])
 +- Exchange(distribution=[keep_input_as_is[hash[c]]])
-   +- HashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], build=[right])
+   +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], build=[right])\n:- [#1] Exchange(distribution=[hash[c]])\n+- HashAggregate(isMerge=[true], groupBy=[f], select=[f])\n   +- [#2] Exchange(distribution=[hash[f]])\n])
       :- Exchange(distribution=[hash[c]])
       :  +- Calc(select=[c])
       :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
       +- Exchange(distribution=[hash[f]])
-         +- Calc(select=[f])
-            +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+         +- LocalHashAggregate(groupBy=[f], select=[f])
+            +- Calc(select=[f])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -122,6 +123,46 @@ Values(tuples=[[]], values=[c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testIntersectRightInputWithDuplicates">
+    <Resource name="sql">
+      <![CDATA[SELECT i_brand_id, i_class_id, i_category_id FROM item INTERSECT SELECT i_brand_id, i_class_id, i_category_id FROM sales JOIN item ON s_item_sk = i_item_sk]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(i_brand_id=[$1], i_class_id=[$2], i_category_id=[$3])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_item_sk, i_brand_id, i_class_id, i_category_id)]]])
++- LogicalProject(i_brand_id=[$2], i_class_id=[$3], i_category_id=[$4])
+   +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, sales, source: [TestTableSource(s_item_sk)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_item_sk, i_brand_id, i_class_id, i_category_id)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
++- Exchange(distribution=[hash[i_brand_id, i_class_id, i_category_id]])
+   +- LocalHashAggregate(groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
+      +- HashJoin(joinType=[LeftSemiJoin], where=[(IS NOT DISTINCT FROM(i_brand_id, i_brand_id0) AND IS NOT DISTINCT FROM(i_class_id, i_class_id0) AND IS NOT DISTINCT FROM(i_category_id, i_category_id0))], select=[i_brand_id, i_class_id, i_category_id], isBroadcast=[true], build=[right])
+         :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+         :  +- Calc(select=[i_brand_id, i_class_id, i_category_id])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_item_sk, i_brand_id, i_class_id, i_category_id)]]], fields=[i_item_sk, i_brand_id, i_class_id, i_category_id])(reuse_id=[1])
+         +- Exchange(distribution=[broadcast])
+            +- HashAggregate(isMerge=[true], groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
+               +- Exchange(distribution=[hash[i_brand_id, i_class_id, i_category_id]])
+                  +- LocalHashAggregate(groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
+                     +- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(s_item_sk = i_item_sk)], select=[s_item_sk, i_item_sk, i_brand_id, i_class_id, i_category_id], isBroadcast=[true], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[s_item_sk], select=[s_item_sk])\n:  +- [#2] Exchange(distribution=[hash[s_item_sk]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+                        :- Exchange(distribution=[broadcast])
+                        :  +- HashAggregate(isMerge=[true], groupBy=[i_item_sk, i_brand_id, i_class_id, i_category_id], select=[i_item_sk, i_brand_id, i_class_id, i_category_id])
+                        :     +- Exchange(distribution=[hash[i_item_sk, i_brand_id, i_class_id, i_category_id]])
+                        :        +- LocalHashAggregate(groupBy=[i_item_sk, i_brand_id, i_class_id, i_category_id], select=[i_item_sk, i_brand_id, i_class_id, i_category_id])
+                        :           +- Reused(reference_id=[1])
+                        +- Exchange(distribution=[hash[s_item_sk]])
+                           +- LocalHashAggregate(groupBy=[s_item_sk], select=[s_item_sk])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, sales, source: [TestTableSource(s_item_sk)]]], fields=[s_item_sk])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntersectRightIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0]]>
@@ -161,13 +202,14 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- HashAggregate(isMerge=[false], groupBy=[a, b], select=[a, b])
    +- Exchange(distribution=[keep_input_as_is[hash[a, b]]])
-      +- HashJoin(joinType=[LeftSemiJoin], where=[(IS NOT DISTINCT FROM(a, d) AND IS NOT DISTINCT FROM(b, e))], select=[a, b], build=[right])
+      +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[(IS NOT DISTINCT FROM(a, d) AND IS NOT DISTINCT FROM(b, e))], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a, b]])\n+- HashAggregate(isMerge=[true], groupBy=[d, e], select=[d, e])\n   +- [#2] Exchange(distribution=[hash[d, e]])\n])
          :- Exchange(distribution=[hash[a, b]])
          :  +- Calc(select=[a, b])
          :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d, e]])
-            +- Calc(select=[d, e])
-               +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+            +- LocalHashAggregate(groupBy=[d, e], select=[d, e])
+               +- Calc(select=[d, e])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -188,13 +230,14 @@ LogicalMinus(all=[false])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[c], select=[c])
 +- Exchange(distribution=[keep_input_as_is[hash[c]]])
-   +- HashJoin(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], build=[right])
+   +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], build=[right])\n:- [#1] Exchange(distribution=[hash[c]])\n+- HashAggregate(isMerge=[true], groupBy=[f], select=[f])\n   +- [#2] Exchange(distribution=[hash[f]])\n])
       :- Exchange(distribution=[hash[c]])
       :  +- Calc(select=[c])
       :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
       +- Exchange(distribution=[hash[f]])
-         +- Calc(select=[f])
-            +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+         +- LocalHashAggregate(groupBy=[f], select=[f])
+            +- Calc(select=[f])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -307,6 +350,46 @@ Values(tuples=[[]], values=[c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMinusRightInputWithDuplicates">
+    <Resource name="sql">
+      <![CDATA[SELECT i_brand_id, i_class_id, i_category_id FROM item EXCEPT SELECT i_brand_id, i_class_id, i_category_id FROM sales JOIN item ON s_item_sk = i_item_sk]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(i_brand_id=[$1], i_class_id=[$2], i_category_id=[$3])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_item_sk, i_brand_id, i_class_id, i_category_id)]]])
++- LogicalProject(i_brand_id=[$2], i_class_id=[$3], i_category_id=[$4])
+   +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, sales, source: [TestTableSource(s_item_sk)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_item_sk, i_brand_id, i_class_id, i_category_id)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
++- Exchange(distribution=[hash[i_brand_id, i_class_id, i_category_id]])
+   +- LocalHashAggregate(groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
+      +- HashJoin(joinType=[LeftAntiJoin], where=[(IS NOT DISTINCT FROM(i_brand_id, i_brand_id0) AND IS NOT DISTINCT FROM(i_class_id, i_class_id0) AND IS NOT DISTINCT FROM(i_category_id, i_category_id0))], select=[i_brand_id, i_class_id, i_category_id], isBroadcast=[true], build=[right])
+         :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+         :  +- Calc(select=[i_brand_id, i_class_id, i_category_id])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_item_sk, i_brand_id, i_class_id, i_category_id)]]], fields=[i_item_sk, i_brand_id, i_class_id, i_category_id])(reuse_id=[1])
+         +- Exchange(distribution=[broadcast])
+            +- HashAggregate(isMerge=[true], groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
+               +- Exchange(distribution=[hash[i_brand_id, i_class_id, i_category_id]])
+                  +- LocalHashAggregate(groupBy=[i_brand_id, i_class_id, i_category_id], select=[i_brand_id, i_class_id, i_category_id])
+                     +- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(s_item_sk = i_item_sk)], select=[s_item_sk, i_item_sk, i_brand_id, i_class_id, i_category_id], isBroadcast=[true], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[s_item_sk], select=[s_item_sk])\n:  +- [#2] Exchange(distribution=[hash[s_item_sk]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+                        :- Exchange(distribution=[broadcast])
+                        :  +- HashAggregate(isMerge=[true], groupBy=[i_item_sk, i_brand_id, i_class_id, i_category_id], select=[i_item_sk, i_brand_id, i_class_id, i_category_id])
+                        :     +- Exchange(distribution=[hash[i_item_sk, i_brand_id, i_class_id, i_category_id]])
+                        :        +- LocalHashAggregate(groupBy=[i_item_sk, i_brand_id, i_class_id, i_category_id], select=[i_item_sk, i_brand_id, i_class_id, i_category_id])
+                        :           +- Reused(reference_id=[1])
+                        +- Exchange(distribution=[hash[s_item_sk]])
+                           +- LocalHashAggregate(groupBy=[s_item_sk], select=[s_item_sk])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, sales, source: [TestTableSource(s_item_sk)]]], fields=[s_item_sk])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMinusRightIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
@@ -348,11 +431,12 @@ LogicalMinus(all=[false])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
 +- Exchange(distribution=[keep_input_as_is[hash[a, b, c]]])
-   +- HashJoin(joinType=[LeftAntiJoin], where=[(IS NOT DISTINCT FROM(a, a0) AND IS NOT DISTINCT FROM(b, b0) AND IS NOT DISTINCT FROM(c, c0))], select=[a, b, c], build=[right])
-      :- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
+   +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], where=[(IS NOT DISTINCT FROM(a, a0) AND IS NOT DISTINCT FROM(b, b0) AND IS NOT DISTINCT FROM(c, c0))], select=[a, b, c], build=[right])\n:- [#1] Exchange(distribution=[hash[a, b, c]])\n+- HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c])\n   +- [#2] Exchange(distribution=[hash[a, b, c]])\n])
+      :- Exchange(distribution=[hash[a, b, c]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])(reuse_id=[1])
       +- Exchange(distribution=[hash[a, b, c]])
-         +- Reused(reference_id=[1])
+         +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
