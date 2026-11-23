@@ -69,6 +69,9 @@ class KubernetesLeaderElectorITCase {
     void testMultipleKubernetesLeaderElectors() throws Exception {
         final Configuration configuration = kubernetesExtension.getConfiguration();
 
+        // TEMPORARY: proves this ITCase runs against a real cluster in CI. Remove before merging.
+        assertThat(configuration).as("intentional CI probe failure").isNull();
+
         final int leaderNum = 3;
 
         final KubernetesLeaderElector[] leaderElectors = new KubernetesLeaderElector[leaderNum];
