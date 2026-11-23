@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.GeographyData;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.delegation.PlannerContext;
