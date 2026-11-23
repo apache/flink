@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.strategies;
+package org.apache.flink.table.functions.definitions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -40,17 +40,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_INPUT;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_KEEP;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_SEQUENCE_BY;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.CHANGELOG_MODE_STRATEGY;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.INPUT_TYPE_STRATEGY;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.OUTPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_KEEP;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_SEQUENCE_BY;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.CHANGELOG_MODE_STRATEGY;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.INPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.OUTPUT_TYPE_STRATEGY;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link DeduplicateTypeStrategy}. */
-class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
+/** Tests for {@link DeduplicateDefinition}. */
+class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
 
     private static final DataType ROWTIME =
             new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 3));
@@ -142,7 +142,7 @@ class DeduplicateTypeStrategyTest extends InputTypeStrategiesTestBase {
     @Test
     void testSequenceByIndicesPointIntoPayload() {
         assertThat(
-                        DeduplicateTypeStrategy.sequenceByOutputIndices(
+                        DeduplicateDefinition.sequenceByOutputIndices(
                                 callContext(ColumnList.of("lsn", "event"))))
                 .containsExactly(2, 0);
     }

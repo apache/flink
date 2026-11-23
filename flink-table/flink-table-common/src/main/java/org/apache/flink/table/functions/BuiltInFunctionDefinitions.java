@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
@@ -38,7 +39,6 @@ import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TraitCondition;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
@@ -971,28 +971,7 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
                     .build();
 
-    public static final BuiltInFunctionDefinition DEDUPLICATE =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("DEDUPLICATE")
-                    .kind(PROCESS_TABLE)
-                    .staticArguments(
-                            StaticArgument.table(
-                                    "input",
-                                    Row.class,
-                                    false,
-                                    EnumSet.of(
-                                            StaticArgumentTrait.TABLE,
-                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
-                                            StaticArgumentTrait.NO_ORDER_BY)),
-                            StaticArgument.scalar("keep", DataTypes.STRING(), true),
-                            StaticArgument.scalar("sequence_by", DataTypes.DESCRIPTOR(), true),
-                            StaticArgument.scalar(
-                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true))
-                    .changelogModeStrategy(DeduplicateTypeStrategy.CHANGELOG_MODE_STRATEGY)
-                    .inputTypeStrategy(DeduplicateTypeStrategy.INPUT_TYPE_STRATEGY)
-                    .outputTypeStrategy(DeduplicateTypeStrategy.OUTPUT_TYPE_STRATEGY)
-                    .runtimeClass("org.apache.flink.table.runtime.functions.ptf.Deduplicate")
-                    .build();
+    public static final BuiltInFunctionDefinition DEDUPLICATE = DeduplicateDefinition.INSTANCE;
 
     /**
      * Built-in proxy function for the LATERAL SNAPSHOT temporal join.

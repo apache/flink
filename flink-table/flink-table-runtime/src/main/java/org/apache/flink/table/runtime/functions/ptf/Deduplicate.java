@@ -21,10 +21,10 @@ package org.apache.flink.table.runtime.functions.ptf;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.runtime.functions.BuiltInSpecializedFunction;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#DEDUPLICATE}.
@@ -46,11 +46,11 @@ public class Deduplicate extends BuiltInSpecializedFunction {
     @Override
     public UserDefinedFunction specialize(final SpecializedContext context) {
         final CallContext callContext = context.getCallContext();
-        final boolean isKeepFirst = DeduplicateTypeStrategy.keep(callContext) == Keep.FIRST;
+        final boolean isKeepFirst = DeduplicateDefinition.keep(callContext) == Keep.FIRST;
 
         if (isKeepFirst) {
             final boolean hasSequenceBy =
-                    DeduplicateTypeStrategy.sequenceByOutputIndices(callContext).length > 0;
+                    DeduplicateDefinition.sequenceByOutputIndices(callContext).length > 0;
             if (!hasSequenceBy) {
                 return new DeduplicateEmitOnceFunction(context);
             } else {

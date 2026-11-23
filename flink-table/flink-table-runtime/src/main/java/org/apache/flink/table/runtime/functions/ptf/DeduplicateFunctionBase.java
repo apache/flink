@@ -31,7 +31,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.IDLE_STATE_RETENTION;
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
 
 /** Base class of the {@link Deduplicate} implementations. */
 @Internal

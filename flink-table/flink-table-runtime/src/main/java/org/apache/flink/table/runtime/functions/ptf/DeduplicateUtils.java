@@ -26,14 +26,14 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
 
 import java.io.Serializable;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_INPUT;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 
 /** Record ordering of the built-in deduplication PTFs. */
 @Internal

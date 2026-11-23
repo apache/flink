@@ -29,12 +29,12 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.runtime.functions.ptf.DeduplicateUtils.SequenceComparator;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategyUtils.Keep;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.table.types.inference.strategies.DeduplicateTypeStrategy.ARG_STATE_TTL;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
 
 /**
  * {@link Deduplicate} with {@code keep => 'last'}, or {@code keep => 'first'} with {@code
@@ -86,7 +86,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
                                 DataType.getFields(
                                         DeduplicateUtils.tableSemantics(context).dataType())),
                         ARG_STATE_TTL));
-        this.keepMode = DeduplicateTypeStrategy.keep(context.getCallContext());
+        this.keepMode = DeduplicateDefinition.keep(context.getCallContext());
         final List<DataTypes.Field> inputFields =
                 DataType.getFields(DeduplicateUtils.tableSemantics(context).dataType());
         this.inputTypes =
@@ -184,7 +184,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
                         DeduplicateUtils.tableSemantics(context));
         final int[] sequenceIndices =
                 Arrays.stream(
-                                DeduplicateTypeStrategy.sequenceByOutputIndices(
+                                DeduplicateDefinition.sequenceByOutputIndices(
                                         context.getCallContext()))
                         .map(i -> outputIndices[i])
                         .toArray();
