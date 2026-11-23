@@ -73,7 +73,7 @@ class StreamPhysicalSort(
     new StreamExecSort(
       unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

@@ -446,6 +446,32 @@ class OperatorCoordinatorSchedulerTest {
                 .isEqualTo(checkpointId);
     }
 
+    // The event is still in flight when the task finishes. For a failed delivery, see
+    // OperatorCoordinatorHolderTest#testCheckpointSucceedsIfLossTolerantEventFindsTaskNotRunning.
+    @Test
+    void testCheckpointSucceedsIfTaskFinishesBeforeLossTolerantEventArrives() throws Exception {
+        // The event stays in flight until the task finishes.
+        final DefaultScheduler scheduler =
+                createSchedulerAndDeployTasks((task, operator, event) -> new CompletableFuture<>());
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+        coordinator.getSubtaskGateway(0).sendEvent(new TestOperatorEvent(0, true));
+        executor.triggerAll();
+
+        final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+        getCoordinatorHolder(scheduler).checkpointCoordinator(1L, checkpointFuture);
+        executor.triggerAll();
+        coordinator.getLastTriggeredCheckpoint().complete(new byte[0]);
+        executor.triggerAll();
+        assertThat(checkpointFuture).isNotDone();
+
+        SchedulerTestingUtils.setExecutionToState(
+                ExecutionState.FINISHED, scheduler, testVertexId, 0);
+        executor.triggerAll();
+
+        assertThat(checkpointFuture).isCompleted();
+    }
+
     // ------------------------------------------------------------------------
     //  tests for failover notifications in a batch setup (no checkpoints)
     // ------------------------------------------------------------------------
@@ -978,8 +1004,6 @@ class OperatorCoordinatorSchedulerTest {
     // ------------------------------------------------------------------------
     //  test mocks
     // ------------------------------------------------------------------------
-
-    private static final class TestOperatorEvent implements OperatorEvent {}
 
     private static final class TestException extends Exception {}
 

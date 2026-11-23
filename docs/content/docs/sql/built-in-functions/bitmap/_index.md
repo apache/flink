@@ -2,6 +2,7 @@
 title: "Bitmap"
 weight: 2
 type: docs
+bookCollapseSection: true
 sqlFunctions: [bitmap, bitmapagg]
 ---
 <!--

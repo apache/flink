@@ -178,7 +178,7 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
             throws Exception {
         initHeapStates();
         initRankEnd(input);
-        if (outputRankNumber || hasOffset()) {
+        if (emitsChangelogPerRank) {
             // the without-number-algorithm can't handle topN with offset,
             // so use the with-number-algorithm to handle offset
             processElementWithRowNumber(input, out);

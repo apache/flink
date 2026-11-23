@@ -127,8 +127,8 @@ class StreamPhysicalWindowJoin(
       joinSpec,
       leftWindowing,
       rightWindowing,
-      InputProperty.DEFAULT,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getLeft),
+      InputProperty.fromInput(getRight),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

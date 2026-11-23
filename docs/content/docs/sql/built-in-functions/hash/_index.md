@@ -2,6 +2,7 @@
 title: "Hash"
 weight: 9
 type: docs
+bookCollapseSection: true
 sqlFunctions: hashfunctions
 ---
 <!--

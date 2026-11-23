@@ -123,8 +123,8 @@ class StreamPhysicalIntervalJoin(
       new IntervalJoinSpec(joinSpec, windowBounds),
       earlyFireDelay,
       earlyFireTimeMode,
-      InputProperty.DEFAULT,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getLeft),
+      InputProperty.fromInput(getRight),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

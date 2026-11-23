@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.clock.RelativeClock;
@@ -177,23 +178,105 @@ class ProgressiveTimestampsAndWatermarksSubtaskIdlenessTest {
                 .containsExactly(true, false);
     }
 
-    /**
-     * A split that is registered but never reports anything holds the combined watermark back, but
-     * it is not evidence that anything is producing. Reporting idleness on another split must
-     * therefore not re-activate the subtask.
-     */
     @Test
-    void subtaskStaysIdleWhenOnlyAnUnknownAndAnIdleSplitAreRegistered() {
+    void testRegisteredSplitBlockWatermarkUntilReportedIdle() {
         final ManualClock clock = new ManualClock(System.nanoTime());
         final RecordingListener listener = new RecordingListener();
-        // generators that never emit, so that the registered splits really stay silent
         final TimestampsAndWatermarks<Long> eventTimeLogic =
-                createEventTimeLogic(
-                        WatermarkStrategy.<Long>forGenerator(context -> new NeverEmits())
-                                .withTimestampAssigner((event, timestamp) -> event)
-                                .withIdleness(IDLE_TIMEOUT),
-                        clock,
-                        clock);
+                createEventTimeLogicWithIdleGenerator(clock, clock);
+        final ReaderOutput<Long> mainOutput =
+                eventTimeLogic.createMainOutput(new CollectingDataOutput<>(), listener);
+
+        eventTimeLogic.emitImmediateWatermark(0L); // starts the main output's timer
+        clock.advanceTime(IDLE_TIMEOUT.minusMillis(1));
+        // A split is registered just before the main input is about to become idle
+        mainOutput.createOutputForSplit("split-A");
+        clock.advanceTime(Duration.ofMillis(2));
+        eventTimeLogic.emitImmediateWatermark(0L); // main timer expires, split-A's timer starts
+
+        assertThat(listener.idleUpdates).isEmpty();
+
+        clock.advanceTime(IDLE_TIMEOUT.plusMillis(1));
+        eventTimeLogic.emitImmediateWatermark(0L);
+        assertThat(listener.idleUpdates).containsExactly(true);
+    }
+
+    /**
+     * Once the last split is released nothing holds the subtask active, so it stands down if the
+     * main output is idle. That timer reports idleness only once, so the release itself must
+     * conclude when the timer already expired while the split was around.
+     */
+    @Test
+    void subtaskGoesIdleWhenItsLastSplitIsReleasedAfterTheMainOutputTimerExpired() {
+        final ManualClock mainInputActivityClock = new ManualClock(System.nanoTime());
+        final RecordingListener listener = new RecordingListener();
+        final TimestampsAndWatermarks<Long> eventTimeLogic =
+                createEventTimeLogicWithIdleGenerator(
+                        mainInputActivityClock, SystemClock.getInstance());
+
+        final ReaderOutput<Long> mainOutput =
+                eventTimeLogic.createMainOutput(new CollectingDataOutput<>(), listener);
+        final SourceOutput<Long> splitOutput = mainOutput.createOutputForSplit("split-A");
+        splitOutput.collect(1L, 1L);
+
+        for (int i = 0; i < 2; i++) {
+            mainInputActivityClock.advanceTime(IDLE_TIMEOUT.plusMillis(1));
+            eventTimeLogic.emitImmediateWatermark(0L);
+        }
+        assertThat(listener.idleUpdates)
+                .as("split-A is active, so the main output alone must not idle the subtask")
+                .isEmpty();
+
+        mainOutput.releaseOutputForSplit("split-A");
+
+        assertThat(listener.idleUpdates)
+                .as("no split is left to hold the subtask active and the main output is idle")
+                .containsExactly(true);
+    }
+
+    /**
+     * Before the main output has reported idleness, releasing the last split is no verdict: the
+     * strategy may not detect idleness, or a wrapping strategy may still suppress its generators.
+     * The main output's own timer then stands the subtask down.
+     */
+    @Test
+    void releasingTheLastSplitDoesNotIdleTheSubtaskBeforeTheMainOutputReportedIdle() {
+        final ManualClock mainInputActivityClock = new ManualClock(System.nanoTime());
+        final RecordingListener listener = new RecordingListener();
+        final TimestampsAndWatermarks<Long> eventTimeLogic =
+                createEventTimeLogicWithIdleGenerator(
+                        mainInputActivityClock, SystemClock.getInstance());
+
+        final ReaderOutput<Long> mainOutput =
+                eventTimeLogic.createMainOutput(new CollectingDataOutput<>(), listener);
+        final SourceOutput<Long> splitOutput = mainOutput.createOutputForSplit("split-A");
+        splitOutput.collect(1L, 1L);
+        eventTimeLogic.emitImmediateWatermark(0L);
+        mainOutput.releaseOutputForSplit("split-A");
+
+        assertThat(listener.idleUpdates)
+                .as("the main output has not reported yet, so the release alone must not idle it")
+                .isEmpty();
+
+        // the main output's timer started counting at the emit above and expires now
+        mainInputActivityClock.advanceTime(IDLE_TIMEOUT.plusMillis(1));
+        eventTimeLogic.emitImmediateWatermark(0L);
+
+        assertThat(listener.idleUpdates)
+                .as("no split is left, so the main output's timer stands the subtask down")
+                .containsExactly(true);
+    }
+
+    /**
+     * A registered split blocks the watermark until it is proven idle or active, so a subtask that
+     * already stood down is announced active again when a split is registered.
+     */
+    @Test
+    void registeringASplitReactivatesAnIdleSubtask() {
+        final ManualClock clock = new ManualClock(System.nanoTime());
+        final RecordingListener listener = new RecordingListener();
+        final TimestampsAndWatermarks<Long> eventTimeLogic =
+                createEventTimeLogicWithIdleGenerator(clock, clock);
 
         final ReaderOutput<Long> mainOutput =
                 eventTimeLogic.createMainOutput(new CollectingDataOutput<>(), listener);
@@ -211,8 +294,97 @@ class ProgressiveTimestampsAndWatermarksSubtaskIdlenessTest {
         eventTimeLogic.emitImmediateWatermark(0L);
 
         assertThat(listener.idleUpdates)
-                .as("no split has reported activity, so the subtask stays idle")
+                .as("a registered split is unproven, so the subtask is active again")
+                .containsExactly(true, false);
+    }
+
+    /**
+     * Without idleness detection nothing ever marks the subtask idle, so releasing its last split
+     * must not either: the next split's records emit no watermark that could re-activate it.
+     */
+    @Test
+    void subtaskWithoutIdlenessDetectionDoesNotGoIdleWhenItsLastSplitIsReleased() {
+        final CollectingDataOutput<Long> output = new CollectingDataOutput<>();
+        final RecordingListener listener = new RecordingListener();
+        final TimestampsAndWatermarks<Long> eventTimeLogic =
+                createEventTimeLogic(
+                        WatermarkStrategy.<Long>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> event),
+                        SystemClock.getInstance(),
+                        SystemClock.getInstance());
+
+        final ReaderOutput<Long> mainOutput = eventTimeLogic.createMainOutput(output, listener);
+        final SourceOutput<Long> splitOutput = mainOutput.createOutputForSplit("split-A");
+        splitOutput.collect(1L, 1L);
+        eventTimeLogic.emitImmediateWatermark(0L);
+        mainOutput.releaseOutputForSplit("split-A");
+
+        assertThat(output.events).doesNotContain(WatermarkStatus.IDLE);
+        assertThat(listener.idleUpdates).isEmpty();
+    }
+
+    /**
+     * A reader that reports idleness through the main output speaks for itself: the operator
+     * registers a split output per assigned split, and one the reader never reports through must
+     * not hold that report back. A split that reported activity does, as before.
+     */
+    @Test
+    void mainOutputIdleReportIsHeldBackOnlyBySplitsThatReportedActivity() {
+        final RecordingListener listener = new RecordingListener();
+        final TimestampsAndWatermarks<Long> eventTimeLogic =
+                createEventTimeLogic(
+                        WatermarkStrategy.<Long>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> event),
+                        SystemClock.getInstance(),
+                        SystemClock.getInstance());
+
+        final ReaderOutput<Long> mainOutput =
+                eventTimeLogic.createMainOutput(new CollectingDataOutput<>(), listener);
+        mainOutput.createOutputForSplit("never-reports");
+        mainOutput.markIdle();
+
+        assertThat(listener.idleUpdates)
+                .as("a split output that never reported says nothing against the reader")
                 .containsExactly(true);
+
+        mainOutput.createOutputForSplit("active").markActive();
+        mainOutput.markIdle();
+
+        assertThat(listener.idleUpdates)
+                .as("a split that reported activity holds the main output's idle report back")
+                .containsExactly(true, false);
+    }
+
+    /**
+     * A split that is registered after the reader reported idleness through the main output
+     * re-activates the subtask. Without idleness detection no timer proves that split idle, so the
+     * subtask stays active until the reader reports idleness again.
+     */
+    @Test
+    void splitRegisteredAfterMainOutputIdleReportHoldsTheSubtaskActiveUntilTheNextReport() {
+        final RecordingListener listener = new RecordingListener();
+        final TimestampsAndWatermarks<Long> eventTimeLogic =
+                createEventTimeLogic(
+                        WatermarkStrategy.<Long>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> event),
+                        SystemClock.getInstance(),
+                        SystemClock.getInstance());
+
+        final ReaderOutput<Long> mainOutput =
+                eventTimeLogic.createMainOutput(new CollectingDataOutput<>(), listener);
+        mainOutput.markIdle();
+        mainOutput.createOutputForSplit("split-A");
+        eventTimeLogic.emitImmediateWatermark(0L);
+
+        assertThat(listener.idleUpdates)
+                .as("the reader has not reported since split-A was registered")
+                .containsExactly(true, false);
+
+        mainOutput.markIdle();
+
+        assertThat(listener.idleUpdates)
+                .as("split-A never reported activity, so the new report is not held back")
+                .containsExactly(true, false, true);
     }
 
     // ------------------------------------------------------------------------
@@ -221,6 +393,20 @@ class ProgressiveTimestampsAndWatermarksSubtaskIdlenessTest {
             RelativeClock mainInputActivityClock, Clock clock) {
         return createEventTimeLogic(
                 WatermarkStrategy.<Long>forMonotonousTimestamps()
+                        .withTimestampAssigner((event, timestamp) -> event)
+                        .withIdleness(IDLE_TIMEOUT),
+                mainInputActivityClock,
+                clock);
+    }
+
+    /**
+     * Generators that emit nothing until they see a record: a registered split then reports
+     * activity or idleness only through collected records and its idleness timer.
+     */
+    private static TimestampsAndWatermarks<Long> createEventTimeLogicWithIdleGenerator(
+            RelativeClock mainInputActivityClock, Clock clock) {
+        return createEventTimeLogic(
+                WatermarkStrategy.<Long>forGenerator(context -> new NeverEmits())
                         .withTimestampAssigner((event, timestamp) -> event)
                         .withIdleness(IDLE_TIMEOUT),
                 mainInputActivityClock,

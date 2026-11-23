@@ -117,7 +117,7 @@ public class AppendOnlyTopNFunction extends AbstractSyncStateTopNFunction {
             // otherwise, the result might be corrupt.
             // don't need to perform a deep copy, because RowData elements will not be updated
             dataState.put(sortKey, new ArrayList<>(inputs));
-            if (outputRankNumber || hasOffset()) {
+            if (emitsChangelogPerRank) {
                 // the without-number-algorithm can't handle topN with offset,
                 // so use the with-number-algorithm to handle offset
                 helper.processElementWithRowNumber(buffer, sortKey, input, rankEnd, out);

@@ -1,0 +1,150 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: JSON_VALUE
+summary: Returns the scalar at a JSON path of a JSON string.
+
+syntax:
+  sql: |
+    JSON_VALUE(json_string, path
+      [RETURNING data_type]
+      [{NULL | ERROR | DEFAULT default_value} ON EMPTY]
+      [{NULL | ERROR | DEFAULT default_value} ON ERROR])
+  java: |
+    $("jsonString").jsonValue(path)
+    $("jsonString").jsonValue(path, returnType)
+    $("jsonString").jsonValue(path, returnType, defaultOnEmptyOrError)
+    $("jsonString").jsonValue(path, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError)
+  python: |
+    col("json_string").json_value(path)
+    col("json_string").json_value(path, returning_type, on_empty, default_on_empty, on_error, default_on_error)
+
+arguments:
+  - name: json_string
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: The JSON text.
+  - name: path
+    type: CHAR, VARCHAR, STRING
+    required: true
+    description: A JSON path. See [JSON functions]({{< ref "docs/sql/built-in-functions/json" >}}) for the syntax and the `lax` and `strict` modes.
+  - name: RETURNING
+    type: STRING, VARCHAR, BOOLEAN or a numeric type
+    required: false
+    default: "`STRING`"
+    description: The result type.
+  - name: ON EMPTY
+    type: "`NULL`, `ERROR` or `DEFAULT default_value`. In the Table API, `JsonValueOnEmptyOrError`"
+    required: false
+    default: "`NULL ON EMPTY`"
+    description: What to return when the path finds nothing in lax mode. `ERROR` fails the job.
+  - name: ON ERROR
+    type: "`NULL`, `ERROR` or `DEFAULT default_value`. In the Table API, `JsonValueOnEmptyOrError`"
+    required: false
+    default: "`NULL ON ERROR`"
+    description: What to return when the path raises an error, or the value doesn't convert to the result type. `ERROR` fails the job.
+  - name: default_value
+    type: A literal
+    required: false
+    description: The value that `DEFAULT` returns, converted to the result type.
+
+returns:
+  description: The scalar at `path`, converted to the `RETURNING` type. A JSON string comes back without its quotes, and a JSON string that holds a number or a boolean converts to that type.
+  nulls: Returns NULL if `json_string` or `path` is NULL, or if `ON EMPTY` or `ON ERROR` applies with `NULL`, the default.
+  type: The `RETURNING` type, nullable.
+
+notes:
+  - In strict mode, the default, a missing key, a JSON `null`, an array or an object at `path`, and invalid JSON go to `ON ERROR`. In lax mode, they go to `ON EMPTY`. So `DEFAULT ... ON EMPTY` has an effect only in lax mode.
+  - A value that doesn't convert to the `RETURNING` type goes to `ON ERROR`. A number converts to an integer type by truncating toward zero, and to a `DECIMAL` by rounding half away from zero. A string converts to `BOOLEAN` if it is `true`, `t`, `yes`, `y` or `1`, or `false`, `f`, `no`, `n` or `0`, ignoring case, and a number if it is `0` or `1`.
+  - A `default_value` from a column fails the statement.
+  - Only the first JSON value is read, and content after it is ignored. So `JSON_VALUE('{"a":1} x', '$.a')` returns `1`.
+
+see_also:
+  - {name: JSON_QUERY, ref: json/json-query}
+  - {name: JSON_EXISTS, ref: json/json-exists}
+  - {name: VARIANT_GET, ref: variant/variant-get}
+
+examples:
+  - title: Extract a scalar
+    description: The result is a `STRING` by default, or the `RETURNING` type.
+    sql: |
+      SELECT doc,
+        JSON_VALUE(doc, '$.a') AS `JSON_VALUE(doc, '$.a')`,
+        JSON_VALUE(doc, '$.a' RETURNING BOOLEAN) AS `JSON_VALUE(doc, '$.a' RETURNING BOOLEAN)`,
+        JSON_VALUE(doc, '$.n' RETURNING INT) AS `JSON_VALUE(doc, '$.n' RETURNING INT)`
+      FROM (VALUES ('{"a": true, "n": "42"}')) AS t(doc);
+    result: |
+      | doc                    | JSON_VALUE(doc, '$.a') | JSON_VALUE(doc, '$.a' RETURNING BOOLEAN) | JSON_VALUE(doc, '$.n' RETURNING INT) |
+      |------------------------|------------------------|------------------------------------------|--------------------------------------|
+      | {"a": true, "n": "42"} | true                   | TRUE                                     | 42                                   |
+
+  - title: Missing values in strict and lax mode
+    description: A missing key goes to `ON ERROR` in strict mode, the default, and to `ON EMPTY` in lax mode.
+    sql: |
+      SELECT doc,
+        JSON_VALUE(doc, '$.b' DEFAULT 'E' ON EMPTY) AS `JSON_VALUE(doc, '$.b' DEFAULT 'E' ON EMPTY)`,
+        JSON_VALUE(doc, '$.b' DEFAULT 'R' ON ERROR) AS `JSON_VALUE(doc, '$.b' DEFAULT 'R' ON ERROR)`,
+        JSON_VALUE(doc, 'lax $.b' DEFAULT 'E' ON EMPTY) AS `JSON_VALUE(doc, 'lax $.b' DEFAULT 'E' ON EMPTY)`,
+        JSON_VALUE(doc, 'lax $.b' DEFAULT 'R' ON ERROR) AS `JSON_VALUE(doc, 'lax $.b' DEFAULT 'R' ON ERROR)`
+      FROM (VALUES ('{"a": 1}')) AS t(doc);
+    result: |
+      | doc      | JSON_VALUE(doc, '$.b' DEFAULT 'E' ON EMPTY) | JSON_VALUE(doc, '$.b' DEFAULT 'R' ON ERROR) | JSON_VALUE(doc, 'lax $.b' DEFAULT 'E' ON EMPTY) | JSON_VALUE(doc, 'lax $.b' DEFAULT 'R' ON ERROR) |
+      |----------|---------------------------------------------|---------------------------------------------|-------------------------------------------------|-------------------------------------------------|
+      | {"a": 1} | NULL                                        | R                                           | E                                               | NULL                                            |
+
+  - title: Extract a number from each row
+    description: A string that holds a number converts. A value that doesn't convert returns NULL, and so does a missing key in strict mode.
+    sql: |
+      SELECT doc,
+        JSON_VALUE(doc, '$.n' RETURNING INT) AS `JSON_VALUE(doc, '$.n' RETURNING INT)`,
+        JSON_VALUE(doc, 'lax $.n' RETURNING INT DEFAULT -1 ON EMPTY) AS `JSON_VALUE(doc, 'lax $.n' RETURNING INT DEFAULT -1 ON EMPTY)`
+      FROM (VALUES ('{"n": 7}'), ('{"n": "8"}'), ('{"n": "x"}'), ('{"m": 1}'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc        | JSON_VALUE(doc, '$.n' RETURNING INT) | JSON_VALUE(doc, 'lax $.n' RETURNING INT DEFAULT -1 ON EMPTY) |
+      |------------|--------------------------------------|--------------------------------------------------------------|
+      | {"n": 7}   | 7                                    | 7                                                            |
+      | {"n": "8"} | 8                                    | 8                                                            |
+      | {"n": "x"} | NULL                                 | NULL                                                         |
+      | {"m": 1}   | NULL                                 | -1                                                           |
+      | NULL       | NULL                                 | NULL                                                         |
+
+  - title: Numbers that don't fit
+    description: A fraction is truncated for an integer type and rounded for a `DECIMAL`, and a number out of range returns NULL.
+    sql: |
+      SELECT doc,
+        JSON_VALUE(doc, '$.a' RETURNING INT) AS `JSON_VALUE(doc, '$.a' RETURNING INT)`,
+        JSON_VALUE(doc, '$.a' RETURNING DECIMAL(4, 2)) AS `JSON_VALUE(doc, '$.a' RETURNING DECIMAL(4, 2))`
+      FROM (VALUES ('{"a": 13.89}'), ('{"a": 3000000000}'), ('{"a": 13.379}')) AS t(doc);
+    result: |
+      | doc               | JSON_VALUE(doc, '$.a' RETURNING INT) | JSON_VALUE(doc, '$.a' RETURNING DECIMAL(4, 2)) |
+      |-------------------|--------------------------------------|------------------------------------------------|
+      | {"a": 13.89}      | 13                                   | 13.89                                          |
+      | {"a": 3000000000} | NULL                                 | NULL                                           |
+      | {"a": 13.379}     | 13                                   | 13.38                                          |
+
+  - title: A JSON null
+    description: A JSON `null` goes to `ON ERROR` in strict mode and to `ON EMPTY` in lax mode.
+    sql: |
+      SELECT doc,
+        JSON_VALUE(doc, '$.a' DEFAULT 'E' ON EMPTY DEFAULT 'R' ON ERROR) AS `JSON_VALUE(doc, '$.a' DEFAULT 'E' ON EMPTY DEFAULT 'R' ON ERROR)`,
+        JSON_VALUE(doc, 'lax $.a' DEFAULT 'E' ON EMPTY DEFAULT 'R' ON ERROR) AS `JSON_VALUE(doc, 'lax $.a' DEFAULT 'E' ON EMPTY DEFAULT 'R' ON ERROR)`,
+        JSON_VALUE(doc, '$.a') AS `JSON_VALUE(doc, '$.a')`
+      FROM (VALUES ('{"a": null}')) AS t(doc);
+    result: |
+      | doc         | JSON_VALUE(doc, '$.a' DEFAULT 'E' ON EMPTY DEFAULT 'R' ON ERROR) | JSON_VALUE(doc, 'lax $.a' DEFAULT 'E' ON EMPTY DEFAULT 'R' ON ERROR) | JSON_VALUE(doc, '$.a') |
+      |-------------|------------------------------------------------------------------|----------------------------------------------------------------------|------------------------|
+      | {"a": null} | R                                                                | E                                                                    | NULL                   |

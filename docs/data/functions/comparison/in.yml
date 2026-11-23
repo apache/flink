@@ -1,0 +1,107 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IN
+summary: Returns whether a value equals one of a list of values, or one of the rows of a sub-query.
+
+syntax:
+  sql: |
+    expr [NOT] IN (expr1 [, expr2]*)
+    expr [NOT] IN (subquery)
+  java: |
+    $("expr").in(expr1, expr2, ...)
+    $("expr").in(table)
+  python: |
+    col("expr").in_(expr1, expr2, ...)
+    col("expr").in_(table)
+
+arguments:
+  - name: expr
+    type: Any type that `=` can compare
+    required: true
+    description: The value to look for.
+  - name: expr1, expr2, ...
+    type: Types comparable with `expr`, with a common type
+    required: false
+    description: The list of values to compare with.
+  - name: subquery
+    type: A query with one column
+    required: false
+    description: The rows to compare with. In the Table API, a `Table`.
+
+returns:
+  description: TRUE if `expr` equals a value of the list or a row of the sub-query, FALSE otherwise. `NOT IN` returns the opposite.
+  nulls: Returns NULL if `expr` is NULL, or if no value matches and the list or the sub-query contains a NULL. An empty sub-query returns FALSE, also for a NULL `expr`.
+  type: "`BOOLEAN`, NOT NULL if `expr` and the values of the list or the sub-query are NOT NULL."
+
+notes:
+  - "`NOT IN` with a NULL in the list or in the sub-query never returns TRUE, so a `WHERE` clause with it keeps no row. `NOT EXISTS` doesn't have this problem."
+  - If `expr` is a string and the list holds numbers, or the reverse, each value of the list is cast to the type of `expr`. So `'01' IN (1, 2)` is FALSE.
+  - In streaming mode, a sub-query runs as a join that keeps state, which can grow without bound. See [IN]({{< ref "docs/sql/reference/queries/set-ops" >}}#in). With `NOT IN`, a row that the query emits is retracted when a matching row arrives later.
+
+see_also:
+  - {name: EXISTS, ref: comparison/exists}
+  - {name: Comparison operators, ref: comparison/comparison-operators}
+
+examples:
+  - title: Filter by a list
+    description: Keep the orders whose status is in the list.
+    sql: |
+      SELECT id, status
+      FROM (VALUES (1, 'new'), (2, 'shipped'), (3, 'cancelled'), (4, CAST(NULL AS STRING))) AS t(id, status)
+      WHERE status IN ('new', 'shipped');
+    result: |
+      | id | status  |
+      |----|---------|
+      | 1  | new     |
+      | 2  | shipped |
+
+  - title: NULL in the list
+    description: A NULL in the list returns NULL if no value matches.
+    sql: |
+      SELECT x,
+        x IN (1, 2, 3) AS `x IN (1, 2, 3)`,
+        x IN (1, 2, NULL) AS `x IN (1, 2, NULL)`,
+        x NOT IN (1, 2, NULL) AS `x NOT IN (1, 2, NULL)`
+      FROM (VALUES (1), (4)) AS t(x);
+    result: |
+      | x | x IN (1, 2, 3) | x IN (1, 2, NULL) | x NOT IN (1, 2, NULL) |
+      |---|----------------|-------------------|-----------------------|
+      | 1 | TRUE           | TRUE              | FALSE                 |
+      | 4 | FALSE          | NULL              | NULL                  |
+
+  - title: A sub-query
+    description: Keep the orders of the customers that the sub-query returns.
+    sql: |
+      SELECT id, customer
+      FROM (VALUES (1, 'alice'), (2, 'bob'), (3, 'carol')) AS orders(id, customer)
+      WHERE customer IN (SELECT name FROM (VALUES ('alice'), ('carol')) AS vip(name));
+    result: |
+      | id | customer |
+      |----|----------|
+      | 1  | alice    |
+      | 3  | carol    |
+
+  - title: NOT IN with a NULL in the sub-query
+    description: The sub-query returns a NULL, so no row is kept.
+    sql: |
+      SELECT id, customer
+      FROM (VALUES (1, 'alice'), (2, 'bob'), (3, 'carol')) AS orders(id, customer)
+      WHERE customer NOT IN (SELECT name FROM (VALUES ('alice'), (CAST(NULL AS STRING))) AS blocked(name));
+    result: |
+      | id | customer |
+      |----|----------|

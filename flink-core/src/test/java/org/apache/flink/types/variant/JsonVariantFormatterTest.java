@@ -45,6 +45,35 @@ class JsonVariantFormatterTest {
     }
 
     @Test
+    void testStringEscaping() {
+        // longer than two words, so the escapes and the multibyte chars reach the word loop
+        final String pad = "x".repeat(8);
+        final String escaped = pad + "\"\\n\n\u0001" + pad;
+        final String escapedJson = pad + "\\\"\\\\n\\n\\u0001" + pad;
+        final String unescaped = "\u007Fé😀".repeat(3);
+        final Variant variant =
+                BUILDER.object()
+                        .add(escaped, BUILDER.of(escaped))
+                        .add(unescaped, BUILDER.of(unescaped))
+                        .add("", BUILDER.of(""))
+                        .build();
+
+        assertThat(variant.toJson())
+                .isEqualTo(
+                        "{\"\":\"\","
+                                + "\""
+                                + escapedJson
+                                + "\":\""
+                                + escapedJson
+                                + "\","
+                                + "\""
+                                + unescaped
+                                + "\":\""
+                                + unescaped
+                                + "\"}");
+    }
+
+    @Test
     void testNonFiniteNumbers() {
         final Variant variant =
                 BUILDER.array()

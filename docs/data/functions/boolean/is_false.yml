@@ -1,0 +1,74 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IS FALSE
+summary: Returns whether a condition is FALSE. Unlike `= FALSE`, it returns FALSE instead of NULL for a NULL condition.
+
+syntax:
+  sql: |
+    expr IS FALSE
+    expr IS NOT FALSE
+  java: |
+    $("expr").isFalse()
+    $("expr").isNotFalse()
+  python: |
+    col("expr").is_false
+    col("expr").is_not_false
+
+arguments:
+  - name: expr
+    type: BOOLEAN
+    required: true
+    description: The condition to test, such as a column or a comparison.
+
+returns:
+  description: "`IS FALSE` returns TRUE if `expr` is FALSE, and FALSE if it is TRUE or NULL. `IS NOT FALSE` returns the opposite: TRUE if `expr` is TRUE or NULL."
+  nulls: Never returns NULL.
+  type: "`BOOLEAN NOT NULL`."
+
+see_also:
+  - {name: IS TRUE, ref: boolean/is-true}
+  - {name: IS UNKNOWN, ref: boolean/is-unknown}
+  - {name: Logical operators, ref: boolean/logical-operators}
+
+examples:
+  - title: IS FALSE and = FALSE
+    description: For a NULL value, `= FALSE` returns NULL, while `IS FALSE` returns FALSE.
+    sql: |
+      SELECT flag,
+        flag IS FALSE AS `flag IS FALSE`,
+        flag IS NOT FALSE AS `flag IS NOT FALSE`,
+        flag = FALSE AS `flag = FALSE`
+      FROM (VALUES (TRUE), (FALSE), (CAST(NULL AS BOOLEAN))) AS t(flag);
+    result: |
+      | flag  | flag IS FALSE | flag IS NOT FALSE | flag = FALSE |
+      |-------|---------------|-------------------|--------------|
+      | TRUE  | FALSE         | TRUE              | FALSE        |
+      | FALSE | TRUE          | FALSE             | TRUE         |
+      | NULL  | FALSE         | TRUE              | NULL         |
+
+  - title: Keep the rows that aren't FALSE
+    description: Keep the users who didn't opt out, including row 3, whose `opted_in` is NULL.
+    sql: |
+      SELECT id, opted_in
+      FROM (VALUES (1, TRUE), (2, FALSE), (3, CAST(NULL AS BOOLEAN))) AS t(id, opted_in)
+      WHERE opted_in IS NOT FALSE;
+    result: |
+      | id | opted_in |
+      |----|----------|
+      | 1  | TRUE     |
+      | 3  | NULL     |

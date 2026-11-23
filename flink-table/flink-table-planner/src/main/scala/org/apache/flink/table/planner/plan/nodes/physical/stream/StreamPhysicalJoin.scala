@@ -128,8 +128,8 @@ class StreamPhysicalJoin(
       getUpsertKeys(right, joinSpec.getRightKeys),
       ChangelogPlanUtils.getChangelogMode(left.asInstanceOf[StreamPhysicalRel]).get,
       ChangelogPlanUtils.getChangelogMode(right.asInstanceOf[StreamPhysicalRel]).get,
-      InputProperty.DEFAULT,
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getLeft),
+      InputProperty.fromInput(getRight),
       StateTtlHint.getStateTtlFromHintOnBiRel(getHints),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

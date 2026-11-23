@@ -107,6 +107,28 @@ class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConversionTe
     }
 
     @Test
+    void testReplaceTableAsWithRepeatedColumnNames() {
+        assertThatThrownBy(
+                        () ->
+                                parseAndConvert(
+                                        "REPLACE TABLE replace_table (b, b) as SELECT b, a FROM t1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A column named 'b' already exists in the schema.");
+        assertThatThrownBy(
+                        () ->
+                                parseAndConvert(
+                                        "REPLACE TABLE replace_table (a bigint, a double) as SELECT * FROM t1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A column named 'a' already exists in the schema.");
+        assertThatThrownBy(
+                        () ->
+                                parseAndConvert(
+                                        "REPLACE TABLE replace_table (e int, e bigint) as SELECT * FROM t1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A column named 'e' already exists in the schema.");
+    }
+
+    @Test
     void testCreateOrReplaceTableAs() {
         String tableName = "create_or_replace_table";
         String sql =

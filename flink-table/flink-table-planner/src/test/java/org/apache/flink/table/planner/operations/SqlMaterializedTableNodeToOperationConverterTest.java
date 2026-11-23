@@ -977,6 +977,21 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "Column 'id' not found in the source schema."),
                 TestSpec.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id, shop_id)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "A column named 'shop_id' already exists in the schema."),
+                TestSpec.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, shop_id BIGINT)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "A column named 'shop_id' already exists in the schema."),
+                TestSpec.of(
+                        "CREATE MATERIALIZED TABLE users_shops (next_id AS shop_id + 1, next_id AS shop_id + 2)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "A column named 'next_id' already exists in the schema."),
+                TestSpec.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id STRING, user_id STRING)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",

@@ -35,6 +35,7 @@ public class IntervalJoinRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 IntervalJoinTestPrograms.INTERVAL_JOIN_EVENT_TIME,
+                IntervalJoinTestPrograms.INTERVAL_JOIN_EVENT_TIME_WITHOUT_EQUI_KEYS,
                 IntervalJoinTestPrograms.INTERVAL_JOIN_PROC_TIME,
                 IntervalJoinTestPrograms.INTERVAL_JOIN_NEGATIVE_INTERVAL,
                 IntervalJoinTestPrograms.INTERVAL_JOIN_EARLY_FIRE);

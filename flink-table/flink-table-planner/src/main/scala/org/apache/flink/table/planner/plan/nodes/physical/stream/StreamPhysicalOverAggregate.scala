@@ -53,7 +53,7 @@ class StreamPhysicalOverAggregate(
     new StreamExecOverAggregate(
       unwrapTableConfig(this),
       OverAggregateUtil.createOverSpec(logicWindow),
-      InputProperty.DEFAULT,
+      InputProperty.fromInput(getInput),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

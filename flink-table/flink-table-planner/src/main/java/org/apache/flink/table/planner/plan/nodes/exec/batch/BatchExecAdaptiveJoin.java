@@ -188,6 +188,7 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
         RowType leftType = (RowType) leftInputEdge.getOutputType();
         RowType rightType = (RowType) rightInputEdge.getOutputType();
         long managedMemory = JoinUtil.getManagedMemory(joinSpec.getJoinType(), config);
+        long externalBufferMemory = JoinUtil.getExternalBufferMemory(config);
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
                         config,
@@ -209,7 +210,8 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
                         estimatedLeftRowCount,
                         estimatedRightRowCount,
                         tryDistinctBuildRow,
-                        managedMemory);
+                        managedMemory,
+                        externalBufferMemory);
 
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
