@@ -22,19 +22,31 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 
+import org.apache.calcite.plan.Strong;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import javax.annotation.Nullable;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.DEFAULT_VERSION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.qualifyFunctionName;
@@ -50,6 +62,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * BuiltInFunctionDefinition} stack instead.
  *
  * <p>For simple functions, use the provided builder. Otherwise, this class can also be extended.
+ *
+ * <p>The builder either defines a self-contained function ({@link #newBuilder()}) or a versioned
+ * copy of an existing {@link SqlFunction} ({@link #newBuilder(SqlFunction)}). A copy behaves like
+ * the wrapped function during planning and follows the same rules as {@link BuiltInSqlOperator}:
+ * its name includes the version (e.g. {@code $CURRENT_DATE$1}) and older versions should be
+ * internal. See {@link FlinkSqlOperatorTable#VERSIONED_OPERATORS} for how to version a function
+ * that cannot be replaced by a self-contained one.
  */
 @Internal
 public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOperator {
@@ -112,6 +131,11 @@ public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOpera
         return new Builder();
     }
 
+    /** Builder for a versioned copy of the given function. */
+    public static WrappingBuilder newBuilder(SqlFunction function) {
+        return new WrappingBuilder(function);
+    }
+
     @Override
     public final Optional<Integer> getVersion() {
         return Optional.ofNullable(version);
@@ -139,6 +163,126 @@ public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOpera
     @Override
     public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
         return monotonicity.apply(call);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Versioned copy
+    // --------------------------------------------------------------------------------------------
+
+    /** A versioned copy of an existing {@link SqlFunction} that delegates to it. */
+    private static final class WrappingSqlFunction extends BuiltInSqlFunction {
+
+        private final SqlFunction function;
+
+        private WrappingSqlFunction(SqlFunction function, int version, boolean isInternal) {
+            super(
+                    qualifyFunctionName(function.getName(), version),
+                    version,
+                    function.getKind(),
+                    function.getReturnTypeInference(),
+                    function.getOperandTypeInference(),
+                    function.getOperandTypeChecker(),
+                    function.getFunctionType(),
+                    function.isDeterministic(),
+                    isInternal,
+                    function::getMonotonicity);
+            this.function = function;
+        }
+
+        @Override
+        public String getQualifiedName() {
+            return getName();
+        }
+
+        @Override
+        public SqlSyntax getSyntax() {
+            return function.getSyntax();
+        }
+
+        @Override
+        public @Nullable SqlIdentifier getSqlIdentifier() {
+            return function.getSqlIdentifier();
+        }
+
+        @Override
+        public SqlFunctionCategory getFunctionType() {
+            return function.getFunctionType();
+        }
+
+        @Override
+        public boolean isQuantifierAllowed() {
+            return function.isQuantifierAllowed();
+        }
+
+        @Override
+        public SqlOperandCountRange getOperandCountRange() {
+            return function.getOperandCountRange();
+        }
+
+        @Override
+        public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+            return function.checkOperandTypes(callBinding, throwOnFailure);
+        }
+
+        @Override
+        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+            return function.inferReturnType(opBinding);
+        }
+
+        @Override
+        public RelDataType deriveType(
+                SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+            return function.deriveType(validator, scope, call);
+        }
+
+        @Override
+        public void validateCall(
+                SqlCall call,
+                SqlValidator validator,
+                SqlValidatorScope scope,
+                SqlValidatorScope operandScope) {
+            function.validateCall(call, validator, scope, operandScope);
+        }
+
+        @Override
+        public SqlNode rewriteCall(SqlValidator validator, SqlCall call) {
+            return function.rewriteCall(validator, call);
+        }
+
+        @Override
+        public void unparse(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+            function.unparse(writer, call, leftPrec, rightPrec);
+        }
+
+        @Override
+        public String getAllowedSignatures(String opNameToUse) {
+            return function.getAllowedSignatures(opNameToUse);
+        }
+
+        @Override
+        public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+            return function.getMonotonicity(call);
+        }
+
+        @Override
+        public boolean isDeterministic() {
+            return function.isDeterministic();
+        }
+
+        @Override
+        public boolean isDynamicFunction() {
+            return function.isDynamicFunction();
+        }
+
+        @Override
+        public Supplier<Strong.Policy> getStrongPolicyInference() {
+            return function.getStrongPolicyInference();
+        }
+
+        @Override
+        public Boolean isSafeOperator() {
+            return function.isSafeOperator();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -245,6 +389,40 @@ public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOpera
                     isDeterministic,
                     isInternal,
                     monotonicity);
+        }
+    }
+
+    /** Builder for fluent definition of a versioned copy of an existing function. */
+    public static final class WrappingBuilder {
+
+        private final SqlFunction function;
+
+        private int version = DEFAULT_VERSION;
+
+        private boolean isInternal = false;
+
+        private WrappingBuilder(SqlFunction function) {
+            this.function = checkNotNull(function);
+        }
+
+        /**
+         * @see BuiltInFunctionDefinition.Builder#version(int)
+         */
+        public WrappingBuilder version(int version) {
+            this.version = version;
+            return this;
+        }
+
+        /**
+         * @see BuiltInFunctionDefinition.Builder#internal()
+         */
+        public WrappingBuilder internal() {
+            this.isInternal = true;
+            return this;
+        }
+
+        public BuiltInSqlFunction build() {
+            return new WrappingSqlFunction(function, version, isInternal);
         }
     }
 }
