@@ -18,9 +18,9 @@
 
 package org.apache.flink.core.memory;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-
-import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -44,17 +44,15 @@ import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for the access and transfer methods of the {@link MemorySegment}. */
+@ParameterizedClass(name = "[{index}]")
+@MethodSource("executionModes")
 abstract class MemorySegmentTestBase {
 
     private final Random random = new Random();
 
-    private int pageSize;
+    private final int pageSize;
 
     MemorySegmentTestBase(int pageSize) {
-        this.pageSize = pageSize;
-    }
-
-    void initMemorySegmentTestBase(int pageSize) {
         this.pageSize = pageSize;
     }
 
@@ -71,9 +69,8 @@ abstract class MemorySegmentTestBase {
     //  Access to primitives
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testByteAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testByteAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -148,9 +145,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testBooleanAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testBooleanAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -227,9 +223,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testCopyUnsafeIndexOutOfBounds(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testCopyUnsafeIndexOutOfBounds() {
         byte[] bytes = new byte[pageSize];
         MemorySegment segment = createSegment(pageSize);
 
@@ -240,9 +235,8 @@ abstract class MemorySegmentTestBase {
                 .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
-    @TestTemplate
-    void testEqualTo(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testEqualTo() {
         MemorySegment seg1 = createSegment(pageSize);
         MemorySegment seg2 = createSegment(pageSize);
 
@@ -262,9 +256,8 @@ abstract class MemorySegmentTestBase {
         assertThat(seg1.equalTo(seg2, i, i, 9)).isFalse();
     }
 
-    @TestTemplate
-    void testCharAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testCharAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -350,9 +343,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testShortAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testShortAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -438,9 +430,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testIntAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testIntAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -533,9 +524,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testLongAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testLongAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -651,9 +641,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testFloatAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testFloatAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -749,9 +738,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testDoubleAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testDoubleAccess() {
         final MemorySegment segment = createSegment(pageSize);
 
         // test exceptions
@@ -872,9 +860,8 @@ abstract class MemorySegmentTestBase {
     //  Bulk Byte Movements
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testBulkBytePutExceptions(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testBulkBytePutExceptions() {
         final MemorySegment segment = createSegment(pageSize);
 
         byte[] bytes = new byte[pageSize / 4 + (pageSize % 4)];
@@ -935,9 +922,8 @@ abstract class MemorySegmentTestBase {
                 .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
-    @TestTemplate
-    void testBulkByteGetExceptions(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testBulkByteGetExceptions() {
         final MemorySegment segment = createSegment(pageSize);
 
         byte[] bytes = new byte[pageSize / 4];
@@ -997,9 +983,8 @@ abstract class MemorySegmentTestBase {
                 .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
-    @TestTemplate
-    void testBulkByteAccess(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testBulkByteAccess() {
         // test expected correct behavior with default offset / length
         {
             final MemorySegment segment = createSegment(pageSize);
@@ -1096,9 +1081,8 @@ abstract class MemorySegmentTestBase {
     //  Writing / Reading to/from DataInput / DataOutput
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testDataInputOutput(int pageSize) throws IOException {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testDataInputOutput() throws IOException {
         MemorySegment seg = createSegment(pageSize);
         byte[] contents = new byte[pageSize];
         random.nextBytes(contents);
@@ -1138,9 +1122,8 @@ abstract class MemorySegmentTestBase {
         assertThat(targetBuffer).containsExactly(contents);
     }
 
-    @TestTemplate
-    void testDataInputOutputOutOfBounds(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testDataInputOutputOutOfBounds() {
         final int segmentSize = 52;
 
         // segment with random contents
@@ -1191,9 +1174,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testDataInputOutputStreamUnderflowOverflow(int pageSize) throws IOException {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testDataInputOutputStreamUnderflowOverflow() throws IOException {
         final int segmentSize = 1337;
 
         // segment with random contents
@@ -1251,9 +1233,8 @@ abstract class MemorySegmentTestBase {
     //  ByteBuffer Ops
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testByteBufferGet(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testByteBufferGet() {
         testByteBufferGet(false);
         testByteBufferGet(true);
     }
@@ -1287,16 +1268,14 @@ abstract class MemorySegmentTestBase {
         assertThat(result).containsExactly(bytes);
     }
 
-    @TestTemplate
-    void testHeapByteBufferGetReadOnly(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testHeapByteBufferGetReadOnly() {
         assertThatExceptionOfType(ReadOnlyBufferException.class)
                 .isThrownBy(() -> testByteBufferGetReadOnly(false));
     }
 
-    @TestTemplate
-    void testOffHeapByteBufferGetReadOnly(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testOffHeapByteBufferGetReadOnly() {
         assertThatExceptionOfType(ReadOnlyBufferException.class)
                 .isThrownBy(() -> testByteBufferGetReadOnly(true));
     }
@@ -1319,9 +1298,8 @@ abstract class MemorySegmentTestBase {
         seg.get(0, target, pageSize);
     }
 
-    @TestTemplate
-    void testByteBufferPut(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testByteBufferPut() {
         testByteBufferPut(false);
         testByteBufferPut(true);
     }
@@ -1360,9 +1338,8 @@ abstract class MemorySegmentTestBase {
     //  ByteBuffer Ops on sliced byte buffers
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testSlicedByteBufferGet(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testSlicedByteBufferGet() {
         testSlicedByteBufferGet(false);
         testSlicedByteBufferGet(true);
     }
@@ -1399,9 +1376,8 @@ abstract class MemorySegmentTestBase {
         assertThat(result).containsExactly(bytes);
     }
 
-    @TestTemplate
-    void testSlicedByteBufferPut(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testSlicedByteBufferPut() {
         testSlicedByteBufferPut(false);
         testSlicedByteBufferPut(true);
     }
@@ -1444,9 +1420,8 @@ abstract class MemorySegmentTestBase {
     //  ByteBuffer overflow / underflow and out of bounds
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testByteBufferOutOfBounds(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testByteBufferOutOfBounds() {
         final int bbCapacity = pageSize / 10;
 
         final int[] validOffsets = {0, 1, pageSize / 10 * 9};
@@ -1516,9 +1491,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testByteBufferOverflowUnderflow(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testByteBufferOverflowUnderflow() {
         final int bbCapacity = pageSize / 10;
         ByteBuffer bb = ByteBuffer.allocate(bbCapacity);
 
@@ -1562,9 +1536,8 @@ abstract class MemorySegmentTestBase {
     //  Comparing and swapping
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testCompareBytes(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testCompareBytes() {
         final byte[] bytes1 = new byte[pageSize];
         final byte[] bytes2 = new byte[pageSize];
 
@@ -1604,9 +1577,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testCompareBytesWithDifferentLength(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testCompareBytesWithDifferentLength() {
         final byte[] bytes1 = new byte[] {'a', 'b', 'c'};
         final byte[] bytes2 = new byte[] {'a', 'b', 'c', 'd'};
 
@@ -1624,9 +1596,8 @@ abstract class MemorySegmentTestBase {
         assertThat(seg1.compare(seg2, 1, 1, 2, 1)).isGreaterThan(0);
     }
 
-    @TestTemplate
-    void testSwapBytes(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testSwapBytes() {
         final int halfPageSize = pageSize / 2;
 
         final byte[] bytes1 = new byte[pageSize];
@@ -1659,9 +1630,8 @@ abstract class MemorySegmentTestBase {
         }
     }
 
-    @TestTemplate
-    void testCheckAgainstOverflowUnderflowOnRelease(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testCheckAgainstOverflowUnderflowOnRelease() {
         MemorySegment seg = createSegment(512);
         seg.free();
 
@@ -1691,9 +1661,8 @@ abstract class MemorySegmentTestBase {
     //  Miscellaneous
     // ------------------------------------------------------------------------
 
-    @TestTemplate
-    void testByteBufferWrapping(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testByteBufferWrapping() {
         MemorySegment seg = createSegment(1024);
 
         ByteBuffer buf1 = seg.wrap(13, 47);
@@ -1744,9 +1713,8 @@ abstract class MemorySegmentTestBase {
         assertThat(buf3.getInt(187)).isEqualTo(992288337);
     }
 
-    @TestTemplate
-    void testOwner(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testOwner() {
         // a segment without an owner has a null owner
         assertThat(createSegment(64).getOwner()).isNull();
 
@@ -1759,9 +1727,8 @@ abstract class MemorySegmentTestBase {
         assertThat(seg.getOwner()).isNotNull();
     }
 
-    @TestTemplate
-    void testSizeAndFreeing(int pageSize) {
-        initMemorySegmentTestBase(pageSize);
+    @Test
+    void testSizeAndFreeing() {
         // a segment without an owner has a null owner
         final int segmentSize = 651;
         MemorySegment seg = createSegment(segmentSize);
@@ -1778,7 +1745,6 @@ abstract class MemorySegmentTestBase {
     //  Parametrization to run with different segment sizes
     // ------------------------------------------------------------------------
 
-    @Parameters
     public static Collection<Object[]> executionModes() {
         return Arrays.asList(
                 new Object[] {32 * 1024}, new Object[] {4 * 1024}, new Object[] {512 * 1024});

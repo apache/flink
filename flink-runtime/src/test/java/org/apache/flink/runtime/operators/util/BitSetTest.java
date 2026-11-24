@@ -19,12 +19,11 @@ package org.apache.flink.runtime.operators.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.List;
@@ -32,7 +31,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(ParameterizedTestExtension.class)
+@ParameterizedClass(name = "byte size = {0}")
+@MethodSource("getByteSize")
 class BitSetTest {
 
     private BitSet bitSet;
@@ -51,36 +51,36 @@ class BitSetTest {
         bitSet.clear();
     }
 
-    @TestTemplate
+    @Test
     void verifyBitSetSize1() {
         assertThatThrownBy(() -> bitSet.setMemorySegment(memorySegment, 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @TestTemplate
+    @Test
     void verifyBitSetSize2() {
         assertThatThrownBy(() -> bitSet.setMemorySegment(null, 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @TestTemplate
+    @Test
     void verifyBitSetSize3() {
         assertThatThrownBy(() -> bitSet.setMemorySegment(memorySegment, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @TestTemplate
+    @Test
     void verifyInputIndex1() {
         assertThatThrownBy(() -> bitSet.set(8 * byteSize))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @TestTemplate
+    @Test
     void verifyInputIndex2() {
         assertThatThrownBy(() -> bitSet.set(-1)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @TestTemplate
+    @Test
     void testSetValues() {
         int bitSize = bitSet.bitSize();
         assertThat(bitSize).isEqualTo(8 * byteSize);
@@ -100,7 +100,6 @@ class BitSetTest {
         }
     }
 
-    @Parameters(name = "byte size = {0}")
     private static List<Integer> getByteSize() {
         return Arrays.asList(1000, 1024, 2019);
     }

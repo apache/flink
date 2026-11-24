@@ -23,14 +23,13 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.Parameter;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -40,7 +39,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
-@ExtendWith(ParameterizedTestExtension.class)
+@ParameterizedClass(name = "compressionEnabled = {0}")
+@MethodSource("compressionEnabled")
 abstract class BoundedDataTestBase {
 
     private Path subpartitionDataPath;
@@ -61,7 +61,6 @@ abstract class BoundedDataTestBase {
 
     @Parameter private static boolean compressionEnabled;
 
-    @Parameters(name = "compressionEnabled = {0}")
     private static List<Boolean> compressionEnabled() {
         return Arrays.asList(false, true);
     }
@@ -94,14 +93,14 @@ abstract class BoundedDataTestBase {
     //  Tests
     // ------------------------------------------------------------------------
 
-    @TestTemplate
+    @Test
     void testWriteAndReadData() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             testWriteAndReadData(bd);
         }
     }
 
-    @TestTemplate
+    @Test
     void testWriteAndReadDataAcrossRegions() throws Exception {
         if (!isRegionBased()) {
             return;
@@ -120,7 +119,7 @@ abstract class BoundedDataTestBase {
         readLongs(bd.createReader(), numBuffers, numLongs);
     }
 
-    @TestTemplate
+    @Test
     void returnNullAfterEmpty() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             bd.finishWrite();
@@ -134,7 +133,7 @@ abstract class BoundedDataTestBase {
         }
     }
 
-    @TestTemplate
+    @Test
     void testDeleteFileOnClose() throws Exception {
         final BoundedData bd = createBoundedData(subpartitionDataPath);
         assertThat(subpartitionDataPath).exists();
@@ -144,14 +143,14 @@ abstract class BoundedDataTestBase {
         assertThat(subpartitionDataPath).doesNotExist();
     }
 
-    @TestTemplate
+    @Test
     void testGetSizeSingleRegion() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             testGetSize(bd, 60_787, 76_687);
         }
     }
 
-    @TestTemplate
+    @Test
     void testGetSizeMultipleRegions() throws Exception {
         if (!isRegionBased()) {
             return;
