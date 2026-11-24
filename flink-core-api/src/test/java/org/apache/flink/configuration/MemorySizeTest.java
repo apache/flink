@@ -21,8 +21,10 @@ package org.apache.flink.configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for the {@link MemorySize} class. */
+@Isolated
 class MemorySizeTest {
 
     @Test
@@ -84,6 +87,19 @@ class MemorySizeTest {
         assertThat(cloned).isEqualTo(size);
         assertThat(cloned).hasSameHashCodeAs(size);
         assertThat(cloned).hasToString(size.toString());
+    }
+
+    @Test
+    void testToStringRoundTripWithLocalizedDigits() {
+        final Locale originalLocale = Locale.getDefault(Locale.Category.FORMAT);
+        Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("ar-EG"));
+        try {
+            final MemorySize size = MemorySize.parse("2 mb");
+
+            assertThat(MemorySize.parse(size.toString())).isEqualTo(size);
+        } finally {
+            Locale.setDefault(Locale.Category.FORMAT, originalLocale);
+        }
     }
 
     @Test
