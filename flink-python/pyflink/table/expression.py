@@ -2624,7 +2624,9 @@ class Expression(Generic[T]):
         :return: expression representing the updated structured type with modified
                  field values
         """
-        return _varargs_op("objectUpdate")(self, *kv)
+        gateway = get_gateway()
+        kv = to_jarray(gateway.jvm.Object, [_get_java_expression(e) for e in kv])
+        return _binary_op("objectUpdate")(self, kv)
 
     # ---------------------------- Bitmap functions -----------------------------
 

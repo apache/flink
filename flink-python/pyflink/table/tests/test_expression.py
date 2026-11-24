@@ -22,7 +22,7 @@ from py4j.protocol import Py4JJavaError
 
 from pyflink.table import DataTypes
 from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
-    JsonValueOnEmptyOrError, JsonType, JsonQueryWrapper, JsonQueryOnEmptyOrError
+    JsonValueOnEmptyOrError, JsonType, JsonQueryWrapper, JsonQueryOnEmptyOrError, JsonOnNull
 from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date,
                                        current_time, current_timestamp, current_database,
                                        local_timestamp, local_time, temporal_overlaps, date_format,
@@ -30,7 +30,8 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
-                                       convert_tz, unix_timestamp, uuid_v4, uuid_v7)
+                                       convert_tz, unix_timestamp, uuid_v4, uuid_v7, descriptor,
+                                       object_of, json_object, json_array)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -272,6 +273,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                                                   JsonQueryOnEmptyOrError.NULL,
                                                   JsonQueryOnEmptyOrError.EMPTY_ARRAY)))
 
+        # structured type functions
+        self.assertEqual("OBJECT_UPDATE(a, 'name', 'Alice', 'age', b)",
+                         str(expr1.object_update('name', 'Alice', 'age', expr2)))
+
         # xml functions
         self.assertEqual("PARSE_XML(a)", str(expr1.parse_xml()))
         self.assertEqual("PARSE_XML(a, true)", str(expr1.parse_xml(True)))
@@ -382,6 +387,17 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("row('key1', 1)", str(row("key1", 1)))
         self.assertEqual("map('key1', 1, 'key2', 2, 'key3', 3)",
                          str(map_("key1", 1, "key2", 2, "key3", 3)))
+        self.assertEqual('(`a`)', str(descriptor('a')))
+        self.assertEqual('(`a`, `b`)', str(descriptor('a', 'b')))
+        self.assertEqual("OBJECT_OF('com.example.User')", str(object_of('com.example.User')))
+        self.assertEqual("OBJECT_OF('com.example.User', 'name', 'Alice', 'age', a)",
+                         str(object_of('com.example.User', 'name', 'Alice', 'age', expr1)))
+        self.assertEqual('JSON_OBJECT(NULL)', str(json_object()))
+        self.assertEqual("JSON_OBJECT(ABSENT, 'k', a, 'n', null)",
+                         str(json_object(JsonOnNull.ABSENT, 'k', expr1, 'n', None)))
+        self.assertEqual('JSON_ARRAY(ABSENT)', str(json_array()))
+        self.assertEqual('JSON_ARRAY(NULL, a, 1, null)',
+                         str(json_array(JsonOnNull.NULL, expr1, 1, None)))
         self.assertEqual('4', str(row_interval(4)))
         self.assertEqual('pi()', str(pi()))
         self.assertEqual('e()', str(e()))

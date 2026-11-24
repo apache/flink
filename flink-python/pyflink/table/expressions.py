@@ -73,12 +73,6 @@ def _quaternion_op(op_name: str, first, second, third, forth) -> Expression:
         _get_java_expression(forth)))
 
 
-def _varargs_op(op_name: str, *args):
-    gateway = get_gateway()
-    return Expression(
-        getattr(gateway.jvm.Expressions, op_name)(*[_get_java_expression(arg) for arg in args]))
-
-
 def _add_version_doc():
     from inspect import getmembers, isfunction
     from pyflink.table import expressions
@@ -623,7 +617,8 @@ def descriptor(*column_names: str) -> Expression:
     :param column_names: One or more column names.
     :return: A descriptor expression.
     """
-    return _varargs_op("descriptor", *column_names)
+    gateway = get_gateway()
+    return _unary_op("descriptor", to_jarray(gateway.jvm.String, column_names))
 
 
 @PublicEvolving()
@@ -656,7 +651,9 @@ def object_of(class_name: str, *args) -> Expression:
 
     .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
     """
-    return _varargs_op("objectOf", class_name, *args)
+    gateway = get_gateway()
+    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+    return _binary_op("objectOf", class_name, args)
 
 
 @PublicEvolving()
@@ -1026,7 +1023,9 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_array`
     """
-    return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
+    gateway = get_gateway()
+    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+    return _binary_op("jsonObject", on_null._to_j_json_on_null(), args)
 
 
 @PublicEvolving()
@@ -1085,7 +1084,9 @@ def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_object`
     """
-    return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))
+    gateway = get_gateway()
+    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+    return _binary_op("jsonArray", on_null._to_j_json_on_null(), args)
 
 
 @PublicEvolving()
