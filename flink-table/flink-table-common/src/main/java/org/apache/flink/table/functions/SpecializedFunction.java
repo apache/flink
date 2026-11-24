@@ -153,13 +153,6 @@ public interface SpecializedFunction extends FunctionDefinition {
          * equal to, or after the right one. Both values are internal data structures.
          */
         int compare(Object left, Object right);
-
-        /**
-         * Closes the runtime implementation.
-         *
-         * <p>This method should be called in {@link UserDefinedFunction#close()}.
-         */
-        default void close() {}
     }
 
     /**

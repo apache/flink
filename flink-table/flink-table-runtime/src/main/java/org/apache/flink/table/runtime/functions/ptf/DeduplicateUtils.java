@@ -81,10 +81,6 @@ public final class DeduplicateUtils {
             projectedRight = ProjectedRowData.from(indices);
         }
 
-        public void close() {
-            comparator.close();
-        }
-
         /**
          * Returns a negative number, zero, or a positive number if the left record orders before,
          * equal to, or after the right one.

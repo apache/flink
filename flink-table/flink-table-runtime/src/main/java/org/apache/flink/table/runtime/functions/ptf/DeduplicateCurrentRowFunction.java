@@ -114,14 +114,6 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
         emptyRow = GenericRowData.of();
     }
 
-    @Override
-    public void close() throws Exception {
-        if (sequenceComparator != null) {
-            sequenceComparator.close();
-        }
-        super.close();
-    }
-
     public void eval(
             final Context ctx,
             final ValueView<RowData> currentState,
