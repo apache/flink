@@ -276,7 +276,7 @@ public class JsonToRowDataConverters implements Serializable {
 
     private BinaryVariant convertToVariant(JsonNode jsonNode) {
         try {
-            return BinaryVariantInternalBuilder.parseJson(jsonNode.toString(), false);
+            return BinaryVariantInternalBuilder.parseJson(jsonNode, false);
         } catch (IOException e) {
             throw new JsonParseException("Unable to deserialize VARIANT value.", e);
         }

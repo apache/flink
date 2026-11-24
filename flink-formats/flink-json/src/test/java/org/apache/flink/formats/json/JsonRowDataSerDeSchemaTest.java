@@ -37,6 +37,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.variant.BinaryVariantBuilder;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -299,6 +300,27 @@ public class JsonRowDataSerDeSchemaTest {
         open(deserializationSchema);
         assertThat(deserializationSchema.deserialize(json).getVariant(0).toJson())
                 .isEqualTo("{\"key\":2}");
+    }
+
+    @TestTemplate
+    void testVariantWholeNumberInExponentNotationIsStoredAsInteger() throws Exception {
+        // With a DECIMAL column the reader parses floats as BigDecimal, which prints -11E+0 as
+        // -11. PARSE_JSON of that text stores an integer, and so does the VARIANT read.
+        byte[] json = "{\"decimal\":1.0,\"variant\":[-11E+0,1E0,1.5E0]}".getBytes();
+        RowType rowType =
+                (RowType)
+                        ROW(FIELD("decimal", DECIMAL(10, 2)), FIELD("variant", VARIANT()))
+                                .getLogicalType();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+        Variant variant = deserializationSchema.deserialize(json).getVariant(1);
+        assertThat(variant.getElement(0).getType()).isEqualTo(Variant.Type.TINYINT);
+        assertThat(variant.getElement(1).getType()).isEqualTo(Variant.Type.TINYINT);
+        assertThat(variant.getElement(2).getType()).isEqualTo(Variant.Type.DECIMAL);
+        assertThat(variant.toJson()).isEqualTo("[-11,1,1.5]");
     }
 
     @TestTemplate
