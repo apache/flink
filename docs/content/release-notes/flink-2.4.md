@@ -27,6 +27,58 @@ These release notes discuss important aspects, such as configuration, behavior o
 that changed between Flink 2.3 and Flink 2.4. Please read these notes carefully if you are
 planning to upgrade your Flink version to 2.4.
 
+### Dependencies and configuration
+
+#### Upgrade SLF4J to 2.0.20
+
+##### [FLINK-40574](https://issues.apache.org/jira/browse/FLINK-40574)
+
+Flink 2.4 upgrades SLF4J from 1.7.36 to 2.0.20. Flink's default distribution uses the matching
+SLF4J 2.x Log4j binding. Applications that provide another logging backend must use an SLF4J
+2.x-compatible provider. In particular, Logback 1.2 is not compatible with SLF4J 2.x.
+
+Before upgrading, remove bundled copies of `slf4j-api 1.x` from application JARs and update custom
+logging providers and bridges to versions compatible with SLF4J 2.x. Mixing SLF4J 1.x and 2.x
+artifacts can prevent logging providers from being discovered and result in missing log output.
+
+#### Removed deprecated configuration keys
+
+##### [FLINK-40734](https://issues.apache.org/jira/browse/FLINK-40734)
+
+Related subtasks: [FLINK-40813](https://issues.apache.org/jira/browse/FLINK-40813),
+[FLINK-40815](https://issues.apache.org/jira/browse/FLINK-40815),
+[FLINK-40816](https://issues.apache.org/jira/browse/FLINK-40816),
+[FLINK-40817](https://issues.apache.org/jira/browse/FLINK-40817).
+
+Flink 2.4 no longer recognizes the deprecated configuration keys listed below. Replace them with
+their current keys before upgrading. If only an old key is configured, it is ignored and the
+replacement option remains unset or uses its default value.
+
+| Removed key | Replacement key |
+| --- | --- |
+| `akka.client.timeout` | `client.timeout` |
+| `dstl.dfs.base-path` | `state.changelog.dstl.dfs.base-path` |
+| `dstl.dfs.compression.enabled` | `state.changelog.dstl.dfs.compression.enabled` |
+| `dstl.dfs.preemptive-persist-threshold` | `state.changelog.dstl.dfs.preemptive-persist-threshold` |
+| `dstl.dfs.batch.persist-delay` | `state.changelog.dstl.dfs.batch.persist-delay` |
+| `dstl.dfs.batch.persist-size-threshold` | `state.changelog.dstl.dfs.batch.persist-size-threshold` |
+| `dstl.dfs.upload.buffer-size` | `state.changelog.dstl.dfs.upload.buffer-size` |
+| `dstl.dfs.upload.num-threads` | `state.changelog.dstl.dfs.upload.num-threads` |
+| `dstl.dfs.discard.num-threads` | `state.changelog.dstl.dfs.discard.num-threads` |
+| `dstl.dfs.upload.max-in-flight` | `state.changelog.dstl.dfs.upload.max-in-flight` |
+| `dstl.dfs.upload.retry-policy` | `state.changelog.dstl.dfs.upload.retry-policy` |
+| `dstl.dfs.upload.timeout` | `state.changelog.dstl.dfs.upload.timeout` |
+| `dstl.dfs.upload.max-attempts` | `state.changelog.dstl.dfs.upload.max-attempts` |
+| `dstl.dfs.upload.next-attempt-delay` | `state.changelog.dstl.dfs.upload.next-attempt-delay` |
+| `dstl.dfs.download.local-cache.idle-timeout-ms` | `state.changelog.dstl.dfs.download.local-cache.idle-timeout-ms` |
+| `kubernetes.jobmanager.cpu` | `kubernetes.jobmanager.cpu.amount` |
+| `kubernetes.taskmanager.cpu` | `kubernetes.taskmanager.cpu.amount` |
+| `kubernetes.container.image` | `kubernetes.container.image.ref` |
+| `kubernetes.pod-template-file` | `kubernetes.pod-template-file.default` |
+| `yarn.per-job-cluster.include-user-jar` | `yarn.classpath.include-user-jar` |
+| `yarn.heartbeat-delay` | `yarn.heartbeat.interval` |
+| `yarn.ship-directories` | `yarn.ship-files` |
+
 ### Table SQL / API
 
 #### Upgrade Calcite to 1.41.0
@@ -139,10 +191,9 @@ The new `ProcessTableFunctionTestHarness` lets developers test PTF business logi
 starting a Flink cluster. Tests can configure scalar and table arguments, partitioning, and
 initial state, feed rows into individual inputs, and inspect the resulting output.
 
-The harness also supports advancing watermarks and the system clock, inspecting timers,
-accessing state per key, and testing state TTL and changelog handling. This makes temporal and
-stateful behavior easier to test deterministically. Full planner and runtime integration
-should still be covered by integration tests.
+The harness also supports advancing watermarks, inspecting timers, and accessing state per key.
+This makes temporal and stateful behavior easier to test deterministically. Full planner and
+runtime integration should still be covered by integration tests.
 
 #### Strict BYTES-to-STRING casts and UTF-8 utilities
 
@@ -189,11 +240,14 @@ Existing connectors retain their behavior unless they implement the new capabili
 table without dropping and recreating the catalog object. The conversion preserves the table's
 identity and underlying storage and starts a refresh job for the defining query.
 
-Conversion is disabled by default. Enable it when initializing the session with:
+Conversion is disabled by default. Add the following option to `config.yaml` before starting the
+session:
 
 ```yaml
 table.materialized-table.conversion-from-table.enabled: true
 ```
+
+This option is read when the session starts; changing it later with `SET` has no effect.
 
 The catalog must support the new `convertTableToMaterializedTable` operation. The conversion
 statement defines the resulting schema and options; existing primary keys, watermarks, and
@@ -354,6 +408,9 @@ CREATE CATALOG saved_state WITH (
 );
 ```
 
-The catalog is provided by `flink-state-processing-api`. Snapshot metadata views additionally
-require the state module to be loaded. Catalog write operations are unsupported; querying
-the catalog does not modify the source checkpoints or savepoints.
+The catalog is provided by the `org.apache.flink:flink-state-processor-api` Maven artifact. The
+Flink distribution includes its JAR in the `${FLINK_HOME}/opt/` directory, which is not on the classpath by
+default. Copy the JAR to `${FLINK_HOME}/lib/` or otherwise add it to the Flink classpath before starting Flink.
+Snapshot metadata views additionally require the state module to be loaded with `LOAD MODULE state`.
+Catalog write operations are unsupported; querying the catalog does not modify the source
+checkpoints or savepoints.
