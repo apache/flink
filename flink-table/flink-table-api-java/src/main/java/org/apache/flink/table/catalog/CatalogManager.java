@@ -1961,7 +1961,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @return A set of connection names.
      */
     public Set<String> listConnections(String catalogName, String databaseName) {
-        Catalog catalog = getCatalogOrError(catalogName);
+        Catalog catalog = getCatalogOrThrowException(catalogName);
         try {
             Set<String> connections = new HashSet<>(catalog.listConnections(databaseName));
 
