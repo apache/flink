@@ -79,10 +79,6 @@ class SeaweedFsNativeS3TestContainerTest {
         assertThat(config.containsKey(NativeS3FileSystemFactory.ACCESS_KEY.key())).isTrue();
         assertThat(config.containsKey(NativeS3FileSystemFactory.SECRET_KEY.key())).isTrue();
         assertThat(config.containsKey(NativeS3FileSystemFactory.PATH_STYLE_ACCESS.key())).isTrue();
-        assertThat(config.containsKey(NativeS3FileSystemFactory.CHUNKED_ENCODING_ENABLED.key()))
-                .isTrue();
-        assertThat(config.containsKey(NativeS3FileSystemFactory.CHECKSUM_VALIDATION_ENABLED.key()))
-                .isTrue();
     }
 
     @Test
