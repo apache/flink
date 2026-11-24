@@ -153,7 +153,7 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
     val project3 = relBuilder
       .project(
         relBuilder.field(0), // a
-        relBuilder.call(FlinkSqlOperatorTable.UNIX_TIMESTAMP) // UNIX_TIMESTAMP()
+        relBuilder.call(FlinkSqlOperatorTable.UNIX_TIMESTAMP_NO_OPERAND) // UNIX_TIMESTAMP()
       )
       .build()
     assertEquals(ImmutableList.of(RelCollations.of(1)), mq.collations(project3))

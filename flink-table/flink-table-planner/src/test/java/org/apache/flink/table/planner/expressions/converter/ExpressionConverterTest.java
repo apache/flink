@@ -30,6 +30,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
@@ -57,6 +58,28 @@ class ExpressionConverterTest {
     private final PlannerContext plannerContext = PlannerMocks.create().getPlannerContext();
     private final ExpressionConverter converter =
             new ExpressionConverter(plannerContext.createRelBuilder());
+
+    @Test
+    void testUnixTimestampOperatorSelection() {
+        final ResolvedExpression timestamp = valueLiteral("2025-01-01 00:00:00");
+        final ResolvedExpression format = valueLiteral("yyyy-MM-dd HH:mm:ss");
+
+        assertThat(
+                        List.of(
+                                isUnixTimestampDeterministic(),
+                                isUnixTimestampDeterministic(timestamp),
+                                isUnixTimestampDeterministic(timestamp, format)))
+                .containsExactly(false, true, true);
+    }
+
+    private boolean isUnixTimestampDeterministic(ResolvedExpression... operands) {
+        return RexUtil.isDeterministic(
+                converter.visit(
+                        CallExpression.permanent(
+                                BuiltInFunctionDefinitions.UNIX_TIMESTAMP,
+                                List.of(operands),
+                                DataTypes.BIGINT())));
+    }
 
     @Test
     void testLiteral() {

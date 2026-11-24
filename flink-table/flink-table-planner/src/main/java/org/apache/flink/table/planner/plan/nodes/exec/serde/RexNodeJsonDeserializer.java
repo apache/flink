@@ -622,7 +622,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                             syntax,
                             foundOperators,
                             SqlNameMatchers.liberal());
-            if (foundOperators.size() != 1) {
+            if (foundOperators.isEmpty()) {
                 return Optional.empty();
             }
             return Optional.of(foundOperators.get(0));
