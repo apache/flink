@@ -309,6 +309,12 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testPartitionByTimeAttributeIsNotForwardedAsTimeAttribute() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.verifyRelPlan("SELECT * FROM f(r => TABLE t_watermarked PARTITION BY ts, i => 42)");
+    }
+
+    @Test
     void testOrderBy() {
         util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyRelPlan(

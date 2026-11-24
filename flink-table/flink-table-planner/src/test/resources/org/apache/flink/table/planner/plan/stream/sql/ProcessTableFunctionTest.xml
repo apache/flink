@@ -371,6 +371,28 @@ Calc(select=[out, rowtime])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPartitionByTimeAttributeIsNotForwardedAsTimeAttribute">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE t_watermarked PARTITION BY ts, i => 42)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(ts=[$0], out=[$1])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($2), 42, DEFAULT(), DEFAULT())], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, VARCHAR(2147483647) out)])
+   +- LogicalProject(name=[$0], score=[$1], ts=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, t_watermarked]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($2), 42, DEFAULT(), DEFAULT())], uid=[f], select=[ts,out], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, VARCHAR(2147483647) out)])
++- Exchange(distribution=[hash[ts]])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+      +- TableSourceScan(table=[[default_catalog, default_database, t_watermarked]], fields=[name, score, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractModeWithRowSemantics">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(r => TABLE t)]]>
