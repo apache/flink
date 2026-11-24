@@ -97,6 +97,13 @@ class DeduplicateTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testPartitionByTimeAttribute() {
+        verifyPlan(
+                "SELECT * FROM DEDUPLICATE(input => TABLE user_events PARTITION BY ts, "
+                        + "keep => 'last')");
+    }
+
+    @Test
     void testOnTimeIsRejectedForUpdatingOutput() {
         assertThatThrownBy(
                         () ->

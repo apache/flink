@@ -38,8 +38,6 @@ import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -144,11 +142,8 @@ public final class DeduplicateDefinition {
 
     private static Optional<String> validate(final CallContext callContext) {
         final TableSemantics tableSemantics = tableSemantics(callContext);
-        return validatePartitionByNoTimeAttribute(tableSemantics)
-                .or(
-                        () ->
-                                CallContextUtils.validateEnumArgument(
-                                        callContext, ARG_KEEP, "keep", NAME, Keep.class))
+        return CallContextUtils.validateEnumArgument(
+                        callContext, ARG_KEEP, "keep", NAME, Keep.class)
                 .or(() -> validateSequenceBy(callContext, tableSemantics))
                 .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
     }
@@ -175,30 +170,6 @@ public final class DeduplicateDefinition {
         return Arrays.stream(ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics))
                 .mapToObj(inputFields::get)
                 .collect(Collectors.toList());
-    }
-
-    private static Optional<String> validatePartitionByNoTimeAttribute(
-            final TableSemantics tableSemantics) {
-        final List<Field> fields = DataType.getFields(tableSemantics.dataType());
-        return Arrays.stream(tableSemantics.partitionByColumns())
-                .mapToObj(fields::get)
-                .filter(
-                        field ->
-                                LogicalTypeChecks.isTimeAttribute(
-                                        field.getDataType().getLogicalType()))
-                .findFirst()
-                .map(
-                        field ->
-                                String.format(
-                                        "%s does not support a time attribute as a "
-                                                + "PARTITION BY column, but '%s' is one. Use "
-                                                + "CAST(%s AS %s) in a subquery first.",
-                                        NAME,
-                                        field.getName(),
-                                        field.getName(),
-                                        DataTypeUtils.removeTimeAttribute(field.getDataType())
-                                                .getLogicalType()
-                                                .asSummaryString()));
     }
 
     private static Optional<String> validateSequenceBy(

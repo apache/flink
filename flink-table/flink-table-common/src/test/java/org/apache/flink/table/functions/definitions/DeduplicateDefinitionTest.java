@@ -89,18 +89,6 @@ class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
                         .expectErrorMessage(
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
                                         + "received keep => 'FIRST'."),
-                withDefaults(
-                                "Time attribute in PARTITION BY",
-                                new TableSemanticsMock(
-                                        INPUT_TYPE,
-                                        new int[] {2},
-                                        new int[0],
-                                        -1,
-                                        ChangelogMode.insertOnly()))
-                        .expectErrorMessage(
-                                "DEDUPLICATE does not support a time attribute as a PARTITION BY "
-                                        + "column, but 'ts' is one. Use CAST(ts AS "
-                                        + "TIMESTAMP_LTZ(3)) in a subquery first."),
                 sequenceBy("Unknown sequence_by column", "nope")
                         .expectErrorMessage(
                                 "The sequence_by column 'nope' does not exist in the input of "
