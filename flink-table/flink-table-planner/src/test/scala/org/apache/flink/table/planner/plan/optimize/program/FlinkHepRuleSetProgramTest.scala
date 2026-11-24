@@ -17,12 +17,20 @@
  */
 package org.apache.flink.table.planner.plan.optimize.program
 
+import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
+
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl
+import org.apache.calcite.plan.{RelOptCluster, RelOptCostFactory, RelOptCostImpl, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.plan.volcano.VolcanoPlanner
+import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rel.rules._
+import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.tools.RuleSets
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.Assertions.{assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mock
 
 /** Tests for [[FlinkHepRuleSetProgram]]. */
 class FlinkHepRuleSetProgramTest {
@@ -41,6 +49,38 @@ class FlinkHepRuleSetProgramTest {
       .setMatchLimit(10)
       .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
       .build()
+  }
+
+  @Test
+  def testHepCostFactoryUsesRowCount(): Unit = {
+    val context = mock(classOf[FlinkOptimizeContext])
+    val planner = new VolcanoPlanner
+    val cluster = RelOptCluster.create(planner, new RexBuilder(new JavaTypeFactoryImpl))
+    val root = LogicalValues.createOneRow(cluster)
+
+    var costFactory: RelOptCostFactory = null
+    val rule = new RelOptRule(
+      RelOptRule.operand(classOf[LogicalValues], RelOptRule.none()),
+      "CaptureHepCostFactory") {
+      override def onMatch(call: RelOptRuleCall): Unit = {
+        costFactory = call.getPlanner.getCostFactory
+      }
+    }
+    FlinkHepRuleSetProgramBuilder
+      .newBuilder[FlinkOptimizeContext]
+      .add(RuleSets.ofList(rule))
+      .build()
+      .optimize(root, context)
+
+    assertThat(costFactory).isInstanceOf(classOf[FlinkCostFactory])
+    val expected = RelOptCostImpl.FACTORY
+    val flinkFactory = costFactory.asInstanceOf[FlinkCostFactory]
+    assertThat(flinkFactory.makeCost(10, 20, 30, 40, 50)).isEqualTo(expected.makeCost(10, 0, 0))
+    assertThat(costFactory.makeCost(10, 20, 30)).isEqualTo(expected.makeCost(10, 0, 0))
+    assertThat(costFactory.makeTinyCost()).isEqualTo(expected.makeTinyCost())
+    assertThat(costFactory.makeHugeCost()).isEqualTo(expected.makeHugeCost())
+    assertThat(costFactory.makeInfiniteCost()).isEqualTo(expected.makeInfiniteCost())
+    assertThat(costFactory.makeZeroCost()).isEqualTo(expected.makeZeroCost())
   }
 
   @Test

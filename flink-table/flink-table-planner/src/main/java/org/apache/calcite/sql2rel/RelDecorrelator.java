@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql2rel;
 
+import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
 
 import com.google.common.collect.ImmutableList;
@@ -32,7 +33,7 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.linq4j.function.Function2;
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCostImpl;
+import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -141,6 +142,8 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 260 ~ 267, Line 319 ~ 334
  *   <li>Should be removed after fix of FLINK-29540: Line 339 ~ 345
  *   <li>Should be removed after fix of FLINK-29540: Line 357 ~ 363
+ *   <li>FLINK-20899: Use Flink's HEP cost factory and isolate cost metadata in {@code
+ *       createPlanner}.
  * </ol>
  */
 public class RelDecorrelator implements ReflectiveVisitor {
@@ -440,8 +443,17 @@ public class RelDecorrelator implements ReflectiveVisitor {
     private HepPlanner createPlanner(HepProgram program) {
         // Create a planner with a hook to update the mapping tables when a
         // node is copied when it is registered.
+        // ----- FLINK MODIFICATION BEGIN -----
         HepPlanner planner =
-                new HepPlanner(program, context, true, createCopyHook(), RelOptCostImpl.FACTORY);
+                new HepPlanner(program, context, true, createCopyHook(), FlinkCostFactory.HEP()) {
+                    @Override
+                    public @Nullable RelOptCost getCost(RelNode rel, RelMetadataQuery mq) {
+                        // Volcano shares the cluster metadata cache and expects FlinkCost.
+                        return super.getCost(
+                                rel, rel.getCluster().getMetadataQuerySupplier().get());
+                    }
+                };
+        // ----- FLINK MODIFICATION END -----
         planner.setDecorrelator(this);
         return planner;
     }
