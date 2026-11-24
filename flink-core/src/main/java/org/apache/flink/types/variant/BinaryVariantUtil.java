@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -1023,7 +1024,7 @@ public class BinaryVariantUtil {
      */
     public static long nanosSinceEpoch(Instant instant) {
         try {
-            return ChronoUnit.NANOS.between(Instant.EPOCH, instant);
+            return Duration.between(Instant.EPOCH, instant).toNanos();
         } catch (ArithmeticException e) {
             throw new VariantTypeException(
                     String.format(
