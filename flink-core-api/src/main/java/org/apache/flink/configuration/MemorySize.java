@@ -152,8 +152,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
                         .orElse(BYTES);
 
         return String.format(
+                Locale.ROOT,
                 "%d %s",
-                bytes / highestIntegerUnit.getMultiplier(), highestIntegerUnit.getUnits()[1]);
+                bytes / highestIntegerUnit.getMultiplier(),
+                highestIntegerUnit.getUnits()[1]);
     }
 
     public String toHumanReadableString() {
