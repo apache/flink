@@ -116,28 +116,37 @@ public interface SpecializedFunction extends FunctionDefinition {
                 BuiltInFunctionDefinition function, DataType outputDataType, DataType... args);
 
         /**
-         * Creates a serializable comparator for values of the given data type, which orders them
-         * ascending with NULL before every other value.
+         * Creates a serializable comparator for values of the given data type, in the given order.
          *
          * <p>The comparator uses the same ordering as {@code ORDER BY}. A {@code ROW} or structured
-         * type is compared field by field, and the compared values are {@link RowData}. Any other
-         * type is compared as a single value. Types that cannot be ordered are rejected during
-         * planning.
+         * type is compared field by field, every field in the given order, and the compared values
+         * are {@link RowData}. Any other type is compared as a single value. Types that cannot be
+         * ordered are rejected during planning.
          *
          * <p>Initialize the comparator in {@link UserDefinedFunction#open(FunctionContext)} by
          * calling {@link GeneratedComparator#open(FunctionContext)}.
          *
          * @param dataType type of the compared values, which are expected in the internal data
          *     structure of the type, see {@link DataType#toInternal()}
+         * @param order direction of the comparison and position of NULL
          */
-        GeneratedComparator createComparator(DataType dataType);
+        GeneratedComparator createComparator(DataType dataType, ComparatorOrder order);
+    }
+
+    /** Order of a {@link GeneratedComparator}: its direction and where NULL sorts. */
+    @PublicEvolving
+    enum ComparatorOrder {
+        ASC_NULLS_FIRST,
+        ASC_NULLS_LAST,
+        DESC_NULLS_FIRST,
+        DESC_NULLS_LAST
     }
 
     /**
      * Serializable comparator that can be passed into a {@link UserDefinedFunction}. An instance is
      * not thread-safe and must be opened before values are compared.
      *
-     * @see ExpressionEvaluatorFactory#createComparator(DataType)
+     * @see ExpressionEvaluatorFactory#createComparator(DataType, ComparatorOrder)
      */
     @PublicEvolving
     interface GeneratedComparator extends Serializable {

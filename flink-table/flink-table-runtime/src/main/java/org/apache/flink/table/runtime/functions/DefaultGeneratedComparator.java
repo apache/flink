@@ -39,6 +39,8 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
 
     private final boolean isComposite;
 
+    private final boolean isNullFirst;
+
     private transient RecordComparator comparator;
 
     private transient GenericRowData leftRow;
@@ -46,9 +48,12 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
     private transient GenericRowData rightRow;
 
     public DefaultGeneratedComparator(
-            final GeneratedRecordComparator generated, final boolean isComposite) {
+            final GeneratedRecordComparator generated,
+            final boolean isComposite,
+            final boolean isNullFirst) {
         this.generated = generated;
         this.isComposite = isComposite;
+        this.isNullFirst = isNullFirst;
     }
 
     @Override
@@ -62,7 +67,10 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
     public int compare(final Object left, final Object right) {
         if (isComposite) {
             if (left == null || right == null) {
-                return left == null ? (right == null ? 0 : -1) : 1;
+                if (left == right) {
+                    return 0;
+                }
+                return (left == null) == isNullFirst ? -1 : 1;
             }
             return comparator.compare((RowData) left, (RowData) right);
         }

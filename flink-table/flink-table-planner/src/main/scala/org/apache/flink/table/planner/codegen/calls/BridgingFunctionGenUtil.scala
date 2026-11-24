@@ -27,7 +27,7 @@ import org.apache.flink.table.data.binary.{BinaryRawValueData, BinaryStringData}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, unresolvedCall, unresolvedRef}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions._
-import org.apache.flink.table.functions.SpecializedFunction.{ExpressionEvaluator, ExpressionEvaluatorFactory, GeneratedComparator}
+import org.apache.flink.table.functions.SpecializedFunction.{ComparatorOrder, ExpressionEvaluator, ExpressionEvaluatorFactory, GeneratedComparator}
 import org.apache.flink.table.functions.UserDefinedFunctionHelper._
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexFactory}
 import org.apache.flink.table.planner.codegen._
@@ -853,8 +853,10 @@ object BridgingFunctionGenUtil {
       }
     }
 
-    override def createComparator(dataType: DataType): GeneratedComparator = {
-      ComparatorCodeGenerator.genComparator(tableConfig, classLoader, dataType)
+    override def createComparator(
+        dataType: DataType,
+        order: ComparatorOrder): GeneratedComparator = {
+      ComparatorCodeGenerator.genComparator(tableConfig, classLoader, dataType, order)
     }
 
     /**
