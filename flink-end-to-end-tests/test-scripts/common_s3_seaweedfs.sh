@@ -29,6 +29,11 @@ export AWS_SECRET_ACCESS_KEY=secret_key
 
 IT_CASE_S3_BUCKET=test-data
 
+# The image pull is the flaky part of starting the container, so it gets a few attempts.
+S3_CONTAINER_START_RETRIES=3
+S3_CONTAINER_START_BACKOFF=5
+S3_CONTAINER_READY_TIMEOUT=120
+
 S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/words"
 
 ###################################
@@ -44,26 +49,63 @@ S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/words"
 ###################################
 function s3_start {
   echo "Spawning seaweedfs for s3 tests"
-  export SEAWEEDFS_CONTAINER_ID=$(docker run -d \
-    -P \
-    -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
-    chrislusf/seaweedfs:4.47 \
-    mini \
-    -s3.port=8333 \
-    -dir=/data \
-    -bucket="$IT_CASE_S3_BUCKET")
-  while [[ "$(docker inspect -f {{.State.Running}} "$SEAWEEDFS_CONTAINER_ID")" -ne "true" ]]; do
-    sleep 0.1
+
+  local attempt
+  for attempt in $(seq 1 ${S3_CONTAINER_START_RETRIES}); do
+    # The assignment must not be combined with the export: `export VAR=$(docker run ...)` reports
+    # the exit code of export, which is always 0, so a failed image pull went unnoticed here and
+    # only surfaced much later as an unusable S3_ENDPOINT (FLINK-40662).
+    if SEAWEEDFS_CONTAINER_ID=$(docker run -d \
+      -P \
+      -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
+      chrislusf/seaweedfs:4.47 \
+      mini \
+      -s3.port=8333 \
+      -dir=/data \
+      -bucket="$IT_CASE_S3_BUCKET"); then
+      break
+    fi
+    SEAWEEDFS_CONTAINER_ID=
+    echo "Starting the seaweedfs container failed (attempt ${attempt}/${S3_CONTAINER_START_RETRIES})"
+    if [[ ${attempt} -lt ${S3_CONTAINER_START_RETRIES} ]]; then
+      sleep ${S3_CONTAINER_START_BACKOFF}
+    fi
   done
-  export S3_ENDPOINT="http://$(docker port "$SEAWEEDFS_CONTAINER_ID" 8333 | grep -F '0.0.0.0' | sed s'/0\.0\.0\.0/localhost/')"
-  echo "Started seaweedfs @ $S3_ENDPOINT"
+
+  if [[ -z "$SEAWEEDFS_CONTAINER_ID" ]]; then
+    echo "Could not start the seaweedfs container in ${S3_CONTAINER_START_RETRIES} attempts"
+    exit 1
+  fi
+  export SEAWEEDFS_CONTAINER_ID
   on_exit s3_stop
 
+  if ! wait_for_container_running "$SEAWEEDFS_CONTAINER_ID"; then
+    docker logs "$SEAWEEDFS_CONTAINER_ID"
+    exit 1
+  fi
+
+  local port_mapping
+  port_mapping=$(docker port "$SEAWEEDFS_CONTAINER_ID" 8333 | grep -F '0.0.0.0' | sed s'/0\.0\.0\.0/localhost/')
+  if [[ -z "$port_mapping" ]]; then
+    echo "The seaweedfs container $SEAWEEDFS_CONTAINER_ID does not publish port 8333"
+    exit 1
+  fi
+  export S3_ENDPOINT="http://$port_mapping"
+  echo "Started seaweedfs @ $S3_ENDPOINT"
+
   # mini pre-creates the bucket and reports readiness only once all components are up.
-  while ! docker logs "$SEAWEEDFS_CONTAINER_ID" 2>&1 | grep "All enabled components are running and ready to use"; do
+  local i
+  for i in $(seq 1 $((S3_CONTAINER_READY_TIMEOUT * 10))); do
+    if docker logs "$SEAWEEDFS_CONTAINER_ID" 2>&1 | grep -q "All enabled components are running and ready to use"; then
+      echo "Seaweedfs S3 gateway is up @ $S3_ENDPOINT"
+      return 0
+    fi
     sleep 0.1
   done
-  echo "Seaweedfs S3 gateway is up @ $S3_ENDPOINT"
+
+  echo "Seaweedfs S3 gateway was not ready within a timeout of ${S3_CONTAINER_READY_TIMEOUT} sec"
+  docker logs "$SEAWEEDFS_CONTAINER_ID"
+  exit 1
 }
 
 ###################################
