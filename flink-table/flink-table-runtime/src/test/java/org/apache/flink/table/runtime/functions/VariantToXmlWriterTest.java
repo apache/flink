@@ -54,6 +54,16 @@ class VariantToXmlWriterTest {
 
     private static final VariantBuilder BUILDER = Variant.newBuilder();
 
+    // "x" followed by the allowed chars around the surrogates: a surrogate pair, U+D7FF, U+E000
+    // and U+FFFD.
+    private static final String ALLOWED_AROUND_SURROGATES =
+            new StringBuilder("x")
+                    .appendCodePoint(0x1F600)
+                    .appendCodePoint(0xD7FF)
+                    .appendCodePoint(0xE000)
+                    .appendCodePoint(0xFFFD)
+                    .toString();
+
     private final XmlToVariantParser parser = new XmlToVariantParser();
 
     /** Variants from {@code PARSE_XML}. */
@@ -259,10 +269,30 @@ class VariantToXmlWriterTest {
         Stream<Arguments> untypedScalars() {
             return Stream.of(
                     arguments(BUILDER.of("x"), "<a>x</a>"),
+                    arguments(BUILDER.of(""), "<a></a>"),
+                    // escapes at the end, and only escapes
+                    arguments(BUILDER.of("x&"), "<a>x&amp;</a>"),
+                    arguments(BUILDER.of("&<"), "<a>&amp;&lt;</a>"),
+                    // escaped in attribute values only
+                    arguments(BUILDER.of("\"\t\n"), "<a>\"\t\n</a>"),
+                    arguments(
+                            BUILDER.of(ALLOWED_AROUND_SURROGATES),
+                            "<a>" + ALLOWED_AROUND_SURROGATES + "</a>"),
                     // XML Schema has no type for a UUID.
                     arguments(
                             BUILDER.of(UUID.fromString("123e4567-e89b-12d3-a456-426614174000")),
                             "<a>123e4567-e89b-12d3-a456-426614174000</a>"));
+        }
+
+        @Test
+        void testAttributeAroundSurrogates() {
+            final Variant element =
+                    BUILDER.object()
+                            .add("@b", BUILDER.of(ALLOWED_AROUND_SURROGATES))
+                            .add("$", BUILDER.of("x"))
+                            .build();
+            assertThat(VariantToXmlWriter.write(BUILDER.object().add("a", element).build()))
+                    .isEqualTo("<a b=\"" + ALLOWED_AROUND_SURROGATES + "\">x</a>");
         }
 
         private String typed(String xsiType, String text) {
@@ -328,6 +358,18 @@ class VariantToXmlWriterTest {
                             "{\"a\":{\"@b\":\"x\\uFFFEy\"}}",
                             "The attribute 'b' of the element 'a' has the character U+FFFE, which XML "
                                     + "1.0 doesn't allow."),
+                    arguments(
+                            "{\"a\":{\"@b\":\"x\\u0001y\"}}",
+                            "The attribute 'b' of the element 'a' has the character U+0001, which XML "
+                                    + "1.0 doesn't allow."),
+                    arguments(
+                            "{\"a\":\"x\\uFFFEy\"}",
+                            "The text of the element 'a' has the character U+FFFE, which XML 1.0 "
+                                    + "doesn't allow."),
+                    arguments(
+                            "{\"a\":\"x\\uFFFFy\"}",
+                            "The text of the element 'a' has the character U+FFFF, which XML 1.0 "
+                                    + "doesn't allow."),
                     arguments(
                             "{\"a\":{\"$\":null,\"b\":\"x\"}}",
                             "The element 'a' has a null text and other content, but an element with "
