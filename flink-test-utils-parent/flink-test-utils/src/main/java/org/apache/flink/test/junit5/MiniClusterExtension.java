@@ -304,7 +304,7 @@ public final class MiniClusterExtension
     }
 
     private static class CloseableParameter<T extends AutoCloseable>
-            implements ExtensionContext.Store.CloseableResource {
+            implements ExtensionContext.Store.CloseableResource, AutoCloseable {
         private final T autoCloseable;
 
         CloseableParameter(T autoCloseable) {
@@ -316,7 +316,7 @@ public final class MiniClusterExtension
         }
 
         @Override
-        public void close() throws Throwable {
+        public void close() throws Exception {
             this.autoCloseable.close();
         }
     }
