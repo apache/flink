@@ -37,7 +37,7 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
 
     private final GeneratedRecordComparator generated;
 
-    private final boolean isRow;
+    private final boolean isComposite;
 
     private transient RecordComparator comparator;
 
@@ -46,9 +46,9 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
     private transient GenericRowData rightRow;
 
     public DefaultGeneratedComparator(
-            final GeneratedRecordComparator generated, final boolean isRow) {
+            final GeneratedRecordComparator generated, final boolean isComposite) {
         this.generated = generated;
-        this.isRow = isRow;
+        this.isComposite = isComposite;
     }
 
     @Override
@@ -60,7 +60,7 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
 
     @Override
     public int compare(final Object left, final Object right) {
-        if (isRow) {
+        if (isComposite) {
             return comparator.compare((RowData) left, (RowData) right);
         }
         leftRow.setField(0, left);

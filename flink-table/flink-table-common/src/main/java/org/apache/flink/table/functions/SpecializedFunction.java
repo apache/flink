@@ -119,9 +119,10 @@ public interface SpecializedFunction extends FunctionDefinition {
          * Creates a serializable comparator for values of the given data type, which orders them
          * ascending with NULL before every other value.
          *
-         * <p>The comparator uses the same ordering as {@code ORDER BY}. A {@code ROW} type is
-         * compared field by field, and the compared values are {@link RowData}. Any other type is
-         * compared as a single value. Types that cannot be ordered are rejected during planning.
+         * <p>The comparator uses the same ordering as {@code ORDER BY}. A {@code ROW} or structured
+         * type is compared field by field, and the compared values are {@link RowData}. Any other
+         * type is compared as a single value. Types that cannot be ordered are rejected during
+         * planning.
          *
          * <p>Initialize the comparator in {@link UserDefinedFunction#open(FunctionContext)} by
          * calling {@link GeneratedComparator#open(FunctionContext)}.

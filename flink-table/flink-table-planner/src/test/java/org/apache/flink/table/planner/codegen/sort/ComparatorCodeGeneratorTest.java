@@ -52,6 +52,21 @@ class ComparatorCodeGeneratorTest {
     }
 
     @Test
+    void testStructuredTypeOrdersFieldByField() {
+        final GeneratedComparator comparator =
+                open(
+                        DataTypes.STRUCTURED(
+                                        Point.class,
+                                        DataTypes.FIELD("a", DataTypes.INT()),
+                                        DataTypes.FIELD("b", DataTypes.STRING()))
+                                .toInternal());
+
+        assertThat(comparator.compare(row(1, "b"), row(2, "a"))).isNegative();
+        assertThat(comparator.compare(row(1, "b"), row(1, "a"))).isPositive();
+        assertThat(comparator.compare(row(null, "z"), row(0, "a"))).isNegative();
+    }
+
+    @Test
     void testNonRowIsComparedAsRowOfOneField() {
         final GeneratedComparator comparator = open(DataTypes.BIGINT().toInternal());
 
@@ -82,5 +97,11 @@ class ComparatorCodeGeneratorTest {
 
     private static GenericRowData row(final Integer a, final String b) {
         return GenericRowData.of(a, b == null ? null : StringData.fromString(b));
+    }
+
+    /** Structured type under test. */
+    public static class Point {
+        public Integer a;
+        public String b;
     }
 }

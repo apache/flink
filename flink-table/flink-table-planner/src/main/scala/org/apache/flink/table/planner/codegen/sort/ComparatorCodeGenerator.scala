@@ -26,7 +26,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.functions.DefaultGeneratedComparator
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.{LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+
+import scala.collection.JavaConverters._
 
 /** A code generator for generating [[RecordComparator]]. */
 object ComparatorCodeGenerator {
@@ -37,13 +40,15 @@ object ComparatorCodeGenerator {
       classLoader: ClassLoader,
       dataType: DataType): GeneratedComparator = {
     val logicalType = dataType.getLogicalType
-    val isRow = logicalType.is(LogicalTypeRoot.ROW)
-    val rowType = if (isRow) logicalType.asInstanceOf[RowType] else RowType.of(logicalType)
+    val isComposite = LogicalTypeChecks.isCompositeType(logicalType)
+    val fieldTypes =
+      if (isComposite) LogicalTypeChecks.getFieldTypes(logicalType).asScala else Seq(logicalType)
+    val rowType = RowType.of(fieldTypes: _*)
     val sortSpec = SortSpec.builder()
     (0 until rowType.getFieldCount).foreach(i => sortSpec.addField(i, true, false))
     new DefaultGeneratedComparator(
       gen(tableConfig, classLoader, "GeneratedComparator", rowType, sortSpec.build()),
-      isRow)
+      isComposite)
   }
 
   /**
