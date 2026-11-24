@@ -21,8 +21,8 @@ summary: Parses a JSON string into a `VARIANT`, and returns NULL for invalid JSO
 syntax:
   sql: TRY_PARSE_JSON(json_string [, allow_duplicate_keys])
   java: |
-    $("json_string").tryParseJson()
-    $("json_string").tryParseJson(allowDuplicateKeys)
+    $("jsonString").tryParseJson()
+    $("jsonString").tryParseJson(allowDuplicateKeys)
   python: |
     col("json_string").try_parse_json()
     col("json_string").try_parse_json(allow_duplicate_keys)

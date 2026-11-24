@@ -21,8 +21,8 @@ summary: Parses a JSON string into a `VARIANT`, and fails on invalid JSON.
 syntax:
   sql: PARSE_JSON(json_string [, allow_duplicate_keys])
   java: |
-    $("json_string").parseJson()
-    $("json_string").parseJson(allowDuplicateKeys)
+    $("jsonString").parseJson()
+    $("jsonString").parseJson(allowDuplicateKeys)
   python: |
     col("json_string").parse_json()
     col("json_string").parse_json(allow_duplicate_keys)

@@ -21,8 +21,8 @@ summary: Parses an XML document into a `VARIANT`, and returns NULL for invalid X
 syntax:
   sql: TRY_PARSE_XML(xml_string [, force_array])
   java: |
-    $("xml_string").tryParseXml()
-    $("xml_string").tryParseXml(forceArray)
+    $("xmlString").tryParseXml()
+    $("xmlString").tryParseXml(forceArray)
   python: |
     col("xml_string").try_parse_xml()
     col("xml_string").try_parse_xml(force_array)
