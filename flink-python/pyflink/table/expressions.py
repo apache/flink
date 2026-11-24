@@ -19,7 +19,8 @@ from typing import Union
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
+from pyflink.table.expression import (Expression, _get_java_expression, _to_java_varargs,
+                                      TimePointUnit, JsonOnNull)
 from pyflink.table.literal import _to_java_literal_value
 from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
@@ -143,9 +144,7 @@ def and_(predicate0: Union[bool, Expression[bool]],
     """
     Boolean AND in three-valued logic.
     """
-    gateway = get_gateway()
-    predicates = to_jarray(gateway.jvm.Object, [_get_java_expression(p) for p in predicates])
-    return _ternary_op("and", predicate0, predicate1, predicates)
+    return _ternary_op("and", predicate0, predicate1, _to_java_varargs(predicates))
 
 
 @PublicEvolving()
@@ -155,9 +154,7 @@ def or_(predicate0: Union[bool, Expression[bool]],
     """
     Boolean OR in three-valued logic.
     """
-    gateway = get_gateway()
-    predicates = to_jarray(gateway.jvm.Object, [_get_java_expression(p) for p in predicates])
-    return _ternary_op("or", predicate0, predicate1, predicates)
+    return _ternary_op("or", predicate0, predicate1, _to_java_varargs(predicates))
 
 
 @PublicEvolving()
@@ -535,9 +532,7 @@ def array(head, *tail) -> Expression:
 
         >>> tab.select(array(1, 2, 3))
     """
-    gateway = get_gateway()
-    tail = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tail])
-    return _binary_op("array", head, tail)
+    return _binary_op("array", head, _to_java_varargs(tail))
 
 
 @PublicEvolving()
@@ -550,9 +545,7 @@ def row(head, *tail) -> Expression:
 
         >>> tab.select(row("key1", 1))
     """
-    gateway = get_gateway()
-    tail = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tail])
-    return _binary_op("row", head, tail)
+    return _binary_op("row", head, _to_java_varargs(tail))
 
 
 @PublicEvolving()
@@ -574,9 +567,7 @@ def map_(key, value, *tail) -> Expression:
 
         keys and values should have the same types for all entries.
     """
-    gateway = get_gateway()
-    tail = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tail])
-    return _ternary_op("map", key, value, tail)
+    return _ternary_op("map", key, value, _to_java_varargs(tail))
 
 
 @PublicEvolving()
@@ -651,9 +642,7 @@ def object_of(class_name: str, *args) -> Expression:
 
     .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
     """
-    gateway = get_gateway()
-    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
-    return _binary_op("objectOf", class_name, args)
+    return _binary_op("objectOf", class_name, _to_java_varargs(args))
 
 
 @PublicEvolving()
@@ -742,11 +731,7 @@ def concat(first: Union[str, Expression[str]],
     Returns the string that results from concatenating the arguments.
     Returns NULL if any argument is NULL.
     """
-    gateway = get_gateway()
-    return _binary_op("concat",
-                      first,
-                      to_jarray(gateway.jvm.Object,
-                                [_get_java_expression(other) for other in others]))
+    return _binary_op("concat", first, _to_java_varargs(others))
 
 
 @PublicEvolving()
@@ -762,12 +747,7 @@ def concat_ws(separator: Union[str, Expression[str]],
         this function does not skip empty strings. However, it does skip any NULL
         values after the separator argument.
     """
-    gateway = get_gateway()
-    return _ternary_op("concatWs",
-                       separator,
-                       first,
-                       to_jarray(gateway.jvm.Object,
-                                 [_get_java_expression(other) for other in others]))
+    return _ternary_op("concatWs", separator, first, _to_java_varargs(others))
 
 
 @PublicEvolving()
@@ -872,9 +852,7 @@ def coalesce(*args) -> Expression:
 
     :param args: the input expressions.
     """
-    gateway = get_gateway()
-    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
-    return _unary_op("coalesce", args)
+    return _unary_op("coalesce", _to_java_varargs(args))
 
 
 @PublicEvolving()
@@ -908,9 +886,7 @@ def with_columns(head, *tails) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.range_`,
                  :func:`~pyflink.table.expressions.without_columns`
     """
-    gateway = get_gateway()
-    tails = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tails])
-    return _binary_op("withColumns", head, tails)
+    return _binary_op("withColumns", head, _to_java_varargs(tails))
 
 
 @PublicEvolving()
@@ -928,9 +904,7 @@ def without_columns(head, *tails) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.range_`,
                  :func:`~pyflink.table.expressions.with_columns`
     """
-    gateway = get_gateway()
-    tails = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tails])
-    return _binary_op("withoutColumns", head, tails)
+    return _binary_op("withoutColumns", head, _to_java_varargs(tails))
 
 
 @PublicEvolving()
@@ -1023,9 +997,7 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_array`
     """
-    gateway = get_gateway()
-    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
-    return _binary_op("jsonObject", on_null._to_j_json_on_null(), args)
+    return _binary_op("jsonObject", on_null._to_j_json_on_null(), _to_java_varargs(args))
 
 
 @PublicEvolving()
@@ -1084,9 +1056,7 @@ def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_object`
     """
-    gateway = get_gateway()
-    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
-    return _binary_op("jsonArray", on_null._to_j_json_on_null(), args)
+    return _binary_op("jsonArray", on_null._to_j_json_on_null(), _to_java_varargs(args))
 
 
 @PublicEvolving()
@@ -1162,8 +1132,7 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     gateway = get_gateway()
 
     if isinstance(f, str):
-        return Expression(gateway.jvm.Expressions.call(
-            f, to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])))
+        return Expression(gateway.jvm.Expressions.call(f, _to_java_varargs(args)))
 
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
     function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
@@ -1177,8 +1146,7 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     return Expression(api_call_method.invoke(
         None,
         to_jarray(gateway.jvm.Object,
-                  [f._java_user_defined_function(),
-                   to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
+                  [f._java_user_defined_function(), _to_java_varargs(args)])))
 
 
 @PublicEvolving()

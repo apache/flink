@@ -275,6 +275,15 @@ def _get_java_expression(expr, to_expr: bool = False):
         return expr
 
 
+def _to_java_varargs(args):
+    """
+    Packs the given arguments into a Java Object[], as py4j does not do this for a Java varargs
+    parameter.
+    """
+    gateway = get_gateway()
+    return to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+
+
 def _unary_op(op_name: str):
     def _(self) -> 'Expression':
         return Expression(getattr(self._j_expr, op_name)())
@@ -985,12 +994,8 @@ class Expression(Generic[T]):
             assert len(remaining_elements) == 0
             return _binary_op("in")(self, first_element_or_table._j_table)
         else:
-            gateway = get_gateway()
-            ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-            remaining_elements = (first_element_or_table, *remaining_elements)
-            exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in remaining_elements]
-            return _binary_op("in")(self, to_jarray(gateway.jvm.Object, exprs))
+            elements = (first_element_or_table, *remaining_elements)
+            return _binary_op("in")(self, _to_java_varargs(elements))
 
     @property
     def start(self) -> 'Expression':
@@ -1546,11 +1551,7 @@ class Expression(Generic[T]):
         :param obj: any expression
         :return: a formatted string. null if format is null or invalid.
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                 for e in obj]
-        return _binary_op("printf")(self, to_jarray(gateway.jvm.Object, exprs))
+        return _binary_op("printf")(self, _to_java_varargs(obj))
 
     def ltrim(self, trim_str=None) -> 'Expression[str]':
         """
@@ -1717,11 +1718,7 @@ class Expression(Generic[T]):
 
         :return: result type is the least common type of all expressions.
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in exprs]
-        return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
+        return _ternary_op("elt")(self, expr, _to_java_varargs(exprs))
 
     # ---------------------------- temporal functions ----------------------------------
 
@@ -2624,9 +2621,7 @@ class Expression(Generic[T]):
         :return: expression representing the updated structured type with modified
                  field values
         """
-        gateway = get_gateway()
-        kv = to_jarray(gateway.jvm.Object, [_get_java_expression(e) for e in kv])
-        return _binary_op("objectUpdate")(self, kv)
+        return _binary_op("objectUpdate")(self, _to_java_varargs(kv))
 
     # ---------------------------- Bitmap functions -----------------------------
 
