@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.AsyncCodeGenerator.DEFAULT_DELEGATING_FUTURE_TERM
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.planner.codegen.sort.GeneratedComparatorUtils
+import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -854,7 +854,7 @@ object BridgingFunctionGenUtil {
     }
 
     override def createComparator(dataType: DataType): GeneratedComparator = {
-      GeneratedComparatorUtils.create(tableConfig, classLoader, dataType)
+      ComparatorCodeGenerator.genComparator(tableConfig, classLoader, dataType)
     }
 
     /**

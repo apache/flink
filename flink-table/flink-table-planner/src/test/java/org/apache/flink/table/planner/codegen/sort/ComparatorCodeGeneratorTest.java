@@ -31,8 +31,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link GeneratedComparatorUtils}. */
-class GeneratedComparatorUtilsTest {
+/** Tests for {@link ComparatorCodeGenerator#genComparator}. */
+class ComparatorCodeGeneratorTest {
 
     @Test
     void testRowOrdersFieldByFieldWithNullFirst() {
@@ -64,7 +64,7 @@ class GeneratedComparatorUtilsTest {
     void testUnorderableTypeIsRejected() {
         assertThatThrownBy(
                         () ->
-                                GeneratedComparatorUtils.create(
+                                ComparatorCodeGenerator.genComparator(
                                         new Configuration(),
                                         Thread.currentThread().getContextClassLoader(),
                                         DataTypes.MAP(DataTypes.INT(), DataTypes.INT())
@@ -75,7 +75,7 @@ class GeneratedComparatorUtilsTest {
     private static GeneratedComparator open(final DataType dataType) {
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final GeneratedComparator comparator =
-                GeneratedComparatorUtils.create(new Configuration(), classLoader, dataType);
+                ComparatorCodeGenerator.genComparator(new Configuration(), classLoader, dataType);
         comparator.open(new FunctionContext(null, classLoader, null));
         return comparator;
     }
