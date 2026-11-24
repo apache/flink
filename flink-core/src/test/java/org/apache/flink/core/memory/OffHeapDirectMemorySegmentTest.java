@@ -18,10 +18,7 @@
 
 package org.apache.flink.core.memory;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
@@ -29,7 +26,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using direct memory. */
-@ExtendWith(ParameterizedTestExtension.class)
 class OffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
 
     OffHeapDirectMemorySegmentTest(int pageSize) {
@@ -46,7 +42,7 @@ class OffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
         return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
     }
 
-    @TestTemplate
+    @Test
     void testHeapSegmentSpecifics() {
         final int bufSize = 411;
         MemorySegment seg = createSegment(bufSize);

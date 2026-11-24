@@ -18,10 +18,7 @@
 
 package org.apache.flink.core.memory;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using unsafe memory. */
-@ExtendWith(ParameterizedTestExtension.class)
 class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
 
     OffHeapUnsafeMemorySegmentTest(int pageSize) {
@@ -47,14 +43,14 @@ class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, owner, () -> {});
     }
 
-    @TestTemplate
+    @Test
     @Override
-    void testByteBufferWrapping(int pageSize) {
+    void testByteBufferWrapping() {
         assertThatThrownBy(() -> createSegment(10).wrap(1, 2))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @TestTemplate
+    @Test
     void testCallCleanerOnFree() {
         final CompletableFuture<Void> cleanerFuture = new CompletableFuture<>();
         MemorySegmentFactory.allocateOffHeapUnsafeMemory(
@@ -63,7 +59,7 @@ class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         assertThat(cleanerFuture).isDone();
     }
 
-    @TestTemplate
+    @Test
     void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
         final AtomicInteger counter = new AtomicInteger(0);
         final Runnable cleaner =

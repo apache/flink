@@ -19,20 +19,19 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.configuration.MemorySize.MemoryUnit;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.Parameter;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MemorySize#toString()}. */
-@ExtendWith(ParameterizedTestExtension.class)
+@ParameterizedClass(name = "memorySize = {0}, expectedString = {1}")
+@MethodSource("parameters")
 class MemorySizePrettyPrintingTest {
 
-    @Parameters(name = "memorySize = {0}, expectedString = {1}")
     private static Object[][] parameters() {
         return new Object[][] {
             new Object[] {new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1), "1025 bytes"},
@@ -46,12 +45,13 @@ class MemorySizePrettyPrintingTest {
         };
     }
 
-    @Parameter private MemorySize memorySize;
+    @Parameter(0)
+    private MemorySize memorySize;
 
-    @Parameter(value = 1)
+    @Parameter(1)
     private String expectedString;
 
-    @TestTemplate
+    @Test
     void testFormatting() {
         assertThat(memorySize.toString()).isEqualTo(expectedString);
     }

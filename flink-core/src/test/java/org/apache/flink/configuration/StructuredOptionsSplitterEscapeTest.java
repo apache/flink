@@ -18,12 +18,10 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.Parameter;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,10 +29,10 @@ import java.util.Collection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StructuredOptionsSplitter#escapeWithSingleQuote}. */
-@ExtendWith(ParameterizedTestExtension.class)
+@ParameterizedClass(name = "testSpec = {0}")
+@MethodSource("getEncodeSpecs")
 class StructuredOptionsSplitterEscapeTest {
 
-    @Parameters(name = "testSpec = {0}")
     private static Collection<TestSpec> getEncodeSpecs() {
         return Arrays.asList(
                 TestSpec.encode("A,B,C,D", ";").expect("A,B,C,D"),
@@ -52,7 +50,7 @@ class StructuredOptionsSplitterEscapeTest {
 
     @Parameter private TestSpec testSpec;
 
-    @TestTemplate
+    @Test
     void testEscapeWithSingleQuote() {
         String encoded =
                 StructuredOptionsSplitter.escapeWithSingleQuote(

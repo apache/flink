@@ -18,17 +18,13 @@
 
 package org.apache.flink.core.memory;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MemorySegment} in on-heap mode. */
-@ExtendWith(ParameterizedTestExtension.class)
 class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
     OnHeapMemorySegmentTest(int pageSize) {
@@ -45,7 +41,7 @@ class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
         return MemorySegmentFactory.allocateUnpooledSegment(size, owner);
     }
 
-    @TestTemplate
+    @Test
     void testHeapSegmentSpecifics() {
         final byte[] buffer = new byte[411];
         MemorySegment seg = new MemorySegment(buffer, null);
@@ -65,7 +61,7 @@ class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
         assertThat(buf2.limit()).isEqualTo(7);
     }
 
-    @TestTemplate
+    @Test
     void testReadOnlyByteBufferPut() {
         final byte[] buffer = new byte[100];
         MemorySegment seg = new MemorySegment(buffer, null);
