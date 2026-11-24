@@ -35,6 +35,7 @@ import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlPostfixOperator;
 import org.apache.calcite.sql.SqlPrefixOperator;
 import org.apache.calcite.sql.SqlSyntax;
@@ -630,25 +631,46 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                 }
             };
 
+    public static final SqlFunction UNIX_TIMESTAMP_NO_OPERAND =
+            new SqlFunction(
+                    "UNIX_TIMESTAMP",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.BIGINT,
+                    null,
+                    OperandTypes.NILADIC,
+                    SqlFunctionCategory.TIMEDATE) {
+
+                @Override
+                public boolean isDeterministic() {
+                    return false;
+                }
+
+                @Override
+                public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+                    return SqlMonotonicity.INCREASING;
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    // According to SqlOperator#equals, two functions are equal if their
+                    // type and name are equal, regardless of their operand types.
+                    //
+                    // However we must differ UNIX_TIMESTAMP_NO_OPERAND from UNIX_TIMESTAMP because
+                    // the former is not deterministic while the latter is. So we rewrite the equal
+                    // method to compare by reference.
+                    return o == this;
+                }
+            };
+
     public static final SqlFunction UNIX_TIMESTAMP =
             BuiltInSqlFunction.newBuilder()
                     .name("UNIX_TIMESTAMP")
                     .returnType(ReturnTypes.BIGINT_NULLABLE)
                     .operandTypeChecker(
                             OperandTypes.or(
-                                    OperandTypes.NILADIC,
                                     OperandTypes.family(SqlTypeFamily.CHARACTER),
                                     OperandTypes.family(
                                             SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)))
-                    .notDeterministic()
-                    .monotonicity(
-                            call -> {
-                                if (call.getOperandCount() == 0) {
-                                    return SqlMonotonicity.INCREASING;
-                                } else {
-                                    return SqlMonotonicity.NOT_MONOTONIC;
-                                }
-                            })
                     .build();
 
     public static final SqlFunction FROM_UNIXTIME =
