@@ -49,6 +49,9 @@ class ComparatorCodeGeneratorTest {
         assertThat(comparator.compare(row(null, "z"), row(0, "a"))).isNegative();
         assertThat(comparator.compare(row(1, null), row(1, "a"))).isNegative();
         assertThat(comparator.compare(row(null, null), row(null, null))).isZero();
+        assertThat(comparator.compare(null, row(1, "a"))).isNegative();
+        assertThat(comparator.compare(row(1, "a"), null)).isPositive();
+        assertThat(comparator.compare(null, null)).isZero();
     }
 
     @Test
@@ -64,6 +67,7 @@ class ComparatorCodeGeneratorTest {
         assertThat(comparator.compare(row(1, "b"), row(2, "a"))).isNegative();
         assertThat(comparator.compare(row(1, "b"), row(1, "a"))).isPositive();
         assertThat(comparator.compare(row(null, "z"), row(0, "a"))).isNegative();
+        assertThat(comparator.compare(null, row(1, "a"))).isNegative();
     }
 
     @Test

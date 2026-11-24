@@ -61,6 +61,9 @@ public final class DefaultGeneratedComparator implements GeneratedComparator {
     @Override
     public int compare(final Object left, final Object right) {
         if (isComposite) {
+            if (left == null || right == null) {
+                return left == null ? (right == null ? 0 : -1) : 1;
+            }
             return comparator.compare((RowData) left, (RowData) right);
         }
         leftRow.setField(0, left);
