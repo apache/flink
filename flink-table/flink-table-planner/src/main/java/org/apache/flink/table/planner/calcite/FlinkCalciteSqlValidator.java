@@ -176,9 +176,20 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
     protected void validateJoin(SqlJoin join, SqlValidatorScope scope) {
         // Due to the improper translation of lateral table left outer join in Calcite, we need to
         // temporarily forbid the common predicates until the problem is fixed (see FLINK-7865).
-        if (join.getJoinType() == JoinType.LEFT
-                && SqlUtil.stripAs(join.getRight()).getKind() == SqlKind.COLLECTION_TABLE) {
-            SqlNode right = SqlUtil.stripAs(join.getRight());
+        SqlNode right = SqlUtil.stripAs(join.getRight());
+        if (join.getJoinType() == JoinType.LEFT && right.getKind() == SqlKind.LATERAL) {
+            final SqlNode table = SqlUtil.stripAs(((SqlCall) right).operand(0));
+            if (table.getKind() == SqlKind.COLLECTION_TABLE) {
+                final SqlCall function = ((SqlCall) table).operand(0);
+                final SqlOperator operator = function.getOperator();
+                // Window and process table functions such as SNAPSHOT can use join keys.
+                if (!(operator instanceof SqlWindowTableFunction)
+                        && !ShortcutUtils.isFunctionKind(operator, FunctionKind.PROCESS_TABLE)) {
+                    right = table;
+                }
+            }
+        }
+        if (join.getJoinType() == JoinType.LEFT && right.getKind() == SqlKind.COLLECTION_TABLE) {
             if (right instanceof SqlBasicCall) {
                 SqlBasicCall call = (SqlBasicCall) right;
                 SqlNode operand0 = call.operand(0);

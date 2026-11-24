@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.SortMergeJoin
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.runtime.utils.TestData.{buildInData, buildInType}
 import org.apache.flink.types.Row
 
@@ -612,15 +613,13 @@ class MiscITCase extends BatchTestBase {
    */
   @Test
   def testTableGenerateFunctionLeftJoin(): Unit = {
-    assertThatThrownBy(
-      () =>
-        checkResult(
-          "SELECT f, g, v FROM " +
-            "testTable LEFT OUTER JOIN LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v) " +
-            "ON LENGTH(f) = v + 2 OR LENGTH(g) = v + 4",
-          Seq(row(null, "hij_k", 1), row("e fg", null, 2))
-        )).isInstanceOf(classOf[ValidationException])
+    tEnv.createTemporarySystemFunction("STRING_SPLIT", new StringSplit())
+    val sql = "SELECT f, v FROM testTable " +
+      "LEFT OUTER JOIN LATERAL TABLE(STRING_SPLIT(f, '|')) AS T(v) ON f = v"
 
+    assertThatThrownBy(() => tEnv.sqlQuery(sql))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Only literal TRUE is accepted.")
   }
 
   @Test
