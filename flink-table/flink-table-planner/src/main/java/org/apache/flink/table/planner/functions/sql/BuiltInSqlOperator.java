@@ -107,6 +107,11 @@ public final class BuiltInSqlOperator extends SqlOperator implements VersionedSq
         return getName();
     }
 
+    /** Returns the operator this operator is a versioned copy of. */
+    public SqlOperator getWrappedOperator() {
+        return operator;
+    }
+
     // --------------------------------------------------------------------------------------------
     // Delegation to the wrapped operator
     // --------------------------------------------------------------------------------------------

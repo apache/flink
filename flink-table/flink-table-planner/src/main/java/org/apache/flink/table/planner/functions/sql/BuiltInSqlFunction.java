@@ -160,6 +160,11 @@ public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOpera
         return isInternal;
     }
 
+    /** Returns the function this function is a versioned copy of, if any. */
+    public Optional<SqlFunction> getWrappedFunction() {
+        return Optional.empty();
+    }
+
     @Override
     public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
         return monotonicity.apply(call);
@@ -192,6 +197,11 @@ public class BuiltInSqlFunction extends SqlFunction implements VersionedSqlOpera
         @Override
         public String getQualifiedName() {
             return getName();
+        }
+
+        @Override
+        public Optional<SqlFunction> getWrappedFunction() {
+            return Optional.of(function);
         }
 
         @Override

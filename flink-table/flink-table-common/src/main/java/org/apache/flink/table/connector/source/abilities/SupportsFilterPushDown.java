@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 
 import java.util.List;
 
@@ -58,6 +59,12 @@ import java.util.List;
  * <p>Note: A source is not allowed to change the given expressions in the returned {@link Result}.
  *
  * <p>Use {@link ExpressionVisitor} to traverse filter expressions.
+ *
+ * <p>Note: Unlike in the rest of the SQL engine, function versioning is not supported for filter
+ * push down. A {@link BuiltInFunctionDefinition} in a filter expression always represents the most
+ * recent version of the function, also when restoring a compiled plan that was created with an
+ * older version. When Flink is upgraded, a source must adjust its logic to match the most recent
+ * function version.
  */
 @PublicEvolving
 public interface SupportsFilterPushDown {
