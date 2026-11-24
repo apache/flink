@@ -31,7 +31,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
 
 import java.io.Serializable;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 
@@ -73,11 +72,7 @@ public final class DeduplicateUtils {
         public SequenceComparator(
                 final SpecializedContext context, final int[] indices, final DataType[] types) {
             this.indices = indices;
-            final DataTypes.Field[] fields =
-                    IntStream.range(0, types.length)
-                            .mapToObj(i -> DataTypes.FIELD("f" + i, types[i]))
-                            .toArray(DataTypes.Field[]::new);
-            this.comparator = context.createComparator(DataTypes.ROW(fields).toInternal());
+            this.comparator = context.createComparator(DataTypes.ROW(types).toInternal());
         }
 
         public void open(final FunctionContext context) {
