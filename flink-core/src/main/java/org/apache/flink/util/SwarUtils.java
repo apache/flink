@@ -42,19 +42,23 @@ public final class SwarUtils {
 
     /** Whether {@code bytes[offset, offset + len)} contains only ASCII bytes. */
     public static boolean isAscii(byte[] bytes, int offset, int len) {
+        return asciiPrefix(bytes, offset, len) == len;
+    }
+
+    /**
+     * The number of leading ASCII bytes of {@code bytes[offset, offset + len)}; may be up to 7
+     * bytes short when the first non-ASCII byte is in a word.
+     */
+    public static int asciiPrefix(byte[] bytes, int offset, int len) {
         int i = offset;
         final int end = offset + len;
-        for (; end - i >= Long.BYTES; i += Long.BYTES) {
-            if ((readWord(bytes, i) & HIGH_BITS) != 0) {
-                return false;
-            }
+        while (end - i >= Long.BYTES && (readWord(bytes, i) & HIGH_BITS) == 0) {
+            i += Long.BYTES;
         }
-        for (; i < end; i++) {
-            if (bytes[i] < 0) {
-                return false;
-            }
+        while (i < end && bytes[i] >= 0) {
+            i++;
         }
-        return true;
+        return i - offset;
     }
 
     /**

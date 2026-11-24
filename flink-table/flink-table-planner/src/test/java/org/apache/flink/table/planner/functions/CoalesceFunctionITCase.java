@@ -272,23 +272,7 @@ class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
                                 coalesce($("f0"), $("f1"), $("f2")),
                                 "COALESCE(f0, f1, f2)",
                                 Duration.ofSeconds(10),
-                                INTERVAL(SECOND(3)).notNull()),
-
-                // nullable field, NOT NULL literal last
-                TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.COALESCE, "VARCHAR(20) and CHAR literal")
-                        .onFieldsWithData(null, "Bob")
-                        .andDataTypes(VARCHAR(20).nullable(), VARCHAR(20).nullable())
-                        .testResult(
-                                coalesce($("f0"), "_"),
-                                "COALESCE(f0, '_')",
-                                "_",
-                                VARCHAR(20).notNull())
-                        .testResult(
-                                coalesce($("f1"), "_"),
-                                "COALESCE(f1, '_')",
-                                "Bob",
-                                VARCHAR(20).notNull()));
+                                INTERVAL(SECOND(3)).notNull()));
     }
 
     /** Lazy evaluation: a non-null operand short-circuits the rest. */

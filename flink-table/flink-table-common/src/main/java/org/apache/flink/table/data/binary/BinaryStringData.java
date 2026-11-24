@@ -318,16 +318,15 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
             // counted, since a string decoded from invalid UTF-8 can have a different count
             return javaObject.codePointCount(0, javaObject.length());
         }
-        ensureMaterialized();
         if (inFirstSegment()) {
             final byte[] array = binarySection.segments[0].getHeapMemory();
-            if (array != null
-                    && SwarUtils.isAscii(array, binarySection.offset, binarySection.sizeInBytes)) {
-                // one character per byte
-                return binarySection.sizeInBytes;
-            }
-            int len = 0;
-            for (int i = 0;
+            // the ASCII prefix is one character per byte
+            int len =
+                    array == null
+                            ? 0
+                            : SwarUtils.asciiPrefix(
+                                    array, binarySection.offset, binarySection.sizeInBytes);
+            for (int i = len;
                     i < binarySection.sizeInBytes;
                     i += numBytesForFirstByte(getByteOneSegment(i))) {
                 len++;
