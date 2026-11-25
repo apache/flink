@@ -219,14 +219,14 @@ final class SelectiveParseJsonCodeGen {
             final Object step = literalStep(call.getOperands().get(1));
             return step == null ? null : new Object[] {step};
         }
-        final RexNode path = expand(call.getOperands().get(1));
-        if (!(path instanceof RexLiteral) || ((RexLiteral) path).isNull()) {
+        final RexLiteral path = JsonCodeGenUtils.literalOf(program, call.getOperands().get(1));
+        if (path == null || path.isNull()) {
             return null;
         }
         final List<SimplePath.Step> steps;
         try {
             // as VARIANT_GET reads it, 0-based
-            steps = SimplePath.parse(((RexLiteral) path).getValueAs(String.class)).getSteps();
+            steps = SimplePath.parse(path.getValueAs(String.class)).getSteps();
         } catch (RuntimeException e) {
             return null;
         }
@@ -245,13 +245,13 @@ final class SelectiveParseJsonCodeGen {
         }
         boolean allowDuplicateKeys = false;
         if (call.getOperands().size() > 1) {
-            final RexNode argument = expand(call.getOperands().get(1));
-            if (!(argument instanceof RexLiteral)) {
+            final RexLiteral argument =
+                    JsonCodeGenUtils.literalOf(program, call.getOperands().get(1));
+            if (argument == null) {
                 return null;
             }
             // NULL means false, as at runtime
-            allowDuplicateKeys =
-                    Boolean.TRUE.equals(((RexLiteral) argument).getValueAs(Boolean.class));
+            allowDuplicateKeys = Boolean.TRUE.equals(argument.getValueAs(Boolean.class));
         }
         final RexNode input = call.getOperands().get(0);
         final Object inputKey =
@@ -262,11 +262,10 @@ final class SelectiveParseJsonCodeGen {
     // a literal [key] as a String, a literal [index] as a 0-based Integer, or null
     @Nullable
     private Object literalStep(RexNode key) {
-        final RexNode node = expand(key);
-        if (!(node instanceof RexLiteral) || ((RexLiteral) node).isNull()) {
+        final RexLiteral literal = JsonCodeGenUtils.literalOf(program, key);
+        if (literal == null || literal.isNull()) {
             return null;
         }
-        final RexLiteral literal = (RexLiteral) node;
         if (SqlTypeUtil.inCharFamily(literal.getType())) {
             return literal.getValueAs(String.class);
         }
@@ -302,10 +301,6 @@ final class SelectiveParseJsonCodeGen {
     @Nullable
     private static Chain chainOf(RexNode node, Map<Integer, Chain> chains) {
         return node instanceof RexLocalRef ? chains.get(((RexLocalRef) node).getIndex()) : null;
-    }
-
-    private RexNode expand(RexNode node) {
-        return node instanceof RexLocalRef ? program.expandLocalRef((RexLocalRef) node) : node;
     }
 
     /** The parse calls that share a parse, and the paths read from them. */

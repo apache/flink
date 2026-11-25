@@ -32,10 +32,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -53,20 +51,14 @@ public final class VariantPathReader implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // read-only, so the reader is stateless
-    private final Node root = new Node();
+    private final JsonPathNode root;
 
     /**
      * @param paths the steps of each path: a {@link String} for {@code [key]}, a 0-based {@link
      *     Integer} for {@code [index]}
      */
     public VariantPathReader(Object[][] paths) {
-        for (Object[] path : paths) {
-            Node node = root;
-            for (Object step : path) {
-                node = node.child(step);
-            }
-            node.isEnd = true;
-        }
+        this.root = JsonPathNode.of(paths, VariantPathReader::storedKey);
     }
 
     /**
@@ -99,11 +91,12 @@ public final class VariantPathReader implements Serializable {
         }
 
         // builds the value at node; without a node, only checks it
-        private void read(JsonParser parser, @Nullable Node node, int depth) throws IOException {
+        private void read(JsonParser parser, @Nullable JsonPathNode node, int depth)
+                throws IOException {
             final JsonToken token = parser.currentToken();
             final boolean container =
                     token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY;
-            if (node != null && (node.isEnd || !container)) {
+            if (node != null && (node.isEnd() || !container)) {
                 // a path end, or a scalar on the way, so a deeper step fails as before
                 builder.appendJson(parser);
                 return;
@@ -125,7 +118,7 @@ public final class VariantPathReader implements Serializable {
                     if (keys != null && !keys.add(name)) {
                         duplicate = true;
                     }
-                    final Node child = node == null ? null : node.fields.get(name);
+                    final JsonPathNode child = node == null ? null : node.field(name);
                     if (child != null) {
                         // the builder keeps the last of duplicate keys
                         builder.addField(fields, start, name);
@@ -148,7 +141,7 @@ public final class VariantPathReader implements Serializable {
                         continue;
                     }
                     offsets.add(builder.getWritePos() - start);
-                    final Node child = node.elements.get(index++);
+                    final JsonPathNode child = node.element(index++);
                     read(parser, child, depth + 1);
                     if (child == null) {
                         // keeps the index of the next elements
@@ -186,23 +179,5 @@ public final class VariantPathReader implements Serializable {
             }
         }
         return key;
-    }
-
-    /** A path step. */
-    private static final class Node implements Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        private final Map<String, Node> fields = new HashMap<>();
-        private final Map<Integer, Node> elements = new HashMap<>();
-        // a path ends here
-        private boolean isEnd;
-
-        private Node child(Object step) {
-            if (step instanceof Integer) {
-                return elements.computeIfAbsent((Integer) step, ignored -> new Node());
-            }
-            return fields.computeIfAbsent(storedKey((String) step), ignored -> new Node());
-        }
     }
 }

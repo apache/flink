@@ -20,9 +20,15 @@ package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.planner.codegen.calls.JsonParseReuse;
+import org.apache.flink.table.runtime.functions.JsonPathSpec;
 import org.apache.flink.table.runtime.functions.SqlJsonUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.variant.Variant;
+
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
@@ -264,7 +270,10 @@ public final class JsonCodeGenUtils {
      * input is parsed only once per record.
      */
     public static GeneratedExpression generateJsonType(
-            CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
+            CodeGeneratorContext ctx,
+            LogicalType returnType,
+            Seq<GeneratedExpression> operands,
+            @Nullable String jsonPathReader) {
         return GenerateUtils.generateCallIfArgsNotNull(
                 ctx,
                 returnType,
@@ -278,7 +287,8 @@ public final class JsonCodeGenUtils {
                                     operands,
                                     argTerms,
                                     BuiltInMethods.JSON_TYPE(),
-                                    BuiltInMethods.JSON_TYPE_PATH());
+                                    BuiltInMethods.JSON_TYPE_PATH(),
+                                    jsonPathReader);
                     return CodeGenUtils.BINARY_STRING() + ".fromString(" + call + ")";
                 });
     }
@@ -290,7 +300,10 @@ public final class JsonCodeGenUtils {
      * input is parsed only once per record.
      */
     public static GeneratedExpression generateJsonLength(
-            CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
+            CodeGeneratorContext ctx,
+            LogicalType returnType,
+            Seq<GeneratedExpression> operands,
+            @Nullable String jsonPathReader) {
         return GenerateUtils.generateCallIfArgsNotNull(
                 ctx,
                 returnType,
@@ -303,7 +316,8 @@ public final class JsonCodeGenUtils {
                                 operands,
                                 argTerms,
                                 BuiltInMethods.JSON_LENGTH(),
-                                BuiltInMethods.JSON_LENGTH_PATH()));
+                                BuiltInMethods.JSON_LENGTH_PATH(),
+                                jsonPathReader));
     }
 
     /**
@@ -316,8 +330,10 @@ public final class JsonCodeGenUtils {
             Seq<GeneratedExpression> operands,
             Seq<String> argTerms,
             Method wholeDocument,
-            Method withPath) {
-        final String parsed = JsonParseReuse.parseSharedInput(ctx, operands).resultTerm();
+            Method withPath,
+            @Nullable String jsonPathReader) {
+        final String parsed =
+                JsonParseReuse.parseSharedInput(ctx, operands, jsonPathReader).resultTerm();
         if (argTerms.length() == 1) {
             return CodeGenUtils.qualifyMethod(wholeDocument) + "(" + parsed + ")";
         }
@@ -332,5 +348,27 @@ public final class JsonCodeGenUtils {
                 + ".toString(), "
                 + isPathDefinite
                 + ")";
+    }
+
+    /**
+     * The path argument of {@code JSON_VALUE} or {@code JSON_QUERY}: a {@link JsonPathSpec} for a
+     * literal path, which splits off the mode and compiles the path once, or the path as a string.
+     */
+    public static String jsonPathArgument(
+            CodeGeneratorContext ctx, GeneratedExpression path, String pathTerm) {
+        final Option<Object> literal = path.literalValue();
+        if (literal.isDefined() && literal.get() != null) {
+            return ctx.addReusableObject(
+                    new JsonPathSpec(literal.get().toString()), "jsonPathSpec", null);
+        }
+        return pathTerm + ".toString()";
+    }
+
+    /** The literal that {@code node} is, also behind a local ref of {@code program}, or null. */
+    @Nullable
+    static RexLiteral literalOf(RexProgram program, RexNode node) {
+        final RexNode expanded =
+                node instanceof RexLocalRef ? program.expandLocalRef((RexLocalRef) node) : node;
+        return expanded instanceof RexLiteral ? (RexLiteral) expanded : null;
     }
 }

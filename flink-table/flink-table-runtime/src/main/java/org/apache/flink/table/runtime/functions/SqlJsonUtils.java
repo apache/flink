@@ -54,6 +54,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonString
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -70,10 +71,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -90,12 +89,12 @@ public class SqlJsonUtils {
     private static final char QUOTE = '"';
     private static final char BACKSLASH = '\\';
 
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final ObjectMapper MAPPER =
             new ObjectMapper(JSON_FACTORY)
                     .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
                     .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-    private static final Pattern JSON_PATH_BASE =
+    static final Pattern JSON_PATH_BASE =
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.MULTILINE);
@@ -103,6 +102,8 @@ public class SqlJsonUtils {
             new JacksonJsonProvider(MAPPER);
     private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
             new JacksonMappingProvider(MAPPER);
+    // builds values as JSON_PATH_JSON_PROVIDER does, see JsonPathReader
+    static final ObjectReader VALUE_READER = MAPPER.reader().forType(Object.class);
 
     /**
      * Configuration for JSON_LENGTH, which evaluates plain paths only and therefore does not need
@@ -120,6 +121,20 @@ public class SqlJsonUtils {
     private static final String JSON_QUERY_FUNCTION_NAME = "JSON_QUERY";
     private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
     private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
+
+    // the 'strict' and 'lax' path modes of JSON_VALUE, JSON_QUERY and JSON_EXISTS
+    private static final Configuration JSON_PATH_STRICT_CONFIG =
+            Configuration.builder()
+                    .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                    .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                    .build();
+
+    private static final Configuration JSON_PATH_LAX_CONFIG =
+            Configuration.builder()
+                    .options(Option.SUPPRESS_EXCEPTIONS)
+                    .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                    .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                    .build();
 
     private static final Configuration JSON_PATH_TYPE_CONFIG =
             Configuration.builder()
@@ -240,6 +255,22 @@ public class SqlJsonUtils {
                 defaultValueOnError);
     }
 
+    /** Like the overload with a {@code String} path, for a literal path. */
+    public static Object jsonValue(
+            JsonValueContext parsedInput,
+            JsonPathSpec path,
+            JsonValueOnEmptyOrError emptyBehavior,
+            Object defaultValueOnEmpty,
+            JsonValueOnEmptyOrError errorBehavior,
+            Object defaultValueOnError) {
+        return jsonValue(
+                jsonApiCommonSyntax(parsedInput, path),
+                emptyBehavior,
+                defaultValueOnEmpty,
+                errorBehavior,
+                defaultValueOnError);
+    }
+
     private static Object jsonValue(
             JsonPathContext context,
             JsonValueOnEmptyOrError emptyBehavior,
@@ -312,6 +343,22 @@ public class SqlJsonUtils {
             JsonQueryOnEmptyOrError errorBehavior) {
         return jsonQuery(
                 jsonApiCommonSyntax(parsedInput, pathSpec),
+                returnType,
+                wrapperBehavior,
+                emptyBehavior,
+                errorBehavior);
+    }
+
+    /** Like the overload with a {@code String} path, for a literal path. */
+    public static Object jsonQueryParsed(
+            JsonValueContext parsedInput,
+            JsonPathSpec path,
+            JsonQueryReturnType returnType,
+            JsonQueryWrapper wrapperBehavior,
+            JsonQueryOnEmptyOrError emptyBehavior,
+            JsonQueryOnEmptyOrError errorBehavior) {
+        return jsonQuery(
+                jsonApiCommonSyntax(parsedInput, path),
                 returnType,
                 wrapperBehavior,
                 emptyBehavior,
@@ -706,49 +753,47 @@ public class SqlJsonUtils {
     }
 
     private static JsonPathContext jsonApiCommonSyntax(JsonValueContext input, String pathSpec) {
-        PathMode mode;
-        String pathStr;
+        final JsonPathSpec path;
         try {
-            Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
-            if (!matcher.matches()) {
-                mode = PathMode.STRICT;
-                pathStr = pathSpec;
-            } else {
-                mode = PathMode.valueOf(matcher.group(1).toUpperCase(Locale.ROOT));
-                pathStr = matcher.group(2);
-            }
-            DocumentContext ctx;
+            path = new JsonPathSpec(pathSpec);
+        } catch (Exception e) {
+            return JsonPathContext.withUnknownException(e);
+        }
+        // read by its string, which JsonPath compiles through its cache
+        return jsonApiCommonSyntax(input, path, null);
+    }
+
+    private static JsonPathContext jsonApiCommonSyntax(JsonValueContext input, JsonPathSpec path) {
+        return jsonApiCommonSyntax(input, path, path.compiled());
+    }
+
+    // with compiled null, the path is read by its string
+    private static JsonPathContext jsonApiCommonSyntax(
+            JsonValueContext input, JsonPathSpec path, @Nullable JsonPath compiled) {
+        final String pathSpec = path.pathSpec;
+        final PathMode mode = path.mode;
+        try {
+            final Configuration configuration;
             switch (mode) {
                 case STRICT:
                     if (input.hasException()) {
                         return JsonPathContext.withStrictException(pathSpec, input.exc);
                     }
-                    ctx =
-                            JsonPath.parse(
-                                    input.obj,
-                                    Configuration.builder()
-                                            .jsonProvider(JSON_PATH_JSON_PROVIDER)
-                                            .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
-                                            .build());
+                    configuration = JSON_PATH_STRICT_CONFIG;
                     break;
                 case LAX:
                     if (input.hasException()) {
                         return JsonPathContext.withJavaObj(PathMode.LAX, null);
                     }
-                    ctx =
-                            JsonPath.parse(
-                                    input.obj,
-                                    Configuration.builder()
-                                            .options(Option.SUPPRESS_EXCEPTIONS)
-                                            .jsonProvider(JSON_PATH_JSON_PROVIDER)
-                                            .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
-                                            .build());
+                    configuration = JSON_PATH_LAX_CONFIG;
                     break;
                 default:
                     throw illegalJsonPathModeInPathSpec(mode.toString(), pathSpec);
             }
+            final DocumentContext ctx = JsonPath.parse(input.obj, configuration);
             try {
-                return JsonPathContext.withJavaObj(mode, ctx.read(pathStr));
+                return JsonPathContext.withJavaObj(
+                        mode, compiled == null ? ctx.read(path.path) : ctx.read(compiled));
             } catch (Exception e) {
                 return JsonPathContext.withStrictException(pathSpec, e);
             }
