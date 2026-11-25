@@ -184,6 +184,26 @@ public class ToChangelogTest extends TableTestBase {
     }
 
     @Test
+    void testInsertsAndUpdatesWithoutUpsertKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.tableEnv().executeSql("CREATE VIEW names AS SELECT name FROM upsert_source");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE names, "
+                        + "op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER'])",
+                CHANGELOG_MODE);
+    }
+
+    @Test
     void testTimeAttributesNotForwarded() {
         util.tableEnv()
                 .executeSql(

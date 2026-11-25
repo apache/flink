@@ -60,7 +60,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -857,61 +856,18 @@ public final class BuiltInFunctionDefinitions {
                                             TraitCondition.hasPartitionBy())
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
-                                            TraitCondition.or(
-                                                    // op_mapping omitted: default mapping includes
-                                                    // UPDATE_BEFORE.
-                                                    TraitCondition.not(
-                                                            TraitCondition.argIsPresent(
-                                                                    "op_mapping")),
-                                                    TraitCondition.argMatches(
-                                                            "op_mapping",
-                                                            Map.class,
-                                                            mapping ->
-                                                                    opMappingContainsKey(
-                                                                            (Map<String, String>)
-                                                                                    mapping,
-                                                                            "UPDATE_BEFORE"))))
+                                            ToChangelogDefinition.FORWARDS_UPDATE_BEFORE)
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE,
-                                            // Require full deletes by default. The user can opt
-                                            // out via produces_full_deletes=FALSE.
-                                            // REQUIRE_FULL_DELETE
-                                            // still gates on the active op_mapping mapping DELETE;
-                                            // otherwise no DELETE rows reach the function and there
-                                            // is no point inserting ChangelogNormalize upstream.
-                                            TraitCondition.and(
-                                                    TraitCondition.or(
-                                                            TraitCondition.not(
-                                                                    TraitCondition.argIsPresent(
-                                                                            "produces_full_deletes")),
-                                                            TraitCondition.argIsEqualTo(
-                                                                    "produces_full_deletes",
-                                                                    Boolean.TRUE)),
-                                                    TraitCondition.or(
-                                                            TraitCondition.not(
-                                                                    TraitCondition.argIsPresent(
-                                                                            "op_mapping")),
-                                                            TraitCondition.argMatches(
-                                                                    "op_mapping",
-                                                                    Map.class,
-                                                                    mapping ->
-                                                                            opMappingContainsKey(
-                                                                                    (Map<
-                                                                                                    String,
-                                                                                                    String>)
-                                                                                            mapping,
-                                                                                    "DELETE")))))
+                                            ToChangelogDefinition.FORWARDS_FULL_DELETES)
                                     .withConditionalTrait(
                                             StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES,
                                             // Retractions carry old timestamps, only inserts and
                                             // updates carry the current one
-                                            TraitCondition.argMatches(
-                                                    "op_mapping",
-                                                    Map.class,
-                                                    mapping ->
-                                                            forwardsOnlyInsertsAndUpdates(
-                                                                    (Map<String, String>)
-                                                                            mapping))),
+                                            ToChangelogDefinition.FORWARDS_NO_RETRACTIONS)
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.IGNORE_RETRACTIONS,
+                                            ToChangelogDefinition.FORWARDS_NO_RETRACTIONS),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
@@ -3665,27 +3621,6 @@ public final class BuiltInFunctionDefinitions {
                     .kind(OTHER)
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
-
-    /**
-     * True when {@code key} appears among the {@code op_mapping} keys. Each map key may itself be a
-     * comma-separated list (e.g. {@code "INSERT,UPDATE_AFTER"}) - each part is trimmed and compared
-     * against {@code key}, so one entry can cover multiple change kinds.
-     *
-     * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the user-provided {@code
-     * op_mapping} argument.
-     */
-    private static boolean forwardsOnlyInsertsAndUpdates(final Map<String, String> opMapping) {
-        return !opMappingContainsKey(opMapping, "UPDATE_BEFORE")
-                && !opMappingContainsKey(opMapping, "DELETE");
-    }
-
-    private static boolean opMappingContainsKey(
-            final Map<String, String> opMapping, final String key) {
-        return opMapping.keySet().stream()
-                .flatMap(k -> Arrays.stream(k.split(",")))
-                .map(String::trim)
-                .anyMatch(key::equals);
-    }
 
     @Internal
     public static List<BuiltInFunctionDefinition> getDefinitions() {
