@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen.sort;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.FunctionContext;
@@ -110,7 +111,12 @@ class ComparatorCodeGeneratorTest {
                                         DataTypes.MAP(DataTypes.INT(), DataTypes.INT())
                                                 .toInternal(),
                                         SortDirection.ASC_NULLS_FIRST))
-                .isInstanceOf(Exception.class);
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Type 'MAP<INT, INT>' cannot be ordered, so it cannot be used as a key "
+                                + "for sorting, grouping, or joining (for example in ORDER BY, "
+                                + "GROUP BY, DISTINCT, or a join condition). Remove it from the "
+                                + "key, or replace it with a value that can be ordered.");
     }
 
     private static GeneratedComparator open(final DataType dataType) {
