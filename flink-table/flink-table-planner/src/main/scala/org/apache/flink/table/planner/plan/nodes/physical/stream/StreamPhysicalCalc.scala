@@ -69,8 +69,10 @@ class StreamPhysicalCalc(
    * If this Calc forwards DELETE_BY_KEY changes, the rest of a delete-by-key tombstone's row may
    * not be present (see DeleteKind.DELETE_BY_KEY). Returns the output column indices to keep
    * (evaluated from the regular projection); every other column is handled separately in code
-   * generation as a typed NULL. Returns `null` when this Calc does not need such handling, or no
-   * output key column could be identified (in which case the full projection is always evaluated).
+   * generation as a typed NULL.
+   *   - Returns `null` when this Calc does not forward DELETE_BY_KEY changes.
+   *   - Returns an empty array when the output has no key. The tombstone then becomes an all-NULL
+   *     row, which only consumers that ignore retractions accept.
    */
   private def partialDeleteKeys: Array[Int] = {
     val deleteKind = Option(getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE))
@@ -82,9 +84,8 @@ class StreamPhysicalCalc(
 
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
     val outputUpsertKeys = fmq.getUpsertKeys(this)
-    if (outputUpsertKeys == null || outputUpsertKeys.isEmpty) {
-      // no identifiable output key column: fall back to always evaluating the full projection
-      return null
+    if (outputUpsertKeys == null) {
+      return Array.emptyIntArray
     }
 
     // Every column in every candidate is, by construction of
@@ -92,13 +93,8 @@ class StreamPhysicalCalc(
     // of an input field or an injective expression. Columns equal to a key column are
     // pass-throughs too, and are kept because a key may use them instead (see
     // UpsertKeyUtil#getUpsertKeysUsingEqualColumns).
-    val keyIndices = UpsertKeyUtil
+    UpsertKeyUtil
       .getEqualColumns(this, ImmutableBitSet.union(outputUpsertKeys), fmq)
       .toArray
-    if (keyIndices.nonEmpty) {
-      keyIndices
-    } else {
-      null
-    }
   }
 }

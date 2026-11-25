@@ -118,6 +118,18 @@ class ToAppendTest extends TableTestBase {
     }
 
     @Test
+    void testJoinWithoutUpsertKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE append_source (id INT, amount INT) WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW enriched AS SELECT a.amount, u.name "
+                                + "FROM append_source a JOIN upsert_source u ON a.id = u.id");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE enriched)", CHANGELOG_MODE);
+    }
+
+    @Test
     void testOutputTypesMatchInput() {
         util.tableEnv()
                 .executeSql(
