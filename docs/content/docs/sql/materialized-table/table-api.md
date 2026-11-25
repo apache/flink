@@ -137,6 +137,25 @@ created in SQL or by another program, and resolves the path like `from(path)`. T
 made elsewhere. The lookup fails with a `ValidationException` if no materialized table exists at
 the path, or if a temporary table or view shadows it.
 
+# Explaining a Materialized Table
+
+```java
+tEnv.from("orders")
+        .groupBy($("region"))
+        .select($("region"), $("amount").sum().as("revenue"))
+        .materializeInto("revenue")
+        .printExplain();
+
+tEnv.fromMaterializedTable("revenue").printExplain();
+```
+
+`MaterializedPipeline#explain()` shows the plan that
+[`EXPLAIN`]({{< ref "docs/sql/reference/utility/explain" >}}) `CREATE OR ALTER MATERIALIZED TABLE`
+shows for the same declaration.
+
+`MaterializedTable#explain()` shows the plan of an `INSERT INTO` the materialized table with its
+current query. Like the getters, it reads the definition at call time.
+
 # Dropping a Materialized Table
 
 ```java

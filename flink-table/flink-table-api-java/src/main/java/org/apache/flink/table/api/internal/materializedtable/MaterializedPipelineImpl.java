@@ -20,6 +20,8 @@ package org.apache.flink.table.api.internal.materializedtable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CreateMode;
+import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.MaterializedPipeline;
 import org.apache.flink.table.api.MaterializedTable;
 import org.apache.flink.table.api.MaterializedTableDescriptor;
@@ -39,6 +41,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -111,6 +114,14 @@ public final class MaterializedPipelineImpl implements MaterializedPipeline {
         Preconditions.checkNotNull(mode, "Create mode must not be null.");
         Preconditions.checkNotNull(startMode, "Start mode must not be null.");
         return submit(mode, startMode);
+    }
+
+    @Override
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
+        return tableEnvironment.explainInternal(
+                List.of(buildOperation(Mode.CREATE_OR_ALTER, resolveStartMode(null))),
+                format,
+                extraDetails);
     }
 
     private MaterializedTable submit(CreateMode mode, @Nullable StartMode startMode) {

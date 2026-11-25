@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.StartMode;
  * MaterializedTableDescriptor)}.
  */
 @PublicEvolving
-public interface MaterializedPipeline {
+public interface MaterializedPipeline extends Explainable<MaterializedPipeline> {
 
     /**
      * The fully qualified identifier this declaration will create or alter.

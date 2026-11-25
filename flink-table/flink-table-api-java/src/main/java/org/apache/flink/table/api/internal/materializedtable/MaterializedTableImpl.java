@@ -19,6 +19,8 @@
 package org.apache.flink.table.api.internal.materializedtable;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.MaterializedTable;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -29,7 +31,10 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
+import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Implementation of {@link MaterializedTable}. */
@@ -90,6 +95,27 @@ public final class MaterializedTableImpl implements MaterializedTable {
     @Override
     public Optional<String> getRefreshHandlerDescription() {
         return lookUp().getRefreshHandlerDescription();
+    }
+
+    @Override
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
+        final ResolvedCatalogMaterializedTable materializedTable = lookUp();
+        // A query statement parses to exactly one query operation.
+        final QueryOperation query =
+                (QueryOperation)
+                        tableEnvironment
+                                .getParser()
+                                .parse(materializedTable.getExpandedQuery())
+                                .get(0);
+        final ContextResolvedTable sinkTable =
+                ContextResolvedTable.permanent(
+                        identifier,
+                        tableEnvironment
+                                .getCatalogManager()
+                                .getCatalogOrThrowException(identifier.getCatalogName()),
+                        materializedTable.toResolvedCatalogTable());
+        return tableEnvironment.explainInternal(
+                List.of(new SinkModifyOperation(sinkTable, query)), format, extraDetails);
     }
 
     private ResolvedCatalogMaterializedTable lookUp() {
