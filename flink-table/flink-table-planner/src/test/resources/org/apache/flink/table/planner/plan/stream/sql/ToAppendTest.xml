@@ -64,6 +64,26 @@ ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], ui
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMetadata">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_metadata)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], offset=[$2])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, BIGINT offset)])
+   +- LogicalProject(id=[$0], name=[$1], offset=[$2])
+      +- LogicalProject(id=[$0], name=[$1], offset=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source_with_metadata, metadata=[offset]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name,offset], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, BIGINT offset)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_source_with_metadata, metadata=[offset]]], fields=[id, name, offset], changelogMode=[I,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractSource">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_APPEND(input => TABLE retract_source)]]>

@@ -121,6 +121,32 @@ public class ToAppendTestPrograms {
                                     + "SELECT * FROM TO_APPEND(input => TABLE all_rows)")
                     .build();
 
+    public static final TableTestProgram METADATA =
+            TableTestProgram.of(
+                            "to-append-metadata",
+                            "every upsert keeps the metadata it was read with")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_table")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "v STRING",
+                                            "`offset` BIGINT METADATA")
+                                    .addMode(ChangelogMode.upsert(true))
+                                    .addOption("readable-metadata", "offset:BIGINT")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "a", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "b", 11L),
+                                            Row.ofKind(RowKind.DELETE, 1, null, 12L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "v STRING", "`offset` BIGINT")
+                                    .addMode(ChangelogMode.insertOnly())
+                                    .consumedValues("+I[1, a, 10]", "+I[1, b, 11]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM TO_APPEND(input => TABLE source_table)")
+                    .build();
+
     public static final TableTestProgram WINDOW =
             TableTestProgram.of(
                             "to-append-window",
