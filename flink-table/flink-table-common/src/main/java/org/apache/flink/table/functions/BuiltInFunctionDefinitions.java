@@ -965,6 +965,7 @@ public final class BuiltInFunctionDefinitions {
                                             StaticArgumentTrait.TABLE,
                                             StaticArgumentTrait.ROW_SEMANTIC_TABLE,
                                             StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.IGNORE_RETRACTIONS,
                                             StaticArgumentTrait.PRESERVE_TIME_ATTRIBUTES)))
                     .outputTypeStrategy(argument(0))
                     .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")

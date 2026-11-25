@@ -66,6 +66,28 @@ public class ToAppendTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_APPEND(input => TABLE source_table)")
                     .build();
 
+    public static final TableTestProgram UNION_ALL =
+            TableTestProgram.of(
+                            "to-append-union-all",
+                            "upserts of both inputs become inserts and the deletes are dropped")
+                    .setupTableSource(UPSERT_SOURCE)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("other_source_table")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v STRING")
+                                    .addMode(ChangelogMode.upsert(false))
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 2, "c"),
+                                            Row.ofKind(RowKind.DELETE, 2, "c"),
+                                            Row.ofKind(RowKind.INSERT, 2, "d"))
+                                    .build())
+                    .setupTableSink(appendOnlySink("+I[1, a]", "+I[1, b]", "+I[2, c]", "+I[2, d]"))
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "WITH all_rows AS ("
+                                    + "SELECT * FROM source_table UNION ALL SELECT * FROM other_source_table) "
+                                    + "SELECT * FROM TO_APPEND(input => TABLE all_rows)")
+                    .build();
+
     public static final TableTestProgram WINDOW =
             TableTestProgram.of(
                             "to-append-window",

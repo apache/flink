@@ -32,8 +32,8 @@ LogicalProject(name=[$0])
     <Resource name="optimized rel plan">
       <![CDATA[
 ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[name], rowType=[RecordType(VARCHAR(2147483647) name)], changelogMode=[I])
-+- Calc(select=[name], changelogMode=[I,UB,UA,D])
-   +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
++- Calc(select=[name], changelogMode=[I,UA,D])
+   +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
          +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,PD])
 ]]>
@@ -56,6 +56,31 @@ LogicalProject(id=[$0], name=[$1])
 ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
 +- DropUpdateBefore(changelogMode=[I,UA,D])
    +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAllWithoutUpsertKey">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE all_names)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(id=[$0], name=[$1])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+         +- LogicalProject(id=[$0], name=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, other_upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- Union(all=[true], union=[id, name], changelogMode=[I,UA,PD])
+   :- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,PD])
+   +- TableSourceScan(table=[[default_catalog, default_database, other_upsert_source]], fields=[id, name], changelogMode=[I,UA,PD])
 ]]>
     </Resource>
   </TestCase>

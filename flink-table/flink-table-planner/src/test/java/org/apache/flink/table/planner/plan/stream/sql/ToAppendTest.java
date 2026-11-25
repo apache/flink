@@ -99,6 +99,25 @@ class ToAppendTest extends TableTestBase {
     }
 
     @Test
+    void testUnionAllWithoutUpsertKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE other_upsert_source ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D',"
+                                + "  'source.produces-delete-by-key' = 'true'"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW all_names AS "
+                                + "SELECT * FROM upsert_source UNION ALL SELECT * FROM other_upsert_source");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE all_names)", CHANGELOG_MODE);
+    }
+
+    @Test
     void testOutputTypesMatchInput() {
         util.tableEnv()
                 .executeSql(
