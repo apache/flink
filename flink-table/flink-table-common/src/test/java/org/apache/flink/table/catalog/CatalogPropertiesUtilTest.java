@@ -45,6 +45,7 @@ class CatalogPropertiesUtilTest {
         final Map<String, String> options = new HashMap<>();
         options.put("endpoint", "someendpoint");
         options.put("api_key", "fake_key");
+        options.putAll(schemaPrefixedOptions());
 
         final CatalogModel catalogModel =
                 CatalogModel.of(
@@ -108,6 +109,7 @@ class CatalogPropertiesUtilTest {
 
         assertThat(deserializedTable.getUnresolvedSchema().toString())
                 .isEqualTo(testTable.getOrigin().getUnresolvedSchema().toString());
+        assertThat(deserializedTable.getOptions()).isEqualTo(testTable.getOptions());
 
         // So far equals doesn't work as UnresolvedDataType doesn't implement equals/hashCode
         assertThat(testTable.getOrigin()).hasToString(deserializedTable.toString());
@@ -150,6 +152,7 @@ class CatalogPropertiesUtilTest {
                         CatalogTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
+                                .options(schemaPrefixedOptions())
                                 .distribution(hashDist)
                                 .build(),
                         resolvedSchema),
@@ -157,6 +160,7 @@ class CatalogPropertiesUtilTest {
                         CatalogTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
+                                .options(schemaPrefixedOptions())
                                 .distribution(rangeDist)
                                 .build(),
                         resolvedSchema),
@@ -164,6 +168,7 @@ class CatalogPropertiesUtilTest {
                         CatalogTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
+                                .options(schemaPrefixedOptions())
                                 .connection(UnresolvedIdentifier.of("mycat", "mydb", "myconn"))
                                 .build(),
                         resolvedSchema),
@@ -171,6 +176,7 @@ class CatalogPropertiesUtilTest {
                         CatalogMaterializedTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
+                                .options(schemaPrefixedOptions())
                                 .distribution(unknownDist)
                                 .originalQuery("SELECT 1, 'two'")
                                 .expandedQuery("SELECT 1, 'two'")
@@ -184,5 +190,10 @@ class CatalogPropertiesUtilTest {
                         RefreshMode.CONTINUOUS,
                         IntervalFreshness.ofHour(123),
                         StartMode.fromBeginning()));
+    }
+
+    /** Options that start with "schema" but are not schema properties, e.g. 'schema-name'. */
+    private static Map<String, String> schemaPrefixedOptions() {
+        return Map.of("schema-name", "public", "schemaless", "true");
     }
 }
