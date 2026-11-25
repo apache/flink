@@ -76,13 +76,20 @@ public final class CallContextUtils {
      */
     public static <E extends Enum<E>> Optional<E> getEnumArgument(
             final CallContext callContext, final int pos, final Class<E> enumClass) {
-        return callContext
-                .getArgumentValue(pos, String.class)
-                .flatMap(
-                        value ->
-                                Arrays.stream(enumClass.getEnumConstants())
-                                        .filter(constant -> lowerCaseName(constant).equals(value))
-                                        .findFirst());
+        return toEnum(callContext.getArgumentValue(pos, String.class), enumClass);
+    }
+
+    /**
+     * Returns the constant of {@code enumClass} whose lower-case name equals the given value, or
+     * empty if the value is empty or names no constant.
+     */
+    public static <E extends Enum<E>> Optional<E> toEnum(
+            final Optional<String> value, final Class<E> enumClass) {
+        return value.flatMap(
+                v ->
+                        Arrays.stream(enumClass.getEnumConstants())
+                                .filter(constant -> lowerCaseName(constant).equals(v))
+                                .findFirst());
     }
 
     /**

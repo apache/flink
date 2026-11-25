@@ -16,6 +16,68 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testFirstArrivalIsInsertOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM DEDUPLICATE(input => TABLE customer_changes PARTITION BY customer_id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(customer_id=[$0], city=[$1], lsn=[$2])
++- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])
+   +- LogicalProject(customer_id=[$0], city=[$1], lsn=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, customer_changes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[customer_id,city,lsn], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)], changelogMode=[I])
++- Exchange(distribution=[hash[customer_id]], changelogMode=[I])
+   +- TableSourceScan(table=[[default_catalog, default_database, customer_changes]], fields=[customer_id, city, lsn], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFirstWithSequenceByIsUpdating">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM DEDUPLICATE(input => TABLE customer_changes PARTITION BY customer_id, sequence_by => DESCRIPTOR(lsn))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(customer_id=[$0], city=[$1], lsn=[$2])
++- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DESCRIPTOR(_UTF-16LE'lsn'), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])
+   +- LogicalProject(customer_id=[$0], city=[$1], lsn=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, customer_changes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DESCRIPTOR(_UTF-16LE'lsn'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[customer_id,city,lsn], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)], changelogMode=[I,UA], upsertKeys=[[customer_id]])
++- Exchange(distribution=[hash[customer_id]], changelogMode=[I])
+   +- TableSourceScan(table=[[default_catalog, default_database, customer_changes]], fields=[customer_id, city, lsn], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnTimeAddsRowtimeAttribute">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM DEDUPLICATE(input => TABLE user_events PARTITION BY user_id, on_time => DESCRIPTOR(ts))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], event=[$1], ts=[$2], rowtime=[$3])
++- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) event, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
+   +- LogicalProject(user_id=[$0], event=[$1], ts=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, user_events]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], uid=[DEDUPLICATE], select=[user_id,event,ts,rowtime], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) event, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)], changelogMode=[I])
++- Exchange(distribution=[hash[user_id]], changelogMode=[I])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_id, event, ts], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractingConsumer">
     <Resource name="sql">
       <![CDATA[SELECT event, COUNT(*) AS users FROM DEDUPLICATE(input => TABLE user_events PARTITION BY user_id, keep => 'last') GROUP BY event]]>

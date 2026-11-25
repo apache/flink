@@ -122,6 +122,100 @@ public class DeduplicateTestPrograms {
                                     + "keep => 'last')")
                     .build();
 
+    public static final TableTestProgram INSERT_ONLY_OUTPUT =
+            TableTestProgram.of(
+                            "deduplicate-insert-only-output",
+                            "over insert-only input, keeping the first arrival emits only inserts, "
+                                    + "so the result can be written to an append-only sink, also "
+                                    + "when dropping redelivered copies")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("user_events")
+                                    .addSchema(USER_EVENTS_SCHEMA)
+                                    .producedValues(
+                                            Row.of("u1", "login"),
+                                            Row.of("u2", "login"),
+                                            Row.of("u1", "click"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("payments")
+                                    .addSchema(
+                                            "payment_id STRING",
+                                            "amount INT",
+                                            "ingested_at TIMESTAMP(3)")
+                                    .producedValues(
+                                            Row.of(
+                                                    "p1",
+                                                    50,
+                                                    LocalDateTime.of(1970, 1, 1, 10, 0, 1)),
+                                            Row.of(
+                                                    "p2",
+                                                    20,
+                                                    LocalDateTime.of(1970, 1, 1, 10, 0, 2)),
+                                            Row.of(
+                                                    "p1",
+                                                    50,
+                                                    LocalDateTime.of(1970, 1, 1, 10, 0, 7)))
+                                    .build())
+                    .setupTableSink(
+                            appendOnlySink(
+                                    "first_arrivals",
+                                    USER_EVENTS_SCHEMA,
+                                    "+I[u1, login]",
+                                    "+I[u2, login]"))
+                    .setupTableSink(
+                            appendOnlySink(
+                                    "unique_payments",
+                                    new String[] {
+                                        "payment_id STRING",
+                                        "amount INT",
+                                        "ingested_at TIMESTAMP(3)"
+                                    },
+                                    "+I[p1, 50, 1970-01-01T10:00:01]",
+                                    "+I[p2, 20, 1970-01-01T10:00:02]"))
+                    .runSql(
+                            "INSERT INTO first_arrivals SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE user_events PARTITION BY user_id)")
+                    .runSql(
+                            "INSERT INTO unique_payments SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE payments PARTITION BY payment_id, "
+                                    + "state_ttl => INTERVAL '1' HOUR)")
+                    .build();
+
+    public static final TableTestProgram ON_TIME =
+            TableTestProgram.of(
+                            "deduplicate-on-time",
+                            "with on_time, the first arrival keeps its rowtime, so an event-time "
+                                    + "window aggregation can consume the deduplicated stream")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("clicks")
+                                    .addSchema(
+                                            "event_id STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts")
+                                    .producedValues(
+                                            Row.of("e1", at("10:01")),
+                                            Row.of("e2", at("10:02")),
+                                            Row.of("e1", at("10:03")),
+                                            Row.of("e3", at("10:12")))
+                                    .build())
+                    .setupTableSink(
+                            appendOnlySink(
+                                    "unique_clicks_per_window",
+                                    new String[] {"window_start TIMESTAMP(3)", "events BIGINT"},
+                                    "+I[1970-01-01T10:00, 2]",
+                                    "+I[1970-01-01T10:10, 1]"))
+                    .setupSql(
+                            "CREATE VIEW unique_clicks AS SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE clicks PARTITION BY event_id, "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .runSql(
+                            "INSERT INTO unique_clicks_per_window "
+                                    + "SELECT window_start, COUNT(*) FROM TABLE(TUMBLE("
+                                    + "TABLE unique_clicks, DESCRIPTOR(rowtime), "
+                                    + "INTERVAL '10' MINUTES)) "
+                                    + "GROUP BY window_start, window_end")
+                    .build();
+
     public static final TableTestProgram COMPOSITE_AND_NULL_KEY =
             TableTestProgram.of(
                             "deduplicate-composite-and-null-key",
@@ -302,6 +396,15 @@ public class DeduplicateTestPrograms {
         return SinkTestStep.newBuilder(name)
                 .addSchema(schema)
                 .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                .consumedValues(expected)
+                .build();
+    }
+
+    private static SinkTestStep appendOnlySink(
+            final String name, final String[] schema, final String... expected) {
+        return SinkTestStep.newBuilder(name)
+                .addSchema(schema)
+                .addOption("sink-changelog-mode-enforced", "I")
                 .consumedValues(expected)
                 .build();
     }

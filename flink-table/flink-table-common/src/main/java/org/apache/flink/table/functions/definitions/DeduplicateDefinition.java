@@ -97,8 +97,7 @@ public final class DeduplicateDefinition {
 
     /** Returns the {@code keep} argument, or {@link Keep#FIRST} when it is omitted. */
     public static Keep keep(final CallContext callContext) {
-        return CallContextUtils.getEnumArgument(callContext, ARG_KEEP, Keep.class)
-                .orElse(Keep.FIRST);
+        return keep(callContext.getArgumentValue(ARG_KEEP, String.class));
     }
 
     /**
@@ -143,6 +142,9 @@ public final class DeduplicateDefinition {
     }
 
     private static ChangelogMode inferChangelogMode(final ChangelogContext changelogContext) {
+        if (emitsOnlyInserts(changelogContext)) {
+            return ChangelogMode.insertOnly();
+        }
         final ChangelogMode requiredMode = changelogContext.getRequiredChangelogMode();
         final ChangelogMode.Builder builder =
                 ChangelogMode.newBuilder()
@@ -165,6 +167,26 @@ public final class DeduplicateDefinition {
                         callContext, ARG_KEEP, "keep", INSTANCE.getName(), Keep.class)
                 .or(() -> validateSequenceBy(callContext, tableSemantics))
                 .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
+    }
+
+    /**
+     * Over insert-only input, the kept row of a key never changes when the first arrival is kept.
+     * The function then only emits insertions, so its changelog mode can be insert-only.
+     */
+    private static boolean emitsOnlyInserts(final ChangelogContext context) {
+        if (!context.getTableChangelogMode(ARG_INPUT).containsOnly(RowKind.INSERT)) {
+            return false;
+        }
+        final boolean keepsFirst =
+                keep(context.getArgumentValue(ARG_KEEP, String.class)) == Keep.FIRST;
+        final boolean hasSequenceBy =
+                context.getArgumentValue(ARG_SEQUENCE_BY, ColumnList.class).isPresent();
+
+        return keepsFirst && !hasSequenceBy;
+    }
+
+    private static Keep keep(final Optional<String> value) {
+        return CallContextUtils.toEnum(value, Keep.class).orElse(Keep.FIRST);
     }
 
     /** Returns the output columns after the PARTITION BY columns. */
