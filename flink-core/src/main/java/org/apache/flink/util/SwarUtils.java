@@ -45,10 +45,7 @@ public final class SwarUtils {
         return asciiPrefix(bytes, offset, len) == len;
     }
 
-    /**
-     * The number of leading ASCII bytes of {@code bytes[offset, offset + len)}; may be up to 7
-     * bytes short when the first non-ASCII byte is in a word.
-     */
+    /** The number of leading ASCII bytes of {@code bytes[offset, offset + len)}. */
     public static int asciiPrefix(byte[] bytes, int offset, int len) {
         int i = offset;
         final int end = offset + len;
