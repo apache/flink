@@ -127,7 +127,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: "Install cibuildwheel"
-        run: python -m pip install cibuildwheel==2.16.5
+        run: python -m pip install cibuildwheel==2.23.3
       - name: "Build python wheels for ${{ matrix.os_name }}"
         run: python -m cibuildwheel --output-dir flink-python/dist flink-python
         env:
