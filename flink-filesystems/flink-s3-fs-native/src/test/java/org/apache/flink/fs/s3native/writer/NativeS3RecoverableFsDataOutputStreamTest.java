@@ -18,18 +18,31 @@
 
 package org.apache.flink.fs.s3native.writer;
 
+import org.apache.flink.core.fs.BackPressuringExecutor;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
+import static org.apache.flink.util.concurrent.Executors.directExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -38,6 +51,10 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
     private static final String KEY = "out.txt";
     private static final long MIN_PART_SIZE = 10L;
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> UPLOAD_POOL =
+            new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @TempDir Path tmp;
 
@@ -59,7 +76,8 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
         assertThatThrownBy(stream::closeForCommit)
                 .isInstanceOf(IOException.class)
-                .hasMessageContaining("injected uploadPart failure");
+                .hasMessageContaining("Failed to upload part 1")
+                .hasRootCauseMessage("injected uploadPart failure for uploadId: " + uploadId);
 
         assertThat(s3.abortAttempts)
                 .as("closeForCommit must not abort the upload, a snapshot may reference it")
@@ -138,7 +156,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         // No write(), so there is no pending part and closeForCommit() only deletes the temp file.
         NativeS3RecoverableFsDataOutputStream emptyStream =
                 new NativeS3RecoverableFsDataOutputStream(
-                        s3, KEY, uid, dir.toString(), MIN_PART_SIZE);
+                        s3, directExecutor(), KEY, uid, dir.toString(), MIN_PART_SIZE);
         assertThat(countLocalFilesIn(dir)).as("the stream creates its temp file on open").isOne();
 
         Files.delete(onlyFileIn(dir).toPath());
@@ -159,7 +177,8 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         // setUp() wrote 5 bytes; 5 more reach MIN_PART_SIZE and flush the part from write().
         assertThatThrownBy(() -> stream.write(bytes('B', 5), 0, 5))
                 .isInstanceOf(IOException.class)
-                .hasMessageContaining("injected uploadPart failure");
+                .hasMessageContaining("Failed to upload part 1")
+                .hasRootCauseMessage("injected uploadPart failure for uploadId: " + uploadId);
 
         assertThat(countLocalFilesIn(tmp))
                 .as("a failed part upload keeps the temp file so the exception is not masked")
@@ -177,7 +196,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
         stream.write(bytes('B', 5), 0, 5);
 
-        assertThat(s3.uploadPartAttempts).as("exactly one part was uploaded").isOne();
+        assertThat(s3.uploadPartAttempts).as("exactly one part was uploaded").hasValue(1);
         assertThat(flushedFile).as("the uploaded part file is gone").doesNotExist();
         assertThat(onlyFileIn(tmp))
                 .as("write() rotated to a fresh temp file")
@@ -199,7 +218,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         // file may already be gone when close() deletes it.
         NativeS3RecoverableFsDataOutputStream racingStream =
                 new NativeS3RecoverableFsDataOutputStream(
-                        s3, KEY, uid, dir.toString(), MIN_PART_SIZE) {
+                        s3, directExecutor(), KEY, uid, dir.toString(), MIN_PART_SIZE) {
                     @Override
                     protected void deleteTempFile(File file) throws IOException {
                         Files.delete(file.toPath());
@@ -216,10 +235,340 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         assertThat(countLocalFilesIn(dir)).isZero();
     }
 
+    @Test
+    void partUploadsRunConcurrentlyUpToTheLimit() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        NativeS3RecoverableFsDataOutputStream asyncStream =
+                newAsyncStream(tmp.resolve("concurrent"), 2);
+
+        asyncStream.write(bytes('A', 10), 0, 10);
+        asyncStream.write(bytes('B', 10), 0, 10);
+        // Both writes returned while their parts are still being uploaded.
+        waitUntilCondition(() -> s3.inFlightUploads.get() == 2);
+
+        CheckedThread thirdPart =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        asyncStream.write(bytes('C', 10), 0, 10);
+                    }
+                };
+        thirdPart.start();
+        // The third part has to wait for a free upload slot.
+        waitUntilCondition(() -> thirdPart.getState() == Thread.State.WAITING);
+        assertThat(s3.inFlightUploads).hasValue(2);
+
+        s3.uploadPartGate.countDown();
+        thirdPart.sync();
+        asyncStream.closeForCommit().commit();
+
+        assertThat(s3.maxInFlightUploads).hasValue(2);
+        assertThat(s3.committedObjects.get(KEY))
+                .containsExactly(concat(bytes('A', 10), bytes('B', 10), bytes('C', 10)));
+    }
+
+    @Test
+    void persistWaitsForInFlightPartUploads() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        NativeS3RecoverableFsDataOutputStream asyncStream =
+                newAsyncStream(tmp.resolve("persist"), 2);
+        asyncStream.write(bytes('A', 10), 0, 10);
+        asyncStream.write(bytes('B', 3), 0, 3);
+
+        NativeS3Recoverable[] recoverable = new NativeS3Recoverable[1];
+        CheckedThread persisting =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        recoverable[0] = (NativeS3Recoverable) asyncStream.persist();
+                    }
+                };
+        persisting.start();
+        waitUntilCondition(() -> persisting.getState() == Thread.State.WAITING);
+        assertThat(s3.objects).as("the tail is stored after the parts are uploaded").isEmpty();
+
+        s3.uploadPartGate.countDown();
+        persisting.sync();
+
+        assertThat(recoverable[0].parts()).hasSize(1);
+        assertThat(recoverable[0].numBytesInParts()).isEqualTo(10L);
+        assertThat(recoverable[0].incompleteObjectLength()).isEqualTo(3L);
+        assertThat(asyncStream.getPos()).isEqualTo(13L);
+        asyncStream.close();
+    }
+
+    @Test
+    void asyncPartUploadFailureSurfacesOnPersistAndBreaksTheStream() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        s3.failUploadPart = true;
+        Path dir = tmp.resolve("async-failure");
+        NativeS3RecoverableFsDataOutputStream asyncStream = newAsyncStream(dir, 2);
+
+        // The write does not wait for the part upload, so it cannot see its failure.
+        asyncStream.write(bytes('A', 10), 0, 10);
+        s3.uploadPartGate.countDown();
+
+        assertThatThrownBy(asyncStream::persist)
+                .isInstanceOf(IOException.class)
+                .hasStackTraceContaining("Failed to upload part 1")
+                .hasRootCauseMessage("injected uploadPart failure for uploadId: U2");
+        assertThatThrownBy(() -> asyncStream.write(bytes('B', 1), 0, 1))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("must be recovered from the last checkpoint");
+        assertThatThrownBy(asyncStream::closeForCommit)
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("must be recovered from the last checkpoint");
+
+        assertThat(s3.abortAttempts).isZero();
+        assertThat(countLocalFilesIn(dir)).as("the failed part's temp file is deleted").isZero();
+    }
+
+    @Test
+    void partUploadFailureStopsWritesWhileEarlierPartsAreInFlight() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        s3.failingPartNumber = 2;
+        s3.failingPartGate = new CountDownLatch(1);
+        Path dir = tmp.resolve("out-of-order-failure");
+        NativeS3RecoverableFsDataOutputStream asyncStream = newAsyncStream(dir, 3);
+
+        asyncStream.write(bytes('A', 10), 0, 10);
+        asyncStream.write(bytes('B', 10), 0, 10);
+        // Part 2 fails while part 1 is still in flight. Its failure is held back until the write
+        // that handed it over returned, as that write would otherwise already see it.
+        s3.failingPartGate.countDown();
+        waitUntilCondition(() -> isFailed(asyncStream));
+
+        assertThatThrownBy(() -> asyncStream.write(bytes('C', 10), 0, 10))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("must be recovered from the last checkpoint")
+                .hasStackTraceContaining("Failed to upload part 2");
+        assertThat(s3.inFlightUploads).as("part 1 is still in flight").hasValue(1);
+
+        s3.uploadPartGate.countDown();
+        asyncStream.close();
+
+        assertThat(s3.uploadPartAttempts).as("part 3 is never uploaded").hasValue(2);
+        assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
+    @Test
+    void closeWaitsForInFlightPartUploads() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        s3.failUploadPart = true; // a failed upload keeps its temp file
+        Path dir = tmp.resolve("close-in-flight");
+        NativeS3RecoverableFsDataOutputStream asyncStream = newAsyncStream(dir, 2);
+        asyncStream.write(bytes('A', 10), 0, 10);
+        waitUntilCondition(() -> s3.inFlightUploads.get() == 1);
+
+        CheckedThread closing =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        asyncStream.close();
+                    }
+                };
+        closing.start();
+        waitUntilCondition(() -> closing.getState() == Thread.State.WAITING || !closing.isAlive());
+        assertThat(closing.isAlive()).as("close() waits for the in-flight part upload").isTrue();
+
+        s3.uploadPartGate.countDown();
+        closing.sync();
+
+        assertThat(countLocalFilesIn(dir)).isZero();
+        assertThat(s3.abortAttempts).isZero();
+    }
+
+    @Test
+    void closeDoesNotWaitForPartsQueuedBehindOtherStreams() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        Path dir = tmp.resolve("close-queued");
+        ExecutorService sharedPool = Executors.newSingleThreadExecutor();
+        try {
+            NativeS3RecoverableFsDataOutputStream otherStream =
+                    new NativeS3RecoverableFsDataOutputStream(
+                            s3,
+                            sharedPool,
+                            "other.txt",
+                            s3.startMultiPartUpload("other.txt"),
+                            dir.toString(),
+                            MIN_PART_SIZE);
+            NativeS3RecoverableFsDataOutputStream closingStream =
+                    new NativeS3RecoverableFsDataOutputStream(
+                            s3,
+                            sharedPool,
+                            KEY,
+                            s3.startMultiPartUpload(KEY),
+                            dir.toString(),
+                            MIN_PART_SIZE);
+            otherStream.write(bytes('A', 10), 0, 10); // takes the only upload thread
+            waitUntilCondition(() -> s3.inFlightUploads.get() == 1);
+            closingStream.write(bytes('B', 10), 0, 10); // queued behind it
+
+            closingStream.close();
+
+            assertThat(s3.inFlightUploads)
+                    .as("close() returns while the part of the other stream is uploaded")
+                    .hasValue(1);
+            s3.uploadPartGate.countDown();
+            otherStream.closeForCommit().commit();
+            sharedPool.submit(() -> {}).get(); // the queued part has had its turn
+            assertThat(s3.uploadPartAttempts)
+                    .as("the queued part of the closed stream is not uploaded")
+                    .hasValue(1);
+            assertThat(countLocalFilesIn(dir)).isZero();
+        } finally {
+            sharedPool.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeWhileWriteIsBackPressuredDoesNotLeakATempFile() throws Exception {
+        s3.uploadPartGate = new CountDownLatch(1);
+        Path dir = tmp.resolve("close-back-pressured");
+        NativeS3RecoverableFsDataOutputStream asyncStream = newAsyncStream(dir, 1);
+        asyncStream.write(bytes('A', 10), 0, 10);
+        waitUntilCondition(() -> s3.inFlightUploads.get() == 1);
+
+        CheckedThread backPressuredWrite =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        asyncStream.write(bytes('B', 10), 0, 10);
+                    }
+                };
+        backPressuredWrite.start();
+        waitUntilCondition(() -> backPressuredWrite.getState() == Thread.State.WAITING);
+
+        CheckedThread closing =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        asyncStream.close();
+                    }
+                };
+        closing.start();
+        waitUntilCondition(() -> closing.getState() == Thread.State.WAITING || !closing.isAlive());
+        assertThat(closing.isAlive()).as("close() waits for the in-flight part upload").isTrue();
+
+        s3.uploadPartGate.countDown();
+        closing.sync();
+        assertThatThrownBy(backPressuredWrite::sync).isInstanceOf(IOException.class);
+
+        assertThat(s3.uploadPartAttempts)
+                .as("the part handed over before close() is not uploaded")
+                .hasValue(1);
+        assertThat(countLocalFilesIn(dir))
+                .as("no buffer is created for the closed stream")
+                .isZero();
+    }
+
+    @Test
+    void errorWhenHandingOverAPartIsRethrownAndDoesNotBlockClose() throws Exception {
+        OutOfMemoryError error = new OutOfMemoryError("unable to create native thread");
+        Path dir = tmp.resolve("hand-over-error");
+        NativeS3RecoverableFsDataOutputStream failingStream =
+                new NativeS3RecoverableFsDataOutputStream(
+                        s3,
+                        command -> {
+                            throw error;
+                        },
+                        KEY,
+                        s3.startMultiPartUpload(KEY),
+                        dir.toString(),
+                        MIN_PART_SIZE);
+
+        assertThatThrownBy(() -> failingStream.write(bytes('A', 10), 0, 10)).isSameAs(error);
+        assertThatThrownBy(() -> failingStream.write(bytes('B', 1), 0, 1)).isSameAs(error);
+
+        // Returns, because the part that was not handed over counts as a failed upload.
+        failingStream.close();
+        assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
+    @Test
+    void fatalErrorOfAPartUploadIsRethrownAsItIs() throws Exception {
+        InternalError error = new InternalError("injected fatal error");
+        NativeS3ObjectOperations failingOps =
+                new NativeS3ObjectOperations(null, "test-bucket") {
+                    @Override
+                    public NativeS3ObjectOperations.UploadPartResult uploadPart(
+                            String key, String uploadId, int partNumber, File file, long length) {
+                        throw error;
+                    }
+                };
+        Path dir = tmp.resolve("fatal-error");
+        NativeS3RecoverableFsDataOutputStream failingStream =
+                new NativeS3RecoverableFsDataOutputStream(
+                        failingOps, directExecutor(), KEY, "U", dir.toString(), MIN_PART_SIZE);
+
+        assertThatThrownBy(() -> failingStream.write(bytes('A', 10), 0, 10)).isSameAs(error);
+        assertThatThrownBy(failingStream::persist).isSameAs(error);
+
+        failingStream.close();
+        assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
+    @Test
+    void failureToStartTheNextPartFailsTheStream() throws Exception {
+        AtomicBoolean failNextTempFile = new AtomicBoolean();
+        Path dir = tmp.resolve("next-part-failure");
+        NativeS3RecoverableFsDataOutputStream failingStream =
+                new NativeS3RecoverableFsDataOutputStream(
+                        s3,
+                        directExecutor(),
+                        KEY,
+                        s3.startMultiPartUpload(KEY),
+                        dir.toString(),
+                        MIN_PART_SIZE) {
+                    @Override
+                    protected void createNewTempFile() throws IOException {
+                        if (failNextTempFile.get()) {
+                            throw new IOException("injected temp-file creation failure");
+                        }
+                        super.createNewTempFile();
+                    }
+                };
+        failNextTempFile.set(true);
+
+        // Part 1 is handed over, then the buffer for part 2 cannot be created.
+        assertThatThrownBy(() -> failingStream.write(bytes('A', 10), 0, 10))
+                .hasMessage("injected temp-file creation failure");
+
+        for (ThrowingCallable call :
+                new ThrowingCallable[] {
+                    () -> failingStream.write(bytes('B', 1), 0, 1),
+                    failingStream::persist,
+                    failingStream::closeForCommit
+                }) {
+            assertThatThrownBy(call)
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("This stream failed")
+                    .hasRootCauseMessage("injected temp-file creation failure");
+        }
+        assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
+    private static boolean isFailed(NativeS3RecoverableFsDataOutputStream stream) {
+        try {
+            stream.flush();
+            return false;
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    private NativeS3RecoverableFsDataOutputStream newAsyncStream(Path dir, int maxConcurrentUploads)
+            throws IOException {
+        Executor executor =
+                new BackPressuringExecutor(UPLOAD_POOL.getExecutor(), maxConcurrentUploads);
+        return new NativeS3RecoverableFsDataOutputStream(
+                s3, executor, KEY, s3.startMultiPartUpload(KEY), dir.toString(), MIN_PART_SIZE);
+    }
+
     private NativeS3RecoverableFsDataOutputStream newStream(FakeNativeS3Operations ops, String uid)
             throws IOException {
         return new NativeS3RecoverableFsDataOutputStream(
-                ops, KEY, uid, tmp.toString(), MIN_PART_SIZE);
+                ops, directExecutor(), KEY, uid, tmp.toString(), MIN_PART_SIZE);
     }
 
     private static File onlyFileIn(Path dir) {
@@ -231,7 +580,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     private NativeS3RecoverableFsDataOutputStream newFailingDeleteStream() throws IOException {
         String uid = s3.startMultiPartUpload(KEY);
         return new NativeS3RecoverableFsDataOutputStream(
-                s3, KEY, uid, tmp.toString(), MIN_PART_SIZE) {
+                s3, directExecutor(), KEY, uid, tmp.toString(), MIN_PART_SIZE) {
             @Override
             protected void deleteTempFile(File file) throws IOException {
                 throw new IOException("injected temp-file delete failure");
@@ -246,6 +595,14 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         try (java.util.stream.Stream<Path> s = Files.list(dir)) {
             return s.count();
         }
+    }
+
+    private static byte[] concat(byte[]... arrays) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (byte[] array : arrays) {
+            out.write(array);
+        }
+        return out.toByteArray();
     }
 
     private static byte[] bytes(char c, int n) {
