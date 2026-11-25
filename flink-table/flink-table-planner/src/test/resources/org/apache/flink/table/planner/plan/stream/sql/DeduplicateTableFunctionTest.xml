@@ -16,50 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testOutputHasNoTimeAttribute">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM DEDUPLICATE(input => TABLE user_events PARTITION BY event, sequence_by => DESCRIPTOR(ts))]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(event=[$0], user_id=[$1], ts=[$2])
-+- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($1), DEFAULT(), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) event, VARCHAR(2147483647) user_id, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts)])
-   +- LogicalProject(user_id=[$0], event=[$1], ts=[$2])
-      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, user_events]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($1), DEFAULT(), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[event,user_id,ts], rowType=[RecordType(VARCHAR(2147483647) event, VARCHAR(2147483647) user_id, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts)], changelogMode=[I,UA], upsertKeys=[[event]])
-+- Exchange(distribution=[hash[event]], changelogMode=[I])
-   +- WatermarkAssigner(rowtime=[ts], watermark=[ts], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_id, event, ts], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testPartitionByTimeAttribute">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM DEDUPLICATE(input => TABLE user_events PARTITION BY ts, keep => 'last')]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(ts=[$0], user_id=[$1], event=[$2])
-+- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($2), _UTF-16LE'last', DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, VARCHAR(2147483647) user_id, VARCHAR(2147483647) event)])
-   +- LogicalProject(user_id=[$0], event=[$1], ts=[$2])
-      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, user_events]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($2), _UTF-16LE'last', DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[ts,user_id,event], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, VARCHAR(2147483647) user_id, VARCHAR(2147483647) event)], changelogMode=[I,UA], upsertKeys=[[ts]])
-+- Exchange(distribution=[hash[ts]], changelogMode=[I])
-   +- WatermarkAssigner(rowtime=[ts], watermark=[ts], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_id, event, ts], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRetractingConsumer">
     <Resource name="sql">
       <![CDATA[SELECT event, COUNT(*) AS users FROM DEDUPLICATE(input => TABLE user_events PARTITION BY user_id, keep => 'last') GROUP BY event]]>
