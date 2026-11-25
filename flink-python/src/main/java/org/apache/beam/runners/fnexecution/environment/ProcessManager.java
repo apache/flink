@@ -17,10 +17,13 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import org.apache.flink.util.MdcUtils;
+
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -145,15 +148,22 @@ public class ProcessManager {
 
         LOG.debug("Attempting to start process with command: {}", pb.command());
         Process newProcess = pb.start();
+        final String jobId = MDC.get(MdcUtils.JOB_ID);
+        final Map<String, String> exitLogContext =
+                jobId == null
+                        ? Collections.emptyMap()
+                        : Collections.singletonMap(MdcUtils.JOB_ID, jobId);
         newProcess
                 .onExit()
-                .thenAccept(
-                        exited ->
-                                LOG.info(
-                                        "Process for worker {} exited: pid={}, exitCode={}",
-                                        id,
-                                        exited.pid(),
-                                        exited.exitValue()));
+                .thenRun(
+                        MdcUtils.wrapRunnable(
+                                exitLogContext,
+                                () ->
+                                        LOG.info(
+                                                "Python worker {} exited: pid={}, exitCode={}",
+                                                id,
+                                                newProcess.pid(),
+                                                newProcess.exitValue())));
         Process oldProcess = processes.put(id, newProcess);
         synchronized (ALL_PROCESS_MANAGERS) {
             if (!ALL_PROCESS_MANAGERS.contains(this)) {

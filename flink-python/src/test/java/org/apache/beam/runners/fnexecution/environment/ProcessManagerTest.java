@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.MdcUtils;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
@@ -48,11 +51,17 @@ class ProcessManagerTest {
     }
 
     @Test
-    void logsForciblyKilledProcess() throws Exception {
-        assertExitLogged("exec sleep 60", true, 137);
+    void logsForciblyKilledProcessWithJobId() throws Exception {
+        final JobID jobId = new JobID();
+        final LogEvent event;
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            event = assertExitLogged("exec sleep 60", true, 137);
+        }
+        assertThat(event.getContextData().toMap())
+                .containsEntry(MdcUtils.JOB_ID, jobId.toHexString());
     }
 
-    private void assertExitLogged(String command, boolean kill, int exitCode) throws Exception {
+    private LogEvent assertExitLogged(String command, boolean kill, int exitCode) throws Exception {
         final String workerId = "exit-log-worker";
         final CompletableFuture<LogEvent> exitEvent = new CompletableFuture<>();
         final Logger logger = (Logger) LogManager.getLogger(ProcessManager.class);
@@ -63,7 +72,7 @@ class ProcessManagerTest {
                     public void append(LogEvent event) {
                         if (event.getMessage()
                                 .getFormattedMessage()
-                                .startsWith("Process for worker " + workerId + " exited:")) {
+                                .startsWith("Python worker " + workerId + " exited:")) {
                             exitEvent.complete(event.toImmutable());
                         }
                     }
@@ -87,12 +96,13 @@ class ProcessManagerTest {
             assertThat(event.getLevel()).isEqualTo(Level.INFO);
             assertThat(event.getMessage().getFormattedMessage())
                     .isEqualTo(
-                            "Process for worker "
+                            "Python worker "
                                     + workerId
                                     + " exited: pid="
                                     + process.pid()
                                     + ", exitCode="
                                     + exitCode);
+            return event;
         } finally {
             try {
                 manager.stopProcess(workerId);
