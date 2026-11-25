@@ -79,7 +79,18 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
         this.bytes = bytes;
     }
 
+    /**
+     * Creates a memory size from a count of mebibytes.
+     *
+     * @param mebiBytes the number of mebibytes
+     * @return the corresponding memory size
+     * @throws IllegalArgumentException if the count is negative or its byte count exceeds {@link
+     *     Long#MAX_VALUE}
+     */
     public static MemorySize ofMebiBytes(long mebiBytes) {
+        if (mebiBytes < 0 || mebiBytes > (Long.MAX_VALUE >> 20)) {
+            throw new IllegalArgumentException("Mebibytes out of range: " + mebiBytes);
+        }
         return new MemorySize(mebiBytes << 20);
     }
 
