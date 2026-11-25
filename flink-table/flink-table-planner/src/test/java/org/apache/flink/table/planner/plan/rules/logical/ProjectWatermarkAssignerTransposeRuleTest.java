@@ -103,6 +103,32 @@ class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
                         + "  'bounded' = 'false'\n"
                         + ")";
         util.tableEnv().executeSql(ddl4);
+
+        String ddl5 =
+                "CREATE TABLE DeepNestedTable(\n"
+                        + "  a INT,\n"
+                        + "  d_d1 INT,\n"
+                        + "  ts TIMESTAMP(3),\n"
+                        + "  d ROW<d1 INT NOT NULL, d2 ROW<x INT NOT NULL, y INT> NOT NULL>,\n"
+                        + "WATERMARK FOR ts AS ts\n"
+                        + ") WITH ("
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl5);
+
+        String ddl6 =
+                "CREATE TABLE IndependentWatermarkTable(\n"
+                        + "  a INT,\n"
+                        + "  b INT,\n"
+                        + "  ts TIMESTAMP(3),\n"
+                        + "  ts2 TIMESTAMP(3),\n"
+                        + "WATERMARK FOR ts AS ts2\n"
+                        + ") WITH ("
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl6);
     }
 
     @Test
@@ -158,5 +184,35 @@ class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
     @Test
     void transposeWithWatermarkWithMultipleInput() {
         util.verifyRelPlan("SELECT a FROM UdfTable");
+    }
+
+    @Test
+    void transposeWithAllTopLevelFieldsAndPartialNestedField() {
+        util.verifyRelPlan("SELECT a, b, c, d.d1 FROM SimpleTable");
+    }
+
+    @Test
+    void transposeWithWholeAndPartialNestedField() {
+        util.verifyRelPlan("SELECT d, d.d1 FROM SimpleTable");
+    }
+
+    @Test
+    void transposeWithDeepNestedField() {
+        util.verifyRelPlan("SELECT a, d.d2.x FROM DeepNestedTable");
+    }
+
+    @Test
+    void transposeWithNotNullNestedFieldInNullableRow() {
+        util.verifyRelPlan("SELECT d.d1 + 1, d.d2.y FROM DeepNestedTable");
+    }
+
+    @Test
+    void transposeWithWatermarkNotReferencingRowTime() {
+        util.verifyRelPlan("SELECT a FROM IndependentWatermarkTable");
+    }
+
+    @Test
+    void transposeWithNestedFieldNameCollision() {
+        util.verifyRelPlan("SELECT d_d1, d.d1 FROM DeepNestedTable");
     }
 }

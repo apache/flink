@@ -20,29 +20,28 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner;
-import org.apache.flink.table.planner.plan.utils.NestedColumn;
 import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexShuttle;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Transpose between the {@link LogicalWatermarkAssigner} and {@link LogicalProject}. The transposed
  * {@link LogicalProject} works like a pruner to prune the unused fields from source. The top level
  * {@link LogicalProject} still has to do the calculation, filter and prune the rowtime column if
- * the query doesn't need.
- *
- * <p>NOTES: Currently the rule doesn't support nested projection push down.
+ * the query doesn't need. Nested fields are pruned as well, i.e., the transposed {@link
+ * LogicalProject} only forwards the used nested fields.
  */
 public class ProjectWatermarkAssignerTransposeRule extends RelOptRule {
 
@@ -64,11 +63,11 @@ public class ProjectWatermarkAssignerTransposeRule extends RelOptRule {
         NestedSchema usedFieldInProjectIncludingRowTimeFields =
                 getUsedFieldsInTopLevelProjectAndWatermarkAssigner(project, watermarkAssigner);
 
-        // check the field number of the input in watermark assigner is equal to the used fields in
-        // watermark assigner and project
-
+        // check whether there are unused top-level fields or nested fields that can be pruned
         return usedFieldInProjectIncludingRowTimeFields.columns().size()
-                != watermarkAssigner.getRowType().getFieldCount();
+                        != watermarkAssigner.getRowType().getFieldCount()
+                || usedFieldInProjectIncludingRowTimeFields.columns().values().stream()
+                        .anyMatch(column -> !column.isLeaf());
     }
 
     @Override
@@ -81,68 +80,42 @@ public class ProjectWatermarkAssignerTransposeRule extends RelOptRule {
                 getUsedFieldsInTopLevelProjectAndWatermarkAssigner(project, watermarkAssigner);
         FlinkRelBuilder builder =
                 (FlinkRelBuilder) call.builder().push(watermarkAssigner.getInput());
-        List<RexInputRef> transposedProjects = new LinkedList<>();
-        List<String> usedNames = new LinkedList<>();
+        RexBuilder rexBuilder = builder.getRexBuilder();
+        List<String> inputFieldNames = watermarkAssigner.getRowType().getFieldNames();
 
-        // TODO: support nested projection push down in transpose
-        // add the used column RexInputRef and names into list
-        for (NestedColumn column : nestedSchema.columns().values()) {
-            // mark by hand
-            column.setIndexOfLeafInNewSchema(transposedProjects.size());
-            column.markLeaf();
-
-            usedNames.add(column.name());
-            transposedProjects.add(builder.field(column.indexInOriginSchema()));
+        // forward only the used (nested) fields; this also sets indexOfLeafInNewSchema
+        List<RexNode> transposedProjects = new ArrayList<>();
+        List<String> transposedNames = new ArrayList<>();
+        for (int[] path : NestedProjectionUtil.convertToIndexArray(nestedSchema)) {
+            RexNode expr = builder.field(path[0]);
+            StringBuilder name = new StringBuilder(inputFieldNames.get(path[0]));
+            for (int i = 1; i < path.length; i++) {
+                name.append("_").append(expr.getType().getFieldNames().get(path[i]));
+                expr = rexBuilder.makeFieldAccess(expr, path[i]);
+            }
+            transposedProjects.add(expr);
+            transposedNames.add(name.toString());
         }
-
-        // get the rowtime field index in the transposed project
-        String rowTimeName =
-                watermarkAssigner
-                        .getRowType()
-                        .getFieldNames()
-                        .get(watermarkAssigner.rowtimeFieldIndex());
-        int indexOfRowTimeInTransposedProject;
-        if (nestedSchema.columns().get(rowTimeName) == null) {
-            // push the RexInputRef of the rowtime into the list
-            int rowTimeIndexInInput = watermarkAssigner.rowtimeFieldIndex();
-            indexOfRowTimeInTransposedProject = transposedProjects.size();
-            transposedProjects.add(builder.field(rowTimeIndexInInput));
-            usedNames.add(rowTimeName);
-        } else {
-            // find rowtime ref in the list and mark the location
-            indexOfRowTimeInTransposedProject =
-                    nestedSchema.columns().get(rowTimeName).indexOfLeafInNewSchema();
-        }
-
         // the rowtime column has no rowtime indicator
-        builder.project(transposedProjects, usedNames);
+        builder.project(transposedProjects, transposedNames);
 
-        // rewrite the top level field reference
         RexNode newWatermarkExpr =
-                watermarkAssigner
-                        .watermarkExpr()
-                        .accept(
-                                new RexShuttle() {
-                                    @Override
-                                    public RexNode visitInputRef(RexInputRef inputRef) {
-                                        String fieldName =
-                                                watermarkAssigner
-                                                        .getRowType()
-                                                        .getFieldNames()
-                                                        .get(inputRef.getIndex());
-                                        return builder.field(
-                                                nestedSchema
-                                                        .columns()
-                                                        .get(fieldName)
-                                                        .indexOfLeafInNewSchema());
-                                    }
-                                });
-
-        builder.watermark(indexOfRowTimeInTransposedProject, newWatermarkExpr);
+                NestedProjectionUtil.rewrite(
+                                Collections.singletonList(watermarkAssigner.watermarkExpr()),
+                                nestedSchema,
+                                rexBuilder,
+                                RelOptUtil.getFieldTypeList(builder.peek().getRowType()))
+                        .get(0);
+        String rowTimeName = inputFieldNames.get(watermarkAssigner.rowtimeFieldIndex());
+        builder.watermark(
+                nestedSchema.columns().get(rowTimeName).indexOfLeafInNewSchema(), newWatermarkExpr);
 
         List<RexNode> newProjects =
                 NestedProjectionUtil.rewrite(
-                        project.getProjects(), nestedSchema, call.builder().getRexBuilder());
+                        project.getProjects(),
+                        nestedSchema,
+                        rexBuilder,
+                        RelOptUtil.getFieldTypeList(builder.peek().getRowType()));
         RelNode newProject =
                 builder.project(newProjects, project.getRowType().getFieldNames()).build();
         call.transformTo(newProject);
@@ -152,6 +125,10 @@ public class ProjectWatermarkAssignerTransposeRule extends RelOptRule {
             LogicalProject project, LogicalWatermarkAssigner watermarkAssigner) {
         List<RexNode> usedFields = new ArrayList<>(project.getProjects());
         usedFields.add(watermarkAssigner.watermarkExpr());
+        // the transposed project always has to forward the rowtime column
+        usedFields.add(
+                RexInputRef.of(
+                        watermarkAssigner.rowtimeFieldIndex(), watermarkAssigner.getRowType()));
         return NestedProjectionUtil.build(usedFields, watermarkAssigner.getRowType());
     }
 }
