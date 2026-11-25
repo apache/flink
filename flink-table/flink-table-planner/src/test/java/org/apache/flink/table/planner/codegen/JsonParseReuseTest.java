@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -62,6 +63,10 @@ class JsonParseReuseTest {
 
     private static final Pattern JSON_VALUE_PATTERN =
             Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.JSON_VALUE().getName()) + "\\(");
+
+    // a parse by a VariantPathReader, see SelectiveParseJsonCodeGen
+    private static final Pattern PATH_READ_PATTERN =
+            Pattern.compile("\\bvariantPathReader\\$i?\\d+\\.parse\\(");
 
     static final String LIKE_X = "other_json LIKE '%x%'";
 
@@ -597,6 +602,93 @@ class JsonParseReuseTest {
     }
 
     @Test
+    void testParseJsonAndTryParseJsonShareRead() {
+        final String sql =
+                "SELECT CAST(PARSE_JSON(json_data)['type'] AS STRING), "
+                        + "CAST(TRY_PARSE_JSON(json_data)['age'] AS STRING) FROM json_src";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of("account", "42"), Row.of("admin", "30"));
+        assertSelectiveReads(sql, 1);
+    }
+
+    @Test
+    void testDifferentAllowDuplicateKeysReadSeparately() {
+        final String sql =
+                "SELECT CAST(PARSE_JSON(json_data, TRUE)['type'] AS STRING), "
+                        + "CAST(PARSE_JSON(json_data, FALSE)['age'] AS STRING) FROM json_src";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of("account", "42"), Row.of("admin", "30"));
+        assertSelectiveReads(sql, 2);
+    }
+
+    @Test
+    void testPathsInFilterAndProjectionShareRead() {
+        final String sql =
+                "SELECT CAST(PARSE_JSON(json_data)['age'] AS STRING) FROM json_src "
+                        + "WHERE CAST(PARSE_JSON(json_data)['type'] AS STRING) = 'admin'";
+        assertThat(collect(sql)).containsExactly(Row.of("30"));
+        assertSelectiveReads(sql, 1);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+            strings = {
+                // the whole document, also for the parse with a path
+                "JSON_STRING(TRY_PARSE_JSON(json_data))",
+                // a key that isn't a literal
+                "CAST(PARSE_JSON(json_data)[other_json] AS STRING)",
+                // a VARIANT result, alone or in a type
+                "PARSE_JSON(json_data)['age']",
+                "CAST(PARSE_JSON(json_data)['roles'] AS ARRAY<VARIANT>)"
+            })
+    void testFullParse(String expression) {
+        // next to a path that alone would use the reader
+        final String sql =
+                "SELECT CAST(PARSE_JSON(json_data)['type'] AS STRING), "
+                        + expression
+                        + " FROM json_src";
+        assertThat(collect(sql)).hasSize(2);
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(PATH_READ_PATTERN, code)).isZero();
+        assertThat(countParseJson(code)).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+            strings = {
+                // built-ins whose result has no VARIANT
+                "PARSE_JSON(json_data)['age'] IS NULL",
+                "JSON_STRING(PARSE_JSON(json_data)['address'])"
+            })
+    void testSelectiveParse(String expression) {
+        // next to a path that alone would use the reader
+        final String sql =
+                "SELECT CAST(PARSE_JSON(json_data)['type'] AS STRING), "
+                        + expression
+                        + " FROM json_src";
+        assertThat(collect(sql)).hasSize(2);
+        assertSelectiveReads(sql, 1);
+    }
+
+    @Test
+    void testNonLiteralAllowDuplicateKeysParsesFully() {
+        final String sql =
+                "SELECT CAST(PARSE_JSON(json_data, other_json = '{}')['age'] AS STRING) "
+                        + "FROM json_src";
+        assertThat(collect(sql)).containsExactlyInAnyOrder(Row.of("42"), Row.of("30"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(PATH_READ_PATTERN, code)).isZero();
+        assertThat(countParseJson(code)).isPositive();
+    }
+
+    // reader parses, and no full parse
+    private void assertSelectiveReads(final String sql, final int reads) {
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(PATH_READ_PATTERN, code)).isEqualTo(reads);
+        assertThat(countParseJson(code)).isZero();
+    }
+
+    @Test
     void testParseJsonDifferentInputsParseSeparately() {
         final String sql =
                 "SELECT JSON_STRING(PARSE_JSON(json_data)), "
@@ -645,6 +737,16 @@ class JsonParseReuseTest {
                         "CAST(TRY_PARSE_JSON(<input>)['address']['city'] AS STRING)",
                         "Munich",
                         "admin",
+                        // PARSE_JSON and TRY_PARSE_JSON share the reader's parse
+                        PATH_READ_PATTERN),
+                Arguments.of(
+                        // a key that isn't a literal needs the full parse, shared with
+                        // TRY_PARSE_JSON; the key is missing, so the type is returned
+                        "CASE WHEN PARSE_JSON(<input>)[other_json] IS NULL "
+                                + "THEN CAST(PARSE_JSON(<input>)['type'] AS STRING) END",
+                        "CAST(TRY_PARSE_JSON(<input>)['address']['city'] AS STRING)",
+                        "Munich",
+                        "admin",
                         PARSE_JSON_PATTERN),
                 Arguments.of(
                         "JSON_TYPE(<input>)",
@@ -678,9 +780,16 @@ class JsonParseReuseTest {
                         .replace("<input>", "TRIM(BTRIM(json_data))");
         assertThat(collect(sql))
                 .containsExactlyInAnyOrder(Row.of(expectedRow1), Row.of(expectedRow2));
-        assertThat(count(parsePattern, extractGeneratedCode(sql)))
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(parsePattern, code))
                 .as("Calls on the same computed input in different CASE branches share one parse")
                 .isOne();
+        // and not the other kind of parse
+        if (parsePattern == PATH_READ_PATTERN) {
+            assertThat(countParseJson(code)).isZero();
+        } else {
+            assertThat(count(PATH_READ_PATTERN, code)).isZero();
+        }
     }
 
     @Test
@@ -802,7 +911,29 @@ class JsonParseReuseTest {
         assertThat(collect(sql))
                 .containsExactlyInAnyOrder(
                         Row.of("x", null, null), Row.of("y", "Q", null), Row.of("z", "R", "R"));
-        assertThat(countParseJson(extractGeneratedCode(sql))).isOne();
+        assertSelectiveReads(sql, 1);
+    }
+
+    @Test
+    void testFullParseOfRawColumnInsideAndOutsideMemoizedValue() {
+        createIdJsonTable(
+                Row.of(1, "{\"a\":\"x\",\"b\":\"p\"}"),
+                Row.of(2, "{\"a\":\"y\",\"b\":\"q\"}"),
+                Row.of(3, "{\"a\":\"z\",\"b\":\"r\"}"));
+        // a key that isn't a literal needs the full parse, shared with the memoized values; the
+        // key is missing, so a is returned
+        final String sql =
+                "SELECT CASE WHEN PARSE_JSON(j)[CAST(id AS STRING)] IS NULL "
+                        + "THEN CAST(PARSE_JSON(j)['a'] AS STRING) END, "
+                        + "CASE WHEN id > 1 THEN UPPER(CAST(TRY_PARSE_JSON(j)['b'] AS STRING)) END, "
+                        + "CASE WHEN id > 2 THEN UPPER(CAST(TRY_PARSE_JSON(j)['b'] AS STRING)) END "
+                        + "FROM t";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of("x", null, null), Row.of("y", "Q", null), Row.of("z", "R", "R"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(PATH_READ_PATTERN, code)).isZero();
+        assertThat(countParseJson(code)).isOne();
     }
 
     @Test
