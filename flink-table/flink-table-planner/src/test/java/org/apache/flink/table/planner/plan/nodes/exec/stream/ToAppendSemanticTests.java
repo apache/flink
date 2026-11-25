@@ -31,6 +31,7 @@ public class ToAppendSemanticTests extends SemanticTestBase {
         return List.of(
                 ToAppendTestPrograms.UPSERT,
                 ToAppendTestPrograms.RETRACT,
+                ToAppendTestPrograms.WITHOUT_KEY,
                 ToAppendTestPrograms.UNION_ALL,
                 ToAppendTestPrograms.WINDOW,
                 ToAppendTestPrograms.DEDUPLICATE,

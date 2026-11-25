@@ -66,6 +66,39 @@ public class ToAppendTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_APPEND(input => TABLE source_table)")
                     .build();
 
+    public static final TableTestProgram WITHOUT_KEY =
+            TableTestProgram.of(
+                            "to-append-without-key",
+                            "the key is projected away and the key-only delete is dropped")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_table")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "name STRING",
+                                            "tags ARRAY<STRING> NOT NULL")
+                                    .addMode(ChangelogMode.upsert(true))
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "a", new String[] {"x"}),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    1,
+                                                    "b",
+                                                    new String[] {"x", "y"}),
+                                            // Delete by key: NOT NULL array column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null, null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("r ROW<name STRING, tags ARRAY<STRING>>")
+                                    .addMode(ChangelogMode.insertOnly())
+                                    .consumedValues("+I[+I[a, [x]]]", "+I[+I[b, [x, y]]]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "WITH projected AS (SELECT ROW(name, tags) AS r FROM source_table) "
+                                    + "SELECT * FROM TO_APPEND(input => TABLE projected)")
+                    .build();
+
     public static final TableTestProgram UNION_ALL =
             TableTestProgram.of(
                             "to-append-union-all",

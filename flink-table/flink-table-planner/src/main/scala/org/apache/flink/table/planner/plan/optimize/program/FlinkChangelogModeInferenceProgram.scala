@@ -1483,12 +1483,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             }
           }
 
-        // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
-        // is, because we will filter all records based on the condition that applies to that key
+        // A key-only delete (DELETE_BY_KEY) carries only the key, every other column is NULL. A
+        // Calc can forward it only if
+        // - its condition references only key columns, so the tombstone is filtered like the row,
+        // - its output keeps the key, so the tombstone still identifies the row. This is not
+        //   needed if the consumer ignores retractions: the tombstone is then forwarded as an
+        //   all-NULL row and dropped by the consumer.
         case calc: StreamPhysicalCalc =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            (isNonUpsertKeyCondition(calc) || !hasOutputUpsertKey(calc))
+            (isNonUpsertKeyCondition(calc) || (!hasOutputUpsertKey(calc) && !retractionsIgnored))
           ) {
             None
           } else {
