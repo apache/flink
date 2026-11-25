@@ -130,6 +130,25 @@ class ToAppendTest extends TableTestBase {
     }
 
     @Test
+    void testMetadata() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source_with_metadata ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING,"
+                                + "  `offset` BIGINT METADATA"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D',"
+                                + "  'source.produces-delete-by-key' = 'true',"
+                                + "  'readable-metadata' = 'offset:BIGINT'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_metadata)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
     void testOutputTypesMatchInput() {
         util.tableEnv()
                 .executeSql(

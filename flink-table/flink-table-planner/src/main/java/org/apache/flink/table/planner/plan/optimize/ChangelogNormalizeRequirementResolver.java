@@ -85,7 +85,7 @@ public class ChangelogNormalizeRequirementResolver {
         // check if metadata columns are accessed
         final RelNode input = normalize.getInput();
 
-        return visit(input, bitSetForAllOutputColumns(input));
+        return !retractionsIgnored && visit(input, bitSetForAllOutputColumns(input));
     }
 
     private static ImmutableBitSet bitSetForAllOutputColumns(RelNode input) {
