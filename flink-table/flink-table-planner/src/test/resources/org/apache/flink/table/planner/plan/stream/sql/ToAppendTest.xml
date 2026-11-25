@@ -16,6 +16,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testCdcEventsDuplicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_full_deletes)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source_with_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_source_with_full_deletes]], fields=[id, name], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInputWithoutUpsertKey">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_APPEND(input => TABLE names)]]>
@@ -81,6 +102,53 @@ LogicalProject(id=[$0], name=[$1], offset=[$2])
       <![CDATA[
 ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name,offset], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, BIGINT offset)], changelogMode=[I])
 +- TableSourceScan(table=[[default_catalog, default_database, upsert_source_with_metadata, metadata=[offset]]], fields=[id, name, offset], changelogMode=[I,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonKeyFilterWithFullDeletes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE a_names)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalProject(id=[$0], name=[$1])
+         +- LogicalFilter(condition=[=($1, _UTF-16LE'a')])
+            +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source_with_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- Calc(select=[id, CAST('a' AS VARCHAR(2147483647)) AS name], changelogMode=[I,UA,D])
+   +- Calc(select=[id, name], where=[=(name, 'a')], changelogMode=[I,UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_source_with_full_deletes]], fields=[id, name], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonKeyFilterWithPartialDeletes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_APPEND(input => TABLE a_names)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalProject(id=[$0], name=[$1])
+         +- LogicalFilter(condition=[=($1, _UTF-16LE'a')])
+            +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_APPEND(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- Calc(select=[id, CAST('a' AS VARCHAR(2147483647)) AS name], changelogMode=[I,UA,D])
+   +- ChangelogNormalize(key=[id], condition=[=(name, 'a')], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,PD])
 ]]>
     </Resource>
   </TestCase>

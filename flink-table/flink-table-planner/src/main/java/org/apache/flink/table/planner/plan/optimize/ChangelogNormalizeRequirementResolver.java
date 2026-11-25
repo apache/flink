@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.trait.UpdateKindTrait$;
 import org.apache.flink.table.planner.plan.trait.UpdateKindTraitDef$;
 import org.apache.flink.table.planner.plan.utils.FlinkRelUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
@@ -57,6 +58,10 @@ import java.util.stream.Collectors;
  *   <li>if it is not asked to deduplicate ({@code table.exec.source.cdc-events-duplicate})
  *   <li>we don't access any metadata columns
  * </ul>
+ *
+ * <p>A filter or metadata columns only affect the retractions that ChangelogNormalize produces.
+ * They don't require ChangelogNormalize if the consumer ignores retractions (see {@link
+ * StaticArgumentTrait#IGNORE_RETRACTIONS}).
  */
 public class ChangelogNormalizeRequirementResolver {
 
@@ -67,7 +72,7 @@ public class ChangelogNormalizeRequirementResolver {
      */
     public static boolean isRequired(
             StreamPhysicalChangelogNormalize normalize, boolean retractionsIgnored) {
-        if (normalize.filterCondition() != null) {
+        if (normalize.filterCondition() != null && !retractionsIgnored) {
             return true;
         }
         if (!Objects.equals(

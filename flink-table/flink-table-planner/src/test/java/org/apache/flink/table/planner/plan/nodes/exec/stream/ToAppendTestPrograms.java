@@ -99,6 +99,28 @@ public class ToAppendTestPrograms {
                                     + "SELECT * FROM TO_APPEND(input => TABLE projected)")
                     .build();
 
+    public static final TableTestProgram NON_KEY_FILTER =
+            TableTestProgram.of(
+                            "to-append-non-key-filter",
+                            "an update that leaves the filter is dropped like a delete")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_table")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v STRING")
+                                    .addMode(ChangelogMode.upsert(false))
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "a"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "b"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "a"),
+                                            Row.ofKind(RowKind.DELETE, 1, "a"),
+                                            Row.ofKind(RowKind.INSERT, 2, "a"))
+                                    .build())
+                    .setupTableSink(appendOnlySink("+I[1, a]", "+I[1, a]", "+I[2, a]"))
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "WITH filtered AS (SELECT * FROM source_table WHERE v = 'a') "
+                                    + "SELECT * FROM TO_APPEND(input => TABLE filtered)")
+                    .build();
+
     public static final TableTestProgram UNION_ALL =
             TableTestProgram.of(
                             "to-append-union-all",
