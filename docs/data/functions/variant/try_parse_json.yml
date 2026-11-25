@@ -45,6 +45,8 @@ returns:
 
 notes:
   - Only the first JSON value is read, and content after it is ignored. So `TRY_PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`, not NULL.
+  - A value larger than 16 MiB returns NULL.
+  - If a query only reads fields, such as `CAST(TRY_PARSE_JSON(doc)['a'] AS INT)`, the 16 MiB limit applies to those fields only, so a larger document can return them. A query that uses the whole value, such as `JSON_STRING(TRY_PARSE_JSON(doc))`, returns NULL for it.
 
 see_also:
   - {name: PARSE_JSON, ref: variant/parse-json}

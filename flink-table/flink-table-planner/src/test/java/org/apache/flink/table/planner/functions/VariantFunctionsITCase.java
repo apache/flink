@@ -63,7 +63,43 @@ class VariantFunctionsITCase extends BuiltInFunctionTestBase {
                 variantGetFailure(),
                 tryVariantGet(),
                 unreadableVariant(),
-                isValidVariant());
+                isValidVariant(),
+                literalPathAccess());
+    }
+
+    // only read at literal paths, so the document is parsed without building the rest of it
+    private static TestSetSpec literalPathAccess() {
+        return TestSetSpec.forExpression("PARSE_JSON read at literal paths")
+                .onFieldsWithData(
+                        "{\"store\":\"Main\",\"book\":{\"title\":\"Moby Dick\","
+                                + "\"tags\":[\"novel\",\"sea\"],\"year\":1851}}",
+                        "{\"book\":",
+                        "{\"book\":42}")
+                .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                .testSqlResult("CAST(PARSE_JSON(f0)['book']['tags'][2] AS STRING)", "sea", STRING())
+                .testSqlResult("CAST(PARSE_JSON(f0)['book']['missing'] AS STRING)", null, STRING())
+                .testSqlResult("CAST(PARSE_JSON(f0)['book']['tags'][3] AS STRING)", null, STRING())
+                .testSqlResult(
+                        "JSON_STRING(PARSE_JSON(f0)['book']['tags'])",
+                        "[\"novel\",\"sea\"]",
+                        STRING())
+                // two paths of one parse
+                .testSqlResult(
+                        "CAST(PARSE_JSON(f0)['book']['title'] AS STRING)"
+                                + " || CAST(PARSE_JSON(f0)['book']['year'] AS STRING)",
+                        "Moby Dick1851",
+                        STRING())
+                .testSqlResult("CAST(TRY_PARSE_JSON(f1)['book'] AS STRING)", null, STRING())
+                .testSqlRuntimeError(
+                        "CAST(PARSE_JSON(f1)['book'] AS STRING)",
+                        TableRuntimeException.class,
+                        "Failed to parse JSON string: {\"book\":")
+                // a step on a value of the wrong type fails as with the whole document
+                .testSqlRuntimeError(
+                        "CAST(PARSE_JSON(f2)['book']['title'] AS STRING)",
+                        TableRuntimeException.class,
+                        "String key access on variant requires an object variant, but a "
+                                + "non-object variant was provided.");
     }
 
     private static TestSetSpec variantGet() {
