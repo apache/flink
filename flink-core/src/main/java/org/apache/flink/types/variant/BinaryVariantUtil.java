@@ -521,41 +521,54 @@ public class BinaryVariantUtil {
                                                 offsetStart + size * offsetSize,
                                                 offsetSize));
             default:
-                switch (typeInfo) {
-                    case NULL:
-                    case TRUE:
-                    case FALSE:
-                        return 1;
-                    case INT1:
-                        return 2;
-                    case INT2:
-                        return 3;
-                    case INT4:
-                    case DATE:
-                    case FLOAT:
-                        return 5;
-                    case INT8:
-                    case DOUBLE:
-                    case TIMESTAMP_LTZ:
-                    case TIMESTAMP:
-                    case TIME:
-                    case TIMESTAMP_LTZ_NS:
-                    case TIMESTAMP_NS:
-                        return 9;
-                    case DECIMAL4:
-                        return 6;
-                    case DECIMAL8:
-                        return 10;
-                    case UUID:
-                        return 17;
-                    case DECIMAL16:
-                        return 18;
-                    case BINARY:
-                    case LONG_STR:
-                        return 1 + U32_SIZE + readUnsigned(value, pos + 1, U32_SIZE);
-                    default:
-                        throw unknownPrimitiveTypeInVariant(typeInfo);
+                if (typeInfo == BINARY || typeInfo == LONG_STR) {
+                    return 1 + U32_SIZE + readUnsigned(value, pos + 1, U32_SIZE);
                 }
+                final int size = primitiveSize(typeInfo);
+                if (size < 0) {
+                    throw unknownPrimitiveTypeInVariant(typeInfo);
+                }
+                return size;
+        }
+    }
+
+    /**
+     * Returns the size in bytes, header included, of a primitive value of the given type, or -1 if
+     * the type is unknown or its size depends on the value, as for {@code BINARY} and {@code
+     * LONG_STR}.
+     */
+    static int primitiveSize(int typeInfo) {
+        switch (typeInfo) {
+            case NULL:
+            case TRUE:
+            case FALSE:
+                return 1;
+            case INT1:
+                return 2;
+            case INT2:
+                return 3;
+            case INT4:
+            case DATE:
+            case FLOAT:
+                return 5;
+            case INT8:
+            case DOUBLE:
+            case TIMESTAMP_LTZ:
+            case TIMESTAMP:
+            case TIME:
+            case TIMESTAMP_LTZ_NS:
+            case TIMESTAMP_NS:
+                return 9;
+            case DECIMAL4:
+                return 6;
+            case DECIMAL8:
+                return 10;
+            case UUID:
+                return 17;
+            case DECIMAL16:
+                return 18;
+            default:
+                return -1;
         }
     }
 
@@ -851,6 +864,20 @@ public class BinaryVariantUtil {
         return (typeInfo & 0x3) + 1;
     }
 
+    /**
+     * Extracts b2 of an array type info to determine whether the size takes 1 or 4 bytes. Refer to
+     * the comment of the {@code ARRAY} constant for its encoding, a bit representation of
+     * 000_b2_b1b0.
+     */
+    static int arraySizeBytes(int typeInfo) {
+        return ((typeInfo >> 2) & 0x1) != 0 ? U32_SIZE : 1;
+    }
+
+    /** Extracts b1b0 of an array type info to determine the integer size of the offsets. */
+    static int arrayOffsetSize(int typeInfo) {
+        return (typeInfo & 0x3) + 1;
+    }
+
     /** A handler that receives the decoded header fields of a variant array. */
     public interface ArrayHandler<T> {
         /**
@@ -870,15 +897,9 @@ public class BinaryVariantUtil {
         if (basicType != ARRAY) {
             throw unexpectedType(Type.ARRAY);
         }
-        // Refer to the comment of the `ARRAY` constant for the details of the object header
-        // encoding.
-        // Suppose `typeInfo` has a bit representation of 000_b2_b1b0, the following line extracts
-        // b2 to determine whether the object uses a 1/4-byte size.
-        boolean largeSize = ((typeInfo >> 2) & 0x1) != 0;
-        int sizeBytes = (largeSize ? U32_SIZE : 1);
+        int sizeBytes = arraySizeBytes(typeInfo);
         int size = readUnsigned(value, pos + 1, sizeBytes);
-        // Extracts b1b0 to determine the integer size of the offset list.
-        int offsetSize = (typeInfo & 0x3) + 1;
+        int offsetSize = arrayOffsetSize(typeInfo);
         int offsetStart = pos + 1 + sizeBytes;
         int dataStart = offsetStart + (size + 1) * offsetSize;
         return handler.apply(size, offsetSize, offsetStart, dataStart);
@@ -948,7 +969,7 @@ public class BinaryVariantUtil {
         if ((bytes[0] & VERSION_MASK) != VERSION) {
             throw malformedVariant();
         }
-        final int offsetSize = ((bytes[0] >> 6) & 0x3) + 1;
+        final int offsetSize = metadataOffsetSize(bytes);
         final int dictSize = readUnsigned(bytes, 1, offsetSize);
         // The last of the `dictSize + 1` offsets is the length of the string data.
         final long lastOffsetPos = 1 + (dictSize + 1L) * offsetSize;
@@ -964,6 +985,14 @@ public class BinaryVariantUtil {
     }
 
     /**
+     * Extracts the highest 2 bits of the metadata header to determine the integer size of the
+     * dictionary size and offsets.
+     */
+    static int metadataOffsetSize(byte[] metadata) {
+        return ((metadata[0] >> 6) & 0x3) + 1;
+    }
+
+    /**
      * Locates the key at {@code id} in the variant metadata. The range is packed into a long so
      * that a lookup allocates nothing.
      *
@@ -971,9 +1000,7 @@ public class BinaryVariantUtil {
      */
     static long metadataKeyRange(byte[] metadata, int id) {
         checkIndex(0, metadata.length);
-        // Extracts the highest 2 bits in the metadata header to determine the integer size of the
-        // offset list.
-        int offsetSize = ((metadata[0] >> 6) & 0x3) + 1;
+        int offsetSize = metadataOffsetSize(metadata);
         int dictSize = readUnsigned(metadata, 1, offsetSize);
         if (id >= dictSize) {
             throw malformedVariant();
