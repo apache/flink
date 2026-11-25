@@ -24,30 +24,26 @@ import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext;
-import org.apache.flink.table.functions.ChangelogModeStrategy;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
-import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.ValidationOnlyInputTypeStrategy;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.functions.FunctionKind.PROCESS_TABLE;
@@ -61,43 +57,9 @@ import static org.apache.flink.table.functions.FunctionKind.PROCESS_TABLE;
 @Internal
 public final class DeduplicateDefinition {
 
-    public static final int ARG_INPUT = 0;
-    public static final int ARG_KEEP = 1;
-    public static final int ARG_SEQUENCE_BY = 2;
-    public static final int ARG_STATE_TTL = 3;
-
-    private static final String NAME = "DEDUPLICATE";
-
-    /** Which record of a key is kept. */
-    @Internal
-    public enum Keep {
-        FIRST,
-        LAST
-    }
-
-    static final InputTypeStrategy INPUT_TYPE_STRATEGY =
-            new ValidationOnlyInputTypeStrategy() {
-                @Override
-                public Optional<List<DataType>> inferInputTypes(
-                        final CallContext callContext, final boolean throwOnFailure) {
-                    final Optional<String> error = validate(callContext);
-                    if (error.isPresent()) {
-                        return callContext.fail(throwOnFailure, "%s", error.get());
-                    }
-                    return Optional.of(callContext.getArgumentDataTypes());
-                }
-            };
-
-    static final TypeStrategy OUTPUT_TYPE_STRATEGY =
-            callContext ->
-                    Optional.of(DataTypes.ROW(outputFields(tableSemantics(callContext))).notNull());
-
-    static final ChangelogModeStrategy CHANGELOG_MODE_STRATEGY =
-            DeduplicateDefinition::inferChangelogMode;
-
     public static final BuiltInFunctionDefinition INSTANCE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name(NAME)
+                    .name("DEDUPLICATE")
                     .kind(PROCESS_TABLE)
                     .staticArguments(
                             StaticArgument.table(
@@ -112,11 +74,27 @@ public final class DeduplicateDefinition {
                             StaticArgument.scalar("sequence_by", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true))
-                    .changelogModeStrategy(CHANGELOG_MODE_STRATEGY)
-                    .inputTypeStrategy(INPUT_TYPE_STRATEGY)
-                    .outputTypeStrategy(OUTPUT_TYPE_STRATEGY)
+                    .inputTypeStrategy(inputTypeStrategy())
+                    .outputTypeStrategy(DeduplicateDefinition::inferOutputType)
+                    .changelogModeStrategy(DeduplicateDefinition::inferChangelogMode)
                     .runtimeClass("org.apache.flink.table.runtime.functions.ptf.Deduplicate")
                     .build();
+
+    public static final int ARG_INPUT = 0;
+    public static final int ARG_KEEP = 1;
+    public static final int ARG_SEQUENCE_BY = 2;
+    public static final int ARG_STATE_TTL = 3;
+
+    /** Which record of a key is kept. */
+    @Internal
+    public enum Keep {
+        FIRST,
+        LAST
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Accessors for the runtime
+    // --------------------------------------------------------------------------------------------
 
     /** Returns the {@code keep} argument, or {@link Keep#FIRST} when it is omitted. */
     public static Keep keep(final CallContext callContext) {
@@ -140,12 +118,26 @@ public final class DeduplicateDefinition {
                 .toArray();
     }
 
-    private static Optional<String> validate(final CallContext callContext) {
-        final TableSemantics tableSemantics = tableSemantics(callContext);
-        return CallContextUtils.validateEnumArgument(
-                        callContext, ARG_KEEP, "keep", NAME, Keep.class)
-                .or(() -> validateSequenceBy(callContext, tableSemantics))
-                .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
+    // --------------------------------------------------------------------------------------------
+    // Strategies
+    // --------------------------------------------------------------------------------------------
+
+    static InputTypeStrategy inputTypeStrategy() {
+        return new ValidationOnlyInputTypeStrategy() {
+            @Override
+            public Optional<List<DataType>> inferInputTypes(
+                    final CallContext callContext, final boolean throwOnFailure) {
+                final Optional<String> error = validate(callContext);
+                if (error.isPresent()) {
+                    return callContext.fail(throwOnFailure, "%s", error.get());
+                }
+                return Optional.of(callContext.getArgumentDataTypes());
+            }
+        };
+    }
+
+    private static Optional<DataType> inferOutputType(final CallContext callContext) {
+        return Optional.of(DataTypes.ROW(outputFields(tableSemantics(callContext))).notNull());
     }
 
     private static ChangelogMode inferChangelogMode(final ChangelogContext changelogContext) {
@@ -158,6 +150,18 @@ public final class DeduplicateDefinition {
             builder.addContainedKind(RowKind.UPDATE_BEFORE);
         }
         return builder.build();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helpers
+    // --------------------------------------------------------------------------------------------
+
+    private static Optional<String> validate(final CallContext callContext) {
+        final TableSemantics tableSemantics = tableSemantics(callContext);
+        return CallContextUtils.validateEnumArgument(
+                        callContext, ARG_KEEP, "keep", INSTANCE.getName(), Keep.class)
+                .or(() -> validateSequenceBy(callContext, tableSemantics))
+                .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
     }
 
     private static TableSemantics tableSemantics(final CallContext callContext) {
@@ -176,7 +180,6 @@ public final class DeduplicateDefinition {
             final CallContext callContext, final TableSemantics tableSemantics) {
         final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
         final List<DataType> fieldTypes = DataType.getFieldDataTypes(tableSemantics.dataType());
-        final Set<String> seen = new HashSet<>();
         for (final String column : sequenceBy(callContext)) {
             final int index = fieldNames.indexOf(column);
             if (index == -1) {
@@ -184,14 +187,7 @@ public final class DeduplicateDefinition {
                         String.format(
                                 "The sequence_by column '%s' does not exist in the input of "
                                         + "%s. Available columns are: %s.",
-                                column, NAME, String.join(", ", fieldNames)));
-            }
-            if (!seen.add(column)) {
-                return Optional.of(
-                        String.format(
-                                "The sequence_by column '%s' is listed more than once. List each "
-                                        + "ordering column once.",
-                                column));
+                                column, INSTANCE.getName(), String.join(", ", fieldNames)));
             }
             if (Arrays.stream(tableSemantics.partitionByColumns()).anyMatch(c -> c == index)) {
                 return Optional.of(
@@ -202,12 +198,11 @@ public final class DeduplicateDefinition {
                                 column));
             }
             final LogicalType type = fieldTypes.get(index).getLogicalType();
-            if (!isOrderable(type)) {
+            if (!LogicalTypeChecks.areComparable(type, type, StructuredComparison.FULL)) {
                 return Optional.of(
                         String.format(
-                                "The sequence_by column '%s' has type '%s', which cannot order "
-                                        + "records. Use a numeric, string, boolean, or date-time "
-                                        + "column.",
+                                "The sequence_by column '%s' has type '%s', which cannot be "
+                                        + "ordered. Use a column of a type that supports ORDER BY.",
                                 column, type.asSummaryString()));
             }
         }
@@ -219,14 +214,6 @@ public final class DeduplicateDefinition {
                 .getArgumentValue(ARG_SEQUENCE_BY, ColumnList.class)
                 .map(ColumnList::getNames)
                 .orElse(List.of());
-    }
-
-    private static boolean isOrderable(final LogicalType type) {
-        return type.is(LogicalTypeFamily.NUMERIC)
-                || type.is(LogicalTypeFamily.CHARACTER_STRING)
-                || type.is(LogicalTypeFamily.BINARY_STRING)
-                || type.is(LogicalTypeFamily.DATETIME)
-                || type.is(LogicalTypeRoot.BOOLEAN);
     }
 
     private DeduplicateDefinition() {}

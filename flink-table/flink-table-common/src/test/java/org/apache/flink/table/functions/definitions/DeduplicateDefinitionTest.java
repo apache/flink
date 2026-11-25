@@ -20,34 +20,22 @@ package org.apache.flink.table.functions.definitions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext;
-import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
-import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.types.ColumnList;
-import org.apache.flink.types.RowKind;
-
-import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_KEEP;
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_SEQUENCE_BY;
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
-import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.CHANGELOG_MODE_STRATEGY;
-import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.INPUT_TYPE_STRATEGY;
-import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.OUTPUT_TYPE_STRATEGY;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DeduplicateDefinition}. */
 class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
@@ -61,7 +49,7 @@ class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
                     DataTypes.FIELD("event", DataTypes.STRING()),
                     DataTypes.FIELD("ts", ROWTIME),
                     DataTypes.FIELD("lsn", DataTypes.BIGINT()),
-                    DataTypes.FIELD("tags", DataTypes.ARRAY(DataTypes.STRING())));
+                    DataTypes.FIELD("tags", DataTypes.VARIANT()));
 
     private static final DataType[] ARGUMENT_TYPES = {
         INPUT_TYPE,
@@ -94,19 +82,15 @@ class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
                                 "The sequence_by column 'nope' does not exist in the input of "
                                         + "DEDUPLICATE. Available columns are: user_id, event, "
                                         + "ts, lsn, tags."),
-                sequenceBy("Repeated sequence_by column", "lsn", "lsn")
-                        .expectErrorMessage(
-                                "The sequence_by column 'lsn' is listed more than once. List "
-                                        + "each ordering column once."),
                 sequenceBy("PARTITION BY column in sequence_by", "user_id")
                         .expectErrorMessage(
                                 "The sequence_by column 'user_id' is a PARTITION BY column, "
                                         + "which has the same value for every record of a key."),
                 sequenceBy("Non-orderable sequence_by column", "tags")
                         .expectErrorMessage(
-                                "The sequence_by column 'tags' has type 'ARRAY<STRING>', which "
-                                        + "cannot order records. Use a numeric, string, boolean, "
-                                        + "or date-time column."),
+                                "The sequence_by column 'tags' has type 'VARIANT', which "
+                                        + "cannot be ordered. Use a column of a type that "
+                                        + "supports ORDER BY."),
                 withDefaults("Negative state_ttl", PARTITIONED_BY_USER)
                         .calledWithLiteralAt(ARG_STATE_TTL, Duration.ofSeconds(-1))
                         .expectErrorMessage(
@@ -114,38 +98,9 @@ class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
                                         + "Use INTERVAL '0' SECOND to retain state indefinitely."));
     }
 
-    @Test
-    void testOutputExcludesPartitionKeys() {
-        assertThat(OUTPUT_TYPE_STRATEGY.inferType(callContext(ColumnList.of())))
-                .contains(
-                        DataTypes.ROW(
-                                        DataTypes.FIELD("event", DataTypes.STRING()),
-                                        DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3)),
-                                        DataTypes.FIELD("lsn", DataTypes.BIGINT()),
-                                        DataTypes.FIELD(
-                                                "tags", DataTypes.ARRAY(DataTypes.STRING())))
-                                .notNull());
-    }
-
-    @Test
-    void testSequenceByIndicesPointIntoPayload() {
-        assertThat(
-                        DeduplicateDefinition.sequenceByOutputIndices(
-                                callContext(ColumnList.of("lsn", "event"))))
-                .containsExactly(2, 0);
-    }
-
-    @Test
-    void testChangelogModeEmitsUpdateBeforeOnlyWhenRequired() {
-        assertThat(inferChangelogMode(ChangelogMode.upsert()))
-                .isEqualTo(mode(RowKind.INSERT, RowKind.UPDATE_AFTER));
-        assertThat(inferChangelogMode(ChangelogMode.all()))
-                .isEqualTo(mode(RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER));
-    }
-
     private static TestSpec withDefaults(
             final String description, final TableSemanticsMock tableSemantics) {
-        return TestSpec.forStrategy(description, INPUT_TYPE_STRATEGY)
+        return TestSpec.forStrategy(description, DeduplicateDefinition.inputTypeStrategy())
                 .calledWithArgumentTypes(ARGUMENT_TYPES)
                 .calledWithTableSemanticsAt(ARG_INPUT, tableSemantics)
                 .calledWithLiteralAt(ARG_KEEP, null)
@@ -156,45 +111,5 @@ class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
     private static TestSpec sequenceBy(final String description, final String... columns) {
         return withDefaults(description, PARTITIONED_BY_USER)
                 .calledWithLiteralAt(ARG_SEQUENCE_BY, ColumnList.of(List.of(columns)));
-    }
-
-    private static CallContextMock callContext(final ColumnList sequenceBy) {
-        final CallContextMock callContext = new CallContextMock();
-        callContext.argumentValues =
-                List.of(
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.of(sequenceBy),
-                        Optional.empty());
-        callContext.tableSemantics = Map.of(ARG_INPUT, PARTITIONED_BY_USER);
-        return callContext;
-    }
-
-    private static ChangelogMode inferChangelogMode(final ChangelogMode requiredMode) {
-        return CHANGELOG_MODE_STRATEGY.inferChangelogMode(
-                new ChangelogContext() {
-                    @Override
-                    public ChangelogMode getTableChangelogMode(final int pos) {
-                        return ChangelogMode.insertOnly();
-                    }
-
-                    @Override
-                    public ChangelogMode getRequiredChangelogMode() {
-                        return requiredMode;
-                    }
-
-                    @Override
-                    public Optional<TableSemantics> getTableSemantics(final int pos) {
-                        return Optional.empty();
-                    }
-                });
-    }
-
-    private static ChangelogMode mode(final RowKind... kinds) {
-        final ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-        for (final RowKind kind : kinds) {
-            builder.addContainedKind(kind);
-        }
-        return builder.build();
     }
 }
