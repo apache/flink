@@ -35,8 +35,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -49,8 +56,14 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>The {@link #close()} method may be called concurrently (e.g., during task cancellation). A
  * {@link ReentrantLock} guards the critical sections in {@link #close()}, {@link
- * #closeForCommit()}, and {@link #persist()} to ensure safe cleanup of local resources without
- * corrupting S3 state.
+ * #closeForCommit()}, {@link #persist()} and the part buffer rotation in {@link #write} to ensure
+ * safe cleanup of local resources without corrupting S3 state.
+ *
+ * <p>{@link #close()} waits for the part uploads that are still in flight. Otherwise such an upload
+ * could finish after the stream was recovered from a checkpoint, replacing a part with the same
+ * number that the recovered stream uploaded and invalidating the ETag recorded for it. Parts whose
+ * upload has not started, e.g. because they are queued behind the parts of other streams, are not
+ * uploaded anymore, so it does not wait for them.
  *
  * <p>This stream never aborts its multipart upload. The upload may be referenced by a {@link
  * NativeS3Recoverable} in a retained checkpoint or savepoint, and the stream cannot know whether
@@ -68,13 +81,25 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
     private final ReentrantLock lock = new ReentrantLock();
 
     private final NativeS3ObjectOperations s3AccessHelper;
+    private final Executor uploadExecutor;
     private final String key;
     private final String uploadId;
     private final String localTmpDir;
     private final long minPartSize;
 
     private final List<PartETag> completedParts;
+
+    /** Part uploads that have not been added to {@link #completedParts} yet, in part order. */
+    private final Deque<PendingPartUpload> pendingUploads = new ConcurrentLinkedDeque<>();
+
     private long numBytesInParts;
+
+    /**
+     * The first failure that broke the stream, usually a failed part upload. The upload threads set
+     * it as well, so that the stream stops accepting data as soon as any part fails, not only once
+     * the parts before it are done.
+     */
+    private final AtomicReference<IOException> streamFailure = new AtomicReference<>();
 
     private File currentTempFile;
     private FileOutputStream currentFileStream;
@@ -86,16 +111,27 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
     public NativeS3RecoverableFsDataOutputStream(
             NativeS3ObjectOperations s3AccessHelper,
+            Executor uploadExecutor,
             String key,
             String uploadId,
             String localTmpDir,
             long minPartSize)
             throws IOException {
-        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L, null);
+        this(
+                s3AccessHelper,
+                uploadExecutor,
+                key,
+                uploadId,
+                localTmpDir,
+                minPartSize,
+                new ArrayList<>(),
+                0L,
+                null);
     }
 
     public NativeS3RecoverableFsDataOutputStream(
             NativeS3ObjectOperations s3AccessHelper,
+            Executor uploadExecutor,
             String key,
             String uploadId,
             String localTmpDir,
@@ -105,6 +141,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
+        this.uploadExecutor = uploadExecutor;
         this.key = key;
         this.uploadId = uploadId;
         this.localTmpDir = localTmpDir;
@@ -133,7 +170,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
     }
 
-    private void createNewTempFile() throws IOException {
+    @VisibleForTesting
+    protected void createNewTempFile() throws IOException {
         File tmpDir = new File(localTmpDir);
         Files.createDirectories(tmpDir.toPath());
 
@@ -150,24 +188,19 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
     @Override
     public void write(int b) throws IOException {
-        if (closed) {
-            throw new IOException("Stream is closed");
-        }
+        checkUsable();
 
         currentOutputStream.write(b);
         currentPartSize++;
 
         if (currentPartSize >= minPartSize) {
-            uploadCurrentPart();
-            createNewTempFile();
+            rotatePart();
         }
     }
 
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
-        if (closed) {
-            throw new IOException("Stream is closed");
-        }
+        checkUsable();
         if (b == null) {
             throw new NullPointerException();
         }
@@ -179,42 +212,172 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         currentPartSize += len;
 
         if (currentPartSize >= minPartSize) {
-            uploadCurrentPart();
-            createNewTempFile();
+            rotatePart();
         }
     }
 
     @Override
     public void flush() throws IOException {
-        if (closed) {
-            throw new IOException("Stream is closed");
-        }
+        checkUsable();
         currentOutputStream.flush();
     }
 
     @Override
     public void sync() throws IOException {
-        if (closed) {
-            throw new IOException("Stream is closed");
-        }
+        checkUsable();
         persist();
     }
 
+    private void checkUsable() throws IOException {
+        if (closed) {
+            throw new IOException("Stream is closed");
+        }
+        final IOException failure = streamFailure.get();
+        if (failure != null) {
+            // Rethrown as it is, so that the task handles a fatal error or an OutOfMemoryError
+            // of an upload thread like one of its own thread, e.g. by terminating the JVM.
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(failure.getCause());
+            throw new IOException(
+                    "This stream failed. It cannot be used anymore and "
+                            + "must be recovered from the last checkpoint.",
+                    failure);
+        }
+    }
+
     private void uploadCurrentPart() throws IOException {
-        currentOutputStream.close();
+        final PendingPartUpload upload;
+        lock();
+        try {
+            // close() may have run concurrently and released the buffer.
+            checkUsable();
+            currentOutputStream.close();
 
-        // Do not delete the temp file if uploadPart fails: propagate the original exception
-        // unmasked and let the cleanup path (close() or the closeForCommit() failure handler)
-        // delete it. nextPartNumber is only advanced on success.
-        NativeS3ObjectOperations.UploadPartResult result =
-                s3AccessHelper.uploadPart(
-                        key, uploadId, nextPartNumber, currentTempFile, currentPartSize);
+            upload = new PendingPartUpload(nextPartNumber, currentTempFile, currentPartSize);
+            pendingUploads.addLast(upload);
+            nextPartNumber++;
+            numBytesInParts += currentPartSize;
+            currentOutputStream = null;
+            currentFileStream = null;
+            currentTempFile = null;
+            currentPartSize = 0;
+        } finally {
+            unlock();
+        }
 
-        nextPartNumber++;
-        completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
-        numBytesInParts += currentPartSize;
+        // Blocks while the maximum number of uploads is in flight. Called from write(), this does
+        // not hold the lock, so close() is not blocked by back-pressure.
+        try {
+            uploadExecutor.execute(() -> uploadPart(upload));
+        } catch (Throwable t) {
+            // E.g. a RejectedExecutionException once the file system is closed, or an
+            // OutOfMemoryError if no thread can be created.
+            final IOException failure = failUpload(upload, t);
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+            throw failure;
+        }
+        completeFinishedUploads();
+    }
 
-        Files.deleteIfExists(currentTempFile.toPath());
+    private void rotatePart() throws IOException {
+        uploadCurrentPart();
+        try {
+            startNewPart();
+        } catch (Throwable t) {
+            // The part was handed over, so the stream has no buffer anymore. Fail it, so that
+            // later calls throw a clear exception instead of a NullPointerException.
+            streamFailure.compareAndSet(
+                    null,
+                    new IOException(
+                            String.format(
+                                    "Failed to start part %d of multipart upload %s for key %s",
+                                    nextPartNumber, uploadId, key),
+                            t));
+            throw t;
+        }
+    }
+
+    private void startNewPart() throws IOException {
+        lock();
+        try {
+            // close() may have run while uploadCurrentPart() waited for a free upload slot.
+            checkUsable();
+            createNewTempFile();
+        } finally {
+            unlock();
+        }
+    }
+
+    private void uploadPart(PendingPartUpload upload) {
+        // Once the stream is closed, close() takes over the parts that have not started.
+        if (closed || !upload.claim()) {
+            return;
+        }
+        try {
+            final NativeS3ObjectOperations.UploadPartResult result =
+                    s3AccessHelper.uploadPart(
+                            key, uploadId, upload.partNumber, upload.file, upload.length);
+            Files.deleteIfExists(upload.file.toPath());
+            upload.future.complete(new PartETag(result.getPartNumber(), result.getETag()));
+        } catch (Throwable t) {
+            failUpload(upload, t);
+        }
+    }
+
+    /**
+     * Marks the stream as failed and completes the upload exceptionally. The failure is recorded
+     * first, so that whoever sees the failed upload also sees the stream as failed. The upload is
+     * completed even if recording the failure fails, e.g. with an {@link OutOfMemoryError}, because
+     * {@link #close()} waits for it.
+     */
+    private IOException failUpload(PendingPartUpload upload, Throwable cause) {
+        try {
+            return recordUploadFailure(upload, cause);
+        } finally {
+            upload.future.completeExceptionally(cause);
+        }
+    }
+
+    private IOException recordUploadFailure(PendingPartUpload upload, Throwable cause) {
+        final IOException failure =
+                new IOException(
+                        String.format(
+                                "Failed to upload part %d of multipart upload %s for key %s",
+                                upload.partNumber, uploadId, key),
+                        cause);
+        streamFailure.compareAndSet(null, failure);
+        return failure;
+    }
+
+    private void completeFinishedUploads() throws IOException {
+        PendingPartUpload upload;
+        while ((upload = pendingUploads.peekFirst()) != null && upload.future.isDone()) {
+            completePendingUpload(upload);
+        }
+    }
+
+    private void awaitPendingUploads() throws IOException {
+        PendingPartUpload upload;
+        while ((upload = pendingUploads.peekFirst()) != null) {
+            completePendingUpload(upload);
+        }
+    }
+
+    private void completePendingUpload(PendingPartUpload upload) throws IOException {
+        final PartETag partETag;
+        try {
+            partETag = upload.future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException(
+                    "Interrupted while waiting for the upload of part " + upload.partNumber, e);
+        } catch (ExecutionException e) {
+            final IOException failure = recordUploadFailure(upload, e.getCause());
+            // See checkUsable().
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(e.getCause());
+            throw failure;
+        }
+        completedParts.add(partETag);
+        pendingUploads.removeFirst();
     }
 
     @Override
@@ -227,6 +390,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
             final NativeS3Recoverable recoverable;
             try {
+                checkUsable();
                 currentOutputStream.close();
 
                 if (currentPartSize > 0) {
@@ -234,6 +398,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 } else {
                     Files.deleteIfExists(currentTempFile.toPath());
                 }
+                awaitPendingUploads();
 
                 recoverable =
                         new NativeS3Recoverable(
@@ -271,6 +436,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         lock();
         try {
             flush();
+            awaitPendingUploads();
 
             String incompletePartKey = null;
             long incompletePartLength = 0;
@@ -299,7 +465,9 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
     @Override
     public void close() throws IOException {
-        lock();
+        // Not interruptibly: on cancellation the thread is usually interrupted, and close() must
+        // still release the local resources and wait for the in-flight part uploads.
+        lock.lock();
         try {
             if (!closed) {
                 closed = true;
@@ -310,7 +478,11 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         }
     }
 
-    /** Closes the local buffer and deletes only the local temp file. */
+    /**
+     * Closes the local buffer, waits for the part uploads that are still in flight, keeps the ones
+     * that have not started from starting and deletes only the local temp files. See the
+     * class-level Javadoc for why it waits for the uploads.
+     */
     private void releaseLocalResources() throws IOException {
         IOException collected = null;
         if (currentOutputStream != null) {
@@ -323,6 +495,35 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         if (currentTempFile != null) {
             try {
                 deleteTempFile(currentTempFile);
+            } catch (IOException e) {
+                collected = ExceptionUtils.firstOrSuppressed(e, collected);
+            }
+        }
+        for (PendingPartUpload upload : pendingUploads) {
+            if (upload.claim()) {
+                // Not started, e.g. because it is queued behind the parts of other streams. It
+                // cannot start anymore, so there is nothing to wait for.
+                upload.future.completeExceptionally(
+                        new IOException(
+                                "The stream was closed before the upload of part "
+                                        + upload.partNumber
+                                        + " started."));
+            } else {
+                // join() is not interruptible, and handle() turns a failed upload into a result.
+                final Throwable uploadError =
+                        upload.future.handle((ignored, error) -> error).join();
+                if (uploadError != null) {
+                    // Logged, because close() may run after an interrupt that hides the S3 error.
+                    LOG.warn(
+                            "Upload of part {} of multipart upload {} for key {} failed.",
+                            upload.partNumber,
+                            uploadId,
+                            key,
+                            uploadError);
+                }
+            }
+            try {
+                deleteTempFile(upload.file);
             } catch (IOException e) {
                 collected = ExceptionUtils.firstOrSuppressed(e, collected);
             }
@@ -348,5 +549,27 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
     private void unlock() {
         lock.unlock();
+    }
+
+    /** A part handed over to the upload executor. */
+    private static final class PendingPartUpload {
+        private final int partNumber;
+        private final File file;
+        private final long length;
+        private final CompletableFuture<PartETag> future = new CompletableFuture<>();
+
+        /** Set by the upload thread when it starts the upload, or by close() before that. */
+        private final AtomicBoolean claimed = new AtomicBoolean();
+
+        private PendingPartUpload(int partNumber, File file, long length) {
+            this.partNumber = partNumber;
+            this.file = file;
+            this.length = length;
+        }
+
+        /** Returns whether the caller is the only one that handles the upload. */
+        private boolean claim() {
+            return claimed.compareAndSet(false, true);
+        }
     }
 }
