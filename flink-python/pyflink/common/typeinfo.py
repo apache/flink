@@ -30,7 +30,7 @@ __all__ = ['TypeInformation', 'Types']
 
 class TypeInformation(object):
     """
-    TypeInformation is the core class of Flink's type system. FLink requires a type information
+    TypeInformation is the core class of Flink's type system. Flink requires a type information
     for all types that are used as input or return type of a user function. This type information
     class acts as the tool to generate serializers and comparators, and to perform semantic checks
     such as whether the fields that are used as join/grouping keys actually exist.
@@ -38,7 +38,7 @@ class TypeInformation(object):
     The type information also bridges between the programming languages object model and a logical
     flat schema. It maps fields from the types to columns (fields) in a flat schema. Not all fields
     from a type are mapped to a separate fields in the flat schema and often, entire types are
-    mapped to one field.. It is important to notice that the schema must hold for all instances of a
+    mapped to one field. It is important to notice that the schema must hold for all instances of a
     type. For that reason, elements in lists and arrays are not assigned to individual fields, but
     the lists and arrays are considered to be one field in total, to account for different lengths
     in the arrays.
