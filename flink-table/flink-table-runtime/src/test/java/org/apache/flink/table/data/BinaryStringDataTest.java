@@ -241,6 +241,70 @@ class BinaryStringDataTest {
             checkBasic(mode, "🤙", 1); // 4 bytes char
         }
 
+        @Test
+        void numCharsOfLoneSurrogate() {
+            // a lone surrogate is encoded as '?', so it is one character as a string and as bytes
+            final String str = "a" + (char) 0xD800 + "b";
+            assertThat(BinaryStringData.fromString(str).numChars()).isEqualTo(3);
+            assertThat(fromBytes(str.getBytes(UTF_8)).numChars()).isEqualTo(3);
+        }
+
+        @Test
+        void numCharsWithOffset() {
+            // longer than a word, so the ASCII check reads words
+            assertThat(slice("xxhello worldxx", 2, 11).numChars()).isEqualTo(11);
+            // a 2-byte character after a word of ASCII
+            assertThat(slice("xxhello world¡xx", 2, 13).numChars()).isEqualTo(12);
+        }
+
+        @Test
+        void numCharsOfInvalidUtf8() {
+            // a stray continuation byte counts as one character
+            assertThat(fromBytes(new byte[] {'a', (byte) 0x80, 'b'}).numChars()).isEqualTo(3);
+            // a truncated 3-byte sequence at the end counts as one character
+            assertThat(fromBytes(new byte[] {'a', (byte) 0xE4, (byte) 0xB8}).numChars())
+                    .isEqualTo(2);
+        }
+
+        @Test
+        void numCharsOfInvalidUtf8AfterToString() {
+            // truncated 4-byte sequence followed by 'x', and an encoded surrogate
+            for (byte[] bytes :
+                    new byte[][] {
+                        {(byte) 0xF0, (byte) 0x9F, (byte) 0x98, 'x'},
+                        {(byte) 0xED, (byte) 0xA0, (byte) 0x80}
+                    }) {
+                final BinaryStringData str = fromBytes(bytes);
+                final int fromBytes = str.numChars();
+                // decodes and caches the Java string, with U+FFFD for the malformed bytes
+                str.toString();
+                assertThat(str.numChars()).as(Arrays.toString(bytes)).isEqualTo(fromBytes);
+            }
+        }
+
+        @Test
+        void numCharsOffHeap() {
+            // no heap array, so the ASCII check is skipped
+            assertThat(offHeap("hello world").numChars()).isEqualTo(11);
+            assertThat(offHeap("hello world¡").numChars()).isEqualTo(12);
+        }
+
+        private BinaryStringData offHeap(String text) {
+            final byte[] bytes = text.getBytes(UTF_8);
+            final MemorySegment segment =
+                    MemorySegmentFactory.allocateUnpooledOffHeapMemory(bytes.length);
+            segment.put(0, bytes);
+            return BinaryStringData.fromAddress(new MemorySegment[] {segment}, 0, bytes.length);
+        }
+
+        // the UTF-8 bytes of text from offset, in a segment that has bytes before and after them
+        private BinaryStringData slice(String text, int offset, int numBytes) {
+            return BinaryStringData.fromAddress(
+                    new MemorySegment[] {MemorySegmentFactory.wrap(text.getBytes(UTF_8))},
+                    offset,
+                    numBytes);
+        }
+
         @ParameterizedTest(name = "{0}")
         @EnumSource(Mode.class)
         void emptyStringTest(Mode mode) {
