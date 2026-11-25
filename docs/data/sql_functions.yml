@@ -940,6 +940,9 @@ json:
     page: json-value
 
 variant:
+  - sql: IS_VALID_VARIANT(variant_expr)
+    table: VARIANT.isValidVariant()
+    page: is-valid-variant
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
     table: STRING.parseJson([allowDuplicateKeys])
     page: parse-json

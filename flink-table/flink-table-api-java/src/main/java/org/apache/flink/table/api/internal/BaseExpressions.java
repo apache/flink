@@ -140,6 +140,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_VALID_UTF8;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_VALID_VARIANT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
@@ -1548,6 +1549,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType xmlString() {
         return toApiSpecificExpression(unresolvedCall(XML_STRING, toExpr()));
+    }
+
+    /**
+     * Returns true if a value of type {@link DataTypes#VARIANT()} follows the Parquet Variant
+     * encoding, and false if it doesn't, such as when it is malformed. Null if null. See the SQL
+     * function {@code IS_VALID_VARIANT} for what is checked.
+     */
+    public OutType isValidVariant() {
+        return toApiSpecificExpression(unresolvedCall(IS_VALID_VARIANT, toExpr()));
     }
 
     /** Returns the base string decoded with base64. */

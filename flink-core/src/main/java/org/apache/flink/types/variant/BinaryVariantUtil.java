@@ -219,6 +219,15 @@ public class BinaryVariantUtil {
     /** The lower 4 bits of the first metadata byte contain the version. */
     public static final byte VERSION_MASK = 0x0F;
 
+    // The bit of the metadata header that says the dictionary is sorted and unique.
+    static final int SORTED_STRINGS_MASK = 0x10;
+
+    // The codes that start the message of a VariantTypeException for a malformed variant. The
+    // getters and VariantValidator use the same codes.
+    static final String MALFORMED_VARIANT = "MALFORMED_VARIANT";
+    static final String UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT = "UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT";
+    static final String VARIANT_CONSTRUCTOR_SIZE_LIMIT = "VARIANT_CONSTRUCTOR_SIZE_LIMIT";
+
     public static final int U8_MAX = 0xFF;
     public static final int U16_MAX = 0xFFFF;
     public static final int U24_MAX = 0xFFFFFF;
@@ -300,11 +309,11 @@ public class BinaryVariantUtil {
      * format.
      */
     static VariantTypeException malformedVariant() {
-        return new VariantTypeException("MALFORMED_VARIANT");
+        return new VariantTypeException(MALFORMED_VARIANT);
     }
 
     static VariantTypeException unknownPrimitiveTypeInVariant(int id) {
-        return new VariantTypeException("UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT, id: " + id);
+        return new VariantTypeException(UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT + ", id: " + id);
     }
 
     /**
@@ -314,7 +323,7 @@ public class BinaryVariantUtil {
      * produced by another tool.
      */
     static VariantTypeException variantConstructorSizeLimit() {
-        return new VariantTypeException("VARIANT_CONSTRUCTOR_SIZE_LIMIT");
+        return new VariantTypeException(VARIANT_CONSTRUCTOR_SIZE_LIMIT);
     }
 
     /**

@@ -359,6 +359,7 @@ variant functions
     Expression.try_parse_xml
     Expression.variant_get
     Expression.try_variant_get
+    Expression.is_valid_variant
 
 value modification functions
 ----------------------------

@@ -282,6 +282,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("XML_STRING(a)", str(expr1.xml_string()))
 
         # variant functions
+        self.assertEqual("IS_VALID_VARIANT(a)", str(expr1.is_valid_variant()))
         self.assertEqual("VARIANT_GET(a, '$.x')", str(expr1.variant_get('$.x')))
         self.assertEqual("VARIANT_GET(a, '$.x', 'INT')",
                          str(expr1.variant_get('$.x', DataTypes.INT())))

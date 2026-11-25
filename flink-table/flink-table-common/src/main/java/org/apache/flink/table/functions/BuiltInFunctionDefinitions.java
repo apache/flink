@@ -3313,6 +3313,19 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.XmlStringFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition IS_VALID_VARIANT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("IS_VALID_VARIANT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    List.of("variant_expr"),
+                                    List.of(logical(LogicalTypeRoot.VARIANT))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.IsValidVariantFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Bitmap functions
     // --------------------------------------------------------------------------------------------
