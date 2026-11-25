@@ -35,7 +35,6 @@ import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.runtime.functions.ptf.DeduplicateUtils.SequenceComparator;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.ColumnList;
@@ -179,7 +178,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
             final SpecializedContext context,
             final TableSemantics tableSemantics,
             final List<DataTypes.Field> inputFields) {
-        final int[] outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
+        final int[] outputIndices = CallContextUtils.computeOutputIndices(tableSemantics);
         final int[] sequenceIndices =
                 Arrays.stream(
                                 DeduplicateDefinition.sequenceByOutputIndices(

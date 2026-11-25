@@ -31,7 +31,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.UpsertKeyUtils;
@@ -100,7 +100,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         final boolean isExplicit = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
         validateProducesPartialDeletes(producesFullDelete, isExplicit, tableSemantics);
 
-        this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
+        this.outputIndices = CallContextUtils.computeOutputIndices(tableSemantics);
         this.inputRowType = (RowType) tableSemantics.dataType().getLogicalType();
         this.upsertKeyColumn =
                 computeUpsertKeyColumn(

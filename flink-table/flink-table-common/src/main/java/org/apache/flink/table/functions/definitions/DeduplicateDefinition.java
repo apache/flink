@@ -30,7 +30,6 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
-import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.ValidationOnlyInputTypeStrategy;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -110,7 +109,7 @@ public final class DeduplicateDefinition {
         final TableSemantics tableSemantics = tableSemantics(callContext);
         final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
         final List<Integer> outputIndices =
-                Arrays.stream(ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics))
+                Arrays.stream(CallContextUtils.computeOutputIndices(tableSemantics))
                         .boxed()
                         .collect(Collectors.toList());
         return sequenceBy(callContext).stream()
@@ -171,7 +170,7 @@ public final class DeduplicateDefinition {
     /** Returns the output columns after the PARTITION BY columns. */
     private static List<Field> outputFields(final TableSemantics tableSemantics) {
         final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-        return Arrays.stream(ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics))
+        return Arrays.stream(CallContextUtils.computeOutputIndices(tableSemantics))
                 .mapToObj(inputFields::get)
                 .collect(Collectors.toList());
     }

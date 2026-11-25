@@ -27,6 +27,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
@@ -208,7 +209,7 @@ public final class ToChangelogTypeStrategy {
             final String opColumnName,
             final boolean producesFullDeletes) {
         final List<Field> inputFields = DataType.getFields(semantics.dataType());
-        final int[] outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(semantics);
+        final int[] outputIndices = CallContextUtils.computeOutputIndices(semantics);
         final List<Field> outputFields = new ArrayList<>();
         outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
         final Set<Integer> preserved =

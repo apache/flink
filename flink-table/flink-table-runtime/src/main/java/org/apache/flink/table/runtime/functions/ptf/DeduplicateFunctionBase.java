@@ -24,7 +24,6 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
 
 import java.time.Duration;
@@ -50,7 +49,7 @@ abstract class DeduplicateFunctionBase extends BuiltInProcessTableFunction<RowDa
         super(BuiltInFunctionDefinitions.DEDUPLICATE, context, stateStrategies);
         final CallContext callContext = context.getCallContext();
         this.outputIndices =
-                ChangelogTypeStrategyUtils.computeOutputIndices(
+                CallContextUtils.computeOutputIndices(
                         CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT));
         final Duration effectiveTtl =
                 CallContextUtils.getStateTtl(callContext, ARG_STATE_TTL)

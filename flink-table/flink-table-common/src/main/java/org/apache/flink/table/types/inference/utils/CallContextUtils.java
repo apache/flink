@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.util.TimeUtils;
 
@@ -28,9 +29,14 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-/** Helpers for reading and validating literal arguments of a {@link CallContext}. */
+/**
+ * Helpers for reading and validating the arguments of a {@link CallContext}, including table
+ * arguments.
+ */
 @Internal
 public final class CallContextUtils {
 
@@ -48,6 +54,20 @@ public final class CallContextUtils {
                                         "The argument at position %d of function '%s' must be a "
                                                 + "table argument.",
                                         pos, callContext.getName()));
+    }
+
+    /**
+     * Returns the input column indices that pass through to the function's output: every column
+     * except the PARTITION BY columns, which the framework prepends to the output itself.
+     */
+    public static int[] computeOutputIndices(final TableSemantics tableSemantics) {
+        final Set<Integer> partitionBy =
+                Arrays.stream(tableSemantics.partitionByColumns())
+                        .boxed()
+                        .collect(Collectors.toSet());
+        return IntStream.range(0, DataType.getFieldCount(tableSemantics.dataType()))
+                .filter(i -> !partitionBy.contains(i))
+                .toArray();
     }
 
     /**
