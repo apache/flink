@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.functions.JsonPathReader;
+import org.apache.flink.table.runtime.functions.JsonPathSpec;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
@@ -139,7 +140,7 @@ final class SelectiveJsonFunctionCodeGen {
         }
         // read as the call reads it: JSON_LENGTH and JSON_TYPE pass a mode to JsonPath
         return hasPathMode(call.getOperator())
-                ? JsonPathReader.stepsAfterMode(path)
+                ? new JsonPathSpec(path).steps()
                 : JsonPathReader.steps(path);
     }
 

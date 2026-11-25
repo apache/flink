@@ -760,16 +760,20 @@ public class SqlJsonUtils {
             return JsonPathContext.withUnknownException(e);
         }
         // read by its string, which JsonPath compiles through its cache
-        return jsonApiCommonSyntax(input, path, null);
+        return jsonApiCommonSyntax(input, path, null, null);
     }
 
     private static JsonPathContext jsonApiCommonSyntax(JsonValueContext input, JsonPathSpec path) {
-        return jsonApiCommonSyntax(input, path, path.compiled());
+        return jsonApiCommonSyntax(input, path, path.compiled(), path.steps());
     }
 
-    // with compiled null, the path is read by its string
+    // With compiled null, the path is read by its string. With steps, a value found at them is
+    // taken directly, as JsonPath would read it; anything else is left to JsonPath.
     private static JsonPathContext jsonApiCommonSyntax(
-            JsonValueContext input, JsonPathSpec path, @Nullable JsonPath compiled) {
+            JsonValueContext input,
+            JsonPathSpec path,
+            @Nullable JsonPath compiled,
+            @Nullable Object[] steps) {
         final String pathSpec = path.pathSpec;
         final PathMode mode = path.mode;
         try {
@@ -790,6 +794,13 @@ public class SqlJsonUtils {
                 default:
                     throw illegalJsonPathModeInPathSpec(mode.toString(), pathSpec);
             }
+            if (steps != null) {
+                // JsonPath builds a path string for each step, which costs more than the lookup
+                final Object value = valueAt(input.obj, steps);
+                if (value != null) {
+                    return JsonPathContext.withJavaObj(mode, value);
+                }
+            }
             final DocumentContext ctx = JsonPath.parse(input.obj, configuration);
             try {
                 return JsonPathContext.withJavaObj(
@@ -800,6 +811,27 @@ public class SqlJsonUtils {
         } catch (Exception e) {
             return JsonPathContext.withUnknownException(e);
         }
+    }
+
+    // the value at the steps, as JsonPath reads keys and indexes, or null if it isn't there or is
+    // a JSON null
+    @Nullable
+    private static Object valueAt(@Nullable Object value, Object[] steps) {
+        for (Object step : steps) {
+            if (step instanceof String) {
+                if (!(value instanceof Map)) {
+                    return null;
+                }
+                value = ((Map<?, ?>) value).get(step);
+            } else {
+                final int index = (Integer) step;
+                if (!(value instanceof List) || index >= ((List<?>) value).size()) {
+                    return null;
+                }
+                value = ((List<?>) value).get(index);
+            }
+        }
+        return value;
     }
 
     private static TableRuntimeException toUnchecked(Exception e) {

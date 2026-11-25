@@ -117,13 +117,6 @@ public final class JsonPathReader implements Serializable {
         return steps.toArray();
     }
 
-    /** Like {@link #steps}, for a path after its optional {@code lax} or {@code strict}. */
-    @Nullable
-    public static Object[] stepsAfterMode(String pathSpec) {
-        final Matcher matcher = SqlJsonUtils.JSON_PATH_BASE.matcher(pathSpec);
-        return steps(matcher.matches() ? matcher.group(2) : pathSpec);
-    }
-
     /**
      * Parses {@code json} for the paths, from its UTF-8 bytes unless it has a Java string already.
      */

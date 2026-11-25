@@ -30,11 +30,19 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.apache.flink.table.runtime.functions.JsonPathReaderTest.result;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests that a {@link JsonPathSpec} reads like its path given as a string. */
+/**
+ * Tests that a {@link JsonPathSpec} reads like its path given as a string, also where it takes a
+ * value at keys and indexes directly.
+ */
 class JsonPathSpecTest {
 
     private static final JsonValueContext[] INPUTS = {
-        SqlJsonUtils.jsonParse("{\"a\":{\"b\":[1,{\"c\":\"x\"}]},\"s\":\"t\"}"),
+        SqlJsonUtils.jsonParse(
+                "{\"a\":{\"b\":[1,{\"c\":\"x\"}]},\"s\":\"t\",\"n\":null,"
+                        + "\"arr\":[[1,2],{\"0\":\"z\"}],\"num\":1.50}"),
+        SqlJsonUtils.jsonParse("[1,{\"c\":2}]"),
+        SqlJsonUtils.jsonParse("null"),
+        SqlJsonUtils.jsonParse("\"scalar\""),
         // a document that failed to parse
         SqlJsonUtils.jsonParse("{")
     };
@@ -47,10 +55,19 @@ class JsonPathSpecTest {
                 "$",
                 "$.a",
                 "$.missing",
+                "$.num",
+                "$[1].c",
+                // a JSON null, and a step past it
+                "$.n",
+                "$.n.x",
+                // an index on an array of arrays, on an object, on a string and out of range
+                "$.arr[0][1]",
+                "$.arr[1][0]",
+                "$.s[0]",
+                "$.a.b[5]",
+                // a key on an array
+                "$.a.b.c",
                 "lax $.s",
-                "strict $.s",
-                "lax $.missing",
-                "strict $.missing",
                 // case and spaces around the mode
                 "LAX   $.missing",
                 "  Strict $.a.b",

@@ -45,6 +45,9 @@ public final class JsonPathSpec implements Serializable {
     // JsonPath isn't serializable, so it is compiled on first use
     @Nullable private transient JsonPath compiled;
     private transient boolean notCompilable;
+    // the steps of a path of keys and indexes only, computed on first use
+    @Nullable private transient Object[] steps;
+    private transient boolean stepsComputed;
 
     public JsonPathSpec(String pathSpec) {
         this.pathSpec = pathSpec;
@@ -69,5 +72,15 @@ public final class JsonPathSpec implements Serializable {
             }
         }
         return compiled;
+    }
+
+    // the keys and indexes of the path, or null for any other path, see JsonPathReader#steps
+    @Nullable
+    public Object[] steps() {
+        if (!stepsComputed) {
+            steps = JsonPathReader.steps(path);
+            stepsComputed = true;
+        }
+        return steps;
     }
 }
