@@ -26,7 +26,7 @@ import uuid
 import unittest
 
 from pyflink.common import Configuration, ExecutionConfig
-from pyflink.common.typeinfo import Types
+from pyflink.common.typeinfo import LocalTimeTypeInfo, Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, SlotSharingGroup)
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
@@ -229,6 +229,29 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             '+I[2, null, 2, true, -21658, 557549056, 9.87, 2.98936, [102, 108, 105, 110, 107], '
             'pyflink, 2015-10-14, 11:02:02, 2020-04-15 08:02:06.235, [2, 4, 6], '
             '2000000000000000000.74, 2000000000000000000.06111111111111111111111111111]']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_from_collection_with_local_temporal_types(self):
+        local = LocalTimeTypeInfo.TimeType
+        ds = self.env.from_collection(
+            [(datetime.date(2023, 11, 14),
+              datetime.time(12, 34, 56, 123456),
+              datetime.datetime(2023, 11, 14, 22, 13, 20, 123456)),
+             (datetime.date(1969, 12, 31),
+              datetime.time(0, 0, 0, 1),
+              datetime.datetime(1969, 12, 31, 23, 59, 59, 123456)),
+             (None, None, None)],
+            type_info=Types.ROW([LocalTimeTypeInfo(local.LOCAL_DATE),
+                                 LocalTimeTypeInfo(local.LOCAL_TIME),
+                                 LocalTimeTypeInfo(local.LOCAL_DATE_TIME)]))
+        ds.add_sink(self.test_sink)
+        self.env.execute("test from collection with local temporal types")
+        results = self.test_sink.get_results(False)
+        expected = ['+I[2023-11-14, 12:34:56.123456, 2023-11-14T22:13:20.123456]',
+                    '+I[1969-12-31, 00:00:00.000001, 1969-12-31T23:59:59.123456]',
+                    '+I[null, null, null]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)

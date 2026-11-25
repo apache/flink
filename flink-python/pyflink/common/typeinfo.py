@@ -747,6 +747,39 @@ class LocalTimeTypeInfo(TypeInformation):
                 raise TypeError('Unsupported TimeType: {}'.format(self._time_type.name))
         return self._j_typeinfo
 
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, obj):
+        # Local temporal values have no time zone, so they are converted with plain calendar
+        # arithmetic: epoch days for dates and microseconds (of day / since the epoch) otherwise.
+        if obj is None:
+            return None
+        if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE:
+            return obj.toordinal() - DateTypeInfo.EPOCH_ORDINAL
+        if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_TIME:
+            return ((obj.hour * 60 + obj.minute) * 60 + obj.second) * 10 ** 6 + obj.microsecond
+        if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
+            if obj.tzinfo is not None:
+                raise TypeError(
+                    'LOCAL_DATE_TIME does not support the timezone-aware datetime {!r}; '
+                    'convert it to the desired time zone and remove tzinfo first.'.format(obj))
+            delta = obj - datetime.datetime(1970, 1, 1)
+            return (delta.days * 86400 + delta.seconds) * 10 ** 6 + delta.microseconds
+        raise TypeError('Unsupported TimeType: {}'.format(self._time_type.name))
+
+    def from_internal_type(self, obj):
+        if obj is None:
+            return None
+        if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE:
+            return datetime.date.fromordinal(obj + DateTypeInfo.EPOCH_ORDINAL)
+        value = datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=obj)
+        if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_TIME:
+            return value.time()
+        if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
+            return value
+        raise TypeError('Unsupported TimeType: {}'.format(self._time_type.name))
+
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self._time_type == other._time_type
 

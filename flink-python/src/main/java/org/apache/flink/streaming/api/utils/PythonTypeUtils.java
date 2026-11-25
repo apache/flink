@@ -109,7 +109,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -1833,35 +1833,30 @@ public class PythonTypeUtils {
                             : null;
         }
 
+        // Local temporal values carry no time zone: Python sends epoch days, microseconds of the
+        // day and microseconds since the epoch, which are converted with plain calendar arithmetic.
         if (dataType.equals(Types.LOCAL_DATE)) {
-            return c -> {
-                if (c instanceof Integer) {
-                    long millisLocal = ((Integer) c).longValue() * 86400000;
-                    long millisUtc = millisLocal - getOffsetFromLocalMillis(millisLocal);
-                    return Instant.ofEpochMilli(millisUtc)
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate();
-                }
-                return null;
-            };
+            return c -> c instanceof Integer ? LocalDate.ofEpochDay((Integer) c) : null;
         }
 
         if (dataType.equals(Types.LOCAL_TIME)) {
             return c ->
                     c instanceof Integer || c instanceof Long
-                            ? Instant.ofEpochMilli(((Number) c).longValue() / 1000)
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalTime()
+                            ? LocalTime.ofNanoOfDay(((Number) c).longValue() * 1_000L)
                             : null;
         }
 
         if (dataType.equals(Types.LOCAL_DATE_TIME)) {
-            return c ->
-                    c instanceof Integer || c instanceof Long
-                            ? Instant.ofEpochMilli(((Number) c).longValue() / 1000)
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDateTime()
-                            : null;
+            return c -> {
+                if (c instanceof Integer || c instanceof Long) {
+                    final long micros = ((Number) c).longValue();
+                    return LocalDateTime.ofEpochSecond(
+                            Math.floorDiv(micros, 1_000_000L),
+                            (int) Math.floorMod(micros, 1_000_000L) * 1_000,
+                            ZoneOffset.UTC);
+                }
+                return null;
+            };
         }
 
         if (dataType.equals(org.apache.flink.api.common.typeinfo.Types.INSTANT)) {
