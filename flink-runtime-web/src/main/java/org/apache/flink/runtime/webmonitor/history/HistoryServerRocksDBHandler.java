@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
-import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -41,14 +40,9 @@ import java.util.Collections;
 @ChannelHandler.Sharable
 public class HistoryServerRocksDBHandler extends AbstractHistoryServerHandler<String> {
 
-    public HistoryServerRocksDBHandler(
-            ArchiveStorage<String> archiveStorage,
-            HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode,
-            HistoryServerArchiveFetcher<String> archiveFetcher,
-            HistoryServerApplicationArchiveFetcher<String> applicationArchiveFetcher,
-            File rootPath)
+    public HistoryServerRocksDBHandler(RocksDBArchiveStorage rocksDBArchiveStorage, File rootPath)
             throws IOException {
-        super(archiveStorage, archiveLoadMode, archiveFetcher, applicationArchiveFetcher, rootPath);
+        super(rocksDBArchiveStorage, rootPath);
     }
 
     @Override
