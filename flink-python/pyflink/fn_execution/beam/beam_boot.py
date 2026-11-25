@@ -76,7 +76,8 @@ if __name__ == "__main__":
     check_not_empty(worker_id, "No id provided.")
     check_not_empty(provision_endpoint, "No provision endpoint provided.")
 
-    logging.info("Initializing Python harness: %s" % " ".join(sys.argv))
+    logging.info("Initializing Python harness (pid=%s, worker_id=%s): %s",
+                 os.getpid(), worker_id, " ".join(sys.argv))
 
     if 'PYTHON_LOOPBACK_SERVER_ADDRESS' in os.environ:
         logging.info("Starting up Python harness in loopback mode.")

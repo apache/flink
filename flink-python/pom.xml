@@ -698,6 +698,13 @@ under the License.
 							</artifactSet>
 							<filters>
 								<filter>
+									<artifact>org.apache.beam:beam-runners-java-fn-execution</artifact>
+									<excludes>
+										<exclude>org/apache/beam/runners/fnexecution/environment/ProcessManager.class</exclude>
+										<exclude>org/apache/beam/runners/fnexecution/environment/ProcessManager$*.class</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**
