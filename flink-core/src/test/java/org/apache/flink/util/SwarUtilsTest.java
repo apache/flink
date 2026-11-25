@@ -41,17 +41,20 @@ class SwarUtilsTest {
         final byte[] bytes = filled((byte) 'x');
         assertThat(SwarUtils.isAscii(bytes, 0, LENGTH)).isTrue();
         assertThat(SwarUtils.isAscii(bytes, 0, 0)).isTrue();
+        assertThat(SwarUtils.asciiPrefix(bytes, 0, LENGTH)).isEqualTo(LENGTH);
     }
 
     @ParameterizedTest
     @MethodSource("indices")
-    void testIsAscii(int index) {
+    void testAsciiPrefix(int index) {
         final byte[] bytes = filled((byte) 'x');
         bytes[index] = (byte) 0x80;
-        assertThat(SwarUtils.isAscii(bytes, 0, LENGTH)).isFalse();
-        // an unaligned start still finds the byte, unless it's before the start
-        assertThat(SwarUtils.isAscii(bytes, 1, LENGTH - 1)).isEqualTo(index == 0);
-        assertThat(SwarUtils.isAscii(bytes, index + 1, LENGTH - index - 1)).isTrue();
+        assertThat(SwarUtils.asciiPrefix(bytes, 0, LENGTH)).isEqualTo(index);
+        // an unaligned start counts from the start, up to the byte unless it's before the start
+        assertThat(SwarUtils.asciiPrefix(bytes, 1, LENGTH - 1))
+                .isEqualTo(index == 0 ? LENGTH - 1 : index - 1);
+        assertThat(SwarUtils.asciiPrefix(bytes, index + 1, LENGTH - index - 1))
+                .isEqualTo(LENGTH - index - 1);
     }
 
     // bytes next to the ones searched for, and bytes of 0x80 and above
