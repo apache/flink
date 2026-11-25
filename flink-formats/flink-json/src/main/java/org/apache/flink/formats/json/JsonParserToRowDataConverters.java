@@ -42,6 +42,7 @@ import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -328,7 +329,7 @@ public class JsonParserToRowDataConverters implements Serializable {
     }
 
     private BinaryVariant convertToVariant(JsonParser jp) throws IOException {
-        return BinaryVariantInternalBuilder.parseJson(jp.readValueAsTree().toString(), false);
+        return BinaryVariantInternalBuilder.parseJson((JsonNode) jp.readValueAsTree(), false);
     }
 
     private JsonParserToRowDataConverter createDecimalConverter(DecimalType decimalType) {

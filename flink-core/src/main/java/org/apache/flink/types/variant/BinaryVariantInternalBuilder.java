@@ -26,6 +26,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseExce
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.exc.InputCoercionException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -135,6 +136,20 @@ public class BinaryVariantInternalBuilder {
     public static BinaryVariant parseJson(byte[] bytes, boolean allowDuplicateKeys)
             throws IOException {
         try (JsonParser parser = JSON_FACTORY.createParser(bytes)) {
+            parser.nextToken();
+            return parseJson(parser, allowDuplicateKeys);
+        }
+    }
+
+    /**
+     * Parse a JSON tree as a Variant value. Gives the same result as {@link #parseJson(String,
+     * boolean)} on {@code node.toString()}, without printing the tree to text and parsing it again.
+     *
+     * @throws IOException if the tree holds a number out of the range of a double.
+     */
+    public static BinaryVariant parseJson(JsonNode node, boolean allowDuplicateKeys)
+            throws IOException {
+        try (JsonParser parser = node.traverse()) {
             parser.nextToken();
             return parseJson(parser, allowDuplicateKeys);
         }
@@ -824,7 +839,11 @@ public class BinaryVariantInternalBuilder {
                 }
                 break;
             case VALUE_NUMBER_FLOAT:
-                parseFloatingPoint(parser);
+                // A parser over a JsonNode tree reports a decimal node printed as an integer, such
+                // as -11 for -11E+0, as a float. PARSE_JSON of that text stores an integer.
+                if (!tryParseLong(parser.getText())) {
+                    parseFloatingPoint(parser);
+                }
                 break;
             case VALUE_TRUE:
                 appendBoolean(true);
@@ -869,6 +888,22 @@ public class BinaryVariantInternalBuilder {
                                 parser.getText()));
             }
             appendDouble(d);
+        }
+    }
+
+    // Try to parse integer text, such as "-11", as a long. Return whether the parsing succeeds.
+    private boolean tryParseLong(String input) {
+        for (int i = 0; i < input.length(); ++i) {
+            char ch = input.charAt(i);
+            if (ch != '-' && !(ch >= '0' && ch <= '9')) {
+                return false;
+            }
+        }
+        try {
+            appendNumeric(Long.parseLong(input));
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 

@@ -18,6 +18,10 @@
 
 package org.apache.flink.types.variant;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -468,5 +472,66 @@ class BinaryVariantInternalBuilderTest {
         final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
 
         assertThatThrownBy(() -> builder.appendJsonNumber(literal)).isInstanceOf(IOException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                // Scalars.
+                "\"\\u00e9\"",
+                "true",
+                "false",
+                "null",
+                // Integers, up to a long and beyond.
+                "0",
+                "-129",
+                "9223372036854775807",
+                "-9223372036854775808",
+                "9223372036854775808",
+                "123456789012345678901234567890123456789",
+                // Decimals up to DECIMAL(38), then doubles.
+                "0.10",
+                "-1.5",
+                "0.12345678901234567890123456789012345678",
+                "0.012345678901234567890123456789012345678",
+                "1e10",
+                "1e-10",
+                "1e308",
+                // Exponent notation for a whole number, which a tree can print as an integer.
+                "-11E+0",
+                "1.0E1",
+                "1E0",
+                "-0.0E0",
+                "100E-2",
+                "0.0000001",
+                // Objects and arrays, empty and nested, with keys repeated across objects.
+                "[]",
+                "{}",
+                "{\"b\":{\"c\":[1,{\"d\":null}],\"a\":\"x\"},\"a\":[[],{}],\"e\":[{\"b\":1},{\"b\":[2,[3]]}]}"
+            })
+    void testParseJsonTreeMatchesParseJsonOfTheTreeText(final String json) throws IOException {
+        for (final ObjectMapper mapper :
+                Arrays.asList(
+                        new ObjectMapper(),
+                        new ObjectMapper()
+                                .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS))) {
+            final JsonNode tree = mapper.readTree(json);
+
+            assertThat(BinaryVariantInternalBuilder.parseJson(tree, false))
+                    .isEqualTo(BinaryVariantInternalBuilder.parseJson(tree.toString(), false));
+        }
+    }
+
+    @Test
+    void testParseJsonTreeRejectsNumbersOutOfDoubleRange() throws IOException {
+        final JsonNode tree =
+                new ObjectMapper()
+                        .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                        .readTree("{\"a\":[1e400]}");
+
+        assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(tree, false))
+                .isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(tree.toString(), false))
+                .isInstanceOf(IOException.class);
     }
 }
