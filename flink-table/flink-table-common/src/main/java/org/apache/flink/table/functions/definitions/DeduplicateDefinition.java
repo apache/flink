@@ -106,7 +106,8 @@ public final class DeduplicateDefinition {
      * output row without the PARTITION BY columns.
      */
     public static int[] sequenceByOutputIndices(final CallContext callContext) {
-        final TableSemantics tableSemantics = tableSemantics(callContext);
+        final TableSemantics tableSemantics =
+                CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
         final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
         final List<Integer> outputIndices =
                 Arrays.stream(CallContextUtils.computeOutputIndices(tableSemantics))
@@ -136,7 +137,9 @@ public final class DeduplicateDefinition {
     }
 
     private static Optional<DataType> inferOutputType(final CallContext callContext) {
-        return Optional.of(DataTypes.ROW(outputFields(tableSemantics(callContext))).notNull());
+        final TableSemantics tableSemantics =
+                CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
+        return Optional.of(DataTypes.ROW(outputFields(tableSemantics)).notNull());
     }
 
     private static ChangelogMode inferChangelogMode(final ChangelogContext changelogContext) {
@@ -156,15 +159,12 @@ public final class DeduplicateDefinition {
     // --------------------------------------------------------------------------------------------
 
     private static Optional<String> validate(final CallContext callContext) {
-        final TableSemantics tableSemantics = tableSemantics(callContext);
+        final TableSemantics tableSemantics =
+                CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
         return CallContextUtils.validateEnumArgument(
                         callContext, ARG_KEEP, "keep", INSTANCE.getName(), Keep.class)
                 .or(() -> validateSequenceBy(callContext, tableSemantics))
                 .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
-    }
-
-    private static TableSemantics tableSemantics(final CallContext callContext) {
-        return CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
     }
 
     /** Returns the output columns after the PARTITION BY columns. */
