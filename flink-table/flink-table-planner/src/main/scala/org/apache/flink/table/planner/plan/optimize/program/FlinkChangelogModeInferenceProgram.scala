@@ -47,7 +47,7 @@ import org.apache.calcite.linq4j.Ord
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexCall, RexProgramBuilder}
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
@@ -1582,6 +1582,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           // 3. it is not asked to deduplicate (table.exec.source.cdc-events-duplicate),
           // 4. it has no filter condition, which would be lost, and
           // 5. no metadata columns are read.
+          // 4. and 5. only affect the retractions it produces, so they don't apply if the consumer
+          // ignores retractions. Its filter condition is then kept in a Calc.
           if (!ChangelogNormalizeRequirementResolver.isRequired(normalize, retractionsIgnored)) {
             val withoutNormalize =
               visitChild(removeChangelogNormalize(normalize), requiredTrait, retractionsIgnored)
@@ -1671,14 +1673,30 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       Some(newChildren.toList)
     }
 
-    /** Removes the ChangelogNormalize and the exchange that only exists for it. */
+    /**
+     * Removes the ChangelogNormalize and the exchange that only exists for it. A filter condition
+     * pushed into the ChangelogNormalize is kept as a Calc, so it still filters the rows.
+     */
     private def removeChangelogNormalize(
         normalize: StreamPhysicalChangelogNormalize): StreamPhysicalRel = {
       val input = normalize.getInput match {
         case exchange: StreamPhysicalExchange => exchange.getInput
         case other => other
       }
-      input.asInstanceOf[StreamPhysicalRel]
+      if (normalize.filterCondition == null) {
+        input.asInstanceOf[StreamPhysicalRel]
+      } else {
+        val programBuilder = new RexProgramBuilder(input.getRowType, input.getCluster.getRexBuilder)
+        programBuilder.addIdentity()
+        programBuilder.addCondition(normalize.filterCondition)
+        val program = programBuilder.getProgram
+        new StreamPhysicalCalc(
+          input.getCluster,
+          input.getTraitSet,
+          input,
+          program,
+          program.getOutputRowType)
+      }
     }
 
     private def createNewNode(

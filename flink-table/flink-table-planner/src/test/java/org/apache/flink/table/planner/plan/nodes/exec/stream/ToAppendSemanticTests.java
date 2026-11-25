@@ -32,6 +32,7 @@ public class ToAppendSemanticTests extends SemanticTestBase {
                 ToAppendTestPrograms.UPSERT,
                 ToAppendTestPrograms.RETRACT,
                 ToAppendTestPrograms.WITHOUT_KEY,
+                ToAppendTestPrograms.NON_KEY_FILTER,
                 ToAppendTestPrograms.UNION_ALL,
                 ToAppendTestPrograms.METADATA,
                 ToAppendTestPrograms.WINDOW,

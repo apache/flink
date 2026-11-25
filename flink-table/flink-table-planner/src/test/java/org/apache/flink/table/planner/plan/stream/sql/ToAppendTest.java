@@ -130,6 +130,24 @@ class ToAppendTest extends TableTestBase {
     }
 
     @Test
+    void testNonKeyFilterWithFullDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW a_names AS "
+                                + "SELECT * FROM upsert_source_with_full_deletes WHERE name = 'a'");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE a_names)", CHANGELOG_MODE);
+    }
+
+    @Test
+    void testNonKeyFilterWithPartialDeletes() {
+        // The filter can't be evaluated on a key-only delete, so ChangelogNormalize stays and
+        // produces full deletes
+        util.tableEnv()
+                .executeSql("CREATE VIEW a_names AS SELECT * FROM upsert_source WHERE name = 'a'");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE a_names)", CHANGELOG_MODE);
+    }
+
+    @Test
     void testMetadata() {
         util.tableEnv()
                 .executeSql(
@@ -145,6 +163,14 @@ class ToAppendTest extends TableTestBase {
                                 + ")");
         util.verifyRelPlan(
                 "SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_metadata)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testCdcEventsDuplicate() {
+        util.tableEnv().getConfig().set("table.exec.source.cdc-events-duplicate", "true");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_full_deletes)",
                 CHANGELOG_MODE);
     }
 
