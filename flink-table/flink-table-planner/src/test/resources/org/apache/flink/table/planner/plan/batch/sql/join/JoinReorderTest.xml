@@ -2191,13 +2191,13 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
-+- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], build=[right])
-   :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a3, b3, c3, a1, b1, c1], build=[left])
-   :  :- Exchange(distribution=[broadcast])
-   :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a3, b3, c3, a2, b2, c2, a1, b1, c1], build=[right])
+   :- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a3, b3, c3, a2, b2, c2], build=[right])
+   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
    +- Exchange(distribution=[broadcast])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 ]]>
     </Resource>
   </TestCase>
@@ -2218,13 +2218,13 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
-+- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], build=[right])
-   :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a3, b3, c3, a1, b1, c1], build=[left])
-   :  :- Exchange(distribution=[broadcast])
-   :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a3, b3, c3, a2, b2, c2, a1, b1, c1], build=[right])
+   :- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a3, b3, c3, a2, b2, c2], build=[right])
+   :  :- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
    +- Exchange(distribution=[broadcast])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 ]]>
     </Resource>
   </TestCase>

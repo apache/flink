@@ -481,7 +481,8 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
 
   @TestTemplate
   def testLeftOuterJoinOnTrueWithCrossJoin(): Unit = {
-    // The condition of the LEFT JOIN is true, so T2 is joined with the inputs of the cross join.
+    // Unlike in testLeftOuterJoinWithCrossJoin, the condition of the LEFT JOIN is true, so T1
+    // doesn't have to be joined before T2.
     val sql = "SELECT * FROM T1 LEFT JOIN T2 ON TRUE, T3"
     util.verifyRelPlan(sql)
   }
