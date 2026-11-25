@@ -495,6 +495,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         } else {
             // Session Mode
             recoverApplicationsAndJobsInSessionMode();
+            recoverSingleJobApplicationsFromJobResultStore();
         }
 
         checkState(recoveredDirtyJobResultsByApplicationId.isEmpty());
@@ -727,6 +728,50 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 jobIterator.remove();
                 suspendedJobIdsByApplicationId.remove(applicationId);
             }
+        }
+    }
+
+    /**
+     * Attempt the termination of the {@link SingleJobApplication}s only having a dirty job result
+     * entry. In case of leader change crashed after writing to {@link JobResultStore} but before
+     * writing to {@link ApplicationResultStore}.
+     */
+    private void recoverSingleJobApplicationsFromJobResultStore() throws Exception {
+        for (ApplicationID applicationId :
+                new ArrayList<>(recoveredDirtyJobResultsByApplicationId.keySet())) {
+            final Collection<JobResult> dirtyJobResults =
+                    recoveredDirtyJobResultsByApplicationId.get(applicationId);
+            if (dirtyJobResults.size() != 1) {
+                continue;
+            }
+            final JobResult jobResult = dirtyJobResults.iterator().next();
+            final Optional<JobStatus> jobStatus = jobResult.getJobStatus();
+            if (!jobStatus.isPresent()) {
+                log.warn(
+                        "The dirty result of the job {} has no job status. Cannot complete its application {}.",
+                        jobResult.getJobId(),
+                        applicationId);
+                continue;
+            }
+
+            final ApplicationResult applicationResult =
+                    new ApplicationResult.Builder()
+                            .applicationId(applicationId)
+                            .applicationState(ApplicationState.fromJobStatus(jobStatus.get()))
+                            .applicationName(jobResult.getJobName())
+                            .startTime(jobResult.getStartTime())
+                            .endTime(jobResult.getEndTime())
+                            .build();
+            log.info(
+                    "The application {} of the terminated job {} has no result entry. Completing the application as {}.",
+                    applicationId,
+                    jobResult.getJobId(),
+                    applicationResult.getApplicationState());
+
+            applicationResultStore
+                    .createDirtyResultAsync(new ApplicationResultEntry(applicationResult))
+                    .get();
+            startApplicationCleanup(applicationResult);
         }
     }
 

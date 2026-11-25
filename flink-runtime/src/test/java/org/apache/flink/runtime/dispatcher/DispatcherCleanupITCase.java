@@ -83,6 +83,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
@@ -363,6 +364,75 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         assertThat(successfulJobGraphCleanup.get()).isEqualTo(jobId);
 
         assertThat(actualGlobalCleanupCallCount.get()).isEqualTo(2);
+    }
+
+    /**
+     * A JobManager dies after it wrote the dirty result of a job and before it wrote the dirty
+     * result of the job's application. The job was submitted through the regular session-mode path,
+     * as a {@link SingleJobApplication}, which is never persisted. The next leader gets the dirty
+     * job result and no execution plan, since the plan of a job with a dirty result is skipped, and
+     * must finish the cleanup of the job and of its application.
+     */
+    @Test
+    public void testCleanupAfterLeadershipChangeBeforeApplicationResultWasWritten()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final JobID jobId = jobGraph.getJobID();
+        final ApplicationID applicationId = ApplicationID.fromHexString(jobId.toHexString());
+
+        // The dirty write of the application result does not complete before the JobManager dies.
+        final CompletableFuture<Void> applicationDirtyResultWrite = new CompletableFuture<>();
+        haServices.setApplicationResultStore(
+                TestingApplicationResultStore.builder()
+                        .withCreateDirtyResultConsumer(ignored -> applicationDirtyResultWrite)
+                        .build());
+
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
+        haServices.setJobMasterLeaderElection(jobId, leaderElection);
+
+        final Dispatcher dispatcher = createTestingDispatcherBuilder().build(rpcService);
+        dispatcher.start();
+        toTerminate.add(dispatcher);
+        final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                leaderElection.isLeader(UUID.randomUUID());
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        submitApplicationWithJob(dispatcherGateway, jobGraph);
+        waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
+        CommonTestUtils.waitUntilCondition(
+                () -> haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get());
+        assertThat(haServices.getApplicationResultStore().getDirtyResults()).isEmpty();
+
+        final ApplicationResultStore recoveredApplicationResultStore =
+                new EmbeddedApplicationResultStore();
+        try {
+            final TestingDispatcher secondDispatcher =
+                    createTestingDispatcherBuilder()
+                            .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
+                            .setRecoveredDirtyApplications(Collections.emptyList())
+                            .setApplicationResultStore(recoveredApplicationResultStore)
+                            .build(rpcService);
+            secondDispatcher.start();
+            toTerminate.add(secondDispatcher);
+
+            assertThatCode(secondDispatcher::waitUntilStarted)
+                    .as(
+                            "The recovered Dispatcher doesn't crash although the applicationResult entry wasn't written.")
+                    .doesNotThrowAnyException();
+
+            // The application is marked clean after its jobs.
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            recoveredApplicationResultStore
+                                    .hasCleanApplicationResultEntryAsync(applicationId)
+                                    .get());
+            assertThat(haServices.getJobResultStore().hasCleanJobResultEntryAsync(jobId).get())
+                    .isTrue();
+
+        } finally {
+            // The first Dispatcher stops only after its job cleanup saw the application write.
+            applicationDirtyResultWrite.complete(null);
+        }
     }
 
     @Test
