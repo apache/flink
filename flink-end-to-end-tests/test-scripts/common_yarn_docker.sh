@@ -103,18 +103,21 @@ function start_hadoop_cluster() {
 function build_image() {
     echo "Pre-downloading Hadoop tarball"
     local hadoop_tarball="hadoop-3.4.3.tar.gz"
+    local hadoop_sha512="e25be7e57b4d3c5bfe83895844321a21d6cf7331266d524d8983c27cf484e576c3d79b3b60d590f8cddecf16229d0e232de2491b1b61b362ee7d67072c7290e1"
     local docker_arch
     docker_arch=$(docker info --format '{{.Architecture}}' 2>/dev/null || uname -m)
     if [[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
         if [[ "${DOCKER_DEFAULT_PLATFORM}" == *"arm64"* || "${DOCKER_DEFAULT_PLATFORM}" == *"aarch64"* ]]; then
             hadoop_tarball="hadoop-3.4.3-aarch64.tar.gz"
+            hadoop_sha512="2f5c1719b801eedecc5bbed0d4c6d61d7c4850dbb5944fb79da24474f694cb5d0f00b07d1b54cade83f6ca492e1697225f47737cc1a4478ca04102062cf314d5"
         fi
     elif [[ "${docker_arch}" == "aarch64" || "${docker_arch}" == "arm64" ]]; then
         hadoop_tarball="hadoop-3.4.3-aarch64.tar.gz"
+        hadoop_sha512="2f5c1719b801eedecc5bbed0d4c6d61d7c4850dbb5944fb79da24474f694cb5d0f00b07d1b54cade83f6ca492e1697225f47737cc1a4478ca04102062cf314d5"
     fi
 
     local cache_path
-    cache_path=$(get_artifact "https://archive.apache.org/dist/hadoop/common/hadoop-3.4.3/${hadoop_tarball}")
+    cache_path=$(get_artifact "https://archive.apache.org/dist/hadoop/common/hadoop-3.4.3/${hadoop_tarball}" "${hadoop_sha512}") || return 1
     local target_tarball="${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
     ln -f "${cache_path}" "${target_tarball}" || cp -f "${cache_path}" "${target_tarball}"
 
