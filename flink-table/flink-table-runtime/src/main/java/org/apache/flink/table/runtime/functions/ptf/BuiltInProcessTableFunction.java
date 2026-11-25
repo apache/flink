@@ -33,6 +33,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
@@ -102,6 +103,26 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                 internalStateStrategies != null
                         ? internalStateStrategies
                         : toInternalStateStrategies(definitionTypeInference);
+    }
+
+    /**
+     * Declares a function with one value state of the given type that expires after the interval of
+     * the argument at {@code ttlArgPos}, or after {@code table.exec.state.ttl} if that argument is
+     * NULL.
+     */
+    protected static LinkedHashMap<String, StateTypeStrategy> valueState(
+            final SpecializedContext context,
+            final String name,
+            final DataType valueType,
+            final int ttlArgPos) {
+        return internalState(
+                Map.entry(
+                        name,
+                        StateTypeStrategy.of(
+                                callContext ->
+                                        Optional.of(ValueView.newValueViewDataType(valueType)),
+                                CallContextUtils.getStateTtl(context.getCallContext(), ttlArgPos)
+                                        .orElse(null))));
     }
 
     /**

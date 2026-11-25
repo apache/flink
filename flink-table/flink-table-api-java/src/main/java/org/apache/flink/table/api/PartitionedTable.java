@@ -290,4 +290,35 @@ public interface PartitionedTable {
      * @see #orderBy(Expression...)
      */
     Table fromChangelog(Expression... arguments);
+
+    /**
+     * Keeps one row per partition key using the built-in {@code DEDUPLICATE} process table
+     * function. The result is an updating table with the partition columns as its upsert key.
+     *
+     * <p>{@code keep => 'first'} (default) keeps the earliest arrival or the lowest {@code
+     * sequence_by} value, {@code keep => 'last'} keeps the latest arrival or the highest value.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // Keep the first delivery of each payment
+     * Table result = payments
+     *     .partitionBy($("payment_id"))
+     *     .deduplicate();
+     *
+     * // Keep the version with the highest 'lsn' per customer, with bounded state retention
+     * Table result = customerChanges
+     *     .partitionBy($("customer_id"))
+     *     .deduplicate(
+     *         lit("last").asArgument("keep"),
+     *         descriptor("lsn").asArgument("sequence_by"),
+     *         lit(Duration.ofDays(1)).asArgument("state_ttl"));
+     * }</pre>
+     *
+     * @param arguments optional named arguments for {@code keep}, {@code sequence_by}, {@code
+     *     state_ttl}, and {@code uid}
+     * @return an updating {@link Table} with output schema {@code [partition_keys,
+     *     non_partition_input_columns]}
+     */
+    Table deduplicate(Expression... arguments);
 }

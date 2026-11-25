@@ -309,6 +309,12 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testPartitionByTimeAttributeIsNotForwardedAsTimeAttribute() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.verifyRelPlan("SELECT * FROM f(r => TABLE t_watermarked PARTITION BY ts, i => 42)");
+    }
+
+    @Test
     void testOrderBy() {
         util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyRelPlan(
@@ -771,6 +777,13 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "PTFs that take table arguments with row semantics don't support upsert output. "
                                 + "Table argument 'r' of function 'f' must use set semantics."),
                 ErrorSpec.ofSelect(
+                        "ORDER BY on a table argument that rejects it",
+                        NoOrderByFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name ORDER BY ts)",
+                        "Table argument 'r' does not support an ORDER BY clause. Remove it, and use "
+                                + "an argument of the function to order records if the function "
+                                + "offers one."),
+                ErrorSpec.ofSelect(
                         "on_time is not supported on updating output",
                         UpdatingUpsertFunction.class,
                         "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name, on_time => DESCRIPTOR(ts))",
@@ -945,6 +958,29 @@ class ProcessTableFunctionTest extends TableTestBase {
                                     Row.class,
                                     false,
                                     EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
+                    .outputTypeStrategy(callContext -> Optional.of(DataTypes.STRING()))
+                    .build();
+        }
+
+        @SuppressWarnings("unused")
+        public void eval(Row r) {}
+    }
+
+    /** Testing function. */
+    public static class NoOrderByFunction extends ProcessTableFunction<String> {
+
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "r",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.NO_ORDER_BY)))
                     .outputTypeStrategy(callContext -> Optional.of(DataTypes.STRING()))
                     .build();
         }

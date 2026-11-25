@@ -967,6 +967,11 @@ public class TableImpl implements Table {
                     BuiltInFunctionDefinitions.FROM_CHANGELOG.getName(), (Object[]) arguments);
         }
 
+        @Override
+        public Table deduplicate(final Expression... arguments) {
+            return process(BuiltInFunctionDefinitions.DEDUPLICATE.getName(), (Object[]) arguments);
+        }
+
         private QueryOperation createQueryOperation() {
             if (orderKeys.isEmpty()) {
                 return table.operationTreeBuilder.partition(partitionKeys, table.operationTree);

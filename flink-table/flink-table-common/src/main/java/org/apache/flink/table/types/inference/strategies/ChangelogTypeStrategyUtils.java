@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.utils.UpsertKeyUtils;
 import org.apache.flink.types.ColumnList;
 
@@ -66,20 +67,14 @@ public final class ChangelogTypeStrategyUtils {
 
     /**
      * Returns the input column indices that pass through to the function's output, excluding the
-     * partition key columns (the PTF framework prepends them when the input has set semantics).
-     */
-    public static int[] computeOutputIndices(final TableSemantics tableSemantics) {
-        return computeOutputIndices(tableSemantics, -1);
-    }
-
-    /**
-     * Returns the input column indices that pass through to the function's output, excluding the
      * partition key columns and the operation column matching {@code opColumnName}.
      */
     public static int[] computeOutputIndices(
             final TableSemantics tableSemantics, final String opColumnName) {
         final int opIndex = DataType.getFieldNames(tableSemantics.dataType()).indexOf(opColumnName);
-        return computeOutputIndices(tableSemantics, opIndex);
+        return Arrays.stream(CallContextUtils.computeOutputIndices(tableSemantics))
+                .filter(i -> i != opIndex)
+                .toArray();
     }
 
     /**
@@ -102,16 +97,6 @@ public final class ChangelogTypeStrategyUtils {
             preserved.add(column);
         }
         return preserved;
-    }
-
-    private static int[] computeOutputIndices(
-            final TableSemantics tableSemantics, final int extraExcludedIndex) {
-        final Set<Integer> excluded = collectPartitionKeyIndices(tableSemantics);
-        if (extraExcludedIndex >= 0) {
-            excluded.add(extraExcludedIndex);
-        }
-        final int inputFieldCount = DataType.getFieldCount(tableSemantics.dataType());
-        return IntStream.range(0, inputFieldCount).filter(i -> !excluded.contains(i)).toArray();
     }
 
     private static Set<Integer> collectPartitionKeyIndices(final TableSemantics tableSemantics) {

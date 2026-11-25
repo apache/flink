@@ -57,6 +57,12 @@ public enum StaticArgumentTrait {
     // For SET_SEMANTIC_TABLE
     OPTIONAL_PARTITION_BY(SET_SEMANTIC_TABLE),
 
+    /**
+     * Specifies that the table argument rejects an ORDER BY clause, for a function that orders
+     * records by an argument of its own. Reserved for built-in functions.
+     */
+    NO_ORDER_BY(SET_SEMANTIC_TABLE),
+
     // For BROADCAST_SEMANTIC_TABLE
     NOTIFY_STATEFUL_SETS(BROADCAST_SEMANTIC_TABLE),
 

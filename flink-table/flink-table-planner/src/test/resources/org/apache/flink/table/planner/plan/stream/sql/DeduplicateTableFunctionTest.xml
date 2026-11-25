@@ -1,0 +1,82 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testRetractingConsumer">
+    <Resource name="sql">
+      <![CDATA[SELECT event, COUNT(*) AS users FROM DEDUPLICATE(input => TABLE user_events PARTITION BY user_id, keep => 'last') GROUP BY event]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], users=[COUNT()])
++- LogicalProject(event=[$1])
+   +- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'last', DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) event, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts)])
+      +- LogicalProject(user_id=[$0], event=[$1], ts=[$2])
+         +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, user_events]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[event], select=[event, COUNT_RETRACT(*) AS users], changelogMode=[I,UA,D], upsertKeys=[[event]])
++- Exchange(distribution=[hash[event]], changelogMode=[I,UB,UA])
+   +- Calc(select=[event], changelogMode=[I,UB,UA])
+      +- ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'last', DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[user_id,event,ts], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) event, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts)], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[user_id]], changelogMode=[I])
+            +- WatermarkAssigner(rowtime=[ts], watermark=[ts], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_id, event, ts], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableApiWithArguments">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'last', DESCRIPTOR(_UTF-16LE'lsn'), 86400000:INTERVAL DAY TO SECOND, DEFAULT(), _UTF-16LE'DEDUPLICATE')], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])
++- LogicalTableScan(table=[[default_catalog, default_database, customer_changes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'last', DESCRIPTOR(_UTF-16LE'lsn'), 86400000:INTERVAL DAY TO SECOND, DEFAULT(), _UTF-16LE'DEDUPLICATE')], uid=[DEDUPLICATE], select=[customer_id,city,lsn], rowType=[RecordType(VARCHAR(2147483647) customer_id, VARCHAR(2147483647) city, BIGINT lsn)])
++- Exchange(distribution=[hash[customer_id]])
+   +- TableSourceScan(table=[[default_catalog, default_database, customer_changes]], fields=[customer_id, city, lsn])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertKeyIsPartitionKey">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM DEDUPLICATE(input => TABLE user_events PARTITION BY user_id, keep => 'last')]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], event=[$1], ts=[$2])
++- LogicalTableFunctionScan(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'last', DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) event, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts)])
+   +- LogicalProject(user_id=[$0], event=[$1], ts=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, user_events]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), _UTF-16LE'last', DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[user_id,event,ts], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) event, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts)], changelogMode=[I,UA], upsertKeys=[[user_id]])
++- Exchange(distribution=[hash[user_id]], changelogMode=[I])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_id, event, ts], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -18,15 +18,42 @@
 package org.apache.flink.table.planner.codegen.sort
 
 import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator
+import org.apache.flink.table.functions.TableSemantics.SortDirection
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
+import org.apache.flink.table.runtime.functions.DefaultGeneratedComparator
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+
+import scala.collection.JavaConverters._
 
 /** A code generator for generating [[RecordComparator]]. */
 object ComparatorCodeGenerator {
+
+  /** Generates a [[GeneratedComparator]] that orders all fields in the given direction. */
+  def genComparator(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      dataType: DataType,
+      direction: SortDirection): GeneratedComparator = {
+    val logicalType = dataType.getLogicalType
+    val isComposite = LogicalTypeChecks.isCompositeType(logicalType)
+    val fieldTypes =
+      if (isComposite) LogicalTypeChecks.getFieldTypes(logicalType).asScala else Seq(logicalType)
+    val rowType = RowType.of(fieldTypes: _*)
+    val sortSpec = SortSpec.builder()
+    (0 until rowType.getFieldCount).foreach(
+      i => sortSpec.addField(i, !direction.isDescending, direction.isNullsLast))
+    new DefaultGeneratedComparator(
+      gen(tableConfig, classLoader, "GeneratedComparator", rowType, sortSpec.build()),
+      isComposite,
+      direction.isNullsFirst)
+  }
 
   /**
    * Generates a [[RecordComparator]] that can be passed to a Java compiler.

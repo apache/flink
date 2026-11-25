@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
@@ -969,6 +970,8 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(argument(0))
                     .runtimeClass("org.apache.flink.table.runtime.functions.ptf.ToAppendFunction")
                     .build();
+
+    public static final BuiltInFunctionDefinition DEDUPLICATE = DeduplicateDefinition.INSTANCE;
 
     /**
      * Built-in proxy function for the LATERAL SNAPSHOT temporal join.

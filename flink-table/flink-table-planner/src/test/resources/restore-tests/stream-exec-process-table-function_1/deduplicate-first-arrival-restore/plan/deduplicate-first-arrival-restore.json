@@ -1,0 +1,156 @@
+{
+  "flinkVersion" : "2.5",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`payments`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "payment_id",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "amount",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, payments]], fields=[payment_id, amount])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
+    "description" : "Exchange(distribution=[hash[payment_id]])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-process-table-function_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
+    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE], select=[payment_id,amount], rowType=[RecordType(VARCHAR(2147483647) payment_id, INTEGER amount)])",
+    "uid" : "DEDUPLICATE",
+    "functionCall" : {
+      "kind" : "CALL",
+      "internalName" : "$DEDUPLICATE$1",
+      "operands" : [ {
+        "kind" : "TABLE_ARG_CALL",
+        "inputIndex" : 0,
+        "partitionKeys" : [ 0 ],
+        "type" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT> NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "INTERVAL SECOND(6)"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT> NOT NULL"
+    },
+    "inputChangelogModes" : [ [ "INSERT" ] ],
+    "outputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKeys" : [ [ ] ]
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "payment_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "amount",
+              "dataType" : "INT"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_payment_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "payment_id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "upsertMaterializeStrategy" : "VALUE",
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[payment_id, amount])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

@@ -404,11 +404,16 @@ public class SystemTypeInference {
                                 // - Flink SESSION windows add pass-through columns at the beginning
                                 // - Oracle adds pass-through columns for all ROW semantics args, so
                                 // this whole topic is kind of vendor specific already
-                                fields.addAll(derivePassThroughFields(callContext, resolvedArgs));
+                                final boolean preservesTimeAttributes =
+                                        preservesTimeAttributes(resolvedArgs);
+                                fields.addAll(
+                                        derivePassThroughFields(
+                                                callContext,
+                                                resolvedArgs,
+                                                preservesTimeAttributes));
                                 fields.addAll(
                                         deriveFunctionOutputFields(
-                                                functionDataType,
-                                                preservesTimeAttributes(resolvedArgs)));
+                                                functionDataType, preservesTimeAttributes));
 
                                 if (!disableSystemArgs) {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
@@ -438,7 +443,9 @@ public class SystemTypeInference {
         }
 
         private List<Field> derivePassThroughFields(
-                CallContext callContext, List<StaticArgument> staticArgs) {
+                CallContext callContext,
+                List<StaticArgument> staticArgs,
+                boolean preservesTimeAttributes) {
             if (functionKind != FunctionKind.PROCESS_TABLE) {
                 return List.of();
             }
@@ -462,7 +469,8 @@ public class SystemTypeInference {
                                 final DataType projectedRow =
                                         Projection.of(semantics.partitionByColumns())
                                                 .project(rowDataType);
-                                return DataType.getFields(projectedRow).stream();
+                                return DataType.getFields(projectedRow).stream()
+                                        .map(field -> forwardField(field, preservesTimeAttributes));
                             })
                     .flatMap(s -> s)
                     .collect(Collectors.toList());
@@ -477,19 +485,17 @@ public class SystemTypeInference {
                 // backwards compatibility with the pre-system-type-inference default.
                 return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
             }
-            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
-            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
-            return IntStream.range(0, fieldTypes.size())
-                    .mapToObj(
-                            pos -> {
-                                final DataType fieldType = fieldTypes.get(pos);
-                                return DataTypes.FIELD(
-                                        fieldNames.get(pos),
-                                        preservesTimeAttributes
-                                                ? fieldType
-                                                : DataTypeUtils.removeTimeAttribute(fieldType));
-                            })
+            return DataType.getFields(functionDataType).stream()
+                    .map(field -> forwardField(field, preservesTimeAttributes))
                     .collect(Collectors.toList());
+        }
+
+        private static Field forwardField(Field field, boolean preservesTimeAttributes) {
+            if (preservesTimeAttributes) {
+                return field;
+            }
+            return DataTypes.FIELD(
+                    field.getName(), DataTypeUtils.removeTimeAttribute(field.getDataType()));
         }
 
         /** A PTF might delay or reorder rows, which would invalidate forwarded time attributes. */
@@ -855,6 +861,16 @@ public class SystemTypeInference {
                 throw new ValidationException(
                         String.format(
                                 "Table argument '%s' requires a PARTITION BY clause for parallel processing.",
+                                staticArg.getName()));
+            }
+
+            if (staticArg.is(StaticArgumentTrait.NO_ORDER_BY)
+                    && semantics.orderByColumns().length > 0) {
+                throw new ValidationException(
+                        String.format(
+                                "Table argument '%s' does not support an ORDER BY clause. "
+                                        + "Remove it, and use an argument of the function to "
+                                        + "order records if the function offers one.",
                                 staticArg.getName()));
             }
 
