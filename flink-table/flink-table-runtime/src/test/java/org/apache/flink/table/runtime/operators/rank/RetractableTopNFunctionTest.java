@@ -20,9 +20,13 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
@@ -31,6 +35,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
@@ -63,6 +68,92 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
     @Override
     boolean supportedAsyncState() {
         return false;
+    }
+
+    @TestTemplate
+    void testOffsetUpdatesPreserveRowsForConsecutiveRetractions() throws Exception {
+        checkOffsetUpdatesPreserveRowsForConsecutiveRetractions(false);
+        checkOffsetUpdatesPreserveRowsForConsecutiveRetractions(true);
+    }
+
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createOffsetHarness(
+            boolean objectReuse) throws Exception {
+        AbstractTopNFunction func =
+                createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 3), true, false);
+        OneInputStreamOperatorTestHarness<RowData, RowData> harness = createTestHarness(func);
+        if (objectReuse) {
+            harness.getExecutionConfig().enableObjectReuse();
+        }
+        return harness;
+    }
+
+    private void checkOffsetUpdatesPreserveRowsForConsecutiveRetractions(boolean objectReuse)
+            throws Exception {
+        try (OneInputStreamOperatorTestHarness<RowData, RowData> harness =
+                createOffsetHarness(objectReuse)) {
+            harness.open();
+            harness.processElement(insertRecord("book", 1L, 10));
+            harness.processElement(insertRecord("book", 2L, 20));
+            harness.processElement(insertRecord("book", 3L, 30));
+            harness.processElement(insertRecord("book", 4L, 40));
+            harness.processElement(insertRecord("book", 5L, 50));
+            harness.processElement(deleteRecord("book", 1L, 10));
+            harness.processElement(deleteRecord("book", 2L, 20));
+
+            assertorWithoutRowNumber.assertOutputEquals(
+                    "Both retractions should update ranks 2 and 3.",
+                    Arrays.asList(
+                            insertRecord("book", 2L, 20),
+                            insertRecord("book", 3L, 30),
+                            updateBeforeRecord("book", 2L, 20),
+                            updateAfterRecord("book", 3L, 30),
+                            updateBeforeRecord("book", 3L, 30),
+                            updateAfterRecord("book", 4L, 40),
+                            updateBeforeRecord("book", 3L, 30),
+                            updateAfterRecord("book", 4L, 40),
+                            updateBeforeRecord("book", 4L, 40),
+                            updateAfterRecord("book", 5L, 50)),
+                    harness.getOutput());
+        }
+    }
+
+    @TestTemplate
+    void testOffsetInsertionPreservesRowsForRetractionWithRocksDB() throws Exception {
+        checkOffsetInsertionWithRocksDB(false);
+        checkOffsetInsertionWithRocksDB(true);
+    }
+
+    private void checkOffsetInsertionWithRocksDB(boolean objectReuse) throws Exception {
+        RowDataSerializer serializer = new RowDataSerializer(inputRowType.toRowType());
+        try (OneInputStreamOperatorTestHarness<RowData, RowData> harness =
+                createOffsetHarness(objectReuse)) {
+            harness.setStateBackend(new EmbeddedRocksDBStateBackend());
+            harness.open();
+            for (StreamRecord<RowData> record :
+                    Arrays.asList(
+                            insertRecord("book", 1L, 10),
+                            insertRecord("book", 3L, 30),
+                            insertRecord("book", 4L, 40),
+                            insertRecord("book", 2L, 20),
+                            deleteRecord("book", 2L, 20))) {
+                harness.processElement(
+                        record.replace(serializer.toBinaryRow(record.getValue()).copy()));
+            }
+            assertorWithoutRowNumber.assertOutputEquals(
+                    "Retracting the inserted row should restore the previous ranks.",
+                    Arrays.asList(
+                            insertRecord("book", 3L, 30),
+                            insertRecord("book", 4L, 40),
+                            updateBeforeRecord("book", 3L, 30),
+                            updateAfterRecord("book", 2L, 20),
+                            updateBeforeRecord("book", 4L, 40),
+                            updateAfterRecord("book", 3L, 30),
+                            updateBeforeRecord("book", 2L, 20),
+                            updateAfterRecord("book", 3L, 30),
+                            updateBeforeRecord("book", 3L, 30),
+                            updateAfterRecord("book", 4L, 40)),
+                    harness.getOutput());
+        }
     }
 
     @TestTemplate
@@ -559,8 +650,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         expectedOutput.add(deleteRecord("a", 1L, 10, 1));
         expectedOutput.add(insertRecord("a", 1L, 9, 1));
 
-        assertorWithRowNumber.assertOutputEquals(
-                "output wrong.", expectedOutput, testHarness.getOutput());
+        new RowDataHarnessAssertor(func.inputRowType.toRowFieldTypes())
+                .assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
     }
 
     @TestTemplate
