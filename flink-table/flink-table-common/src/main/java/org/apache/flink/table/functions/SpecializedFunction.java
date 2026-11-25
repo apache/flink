@@ -132,7 +132,10 @@ public interface SpecializedFunction extends FunctionDefinition {
          *     structure of the type, see {@link DataType#toInternal()}
          * @param direction direction of the comparison and position of NULL
          */
-        GeneratedComparator createComparator(DataType dataType, SortDirection direction);
+        default GeneratedComparator createComparator(DataType dataType, SortDirection direction) {
+            throw new UnsupportedOperationException(
+                    "Creating a comparator is not supported by this context.");
+        }
     }
 
     /**
