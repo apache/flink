@@ -96,12 +96,12 @@ LogicalProject(order_id_str=[CAST(COALESCE($3.order_id, $0)):VARCHAR(2147483647)
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[CAST(COALESCE(r.order_id, order_id) AS VARCHAR(2147483647)) AS order_id_str])
-+- Join(joinType=[LeftOuterJoin], where=[=(order_id, $f2)], select=[order_id, r, $f2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+Calc(select=[CAST(COALESCE($f0, order_id) AS VARCHAR(2147483647)) AS order_id_str])
++- Join(joinType=[LeftOuterJoin], where=[=(order_id, $f2)], select=[order_id, $f0, $f2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
    +- Exchange(distribution=[hash[$f2]])
-      +- Calc(select=[r, r.order_id AS $f2])
+      +- Calc(select=[r.order_id AS $f0, r.order_id AS $f2])
          +- TableSourceScan(table=[[default_catalog, default_database, order_details_row, project=[r]]], fields=[r])
 ]]>
     </Resource>
