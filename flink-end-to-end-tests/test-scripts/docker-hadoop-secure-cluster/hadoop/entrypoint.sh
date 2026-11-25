@@ -48,7 +48,9 @@ sed -i "s/EXAMPLE.COM/${KRB_REALM}/g" $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
 sed -i "s/HOSTNAME/$(hostname -f)/g" $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
 sed -i "s#/etc/security/keytabs#${KEYTAB_DIR}#g" $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
 
-sed -i "s#/usr/local/hadoop/bin/container-executor#${NM_CONTAINER_EXECUTOR_PATH}#g" $HADOOP_PREFIX/etc/hadoop/yarn-site.xml
+if [ -n "${NM_CONTAINER_EXECUTOR_PATH}" ]; then
+    sed -i "s#/usr/local/hadoop/bin/container-executor#${NM_CONTAINER_EXECUTOR_PATH}#g" "$HADOOP_PREFIX/etc/hadoop/yarn-site.xml"
+fi
 
 # create namenode kerberos principal and keytab
 # we retry the first call because it can happen that Kerberos is not ready in
@@ -86,7 +88,7 @@ chown hdfs:hadoop ${KEYTAB_DIR}/hdfs.keytab
 chown mapred:hadoop ${KEYTAB_DIR}/mapred.keytab
 chown yarn:hadoop ${KEYTAB_DIR}/yarn.keytab
 
-service ssh start
+/usr/sbin/sshd
 
 if [ "$1" == "--help" -o "$1" == "-h" ]; then
     echo "Usage: $(basename $0) (master|worker)"

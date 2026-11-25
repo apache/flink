@@ -16,16 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-FROM debian:bullseye
+FROM almalinux:9
 
-ENV DEBIAN_FRONTEND noninteractive
-# The -qq implies --yes
-RUN apt-get -qq update
-RUN apt-get -qq install locales krb5-kdc krb5-admin-server
-RUN apt-get -qq clean
-
-RUN locale-gen "en_US.UTF-8"
-RUN echo "LC_ALL=\"en_US.UTF-8\"" >> /etc/default/locale
+RUN dnf install -y --setopt=install_weak_deps=False krb5-server \
+    && dnf clean all
 
 EXPOSE 88 749
 

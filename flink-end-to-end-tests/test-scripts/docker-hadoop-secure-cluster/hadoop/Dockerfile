@@ -24,23 +24,28 @@
 #
 # Creates multi-node, kerberized Hadoop cluster on Docker
 
-# Hadoop's container-executor links against OpenSSL 1.1 (libcrypto.so.1.1), which jammy no longer ships.
-# The focal tags no longer receive updates. Only the disabled YARN Kerberos e2e test uses this image.
-FROM eclipse-temurin:8-jdk-focal
+# Hadoop 3.4.3's container-executor links against OpenSSL 1.1 (libcrypto.so.1.1),
+# which AlmaLinux 9 ships via compat-openssl11 alongside maintained OpenJDK 17/21 packages.
+FROM almalinux:9
+
+ARG JAVA_VERSION=21
 
 RUN set -x \
-    && addgroup hadoop \
+    && groupadd hadoop \
     && useradd -d /home/hdfs -ms /bin/bash -G hadoop -p hdfs hdfs \
     && useradd -d /home/yarn -ms /bin/bash -G hadoop -p yarn yarn \
     && useradd -d /home/mapred -ms /bin/bash -G hadoop -p mapred mapred \
     && useradd -d /home/hadoop-user -ms /bin/bash -p hadoop-user hadoop-user
 
-# install dev tools
+# install JDK, OpenSSL 1.1 compat lib, and cluster tools
 RUN set -x \
-    && apt-get update \
-    && apt-get upgrade -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl tar sudo openssh-server openssh-client rsync unzip krb5-user net-tools build-essential
+    && dnf install -y --setopt=install_weak_deps=False \
+       java-${JAVA_VERSION}-openjdk-devel \
+       compat-openssl11 \
+       tar sudo openssh-server openssh-clients rsync unzip krb5-workstation net-tools procps-ng which \
+    && dnf clean all
+
+ENV JAVA_HOME=/usr/lib/jvm/java-${JAVA_VERSION}-openjdk
 
 # Kerberos client
 RUN set -x \
@@ -49,13 +54,10 @@ RUN set -x \
 
 # passwordless ssh
 RUN set -x \
-    && rm -f /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_rsa_key /root/.ssh/id_rsa \
-    && ssh-keygen -q -N "" -t dsa -f /etc/ssh/ssh_host_dsa_key \
-    && ssh-keygen -q -N "" -t rsa -f /etc/ssh/ssh_host_rsa_key \
+    && rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub /root/.ssh/id_rsa \
+    && ssh-keygen -A \
     && ssh-keygen -q -N "" -t rsa -f /root/.ssh/id_rsa \
     && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
-
-RUN sed -i 's/^#crypto.policy=unlimited/crypto.policy=unlimited/' $JAVA_HOME/jre/lib/security/java.security
 
 COPY hadoop.tar.gz /tmp/hadoop.tar.gz
 
@@ -78,21 +80,21 @@ RUN set -x \
     && chmod 755 /hadoop-data/nm-local-dirs \
     && chmod 755 /hadoop-data/nm-log-dirs
 
-ENV HADOOP_HOME /usr/local/hadoop
-ENV HADOOP_COMMON_HOME /usr/local/hadoop
-ENV HADOOP_HDFS_HOME /usr/local/hadoop
-ENV HADOOP_MAPRED_HOME /usr/local/hadoop
-ENV HADOOP_YARN_HOME /usr/local/hadoop
-ENV HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop
-ENV HADOOP_LOG_DIR /var/log/hadoop
-ENV HADOOP_BIN_HOME $HADOOP_HOME/bin
-ENV PATH $PATH:$HADOOP_BIN_HOME
+ENV HADOOP_HOME=/usr/local/hadoop
+ENV HADOOP_COMMON_HOME=/usr/local/hadoop
+ENV HADOOP_HDFS_HOME=/usr/local/hadoop
+ENV HADOOP_MAPRED_HOME=/usr/local/hadoop
+ENV HADOOP_YARN_HOME=/usr/local/hadoop
+ENV HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop
+ENV HADOOP_LOG_DIR=/var/log/hadoop
+ENV HADOOP_BIN_HOME=$HADOOP_HOME/bin
+ENV PATH=$PATH:$HADOOP_BIN_HOME
 
-ENV KRB_REALM EXAMPLE.COM
-ENV DOMAIN_REALM example.com
-ENV KERBEROS_ADMIN_USER admin/admin
-ENV KERBEROS_ADMIN_PASSWORD admin
-ENV KEYTAB_DIR /etc/security/keytabs
+ENV KRB_REALM=EXAMPLE.COM
+ENV DOMAIN_REALM=example.com
+ENV KERBEROS_ADMIN_USER=admin/admin
+ENV KERBEROS_ADMIN_PASSWORD=admin
+ENV KEYTAB_DIR=/etc/security/keytabs
 
 RUN set -x \
     && mkdir /var/log/hadoop \
@@ -126,9 +128,8 @@ RUN set -x \
 
 # fix the 254 error code
 RUN set -x \
-    && sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config \
-    && echo "UsePAM no" >> /etc/ssh/sshd_config \
-    && echo "Port 2122" >> /etc/ssh/sshd_config
+    && mkdir -p /etc/ssh/sshd_config.d \
+    && printf 'UsePAM no\nPort 2122\n' > /etc/ssh/sshd_config.d/00-flink.conf
 
 # Hdfs ports
 EXPOSE 9000 9866 9867 9864 9868 9865 9869 8020

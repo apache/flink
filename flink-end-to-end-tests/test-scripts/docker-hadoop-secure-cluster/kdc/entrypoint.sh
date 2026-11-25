@@ -50,15 +50,16 @@ create_config() {
  .$DOMAIN_REALM = ${KRB_REALM}
  $DOMAIN_REALM = ${KRB_REALM}
 EOF
+  sed -i "s/EXAMPLE.COM/${KRB_REALM}/g" /var/kerberos/krb5kdc/kdc.conf
 }
 
 create_db() {
-  /usr/sbin/kdb5_util -P ${KERB_MASTER_KEY} -r ${KRB_REALM} create -s
+  /usr/sbin/kdb5_util -P "${KERB_MASTER_KEY}" -r "${KRB_REALM}" create -s
 }
 
 create_admin_user() {
   kadmin.local -q "addprinc -pw ${KERB_ADMIN_PASS} ${KERB_ADMIN_USER}/admin"
-  echo "*/admin@${KRB_REALM} *" > /etc/krb5kdc/kadm5.acl
+  echo "*/admin@${KRB_REALM} *" > /var/kerberos/krb5kdc/kadm5.acl
 }
 
 start_kdc() {
