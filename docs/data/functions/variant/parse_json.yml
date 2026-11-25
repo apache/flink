@@ -48,6 +48,7 @@ notes:
   - Only the first JSON value is read, and content after it is ignored, so `PARSE_JSON('{"a":1} xyz')` returns `{"a":1}`.
   - An object doesn't keep the order of its fields. `JSON_STRING` returns them sorted by name.
   - A value larger than 16 MiB fails.
+  - If a query only reads fields, such as `CAST(PARSE_JSON(doc)['a'] AS INT)`, the 16 MiB limit applies to those fields only, so a larger document can succeed. A query that uses the whole value, such as `JSON_STRING(PARSE_JSON(doc))`, fails on it.
 
 see_also:
   - {name: TRY_PARSE_JSON, ref: variant/try-parse-json}

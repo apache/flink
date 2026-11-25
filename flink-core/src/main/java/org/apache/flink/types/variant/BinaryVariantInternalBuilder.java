@@ -27,6 +27,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.exc.InputCoercionException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -140,6 +142,11 @@ public class BinaryVariantInternalBuilder {
         }
     }
 
+    /** A parser of UTF-8 encoded JSON bytes, as {@link #parseJson(byte[], boolean)} uses. */
+    public static JsonParser createParser(byte[] bytes) throws IOException {
+        return JSON_FACTORY.createParser(bytes);
+    }
+
     /**
      * Similar {@link #parseJson(String, boolean)}, but takes a JSON parser instead of string input.
      */
@@ -148,6 +155,11 @@ public class BinaryVariantInternalBuilder {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(allowDuplicateKeys);
         builder.buildJson(parser);
         return builder.build();
+    }
+
+    /** Appends the value at the current token, and leaves the parser at its last token. */
+    public void appendJson(JsonParser parser) throws IOException {
+        buildJson(parser);
     }
 
     // Build the variant metadata from `dictionaryKeys` and return the variant result.
@@ -806,37 +818,69 @@ public class BinaryVariantInternalBuilder {
                     finishWritingArray(start, offsets);
                     break;
                 }
+            default:
+                scalar(parser, token, true);
+        }
+    }
+
+    /** Fails where building the scalar at the current token would, without building it. */
+    public void checkJsonScalar(JsonParser parser) throws IOException {
+        scalar(parser, parser.currentToken(), false);
+    }
+
+    // Appends the scalar at the token, or with build false, only fails where appending would.
+    private void scalar(JsonParser parser, JsonToken token, boolean build) throws IOException {
+        switch (token) {
             case VALUE_STRING:
-                // getText() would join a long value's segments with a per-char StringBuilder
-                appendString(
-                        new String(
-                                parser.getTextCharacters(),
-                                parser.getTextOffset(),
-                                parser.getTextLength()));
-                break;
-            case VALUE_NUMBER_INT:
-                try {
-                    appendNumeric(parser.getLongValue());
-                } catch (InputCoercionException ignored) {
-                    // If the value doesn't fit any integer type, parse it as decimal or floating
-                    // instead.
-                    parseFloatingPoint(parser);
+                // getText() would join a long value's segments with a per-char StringBuilder;
+                // decoding checks UTF-8 and the length
+                final char[] chars = parser.getTextCharacters();
+                if (build) {
+                    appendString(new String(chars, parser.getTextOffset(), parser.getTextLength()));
                 }
                 break;
+            case VALUE_NUMBER_INT:
             case VALUE_NUMBER_FLOAT:
-                parseFloatingPoint(parser);
+                number(parser, token, build);
                 break;
             case VALUE_TRUE:
-                appendBoolean(true);
-                break;
             case VALUE_FALSE:
-                appendBoolean(false);
+                if (build) {
+                    appendBoolean(token == JsonToken.VALUE_TRUE);
+                }
                 break;
             case VALUE_NULL:
-                appendNull();
+                if (build) {
+                    appendNull();
+                }
                 break;
             default:
                 throw new JsonParseException(parser, "Unexpected token " + token);
+        }
+    }
+
+    private void number(JsonParser parser, JsonToken token, boolean build) throws IOException {
+        if (token == JsonToken.VALUE_NUMBER_INT) {
+            try {
+                final long value = parser.getLongValue();
+                if (build) {
+                    appendNumeric(value);
+                }
+                return;
+            } catch (InputCoercionException ignored) {
+                // doesn't fit any integer type, so a decimal or floating point
+            }
+        }
+        final BigDecimal decimal = decimalOf(parser.getText());
+        if (decimal != null) {
+            if (build) {
+                appendDecimal(decimal);
+            }
+            return;
+        }
+        final double value = finiteDouble(parser);
+        if (build) {
+            appendDouble(value);
         }
     }
 
@@ -856,38 +900,33 @@ public class BinaryVariantInternalBuilder {
         return U24_SIZE;
     }
 
-    private void parseFloatingPoint(JsonParser parser) throws IOException {
-        if (!tryParseDecimal(parser.getText())) {
-            final double d = parser.getDoubleValue();
-            // Jackson coerces out-of-range numbers like 1e400 to +/-Infinity. Reject them instead
-            // of storing a non-finite double that toJson() could not render as valid JSON.
-            if (Double.isInfinite(d) || Double.isNaN(d)) {
-                throw new JsonParseException(
-                        parser,
-                        String.format(
-                                "Numeric value '%s' is out of the range of double precision and cannot be stored as a Variant.",
-                                parser.getText()));
-            }
-            appendDouble(d);
+    private static double finiteDouble(JsonParser parser) throws IOException {
+        final double d = parser.getDoubleValue();
+        // Jackson coerces out-of-range numbers like 1e400 to +/-Infinity. Reject them instead
+        // of storing a non-finite double that toJson() could not render as valid JSON.
+        if (Double.isInfinite(d) || Double.isNaN(d)) {
+            throw new JsonParseException(
+                    parser,
+                    String.format(
+                            "Numeric value '%s' is out of the range of double precision and cannot be stored as a Variant.",
+                            parser.getText()));
         }
+        return d;
     }
 
-    // Try to parse a JSON number as a decimal. Return whether the parsing succeeds. The input must
-    // only use the decimal format (an integer value with an optional '.' in it) and must not use
-    // scientific notation. It also must fit into the precision limitation of decimal types.
-    private boolean tryParseDecimal(String input) {
+    // The JSON number as a decimal, or null. The input must only use the decimal format (an integer
+    // value with an optional '.' in it) and must not use scientific notation. It also must fit into
+    // the precision limitation of decimal types.
+    @Nullable
+    private static BigDecimal decimalOf(String input) {
         for (int i = 0; i < input.length(); ++i) {
             char ch = input.charAt(i);
             if (ch != '-' && ch != '.' && !(ch >= '0' && ch <= '9')) {
-                return false;
+                return null;
             }
         }
         BigDecimal d = new BigDecimal(input);
-        if (fitsVariantDecimal(d, MAX_DECIMAL16_PRECISION)) {
-            appendDecimal(d);
-            return true;
-        }
-        return false;
+        return fitsVariantDecimal(d, MAX_DECIMAL16_PRECISION) ? d : null;
     }
 
     // The write buffer in building the variant value. Its first `writePos` bytes has been written.
