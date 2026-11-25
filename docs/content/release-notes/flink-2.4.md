@@ -371,25 +371,6 @@ Select the backend with `historyserver.archive.storage.type`:
 This changes how the local cache is stored; completed-job archives continue to be read from
 the configured archive directories.
 
-#### Lazy loading in HistoryServer
-
-##### [FLINK-40097](https://issues.apache.org/jira/browse/FLINK-40097) (FLIP-585)
-
-The HistoryServer gains a `LAZY` archive load mode. Overview information is made available
-before all job details have been processed, while details are loaded asynchronously.
-Accessing an archive that has not yet finished loading triggers or waits for the relevant
-on-demand load, so users do not have to wait for every preceding archive to be processed.
-
-The mode is opt-in through `historyserver.archive.load.mode` (default: `EAGER`). Lazy loading
-uses two separately configurable thread pools:
-
-- `historyserver.lazy.fetch.executor.common.pool-size` (default: `4`) for background loads.
-- `historyserver.lazy.fetch.executor.individual.pool-size` (default: `4`) for individual
-  on-demand loads.
-
-The default `EAGER` mode retains synchronous archive loading. Lazy loading works with both
-the file and RocksDB local storage backends.
-
 #### State Catalog
 
 ##### [FLINK-40175](https://issues.apache.org/jira/browse/FLINK-40175) (FLIP-599)
