@@ -30,11 +30,11 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.functions.SpecializedFunction.ComparatorOrder;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluatorFactory;
 import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.TableSemantics.SortDirection;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
@@ -616,13 +616,13 @@ public final class UserDefinedFunctionHelper {
 
                         @Override
                         public GeneratedComparator createComparator(
-                                DataType dataType, ComparatorOrder order) {
+                                DataType dataType, SortDirection direction) {
                             if (evaluatorFactory == null) {
                                 throw new TableException(
                                         "Access to comparators is currently not supported for all "
                                                 + "kinds of calls.");
                             }
-                            return evaluatorFactory.createComparator(dataType, order);
+                            return evaluatorFactory.createComparator(dataType, direction);
                         }
                     };
             final UserDefinedFunction udf = specialized.specialize(specializedContext);

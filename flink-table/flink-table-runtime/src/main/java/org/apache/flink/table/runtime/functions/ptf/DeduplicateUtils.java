@@ -23,10 +23,10 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.SpecializedFunction.ComparatorOrder;
 import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.functions.TableSemantics.SortDirection;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextUtils;
@@ -75,7 +75,7 @@ public final class DeduplicateUtils {
             this.indices = indices;
             this.comparator =
                     context.createComparator(
-                            DataTypes.ROW(types).toInternal(), ComparatorOrder.ASC_NULLS_FIRST);
+                            DataTypes.ROW(types).toInternal(), SortDirection.ASC_NULLS_FIRST);
         }
 
         public void open(final FunctionContext context) {

@@ -23,8 +23,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.SpecializedFunction.ComparatorOrder;
 import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
+import org.apache.flink.table.functions.TableSemantics.SortDirection;
 import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.Test;
@@ -84,18 +84,18 @@ class ComparatorCodeGeneratorTest {
     void testOrderSetsDirectionAndNullPosition() {
         final DataType rowType = DataTypes.ROW(DataTypes.FIELD("a", DataTypes.INT())).toInternal();
 
-        final GeneratedComparator ascNullsLast = open(rowType, ComparatorOrder.ASC_NULLS_LAST);
+        final GeneratedComparator ascNullsLast = open(rowType, SortDirection.ASC_NULLS_LAST);
         assertThat(ascNullsLast.compare(row(1, null), row(2, null))).isNegative();
         assertThat(ascNullsLast.compare(row(null, null), row(1, null))).isPositive();
         assertThat(ascNullsLast.compare(null, row(1, null))).isPositive();
 
-        final GeneratedComparator descNullsFirst = open(rowType, ComparatorOrder.DESC_NULLS_FIRST);
+        final GeneratedComparator descNullsFirst = open(rowType, SortDirection.DESC_NULLS_FIRST);
         assertThat(descNullsFirst.compare(row(1, null), row(2, null))).isPositive();
         assertThat(descNullsFirst.compare(row(null, null), row(1, null))).isNegative();
         assertThat(descNullsFirst.compare(null, row(1, null))).isNegative();
 
         final GeneratedComparator descNullsLast =
-                open(DataTypes.BIGINT().toInternal(), ComparatorOrder.DESC_NULLS_LAST);
+                open(DataTypes.BIGINT().toInternal(), SortDirection.DESC_NULLS_LAST);
         assertThat(descNullsLast.compare(1L, 2L)).isPositive();
         assertThat(descNullsLast.compare(null, 1L)).isPositive();
     }
@@ -109,19 +109,20 @@ class ComparatorCodeGeneratorTest {
                                         Thread.currentThread().getContextClassLoader(),
                                         DataTypes.MAP(DataTypes.INT(), DataTypes.INT())
                                                 .toInternal(),
-                                        ComparatorOrder.ASC_NULLS_FIRST))
+                                        SortDirection.ASC_NULLS_FIRST))
                 .isInstanceOf(Exception.class);
     }
 
     private static GeneratedComparator open(final DataType dataType) {
-        return open(dataType, ComparatorOrder.ASC_NULLS_FIRST);
+        return open(dataType, SortDirection.ASC_NULLS_FIRST);
     }
 
-    private static GeneratedComparator open(final DataType dataType, final ComparatorOrder order) {
+    private static GeneratedComparator open(
+            final DataType dataType, final SortDirection direction) {
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final GeneratedComparator comparator =
                 ComparatorCodeGenerator.genComparator(
-                        new Configuration(), classLoader, dataType, order);
+                        new Configuration(), classLoader, dataType, direction);
         comparator.open(new FunctionContext(null, classLoader, null));
         return comparator;
     }
