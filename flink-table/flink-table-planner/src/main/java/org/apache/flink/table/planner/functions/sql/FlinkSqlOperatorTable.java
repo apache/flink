@@ -1296,8 +1296,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Maps operators that are not a {@link VersionedSqlOperator} to the {@link BuiltInSqlOperator}
-     * that defines their latest version in a compiled plan.
+     * Maps operators that are not a {@link VersionedSqlOperator} to the {@link
+     * VersionedSqlOperator} that defines their latest version in a compiled plan.
      *
      * <p>Use it for operators that cannot be replaced by a {@link BuiltInSqlFunction}, for example
      * because Calcite references them directly in the parser or {@code RexBuilder}. When the
@@ -1318,6 +1318,10 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
      *       identity, such as during code generation.
      * </ul>
      *
+     * <p>If {@code OP} is a {@link SqlFunction}, use {@code BuiltInSqlFunction.newBuilder(OP)}
+     * instead of {@code BuiltInSqlOperator.newBuilder(OP)}. This keeps the versions a {@link
+     * SqlFunction}, which is required to look them up with function syntax.
+     *
      * <p>In summary:
      *
      * <pre>{@code
@@ -1333,7 +1337,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
      *   private static final BuiltInSqlOperator OP_V2 =
      *       BuiltInSqlOperator.newBuilder(OP).version(2).build();
      *
-     *   public static final Map<SqlOperator, BuiltInSqlOperator> VERSIONED_OPERATORS =
+     *   public static final Map<SqlOperator, VersionedSqlOperator> VERSIONED_OPERATORS =
      *       Map.of(OP, OP_V2);
      * }
      *
@@ -1343,5 +1347,5 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
      * }
      * }</pre>
      */
-    public static final Map<SqlOperator, BuiltInSqlOperator> VERSIONED_OPERATORS = Map.of();
+    public static final Map<SqlOperator, VersionedSqlOperator> VERSIONED_OPERATORS = Map.of();
 }

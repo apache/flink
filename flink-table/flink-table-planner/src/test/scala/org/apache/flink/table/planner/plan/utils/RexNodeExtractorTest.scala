@@ -19,19 +19,21 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api._
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog}
+import org.apache.flink.table.expressions.{CallExpression, Expression}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
+import org.apache.flink.table.functions.{AggregateFunctionDefinition, BuiltInFunctionDefinition, FunctionDefinition, FunctionIdentifier, FunctionKind}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AT, EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL, UPPER}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder
 import org.apache.flink.table.planner.expressions.utils.Func1
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.sql.{BuiltInSqlFunction, BuiltInSqlOperator, FlinkSqlOperatorTable}
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
-import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction, PlannerMocks}
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.inference.TypeStrategies
 import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.table.utils.CatalogManagerMocks
 
@@ -809,6 +811,74 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     assertThat(convertedExpressions).hasSize(1)
     assertThat(convertedExpressions.head.toString).isEqualTo(expr)
     assertThat(unconvertedRexNodes).isEmpty()
+  }
+
+  @Test
+  def testVersionedCopyOfOperator(): Unit = {
+    val itemV1 =
+      BuiltInSqlOperator.newBuilder(SqlStdOperatorTable.ITEM).version(1).internal().build()
+    val array = rexBuilder.makeInputRef(
+      typeFactory.createArrayType(typeFactory.createSqlType(SqlTypeName.INTEGER), -1),
+      0)
+
+    assertThat(
+      convertedDefinition(
+        rexBuilder.makeCall(itemV1, array, rexBuilder.makeExactLiteral(BigDecimal.ONE))))
+      .isSameAs(AT)
+  }
+
+  @Test
+  def testVersionedCopyOfFunction(): Unit = {
+    val upperV1 =
+      BuiltInSqlFunction.newBuilder(SqlStdOperatorTable.UPPER).version(1).internal().build()
+
+    assertThat(convertedDefinition(rexBuilder.makeCall(upperV1, stringRef()))).isSameAs(UPPER)
+  }
+
+  @Test
+  def testVersionedName(): Unit = {
+    val upperV1 = BuiltInSqlFunction
+      .newBuilder()
+      .name("$UPPER$1")
+      .internal()
+      .returnType(SqlStdOperatorTable.UPPER.getReturnTypeInference)
+      .operandTypeChecker(SqlStdOperatorTable.UPPER.getOperandTypeChecker)
+      .build()
+
+    assertThat(convertedDefinition(rexBuilder.makeCall(upperV1, stringRef()))).isSameAs(UPPER)
+  }
+
+  @Test
+  def testVersionedFunctionDefinition(): Unit = {
+    val upperV1 = BuiltInFunctionDefinition
+      .newBuilder()
+      .name("$UPPER$1")
+      .kind(FunctionKind.SCALAR)
+      .outputTypeStrategy(TypeStrategies.argument(0))
+      .runtimeProvided()
+      .internal()
+      .build()
+    val function = BridgingSqlFunction.of(
+      PlannerMocks.create().getPlannerContext.getFlinkContext,
+      typeFactory,
+      ContextResolvedFunction.permanent(FunctionIdentifier.of(upperV1.getName), upperV1))
+
+    assertThat(convertedDefinition(rexBuilder.makeCall(function, stringRef()))).isSameAs(UPPER)
+  }
+
+  private def stringRef(): RexNode = {
+    rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.VARCHAR), 1)
+  }
+
+  private def convertedDefinition(call: RexNode): FunctionDefinition = {
+    val converter = new RexNodeToExpressionConverter(
+      rexBuilder,
+      Array("arr", "str"),
+      functionCatalog,
+      catalogManager)
+    val converted = call.accept(converter)
+    assertThat(converted.isDefined).isTrue
+    converted.get.asInstanceOf[CallExpression].getFunctionDefinition
   }
 
   private def assertExpressionArrayEquals(

@@ -25,6 +25,7 @@ import org.apache.calcite.plan.Strong;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
@@ -43,12 +44,13 @@ import java.util.function.Supplier;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.DEFAULT_VERSION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.qualifyFunctionName;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.validateFunction;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A versioned copy of an existing {@link SqlOperator} that cannot be replaced by a {@link
  * BuiltInSqlFunction}, for example because Calcite references it directly in the parser or {@code
- * RexBuilder}.
+ * RexBuilder}. Use {@link BuiltInSqlFunction#newBuilder(SqlFunction)} for a {@link SqlFunction}.
  *
  * <p>The operator behaves like the wrapped operator during planning. The latest version only
  * defines the version of the wrapped operator in {@link FlinkSqlOperatorTable#VERSIONED_OPERATORS}.
@@ -103,6 +105,11 @@ public final class BuiltInSqlOperator extends SqlOperator implements VersionedSq
     @Override
     public String getQualifiedName() {
         return getName();
+    }
+
+    /** Returns the operator this operator is a versioned copy of. */
+    public SqlOperator getWrappedOperator() {
+        return operator;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -198,6 +205,10 @@ public final class BuiltInSqlOperator extends SqlOperator implements VersionedSq
 
         private Builder(SqlOperator operator) {
             this.operator = checkNotNull(operator);
+            checkArgument(
+                    !(operator instanceof SqlFunction),
+                    "Use BuiltInSqlFunction.newBuilder(SqlFunction) for versioning function '%s'.",
+                    operator.getName());
         }
 
         /**

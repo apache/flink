@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.{BuiltInFunctionDefinition, FunctionIden
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, AT, CAST, OR, TRY_CAST}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenException
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.{BuiltInSqlFunction, BuiltInSqlOperator, FlinkSqlOperatorTable}
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
@@ -41,7 +41,7 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
+import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlOperator, SqlPostfixOperator}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{TimestampString, Util}
 
@@ -379,6 +379,13 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
 /**
  * An RexVisitor to convert RexNode to Expression.
  *
+ * <p>Function versioning is not supported. The resulting expressions are passed to connectors (e.g.
+ * for filter push down), which evaluate them independently of the runtime behavior of a function
+ * version. Therefore, the version of a call is dropped and a resulting
+ * [[BuiltInFunctionDefinition]] always represents the most recent version, also when restoring a
+ * compiled plan that contains an older version. When Flink is upgraded, connectors must adjust
+ * their logic to match the most recent function version, for example, in their filter push down.
+ *
  * @param inputNames
  *   The input names of the relation node
  * @param functionCatalog
@@ -519,7 +526,7 @@ class RexNodeToExpressionConverter(
     if (operands.contains(null)) {
       None
     } else {
-      rexCall.getOperator match {
+      dropVersion(rexCall.getOperator) match {
         case SqlStdOperatorTable.OR =>
           Option(
             operands.reduceLeft(
@@ -542,9 +549,9 @@ class RexNodeToExpressionConverter(
               Option(CallExpression.permanent(AT, operands.asJava, outputType))
             case _ => None
           }
-        case _: SqlFunction | _: SqlPostfixOperator =>
-          val names = new util.ArrayList[String](rexCall.getOperator.getNameAsId.names)
-          names.set(names.size() - 1, replace(names.get(names.size() - 1)))
+        case operator @ (_: SqlFunction | _: SqlPostfixOperator) =>
+          val names = new util.ArrayList[String](operator.getNameAsId.names)
+          names.set(names.size() - 1, replace(unversionedName(operator)))
           val id = UnresolvedIdentifier.of(names.asScala.toArray: _*)
           lookupFunction(id, operands, outputType)
         case operator @ _ =>
@@ -630,6 +637,24 @@ class RexNodeToExpressionConverter(
           None
         }
       case Failure(_) => None
+    }
+  }
+
+  /** Returns the unversioned operator of a versioned copy. */
+  private def dropVersion(operator: SqlOperator): SqlOperator = operator match {
+    case op: BuiltInSqlOperator => op.getWrappedOperator
+    case f: BuiltInSqlFunction if f.getWrappedFunction.isPresent => f.getWrappedFunction.get
+    case _ => operator
+  }
+
+  /** Returns the name without version. */
+  private def unversionedName(function: SqlOperator): String = {
+    // `$FUNC$1` becomes `FUNC`
+    val name = function.getName
+    if (BuiltInFunctionDefinition.INTERNAL_NAME_PATTERN.matcher(name).matches()) {
+      BuiltInFunctionDefinition.extractNameFromQualifiedName(name)
+    } else {
+      name
     }
   }
 

@@ -18,12 +18,26 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInSqlFunction}. */
 class BuiltInSqlFunctionTest {
+
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    BuiltInSqlFunctionTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
 
     @Test
     void testVersioned() {
@@ -43,6 +57,49 @@ class BuiltInSqlFunctionTest {
 
         assertThat(internal.getName()).isEqualTo("$OP$1");
         assertThat(internal.getQualifiedName()).isEqualTo("$OP$1");
+        assertThat(internal.isInternal()).isTrue();
+        assertThat(internal.getVersion()).isEmpty();
+    }
+
+    @Test
+    void testVersionedCopy() {
+        final BuiltInSqlFunction currentDate =
+                BuiltInSqlFunction.newBuilder(SqlStdOperatorTable.CURRENT_DATE).version(2).build();
+
+        assertThat(currentDate).isInstanceOf(SqlFunction.class);
+        assertThat(currentDate.getName()).isEqualTo("$CURRENT_DATE$2");
+        assertThat(currentDate.getQualifiedName()).isEqualTo("$CURRENT_DATE$2");
+        assertThat(VersionedSqlOperator.toQualifiedName(currentDate)).isEqualTo("$CURRENT_DATE$2");
+        assertThat(currentDate.isInternal()).isFalse();
+        assertThat(currentDate.getVersion()).contains(2);
+        assertThat(currentDate.getKind()).isEqualTo(SqlStdOperatorTable.CURRENT_DATE.getKind());
+        assertThat(currentDate.getSyntax()).isEqualTo(SqlSyntax.FUNCTION_ID);
+        assertThat(currentDate.getFunctionType()).isEqualTo(SqlFunctionCategory.TIMEDATE);
+        assertThat(currentDate.isDynamicFunction()).isTrue();
+    }
+
+    @Test
+    void testTypeInferenceOfWrappedFunction() {
+        final RexBuilder rexBuilder = new RexBuilder(FACTORY);
+        final RexNode string =
+                rexBuilder.makeInputRef(FACTORY.createSqlType(SqlTypeName.VARCHAR), 0);
+        final BuiltInSqlFunction upper =
+                BuiltInSqlFunction.newBuilder(SqlStdOperatorTable.UPPER).version(2).build();
+
+        assertThat(rexBuilder.makeCall(upper, string).getType())
+                .isEqualTo(rexBuilder.makeCall(SqlStdOperatorTable.UPPER, string).getType());
+    }
+
+    @Test
+    void testInternalCopy() {
+        final BuiltInSqlFunction internal =
+                BuiltInSqlFunction.newBuilder(SqlStdOperatorTable.UPPER)
+                        .version(1)
+                        .internal()
+                        .build();
+
+        assertThat(internal.getName()).isEqualTo("$UPPER$1");
+        assertThat(internal.getQualifiedName()).isEqualTo("$UPPER$1");
         assertThat(internal.isInternal()).isTrue();
         assertThat(internal.getVersion()).isEmpty();
     }
