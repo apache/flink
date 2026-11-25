@@ -146,27 +146,32 @@ interval join. Each unmatched outer row fires at most once. The feature is disab
 the hint is present and requires downstream operators and sinks that accept updates.
 Existing interval joins without the hint retain their behavior.
 
-#### FROM_CHANGELOG and TO_CHANGELOG enhancements
+#### FROM_CHANGELOG and TO_CHANGELOG support all changelog modes
 
 ##### [FLINK-39258](https://issues.apache.org/jira/browse/FLINK-39258) (FLIP-564)
 
-Flink 2.4 adds partitioned processing and additional controls to the changelog conversion
-PTFs introduced in Flink 2.3:
+Flink 2.3 shipped a first, minimal version of `TO_CHANGELOG` and `FROM_CHANGELOG` that only
+supported retract mode: `FROM_CHANGELOG` required separate `UPDATE_BEFORE` and `UPDATE_AFTER`
+events, and `TO_CHANGELOG` on an upsert input always added a stateful `ChangelogNormalize`
+operator to the job. Flink 2.4 supports all changelog modes:
 
-- `PARTITION BY` support to co-locate related changes, with corresponding convenience methods
-  on partitioned tables in the Table API.
-- Partitioned `FROM_CHANGELOG` calls can use the existing PTF `ORDER BY` support to reorder
-  CDC events per key using a watermarked time attribute. Late events are dropped by the
-  sorting operation.
-- `error_handling => 'FAIL' | 'SKIP'` for `FROM_CHANGELOG` to control how NULL or unmapped
-  operation codes are handled. The default is `FAIL`.
-- `produces_full_deletes` for `TO_CHANGELOG` to choose between full-row deletes and deletes
-  containing only identifying keys. The default is `true`.
+- `TO_CHANGELOG` skips `ChangelogNormalize` for upsert inputs when the `op_mapping` omits
+  `UPDATE_BEFORE` and either omits `DELETE` or sets `produces_full_deletes => false`. With
+  `produces_full_deletes => false`, DELETE rows keep only the key columns. An `op_mapping`
+  with only `INSERT` and `UPDATE_AFTER` turns an upsert input into an append-only stream that
+  operators accepting only append-only input, such as window deduplication, can consume.
+- `FROM_CHANGELOG` produces an upsert table when the input uses `PARTITION BY <key>` and the
+  `op_mapping` contains `UPDATE_AFTER` but not `UPDATE_BEFORE`. The partition key becomes the
+  upsert key.
+- Both functions accept `PARTITION BY`, also through `fromChangelog()` and `toChangelog()` on
+  `PartitionedTable`. Partitioned `FROM_CHANGELOG` calls can use `ORDER BY` on a watermarked
+  time attribute to reorder events per key; late events are dropped.
+- `error_handling => 'FAIL' | 'SKIP'` controls how `FROM_CHANGELOG` handles NULL or unmapped
+  operation codes. The default is `FAIL`.
 
-These additions make it easier to consume custom CDC streams and write changelog events to
-append-only sinks. Users must still provide correctly ordered, complete change events for
-the selected changelog mode; the functions do not reconstruct arbitrary missing before images.
-See the [Changelog Conversion documentation](https://nightlies.apache.org/flink/flink-docs-release-2.4/docs/sql/reference/queries/changelog/)
+`FROM_CHANGELOG` trusts the operation codes it receives: a wrong `op_mapping` or out-of-order
+events silently produce a wrong table. See the
+[Changelog Conversion documentation](https://nightlies.apache.org/flink/flink-docs-release-2.4/docs/sql/reference/queries/changelog/)
 for supported mappings and input requirements.
 
 #### Process Table Function state access and broadcast support
