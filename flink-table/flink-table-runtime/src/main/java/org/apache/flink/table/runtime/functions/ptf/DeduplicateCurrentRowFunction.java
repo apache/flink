@@ -29,12 +29,14 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.runtime.functions.ptf.DeduplicateUtils.SequenceComparator;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
@@ -44,6 +46,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
 
 /**
@@ -84,11 +87,14 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
                         CURRENT_STATE,
                         DataTypes.ROW(
                                 DataType.getFields(
-                                        DeduplicateUtils.tableSemantics(context).dataType())),
+                                        CallContextUtils.getTableSemanticsOrThrow(
+                                                        context.getCallContext(), ARG_INPUT)
+                                                .dataType())),
                         ARG_STATE_TTL));
         this.keepMode = DeduplicateDefinition.keep(context.getCallContext());
-        final List<DataTypes.Field> inputFields =
-                DataType.getFields(DeduplicateUtils.tableSemantics(context).dataType());
+        final TableSemantics tableSemantics =
+                CallContextUtils.getTableSemanticsOrThrow(context.getCallContext(), ARG_INPUT);
+        final List<DataTypes.Field> inputFields = DataType.getFields(tableSemantics.dataType());
         this.inputTypes =
                 inputFields.stream()
                         .map(field -> field.getDataType().getLogicalType())
@@ -98,7 +104,7 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
                         .getOutputChangelogMode()
                         .map(mode -> mode.contains(RowKind.UPDATE_BEFORE))
                         .orElse(false);
-        this.sequenceComparator = sequenceComparator(context, inputFields);
+        this.sequenceComparator = sequenceComparator(context, tableSemantics, inputFields);
     }
 
     @Override
@@ -170,10 +176,10 @@ public class DeduplicateCurrentRowFunction extends DeduplicateFunctionBase {
     }
 
     private static @Nullable SequenceComparator sequenceComparator(
-            final SpecializedContext context, final List<DataTypes.Field> inputFields) {
-        final int[] outputIndices =
-                ChangelogTypeStrategyUtils.computeOutputIndices(
-                        DeduplicateUtils.tableSemantics(context));
+            final SpecializedContext context,
+            final TableSemantics tableSemantics,
+            final List<DataTypes.Field> inputFields) {
+        final int[] outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
         final int[] sequenceIndices =
                 Arrays.stream(
                                 DeduplicateDefinition.sequenceByOutputIndices(

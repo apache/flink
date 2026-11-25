@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.IDLE_STATE_RETENTION;
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_STATE_TTL;
 
 /** Base class of the {@link Deduplicate} implementations. */
@@ -50,7 +51,7 @@ abstract class DeduplicateFunctionBase extends BuiltInProcessTableFunction<RowDa
         final CallContext callContext = context.getCallContext();
         this.outputIndices =
                 ChangelogTypeStrategyUtils.computeOutputIndices(
-                        DeduplicateUtils.tableSemantics(context));
+                        CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT));
         final Duration effectiveTtl =
                 CallContextUtils.getStateTtl(callContext, ARG_STATE_TTL)
                         .orElseGet(() -> context.getConfiguration().get(IDLE_STATE_RETENTION));

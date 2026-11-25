@@ -25,23 +25,15 @@ import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
-import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.TableSemantics.SortDirection;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.utils.CallContextUtils;
 
 import java.io.Serializable;
-
-import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 
 /** Record ordering of the built-in deduplication PTFs. */
 @Internal
 public final class DeduplicateUtils {
-
-    public static TableSemantics tableSemantics(final SpecializedContext context) {
-        return CallContextUtils.getTableSemanticsOrThrow(context.getCallContext(), ARG_INPUT);
-    }
 
     /**
      * Returns whether a new record replaces the current one, given the order of the new record
