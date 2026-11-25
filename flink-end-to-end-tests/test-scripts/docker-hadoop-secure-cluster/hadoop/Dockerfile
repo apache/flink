@@ -42,7 +42,7 @@ RUN set -x \
     && dnf install -y --setopt=install_weak_deps=False \
        java-${JAVA_VERSION}-openjdk-devel \
        compat-openssl11 \
-       tar sudo openssh-server openssh-clients rsync unzip krb5-workstation net-tools procps-ng which \
+       tar sudo openssh-server openssh-clients rsync unzip zip gcc krb5-workstation net-tools procps-ng which \
     && dnf clean all
 
 ENV JAVA_HOME=/usr/lib/jvm/java-${JAVA_VERSION}-openjdk

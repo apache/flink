@@ -224,12 +224,8 @@ function run_group_4 {
 
     if [[ `uname -i` != 'aarch64' ]]; then
         run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
+        run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
     fi
-    # Disable the test as we use JDK11 by default. We should enable it once we use the yarn docker image with JDK 11.
-    # These tests are known to fail on JDK11. See FLINK-13719
-    # if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
-    #     run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
-    # fi
 
     run_test "Flink Table API with custom type end-to-end test" "$END_TO_END_DIR/test-scripts/test_table_api.sh"
 
