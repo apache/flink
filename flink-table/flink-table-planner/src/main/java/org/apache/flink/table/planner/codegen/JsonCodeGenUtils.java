@@ -24,6 +24,8 @@ import org.apache.flink.table.runtime.functions.SqlJsonUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.variant.Variant;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
 
 import scala.Option;
@@ -46,6 +48,10 @@ public final class JsonCodeGenUtils {
      * TRY_PARSE_JSON} returns NULL. The shared parse keeps the parser's exception as is. Only a
      * {@code PARSE_JSON} call site turns it into the user-facing error, so a row that {@code
      * TRY_PARSE_JSON} rejects costs no more than the failed parse.
+     *
+     * <p>With a {@code variantPathReader}, see {@link SelectiveParseJsonCodeGen}, the parse calls
+     * {@code variantPathReader$N.parse(in, ...)} instead of {@code parseJsonToVariant}, and isn't
+     * shared with a full parse.
      *
      * <p>For {@code PARSE_JSON(str)} the generated code looks like:
      *
@@ -89,15 +95,18 @@ public final class JsonCodeGenUtils {
             CodeGeneratorContext ctx,
             LogicalType returnType,
             Seq<GeneratedExpression> operands,
-            boolean isTry) {
+            boolean isTry,
+            @Nullable String variantPathReader) {
         final GeneratedExpression input = operands.apply(0);
         final GeneratedExpression allowDup = operands.length() > 1 ? operands.apply(1) : null;
 
+        // a reader's parse isn't shared with a full one
         final String key =
                 "variantParse:"
                         + input.resultTerm()
                         + ":"
-                        + (allowDup == null ? "" : allowDup.resultTerm());
+                        + (allowDup == null ? "" : allowDup.resultTerm())
+                        + (variantPathReader == null ? "" : "#" + variantPathReader);
 
         final Option<GeneratedExpression> cachedValue =
                 ctx.getReusableInputUnboxingExprs(key, PARSED_VALUE_INDEX);
@@ -152,7 +161,9 @@ public final class JsonCodeGenUtils {
                             + "    "
                             + parsed
                             + " = "
-                            + CodeGenUtils.qualifyMethod(BuiltInMethods.PARSE_JSON())
+                            + (variantPathReader == null
+                                    ? CodeGenUtils.qualifyMethod(BuiltInMethods.PARSE_JSON())
+                                    : variantPathReader + ".parse")
                             + "(in, java.lang.Boolean.TRUE.equals(allowDup));\n"
                             + "  } catch (Exception e) {\n"
                             + "    "

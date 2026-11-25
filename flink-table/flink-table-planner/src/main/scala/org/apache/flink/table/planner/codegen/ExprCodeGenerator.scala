@@ -173,6 +173,15 @@ class ExprCodeGenerator(
    */
   private lazy val rootAlwaysEvaluatedRefs: Set[Int] = roots.flatMap(alwaysEvaluatedRefs).toSet
 
+  /** Decides which PARSE_JSON calls parse with a reader, see [[SelectiveParseJsonCodeGen]]. */
+  private lazy val selectiveParseJson: SelectiveParseJsonCodeGen =
+    if (rexProgram == null || input1Type == null) null
+    else new SelectiveParseJsonCodeGen(ctx, rexProgram)
+
+  /** The reader term for a PARSE_JSON call, or null for the full parse. */
+  private def parseJsonReader(call: RexCall): String =
+    if (selectiveParseJson == null) null else selectiveParseJson.readerOf(call)
+
   /** The projection columns and the filter. */
   private lazy val roots: Seq[RexNode] =
     rexProgram.getProjectList.toSeq ++ Option(rexProgram.getCondition).toSeq
@@ -1243,10 +1252,20 @@ class ExprCodeGenerator(
             new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.PARSE_JSON =>
-            JsonCodeGenUtils.generateParseJson(ctx, resultType, operands, false)
+            JsonCodeGenUtils.generateParseJson(
+              ctx,
+              resultType,
+              operands,
+              false,
+              parseJsonReader(call))
 
           case BuiltInFunctionDefinitions.TRY_PARSE_JSON =>
-            JsonCodeGenUtils.generateParseJson(ctx, resultType, operands, true)
+            JsonCodeGenUtils.generateParseJson(
+              ctx,
+              resultType,
+              operands,
+              true,
+              parseJsonReader(call))
 
           case BuiltInFunctionDefinitions.JSON_LENGTH =>
             JsonCodeGenUtils.generateJsonLength(ctx, resultType, operands)
