@@ -88,4 +88,18 @@ class SlotSharingGroupTest {
                                         .build())
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void testBuilderReusePreservesExternalResources() {
+        final SlotSharingGroup.Builder builder =
+                SlotSharingGroup.newBuilder("ssg")
+                        .setCpuCores(1)
+                        .setTaskHeapMemoryMB(100)
+                        .setExternalResource("gpu", 1);
+        final SlotSharingGroup first = builder.build();
+        final SlotSharingGroup second = builder.setExternalResource("gpu", 2).build();
+
+        assertThat(first.getExternalResources()).containsEntry("gpu", 1.0);
+        assertThat(second.getExternalResources()).containsEntry("gpu", 2.0);
+    }
 }

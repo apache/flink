@@ -220,7 +220,7 @@ public class SlotSharingGroup {
                         taskHeapMemory,
                         taskOffHeapMemory,
                         managedMemory,
-                        externalResources);
+                        new HashMap<>(externalResources));
             } else if (cpuCores != null
                     || taskHeapMemory != null
                     || taskOffHeapMemory != null
