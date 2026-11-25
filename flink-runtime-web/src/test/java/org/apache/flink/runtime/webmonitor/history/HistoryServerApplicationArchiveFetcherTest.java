@@ -194,7 +194,6 @@ class HistoryServerApplicationArchiveFetcherTest {
                 storage,
                 jobMetaInfoCache,
                 applicationMetaInfoCache,
-                4,
                 4);
     }
 
