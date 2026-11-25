@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: IS_VALID_VARIANT
+summary: Returns whether a `VARIANT` follows the Parquet Variant encoding.
+
+syntax:
+  sql: IS_VALID_VARIANT(variant_expr)
+  java: $("variantExpr").isValidVariant()
+  python: col("variant_expr").is_valid_variant()
+
+arguments:
+  - name: variant_expr
+    type: VARIANT
+    required: true
+    description: The value to check.
+
+returns:
+  description: |
+    TRUE if `variant_expr` follows the Parquet Variant encoding at any depth, FALSE otherwise. A `VARIANT` follows it when:
+
+    - Each value has a kind that this version knows: `NULL`, `BOOLEAN`, `TINYINT`, `SMALLINT`, `INT`, `BIGINT`, `FLOAT`, `DOUBLE`, `DECIMAL`, `STRING`, `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, `UUID`, an array or an object.
+    - Each value lies within the bytes of its object or array.
+    - A `DECIMAL` has at most 38 digits and a scale of at most 38. A `DECIMAL` stored in 4 or 8 bytes allows at most 9 or 18 of each.
+    - A `TIME` is at least 00:00 and less than 24:00.
+    - The fields of each object are sorted by the UTF-8 bytes of their keys, and no key appears twice.
+    - Every key and string is valid UTF-8.
+    - The metadata is complete. If it says that its keys are sorted, they are sorted and unique.
+  nulls: Returns NULL if `variant_expr` is NULL.
+  type: "`BOOLEAN`, NOT NULL if `variant_expr` is NOT NULL."
+
+notes:
+  - An invalid value comes from bytes that Flink didn't build, such as a `VARIANT` that another engine wrote and the [raw format]({{< ref "docs/connectors/table/formats/raw" >}}) reads with `'raw.variant-encoding' = 'binary'`. The format checks those bytes only as far as it needs to split them.
+  - Some writers sort the keys of an object in UTF-16 order instead, such as Flink 2.1 to 2.3, Spark up to 4.2, parquet-java up to 1.18.2 and Iceberg up to 1.12.0. The two orders differ only when two keys first differ at a character from U+E000 to U+FFFF against one above U+FFFF, such as an emoji. `IS_VALID_VARIANT` returns FALSE for such an object, although Flink still reads its fields.
+  - Use `IS_VALID_VARIANT` to filter invalid values before reading or storing them. A value that can't be read makes `VARIANT_GET` and a cast fail the job, while `TRY_VARIANT_GET` returns NULL.
+  - An object with unsorted or repeated keys can still be read. In an object with 32 or more fields, Flink finds a field by binary search, which relies on the order of the keys. It can then miss a field that exists, and a repeated key can return either of its values.
+  - A value with a type that a later version of the Parquet Variant spec adds returns FALSE until Flink supports that type, since the spec can add types without changing its version.
+  - The children of an object or array may point at the same bytes, which the spec allows. `IS_VALID_VARIANT` returns FALSE once checking them would read more bytes than the value has, so that a small value can't make the check slow.
+
+see_also:
+  - {name: TRY_VARIANT_GET, ref: variant/try-variant-get}
+  - {name: IS JSON, ref: json/is-json}
+
+examples:
+  - title: Check parsed values
+    description: A result of `PARSE_JSON` is always valid. A NULL input returns NULL.
+    sql: |
+      SELECT doc, IS_VALID_VARIANT(PARSE_JSON(doc)) AS `IS_VALID_VARIANT(PARSE_JSON(doc))`
+      FROM (VALUES ('{"order_id": 17, "items": [{"qty": 2.5}]}'), ('"text"'), ('null'), (CAST(NULL AS STRING))) AS t(doc);
+    result: |
+      | doc                                       | IS_VALID_VARIANT(PARSE_JSON(doc)) |
+      |-------------------------------------------|-----------------------------------|
+      | {"order_id": 17, "items": [{"qty": 2.5}]} | TRUE                              |
+      | "text"                                    | TRUE                              |
+      | null                                      | TRUE                              |
+      | NULL                                      | NULL                              |

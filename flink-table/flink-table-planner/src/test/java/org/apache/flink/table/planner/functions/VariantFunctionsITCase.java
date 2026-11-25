@@ -26,12 +26,14 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import java.time.Instant;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.jsonString;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
@@ -56,7 +58,12 @@ class VariantFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(variantGet(), variantGetFailure(), tryVariantGet(), unreadableVariant());
+        return Stream.of(
+                variantGet(),
+                variantGetFailure(),
+                tryVariantGet(),
+                unreadableVariant(),
+                isValidVariant());
     }
 
     private static TestSetSpec variantGet() {
@@ -177,5 +184,27 @@ class VariantFunctionsITCase extends BuiltInFunctionTestBase {
                         TableRuntimeException.class,
                         "Cannot cast a VARIANT value whose binary encoding is malformed or uses "
                                 + "an unknown type.");
+    }
+
+    private static TestSetSpec isValidVariant() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_VALID_VARIANT)
+                .onFieldsWithData(ORDER, null, 0)
+                .andDataTypes(STRING().notNull(), STRING(), INT())
+                .withFunction(CastFunctionITCase.UnknownTypeVariantFunction.class)
+                .testResult(
+                        $("f0").parseJson().isValidVariant(),
+                        "IS_VALID_VARIANT(PARSE_JSON(f0))",
+                        true,
+                        BOOLEAN().notNull())
+                .testResult(
+                        $("f1").parseJson().isValidVariant(),
+                        "IS_VALID_VARIANT(PARSE_JSON(f1))",
+                        null,
+                        BOOLEAN())
+                .testResult(
+                        call("UnknownTypeVariantFunction", $("f2")).isValidVariant(),
+                        "IS_VALID_VARIANT(UnknownTypeVariantFunction(f2))",
+                        false,
+                        BOOLEAN());
     }
 }

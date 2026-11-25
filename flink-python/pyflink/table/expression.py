@@ -2487,6 +2487,19 @@ class Expression(Generic[T]):
         """
         return _unary_op("xmlString")(self)
 
+    def is_valid_variant(self) -> 'Expression[bool]':
+        """
+        Returns TRUE if a VARIANT follows the Parquet Variant encoding, and FALSE if it doesn't,
+        such as when it is malformed. Returns NULL if the VARIANT is NULL. See the SQL function
+        IS_VALID_VARIANT for what is checked.
+
+        Example:
+        ::
+
+            >>> lit('{"a": [1, 2]}').parse_json().is_valid_variant() # TRUE
+        """
+        return _unary_op("isValidVariant")(self)
+
     def json_length(self, path=None) -> 'Expression':
         """
         Returns the number of elements in a JSON document, or the length of the value at the
