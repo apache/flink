@@ -222,6 +222,28 @@ class TemporalJoinTest extends TableTestBase {
   }
 
   @Test
+  def testEventTimeTemporalJoinOnTimestampLtzComputedColumn(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE RatesWithLtzComputedColumn (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | rowtime_ltz AS CAST(rowtime AS TIMESTAMP_LTZ(3)),
+                    | WATERMARK FOR rowtime_ltz AS rowtime_ltz,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'disable-lookup' = 'true'
+                    |)
+      """.stripMargin)
+    val sqlQuery = "SELECT * " +
+      "FROM OrdersLtz AS o JOIN " +
+      "RatesWithLtzComputedColumn FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
   def testEventTimeTemporalJoinWithView(): Unit = {
     val sqlQuery = "SELECT * " +
       "FROM Orders AS o JOIN " +
@@ -412,9 +434,26 @@ class TemporalJoinTest extends TableTestBase {
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.ts AS r ON o.currency = r.currency"
     expectExceptionThrown(
       sqlQuery1,
-      s"Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF'" +
-        s" left table's time attribute field",
-      classOf[ValidationException])
+      "FOR SYSTEM_TIME AS OF must use a time attribute of the left side of the temporal join, " +
+        "but 'ts' is a regular TIMESTAMP(3) column. A time attribute is a column with a " +
+        "WATERMARK or a PROCTIME() column. If the left side is append-only and the right table " +
+        "has a WATERMARK, a LATERAL SNAPSHOT join can join each row with the current rows of " +
+        "the right table instead.",
+      classOf[ValidationException]
+    )
+
+    val sqlQueryRegularColumn = "SELECT * " +
+      "FROM (SELECT *, CAST(rowtime AS TIMESTAMP(3)) AS order_time FROM Orders) AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.order_time AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQueryRegularColumn,
+      "FOR SYSTEM_TIME AS OF must use a time attribute of the left side of the temporal join, " +
+        "but 'order_time' is a regular TIMESTAMP(3) column. A time attribute is a column with a " +
+        "WATERMARK or a PROCTIME() column. The left side has these time attributes: " +
+        "'rowtime', 'proctime'.",
+      classOf[ValidationException]
+    )
 
     val sqlQuery2 = "SELECT * " +
       "FROM Orders AS o JOIN " +
@@ -422,8 +461,35 @@ class TemporalJoinTest extends TableTestBase {
       "ON o.amount = r.rate"
     expectExceptionThrown(
       sqlQuery2,
-      "Temporal table's primary key [currency0] must be included in the equivalence" +
-        " condition of temporal join, but current temporal join condition is [amount=rate].",
+      "An event-time temporal join must join on the full primary key (currency) of its right " +
+        "side, but the join condition does not use 'currency'. Add an equality condition on " +
+        "'currency'. To join on columns other than the primary key, use a LATERAL SNAPSHOT " +
+        "join, which joins with all current rows that match and needs an append-only left side.",
+      classOf[ValidationException]
+    )
+
+    util.addTable("""
+                    |CREATE TABLE RatesHistoryWithCompositePK (
+                    | currency STRING,
+                    | region STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency, region) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'disable-lookup' = 'true'
+                    |)
+      """.stripMargin)
+    val sqlQueryPartialPk = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithCompositePK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQueryPartialPk,
+      "An event-time temporal join must join on the full primary key (currency, region) of its " +
+        "right side, but the join condition does not use 'region'. Add an equality condition " +
+        "on 'region'.",
       classOf[ValidationException]
     )
 
@@ -444,13 +510,36 @@ class TemporalJoinTest extends TableTestBase {
       "ON o.currency = r.currency"
     expectExceptionThrown(
       sqlQuery3,
-      "Temporal Table Join requires primary key in versioned table, " +
-        "but no primary key can be found. The physical plan is:\n" +
-        "FlinkLogicalJoin(condition=[AND(=($1, $4), " +
-        "__INITIAL_TEMPORAL_JOIN_CONDITION($2, $6, __TEMPORAL_JOIN_LEFT_KEY($1), " +
-        "__TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])",
+      "The right side of an event-time temporal join must have a primary key on the join key, " +
+        "but none can be derived. Declare PRIMARY KEY (currency) NOT ENFORCED on the right " +
+        "table, or deduplicate it to the last row per key with ROW_NUMBER() OVER " +
+        "(PARTITION BY currency ORDER BY rowtime DESC) = 1. To join each row with the current " +
+        "rows of the right table instead of the version valid at the row's time, use a " +
+        "LATERAL SNAPSHOT join, which needs no primary key but an append-only left side.",
       classOf[ValidationException]
     )
+
+    util.addTable("""
+                    |CREATE TABLE RatesWithoutPkAndLookup (
+                    | currency STRING,
+                    | rate INT,
+                    | proctime AS PROCTIME()
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'disable-lookup' = 'true'
+                    |)
+      """.stripMargin)
+    val sqlQueryProcTimeWithoutPk = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesWithoutPkAndLookup FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "ON o.currency = r.currency"
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => verifyTranslationSuccess(sqlQueryProcTimeWithoutPk))
+      .withMessageContaining(
+        "Processing-time temporal joins on the right table are not supported. If the left side " +
+          "is append-only and the right table has a WATERMARK, use a LATERAL SNAPSHOT join to " +
+          "join each row with the current rows of the right table.")
+      .withMessageNotContaining("event-time")
 
     util.addTable("""
                     |CREATE TABLE versionedTableWithoutTimeAttribute (
@@ -468,8 +557,10 @@ class TemporalJoinTest extends TableTestBase {
       "ON o.currency = r.currency"
     expectExceptionThrown(
       sqlQuery4,
-      s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
-        s"versioned table, but no row time attribute can be found.",
+      "The right side of an event-time temporal join must have a column with a WATERMARK, " +
+        "which marks when each row version becomes valid, but it has none. Declare a WATERMARK " +
+        "on the right table, or keep its watermarked column unchanged in the query (a CAST " +
+        "turns it into a regular column).",
       classOf[ValidationException]
     )
 
@@ -490,8 +581,22 @@ class TemporalJoinTest extends TableTestBase {
       "ON o.currency = r.currency"
     expectExceptionThrown(
       sqlQuery5,
-      s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
-        s"versioned table, but no row time attribute can be found.",
+      "The right side of an event-time temporal join must have a column with a WATERMARK, " +
+        "which marks when each row version becomes valid, but it has none.",
+      classOf[ValidationException]
+    )
+
+    util.addTable(
+      "CREATE VIEW RatesWithTwoRowtimes AS " +
+        "SELECT currency, rate, rowtime, rowtime AS rowtime2 FROM RatesHistoryWithPK")
+    val sqlQueryTwoRowtimes = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesWithTwoRowtimes FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQueryTwoRowtimes,
+      "The right side of an event-time temporal join must have exactly one column with a " +
+        "WATERMARK, but it has 2: 'rowtime', 'rowtime2'. CAST the others to TIMESTAMP(3).",
       classOf[ValidationException]
     )
 
@@ -504,10 +609,34 @@ class TemporalJoinTest extends TableTestBase {
           """.stripMargin
     expectExceptionThrown(
       sqlQuery8,
-      "Event-Time Temporal Table Join requires same rowtime type in left table and versioned" +
-        " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
+      "The left time attribute 'rowtime' is TIMESTAMP_LTZ(3), but the right time attribute " +
+        "'rowtime' is TIMESTAMP(3). An event-time temporal join needs both of the same type. " +
+        "Change the schema of one table so that its WATERMARK column has the matching type. " +
+        "Alternatively, declare the WATERMARK on a computed column of the matching type, " +
+        "e.g. CAST(rowtime AS TIMESTAMP_LTZ(3)) in the right table. A CAST in the query does " +
+        "not work, because it turns the time attribute into a regular column.",
       classOf[ValidationException]
     )
+
+    val noEquiJoinCondition =
+      "A temporal join needs an equality condition between a column of the left side and a " +
+        "column of the right side in its ON clause, e.g. ON l.id = r.id."
+    val sqlQueryOnTrue = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r ON TRUE"
+    expectExceptionThrown(sqlQueryOnTrue, noEquiJoinCondition, classOf[ValidationException])
+
+    val sqlQueryNonEqui = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency OR o.amount > r.rate"
+    expectExceptionThrown(sqlQueryNonEqui, noEquiJoinCondition, classOf[ValidationException])
+
+    val sqlQueryWhere = "SELECT * " +
+      "FROM Orders AS o, " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "WHERE o.currency = r.currency"
+    expectExceptionThrown(sqlQueryWhere, noEquiJoinCondition, classOf[ValidationException])
 
     val sqlQuery9 = "SELECT * " +
       "FROM Orders AS o JOIN " +
@@ -525,8 +654,8 @@ class TemporalJoinTest extends TableTestBase {
       "ON o.currency = r.currency"
     expectExceptionThrown(
       sqlQuery10,
-      "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' left table's time" +
-        " attribute field'",
+      "FOR SYSTEM_TIME AS OF must reference a time attribute column of the left side of the " +
+        "temporal join directly, not an expression.",
       classOf[ValidationException]
     )
   }

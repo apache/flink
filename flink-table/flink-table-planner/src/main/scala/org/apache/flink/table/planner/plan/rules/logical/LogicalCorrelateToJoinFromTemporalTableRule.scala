@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicato
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
+import org.apache.flink.table.planner.plan.utils.{TemporalJoinErrors, TemporalJoinUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -72,8 +72,8 @@ abstract class LogicalCorrelateToJoinFromTemporalTableRule(
       case t: TimeIndicatorRelDataType => // do nothing
       case _ =>
         throw new ValidationException(
-          "Temporal table join currently only supports " +
-            "'FOR SYSTEM_TIME AS OF' left table's time attribute field")
+          TemporalJoinErrors
+            .periodIsNotTimeAttribute(snapshot.getPeriod, correlate.getLeft.getRowType))
     }
 
     snapshot.getPeriod match {
@@ -84,9 +84,7 @@ abstract class LogicalCorrelateToJoinFromTemporalTableRule(
               r.getReferenceExpr.asInstanceOf[RexCorrelVariable].id
             ) => // do nothing
       case _ =>
-        throw new ValidationException(
-          "Temporal table join currently only supports " +
-            "'FOR SYSTEM_TIME AS OF' left table's time attribute field'")
+        throw new ValidationException(TemporalJoinErrors.periodIsNotLeftColumn())
     }
   }
 
@@ -266,16 +264,13 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
     val snapshotTimeInputRef = extractSnapshotTimeInputRef(actualJoin.getLeft, snapshot)
       .getOrElse(
         throw new ValidationException(
-          "Temporal Table Join requires time " +
-            "attribute in the left table, but no time attribute found."))
+          TemporalJoinErrors.periodNotFoundOnLeftSide(snapshot.getPeriod)))
 
     val temporalCondition = if (isRowTimeTemporalTableJoin(snapshot)) {
       val rightTimeInputRef = extractRightEventTimeInputRef(actualJoin.getLeft, actualJoin.getRight)
       if (rightTimeInputRef.isEmpty || !isRowtimeIndicatorType(rightTimeInputRef.get.getType)) {
         throw new ValidationException(
-          "Event-Time Temporal Table Join requires both" +
-            s" primary key and row time attribute in versioned table," +
-            s" but no row time attribute can be found.")
+          TemporalJoinErrors.rightSideWithoutSingleRowtime(actualJoin.getRight.getRowType))
       }
 
       if (
@@ -283,12 +278,8 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
           != rightTimeInputRef.get.getType.getSqlTypeName
       ) {
         throw new ValidationException(
-          String.format(
-            "Event-Time Temporal Table Join requires same rowtime" +
-              " type in left table and versioned table, but the rowtime types are %s and %s.",
-            snapshotTimeInputRef.getType.toString,
-            rightTimeInputRef.get.getType.toString
-          ))
+          TemporalJoinErrors
+            .rowtimeTypeMismatch(snapshot.getPeriod, actualJoin.getRight.getRowType))
       }
       // Deal primary key in TemporalJoinRewriteUniqueKeyRule
       TemporalJoinUtil.makeInitialRowTimeTemporalTableJoinCondCall(
@@ -340,9 +331,7 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
         rexBuilder.makeInputRef(rightKeyType, leftFieldCnt + i)
       })
     if (leftJoinKey.isEmpty || rightJoinKey.isEmpty) {
-      throw new ValidationException(
-        "Currently the join key in Temporal Table Join " +
-          "can not be empty.")
+      throw new ValidationException(TemporalJoinErrors.noEquiJoinCondition())
     }
     (leftJoinKey, rightJoinKey)
   }

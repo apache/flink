@@ -23,6 +23,7 @@ import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalRel, FlinkLogicalSnapshot, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinErrors
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode
@@ -48,9 +49,7 @@ trait CommonTemporalTableJoinRule {
           if r.getType.isInstanceOf[TimeIndicatorRelDataType] &&
             r.getReferenceExpr.isInstanceOf[RexCorrelVariable] => // pass
       case _ =>
-        throw new TableException(
-          "Temporal table join currently only supports " +
-            "'FOR SYSTEM_TIME AS OF' left table's time attribute field.")
+        throw new TableException(TemporalJoinErrors.invalidPeriod(snapshot.getPeriod))
     }
 
     true
