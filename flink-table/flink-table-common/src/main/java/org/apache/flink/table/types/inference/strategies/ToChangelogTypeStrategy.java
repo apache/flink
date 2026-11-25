@@ -28,7 +28,6 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.types.ColumnList;
-import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,8 +52,6 @@ public final class ToChangelogTypeStrategy {
 
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
-
-    private static final String DELETE = RowKind.DELETE.name();
 
     // --------------------------------------------------------------------------------------------
     // Input validation
@@ -175,21 +172,6 @@ public final class ToChangelogTypeStrategy {
             }
         }
         return Optional.empty();
-    }
-
-    /**
-     * Returns {@code true} when at least one {@code op_mapping} key references {@code DELETE}. Keys
-     * may be comma-separated (e.g., {@code "INSERT, DELETE"}) per the user-facing contract.
-     */
-    private static boolean mapsDelete(final Map<String, String> opMapping) {
-        for (final String key : opMapping.keySet()) {
-            for (final String rawName : key.split(",")) {
-                if (DELETE.equals(rawName.trim())) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     /**
