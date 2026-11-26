@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,8 +32,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link RecreateOnResetOperatorCoordinator}. */
 class RecreateOnResetOperatorCoordinatorTest {
@@ -103,6 +108,51 @@ class RecreateOnResetOperatorCoordinatorTest {
         assertThat(internalCoordinatorAfterReset.getLastRestoredCheckpointState())
                 .isEqualTo(stateToRestore);
         assertThat(internalCoordinatorBeforeReset).isNotEqualTo(internalCoordinatorAfterReset);
+    }
+
+    @ParameterizedTest(name = "while the reset creates the coordinator: {0}")
+    @ValueSource(booleans = {true, false})
+    void testErrorWhileRestoringTheCoordinatorFailsTheJob(boolean whileCreating) throws Exception {
+        // such as an OutOfMemoryError while the coordinator deserializes a large state
+        final OutOfMemoryError error = new OutOfMemoryError("Java heap space");
+        final ErrorOnRestoreCoordinatorProvider provider =
+                new ErrorOnRestoreCoordinatorProvider(error, whileCreating);
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        final RecreateOnResetOperatorCoordinator coordinator = createCoordinator(provider, context);
+
+        coordinator.resetToCheckpoint(1L, new byte[0]);
+
+        waitUntilCondition(() -> provider.failingThread != null);
+        // the restore runs on the thread that closed the initial coordinator, which then ends,
+        // unless the closing finished before the reset returned
+        if (provider.failingThread != Thread.currentThread()) {
+            provider.failingThread.join();
+        }
+        assertThat(context.isJobFailed()).isTrue();
+        assertThat(context.getJobFailureReason()).isSameAs(error);
+    }
+
+    @Test
+    void testErrorWhileCreatingTheInitialCoordinatorReachesTheCaller() {
+        final NoClassDefFoundError error = new NoClassDefFoundError("SplitSerializer");
+        final RecreateOnResetOperatorCoordinator.Provider provider =
+                new RecreateOnResetOperatorCoordinator.Provider(OPERATOR_ID) {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    protected OperatorCoordinator getCoordinator(
+                            OperatorCoordinator.Context context) {
+                        throw error;
+                    }
+                };
+
+        assertThatThrownBy(
+                        () ->
+                                provider.create(
+                                        new MockOperatorCoordinatorContext(
+                                                OPERATOR_ID, NUM_SUBTASKS)))
+                .isSameAs(error);
     }
 
     @Test
@@ -284,7 +334,8 @@ class RecreateOnResetOperatorCoordinatorTest {
     // ---------------
 
     private RecreateOnResetOperatorCoordinator createCoordinator(
-            TestingCoordinatorProvider provider, OperatorCoordinator.Context context)
+            RecreateOnResetOperatorCoordinator.Provider provider,
+            OperatorCoordinator.Context context)
             throws Exception {
         return (RecreateOnResetOperatorCoordinator) provider.create(context);
     }
@@ -295,6 +346,43 @@ class RecreateOnResetOperatorCoordinatorTest {
     }
 
     // ---------------
+
+    /**
+     * Creates coordinators that throw the given error when one is created again, or otherwise when
+     * one is restored.
+     */
+    private static class ErrorOnRestoreCoordinatorProvider
+            extends RecreateOnResetOperatorCoordinator.Provider {
+
+        private static final long serialVersionUID = 1L;
+
+        private final Error error;
+        private final boolean whileCreating;
+        private final AtomicInteger created = new AtomicInteger();
+        private transient volatile Thread failingThread;
+
+        private ErrorOnRestoreCoordinatorProvider(Error error, boolean whileCreating) {
+            super(OPERATOR_ID);
+            this.error = error;
+            this.whileCreating = whileCreating;
+        }
+
+        @Override
+        protected OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
+            if (created.getAndIncrement() > 0 && whileCreating) {
+                failingThread = Thread.currentThread();
+                throw error;
+            }
+            final TestingOperatorCoordinator coordinator =
+                    new TestingOperatorCoordinator(context, null);
+            coordinator.setResetToCheckpointConsumer(
+                    (checkpointId, ignored) -> {
+                        failingThread = Thread.currentThread();
+                        throw error;
+                    });
+            return coordinator;
+        }
+    }
 
     @SuppressWarnings("serial")
     private static class TestingCoordinatorProvider

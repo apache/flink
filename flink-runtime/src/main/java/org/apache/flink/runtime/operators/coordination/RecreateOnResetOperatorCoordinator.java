@@ -168,7 +168,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                         data -> {
                             if (!closed) {
                                 // The previous coordinator has closed. Create a new one.
-                                newCoordinator.createNewInternalCoordinator(context, provider);
+                                newCoordinator.createNewInternalCoordinatorOnReset(
+                                        context, provider);
                                 newCoordinator.resetAndStart(checkpointId, data, wasStarted);
                                 newCoordinator.processPendingCalls();
                             }
@@ -402,6 +403,20 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
             }
         }
 
+        /**
+         * Creates the internal coordinator of a reset, and fails the job on an error, as {@link
+         * #createNewInternalCoordinator} does on an exception.
+         */
+        synchronized void createNewInternalCoordinatorOnReset(
+                OperatorCoordinator.Context context, Provider provider) {
+            try {
+                createNewInternalCoordinator(context, provider);
+            } catch (Error e) {
+                LOG.error("Failed to create new internal coordinator due to ", e);
+                cleanAndFailJob(e);
+            }
+        }
+
         synchronized CompletableFuture<Void> closeAsync(long timeoutMs) {
             closed = true;
             if (internalCoordinator != null) {
@@ -469,9 +484,9 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                 if (started) {
                     internalCoordinator.start();
                 }
-            } catch (Exception e) {
-                LOG.error("Failed to reset the coordinator to checkpoint and start.", e);
-                cleanAndFailJob(e);
+            } catch (Throwable t) {
+                LOG.error("Failed to reset the coordinator to checkpoint and start.", t);
+                cleanAndFailJob(t);
             }
         }
 
