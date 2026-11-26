@@ -98,6 +98,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     Stream<TestSetSpec> getTestSetSpecs() {
         final List<TestSetSpec> testCases = new ArrayList<>();
         testCases.add(jsonExistsSpec());
+        testCases.add(jsonExistsSpecWithInvalidInput());
         testCases.add(jsonValueSpec());
         testCases.add(jsonLengthSpec());
         testCases.addAll(isJsonSpec());
@@ -466,6 +467,22 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "No results for path: $['invalid']")
                 .testSqlResult("JSON_EXISTS(f0, '$.items[*]')", false, BOOLEAN())
                 .testSqlResult("JSON_EXISTS(f0, '$.metadata.tags[*]')", true, BOOLEAN());
+    }
+
+    private static TestSetSpec jsonExistsSpecWithInvalidInput() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_EXISTS, "Invalid input")
+                .onFieldsWithData(Row.of(1, "x"), 1)
+                .andDataTypes(ROW(FIELD("a", INT()), FIELD("b", STRING())), INT())
+                .testSqlValidationError(
+                        "JSON_EXISTS(f0, '$.a')",
+                        "Unsupported type 'ROW<`a` INT, `b` STRING>' for the first argument of "
+                                + "JSON_EXISTS(). Supported types are CHAR, VARCHAR and STRING. "
+                                + "Use JSON_STRING() to convert a value of another type to a JSON "
+                                + "string.")
+                .testSqlValidationError(
+                        "JSON_EXISTS(f1, '$.a' FALSE ON ERROR)",
+                        "Unsupported type 'INT' for the first argument of JSON_EXISTS().")
+                .testSqlResult("JSON_EXISTS(JSON_STRING(f0), '$.a')", true, BOOLEAN());
     }
 
     private static TestSetSpec jsonValueSpec() {

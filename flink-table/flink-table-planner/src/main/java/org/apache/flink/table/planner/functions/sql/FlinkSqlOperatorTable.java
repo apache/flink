@@ -1241,7 +1241,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlAggFunction LAG = SqlStdOperatorTable.LAG;
 
     // JSON FUNCTIONS
-    public static final SqlFunction JSON_EXISTS = SqlStdOperatorTable.JSON_EXISTS;
+    public static final SqlFunction JSON_EXISTS = new SqlJsonExistsFunctionWrapper();
     public static final SqlFunction JSON_VALUE = new SqlJsonValueFunctionWrapper("JSON_VALUE");
     public static final SqlFunction JSON_QUERY = new SqlJsonQueryFunctionWrapper();
     public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunctionWrapper();
