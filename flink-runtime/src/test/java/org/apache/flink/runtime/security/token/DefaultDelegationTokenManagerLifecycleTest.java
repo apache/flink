@@ -389,25 +389,34 @@ class DefaultDelegationTokenManagerLifecycleTest {
 
     @Test
     void failedObtainIsRetriedBeforeTheTokensExpire() throws Exception {
-        manager.start();
+        // The first retry without the cap is 5 to 15 seconds (10 seconds initial backoff, jitter of
+        // 50%). The token lives 3 seconds, so only the cap of a third of the remaining validity
+        // keeps the retry below the 1 second asserted here.
+        final Duration tokenLifetime = Duration.ofSeconds(3);
+        final DelegationTokenManagerTestHarness shortLived =
+                new DelegationTokenManagerTestHarness(
+                        new MockTokenService(
+                                Clock.fixed(Instant.ofEpochMilli(1_000_000L), ZoneOffset.UTC),
+                                tokenLifetime));
+        shortLived.manager().start();
         final RecordingListener listener = new RecordingListener();
-        manager.attachListener(listener);
+        shortLived.manager().attachListener(listener);
 
-        provider.failWith(new IllegalStateException("token service unreachable"));
-        harness.obtainIsDue();
+        shortLived.provider().failWith(new IllegalStateException("token service unreachable"));
+        shortLived.obtainIsDue();
 
-        assertThat(receiver.receivedGenerations()).containsExactly(1);
-        // The retry is capped at a third of the 60 seconds the held token still lives.
-        assertThat(harness.pendingObtainDelaysMillis())
+        assertThat(shortLived.receiver().receivedGenerations()).containsExactly(1);
+        assertThat(shortLived.pendingObtainDelaysMillis())
                 .hasSize(1)
-                .allSatisfy(retryDelay -> assertThat(retryDelay).isBetween(0L, 20_000L));
+                .allSatisfy(retryDelay -> assertThat(retryDelay).isBetween(0L, 1_000L));
 
-        provider.failWith(null);
-        harness.obtainIsDue();
+        shortLived.provider().failWith(null);
+        shortLived.obtainIsDue();
 
-        assertThat(receiver.receivedGenerations()).containsExactly(1, 2);
+        assertThat(shortLived.receiver().receivedGenerations()).containsExactly(1, 2);
         assertThat(listener.receivedGenerations()).containsExactly(1, 2);
-        assertThat(harness.pendingObtainDelaysMillis()).containsExactly(OBTAIN_DELAY_MILLIS);
+        assertThat(shortLived.pendingObtainDelaysMillis())
+                .containsExactly(Math.round(0.75 * tokenLifetime.toMillis()));
     }
 
     @Test
