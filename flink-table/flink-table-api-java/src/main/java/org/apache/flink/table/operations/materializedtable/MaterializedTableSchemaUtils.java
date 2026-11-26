@@ -19,7 +19,6 @@
 package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
@@ -28,6 +27,8 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ColumnPosition;
 import org.apache.flink.table.types.DataType;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -84,9 +85,9 @@ public final class MaterializedTableSchemaUtils {
      *
      * <ul>
      *   <li>{@code add} — a column absent from the old schema (nullable when query-derived);
-     *   <li>{@code modifyColumnPosition} — an existing column the query moved; the query order is
-     *       authoritative, so a reorder surfaces here (and is later rejected). A DDL column list
-     *       keeps its own order and emits no reposition;
+     *   <li>{@code modifyColumnPosition} — an existing persisted column that is out of place, so
+     *       that applying the changes reproduces the new schema's persisted column order, in both
+     *       modes;
      *   <li>{@code modifyPhysicalColumnType} — a physical-type change. For a query-derived schema a
      *       tightening nullability flip (nullable to NOT NULL) is tolerated as an inference
      *       artifact, while a loosening flip is surfaced; a DDL-defined schema surfaces any
@@ -97,39 +98,38 @@ public final class MaterializedTableSchemaUtils {
      *       columns are retained when the schema is query-derived.
      * </ul>
      *
-     * <p>Existing columns are ranked among the columns that survive into the new schema, so
-     * retained non-persisted columns do not skew the position diff.
+     * <p>Positions are compared among persisted columns only, so retained or reordered
+     * non-persisted columns do not skew the position diff. Added columns keep a {@code null}
+     * position (appended); the existing columns that follow them are moved instead.
      */
     public static List<TableChange> validateAndExtractColumnChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema, boolean schemaDeclared) {
         final List<Column> oldColumns = oldSchema.getColumns();
         final List<Column> newColumns = newSchema.getColumns();
-        final Set<String> newColumnNames =
-                newColumns.stream().map(Column::getName).collect(Collectors.toSet());
-        // Position each old column among the columns that survive into the new schema, so retained
-        // non-persisted columns (absent from the query projection) do not skew the position diff.
-        final Map<String, Tuple2<Column, Integer>> oldByName = new HashMap<>();
-        int nextPosition = 0;
-        for (final Column oldColumn : oldColumns) {
-            final Integer position =
-                    newColumnNames.contains(oldColumn.getName()) ? nextPosition++ : null;
-            oldByName.put(oldColumn.getName(), Tuple2.of(oldColumn, position));
-        }
+        final Map<String, Column> oldByName = new HashMap<>();
+        oldColumns.forEach(column -> oldByName.put(column.getName(), column));
+        // The table writes query values by position into the persisted columns, so the changes
+        // must reproduce the new persisted order exactly. Simulate that order while emitting.
+        final List<String> targetOrder = persistedColumnNames(newColumns);
+        final List<String> currentOrder =
+                oldColumns.stream()
+                        .map(Column::getName)
+                        .filter(targetOrder::contains)
+                        .collect(Collectors.toList());
         final Set<String> seen = new HashSet<>();
         final List<TableChange> changes = new ArrayList<>();
-        for (int newIndex = 0; newIndex < newColumns.size(); newIndex++) {
-            final Column newColumn = newColumns.get(newIndex);
+        for (final Column newColumn : newColumns) {
             seen.add(newColumn.getName());
-            final Tuple2<Column, Integer> oldEntry = oldByName.get(newColumn.getName());
-            if (oldEntry == null) {
+            final Column oldColumn = oldByName.get(newColumn.getName());
+            if (oldColumn == null) {
                 changes.add(addChange(newColumn, schemaDeclared));
+                if (newColumn.isPersisted()) {
+                    currentOrder.add(newColumn.getName());
+                }
                 continue;
             }
-            final Column oldColumn = oldEntry.f0;
-            // The query order is authoritative, so reposition a column the query moved; a
-            // DDL-defined schema keeps the arbitrary DDL order.
-            if (!schemaDeclared) {
-                applyPositionChanges(newColumns, oldEntry, newIndex, changes);
+            if (newColumn.isPersisted()) {
+                addPositionChangeIfMisplaced(oldColumn, targetOrder, currentOrder, changes);
             }
             if (oldColumn.isPhysical()
                     && newColumn.isPhysical()
@@ -161,34 +161,52 @@ public final class MaterializedTableSchemaUtils {
             }
         }
 
-        for (Map.Entry<String, Tuple2<Column, Integer>> entry : oldByName.entrySet()) {
-            if (seen.contains(entry.getKey())) {
+        for (final Column oldColumn : oldColumns) {
+            if (seen.contains(oldColumn.getName())) {
                 continue;
             }
             // Without an explicit DDL column list the new schema only reflects the query
             // projection, so old non-persisted columns are retained, not dropped.
-            if (!schemaDeclared && !entry.getValue().f0.isPersisted()) {
+            if (!schemaDeclared && !oldColumn.isPersisted()) {
                 continue;
             }
-            changes.add(TableChange.dropColumn(entry.getKey()));
+            changes.add(TableChange.dropColumn(oldColumn.getName()));
         }
         return changes;
     }
 
-    private static void applyPositionChanges(
-            List<Column> newColumns,
-            Tuple2<Column, Integer> oldColumnToPosition,
-            int currentPosition,
+    private static List<String> persistedColumnNames(List<Column> columns) {
+        return columns.stream()
+                .filter(Column::isPersisted)
+                .map(Column::getName)
+                .collect(Collectors.toList());
+    }
+
+    private static void addPositionChangeIfMisplaced(
+            Column oldColumn,
+            List<String> targetOrder,
+            List<String> currentOrder,
             List<TableChange> changes) {
-        Column oldColumn = oldColumnToPosition.f0;
-        int oldPosition = oldColumnToPosition.f1;
-        if (oldPosition != currentPosition) {
-            ColumnPosition position =
-                    currentPosition == 0
-                            ? ColumnPosition.first()
-                            : ColumnPosition.after(newColumns.get(currentPosition - 1).getName());
-            changes.add(TableChange.modifyColumnPosition(oldColumn, position));
+        final String name = oldColumn.getName();
+        final String expectedPredecessor = predecessor(targetOrder, name);
+        if (Objects.equals(expectedPredecessor, predecessor(currentOrder, name))) {
+            return;
         }
+        currentOrder.remove(name);
+        if (expectedPredecessor == null) {
+            currentOrder.add(0, name);
+            changes.add(TableChange.modifyColumnPosition(oldColumn, ColumnPosition.first()));
+            return;
+        }
+        currentOrder.add(currentOrder.indexOf(expectedPredecessor) + 1, name);
+        changes.add(
+                TableChange.modifyColumnPosition(
+                        oldColumn, ColumnPosition.after(expectedPredecessor)));
+    }
+
+    private static @Nullable String predecessor(List<String> order, String name) {
+        final int index = order.indexOf(name);
+        return index > 0 ? order.get(index - 1) : null;
     }
 
     private static TableChange.AddColumn addChange(Column column, boolean schemaDeclared) {

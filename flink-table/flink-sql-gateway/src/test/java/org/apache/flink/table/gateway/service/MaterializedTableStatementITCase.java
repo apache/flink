@@ -1148,7 +1148,19 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 // ALTER ... AS reorders existing columns through the query projection.
                 "ALTER MATERIALIZED TABLE users_shops" + REORDERED_QUERY,
                 // CREATE OR ALTER ... AS reorders existing columns through the query projection.
-                "CREATE OR ALTER MATERIALIZED TABLE users_shops" + REORDERED_QUERY
+                "CREATE OR ALTER MATERIALIZED TABLE users_shops" + REORDERED_QUERY,
+                // Moving a column after the last existing one, with a new column in its old place.
+                "CREATE OR ALTER MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " AS SELECT user_id, MAX(order_id) AS max_order, ds,"
+                        + " COUNT(order_id) AS order_cnt, shop_id\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)"
             })
     void rejectsReorderingExistingColumns(String statement) throws Exception {
         createAndVerifyCreateMaterializedTableWithData(

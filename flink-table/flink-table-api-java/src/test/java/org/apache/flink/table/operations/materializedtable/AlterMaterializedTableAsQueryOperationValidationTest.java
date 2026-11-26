@@ -20,6 +20,7 @@ package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.apache.flink.table.catalog.Column.computed;
+import static org.apache.flink.table.catalog.Column.metadata;
 import static org.apache.flink.table.catalog.Column.physical;
 import static org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperationValidationTest.resolvedTable;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -65,7 +67,8 @@ class AlterMaterializedTableAsQueryOperationValidationTest {
 
         assertThatThrownBy(op::validateChanges)
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Dropping of persisted column `a` is not supported.");
+                .hasMessageContaining("Dropping of persisted column `a` is not supported.")
+                .hasMessageNotContaining("Column mismatch");
     }
 
     @Test
@@ -165,8 +168,8 @@ class AlterMaterializedTableAsQueryOperationValidationTest {
 
     @Test
     void rejectInsertColumnBeforeMultipleColumns() {
-        // (a, b, c) -> (a, mid, b, c): both b and c shift; c is repositioned after the existing
-        // column b, which the append-only guard rejects.
+        // (a, b, c) -> (a, mid, b, c): mid lands where b used to be, so b is the first displaced
+        // column.
         final ResolvedCatalogMaterializedTable oldTable =
                 resolvedTable(
                         ResolvedSchema.of(
@@ -191,7 +194,143 @@ class AlterMaterializedTableAsQueryOperationValidationTest {
 
         assertThatThrownBy(op::validateChanges)
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Column mismatch at position 3");
+                .hasMessageContaining(
+                        "Column mismatch at position 2: Original column is [`b` STRING], but new column is [`mid` INT].");
+    }
+
+    @Test
+    void rejectInsertAndReorder() {
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        threeColumnTable(),
+                        List.of(
+                                QUERY_CHANGE,
+                                TableChange.add(physical("x", DataTypes.STRING())),
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.after("c"))));
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column mismatch at position 2: Original column is [`b` STRING], but new column is [`c` BIGINT].");
+    }
+
+    @Test
+    void rejectInsertAndReorderViaChainedPositionChanges() {
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        threeColumnTable(),
+                        List.of(
+                                QUERY_CHANGE,
+                                TableChange.add(physical("x", DataTypes.STRING())),
+                                TableChange.modifyColumnPosition(
+                                        physical("c", DataTypes.BIGINT()),
+                                        ColumnPosition.after("x")),
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.after("c"))));
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column mismatch at position 2: Original column is [`b` STRING], but new column is [`x` STRING].");
+    }
+
+    @Test
+    void rejectColumnTurningPersistedMidSchema() {
+        final ResolvedCatalogMaterializedTable oldTable = computedInTheMiddleTable();
+        final Column oldComputed = oldTable.getResolvedSchema().getColumn("comp").get();
+
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        oldTable,
+                        List.of(
+                                QUERY_CHANGE,
+                                new TableChange.ModifyColumn(
+                                        oldComputed, physical("comp", DataTypes.STRING()), null)));
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column mismatch at position 3: Original column is [`b` STRING], but new column is [`comp` STRING].");
+    }
+
+    @Test
+    void rejectPersistedColumnTurningComputed() {
+        final ResolvedCatalogMaterializedTable oldTable = threeColumnTable();
+        final Column oldColumn = oldTable.getResolvedSchema().getColumn("b").get();
+
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        oldTable,
+                        List.of(
+                                QUERY_CHANGE,
+                                new TableChange.ModifyColumn(
+                                        oldColumn,
+                                        computed(
+                                                "b",
+                                                new ResolvedExpressionMock(
+                                                        DataTypes.STRING(), () -> "UPPER(a)")),
+                                        null)));
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 2: Original column is [`b` STRING], but new column is [`b` STRING AS UPPER(a)].");
+    }
+
+    @Test
+    void acceptAppendAfterRetainedComputedColumn() {
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        computedInTheMiddleTable(),
+                        List.of(QUERY_CHANGE, TableChange.add(physical("x", DataTypes.STRING()))));
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+    }
+
+    @Test
+    void acceptAppendAfterVirtualMetadataColumn() {
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        metadataInTheMiddleTable(true),
+                        List.of(QUERY_CHANGE, TableChange.add(physical("x", DataTypes.STRING()))));
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+    }
+
+    @Test
+    void acceptAppendAfterPersistedMetadataColumn() {
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        metadataInTheMiddleTable(false),
+                        List.of(QUERY_CHANGE, TableChange.add(physical("x", DataTypes.STRING()))));
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+    }
+
+    @Test
+    void rejectInsertBeforePersistedMetadataColumn() {
+        // (a, m, b) -> (a, mid, m, b): the persisted metadata column m is displaced.
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        metadataInTheMiddleTable(false),
+                        List.of(
+                                QUERY_CHANGE,
+                                TableChange.add(physical("mid", DataTypes.INT())),
+                                TableChange.modifyColumnPosition(
+                                        metadata("m", DataTypes.STRING(), null, false),
+                                        ColumnPosition.after("mid")),
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.after("m"))));
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column mismatch at position 2: Original column is [`m` STRING METADATA], but new column is [`mid` INT].");
     }
 
     @Test
@@ -220,6 +359,32 @@ class AlterMaterializedTableAsQueryOperationValidationTest {
                 operation(oldTable, List.of(QUERY_CHANGE));
 
         assertThatNoException().isThrownBy(op::validateChanges);
+    }
+
+    private static ResolvedCatalogMaterializedTable threeColumnTable() {
+        return resolvedTable(
+                ResolvedSchema.of(
+                        physical("a", DataTypes.INT()),
+                        physical("b", DataTypes.STRING()),
+                        physical("c", DataTypes.BIGINT())));
+    }
+
+    private static ResolvedCatalogMaterializedTable computedInTheMiddleTable() {
+        return resolvedTable(
+                ResolvedSchema.of(
+                        physical("a", DataTypes.INT()),
+                        computed(
+                                "comp",
+                                new ResolvedExpressionMock(DataTypes.STRING(), () -> "UPPER(a)")),
+                        physical("b", DataTypes.STRING())));
+    }
+
+    private static ResolvedCatalogMaterializedTable metadataInTheMiddleTable(boolean isVirtual) {
+        return resolvedTable(
+                ResolvedSchema.of(
+                        physical("a", DataTypes.INT()),
+                        metadata("m", DataTypes.STRING(), null, isVirtual),
+                        physical("b", DataTypes.STRING())));
     }
 
     private static AlterMaterializedTableAsQueryOperation operation(

@@ -19,6 +19,9 @@
 package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema.UnresolvedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
+import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
@@ -28,14 +31,18 @@ import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.catalog.Column.computed;
 import static org.apache.flink.table.catalog.Column.metadata;
 import static org.apache.flink.table.catalog.Column.physical;
+import static org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperationValidationTest.resolvedTable;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MaterializedTableSchemaUtils#validateAndExtractColumnChanges}. */
@@ -48,6 +55,78 @@ class ValidateAndExtractColumnChangesTest {
                         MaterializedTableSchemaUtils.validateAndExtractColumnChanges(
                                 spec.oldSchema, spec.newSchema, spec.schemaDeclared))
                 .containsExactlyInAnyOrderElementsOf(spec.expected);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("orderCases")
+    void changesReproduceTargetPersistedOrder(
+            String name,
+            ResolvedSchema oldSchema,
+            ResolvedSchema newSchema,
+            boolean schemaDeclared,
+            List<String> expectedPersistedOrder) {
+        final List<TableChange> changes =
+                MaterializedTableSchemaUtils.validateAndExtractColumnChanges(
+                        oldSchema, newSchema, schemaDeclared);
+        assertThat(persistedColumnsAfter(oldSchema, changes))
+                .containsExactlyElementsOf(expectedPersistedOrder);
+    }
+
+    private static Stream<Arguments> orderCases() {
+        return Stream.of(
+                Arguments.of(
+                        "insert plus reorder",
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING()),
+                                physical("c", DataTypes.BIGINT())),
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                physical("x", DataTypes.STRING()),
+                                physical("c", DataTypes.BIGINT()),
+                                physical("b", DataTypes.STRING())),
+                        false,
+                        List.of("a", "x", "c", "b")),
+                Arguments.of(
+                        "typed list reorder",
+                        schema(
+                                physical("a", DataTypes.BIGINT()),
+                                physical("b", DataTypes.BIGINT())),
+                        schema(
+                                physical("x", DataTypes.BIGINT()),
+                                physical("b", DataTypes.BIGINT()),
+                                physical("y", DataTypes.BIGINT()),
+                                physical("a", DataTypes.BIGINT())),
+                        true,
+                        List.of("x", "b", "y", "a")),
+                Arguments.of(
+                        "reorder around a retained computed column",
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                computed("comp", expr(DataTypes.INT())),
+                                physical("b", DataTypes.STRING())),
+                        schema(physical("b", DataTypes.STRING()), physical("a", DataTypes.INT())),
+                        false,
+                        List.of("b", "a")),
+                Arguments.of(
+                        "drop plus reorder",
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING()),
+                                physical("c", DataTypes.BIGINT())),
+                        schema(physical("c", DataTypes.BIGINT()), physical("a", DataTypes.INT())),
+                        true,
+                        List.of("c", "a")),
+                Arguments.of(
+                        "column list starting with a computed column only appends",
+                        schema(physical("a", DataTypes.INT()), physical("b", DataTypes.STRING())),
+                        schema(
+                                computed("comp", expr(DataTypes.INT())),
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING()),
+                                physical("x", DataTypes.STRING())),
+                        false,
+                        List.of("a", "b", "x")));
     }
 
     private static Collection<TestSpec> input() {
@@ -193,11 +272,14 @@ class ValidateAndExtractColumnChangesTest {
                                 TableChange.modifyColumnComment(
                                         physical("a", DataTypes.INT()).withComment("old"), "new"))),
                 TestSpec.of(
-                        "reorder persisted columns is silent (DDL order is arbitrary)",
+                        "declared reorder emits a position change",
                         schema(physical("a", DataTypes.INT()), physical("b", DataTypes.STRING())),
                         schema(physical("b", DataTypes.STRING()), physical("a", DataTypes.INT())),
                         true,
-                        List.of()),
+                        List.of(
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.first()))),
                 TestSpec.of(
                         "add computed column",
                         schema(physical("a", DataTypes.INT())),
@@ -286,10 +368,60 @@ class ValidateAndExtractColumnChangesTest {
                         false,
                         List.of(
                                 TableChange.modifyColumnPosition(
-                                        physical("b", DataTypes.STRING()), ColumnPosition.first()),
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.first()))),
+                TestSpec.of(
+                        "insert plus reorder moves the shifted columns",
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING()),
+                                physical("c", DataTypes.BIGINT())),
+                        schema(
+                                physical("a", DataTypes.INT()),
+                                physical("x", DataTypes.STRING()),
+                                physical("c", DataTypes.BIGINT()),
+                                physical("b", DataTypes.STRING())),
+                        false,
+                        List.of(
+                                TableChange.add(physical("x", DataTypes.STRING())),
                                 TableChange.modifyColumnPosition(
-                                        physical("a", DataTypes.INT()),
-                                        ColumnPosition.after("b")))));
+                                        physical("c", DataTypes.BIGINT()),
+                                        ColumnPosition.after("x")),
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.after("c")))),
+                TestSpec.of(
+                        "column list starting with a computed column only appends",
+                        schema(physical("a", DataTypes.INT()), physical("b", DataTypes.STRING())),
+                        schema(
+                                computed("comp", expr(DataTypes.INT())),
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING()),
+                                physical("x", DataTypes.STRING())),
+                        false,
+                        List.of(
+                                TableChange.add(computed("comp", expr(DataTypes.INT()))),
+                                TableChange.add(physical("x", DataTypes.STRING())))));
+    }
+
+    /** Applies the changes to the old schema and returns the persisted column names, in order. */
+    private static List<String> persistedColumnsAfter(
+            ResolvedSchema oldSchema, List<TableChange> changes) {
+        return MaterializedTableChangeHandler.getHandlerWithChanges(
+                        resolvedTable(oldSchema), changes)
+                .retrieveSchema()
+                .getColumns()
+                .stream()
+                .filter(ValidateAndExtractColumnChangesTest::isPersisted)
+                .map(UnresolvedColumn::getName)
+                .collect(Collectors.toList());
+    }
+
+    private static boolean isPersisted(UnresolvedColumn column) {
+        if (column instanceof UnresolvedMetadataColumn) {
+            return !((UnresolvedMetadataColumn) column).isVirtual();
+        }
+        return column instanceof UnresolvedPhysicalColumn;
     }
 
     private static ResolvedSchema schema(Column... columns) {

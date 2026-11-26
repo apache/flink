@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -100,9 +102,9 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
     }
 
     /**
-     * A new column inserted ahead of several trailing columns shifts every one of them, reordering
-     * existing columns relative to each other. {@code validateChanges} rejects that: a materialized
-     * table may only append columns, never reposition existing ones.
+     * A new column inserted ahead of existing ones shifts them right, so the positional sink would
+     * write {@code mid} into {@code b}'s slot. {@code validateChanges} rejects this at the first
+     * displaced column: a materialized table may only append columns.
      */
     @Test
     void testAlterMaterializedTableAsQueryRejectsInsertBeforeExistingColumns() {
@@ -113,7 +115,36 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
 
         assertThatThrownBy(op::validateChanges)
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Column mismatch at position 3");
+                .hasMessageContaining("Column mismatch at position 2");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "CREATE OR ALTER MATERIALIZED TABLE mt AS SELECT a, 42 AS x, c, b, d FROM t1",
+                "CREATE OR ALTER MATERIALIZED TABLE mt (a BIGINT NOT NULL, x INT, c INT, b STRING, d STRING)"
+                        + " AS SELECT a, 42 AS x, c, b, d FROM t1"
+            })
+    void testInsertPlusReorderBuildsQueryOrder(String sql) {
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThat(persistedColumnsAfter(op)).containsExactly("a", "x", "c", "b", "d");
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column mismatch at position 2");
+    }
+
+    @Test
+    void testColumnListStartingWithComputedColumnOnlyAppends() {
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation)
+                        parse(
+                                "CREATE OR ALTER MATERIALIZED TABLE mt (comp AS c * 2)"
+                                        + " AS SELECT a, b, c, d, 1 AS e FROM t1");
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+        assertThat(persistedColumnsAfter(op)).containsExactly("a", "b", "c", "d", "e");
     }
 
     /** A bare column list naming the columns in their existing order changes nothing. */
@@ -127,6 +158,19 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
         assertThat(op.getNewTable().getUnresolvedSchema().getColumns())
                 .map(Schema.UnresolvedColumn::getName)
                 .containsExactly("a", "b", "c", "d");
+    }
+
+    @Test
+    void testNamesOnlyReorderOnAlterIsRejected() {
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation)
+                        parse(
+                                "CREATE OR ALTER MATERIALIZED TABLE mt (b, a, c, d) AS SELECT * FROM t1");
+
+        assertThat(persistedColumnsAfter(op)).containsExactly("b", "a", "c", "d");
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column mismatch at position 1");
     }
 
     @Test
@@ -671,6 +715,22 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                 Arguments.of(
                         "RESUME_OR_FROM_TIMESTAMP(TIMESTAMP '2025-01-15 10:00:00')",
                         StartMode.resumeOrFromTimestamp(Instant.parse("2025-01-15T10:00:00Z"))));
+    }
+
+    private static List<String> persistedColumnsAfter(FullAlterMaterializedTableOperation op) {
+        return MaterializedTableChangeHandler.getHandlerWithChanges(
+                        op.getOldTable(), op.getTableChanges())
+                .retrieveSchema()
+                .getColumns()
+                .stream()
+                .filter(
+                        column ->
+                                column instanceof Schema.UnresolvedPhysicalColumn
+                                        || (column instanceof Schema.UnresolvedMetadataColumn
+                                                && !((Schema.UnresolvedMetadataColumn) column)
+                                                        .isVirtual()))
+                .map(Schema.UnresolvedColumn::getName)
+                .collect(Collectors.toList());
     }
 
     private void createMaterializedTableInCatalog(String sql, String materializedTableName)
