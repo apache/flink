@@ -53,10 +53,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -138,6 +141,39 @@ class DelegationTokenHaTakeoverTest {
                     .isNull();
             assertThat(standby.firstDispatcherCreated).isDone();
             assertThat(takeover).succeedsWithin(TIMEOUT);
+        }
+    }
+
+    @Test
+    void standbyTakesOverWhileItsScheduledObtainHangs() throws Exception {
+        final ExecutorService obtainer = Executors.newSingleThreadExecutor();
+        try (JobManagerProcess standby = new JobManagerProcess("standby")) {
+            standby.start();
+            standby.hangTokenService();
+            // The scheduled obtain is due and the token service does not answer it.
+            final CompletableFuture<Void> hangingObtain =
+                    CompletableFuture.runAsync(standby.tokens::obtainIsDue, obtainer);
+            waitUtil(
+                    () -> standby.tokens.provider().obtainCalls() == 2,
+                    TIMEOUT,
+                    "The scheduled obtain did not reach the token service");
+
+            final CompletableFuture<Void> takeover = standby.grantLeadership(UUID.randomUUID());
+            CompletableFuture.anyOf(
+                            standby.firstDispatcherCreated,
+                            standby.fatalErrorHandler.getErrorFuture())
+                    .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+
+            assertThat(standby.fatalErrorHandler.getException())
+                    .as("fatal error of the standby which took over")
+                    .isNull();
+            assertThat(standby.firstDispatcherCreated).isDone();
+            assertThat(takeover).succeedsWithin(TIMEOUT);
+            assertThat(hangingObtain)
+                    .as("scheduled obtain which still waits for the token service")
+                    .isNotDone();
+        } finally {
+            obtainer.shutdownNow();
         }
     }
 
