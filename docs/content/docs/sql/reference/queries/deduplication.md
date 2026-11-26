@@ -83,6 +83,7 @@ SELECT * FROM DEDUPLICATE(
   [keep => 'first' | 'last',]
   [sequence_by => DESCRIPTOR(col[, ...]),]
   [state_ttl => INTERVAL '1' HOUR,]
+  [on_time => DESCRIPTOR(time_col),]
   [uid => 'my-id']
 )
 ```
@@ -95,6 +96,7 @@ SELECT * FROM DEDUPLICATE(
 | `keep` | No | `'first'` (default) keeps the earliest arrival or the lowest `sequence_by` value, `'last'` keeps the latest arrival or the highest. Must be a literal. Arrival order is not deterministic across reruns, use `sequence_by` for a repeatable result. |
 | `sequence_by` | No | One or more columns that order the records of a key instead of their arrival, ascending, with strings and binaries compared lexicographically. The first column decides, later columns break ties, and `NULL` orders below every other value. On a tie, the later arrival wins for `'last'` and the earlier one for `'first'`. Columns must be of a type that `ORDER BY` supports, and not part of `PARTITION BY`. |
 | `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. Every record of a key, including a dropped duplicate, restarts the TTL. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
+| `on_time` | No | A time attribute to forward as a `rowtime` column. Only with `keep => 'first'` and no `sequence_by`. See [Keep time attributes](#keep-time-attributes). |
 | `uid` | No | A unique identifier for the PTF invocation. Defaults to `DEDUPLICATE`. Can be omitted if the PTF is invoked only once per job. See [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids). |
 
 
@@ -203,9 +205,9 @@ This query:
 - **Does not depend on watermarks.** No row waits for a watermark or is dropped as late.
 - **Keeps one entry per key in state.** Set `state_ttl` to how long copies can keep arriving, for example the time a source needs to recover from a failure. A copy that arrives after its key expired is emitted again.
 
-#### Keep event time
+#### Keep time attributes
 
-Event-time operations such as window aggregations need a time attribute. As with other PTFs, pass `on_time` to keep one: the output gets a `rowtime` column with the time of each row. This works when the result only contains inserts, for example with `keep => 'first'` and no `sequence_by`:
+PTFs take an optional [`on_time`]({{< ref "docs/dev/table/functions/ptfs" >}}#time) argument to forward a time attribute: the output gets a `rowtime` column with the time of each row, which event-time operations such as window aggregations can use. For `DEDUPLICATE`, this works when the result only contains inserts, that is with `keep => 'first'` and no `sequence_by`:
 
 | `clicks` (`event_id`, `ts`) |
 |:----------------------------|
@@ -230,7 +232,7 @@ GROUP BY window_start, window_end;
 | `(10:00, 2)`    |
 | `(10:10, 1)`    |
 
-The repeated `e1` is not counted.
+The repeated `e1` is not counted. The first copy of a row is kept even if it arrives late, so a later window can drop it.
 
 #### Composite key
 

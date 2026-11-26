@@ -293,7 +293,9 @@ public interface PartitionedTable {
 
     /**
      * Keeps one row per partition key using the built-in {@code DEDUPLICATE} process table
-     * function. The result is an updating table with the partition columns as its upsert key.
+     * function. The result is an updating table with the partition columns as its upsert key. Over
+     * an insert-only input with {@code keep => 'first'} and no {@code sequence_by}, the result only
+     * contains inserts.
      *
      * <p>{@code keep => 'first'} (default) keeps the earliest arrival or the lowest {@code
      * sequence_by} value, {@code keep => 'last'} keeps the latest arrival or the highest value.
@@ -316,8 +318,8 @@ public interface PartitionedTable {
      * }</pre>
      *
      * @param arguments optional named arguments for {@code keep}, {@code sequence_by}, {@code
-     *     state_ttl}, and {@code uid}
-     * @return an updating {@link Table} with output schema {@code [partition_keys,
+     *     state_ttl}, {@code on_time}, and {@code uid}
+     * @return a {@link Table} with output schema {@code [partition_keys,
      *     non_partition_input_columns]}
      */
     Table deduplicate(Expression... arguments);

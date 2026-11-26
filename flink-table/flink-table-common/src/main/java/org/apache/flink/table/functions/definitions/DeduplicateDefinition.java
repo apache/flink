@@ -51,7 +51,8 @@ import static org.apache.flink.table.functions.FunctionKind.PROCESS_TABLE;
  * Definition of the {@code DEDUPLICATE} built-in process table function.
  *
  * <p>The output is updating and keyed by the PARTITION BY columns: the PARTITION BY columns
- * followed by the remaining input columns.
+ * followed by the remaining input columns. Over an insert-only input with {@code keep => 'first'}
+ * and no {@code sequence_by}, the output only contains inserts.
  */
 @Internal
 public final class DeduplicateDefinition {
@@ -199,6 +200,12 @@ public final class DeduplicateDefinition {
 
     private static Optional<String> validateSequenceBy(
             final CallContext callContext, final TableSemantics tableSemantics) {
+        if (callContext
+                .getArgumentValue(ARG_SEQUENCE_BY, ColumnList.class)
+                .filter(columns -> columns.getNames().isEmpty())
+                .isPresent()) {
+            return Optional.of("sequence_by requires at least one column.");
+        }
         final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
         final List<DataType> fieldTypes = DataType.getFieldDataTypes(tableSemantics.dataType());
         for (final String column : sequenceBy(callContext)) {

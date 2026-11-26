@@ -85,7 +85,7 @@
       "type" : "ROW<`payment_id` VARCHAR(2147483647), `amount` INT> NOT NULL"
     },
     "inputChangelogModes" : [ [ "INSERT" ] ],
-    "outputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "outputChangelogMode" : [ "INSERT" ],
     "inputUpsertKeys" : [ [ ] ]
   }, {
     "id" : 4,
@@ -118,9 +118,8 @@
         }
       }
     },
-    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
-    "upsertMaterializeStrategy" : "VALUE",
-    "inputUpsertKey" : [ 0 ],
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "ADAPTIVE",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
