@@ -153,6 +153,12 @@
             <td>The number of cpu used by job manager</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.cpu.limit-active-processor-count.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Only relevant if kubernetes.jobmanager.cpu.limit-factor is greater than 1. The container-aware JVM derives Runtime.availableProcessors() from the inflated CPU limit instead of the CPU request, which oversizes JVM thread pools, GC threads and allocator arenas against request-sized memory, potentially leading to OutOfMemoryError: Direct buffer memory. If enabled, -XX:ActiveProcessorCount=&lt;CPU request, rounded up&gt; is appended to the JVM_ARGS environment variable of the container, replacing any JVM_ARGS set in the image. It is not added if -XX:ActiveProcessorCount is already effective via env.java.opts.*, env.java.default-opts.* or the FLINK_ENV_JAVA_OPTS*, JVM_ARGS, JAVA_TOOL_OPTIONS, JDK_JAVA_OPTIONS or _JAVA_OPTIONS environment variables, or if the container uses envFrom or sets JVM_ARGS, JAVA_TOOL_OPTIONS or JDK_JAVA_OPTIONS via valueFrom. See the CPU Limit Factor section of the native Kubernetes documentation for details.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.cpu.limit-factor</h5></td>
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
@@ -289,6 +295,12 @@
             <td style="word-wrap: break-word;">-1.0</td>
             <td>Double</td>
             <td>The number of cpu used by task manager. By default, the cpu is set to the number of slots per TaskManager</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.cpu.limit-active-processor-count.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Only relevant if kubernetes.taskmanager.cpu.limit-factor is greater than 1. The container-aware JVM derives Runtime.availableProcessors() from the inflated CPU limit instead of the CPU request, which oversizes JVM thread pools, GC threads and allocator arenas against request-sized memory, potentially leading to OutOfMemoryError: Direct buffer memory. If enabled, -XX:ActiveProcessorCount=&lt;CPU request, rounded up&gt; is appended to the JVM_ARGS environment variable of the container, replacing any JVM_ARGS set in the image. It is not added if -XX:ActiveProcessorCount is already effective via env.java.opts.*, env.java.default-opts.* or the FLINK_ENV_JAVA_OPTS*, JVM_ARGS, JAVA_TOOL_OPTIONS, JDK_JAVA_OPTIONS or _JAVA_OPTIONS environment variables, or if the container uses envFrom or sets JVM_ARGS, JAVA_TOOL_OPTIONS or JDK_JAVA_OPTIONS via valueFrom. See the CPU Limit Factor section of the native Kubernetes documentation for details.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.cpu.limit-factor</h5></td>

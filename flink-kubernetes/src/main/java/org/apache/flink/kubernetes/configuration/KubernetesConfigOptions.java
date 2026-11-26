@@ -157,6 +157,14 @@ public class KubernetesConfigOptions {
                             "The limit factor of cpu used by job manager. "
                                     + "The resources limit cpu will be set to cpu * limit-factor.");
 
+    public static final ConfigOption<Boolean> JOB_MANAGER_CPU_LIMIT_ACTIVE_PROCESSOR_COUNT_ENABLED =
+            key("kubernetes.jobmanager.cpu.limit-active-processor-count.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            activeProcessorCountLimitDescription(
+                                    JOB_MANAGER_CPU_LIMIT_FACTOR.key()));
+
     public static final ConfigOption<Double> JOB_MANAGER_MEMORY_LIMIT_FACTOR =
             key("kubernetes.jobmanager.memory.limit-factor")
                     .doubleType()
@@ -180,6 +188,15 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The limit factor of cpu used by task manager. "
                                     + "The resources limit cpu will be set to cpu * limit-factor.");
+
+    public static final ConfigOption<Boolean>
+            TASK_MANAGER_CPU_LIMIT_ACTIVE_PROCESSOR_COUNT_ENABLED =
+                    key("kubernetes.taskmanager.cpu.limit-active-processor-count.enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    activeProcessorCountLimitDescription(
+                                            TASK_MANAGER_CPU_LIMIT_FACTOR.key()));
 
     public static final ConfigOption<Double> TASK_MANAGER_MEMORY_LIMIT_FACTOR =
             key("kubernetes.taskmanager.memory.limit-factor")
@@ -772,6 +789,24 @@ public class KubernetesConfigOptions {
                 .filter(FallbackKey::isDeprecated)
                 .map(FallbackKey::getKey)
                 .toArray(String[]::new);
+    }
+
+    private static String activeProcessorCountLimitDescription(String limitFactorKey) {
+        return "Only relevant if "
+                + limitFactorKey
+                + " is greater than 1. The container-aware JVM derives "
+                + "Runtime.availableProcessors() from the inflated CPU limit instead of the CPU "
+                + "request, which oversizes JVM thread pools, GC threads and allocator arenas "
+                + "against request-sized memory, potentially leading to OutOfMemoryError: "
+                + "Direct buffer memory. If enabled, -XX:ActiveProcessorCount=<CPU request, "
+                + "rounded up> is appended to the JVM_ARGS environment variable of the container, "
+                + "replacing any JVM_ARGS set in the image. It is not added if "
+                + "-XX:ActiveProcessorCount is already effective via env.java.opts.*, "
+                + "env.java.default-opts.* or the FLINK_ENV_JAVA_OPTS*, JVM_ARGS, "
+                + "JAVA_TOOL_OPTIONS, JDK_JAVA_OPTIONS or _JAVA_OPTIONS environment variables, or "
+                + "if the container uses envFrom or sets JVM_ARGS, JAVA_TOOL_OPTIONS or "
+                + "JDK_JAVA_OPTIONS via valueFrom. See the CPU Limit Factor section of the native "
+                + "Kubernetes documentation for details.";
     }
 
     /** This class is not meant to be instantiated. */

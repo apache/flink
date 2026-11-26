@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
@@ -25,6 +26,8 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import org.junit.jupiter.api.Test;
 
@@ -81,10 +84,59 @@ class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
     void testTaskManagerJvmMemOptsEnv() {
         final FlinkPod resultFlinkPod = cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod);
         assertThat(resultFlinkPod.getMainContainer().getEnv())
-                .containsExactly(
+                .contains(
                         new EnvVarBuilder()
                                 .withName(Constants.ENV_TM_JVM_MEM_OPTS)
                                 .withValue(JVM_MEM_OPTS_ENV)
                                 .build());
+    }
+
+    @Test
+    void testActiveProcessorCountLimitedToCpuRequest() {
+        final FlinkPod resultFlinkPod = cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod);
+        assertThat(jvmArgsEnvValue(resultFlinkPod)).isEqualTo("-XX:ActiveProcessorCount=2");
+    }
+
+    @Test
+    void testUserActiveProcessorCountInPodTemplateEnvTakesPrecedence() {
+        final EnvVar userJavaOpts =
+                new EnvVar(
+                        Constants.ENV_FLINK_ENV_JAVA_OPTS_TM, "-XX:ActiveProcessorCount=8", null);
+        final FlinkPod podWithEnv =
+                new FlinkPod.Builder(baseFlinkPod)
+                        .withMainContainer(
+                                new ContainerBuilder(baseFlinkPod.getMainContainer())
+                                        .addToEnv(userJavaOpts)
+                                        .build())
+                        .build();
+        assertNoJvmArgs(cmdTaskManagerDecorator.decorateFlinkPod(podWithEnv), podWithEnv);
+    }
+
+    @Test
+    void testActiveProcessorCountLimitDisabled() {
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_ACTIVE_PROCESSOR_COUNT_ENABLED,
+                false);
+        assertNoJvmArgs(cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod), baseFlinkPod);
+    }
+
+    @Test
+    void testJobManagerLimitFactorDoesNotLimitTaskManager() {
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.0);
+        flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR, 4.0);
+        assertNoJvmArgs(cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod), baseFlinkPod);
+    }
+
+    private static String jvmArgsEnvValue(FlinkPod flinkPod) {
+        return KubernetesTestUtils.getEnvVarValue(
+                flinkPod.getMainContainer(), Constants.ENV_JVM_ARGS);
+    }
+
+    private static void assertNoJvmArgs(FlinkPod resultFlinkPod, FlinkPod inputFlinkPod) {
+        assertThat(resultFlinkPod.getMainContainer().getEnv())
+                .extracting(EnvVar::getName)
+                .doesNotContain(Constants.ENV_JVM_ARGS);
+        assertThat(resultFlinkPod.getMainContainer().getEnv())
+                .containsAll(inputFlinkPod.getMainContainer().getEnv());
     }
 }
