@@ -36,9 +36,14 @@ public class JarIdPathParameter extends MessagePathParameter<String> {
     @Override
     protected String convertFromString(final String value) throws ConversionException {
         final Path path = Paths.get(value);
-        if (path.getParent() != null) {
+        final Path fileName = path.getFileName();
+        if (value.isEmpty()
+                || fileName == null
+                || !fileName.toString().equals(value)
+                || value.equals(".")
+                || value.equals("..")) {
             throw new ConversionException(
-                    String.format("%s must be a filename only (%s)", KEY, path));
+                    String.format("%s must be a filename only (%s)", KEY, value));
         }
         return value;
     }
