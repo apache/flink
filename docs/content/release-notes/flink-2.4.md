@@ -339,20 +339,15 @@ default implementation throws `UnsupportedOperationException`.
 
 ##### [FLINK-38544](https://issues.apache.org/jira/browse/FLINK-38544) (FLIP-547 V2)
 
-Flink 2.4 extends checkpointing during recovery with a spill-based recovery path. Recovered
-channel state is filtered for the receiving subtask before records enter normal processing,
-and the resulting data is written to local spill files before being replayed through network
-buffers. This bounds memory usage when recovering large amounts of in-flight data.
-
-Filtering before processing also prevents records that belong to other subtasks after
-rescaling from being included again in subsequent recovery checkpoints. Unaligned checkpoints
-capture both queued and unread spilled data, allowing recovery progress to survive another
-failure or rescaling without duplicating the recovered records.
-
-The spill path is used when checkpointing during recovery is enabled through the existing
-configuration options and requires sufficient local disk space. Flink 2.4 also disables
-checkpointing during recovery when `execution.checkpointing.aligned-checkpoint-timeout` is
-greater than zero.
+Checkpointing during recovery (introduced in Flink 2.3) lets a job take checkpoints while it is
+still replaying in-flight data from unaligned checkpoints, so a failure or rescaling during a
+long recovery no longer has to restart it from scratch. In Flink 2.3, recovered data fell back
+to unbounded heap memory when network buffers ran out. Flink 2.4 spills it to local disk instead
+and feeds it back to the task as buffers become available, so recovery memory is bounded and
+checkpoints can still start early. A checkpoint taken during recovery captures both the data
+queued in memory and the data still on disk, exactly once. The feature remains opt-in: enable
+unaligned checkpoints and set `execution.checkpointing.unaligned.recover-output-on-downstream.enabled`
+and `execution.checkpointing.during-recovery.enabled` to `true`.
 
 #### Pluggable HistoryServer archive storage
 
