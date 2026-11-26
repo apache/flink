@@ -149,10 +149,10 @@ public class SlotSharingGroup {
             this.name = name;
         }
 
-        /** Set the CPU cores for this SlotSharingGroup. */
+        /** Set the CPU cores for this SlotSharingGroup to a finite, positive value. */
         public Builder setCpuCores(double cpuCores) {
-            if (cpuCores <= 0) {
-                throw new IllegalArgumentException("The cpu cores should be positive.");
+            if (!Double.isFinite(cpuCores) || cpuCores <= 0) {
+                throw new IllegalArgumentException("The cpu cores should be finite and positive.");
             }
             this.cpuCores = cpuCores;
             return this;

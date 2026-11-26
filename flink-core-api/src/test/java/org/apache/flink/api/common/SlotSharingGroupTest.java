@@ -67,6 +67,15 @@ class SlotSharingGroupTest {
     }
 
     @Test
+    void testRejectNonFiniteCpuCores() {
+        final SlotSharingGroup.Builder builder = SlotSharingGroup.newBuilder("ssg");
+        assertThatThrownBy(() -> builder.setCpuCores(Double.NaN))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.setCpuCores(Double.POSITIVE_INFINITY))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void testBuildSlotSharingGroupWithIllegalConfig() {
         assertThatThrownBy(
                         () ->
