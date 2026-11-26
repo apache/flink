@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -112,7 +113,16 @@ class CatalogPropertiesUtilTest {
         assertThat(deserializedTable.getOptions()).isEqualTo(testTable.getOptions());
 
         // So far equals doesn't work as UnresolvedDataType doesn't implement equals/hashCode
-        assertThat(testTable.getOrigin()).hasToString(deserializedTable.toString());
+        assertThat(withSortedOptions(testTable.getOrigin()))
+                .isEqualTo(withSortedOptions(deserializedTable));
+    }
+
+    // toString prints options in map order, which differs between map types and JDKs
+    private static String withSortedOptions(CatalogBaseTable table) {
+        final Map<String, String> sorted = new TreeMap<>(table.getOptions());
+        return table instanceof CatalogTable
+                ? ((CatalogTable) table).copy(sorted).toString()
+                : ((CatalogMaterializedTable) table).copy(sorted).toString();
     }
 
     private static Stream<ResolvedCatalogBaseTable<?>> resolvedCatalogBaseTables() {
