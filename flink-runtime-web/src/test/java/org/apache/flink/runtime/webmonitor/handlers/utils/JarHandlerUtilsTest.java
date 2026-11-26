@@ -53,6 +53,8 @@ class JarHandlerUtilsTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(JarHandlerUtilsTest.class);
 
+    private static final String JAR_ID = "someJar";
+
     @TempDir private Path tempDir;
 
     @Test
@@ -179,7 +181,7 @@ class JarHandlerUtilsTest {
         final JarRunMessageParameters parameters =
                 JarRunHeaders.getInstance().getUnresolvedMessageParameters();
 
-        parameters.jarIdPathParameter.resolve("someJar");
+        parameters.jarIdPathParameter.resolve(JAR_ID);
 
         return parameters;
     }
