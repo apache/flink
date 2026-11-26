@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference.utils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.types.ColumnList;
 
 import org.junit.jupiter.api.Test;
 
@@ -94,6 +95,18 @@ class CallContextUtilsTest {
                         "The 'state_ttl' argument must be a constant INTERVAL literal, but "
                                 + "received a non-literal expression. Use a literal such as "
                                 + "INTERVAL '1' HOUR.");
+    }
+
+    @Test
+    void testNonEmptyDescriptorValidation() {
+        assertThat(validateNonEmptyDescriptor(literal(ColumnList.of(List.of("a"))))).isEmpty();
+        assertThat(validateNonEmptyDescriptor(nullLiteral())).isEmpty();
+        assertThat(validateNonEmptyDescriptor(literal(ColumnList.of(List.of()))))
+                .contains("The 'sequence_by' argument requires at least one column.");
+    }
+
+    private static Optional<String> validateNonEmptyDescriptor(final CallContextMock context) {
+        return CallContextUtils.validateNonEmptyDescriptor(context, 0, "sequence_by");
     }
 
     @Test

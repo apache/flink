@@ -98,7 +98,8 @@ public final class DeduplicateDefinition {
 
     /** Returns the {@code keep} argument, or {@link Keep#FIRST} when it is omitted. */
     public static Keep keep(final CallContext callContext) {
-        return keep(callContext.getArgumentValue(ARG_KEEP, String.class));
+        return CallContextUtils.getEnumArgument(callContext, ARG_KEEP, Keep.class)
+                .orElse(Keep.FIRST);
     }
 
     /**
@@ -166,6 +167,10 @@ public final class DeduplicateDefinition {
                 CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
         return CallContextUtils.validateEnumArgument(
                         callContext, ARG_KEEP, "keep", INSTANCE.getName(), Keep.class)
+                .or(
+                        () ->
+                                CallContextUtils.validateNonEmptyDescriptor(
+                                        callContext, ARG_SEQUENCE_BY, "sequence_by"))
                 .or(() -> validateSequenceBy(callContext, tableSemantics))
                 .or(() -> CallContextUtils.validateStateTtl(callContext, ARG_STATE_TTL));
     }
@@ -200,12 +205,6 @@ public final class DeduplicateDefinition {
 
     private static Optional<String> validateSequenceBy(
             final CallContext callContext, final TableSemantics tableSemantics) {
-        if (callContext
-                .getArgumentValue(ARG_SEQUENCE_BY, ColumnList.class)
-                .filter(columns -> columns.getNames().isEmpty())
-                .isPresent()) {
-            return Optional.of("sequence_by requires at least one column.");
-        }
         final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
         final List<DataType> fieldTypes = DataType.getFieldDataTypes(tableSemantics.dataType());
         for (final String column : sequenceBy(callContext)) {

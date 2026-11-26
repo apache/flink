@@ -204,15 +204,14 @@ public class DeduplicateTestPrograms {
                                     new String[] {"window_start TIMESTAMP(3)", "events BIGINT"},
                                     "+I[1970-01-01T10:00, 2]",
                                     "+I[1970-01-01T10:10, 1]"))
-                    .setupSql(
-                            "CREATE VIEW unique_clicks AS SELECT * FROM DEDUPLICATE("
-                                    + "input => TABLE clicks PARTITION BY event_id, "
-                                    + "on_time => DESCRIPTOR(ts))")
                     .runSql(
                             "INSERT INTO unique_clicks_per_window "
-                                    + "SELECT window_start, COUNT(*) FROM TABLE(TUMBLE("
+                                    + "WITH unique_clicks AS (SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE clicks PARTITION BY event_id, "
+                                    + "on_time => DESCRIPTOR(ts))) "
+                                    + "SELECT window_start, COUNT(*) FROM TUMBLE("
                                     + "TABLE unique_clicks, DESCRIPTOR(rowtime), "
-                                    + "INTERVAL '10' MINUTES)) "
+                                    + "INTERVAL '10' MINUTES) "
                                     + "GROUP BY window_start, window_end")
                     .build();
 

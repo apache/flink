@@ -175,7 +175,7 @@ SELECT * FROM DEDUPLICATE(
 
 #### Deduplicate exact matches
 
-At-least-once delivery, retries, and reprocessing after a failure can write the same row more than once. To drop these copies, partition by the columns that identify a row and keep the default `keep => 'first'`.
+In external systems, at-least-once delivery, retries, and reprocessing after a failure can write the same row more than once. To drop these copies, partition by the columns that identify a row and keep the default `keep => 'first'`.
 
 Here, a payment is delivered twice. Both copies share the `payment_id`, but each has its own `ingested_at`:
 
@@ -217,13 +217,13 @@ PTFs take an optional [`on_time`]({{< ref "docs/dev/table/functions/ptfs" >}}#ti
 | `(e3, 10:12)`               |
 
 ```sql
-CREATE VIEW unique_clicks AS
-SELECT * FROM DEDUPLICATE(
-  input => TABLE clicks PARTITION BY event_id,
-  on_time => DESCRIPTOR(ts));
-
+WITH unique_clicks AS (
+  SELECT * FROM DEDUPLICATE(
+    input => TABLE clicks PARTITION BY event_id,
+    on_time => DESCRIPTOR(ts))
+)
 SELECT window_start, COUNT(*) AS events
-FROM TABLE(TUMBLE(TABLE unique_clicks, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES))
+FROM TUMBLE(TABLE unique_clicks, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES)
 GROUP BY window_start, window_end;
 ```
 
