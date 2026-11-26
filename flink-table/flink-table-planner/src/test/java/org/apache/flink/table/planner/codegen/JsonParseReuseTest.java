@@ -493,6 +493,21 @@ class JsonParseReuseTest {
     }
 
     @Test
+    void testJsonExistsReadsSelectively() {
+        final String sql =
+                "SELECT JSON_EXISTS(json_data, '$.address.city'), "
+                        + "JSON_EXISTS(json_data, 'strict $.missing'), "
+                        + "JSON_EXISTS(json_data, 'lax $.missing'), "
+                        + "JSON_VALUE(json_data, '$.type') FROM json_src";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(
+                        Row.of(true, false, false, "account"), Row.of(true, false, false, "admin"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(count(JSON_PATH_READ_PATTERN, code)).isOne();
+        assertThat(countJsonParse(code)).isOne();
+    }
+
+    @Test
     void testVariantInputHasNoReader() {
         // JSON_LENGTH of a VARIANT doesn't parse JSON text
         final String sql = "SELECT JSON_LENGTH(PARSE_JSON(json_data), '$.roles') FROM json_src";

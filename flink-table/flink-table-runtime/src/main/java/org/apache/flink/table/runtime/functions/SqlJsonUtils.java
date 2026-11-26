@@ -204,6 +204,18 @@ public class SqlJsonUtils {
         return jsonExists(jsonApiCommonSyntax(input, pathSpec), errorBehavior);
     }
 
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Boolean jsonExists(
+            JsonValueContext parsedInput, String pathSpec, JsonExistsOnError errorBehavior) {
+        return jsonExists(jsonApiCommonSyntax(parsedInput, pathSpec), errorBehavior);
+    }
+
+    /** Like the overload with a {@code String} path, for a literal path. */
+    public static Boolean jsonExists(
+            JsonValueContext parsedInput, JsonPathSpec path, JsonExistsOnError errorBehavior) {
+        return jsonExists(jsonApiCommonSyntax(parsedInput, path), errorBehavior);
+    }
+
     private static Boolean jsonExists(JsonPathContext context, JsonExistsOnError errorBehavior) {
         if (context.hasException()) {
             switch (errorBehavior) {

@@ -42,9 +42,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Parses the input of {@code JSON_VALUE}, {@code JSON_QUERY}, {@code JSON_LENGTH} and {@code
- * JSON_TYPE} with a {@link JsonPathReader}, which builds only what their paths reach, instead of
- * the whole document. The calls evaluate their paths on the result as before.
+ * Parses the input of {@code JSON_VALUE}, {@code JSON_QUERY}, {@code JSON_EXISTS}, {@code
+ * JSON_LENGTH} and {@code JSON_TYPE} with a {@link JsonPathReader}, which builds only what their
+ * paths reach, instead of the whole document. The calls evaluate their paths on the result as
+ * before.
  *
  * <p>An input is parsed this way only if every such call on it has a literal path of one or more
  * {@code .name}, {@code ['name']} and {@code [index]} steps after {@code $}.
@@ -147,7 +148,8 @@ final class SelectiveJsonFunctionCodeGen {
     // a path of these may start with lax or strict
     private static boolean hasPathMode(SqlOperator operator) {
         return operator == FlinkSqlOperatorTable.JSON_VALUE
-                || operator == FlinkSqlOperatorTable.JSON_QUERY;
+                || operator == FlinkSqlOperatorTable.JSON_QUERY
+                || operator == FlinkSqlOperatorTable.JSON_EXISTS;
     }
 
     @Nullable

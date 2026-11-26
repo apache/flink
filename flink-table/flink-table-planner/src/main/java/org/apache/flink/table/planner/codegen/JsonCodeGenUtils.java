@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen;
 
+import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.planner.codegen.calls.JsonParseReuse;
 import org.apache.flink.table.runtime.functions.JsonPathSpec;
@@ -351,8 +352,9 @@ public final class JsonCodeGenUtils {
     }
 
     /**
-     * The path argument of {@code JSON_VALUE} or {@code JSON_QUERY}: a {@link JsonPathSpec} for a
-     * literal path, which splits off the mode and compiles the path once, or the path as a string.
+     * The path argument of {@code JSON_VALUE}, {@code JSON_QUERY} or {@code JSON_EXISTS}: a {@link
+     * JsonPathSpec} for a literal path, which splits off the mode and compiles the path once, or
+     * the path as a string.
      */
     public static String jsonPathArgument(
             CodeGeneratorContext ctx, GeneratedExpression path, String pathTerm) {
@@ -362,6 +364,40 @@ public final class JsonCodeGenUtils {
                     new JsonPathSpec(literal.get().toString()), "jsonPathSpec", null);
         }
         return pathTerm + ".toString()";
+    }
+
+    /**
+     * Generates {@code JSON_EXISTS(jsonValue, path [, onError])}.
+     *
+     * <p>The parsed context is shared with the other JSON functions over the same input, so the
+     * input is parsed only once per record.
+     */
+    public static GeneratedExpression generateJsonExists(
+            CodeGeneratorContext ctx,
+            LogicalType returnType,
+            Seq<GeneratedExpression> operands,
+            @Nullable String jsonPathReader) {
+        return GenerateUtils.generateCallIfArgsNotNull(
+                ctx,
+                returnType,
+                operands,
+                true,
+                false,
+                argTerms -> {
+                    final String errorBehavior =
+                            argTerms.length() > 2
+                                    ? argTerms.apply(2)
+                                    : CodeGenUtils.qualifyEnum(JsonExistsOnError.FALSE);
+                    return CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_EXISTS_ON_ERROR())
+                            + "("
+                            + JsonParseReuse.parseSharedInput(ctx, operands, jsonPathReader)
+                                    .resultTerm()
+                            + ", "
+                            + jsonPathArgument(ctx, operands.apply(1), argTerms.apply(1))
+                            + ", "
+                            + errorBehavior
+                            + ")";
+                });
     }
 
     /** The literal that {@code node} is, also behind a local ref of {@code program}, or null. */

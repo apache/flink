@@ -1211,6 +1211,12 @@ class ExprCodeGenerator(
       case STREAMRECORD_TIMESTAMP =>
         generateRowtimeAccess(ctx, contextTerm, false)
 
+      // the signatures FunctionGenerator has; any other fails there as before
+      case JSON_EXISTS
+          if operands.head.resultType.is(LogicalTypeFamily.CHARACTER_STRING)
+            && operands(1).resultType.is(LogicalTypeRoot.CHAR) =>
+        JsonCodeGenUtils.generateJsonExists(ctx, resultType, operands, jsonFunctionReader(call))
+
       case JSON_VALUE =>
         new JsonValueCallGen(jsonFunctionReader(call)).generate(ctx, operands, resultType)
 

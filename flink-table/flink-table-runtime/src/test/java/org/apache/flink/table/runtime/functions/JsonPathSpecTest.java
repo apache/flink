@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.functions;
 
+import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
@@ -121,6 +122,12 @@ class JsonPathSpecTest {
                                                     JsonQueryWrapper.WITHOUT_ARRAY,
                                                     JsonQueryOnEmptyOrError.NULL,
                                                     JsonQueryOnEmptyOrError.ERROR)));
+            assertThat(result(() -> SqlJsonUtils.jsonExists(input, path, JsonExistsOnError.ERROR)))
+                    .isEqualTo(
+                            result(
+                                    () ->
+                                            SqlJsonUtils.jsonExists(
+                                                    input, pathSpec, JsonExistsOnError.ERROR)));
         }
     }
 }
