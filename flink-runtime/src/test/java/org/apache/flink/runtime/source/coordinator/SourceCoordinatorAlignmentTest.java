@@ -41,6 +41,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -277,6 +278,66 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
             current.announceCombinedWatermark();
 
             assertLatestWatermarkAlignmentEvent(0, 1200);
+    @Test
+    void testConcurrentStoreApplyAndCompute() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            CoordinatorStoreImpl store = new CoordinatorStoreImpl();
+            SourceCoordinator<?, ?> sourceA =
+                    getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
+            SourceCoordinator<?, ?> sourceB =
+                    getAndStartNewSourceCoordinator("sourceB", store, closeableRegistry);
+
+            sourceA.handleEventFromOperator(0, 0, new ReportedWatermarkEvent(5000));
+            sourceB.handleEventFromOperator(1, 0, new ReportedWatermarkEvent(1000));
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(sourceA.getContext());
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(sourceB.getContext());
+
+            AtomicBoolean stop = new AtomicBoolean(false);
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            CountDownLatch readerDone = new CountDownLatch(1);
+
+            sourceA.getContext()
+                    .runInCoordinatorThread(
+                            () -> {
+                                try {
+                                    int lastSeen = 0;
+                                    while (!stop.get() && failure.get() == null) {
+                                        sourceA.announceCombinedWatermark();
+                                        List<OperatorEvent> evts =
+                                                receivingTasks.getSentEventsForSubtask(0);
+                                        for (int i = lastSeen; i < evts.size(); i++) {
+                                            OperatorEvent event = evts.get(i);
+                                            if (event instanceof WatermarkAlignmentEvent) {
+                                                long wm =
+                                                        ((WatermarkAlignmentEvent) event)
+                                                                .getMaxWatermark();
+                                                if (wm < 2000L || wm > 2500L) {
+                                                    failure.compareAndSet(
+                                                            null,
+                                                            new AssertionError(
+                                                                    "Observed out-of-range watermark: "
+                                                                            + wm));
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                        lastSeen = evts.size();
+                                    }
+                                } catch (Throwable t) {
+                                    failure.compareAndSet(null, t);
+                                } finally {
+                                    readerDone.countDown();
+                                }
+                            });
+
+            for (long i = 0; i < 30_000 && failure.get() == null; i++) {
+                sourceB.handleEventFromOperator(
+                        1, 0, new ReportedWatermarkEvent(1000L + (i % 500)));
+            }
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(sourceB.getContext());
+            stop.set(true);
+            readerDone.await();
+            assertThat(failure.get()).isNull();
         }
     }
 
