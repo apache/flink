@@ -18,8 +18,24 @@
 
 package org.apache.flink.fs.gs;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobStorageImpl;
+import org.apache.flink.fs.gs.utils.BlobUtils;
+
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+
 import javax.annotation.Nullable;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
@@ -49,5 +65,47 @@ class GSTestCredentials {
                     "GCS test bucket not available (IT_CASE_GCS_BUCKET not set)");
         }
         return "gs://" + GCS_TEST_BUCKET + "/temp/";
+    }
+
+    /**
+     * Deletes the temporary objects the recoverable writer created for files under {@code
+     * basePath}. They live under the in-progress prefix at the bucket root, outside {@code
+     * basePath}, and only a commit removes them, so uncommitted streams leave them behind.
+     */
+    static void deleteTemporaryObjects(Path basePath) {
+        final GSBlobStorage storage = new GSBlobStorageImpl(createStorage());
+        final GSBlobIdentifier base = BlobUtils.parseUri(basePath.toUri());
+        final List<GSBlobIdentifier> temporaryObjects =
+                storage.list(base.bucketName, BlobUtils.getTemporaryObjectPartialName(base));
+        if (!temporaryObjects.isEmpty()) {
+            storage.delete(temporaryObjects);
+        }
+        // A batch delete reports a failed deletion as false, the same as a missing object.
+        assertThat(listTemporaryObjects(basePath))
+                .as("Temporary objects left for %s", basePath)
+                .isEmpty();
+    }
+
+    /**
+     * Lists the names of the temporary objects of the file at {@code path}, or of all files under
+     * it. Uses the GCS client directly rather than {@link GSBlobStorageImpl}, which is under test.
+     */
+    static List<String> listTemporaryObjects(Path path) {
+        final GSBlobIdentifier id = BlobUtils.parseUri(path.toUri());
+        final Page<Blob> blobs =
+                createStorage()
+                        .list(
+                                id.bucketName,
+                                Storage.BlobListOption.prefix(
+                                        BlobUtils.getTemporaryObjectPartialName(id)));
+        return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
+                .map(Blob::getName)
+                .collect(Collectors.toList());
+    }
+
+    private static Storage createStorage() {
+        final GSFileSystemFactory factory = new GSFileSystemFactory();
+        factory.configure(new Configuration());
+        return factory.getStorage();
     }
 }
