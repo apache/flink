@@ -20,6 +20,10 @@ package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Schema.UnresolvedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
+import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -28,10 +32,9 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.After;
-import org.apache.flink.table.catalog.TableChange.ColumnPosition;
+import org.apache.flink.table.catalog.TableChange.AddColumn;
 import org.apache.flink.table.catalog.TableChange.DropColumn;
-import org.apache.flink.table.catalog.TableChange.ModifyColumnPosition;
+import org.apache.flink.table.catalog.TableChange.ModifyColumn;
 import org.apache.flink.table.catalog.TableChange.ModifyDefinitionQuery;
 import org.apache.flink.table.catalog.TableChange.ModifyPhysicalColumnType;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
@@ -41,10 +44,13 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.ModifyOperationVisitor;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -136,12 +142,13 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         for (final TableChange change : changes) {
             if (change instanceof DropColumn) {
                 checkDroppedColumn((DropColumn) change, oldColumns, columnIndex, errors);
-            } else if (isQueryChange && change instanceof ModifyColumnPosition) {
-                checkPositionChange((ModifyColumnPosition) change, oldColumns, columnIndex, errors);
             } else if (isQueryChange && change instanceof ModifyPhysicalColumnType) {
                 checkPhysicalTypeChange(
                         (ModifyPhysicalColumnType) change, oldColumns, columnIndex, errors);
             }
+        }
+        if (isQueryChange) {
+            checkPersistedColumnOrder(oldColumns, columnIndex, changes, errors);
         }
         if (!errors.isEmpty()) {
             throw new ValidationException(String.join("\n", errors));
@@ -209,22 +216,6 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                         change.getColumnName()));
     }
 
-    private void checkPositionChange(
-            ModifyColumnPosition change,
-            List<Column> oldColumns,
-            Map<String, Integer> columnIndex,
-            List<String> errors) {
-        final int index = displacedColumnIndex(change.getNewPosition(), columnIndex);
-        if (index < 0) {
-            return;
-        }
-        errors.add(
-                positionChangeError(
-                        oldColumns.get(index).asSummaryString(),
-                        change.getNewColumn().asSummaryString(),
-                        index));
-    }
-
     private void checkPhysicalTypeChange(
             ModifyPhysicalColumnType change,
             List<Column> oldColumns,
@@ -242,18 +233,74 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     }
 
     /**
-     * Returns the index in oldColumns of the column displaced by this position change, or -1 if
-     * positioned after a column absent from the old schema (i.e., appended after a new column).
+     * The sink writes by position, so the new table must start with the old persisted columns in
+     * their old order. Individually harmless position changes can still move persisted columns, so
+     * the built table's order is checked. Reports the first displaced column only.
      */
-    private static int displacedColumnIndex(
-            ColumnPosition position, Map<String, Integer> columnIndex) {
-        if (position == ColumnPosition.first()) {
-            return 0;
+    private void checkPersistedColumnOrder(
+            List<Column> oldColumns,
+            Map<String, Integer> columnIndex,
+            List<TableChange> changes,
+            List<String> errors) {
+        final Schema newSchema = getNewTable().getUnresolvedSchema();
+        final List<String> newOrder = persistedColumnNames(newSchema);
+        final Set<String> newNames =
+                newSchema.getColumns().stream()
+                        .map(UnresolvedColumn::getName)
+                        .collect(Collectors.toSet());
+        final List<Column> oldPersisted =
+                oldColumns.stream()
+                        .filter(Column::isPersisted)
+                        .filter(column -> newNames.contains(column.getName()))
+                        .collect(Collectors.toList());
+        for (int i = 0; i < oldPersisted.size(); i++) {
+            final String oldName = oldPersisted.get(i).getName();
+            if (i < newOrder.size() && oldName.equals(newOrder.get(i))) {
+                continue;
+            }
+            // Describe the old column's own new form if it is no longer persisted.
+            final String displacingName = newOrder.contains(oldName) ? newOrder.get(i) : oldName;
+            final Column newColumn = latestColumnsByName(oldColumns, changes).get(displacingName);
+            final String newSummary =
+                    newColumn != null
+                            ? newColumn.asSummaryString()
+                            : EncodingUtils.escapeIdentifier(displacingName);
+            errors.add(
+                    positionChangeError(
+                            oldPersisted.get(i).asSummaryString(),
+                            newSummary,
+                            columnIndex.get(oldName)));
+            return;
         }
-        final Integer afterIdx = columnIndex.get(((After) position).column());
-        // afterIdx == null  → after a new column not in the old schema → treat as append
-        // afterIdx == last  → after the last old column → also treat as append (no displacement)
-        return afterIdx != null && afterIdx < columnIndex.size() - 1 ? afterIdx + 1 : -1;
+    }
+
+    private static List<String> persistedColumnNames(Schema schema) {
+        return schema.getColumns().stream()
+                .filter(
+                        column ->
+                                column instanceof UnresolvedPhysicalColumn
+                                        || (column instanceof UnresolvedMetadataColumn
+                                                && !((UnresolvedMetadataColumn) column)
+                                                        .isVirtual()))
+                .map(UnresolvedColumn::getName)
+                .collect(Collectors.toList());
+    }
+
+    /** Old columns as last added or modified by the changes, for describing the new column. */
+    private static Map<String, Column> latestColumnsByName(
+            List<Column> oldColumns, List<TableChange> changes) {
+        final Map<String, Column> columnsByName = new HashMap<>();
+        oldColumns.forEach(column -> columnsByName.put(column.getName(), column));
+        for (final TableChange change : changes) {
+            if (change instanceof AddColumn) {
+                final Column added = ((AddColumn) change).getColumn();
+                columnsByName.put(added.getName(), added);
+            } else if (change instanceof ModifyColumn) {
+                final Column modified = ((ModifyColumn) change).getNewColumn();
+                columnsByName.put(modified.getName(), modified);
+            }
+        }
+        return columnsByName;
     }
 
     private static String positionChangeError(String oldColumn, String newColumn, int position) {
