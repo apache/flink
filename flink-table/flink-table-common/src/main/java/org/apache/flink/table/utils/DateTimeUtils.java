@@ -152,6 +152,19 @@ public class DateTimeUtils {
     private static final int DEFAULT_PRECISION = 3;
     private static final int MIN_PRECISION = 0;
     private static final int MAX_PRECISION = 9;
+    // 10^i for each precision, which Math.pow would compute on every call
+    private static final long[] POWERS_OF_TEN = {
+        1L,
+        10L,
+        100L,
+        1_000L,
+        10_000L,
+        100_000L,
+        1_000_000L,
+        10_000_000L,
+        100_000_000L,
+        1_000_000_000L
+    };
 
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
@@ -355,15 +368,22 @@ public class DateTimeUtils {
      */
     public static TimestampData toTimestampData(double epoch, int precision) {
         validatePrecision(precision);
-        double factor = Math.pow(10, precision);
+        long factor = POWERS_OF_TEN[precision];
         double epochSeconds = epoch / factor;
-        if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
+        if (Double.isNaN(epochSeconds)
+                || epochSeconds < MIN_EPOCH_SECONDS
+                || epochSeconds > MAX_EPOCH_SECONDS) {
             return null;
         }
         long seconds = (long) epochSeconds;
         double fractionalSeconds = epochSeconds - seconds;
-        long nanoAdjustment = (long) (fractionalSeconds * 1_000_000_000L);
-        return TimestampData.fromInstant(Instant.ofEpochSecond(seconds, nanoAdjustment));
+        int nanos = (int) (fractionalSeconds * 1_000_000_000L);
+        // negative nanos borrow a second, as Instant.ofEpochSecond normalizes them
+        int borrow = nanos >> 31;
+        seconds += borrow;
+        nanos += borrow & 1_000_000_000;
+        return TimestampData.fromEpochMillis(
+                seconds * 1_000 + nanos / 1_000_000, nanos % 1_000_000);
     }
 
     /** See {@link #toTimestampData(long, int)}. The decimal value is truncated to a long. */
@@ -374,18 +394,19 @@ public class DateTimeUtils {
 
     private static TimestampData epochToTimestampData(long epoch, int precision) {
         validatePrecision(precision);
-        long factor = (long) Math.pow(10, precision);
+        long factor = POWERS_OF_TEN[precision];
         long epochSeconds = Math.floorDiv(epoch, factor);
 
         if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
             return null;
         }
 
-        long remainder = Math.floorMod(epoch, factor);
-        long nanoMultiplier = (long) Math.pow(10, 9 - precision);
-        long nanoAdjustment = remainder * nanoMultiplier;
-
-        return TimestampData.fromInstant(Instant.ofEpochSecond(epochSeconds, nanoAdjustment));
+        // floorMod(epoch, factor) from the quotient, without a second division
+        long remainder = epoch - epochSeconds * factor;
+        // as TimestampData.fromInstant computes it, without the Instant
+        int nanos = (int) (remainder * POWERS_OF_TEN[9 - precision]);
+        return TimestampData.fromEpochMillis(
+                epochSeconds * 1_000 + nanos / 1_000_000, nanos % 1_000_000);
     }
 
     private static void validatePrecision(int precision) {

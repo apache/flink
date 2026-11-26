@@ -1179,6 +1179,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 toTimestampLtz($("f3"), literal(0)),
                                 "TO_TIMESTAMP_LTZ(f3, 0)",
                                 null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(lit("NaN").cast(DOUBLE()), literal(0)),
+                                "TO_TIMESTAMP_LTZ(CAST('NaN' AS DOUBLE), 0)",
+                                null,
                                 TIMESTAMP_LTZ(3).nullable()));
     }
 }
