@@ -31,7 +31,10 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
                                        convert_tz, unix_timestamp, uuid_v4, uuid_v7, descriptor,
-                                       object_of, json_object, json_array)
+                                       object_of, json_object, json_array, not_, is_nan,
+                                       current_watermark, without_columns, json_string,
+                                       json_object_agg, json_array_agg, call_sql, source_watermark,
+                                       coalesce, map_from_arrays, with_all_columns, lag, lead)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -52,6 +55,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('lessThanOrEqual(a, b)', str(expr1 <= expr2))
         self.assertEqual('greaterThan(a, b)', str(expr1 > expr2))
         self.assertEqual('greaterThanOrEqual(a, b)', str(expr1 >= expr2))
+        self.assertEqual('in(a, array(1, 2))', str(expr1.in_([1, 2])))
+        self.assertEqual('in(a, 1, array(2, 3))', str(expr1.in_(1, [2, 3])))
+        self.assertEqual('IS_NAN(a)', str(expr1.is_nan))
+        self.assertEqual('IFNULL(a, 1)', str(expr1.if_null(1)))
 
         # logic functions
         self.assertEqual('and(a, b)', str(expr1 & expr2))
@@ -184,7 +191,17 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("strToMap(a, ';', ':')", str(expr1.str_to_map(';', ':')))
         self.assertEqual("ELT(1, a)", str(lit(1).elt(expr1)))
         self.assertEqual('ELT(3, a, b, c)', str(lit(3).elt(expr1, expr2, expr3)))
+        self.assertEqual('ELT(1, a, array(1, 2))', str(lit(1).elt(expr1, [1, 2])))
         self.assertEqual("PRINTF('%d %s', a, b)", str(lit("%d %s").printf(expr1, expr2)))
+        self.assertEqual("PRINTF('%d %s', a, array(1, 2))",
+                         str(lit("%d %s").printf(expr1, [1, 2])))
+        self.assertEqual('concat(a, b)', str(expr1.concat(expr2)))
+        self.assertEqual('BTRIM(a)', str(expr1.btrim()))
+        self.assertEqual("BTRIM(a, 'x')", str(expr1.btrim('x')))
+        self.assertEqual("TRANSLATE3(a, 'ab', 'cd')", str(expr1.translate('ab', 'cd')))
+        self.assertEqual("SPLIT(a, ',')", str(expr1.split(',')))
+        self.assertEqual('URL_DECODE(a)', str(expr1.url_decode()))
+        self.assertEqual('URL_ENCODE(a)', str(expr1.url_encode()))
         self.assertEqual("STARTSWITH(a, b)", str(expr1.starts_with(expr2)))
         self.assertEqual("ENDSWITH(a, b)", str(expr1.ends_with(expr2)))
 
@@ -221,6 +238,31 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('at(a, 0)', str(expr1.at(0)))
         self.assertEqual('cardinality(a)', str(expr1.cardinality))
         self.assertEqual('element(a)', str(expr1.element))
+        self.assertEqual('TRY_CAST(a, INT)', str(expr1.try_cast(DataTypes.INT())))
+
+        # collection functions
+        self.assertEqual('ARRAY_APPEND(a, 1)', str(expr1.array_append(1)))
+        self.assertEqual('ARRAY_CONCAT(a)', str(expr1.array_concat()))
+        self.assertEqual('ARRAY_CONTAINS(a, 1)', str(expr1.array_contains(1)))
+        self.assertEqual('ARRAY_DISTINCT(a)', str(expr1.array_distinct()))
+        self.assertEqual('ARRAY_EXCEPT(a, b)', str(expr1.array_except(expr2)))
+        self.assertEqual('ARRAY_INTERSECT(a, b)', str(expr1.array_intersect(expr2)))
+        self.assertEqual('ARRAY_MAX(a)', str(expr1.array_max()))
+        self.assertEqual('ARRAY_MIN(a)', str(expr1.array_min()))
+        self.assertEqual('ARRAY_POSITION(a, 1)', str(expr1.array_position(1)))
+        self.assertEqual('ARRAY_PREPEND(a, 1)', str(expr1.array_prepend(1)))
+        self.assertEqual('ARRAY_REMOVE(a, 1)', str(expr1.array_remove(1)))
+        self.assertEqual('ARRAY_REVERSE(a)', str(expr1.array_reverse()))
+        self.assertEqual('ARRAY_SLICE(a, 1)', str(expr1.array_slice(1)))
+        self.assertEqual('ARRAY_SLICE(a, 1, 2)', str(expr1.array_slice(1, 2)))
+        self.assertEqual('ARRAY_UNION(a, b)', str(expr1.array_union(expr2)))
+        self.assertEqual("MAP_CONTAINS_KEY(a, 'k')", str(expr1.map_contains_key('k')))
+        self.assertEqual('MAP_ENTRIES(a)', str(expr1.map_entries))
+        self.assertEqual('MAP_FROM_ENTRIES(a)', str(expr1.map_from_entries))
+        self.assertEqual('MAP_KEYS(a)', str(expr1.map_keys))
+        self.assertEqual('MAP_VALUES(a)', str(expr1.map_values))
+        self.assertEqual('MAP_UNION(a)', str(expr1.map_union()))
+        self.assertEqual('MAP_UNION(a, b, c)', str(expr1.map_union(expr2, expr3)))
 
         # time definition functions
         self.assertEqual('rowtime(a)', str(expr1.rowtime))
@@ -273,6 +315,17 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                                                   JsonQueryOnEmptyOrError.NULL,
                                                   JsonQueryOnEmptyOrError.EMPTY_ARRAY)))
 
+        self.assertEqual('JSON_QUOTE(a)', str(expr1.json_quote()))
+        self.assertEqual('JSON_UNQUOTE(a)', str(expr1.json_unquote()))
+        self.assertEqual('JSON_LENGTH(a)', str(expr1.json_length()))
+        self.assertEqual("JSON_LENGTH(a, '$.x')", str(expr1.json_length('$.x')))
+        self.assertEqual('JSON_TYPE(a)', str(expr1.json_type()))
+        self.assertEqual("JSON_TYPE(a, '$.x')", str(expr1.json_type('$.x')))
+        self.assertEqual('PARSE_JSON(a)', str(expr1.parse_json()))
+        self.assertEqual('PARSE_JSON(a, true)', str(expr1.parse_json(True)))
+        self.assertEqual('TRY_PARSE_JSON(a)', str(expr1.try_parse_json()))
+        self.assertEqual('TRY_PARSE_JSON(a, false)', str(expr1.try_parse_json(False)))
+
         # structured type functions
         self.assertEqual("OBJECT_UPDATE(a, 'name', 'Alice', 'age', b)",
                          str(expr1.object_update('name', 'Alice', 'age', expr2)))
@@ -324,6 +377,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('rangeTo(1, 2)', str(range_(1, 2)))
         self.assertEqual('and(a, b, c)', str(and_(expr1, expr2, expr3)))
         self.assertEqual('or(a, b, c)', str(or_(expr1, expr2, expr3)))
+        self.assertEqual('not(a)', str(not_(expr1)))
+        self.assertEqual('IS_NAN(a)', str(is_nan(expr1)))
 
         from pyflink.table.expressions import UNBOUNDED_ROW, UNBOUNDED_RANGE, CURRENT_ROW, \
             CURRENT_RANGE
@@ -398,6 +453,19 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('JSON_ARRAY(ABSENT)', str(json_array()))
         self.assertEqual('JSON_ARRAY(NULL, a, 1, null)',
                          str(json_array(JsonOnNull.NULL, expr1, 1, None)))
+        self.assertEqual('JSON_STRING(a)', str(json_string(expr1)))
+        self.assertEqual("JSON_OBJECTAGG_NULL_ON_NULL('k', a)",
+                         str(json_object_agg(JsonOnNull.NULL, 'k', expr1)))
+        self.assertEqual('JSON_ARRAYAGG_ABSENT_ON_NULL(a)',
+                         str(json_array_agg(JsonOnNull.ABSENT, expr1)))
+        self.assertEqual('MAP_FROM_ARRAYS(a, b)', str(map_from_arrays(expr1, expr2)))
+        self.assertEqual('COALESCE(a, 1, null)', str(coalesce(expr1, 1, None)))
+        self.assertEqual('lag(a, 1)', str(lag(expr1)))
+        self.assertEqual('lag(a, 2, 0)', str(lag(expr1, 2, 0)))
+        self.assertEqual('lead(a, 1)', str(lead(expr1)))
+        self.assertEqual('lead(a, 2, 0)', str(lead(expr1, 2, 0)))
+        self.assertEqual('CURRENT_WATERMARK(a)', str(current_watermark(expr1)))
+        self.assertEqual('SOURCE_WATERMARK()', str(source_watermark()))
         self.assertEqual('4', str(row_interval(4)))
         self.assertEqual('pi()', str(pi()))
         self.assertEqual('e()', str(e()))
@@ -414,6 +482,9 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('log(a)', str(log(expr1)))
         self.assertEqual('ifThenElse(a, b, c)', str(if_then_else(expr1, expr2, expr3)))
         self.assertEqual('withColumns(a, b, c)', str(with_columns(expr1, expr2, expr3)))
+        self.assertEqual('withoutColumns(a, b, c)', str(without_columns(expr1, expr2, expr3)))
+        self.assertEqual('*', str(with_all_columns()))
+        self.assertEqual('[a + 1]', str(call_sql('a + 1')))
         self.assertEqual('a.b.c(a)', str(call('a.b.c', expr1)))
 
     def test_lit_converts_python_values_to_declared_data_types(self):
