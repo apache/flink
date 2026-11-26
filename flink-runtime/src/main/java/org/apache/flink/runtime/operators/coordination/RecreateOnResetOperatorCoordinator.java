@@ -21,11 +21,19 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -34,11 +42,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.closeAsyncWithTimeout;
 
@@ -52,16 +64,22 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     private final Provider provider;
     private final long closingTimeoutMs;
     private final OperatorCoordinator.Context context;
+    private final ThreadFactory stateReaderThreads;
     private DeferrableCoordinator coordinator;
     private boolean started;
     private volatile boolean closed;
 
     private RecreateOnResetOperatorCoordinator(
-            OperatorCoordinator.Context context, Provider provider, long closingTimeoutMs)
+            OperatorCoordinator.Context context,
+            Provider provider,
+            long closingTimeoutMs,
+            ThreadFactory stateReaderThreads)
             throws Exception {
         this.context = context;
         this.provider = provider;
-        this.coordinator = new DeferrableCoordinator(context.getOperatorId(), context.getJobID());
+        this.stateReaderThreads = stateReaderThreads;
+        this.coordinator =
+                new DeferrableCoordinator(context.getOperatorId(), context.getJobID(), null);
         this.coordinator.createNewInternalCoordinator(context, provider);
         this.coordinator.processPendingCalls();
         this.closingTimeoutMs = closingTimeoutMs;
@@ -128,11 +146,39 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
     @Override
     public void resetToCheckpoint(final long checkpointId, @Nullable final byte[] checkpointData) {
-        resetToCheckpoint(checkpointId, CompletableFuture.completedFuture(checkpointData));
+        resetToCheckpoint(checkpointId, CompletableFuture.completedFuture(checkpointData), null);
+    }
+
+    @Override
+    public boolean supportsCoordinatorStateInFile() {
+        return true;
+    }
+
+    /**
+     * Reads the state in a separate thread, so this method does not block on I/O. The new
+     * coordinator is created and reset once the state has been read and the old coordinator has
+     * closed; until then, calls are deferred as for any reset. If a later reset replaces this one,
+     * or the coordinator is closed, before the state has been read, the read is stopped.
+     */
+    @Override
+    public void resetToCheckpointFromHandle(
+            final long checkpointId, final StreamStateHandle checkpointState) {
+        final CompletableFuture<byte[]> checkpointData = new CompletableFuture<>();
+        final StateReader stateReader =
+                StateReader.start(
+                        checkpointId,
+                        context.getOperatorId(),
+                        MdcUtils.asContextData(context.getJobID()),
+                        checkpointState,
+                        stateReaderThreads,
+                        checkpointData);
+        resetToCheckpoint(checkpointId, checkpointData, stateReader);
     }
 
     private void resetToCheckpoint(
-            final long checkpointId, final CompletableFuture<byte[]> checkpointData) {
+            final long checkpointId,
+            final CompletableFuture<byte[]> checkpointData,
+            @Nullable final StateReader stateReader) {
         // First bump up the coordinator epoch to fence out the active coordinator.
         LOG.info("Resetting coordinator to checkpoint.");
         // Replace the coordinator variable with a new DeferrableCoordinator instance.
@@ -140,7 +186,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         // After this point all the subsequent calls will be made to the new coordinator.
         final DeferrableCoordinator oldCoordinator = coordinator;
         final DeferrableCoordinator newCoordinator =
-                new DeferrableCoordinator(context.getOperatorId(), context.getJobID());
+                new DeferrableCoordinator(context.getOperatorId(), context.getJobID(), stateReader);
         coordinator = newCoordinator;
         // Close the old coordinator asynchronously in a separate closing thread.
         // The future will be completed when the old coordinator closes.
@@ -155,24 +201,31 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                         (ignored, e) -> {
                             if (e != null) {
                                 LOG.warn(
-                                        String.format(
-                                                "Received exception when closing "
-                                                        + "operator coordinator for %s.",
-                                                oldCoordinator.operatorId),
+                                        "Received exception when closing operator coordinator for"
+                                                + " {}.",
+                                        oldCoordinator.operatorId,
                                         e);
                             }
                             return null;
                         })
                 .thenCombine(checkpointData, (ignored, data) -> data)
-                .thenAccept(
-                        data -> {
+                .handle(
+                        (data, e) -> {
                             if (!closed) {
+                                if (e != null) {
+                                    newCoordinator.failToReadState(
+                                            context,
+                                            checkpointId,
+                                            ExceptionUtils.stripCompletionException(e));
+                                    return null;
+                                }
                                 // The previous coordinator has closed. Create a new one.
                                 newCoordinator.createNewInternalCoordinatorOnReset(
                                         context, provider);
                                 newCoordinator.resetAndStart(checkpointId, data, wasStarted);
                                 newCoordinator.processPendingCalls();
                             }
+                            return null;
                         })
                 .exceptionally(
                         t -> {
@@ -239,7 +292,31 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         @VisibleForTesting
         protected OperatorCoordinator create(Context context, long closingTimeoutMs)
                 throws Exception {
-            return new RecreateOnResetOperatorCoordinator(context, this, closingTimeoutMs);
+            final Map<String, String> mdc = MdcUtils.asContextData(context.getJobID());
+            return create(
+                    context,
+                    closingTimeoutMs,
+                    // Like the source coordinator's own thread, log an uncaught error rather than
+                    // end the JobManager process. A failed read fails the job through the reset
+                    // that waits for it.
+                    new ExecutorThreadFactory(
+                            "Coordinator state reader for " + context.getOperatorId(),
+                            (thread, error) -> {
+                                try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(mdc)) {
+                                    LOG.error(
+                                            "Thread '{}' produced an uncaught exception.",
+                                            thread.getName(),
+                                            error);
+                                }
+                            }));
+        }
+
+        @VisibleForTesting
+        OperatorCoordinator create(
+                Context context, long closingTimeoutMs, ThreadFactory stateReaderThreads)
+                throws Exception {
+            return new RecreateOnResetOperatorCoordinator(
+                    context, this, closingTimeoutMs, stateReaderThreads);
         }
 
         protected abstract OperatorCoordinator getCoordinator(OperatorCoordinator.Context context)
@@ -336,9 +413,10 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
     /**
      * A class that helps realize the fully async {@link #resetToCheckpoint(long, byte[])} behavior.
-     * The class wraps an {@link OperatorCoordinator} instance. It is going to be accessed by two
-     * different thread: the scheduler thread and the closing thread created in {@link
-     * #closeAsync(long)}. A DeferrableCoordinator could be in three states:
+     * The class wraps an {@link OperatorCoordinator} instance. It is accessed by the scheduler
+     * thread, by the closing thread created in {@link #closeAsync(long)} and, when the state to
+     * reset to is read from its own file, by the thread that reads it. A DeferrableCoordinator
+     * could be in three states:
      *
      * <ul>
      *   <li><b>deferred:</b> The internal {@link OperatorCoordinator} has not been created and all
@@ -356,14 +434,17 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         private final OperatorID operatorId;
         private final BlockingQueue<NamedCall> pendingCalls;
         private final Map<String, String> mdc;
+        @Nullable private final StateReader stateReader;
         private QuiesceableContext internalQuiesceableContext;
         private OperatorCoordinator internalCoordinator;
         private boolean hasCaughtUp;
         private boolean closed;
         private volatile boolean failed;
 
-        private DeferrableCoordinator(OperatorID operatorId, JobID jobID) {
+        private DeferrableCoordinator(
+                OperatorID operatorId, JobID jobID, @Nullable StateReader stateReader) {
             this.operatorId = operatorId;
+            this.stateReader = stateReader;
             this.pendingCalls = new LinkedBlockingQueue<>();
             this.hasCaughtUp = false;
             this.closed = false;
@@ -419,6 +500,9 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
         synchronized CompletableFuture<Void> closeAsync(long timeoutMs) {
             closed = true;
+            if (stateReader != null) {
+                stateReader.stop();
+            }
             if (internalCoordinator != null) {
                 internalQuiesceableContext.quiesce();
                 pendingCalls.clear();
@@ -490,6 +574,35 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
             }
         }
 
+        /**
+         * Fails the job because the state to reset to could not be read, unless this coordinator
+         * has already been replaced by a later reset or closed. No internal coordinator is created,
+         * so calls stay deferred until the next reset replaces this coordinator.
+         */
+        synchronized void failToReadState(
+                OperatorCoordinator.Context context, long checkpointId, Throwable t) {
+            if (closed) {
+                return;
+            }
+            final String heapHint =
+                    ExceptionUtils.findThrowable(t, ExceptionUtils::isHeapSpaceOutOfMemoryError)
+                                    .isPresent()
+                            ? String.format(
+                                    " The JobManager ran out of heap memory, which can be"
+                                            + " increased with '%s'.",
+                                    JobManagerOptions.JVM_HEAP_MEMORY.key())
+                            : "";
+            context.failJob(
+                    new FlinkException(
+                            String.format(
+                                    "Could not read the coordinator state of checkpoint %d from"
+                                            + " %s.%s",
+                                    checkpointId,
+                                    Preconditions.checkNotNull(stateReader).stateDescription,
+                                    heapHint),
+                            t));
+        }
+
         private void cleanAndFailJob(Throwable t) {
             // Don't repeatedly fail the job.
             if (!failed) {
@@ -497,6 +610,115 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                 internalQuiesceableContext.getContext().failJob(t);
                 pendingCalls.clear();
             }
+        }
+    }
+
+    /**
+     * Reads the state to reset to in a separate thread, so the caller does not block on I/O. Each
+     * read has a thread of its own, as each close in {@link ComponentClosingUtils} has, because it
+     * may block for a long time, which a thread of a shared pool must not. The read can be stopped
+     * if the reset that needs the state is replaced or the coordinator is closed. It keeps no
+     * reference to the state; only the future it completes does.
+     */
+    private static class StateReader {
+        private final CloseableRegistry openStreams = new CloseableRegistry();
+        private final ThreadFactory threads;
+        private final String stateDescription;
+
+        private StateReader(ThreadFactory threads, String stateDescription) {
+            this.threads = threads;
+            this.stateDescription = stateDescription;
+        }
+
+        private static StateReader start(
+                long checkpointId,
+                OperatorID operatorId,
+                Map<String, String> mdc,
+                StreamStateHandle checkpointState,
+                ThreadFactory threads,
+                CompletableFuture<byte[]> checkpointData) {
+            final StateReader stateReader = new StateReader(threads, checkpointState.toString());
+            threads.newThread(
+                            () -> {
+                                try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(mdc)) {
+                                    stateReader.read(
+                                            checkpointId,
+                                            operatorId,
+                                            checkpointState,
+                                            checkpointData);
+                                }
+                            })
+                    .start();
+            return stateReader;
+        }
+
+        private void read(
+                long checkpointId,
+                OperatorID operatorId,
+                StreamStateHandle checkpointState,
+                CompletableFuture<byte[]> checkpointData) {
+            try {
+                LOG.info(
+                        "Reading the coordinator state of operator {} for checkpoint {} from {}.",
+                        operatorId,
+                        checkpointId,
+                        checkpointState);
+                final long startNanos = System.nanoTime();
+                final byte[] data;
+                try {
+                    final FSDataInputStream in = checkpointState.openInputStream();
+                    // if the read has already been stopped, this closes the stream and throws
+                    openStreams.registerCloseable(in);
+                    data = readState(in, checkpointState.getStateSize());
+                } finally {
+                    // Close the stream before completing the future, which may run the reset
+                    // in this thread.
+                    IOUtils.closeQuietly(openStreams);
+                }
+                LOG.info(
+                        "Read {} bytes of the coordinator state of operator {} for checkpoint {}"
+                                + " from {} in {} ms.",
+                        data.length,
+                        operatorId,
+                        checkpointId,
+                        checkpointState,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos));
+                checkpointData.complete(data);
+            } catch (Throwable t) {
+                checkpointData.completeExceptionally(t);
+                ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+            }
+        }
+
+        /**
+         * Reads exactly the recorded size of the state, if it is known, so that the state is held
+         * in memory only once, and a file of another size fails the read.
+         */
+        private static byte[] readState(InputStream in, long recordedSize) throws IOException {
+            if (recordedSize <= 0 || recordedSize > Integer.MAX_VALUE - 8) {
+                return in.readAllBytes();
+            }
+            final byte[] data = new byte[(int) recordedSize];
+            IOUtils.readFully(in, data, 0, data.length);
+            if (in.read() != -1) {
+                throw new IOException(
+                        String.format(
+                                "The state is larger than its recorded size of %d bytes.",
+                                recordedSize));
+            }
+            return data;
+        }
+
+        /**
+         * Stops the read, if it is still in progress, by closing its stream. A stream still being
+         * opened is closed as soon as it is open.
+         */
+        private void stop() {
+            if (openStreams.isClosed()) {
+                return;
+            }
+            // Closing the stream may block, for example until a read in progress returns.
+            threads.newThread(() -> IOUtils.closeQuietly(openStreams)).start();
         }
     }
 

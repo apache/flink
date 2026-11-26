@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
 
@@ -202,6 +203,46 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      * checkpoint, before calling the {@link #notifyCheckpointComplete(long)} method).
      */
     void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception;
+
+    /**
+     * Whether the coordinator can restore its state from a state handle without blocking the
+     * caller, through {@link #resetToCheckpointFromHandle(long, StreamStateHandle)}. If this
+     * returns true, the coordinator's state may be stored in its own file rather than inline in the
+     * checkpoint metadata, in which case the JobManager does not keep a copy of it with the
+     * retained checkpoints. The value must not change during the lifetime of the coordinator.
+     */
+    default boolean supportsCoordinatorStateInFile() {
+        return false;
+    }
+
+    /**
+     * Resets the coordinator to the checkpoint whose state has to be read from the given handle,
+     * because it is in its own file. The semantics are the same as {@link #resetToCheckpoint(long,
+     * byte[])}. This is called only if {@link #supportsCoordinatorStateInFile()} returns true. A
+     * restore without state, or with state held in memory, calls {@link #resetToCheckpoint(long,
+     * byte[])} instead.
+     *
+     * <p>With the default scheduler, this method is called on the JobManager main thread when a
+     * running job is restored after a global failover. When a new execution graph is restored, as
+     * on the first restore of the default scheduler and on every restore of the adaptive scheduler,
+     * it is called on another thread, before {@link #start()}. It must not block on reading the
+     * state.
+     *
+     * <p>Calls made after this method returns, such as {@link #checkpointCoordinator(long,
+     * CompletableFuture)}, must observe the restored state, as for {@link #resetToCheckpoint(long,
+     * byte[])}, so the coordinator has to defer them until the state is read. This also keeps a
+     * newer checkpoint from completing and deleting the file of the restored checkpoint while it is
+     * read. If the state cannot be read, the coordinator fails the job through {@link
+     * Context#failJob(Throwable)}, which it may do before {@link #start()}. If a later reset
+     * replaces this one, or {@link #close()} is called, while the state is still being read, the
+     * coordinator discards the result and does not fail the job.
+     */
+    default void resetToCheckpointFromHandle(long checkpointId, StreamStateHandle checkpointState)
+            throws Exception {
+        throw new UnsupportedOperationException(
+                "Override supportsCoordinatorStateInFile() and this method to restore state that is"
+                        + " stored in its own file.");
+    }
 
     // ------------------------------------------------------------------------
 
