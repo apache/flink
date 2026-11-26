@@ -1110,6 +1110,32 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .containsExactly("shop_id", "user_id", "oca", "order_id");
     }
 
+    @Test
+    void testCreateMaterializedTableNamesOnlyColumnListWritesEachColumn() throws Exception {
+        createBoundedValuesSource(List.of(Row.of(1L, 10L, 100L, "2024-01-01")));
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops (shop_id, user_id)"
+                        + " WITH ('format' = 'debezium-json')"
+                        + " FRESHNESS = INTERVAL '30' SECOND REFRESH_MODE = CONTINUOUS"
+                        + " AS SELECT user_id, shop_id FROM my_source";
+        OperationHandle handle = executeStatement(materializedTableDDL);
+        awaitOperationTermination(service, sessionHandle, handle);
+
+        CommonTestUtils.waitUtil(
+                () ->
+                        fetchTableData(sessionHandle, "SELECT shop_id, user_id FROM users_shops")
+                                        .size()
+                                == 1,
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(2),
+                "Failed to verify the data in materialized table.");
+        RowData row =
+                fetchTableData(sessionHandle, "SELECT shop_id, user_id FROM users_shops").get(0);
+        assertThat(row.getLong(0)).isEqualTo(100L);
+        assertThat(row.getLong(1)).isEqualTo(10L);
+    }
+
     // Swaps the first two projections so existing columns are reordered rather than appended.
     private static final String REORDERED_QUERY =
             " AS SELECT \n"

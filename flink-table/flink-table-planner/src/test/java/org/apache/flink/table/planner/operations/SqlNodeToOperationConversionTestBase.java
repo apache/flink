@@ -38,6 +38,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -53,6 +54,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -139,6 +141,10 @@ class SqlNodeToOperationConversionTestBase {
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         return SqlNodeToOperationConversion.convert(planner, catalogManager, node, sql).get();
+    }
+
+    protected List<String> outputColumnNames(String expandedQuery) {
+        return ((QueryOperation) parse(expandedQuery)).getResolvedSchema().getColumnNames();
     }
 
     protected FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {

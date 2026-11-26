@@ -38,18 +38,31 @@ import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlNumericLiteral;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlTimestampLiteral;
+import org.apache.calcite.sql.SqlWith;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.TimestampString;
 
+import javax.annotation.Nullable;
+
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
@@ -314,6 +327,148 @@ public class MaterializedTableUtils {
                     querySchemaColumnNames,
                     operationName);
         }
+    }
+
+    /** Returns a copy of the validated query whose output columns follow {@code targetColumns}. */
+    public static SqlNode reorderQueryColumns(
+            SqlNode validatedQuery, List<String> queryColumns, List<String> targetColumns) {
+        final Set<String> targetSet = new HashSet<>(targetColumns);
+        Preconditions.checkArgument(
+                targetSet.size() == targetColumns.size()
+                        && targetColumns.size() == queryColumns.size()
+                        && targetSet.equals(new HashSet<>(queryColumns)),
+                "Target columns %s are not a permutation of query columns %s.",
+                targetColumns,
+                queryColumns);
+        return reorderQuery(validatedQuery, queryColumns, targetColumns, true);
+    }
+
+    /**
+     * Only the leftmost branch of a set operation names its columns. {@code namesColumns} is false
+     * for the other branches, which keep their own aliases because their ORDER BY may refer to
+     * them.
+     */
+    private static SqlNode reorderQuery(
+            SqlNode query,
+            List<String> queryColumns,
+            List<String> targetColumns,
+            boolean namesColumns) {
+        if (query instanceof SqlSelect) {
+            return reorderSelect((SqlSelect) query, queryColumns, targetColumns, namesColumns);
+        }
+        if (query instanceof SqlWith) {
+            return reorderWith((SqlWith) query, queryColumns, targetColumns, namesColumns);
+        }
+        if (query.getKind().belongsTo(SqlKind.SET_QUERY)) {
+            return reorderSetOperation((SqlCall) query, queryColumns, targetColumns, namesColumns);
+        }
+        throw unsupportedQueryReorder();
+    }
+
+    private static SqlSelect reorderSelect(
+            SqlSelect select,
+            List<String> queryColumns,
+            List<String> targetColumns,
+            boolean namesColumns) {
+        final SqlNodeList selectList = select.getSelectList();
+        if (selectList.size() != queryColumns.size()) {
+            throw unsupportedQueryReorder();
+        }
+        final List<SqlNode> reorderedItems = new ArrayList<>(selectList.size());
+        for (int targetPosition = 0; targetPosition < targetColumns.size(); targetPosition++) {
+            final int sourceIndex = queryColumns.indexOf(targetColumns.get(targetPosition));
+            final SqlNode item = selectList.get(sourceIndex);
+            reorderedItems.add(
+                    namesColumns ? withOutputName(item, queryColumns.get(sourceIndex)) : item);
+        }
+        final SqlSelect copy = (SqlSelect) select.clone(select.getParserPosition());
+        copy.setSelectList(new SqlNodeList(reorderedItems, selectList.getParserPosition()));
+        copy.setOrderBy(remapOrdinals(select.getOrderList(), queryColumns, targetColumns));
+        return copy;
+    }
+
+    private static SqlNode withOutputName(SqlNode item, String outputName) {
+        final SqlNode expression =
+                item.getKind() == SqlKind.AS ? ((SqlCall) item).operand(0) : item;
+        return SqlStdOperatorTable.AS.createCall(
+                item.getParserPosition(),
+                expression,
+                new SqlIdentifier(outputName, item.getParserPosition()));
+    }
+
+    private static SqlCall reorderSetOperation(
+            SqlCall setOperation,
+            List<String> queryColumns,
+            List<String> targetColumns,
+            boolean namesColumns) {
+        final List<SqlNode> operands = setOperation.getOperandList();
+        final List<SqlNode> reorderedOperands = new ArrayList<>(operands.size());
+        for (int i = 0; i < operands.size(); i++) {
+            reorderedOperands.add(
+                    reorderQuery(
+                            operands.get(i), queryColumns, targetColumns, namesColumns && i == 0));
+        }
+        return setOperation
+                .getOperator()
+                .createCall(
+                        setOperation.getFunctionQuantifier(),
+                        setOperation.getParserPosition(),
+                        reorderedOperands.toArray(new SqlNode[0]));
+    }
+
+    private static SqlWith reorderWith(
+            SqlWith with,
+            List<String> queryColumns,
+            List<String> targetColumns,
+            boolean namesColumns) {
+        return new SqlWith(
+                with.getParserPosition(),
+                with.withList,
+                reorderQuery(with.body, queryColumns, targetColumns, namesColumns));
+    }
+
+    private static @Nullable SqlNodeList remapOrdinals(
+            @Nullable SqlNodeList orderList,
+            List<String> queryColumns,
+            List<String> targetColumns) {
+        if (orderList == null) {
+            return null;
+        }
+        final List<SqlNode> remappedItems = new ArrayList<>(orderList.size());
+        for (SqlNode orderItem : orderList) {
+            remappedItems.add(remapOrdinal(orderItem, queryColumns, targetColumns));
+        }
+        return new SqlNodeList(remappedItems, orderList.getParserPosition());
+    }
+
+    private static SqlNode remapOrdinal(
+            SqlNode orderItem, List<String> queryColumns, List<String> targetColumns) {
+        if (orderItem instanceof SqlNumericLiteral) {
+            final int ordinal = ((SqlNumericLiteral) orderItem).intValue(false);
+            if (ordinal < 1) {
+                return orderItem;
+            }
+            final int newOrdinal = targetColumns.indexOf(queryColumns.get(ordinal - 1)) + 1;
+            return SqlLiteral.createExactNumeric(
+                    String.valueOf(newOrdinal), orderItem.getParserPosition());
+        }
+        if (orderItem.getKind() == SqlKind.DESCENDING
+                || orderItem.getKind() == SqlKind.NULLS_FIRST
+                || orderItem.getKind() == SqlKind.NULLS_LAST) {
+            final SqlCall modifier = (SqlCall) orderItem;
+            return modifier.getOperator()
+                    .createCall(
+                            modifier.getParserPosition(),
+                            remapOrdinal(modifier.operand(0), queryColumns, targetColumns));
+        }
+        return orderItem;
+    }
+
+    private static ValidationException unsupportedQueryReorder() {
+        return new ValidationException(
+                "The column list of a materialized table reorders the query's columns, which"
+                        + " is not supported for this query. Wrap the query in a SELECT that lists"
+                        + " the columns in the column list's order instead.");
     }
 
     private static void validateIntervalValuePositive(

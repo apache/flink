@@ -495,6 +495,26 @@ class SqlNodeToOperationConvertTableToMaterializedTableTest
         }
 
         @Test
+        void columnIdentifiersOnlyReorderStoresQueryInTableOrder() throws Exception {
+            sourceTable("src_reorder_query").create();
+
+            final ConvertTableToMaterializedTableOperation op =
+                    convertedOperation(
+                            "CREATE OR ALTER MATERIALIZED TABLE src_reorder_query (b, a, ts)"
+                                    + " AS SELECT a, b, ts FROM t1_with_ts");
+
+            final String expandedQuery = op.getMaterializedTable().getExpandedQuery();
+            assertThat(outputColumnNames(expandedQuery)).containsExactly("b", "a", "ts");
+            assertThat(op.getTableChanges())
+                    .filteredOn(TableChange.ModifyDefinitionQuery.class::isInstance)
+                    .map(
+                            change ->
+                                    ((TableChange.ModifyDefinitionQuery) change)
+                                            .getDefinitionQuery())
+                    .containsExactly(expandedQuery);
+        }
+
+        @Test
         void columnIdentifiersOnlyCountMismatchIsRejected()
                 throws TableAlreadyExistException, DatabaseNotExistException {
             sourceTable("src_reorder_bad").create();
