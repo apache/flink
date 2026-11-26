@@ -45,7 +45,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -423,6 +426,28 @@ class PythonJobBundleFactoryTest {
                                         }))
                 .isSameAs(expected);
         assertThat(notified).hasValue(expected);
+    }
+
+    @Test
+    void testServerBindsToLoopbackAddress() throws Exception {
+        final Endpoints.ApiServiceDescriptor.Builder descriptor =
+                Endpoints.ApiServiceDescriptor.newBuilder();
+        final Server server =
+                ServerFactory.createDefault()
+                        .allocateAddressAndCreate(Collections.emptyList(), descriptor);
+        try {
+            List<? extends SocketAddress> listenAddresses = server.getListenSockets();
+            assertThat(listenAddresses).isNotEmpty();
+            for (SocketAddress addr : listenAddresses) {
+                assertThat(addr).isInstanceOf(InetSocketAddress.class);
+                assertThat(((InetSocketAddress) addr).getAddress().isLoopbackAddress())
+                        .as("server should bind to loopback, not wildcard")
+                        .isTrue();
+            }
+        } finally {
+            server.shutdownNow();
+            assertThat(server.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
     }
 
     /** Runs the real gRPC streaming handler without transport scheduling in startup tests. */

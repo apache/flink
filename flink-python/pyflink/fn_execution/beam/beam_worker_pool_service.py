@@ -78,7 +78,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
         if not self._worker_address:
             worker_server = grpc.server(
                 thread_pool_executor.shared_unbounded_instance())
-            worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
+            worker_address = 'localhost:%s' % worker_server.add_insecure_port('localhost:0')
             beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(self, worker_server)
             worker_server.start()
 
