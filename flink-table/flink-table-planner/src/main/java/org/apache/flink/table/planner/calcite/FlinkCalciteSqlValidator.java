@@ -54,6 +54,7 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlExplicitModelCall;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlGroupedWindowFunction;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
@@ -201,6 +202,65 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             }
         }
         super.validateJoin(join, scope);
+    }
+
+    @Override
+    protected void validateSelect(SqlSelect select, RelDataType targetRowType) {
+        super.validateSelect(select, targetRowType);
+        checkGroupAuxiliaryCalls(select);
+    }
+
+    /**
+     * Rejects a group window auxiliary function, e.g. {@code TUMBLE_START}, outside the SELECT,
+     * HAVING and ORDER BY clauses of a query that groups by its window. Calcite checks it only in
+     * those clauses of an aggregate query, so elsewhere it would fail in code generation.
+     */
+    private void checkGroupAuxiliaryCalls(SqlSelect select) {
+        final List<SqlNode> clauses = new ArrayList<>();
+        clauses.add(select.getWhere());
+        clauses.add(select.getGroup());
+        if (!isAggregate(select)) {
+            clauses.add(select.getSelectList());
+            clauses.add(select.getQualify());
+            clauses.add(select.getOrderList());
+        }
+        for (SqlNode clause : clauses) {
+            final SqlCall call = findGroupAuxiliaryCall(clause);
+            if (call != null) {
+                final SqlGroupedWindowFunction function =
+                        (SqlGroupedWindowFunction) call.getOperator();
+                throw new ValidationException(
+                        String.format(
+                                "%s can only be used in the SELECT, HAVING or ORDER BY clause of a "
+                                        + "query that groups by a %s window with the same time "
+                                        + "attribute and interval.",
+                                call, checkNotNull(function.groupFunction).getKind()));
+            }
+        }
+    }
+
+    /** Returns the first group window auxiliary call in the node, but not in its sub-queries. */
+    private static @Nullable SqlCall findGroupAuxiliaryCall(@Nullable SqlNode node) {
+        if (node instanceof SqlNodeList) {
+            for (SqlNode item : (SqlNodeList) node) {
+                final SqlCall call = findGroupAuxiliaryCall(item);
+                if (call != null) {
+                    return call;
+                }
+            }
+        } else if (node instanceof SqlCall && !node.isA(SqlKind.QUERY)) {
+            final SqlCall call = (SqlCall) node;
+            if (call.getOperator().isGroupAuxiliary()) {
+                return call;
+            }
+            for (SqlNode operand : call.getOperandList()) {
+                final SqlCall found = findGroupAuxiliaryCall(operand);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     @Override
