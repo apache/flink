@@ -25,12 +25,17 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -56,6 +61,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -102,6 +108,16 @@ public class PendingCheckpoint implements Checkpoint {
 
     private final Set<OperatorID> notYetAcknowledgedOperatorCoordinators;
 
+    /** The operators whose coordinator state may be stored in its own file. */
+    private final Set<OperatorID> coordinatorsWithStateInFile;
+
+    /**
+     * Coordinator state smaller than this stays inline, or {@link
+     * CheckpointCoordinatorConfiguration#COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET} to use the
+     * storage's inline threshold.
+     */
+    private final long coordinatorStateInlineThreshold;
+
     private final List<MasterState> masterStates;
 
     private final Set<String> notYetAcknowledgedMasterStates;
@@ -147,7 +163,9 @@ public class PendingCheckpoint implements Checkpoint {
             CheckpointProperties props,
             CompletableFuture<CompletedCheckpoint> onCompletionPromise,
             @Nullable PendingCheckpointStats pendingCheckpointStats,
-            CompletableFuture<Void> masterTriggerCompletionPromise) {
+            CompletableFuture<Void> masterTriggerCompletionPromise,
+            Set<OperatorID> coordinatorsWithStateInFile,
+            long coordinatorStateInlineThreshold) {
         checkArgument(
                 checkpointPlan.getTasksToWaitFor().size() > 0,
                 "Checkpoint needs at least one vertex that commits the checkpoint");
@@ -182,6 +200,8 @@ public class PendingCheckpoint implements Checkpoint {
         this.onCompletionPromise = checkNotNull(onCompletionPromise);
         this.pendingCheckpointStats = pendingCheckpointStats;
         this.masterTriggerCompletionPromise = checkNotNull(masterTriggerCompletionPromise);
+        this.coordinatorsWithStateInFile = checkNotNull(coordinatorsWithStateInFile);
+        this.coordinatorStateInlineThreshold = coordinatorStateInlineThreshold;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -328,6 +348,8 @@ public class PendingCheckpoint implements Checkpoint {
             try {
                 checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
 
+                offloadCoordinatorStates();
+
                 // write out the metadata
                 final CheckpointMetadata savepoint =
                         new CheckpointMetadata(
@@ -360,6 +382,61 @@ public class PendingCheckpoint implements Checkpoint {
                 onCompletionPromise.completeExceptionally(t);
                 ExceptionUtils.rethrowIOException(t);
                 return null; // silence the compiler
+            }
+        }
+    }
+
+    /**
+     * Writes the coordinator state of the operators in coordinatorsWithStateInFile to its own file
+     * through this checkpoint's storage location, so that the metadata references the file instead
+     * of holding the bytes. Empty state and state smaller than the inline threshold stay inline.
+     */
+    private void offloadCoordinatorStates() throws IOException {
+        // Only file system storage puts state in its own file. Memory-backed storage would hand the
+        // bytes back in memory anyway, and it caps every state at its maximum state size, which
+        // coordinator state has never been subject to.
+        if (coordinatorsWithStateInFile.isEmpty()
+                || !(targetLocation instanceof FsCheckpointStreamFactory)) {
+            return;
+        }
+        final FsCheckpointStreamFactory streamFactory = (FsCheckpointStreamFactory) targetLocation;
+        final long inlineThreshold =
+                coordinatorStateInlineThreshold
+                                == CheckpointCoordinatorConfiguration
+                                        .COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET
+                        ? streamFactory.getMinFileSizeThreshold()
+                        : coordinatorStateInlineThreshold;
+        for (OperatorID operatorId : coordinatorsWithStateInFile) {
+            final OperatorState operatorState = operatorStates.get(operatorId);
+            final StreamStateHandle state =
+                    operatorState == null ? null : operatorState.getCoordinatorState();
+            if (!(state instanceof ByteStreamStateHandle)) {
+                continue;
+            }
+            final byte[] data = ((ByteStreamStateHandle) state).getData();
+            if (data.length == 0 || data.length < inlineThreshold) {
+                continue;
+            }
+            final long startNanos = System.nanoTime();
+            final StreamStateHandle persisted;
+            try (CheckpointStateOutputStream out =
+                    streamFactory.createCheckpointStateOutputStreamWithoutInlining(
+                            CheckpointedStateScope.EXCLUSIVE)) {
+                out.write(data);
+                persisted = checkNotNull(out.closeAndGetHandle());
+            }
+            operatorState.offloadCoordinatorState(persisted);
+            LOG.debug(
+                    "Wrote {} bytes of the coordinator state of operator {} for checkpoint {} to {}"
+                            + " in {} ms.",
+                    data.length,
+                    operatorId,
+                    checkpointId,
+                    persisted,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos));
+            // not part of the metadata size, so count it in the checkpointed and full size
+            if (pendingCheckpointStats != null) {
+                pendingCheckpointStats.reportCoordinatorStateSize(data.length);
             }
         }
     }

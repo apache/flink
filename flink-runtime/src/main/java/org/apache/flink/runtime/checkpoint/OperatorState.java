@@ -161,6 +161,17 @@ public class OperatorState implements CompositeStateHandle {
         return coordinatorState;
     }
 
+    /**
+     * Replaces the in-memory coordinator state with the handle to the file it was written to. The
+     * bytes are not kept, because the coordinator reads the file when it is restored.
+     */
+    void offloadCoordinatorState(StreamStateHandle persisted) {
+        checkState(
+                coordinatorState instanceof ByteStreamStateHandle,
+                "only coordinator state held in memory can be moved to its own file");
+        coordinatorState = persisted;
+    }
+
     public Map<Integer, OperatorSubtaskState> getSubtaskStates() {
         return Collections.unmodifiableMap(operatorSubtaskStates);
     }

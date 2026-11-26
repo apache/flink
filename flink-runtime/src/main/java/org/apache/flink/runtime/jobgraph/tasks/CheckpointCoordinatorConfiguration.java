@@ -36,6 +36,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public static final long MINIMAL_CHECKPOINT_TIME = 10;
 
+    /**
+     * Value of the coordinator state inline threshold when it is not set, so that the storage's
+     * inline threshold applies.
+     */
+    public static final long COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET = -1L;
+
     // interval of max value means disable periodic checkpoint
     public static final long DISABLED_CHECKPOINT_INTERVAL = Long.MAX_VALUE;
 
@@ -78,6 +84,16 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean createDirectoriesOnJobStart;
 
+    private final boolean coordinatorStateInFileEnabled;
+
+    /**
+     * Coordinator state smaller than this stays inline, or {@link
+     * #COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET} to use the storage's inline threshold. A
+     * configuration serialized by an earlier version has the option disabled, so its threshold of 0
+     * is never used.
+     */
+    private final long coordinatorStateInlineThreshold;
+
     /**
      * @deprecated use {@link #builder()}.
      */
@@ -108,7 +124,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 false,
                 false,
                 false,
-                true);
+                true,
+                false,
+                COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET);
     }
 
     private CheckpointCoordinatorConfiguration(
@@ -126,7 +144,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             boolean enableCheckpointsAfterTasksFinish,
             boolean recoverOutputOnDownstreamTask,
             boolean pauseSourcesUntilFirstCheckpoint,
-            boolean createDirectoriesOnJobStart) {
+            boolean createDirectoriesOnJobStart,
+            boolean coordinatorStateInFileEnabled,
+            long coordinatorStateInlineThreshold) {
 
         if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
             // interval of max value means disable periodic checkpoint
@@ -144,6 +164,11 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         Preconditions.checkArgument(
                 !isUnalignedCheckpointsEnabled || maxConcurrentCheckpoints <= 1,
                 "maxConcurrentCheckpoints can't be > 1 if UnalignedCheckpoints enabled");
+        Preconditions.checkArgument(
+                coordinatorStateInlineThreshold >= 0
+                        || coordinatorStateInlineThreshold
+                                == COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET,
+                "coordinatorStateInlineThreshold must be at least 0, or not set");
 
         // max "in between duration" can be one year - this is to prevent numeric overflows
         if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
@@ -169,6 +194,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
         this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
         this.createDirectoriesOnJobStart = createDirectoriesOnJobStart;
+        this.coordinatorStateInFileEnabled = coordinatorStateInFileEnabled;
+        this.coordinatorStateInlineThreshold = coordinatorStateInlineThreshold;
     }
 
     public long getCheckpointInterval() {
@@ -223,6 +250,19 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return enableCheckpointsAfterTasksFinish;
     }
 
+    public boolean isCoordinatorStateInFileEnabled() {
+        return coordinatorStateInFileEnabled;
+    }
+
+    /**
+     * Returns the size below which coordinator state stays inline, or {@link
+     * #COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET} if the checkpoint storage's inline threshold
+     * applies.
+     */
+    public long getCoordinatorStateInlineThreshold() {
+        return coordinatorStateInlineThreshold;
+    }
+
     public boolean isRecoverOutputOnDownstreamTask() {
         return recoverOutputOnDownstreamTask;
     }
@@ -252,7 +292,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
                 && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish
                 && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask
-                && createDirectoriesOnJobStart == that.createDirectoriesOnJobStart;
+                && createDirectoriesOnJobStart == that.createDirectoriesOnJobStart
+                && coordinatorStateInFileEnabled == that.coordinatorStateInFileEnabled
+                && coordinatorStateInlineThreshold == that.coordinatorStateInlineThreshold;
     }
 
     @Override
@@ -270,7 +312,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 checkpointIdOfIgnoredInFlightData,
                 enableCheckpointsAfterTasksFinish,
                 recoverOutputOnDownstreamTask,
-                createDirectoriesOnJobStart);
+                createDirectoriesOnJobStart,
+                coordinatorStateInFileEnabled,
+                coordinatorStateInlineThreshold);
     }
 
     @Override
@@ -302,6 +346,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + recoverOutputOnDownstreamTask
                 + ", createDirectoriesOnJobStart="
                 + createDirectoriesOnJobStart
+                + ", coordinatorStateInFileEnabled="
+                + coordinatorStateInFileEnabled
+                + ", coordinatorStateInlineThreshold="
+                + coordinatorStateInlineThreshold
                 + '}';
     }
 
@@ -346,6 +394,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private boolean recoverOutputOnDownstreamTask;
         private boolean pauseSourcesUntilFirstCheckpoint;
         private boolean createDirectoriesOnJobStart = true;
+        private boolean coordinatorStateInFileEnabled;
+        private long coordinatorStateInlineThreshold = COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -363,7 +413,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     enableCheckpointsAfterTasksFinish,
                     recoverOutputOnDownstreamTask,
                     pauseSourcesUntilFirstCheckpoint,
-                    createDirectoriesOnJobStart);
+                    createDirectoriesOnJobStart,
+                    coordinatorStateInFileEnabled,
+                    coordinatorStateInlineThreshold);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -440,6 +492,18 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setPauseSourcesUntilFirstCheckpoint(
                 boolean pauseSourcesUntilFirstCheckpoint1) {
             pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint1;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setCoordinatorStateInFileEnabled(
+                boolean coordinatorStateInFileEnabled) {
+            this.coordinatorStateInFileEnabled = coordinatorStateInFileEnabled;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setCoordinatorStateInlineThreshold(
+                long coordinatorStateInlineThreshold) {
+            this.coordinatorStateInlineThreshold = coordinatorStateInlineThreshold;
             return this;
         }
 

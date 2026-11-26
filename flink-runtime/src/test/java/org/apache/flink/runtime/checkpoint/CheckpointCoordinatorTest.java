@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -77,10 +78,12 @@ import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStor
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.ttl.mock.MockCheckpointStorage;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -98,6 +101,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.verification.VerificationMode;
+import org.slf4j.event.Level;
 
 import javax.annotation.Nullable;
 
@@ -133,6 +137,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
@@ -144,6 +149,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.IO_EXC
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN;
 import static org.apache.flink.runtime.checkpoint.CheckpointStoreUtil.INVALID_CHECKPOINT_ID;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -169,6 +175,10 @@ class CheckpointCoordinatorTest {
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
+
+    @RegisterExtension
+    final LoggerAuditingExtension coordinatorLog =
+            new LoggerAuditingExtension(CheckpointCoordinator.class, Level.INFO);
 
     @Test
     void testSharedStateNotDiscaredOnAbort() throws Exception {
@@ -3084,6 +3094,176 @@ class CheckpointCoordinatorTest {
                         new ArrayList<OperatorCoordinatorCheckpointContext>(states.keySet()))
                 .setVertexFinishedStateCheckerFactory(vertexFinishedStateCheckerFactory)
                 .build(EXECUTOR_RESOURCE.getExecutor());
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdAppliesWhenStateInFileIsEnabled() throws Exception {
+        assertThat(checkpointCoordinatorState(true, 0, new byte[100]))
+                .isInstanceOf(FileStateHandle.class);
+        assertThat(checkpointCoordinatorState(true, 1024 * 1024, new byte[64 * 1024]))
+                .isInstanceOf(ByteStreamStateHandle.class);
+    }
+
+    @Test
+    void testStorageInlineThresholdAppliesWhenCoordinatorStateInlineThresholdIsNotSet()
+            throws Exception {
+        assertThat(
+                        checkpointCoordinatorState(
+                                true, COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET, new byte[100]))
+                .isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(
+                        checkpointCoordinatorState(
+                                true,
+                                COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET,
+                                new byte[64 * 1024]))
+                .isInstanceOf(FileStateHandle.class);
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdIsIgnoredWhenStateInFileIsDisabled() throws Exception {
+        assertThat(checkpointCoordinatorState(false, 0, new byte[100]))
+                .isInstanceOf(ByteStreamStateHandle.class);
+    }
+
+    @Test
+    void testStateOfCoordinatorsThatCannotReadItFromAFileStaysInline() throws Exception {
+        assertThat(checkpointCoordinatorState(true, 0, new byte[100], false))
+                .isInstanceOf(ByteStreamStateHandle.class);
+    }
+
+    @Test
+    void testLogsWhetherCoordinatorStateMayBeStoredInItsOwnFile() throws Exception {
+        final CheckpointStorage fileSystem =
+                new FileSystemCheckpointStorage(TempDirUtils.newFolder(tmpFolder).toURI());
+
+        assertThat(logOfCoordinatorStateInFile(false, 0, fileSystem))
+                .contains("is disabled for job")
+                .endsWith("(execution.checkpointing.coordinator-state-in-file.enabled=false).");
+        assertThat(
+                        logOfCoordinatorStateInFile(
+                                true, COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET, fileSystem))
+                .contains("(execution.checkpointing.coordinator-state-in-file.enabled=true)")
+                .endsWith(
+                        "unless it is empty or smaller than "
+                                + MemorySize.parse("20kb").toHumanReadableString()
+                                + ".");
+        assertThat(logOfCoordinatorStateInFile(true, 1024, fileSystem))
+                .endsWith(
+                        "unless it is empty or smaller than "
+                                + MemorySize.parse("1kb").toHumanReadableString()
+                                + ".");
+        assertThat(
+                        logOfCoordinatorStateInFile(
+                                true,
+                                COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET,
+                                new JobManagerCheckpointStorage()))
+                .endsWith(
+                        "but has no effect with JobManagerCheckpointStorage, which keeps state in"
+                                + " memory.");
+        assertThat(
+                        logOfCoordinatorStateInFile(
+                                true,
+                                COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET,
+                                new MockCheckpointStorage()))
+                .contains(MockCheckpointStorage.class.getName())
+                .endsWith("as FileSystemCheckpointStorage does.");
+    }
+
+    /** Creates a coordinator and returns its one log line about coordinator state in a file. */
+    private String logOfCoordinatorStateInFile(
+            boolean stateInFileEnabled, long inlineThreshold, CheckpointStorage storage)
+            throws Exception {
+        final int logged = coordinatorLog.getMessages().size();
+        new CheckpointCoordinatorBuilder()
+                .setCheckpointCoordinatorConfiguration(
+                        CheckpointCoordinatorConfiguration.builder()
+                                .setCoordinatorStateInFileEnabled(stateInFileEnabled)
+                                .setCoordinatorStateInlineThreshold(inlineThreshold)
+                                .build())
+                .setCheckpointStorage(storage)
+                .build(EXECUTOR_RESOURCE.getExecutor())
+                .shutdown();
+        final List<String> lines =
+                coordinatorLog
+                        .getMessages()
+                        .subList(logged, coordinatorLog.getMessages().size())
+                        .stream()
+                        .filter(line -> line.startsWith("Storing operator coordinator state"))
+                        .collect(Collectors.toList());
+        assertThat(lines).hasSize(1);
+        return lines.get(0);
+    }
+
+    private StreamStateHandle checkpointCoordinatorState(
+            boolean stateInFileEnabled, long inlineThreshold, byte[] state) throws Exception {
+        return checkpointCoordinatorState(stateInFileEnabled, inlineThreshold, state, true);
+    }
+
+    /**
+     * Completes one checkpoint on file system storage with the default 20 KB inline threshold and
+     * returns the state of its one coordinator.
+     */
+    private StreamStateHandle checkpointCoordinatorState(
+            boolean stateInFileEnabled,
+            long inlineThreshold,
+            byte[] state,
+            boolean supportsStateInFile)
+            throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        final ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        final ExecutionAttemptID attemptId =
+                graph.getJobVertex(jobVertexID)
+                        .getTaskVertices()[0]
+                        .getCurrentExecutionAttempt()
+                        .getAttemptId();
+        final OperatorID operatorId = new OperatorID();
+        final MockOperatorCoordinatorCheckpointContext coordinatorContext =
+                new MockOperatorCheckpointCoordinatorContextBuilder()
+                        .setOperatorID(operatorId)
+                        .setOnCallingCheckpointCoordinator(
+                                (checkpointId, result) -> result.complete(state))
+                        .setSupportsCoordinatorStateInFile(supportsStateInFile)
+                        .build();
+        final CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setCoordinatorStateInFileEnabled(stateInFileEnabled)
+                                        .setCoordinatorStateInlineThreshold(inlineThreshold)
+                                        .build())
+                        .setCheckpointStorage(
+                                new FileSystemCheckpointStorage(
+                                        TempDirUtils.newFolder(tmpFolder).toURI()))
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCoordinatorsToCheckpoint(Collections.singleton(coordinatorContext))
+                        .build(graph);
+        try {
+            checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            final long checkpointId =
+                    Collections.max(checkpointCoordinator.getPendingCheckpoints().keySet());
+            checkpointCoordinator.receiveAcknowledgeMessage(
+                    new AcknowledgeCheckpoint(
+                            graph.getJobID(),
+                            attemptId,
+                            checkpointId,
+                            new CheckpointMetrics(),
+                            null),
+                    TASK_MANAGER_LOCATION_INFO);
+
+            assertThat(checkpointCoordinator.getSuccessfulCheckpoints()).hasSize(1);
+            return checkpointCoordinator
+                    .getSuccessfulCheckpoints()
+                    .get(0)
+                    .getOperatorStates()
+                    .get(operatorId)
+                    .getCoordinatorState();
+        } finally {
+            checkpointCoordinator.shutdown();
+        }
     }
 
     @Test

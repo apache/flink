@@ -51,6 +51,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -70,6 +71,7 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -252,6 +254,34 @@ abstract class JobGraphGeneratorTestBase {
 
         assertThat(CheckpointingOptions.getCheckpointingMode(jobGraph.getJobConfiguration()))
                 .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+    }
+
+    @Test
+    void testCoordinatorStateInFileOptions() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromData(0).print();
+        CheckpointCoordinatorConfiguration defaults =
+                createJobGraph(env.getStreamGraph())
+                        .getCheckpointingSettings()
+                        .getCheckpointCoordinatorConfiguration();
+        assertThat(defaults.isCoordinatorStateInFileEnabled()).isFalse();
+        assertThat(defaults.getCoordinatorStateInlineThreshold())
+                .isEqualTo(
+                        CheckpointCoordinatorConfiguration
+                                .COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET);
+
+        Configuration config = new Configuration();
+        config.set(CheckpointingOptions.COORDINATOR_STATE_IN_FILE_ENABLED, true);
+        config.set(
+                CheckpointingOptions.COORDINATOR_STATE_INLINE_THRESHOLD, MemorySize.parse("2mb"));
+        env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.fromData(0).print();
+        CheckpointCoordinatorConfiguration configured =
+                createJobGraph(env.getStreamGraph())
+                        .getCheckpointingSettings()
+                        .getCheckpointCoordinatorConfiguration();
+        assertThat(configured.isCoordinatorStateInFileEnabled()).isTrue();
+        assertThat(configured.getCoordinatorStateInlineThreshold()).isEqualTo(2 * 1024 * 1024);
     }
 
     @Test
