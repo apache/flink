@@ -18,12 +18,12 @@ limitations under the License.
 <Root>
   <TestCase name="testComplexCondition1">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND 2=2 AND (SELECT count(*) FROM z WHERE i = 5 AND j = 6) > 0)]]>
+      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND 2=2 AND (SELECT count(*) FROM z WHERE i = 5 AND j = 6) > 0)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true, EXISTS({
++- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, _UTF-16LE'3'), true, EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), =(2, 2), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[AND(=($0, 5), =($1, 6))])
@@ -37,7 +37,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, 3), EXISTS({
++- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, _UTF-16LE'3'), EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[AND(=($0, 5), =($1, 6))])
@@ -51,12 +51,12 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   </TestCase>
   <TestCase name="testComplexCondition2">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND (SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)]]>
+      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND (SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true, EXISTS({
++- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, _UTF-16LE'3'), true, EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[OR(AND(=($0, 5), =($1, 6)), AND(NOT(<>($0, 5)), =($1, 7), true))])
@@ -70,7 +70,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, 3), EXISTS({
++- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, _UTF-16LE'3'), EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[AND(=($0, 5), SEARCH($1, Sarg[6L:BIGINT, 7L:BIGINT]:BIGINT))])
@@ -84,12 +84,12 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   </TestCase>
   <TestCase name="testComplexCondition3">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND 2=2 AND (SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)]]>
+      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND 2=2 AND (SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true, EXISTS({
++- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, _UTF-16LE'3'), true, EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), =(2, 2), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[OR(AND(=($0, 5), =($1, 6)), AND(NOT(<>($0, 5)), =($1, 7), true))])
@@ -103,7 +103,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, 3), EXISTS({
++- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, _UTF-16LE'3'), EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[AND(=($0, 5), SEARCH($1, Sarg[6L:BIGINT, 7L:BIGINT]:BIGINT))])
@@ -117,19 +117,19 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   </TestCase>
   <TestCase name="testSimpleCondition">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true]]>
+      <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true))])
++- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, _UTF-16LE'3'), true))])
    +- LogicalTableScan(table=[[default_catalog, default_database, x]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), =($2, 3)))])
++- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), =($2, _UTF-16LE'3')))])
    +- LogicalTableScan(table=[[default_catalog, default_database, x]])
 ]]>
     </Resource>

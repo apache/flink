@@ -184,7 +184,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
       """
         |SELECT * FROM Orders AS o
         | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
-        | ON o.currency = r.currency and o.currency = 5
+        | ON o.currency = r.currency and o.currency = '5'
       """.stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }

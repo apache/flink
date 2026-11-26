@@ -43,6 +43,25 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
       .isThrownBy(() => testTableApi("w" > 4.toExpr, "FAIL"))
   }
 
+  @Test
+  def testNumericAndCharacterStringComparison(): Unit = {
+    testExpectedSqlException(
+      "f2 = f10",
+      "Cannot compare INT with STRING in '`testTable`.`f2` = `testTable`.`f10`'. Implicit type " +
+        "conversion between numeric and character string types is not supported. Use CAST to " +
+        "convert one side explicitly, e.g. CAST(`testTable`.`f10` AS INT)."
+    )
+    testExpectedSqlException("f10 <> f2", "Cannot compare STRING with INT")
+    testExpectedSqlException(
+      "f16 IS DISTINCT FROM 'a'",
+      "Cannot compare DECIMAL(19, 8) with CHAR(1)")
+    testExpectedSqlException("'1' IS NOT DISTINCT FROM f0", "Cannot compare CHAR(1) with TINYINT")
+    testExpectedSqlException(
+      "CASE f2 WHEN '1' THEN 1 ELSE 0 END",
+      "Cannot compare INT with CHAR(1)")
+    testExpectedSqlException("NULLIF(f2, '1')", "Cannot compare INT with CHAR(1)")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
