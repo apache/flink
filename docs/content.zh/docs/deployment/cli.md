@@ -85,12 +85,17 @@ to the cluster, without changing the configuration file.
 When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
 
 The job JAR can also be given as a URI on a remote file system, for example
-`s3://`, `hdfs://` or `https://`. The CLI fetches it into a new directory under the first
-[`io.tmp.dirs`]({{< ref "docs/deployment/config#io-tmp-dirs" >}}) entry before submitting the job
-and deletes it afterwards. The matching
-[file system plugin]({{< ref "docs/deployment/filesystems/overview" >}}) has to be available to the
-client. HTTP downloads honor `user.artifacts.raw-http-enabled` and `user.artifacts.http-headers`,
-as in Application Mode. A local file with the same path takes precedence over a URI.
+`s3://`, `hdfs://` or `https://`. The CLI fetches it under the first
+[`io.tmp.dirs`]({{< ref "docs/deployment/config#io-tmp-dirs" >}}) entry before submitting the job.
+The matching [file system plugin]({{< ref "docs/deployment/filesystems/overview" >}}) has to be
+available to the client. A local file with the same path takes precedence over a URI.
+
+A JAR from a file system such as `s3://` or `hdfs://` is kept in `flink-cli-jar-cache` under
+`io.tmp.dirs` and reused while the remote file keeps its length and modification time, so
+submitting several jobs from one JAR downloads it once. The cache is only used if that directory
+is owned by and accessible only to the current user; otherwise, and for `https://`, the JAR is
+fetched for each command and deleted afterwards. HTTP downloads honor
+`user.artifacts.raw-http-enabled` and `user.artifacts.http-headers`, as in Application Mode.
 
 ```bash
 $ ./bin/flink run \

@@ -38,18 +38,25 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for running a job JAR given as a remote URI instead of a local path. */
 class CliFrontendRemoteJarTest {
@@ -183,7 +190,9 @@ class CliFrontendRemoteJarTest {
                 .hasMessageContaining("Could not fetch JAR file unknown-fs://bucket/job.jar")
                 .hasRootCauseInstanceOf(UnsupportedFileSystemSchemeException.class);
         frontend.deleteFetchedJobJars();
-        assertThat(tmpDir).isEmptyDirectory();
+        // Only the (empty) cache directory is left behind.
+        assertThat(tmpDir).isDirectoryNotContaining(path -> !path.equals(cacheDir()));
+        assertThat(cacheDir()).isEmptyDirectory();
     }
 
     @Test
@@ -242,6 +251,77 @@ class CliFrontendRemoteJarTest {
     }
 
     @Test
+    void testFileSystemJarIsCachedAcrossActions(@TempDir Path remoteDir) throws Exception {
+        assumePosix();
+        String uri = copyTestJarTo(remoteDir);
+        CliFrontend frontend =
+                new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
+
+        buildAndDelete(frontend, uri);
+        Path cached = cachedJar();
+        Object firstCopy = Files.readAttributes(cached, BasicFileAttributes.class).fileKey();
+        buildAndDelete(frontend, uri);
+
+        // Still the file moved into the cache by the first action: not fetched again.
+        assertThat(Files.readAttributes(cached, BasicFileAttributes.class).fileKey())
+                .isEqualTo(firstCopy);
+        assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(cacheDir())))
+                .isEqualTo("rwx------");
+    }
+
+    @Test
+    void testChangedFileSystemJarRefreshesTheCache(@TempDir Path remoteDir) throws Exception {
+        assumePosix();
+        String uri = copyTestJarTo(remoteDir);
+        CliFrontend frontend =
+                new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
+
+        buildAndDelete(frontend, uri);
+        Object firstCopy = Files.readAttributes(cachedJar(), BasicFileAttributes.class).fileKey();
+        Path remoteJar = remoteDir.resolve(JAR_NAME);
+        Files.setLastModifiedTime(
+                remoteJar,
+                FileTime.fromMillis(Files.getLastModifiedTime(remoteJar).toMillis() + 60_000));
+        buildAndDelete(frontend, uri);
+
+        assertThat(Files.readAttributes(cachedJar(), BasicFileAttributes.class).fileKey())
+                .isNotEqualTo(firstCopy);
+    }
+
+    @Test
+    void testCacheIsNotUsedWhenOthersCanAccessIt(@TempDir Path remoteDir) throws Exception {
+        assumePosix();
+        Files.createDirectory(
+                cacheDir(),
+                PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x")));
+        Files.setPosixFilePermissions(cacheDir(), PosixFilePermissions.fromString("rwxr-xr-x"));
+        CliFrontend frontend =
+                new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
+
+        buildAndDelete(frontend, copyTestJarTo(remoteDir));
+
+        assertThat(cacheDir()).isEmptyDirectory();
+        assertThat(tmpDir).isDirectoryNotContaining(path -> !path.equals(cacheDir()));
+    }
+
+    @Test
+    void testCacheIsNotUsedThroughASymlink(@TempDir Path remoteDir) throws Exception {
+        assumePosix();
+        Path elsewhere =
+                Files.createDirectory(
+                        tmpDir.resolve("elsewhere"),
+                        PosixFilePermissions.asFileAttribute(
+                                PosixFilePermissions.fromString("rwx------")));
+        Files.createSymbolicLink(cacheDir(), elsewhere);
+        CliFrontend frontend =
+                new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
+
+        buildAndDelete(frontend, copyTestJarTo(remoteDir));
+
+        assertThat(elsewhere).isEmptyDirectory();
+    }
+
+    @Test
     void testOnlyUrisWithSchemeAreFetched() {
         assertThat(CliFrontend.hasUriScheme("s3://bucket/job.jar")).isTrue();
         assertThat(CliFrontend.hasUriScheme("hdfs:///jobs/job.jar")).isTrue();
@@ -253,6 +333,34 @@ class CliFrontendRemoteJarTest {
         assertThat(CliFrontend.hasUriScheme("C:\\flink\\job.jar")).isFalse();
         assertThat(CliFrontend.hasUriScheme("C:/flink/job.jar")).isFalse();
         assertThat(CliFrontend.hasUriScheme("/opt/my jobs/job.jar")).isFalse();
+    }
+
+    private static void assumePosix() {
+        assumeThat(FileSystems.getDefault().supportedFileAttributeViews()).contains("posix");
+    }
+
+    private static String copyTestJarTo(Path dir) throws Exception {
+        Path jar = Files.copy(Paths.get(getTestJarPath()), dir.resolve(JAR_NAME));
+        return jar.toUri().toString();
+    }
+
+    private void buildAndDelete(CliFrontend frontend, String uri) throws Exception {
+        try (PackagedProgram program = frontend.buildProgram(programOptions(uri), configuration)) {
+            assertThat(program.getMainClassName()).isEqualTo(TEST_JAR_MAIN_CLASS);
+        }
+        frontend.deleteFetchedJobJars();
+    }
+
+    private Path cacheDir() {
+        return tmpDir.resolve(JobJarCache.DIRECTORY_NAME);
+    }
+
+    private Path cachedJar() throws Exception {
+        try (Stream<Path> entries = Files.list(cacheDir())) {
+            List<Path> cached = entries.collect(Collectors.toList());
+            assertThat(cached).hasSize(1);
+            return cached.get(0).resolve(JAR_NAME);
+        }
     }
 
     private String jarUri() {

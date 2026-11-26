@@ -52,7 +52,7 @@ public class CliFrontendParser {
                     "jarfile",
                     true,
                     "Flink program JAR file: a local path, or a URI such as s3://, hdfs:// or https://"
-                            + " which is fetched before the program is run.");
+                            + " which is fetched (and cached for file systems) before the program is run.");
 
     static final Option CLASS_OPTION =
             new Option(

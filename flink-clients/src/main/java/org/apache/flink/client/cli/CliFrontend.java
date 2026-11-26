@@ -88,6 +88,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -1125,25 +1126,7 @@ public class CliFrontend {
             throw new FileNotFoundException("JAR URI does not name a file: " + jarUri);
         }
         try {
-            if ("local".equals(uri.getScheme())) {
-                // Used in place, nothing to fetch or delete.
-                fetched =
-                        new ArtifactFetchManager(configuration)
-                                .fetchArtifacts(jarUri, null)
-                                .getJobJar();
-            } else {
-                fetched =
-                        new ArtifactFetchManager(
-                                        configuration,
-                                        createFetchDirectory(configuration).getAbsolutePath())
-                                .fetchArtifacts(jarUri, null)
-                                .getJobJar();
-                // Also removed if the CLI is interrupted while an attached job is running.
-                fetched.deleteOnExit();
-                LOG.info("Fetched job JAR {} to {}.", jarUri, fetched);
-            }
-        } catch (FileNotFoundException e) {
-            throw e;
+            fetched = fetch(jarUri, uri.getScheme(), configuration);
         } catch (Exception e) {
             FileNotFoundException fileNotFound =
                     new FileNotFoundException(
@@ -1152,6 +1135,31 @@ public class CliFrontend {
             throw fileNotFound;
         }
         fetchedJobJars.put(jarUri, fetched);
+        return fetched;
+    }
+
+    private File fetch(String jarUri, String scheme, Configuration configuration) throws Exception {
+        if ("local".equals(scheme)) {
+            // Used in place, nothing to fetch or delete.
+            return new ArtifactFetchManager(configuration).fetchArtifacts(jarUri, null).getJobJar();
+        }
+        // HTTP has no modification time to tell whether a cached copy is still current.
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            Optional<JobJarCache> cache =
+                    JobJarCache.open(ConfigurationUtils.parseTempDirectories(configuration)[0]);
+            if (cache.isPresent()) {
+                return cache.get().get(jarUri, configuration);
+            }
+        }
+        File fetched =
+                new ArtifactFetchManager(
+                                configuration,
+                                createFetchDirectory(configuration).getAbsolutePath())
+                        .fetchArtifacts(jarUri, null)
+                        .getJobJar();
+        // Also removed if the CLI is interrupted while an attached job is running.
+        fetched.deleteOnExit();
+        LOG.info("Fetched job JAR {} to {}.", jarUri, fetched);
         return fetched;
     }
 
@@ -1179,7 +1187,10 @@ public class CliFrontend {
         }
     }
 
-    /** Deletes the JAR files fetched by {@link #getJarFile}; a {@code local://} JAR is kept. */
+    /**
+     * Deletes the JAR files fetched by {@link #getJarFile} for this action. A {@code local://} JAR
+     * and the copies kept in {@link JobJarCache} stay.
+     */
     @VisibleForTesting
     void deleteFetchedJobJars() {
         fetchedJobJarDirs.forEach(FileUtils::deleteDirectoryQuietly);
