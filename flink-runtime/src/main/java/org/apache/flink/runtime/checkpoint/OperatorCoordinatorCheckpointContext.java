@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
 
@@ -67,6 +68,24 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
      * <p>In both cases, the coordinator should reset to an empty (new) state.
      */
     void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception;
+
+    /**
+     * Whether the coordinator can restore state that is stored in its own file. Such state is read
+     * by the coordinator itself, without blocking the caller, so the JobManager does not need to
+     * keep it with the retained checkpoints. The state of coordinators that cannot is always kept
+     * inline in the checkpoint metadata. The value must not change during the lifetime of the
+     * coordinator.
+     */
+    boolean supportsCoordinatorStateInFile();
+
+    /**
+     * Resets the coordinator to the checkpoint whose state is stored in its own file. This is
+     * called only if {@link #supportsCoordinatorStateInFile()} returns true; other restores call
+     * {@link #resetToCheckpoint(long, byte[])}. It must not block on reading the state, since it
+     * may be called on the JobManager main thread.
+     */
+    void resetToCheckpointFromHandle(long checkpointId, StreamStateHandle checkpointState)
+            throws Exception;
 
     /**
      * Called if a task is recovered as part of a <i>partial failover</i>, meaning a failover
