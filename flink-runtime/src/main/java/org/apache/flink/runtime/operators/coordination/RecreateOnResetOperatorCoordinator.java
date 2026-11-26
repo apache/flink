@@ -34,6 +34,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -48,9 +49,11 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.closeAsyncWithTimeout;
 
@@ -66,6 +69,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     private final OperatorCoordinator.Context context;
     private final ThreadFactory stateReaderThreads;
     private DeferrableCoordinator coordinator;
+    // the latest reset that reads its state from a file
+    private CompletableFuture<Void> lastResetFromFile = FutureUtils.completedVoidFuture();
     private boolean started;
     private volatile boolean closed;
 
@@ -158,7 +163,12 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
      * Reads the state in a separate thread, so this method does not block on I/O. The new
      * coordinator is created and reset once the state has been read and the old coordinator has
      * closed; until then, calls are deferred as for any reset. If a later reset replaces this one,
-     * or the coordinator is closed, before the state has been read, the read is stopped.
+     * or the coordinator is closed, before the state has been read, the read is stopped. If an
+     * earlier reset of this coordinator that read its state from a file has not finished, the read
+     * starts once it has, so that the JobManager does not hold both copies. A reset waits at most
+     * the closing timeout, after which neither it nor later resets wait for that earlier reset.
+     * Under the adaptive scheduler, which creates a new coordinator for every restart, the
+     * JobManager holds no more copies than for state kept inline.
      */
     @Override
     public void resetToCheckpointFromHandle(
@@ -171,11 +181,13 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                         MdcUtils.asContextData(context.getJobID()),
                         checkpointState,
                         stateReaderThreads,
+                        lastResetFromFile,
+                        closingTimeoutMs,
                         checkpointData);
-        resetToCheckpoint(checkpointId, checkpointData, stateReader);
+        lastResetFromFile = resetToCheckpoint(checkpointId, checkpointData, stateReader);
     }
 
-    private void resetToCheckpoint(
+    private CompletableFuture<Void> resetToCheckpoint(
             final long checkpointId,
             final CompletableFuture<byte[]> checkpointData,
             @Nullable final StateReader stateReader) {
@@ -196,7 +208,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         // capture the status whether the coordinator was started when this method was called
         final boolean wasStarted = this.started;
 
-        closingFuture
+        return closingFuture
                 .handle(
                         (ignored, e) -> {
                             if (e != null) {
@@ -209,7 +221,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                             return null;
                         })
                 .thenCombine(checkpointData, (ignored, data) -> data)
-                .handle(
+                .<Void>handle(
                         (data, e) -> {
                             if (!closed) {
                                 if (e != null) {
@@ -624,6 +636,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         private final CloseableRegistry openStreams = new CloseableRegistry();
         private final ThreadFactory threads;
         private final String stateDescription;
+        private volatile boolean stopped;
 
         private StateReader(ThreadFactory threads, String stateDescription) {
             this.threads = threads;
@@ -636,6 +649,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                 Map<String, String> mdc,
                 StreamStateHandle checkpointState,
                 ThreadFactory threads,
+                CompletableFuture<Void> previousReset,
+                long maxWaitMs,
                 CompletableFuture<byte[]> checkpointData) {
             final StateReader stateReader = new StateReader(threads, checkpointState.toString());
             threads.newThread(
@@ -645,6 +660,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                                             checkpointId,
                                             operatorId,
                                             checkpointState,
+                                            previousReset,
+                                            maxWaitMs,
                                             checkpointData);
                                 }
                             })
@@ -656,8 +673,14 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                 long checkpointId,
                 OperatorID operatorId,
                 StreamStateHandle checkpointState,
+                CompletableFuture<Void> previousReset,
+                long maxWaitMs,
                 CompletableFuture<byte[]> checkpointData) {
             try {
+                awaitPreviousReset(previousReset, maxWaitMs, checkpointId, operatorId);
+                if (stopped) {
+                    throw new IOException("The read was stopped before it started.");
+                }
                 LOG.info(
                         "Reading the coordinator state of operator {} for checkpoint {} from {}.",
                         operatorId,
@@ -691,6 +714,36 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         }
 
         /**
+         * Waits until the previous reset of this coordinator that read its state from a file has
+         * finished, at most for the given time. A reset that is stopped while it waits keeps
+         * waiting, so that a later reset, which waits for this one, also waits for the earlier ones
+         * until this wait times out.
+         */
+        private static void awaitPreviousReset(
+                CompletableFuture<Void> previousReset,
+                long maxWaitMs,
+                long checkpointId,
+                OperatorID operatorId)
+                throws InterruptedException {
+            try {
+                previousReset.get(maxWaitMs, TimeUnit.MILLISECONDS);
+            } catch (ExecutionException e) {
+                // the previous reset has finished
+            } catch (TimeoutException e) {
+                LOG.warn(
+                        "The previous reset of the coordinator of operator {} has not finished"
+                                + " after {} ms and may still hold its copy of the state. The reset"
+                                + " to checkpoint {}, and resets after it, no longer wait for it.",
+                        operatorId,
+                        maxWaitMs,
+                        checkpointId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw e;
+            }
+        }
+
+        /**
          * Reads exactly the recorded size of the state, if it is known, so that the state is held
          * in memory only once, and a file of another size fails the read.
          */
@@ -714,6 +767,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
          * opened is closed as soon as it is open.
          */
         private void stop() {
+            stopped = true;
             if (openStreams.isClosed()) {
                 return;
             }

@@ -42,6 +42,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
@@ -399,6 +401,223 @@ class RecreateOnResetOperatorCoordinatorTest {
         assertThat(log.getMessages()).isEmpty();
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testReadStartsOnceThePreviousResetHasFinished(boolean middleResetReadsFromFile)
+            throws Exception {
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        final RecordingThreadFactory threads = new RecordingThreadFactory();
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator)
+                        new TestingCoordinatorProvider(null)
+                                .create(context, Long.MAX_VALUE, threads);
+        // returns only when released, not when its stream is closed
+        final BlockingStateHandle slowState = new BlockingStateHandle(new byte[] {1}, false);
+        final ThreadRecordingStateHandle replacedState =
+                new ThreadRecordingStateHandle(
+                        new ByteStreamStateHandle("replaced", new byte[] {2}));
+        final ThreadRecordingStateHandle latestState =
+                new ThreadRecordingStateHandle(new ByteStreamStateHandle("latest", new byte[] {3}));
+
+        coordinator.resetToCheckpointFromHandle(1L, slowState);
+        slowState.reading.await();
+        if (middleResetReadsFromFile) {
+            // so that only the flag set when it is stopped keeps the replaced reset from reading
+            threads.holdBack(4);
+            coordinator.resetToCheckpointFromHandle(2L, replacedState);
+        } else {
+            coordinator.resetToCheckpoint(2L, new byte[] {2});
+        }
+        coordinator.resetToCheckpointFromHandle(3L, latestState);
+        // each reset starts its reader, then the thread that stops the read it replaces
+        final Thread latestReader = threads.get(middleResetReadsFromFile ? 3 : 2);
+        if (middleResetReadsFromFile) {
+            final Thread replacedReader = threads.get(1);
+            waitUntilCondition(
+                    () ->
+                            isWaitingForPreviousReset(replacedReader)
+                                    || replacedState.readingThread != null);
+        }
+        waitUntilCondition(
+                () -> isWaitingForPreviousReset(latestReader) || latestState.readingThread != null);
+        assertThat(replacedState.readingThread).isNull();
+        assertThat(latestState.readingThread).isNull();
+
+        slowState.release();
+        latestReader.join();
+
+        assertThat(latestState.readingThread).isSameAs(latestReader);
+        assertThat(replacedState.readingThread).isNull();
+        assertThat(getInternalCoordinator(coordinator).getLastRestoredCheckpointState())
+                .containsExactly(3);
+        assertThat(context.isJobFailed()).isFalse();
+        assertThat(log.getMessages()).isEmpty();
+        threads.release();
+    }
+
+    @Test
+    void testReadIsNotStartedIfTheCoordinatorIsClosedWhileItWaits() throws Exception {
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        final RecordingThreadFactory threads = new RecordingThreadFactory();
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator)
+                        new TestingCoordinatorProvider(null)
+                                .create(context, Long.MAX_VALUE, threads);
+        final BlockingStateHandle slowState = new BlockingStateHandle(new byte[] {1}, false);
+        final ThreadRecordingStateHandle latestState =
+                new ThreadRecordingStateHandle(new ByteStreamStateHandle("latest", new byte[] {2}));
+
+        coordinator.resetToCheckpointFromHandle(1L, slowState);
+        slowState.reading.await();
+        coordinator.resetToCheckpointFromHandle(2L, latestState);
+        final Thread latestReader = threads.get(1);
+        waitUntilCondition(
+                () -> isWaitingForPreviousReset(latestReader) || latestState.readingThread != null);
+        // so that only the flag set when it is stopped keeps the reset from reading
+        threads.holdBack(3);
+        coordinator.close();
+        slowState.release();
+        latestReader.join();
+
+        assertThat(latestState.readingThread).isNull();
+        assertThat(context.isJobFailed()).isFalse();
+        assertThat(log.getMessages()).isEmpty();
+        threads.release();
+    }
+
+    @Test
+    void testInterruptedWaitFailsTheReadAndKeepsTheInterrupt() throws Exception {
+        final AtomicBoolean interruptedWhenFailing = new AtomicBoolean();
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS) {
+                    @Override
+                    public void failJob(Throwable cause) {
+                        interruptedWhenFailing.set(Thread.currentThread().isInterrupted());
+                        super.failJob(cause);
+                    }
+                };
+        final RecordingThreadFactory threads = new RecordingThreadFactory();
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator)
+                        new TestingCoordinatorProvider(null)
+                                .create(context, Long.MAX_VALUE, threads);
+        final BlockingStateHandle slowState = new BlockingStateHandle(new byte[] {1}, false);
+        final ThreadRecordingStateHandle latestState =
+                new ThreadRecordingStateHandle(new ByteStreamStateHandle("latest", new byte[] {2}));
+
+        coordinator.resetToCheckpointFromHandle(1L, slowState);
+        slowState.reading.await();
+        coordinator.resetToCheckpointFromHandle(2L, latestState);
+        final Thread latestReader = threads.get(1);
+        waitUntilCondition(() -> isWaitingForPreviousReset(latestReader));
+        latestReader.interrupt();
+        latestReader.join();
+
+        assertThat(context.getJobFailureReason())
+                .hasMessageContaining("Could not read the coordinator state of checkpoint 2")
+                .hasRootCauseInstanceOf(InterruptedException.class);
+        assertThat(interruptedWhenFailing).isTrue();
+        assertThat(latestState.readingThread).isNull();
+        slowState.release();
+    }
+
+    @Test
+    void testReadWaitsForThePreviousResetWhileItRestoresTheCoordinator() throws Exception {
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        final CountDownLatch restoring = new CountDownLatch(1);
+        final CountDownLatch restored = new CountDownLatch(1);
+        final RecordingThreadFactory threads = new RecordingThreadFactory();
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator)
+                        new BlockingRestoreCoordinatorProvider(1L, restoring, restored)
+                                .create(context, Long.MAX_VALUE, threads);
+        final BlockingStateHandle previousState = new BlockingStateHandle(new byte[] {1}, false);
+        final ThreadRecordingStateHandle latestState =
+                new ThreadRecordingStateHandle(new ByteStreamStateHandle("latest", new byte[] {2}));
+
+        coordinator.resetToCheckpointFromHandle(1L, previousState);
+        // the read returns only now, so the restore does not run on this thread
+        previousState.released.countDown();
+        restoring.await();
+        coordinator.resetToCheckpointFromHandle(2L, latestState);
+        final Thread latestReader = threads.get(1);
+        waitUntilCondition(
+                () -> isWaitingForPreviousReset(latestReader) || latestState.readingThread != null);
+        assertThat(latestState.readingThread).isNull();
+
+        restored.countDown();
+        latestReader.join();
+
+        assertThat(latestState.readingThread).isSameAs(latestReader);
+        assertThat(getInternalCoordinator(coordinator).getLastRestoredCheckpointState())
+                .containsExactly(2);
+        assertThat(context.isJobFailed()).isFalse();
+    }
+
+    @Test
+    void testReadWaitsForThePreviousResetAlsoAfterItsReadHasReturned() throws Exception {
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        final CountDownLatch closing = new CountDownLatch(1);
+        final RecordingThreadFactory threads = new RecordingThreadFactory();
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator)
+                        new TestingCoordinatorProvider(closing)
+                                .create(context, Long.MAX_VALUE, threads);
+        final ThreadRecordingStateHandle latestState =
+                new ThreadRecordingStateHandle(new ByteStreamStateHandle("latest", new byte[] {2}));
+
+        coordinator.resetToCheckpointFromHandle(
+                1L, new ByteStreamStateHandle("previous", new byte[] {1}));
+        // the read has returned, and its reset holds the state until the old coordinator closes
+        threads.get(0).join();
+        coordinator.resetToCheckpointFromHandle(2L, latestState);
+        final Thread latestReader = threads.get(1);
+        waitUntilCondition(
+                () -> isWaitingForPreviousReset(latestReader) || latestState.readingThread != null);
+        assertThat(latestState.readingThread).isNull();
+
+        closing.countDown();
+        latestReader.join();
+
+        assertThat(getInternalCoordinator(coordinator).getLastRestoredCheckpointState())
+                .containsExactly(2);
+        assertThat(context.isJobFailed()).isFalse();
+        assertThat(log.getMessages()).isEmpty();
+    }
+
+    @Test
+    void testReadStartsAfterTheClosingTimeoutIfThePreviousResetHasNotFinished() throws Exception {
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        final RecordingThreadFactory threads = new RecordingThreadFactory();
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator)
+                        new TestingCoordinatorProvider(null).create(context, 1000L, threads);
+        final BlockingStateHandle slowState = new BlockingStateHandle(new byte[] {1}, false);
+
+        coordinator.resetToCheckpointFromHandle(1L, slowState);
+        slowState.reading.await();
+        coordinator.resetToCheckpointFromHandle(
+                2L, new ByteStreamStateHandle("latest", new byte[] {2}));
+        threads.get(1).join();
+
+        assertThat(getInternalCoordinator(coordinator).getLastRestoredCheckpointState())
+                .containsExactly(2);
+        assertThat(context.isJobFailed()).isFalse();
+        assertThat(log.getMessages()).hasSize(1);
+        assertThat(log.getMessages().get(0))
+                .startsWith(
+                        "The previous reset of the coordinator of operator "
+                                + OPERATOR_ID
+                                + " has not finished after 1000 ms")
+                .contains("The reset to checkpoint 2");
+        slowState.release();
+    }
+
     @ParameterizedTest(name = "replacedByLaterReset = {0}, stoppedWhileOpening = {1}")
     @CsvSource({"true, false", "false, false", "true, true", "false, true"})
     void testReadOfStateIsStoppedWhenTheResetIsReplacedOrClosed(
@@ -643,14 +862,37 @@ class RecreateOnResetOperatorCoordinatorTest {
     /** Creates the threads of the state reader and records them in the order they are created. */
     private static class RecordingThreadFactory implements ThreadFactory {
         private final List<Thread> threads = new CopyOnWriteArrayList<>();
+        private final CountDownLatch heldBack = new CountDownLatch(1);
+        private volatile int heldBackIndex = -1;
 
         @Override
         public synchronized Thread newThread(Runnable runnable) {
-            final Thread thread = new Thread(runnable);
+            final Runnable task =
+                    threads.size() == heldBackIndex
+                            ? () -> {
+                                try {
+                                    heldBack.await();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    return;
+                                }
+                                runnable.run();
+                            }
+                            : runnable;
+            final Thread thread = new Thread(task);
             // like the coordinator's own reader threads, so that a failed test leaves none behind
             thread.setDaemon(true);
             threads.add(thread);
             return thread;
+        }
+
+        /** Makes the thread created with the given index wait for {@link #release()} to run. */
+        private void holdBack(int index) {
+            heldBackIndex = index;
+        }
+
+        private void release() {
+            heldBack.countDown();
         }
 
         private int size() {
@@ -662,12 +904,57 @@ class RecreateOnResetOperatorCoordinatorTest {
         }
     }
 
+    /** Whether the reader is parked waiting for the previous reset to finish. */
+    private static boolean isWaitingForPreviousReset(Thread reader) {
+        final Thread.State state = reader.getState();
+        return (state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING)
+                && Arrays.stream(reader.getStackTrace())
+                        .anyMatch(frame -> frame.getMethodName().equals("awaitPreviousReset"));
+    }
+
     private TestingOperatorCoordinator getInternalCoordinator(
             RecreateOnResetOperatorCoordinator coordinator) throws Exception {
         return (TestingOperatorCoordinator) coordinator.getInternalCoordinator();
     }
 
     // ---------------
+
+    /** Creates coordinators whose restore to the given checkpoint blocks until released. */
+    private static class BlockingRestoreCoordinatorProvider
+            extends RecreateOnResetOperatorCoordinator.Provider {
+
+        private static final long serialVersionUID = 1L;
+
+        private final long blockedCheckpointId;
+        private final CountDownLatch restoring;
+        private final CountDownLatch restored;
+
+        private BlockingRestoreCoordinatorProvider(
+                long blockedCheckpointId, CountDownLatch restoring, CountDownLatch restored) {
+            super(OPERATOR_ID);
+            this.blockedCheckpointId = blockedCheckpointId;
+            this.restoring = restoring;
+            this.restored = restored;
+        }
+
+        @Override
+        protected OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
+            final TestingOperatorCoordinator coordinator =
+                    new TestingOperatorCoordinator(context, null);
+            coordinator.setResetToCheckpointConsumer(
+                    (checkpointId, ignored) -> {
+                        if (checkpointId == blockedCheckpointId) {
+                            restoring.countDown();
+                            try {
+                                restored.await();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                    });
+            return coordinator;
+        }
+    }
 
     /**
      * Creates coordinators that throw the given error when one is created again, or otherwise when
