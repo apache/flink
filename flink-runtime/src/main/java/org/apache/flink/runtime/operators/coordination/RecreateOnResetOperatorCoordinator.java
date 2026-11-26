@@ -128,6 +128,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
     @Override
     public void resetToCheckpoint(final long checkpointId, @Nullable final byte[] checkpointData) {
+        resetToCheckpoint(checkpointId, CompletableFuture.completedFuture(checkpointData));
+    }
+
+    private void resetToCheckpoint(
+            final long checkpointId, final CompletableFuture<byte[]> checkpointData) {
         // First bump up the coordinator epoch to fence out the active coordinator.
         LOG.info("Resetting coordinator to checkpoint.");
         // Replace the coordinator variable with a new DeferrableCoordinator instance.
@@ -145,23 +150,37 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         // capture the status whether the coordinator was started when this method was called
         final boolean wasStarted = this.started;
 
-        closingFuture.whenComplete(
-                (ignored, e) -> {
-                    if (e != null) {
-                        LOG.warn(
-                                String.format(
-                                        "Received exception when closing "
-                                                + "operator coordinator for %s.",
-                                        oldCoordinator.operatorId),
-                                e);
-                    }
-                    if (!closed) {
-                        // The previous coordinator has closed. Create a new one.
-                        newCoordinator.createNewInternalCoordinator(context, provider);
-                        newCoordinator.resetAndStart(checkpointId, checkpointData, wasStarted);
-                        newCoordinator.processPendingCalls();
-                    }
-                });
+        closingFuture
+                .handle(
+                        (ignored, e) -> {
+                            if (e != null) {
+                                LOG.warn(
+                                        String.format(
+                                                "Received exception when closing "
+                                                        + "operator coordinator for %s.",
+                                                oldCoordinator.operatorId),
+                                        e);
+                            }
+                            return null;
+                        })
+                .thenCombine(checkpointData, (ignored, data) -> data)
+                .thenAccept(
+                        data -> {
+                            if (!closed) {
+                                // The previous coordinator has closed. Create a new one.
+                                newCoordinator.createNewInternalCoordinator(context, provider);
+                                newCoordinator.resetAndStart(checkpointId, data, wasStarted);
+                                newCoordinator.processPendingCalls();
+                            }
+                        })
+                .exceptionally(
+                        t -> {
+                            LOG.error(
+                                    "Failed to reset the coordinator to checkpoint {}.",
+                                    checkpointId,
+                                    t);
+                            return null;
+                        });
     }
 
     @Override
