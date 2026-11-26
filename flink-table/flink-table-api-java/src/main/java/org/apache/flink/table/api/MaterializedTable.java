@@ -83,4 +83,35 @@ public interface MaterializedTable {
      * @throws ValidationException if no materialized table exists at its path anymore.
      */
     Optional<String> getRefreshHandlerDescription();
+
+    /**
+     * This table's data, for querying it or building downstream tables on it, e.g. with {@link
+     * Table#materializeInto(String, MaterializedTableDescriptor)}.
+     *
+     * @return the materialized table as a {@link Table}
+     * @throws ValidationException if no materialized table exists at its path anymore, or a
+     *     temporary table or view shadows it.
+     */
+    Table toTable();
+
+    /**
+     * The query that defines this table, for deriving a modified definition, e.g. with {@link
+     * Table#materializeInto(String, MaterializedTableDescriptor)}.
+     *
+     * @return the expanded query as a {@link Table}
+     * @throws ValidationException if no materialized table exists at its path anymore.
+     */
+    Table toQuery();
+
+    /**
+     * This table's current definition, as a descriptor for re-declaring it, e.g. with {@link
+     * Table#materializeInto(String, MaterializedTableDescriptor)}.
+     *
+     * <p>The descriptor declares every column, so re-declaring with a query that drops a physical
+     * or persisted metadata column fails.
+     *
+     * @return a descriptor of the current definition
+     * @throws ValidationException if no materialized table exists at its path anymore.
+     */
+    MaterializedTableDescriptor toDescriptor();
 }

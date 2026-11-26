@@ -137,6 +137,55 @@ created in SQL or by another program, and resolves the path like `from(path)`. T
 made elsewhere. The lookup fails with a `ValidationException` if no materialized table exists at
 the path, or if a temporary table or view shadows it.
 
+# Reading a Materialized Table
+
+```java
+MaterializedTable bronze = tEnv.fromMaterializedTable("bronze");
+
+// The data of bronze, as a Table that can be used like any other table.
+Table bronzeTable = bronze.toTable();
+
+// Queries the data of bronze and prints the result.
+bronzeTable.select($("region"), $("amount")).execute().print();
+
+// Declares silver on the data of bronze, which chains the two materialized tables.
+MaterializedTable silver = bronzeTable
+        .groupBy($("ds"), $("region"))
+        .select($("ds"), $("region"), $("amount").sum().as("revenue"))
+        .materializeInto("silver")
+        .execute();
+```
+
+`toTable()` returns the data of a materialized table, so `silver` is refreshed from what `bronze`
+has materialized. Like the lookup, it fails if the materialized table no longer exists or is
+shadowed.
+
+# Deriving a Definition
+
+```java
+MaterializedTable silver = tEnv.fromMaterializedTable("silver");
+
+// The current definition with one option changed. All other clauses are restated as they are.
+MaterializedTableDescriptor descriptor = silver.toDescriptor()
+        .toBuilder()
+        .option("sink.parallelism", "4")
+        .build();
+
+// The current query with an additional filter.
+Table query = silver.toQuery().where($("revenue").isGreater(0));
+
+// Redeploys silver with the modified query and definition.
+query.materializeInto("silver", descriptor).execute();
+```
+
+`toQuery()` and `toDescriptor()` return the current query and definition of a materialized table.
+The descriptor declares every column, so a query that drops a physical or persisted metadata
+column is rejected. Unlike `toTable()`, a table declared on `toQuery()` reads the sources of the
+original query.
+
+`toQuery()` plans the stored query text, so every object it references must still resolve under
+its original name, including its catalog.
+
 # Dropping a Materialized Table
 
 ```java

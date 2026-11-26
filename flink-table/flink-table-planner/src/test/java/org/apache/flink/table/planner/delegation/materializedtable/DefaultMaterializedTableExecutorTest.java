@@ -26,6 +26,9 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.MaterializedTable;
+import org.apache.flink.table.api.MaterializedTableDescriptor;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
@@ -77,6 +80,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -756,6 +760,67 @@ class DefaultMaterializedTableExecutorTest {
         assertThat(newJob.isCancelRequested()).isTrue();
         assertThat(getMaterializedTable().getExpandedQuery()).isEqualTo(oldQuery);
         assertThat(getMaterializedTable().getRefreshStatus()).isEqualTo(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void materializedTableToQueryAndToDescriptorRedeclareADerivedDefinition() throws Exception {
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING),
+                                new JobClientMock(new JobID(), JobStatus.RUNNING)));
+        tableEnv.executeSql(
+                "CREATE TABLE keyed_source (k INT NOT NULL, v BIGINT, ts TIMESTAMP(3), ds STRING NOT NULL)"
+                        + " WITH ('connector' = 'datagen')");
+        final MaterializedTable materializedTable =
+                tableEnv.from("keyed_source")
+                        .materializeInto(
+                                "my_mt",
+                                MaterializedTableDescriptor.newBuilder()
+                                        .schema(
+                                                Schema.newBuilder()
+                                                        .columnByExpression("k_plus_one", "k + 1")
+                                                        .watermark("ts", "ts - INTERVAL '5' SECOND")
+                                                        .primaryKey("k", "ds")
+                                                        .build())
+                                        .option("connector", "values")
+                                        .comment("keyed rows")
+                                        .distributedByHash(2, "k")
+                                        .partitionedBy("ds")
+                                        .continuousRefresh()
+                                        .build())
+                        .execute();
+        final MaterializedTableDescriptor descriptor = materializedTable.toDescriptor();
+
+        materializedTable
+                .toQuery()
+                .where($("v").isGreater(0))
+                .materializeInto("my_mt", descriptor)
+                .execute();
+
+        assertThat(getMaterializedTable().getExpandedQuery())
+                .isEqualTo(
+                        "SELECT `$$T_FILTER`.`k`, `$$T_FILTER`.`v`, `$$T_FILTER`.`ts`, `$$T_FILTER`.`ds` FROM (\n"
+                                + "    SELECT `$$T_SOURCE`.`k`, `$$T_SOURCE`.`v`, `$$T_SOURCE`.`ts`, `$$T_SOURCE`.`ds`\n"
+                                + "    FROM `mt_cat`.`mt_db`.`keyed_source` AS `$$T_SOURCE`\n"
+                                + ") $$T_FILTER WHERE `$$T_FILTER`.`v` > 0");
+        assertThat(materializedTable.toDescriptor()).isEqualTo(descriptor);
+    }
+
+    @Test
+    void materializedTableToQueryPlansTheExpandedQuery() {
+        final TableEnvironment tableEnv =
+                createTableEnvironment(
+                        new ScriptedJobSubmitter(
+                                new JobClientMock(new JobID(), JobStatus.RUNNING)));
+        tableEnv.executeSql(CREATE_MATERIALIZED_TABLE);
+
+        assertThat(
+                        tableEnv.fromMaterializedTable("my_mt")
+                                .toQuery()
+                                .getResolvedSchema()
+                                .getColumnNames())
+                .containsExactly("k", "v");
     }
 
     @Test
