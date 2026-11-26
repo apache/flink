@@ -42,6 +42,7 @@ class MemorySizePrettyPrintingTest {
                 new MemorySize(MemoryUnit.GIGA_BYTES.getMultiplier() + 1),
                 String.format("%d %s", MemoryUnit.GIGA_BYTES.getMultiplier() + 1, "bytes")
             },
+            new Object[] {new MemorySize(2 * MemoryUnit.TERA_BYTES.getMultiplier()), "2 tb"},
             new Object[] {new MemorySize(0), "0 bytes"}
         };
     }
