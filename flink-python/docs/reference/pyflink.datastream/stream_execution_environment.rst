@@ -88,8 +88,8 @@ their record emission behaviour based on the configured execution mode.
 :data:`STREAMING`:
 
 The Pipeline will be executed with Streaming Semantics. All tasks will be deployed before
-execution starts, checkpoints will be enabled, and both processing and event time will be
-fully supported.
+execution starts, and both processing and event time will be fully supported. Periodic
+checkpointing is disabled by default and can be enabled by configuring a checkpoint interval.
 
 :data:`BATCH`:
 
