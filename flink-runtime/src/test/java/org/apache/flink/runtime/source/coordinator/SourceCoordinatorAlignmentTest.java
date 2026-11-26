@@ -23,12 +23,17 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
+import org.apache.flink.runtime.operators.coordination.EventReceivingTasks;
+import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +43,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -259,25 +265,143 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    void testLateCloseOfPreviousCoordinatorKeepsEntryOfCurrentOne() throws Exception {
+    void testDuplicateOperatorNameAcrossDistinctOperatorIds() throws Exception {
         try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
             CoordinatorStoreImpl store = new CoordinatorStoreImpl();
-            SourceCoordinator<?, ?> previous =
-                    getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
-            reportWatermarkEvent(previous, 0, 100);
+            EventReceivingTasks tasksA = EventReceivingTasks.createForRunningTasks();
+            EventReceivingTasks tasksB = EventReceivingTasks.createForRunningTasks();
+            SourceCoordinator<?, ?> sourceA =
+                    getAndStartNewSourceCoordinator(
+                            "Kafka Source",
+                            new OperatorID(1, 1),
+                            tasksA,
+                            store,
+                            new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                            closeableRegistry);
+            SourceCoordinator<?, ?> sourceB =
+                    getAndStartNewSourceCoordinator(
+                            "Kafka Source",
+                            new OperatorID(2, 2),
+                            tasksB,
+                            store,
+                            new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                            closeableRegistry);
 
-            // the previous close() outlived the closing timeout, so the next coordinator of
-            // sourceA has already reported when the previous one removes its entry
-            SourceCoordinator<?, ?> current =
-                    getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
-            reportWatermarkEvent(current, 0, 200);
-            assertLatestWatermarkAlignmentEvent(0, 1200);
+            sourceA.handleEventFromOperator(0, 0, new ReportedWatermarkEvent(100));
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(sourceA.getContext());
+            sourceB.handleEventFromOperator(0, 0, new ReportedWatermarkEvent(500));
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(sourceB.getContext());
 
-            previous.close();
-            current.announceCombinedWatermark();
+            sourceB.announceCombinedWatermark();
+            assertThat(tasksB.getSentEventsForSubtask(0))
+                    .last()
+                    .isEqualTo(new WatermarkAlignmentEvent(1100));
 
-            assertLatestWatermarkAlignmentEvent(0, 1200);
+            sourceA.close();
+            sourceB.announceCombinedWatermark();
+            assertThat(tasksB.getSentEventsForSubtask(0))
+                    .last()
+                    .isEqualTo(new WatermarkAlignmentEvent(1500));
         }
+    }
+
+    @Test
+    void testOverlappingCloseTimeoutDoesNotDeleteNewCoordinatorEntry() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            CoordinatorStoreImpl store = new CoordinatorStoreImpl();
+            SourceCoordinator<?, ?> oldSourceA =
+                    getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
+            SourceCoordinator<?, ?> sourceB =
+                    getAndStartNewSourceCoordinator("sourceB", store, closeableRegistry);
+
+            reportWatermarkEvent(oldSourceA, 0, 100);
+            reportWatermarkEvent(sourceB, 1, 600);
+            assertLatestWatermarkAlignmentEvent(1, 1100);
+
+            // Simulate RecreateOnResetOperatorCoordinator close() timeout: new coordinator starts
+            // before oldSourceA.close() finishes.
+            SourceCoordinator<?, ?> newSourceA =
+                    getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
+            sourceB.announceCombinedWatermark();
+            assertLatestWatermarkAlignmentEvent(1, 1600);
+
+            // New coordinator reports 500; delayed old report and delayed old close() must not
+            // overwrite or delete the new coordinator's entry.
+            reportWatermarkEvent(newSourceA, 0, 500);
+            sourceB.announceCombinedWatermark();
+            assertLatestWatermarkAlignmentEvent(1, 1500);
+
+            oldSourceA.handleEventFromOperator(0, 0, new ReportedWatermarkEvent(50));
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(oldSourceA.getContext());
+            oldSourceA.close();
+
+            sourceB.announceCombinedWatermark();
+            assertLatestWatermarkAlignmentEvent(1, 1500);
+        }
+    }
+
+    @Test
+    void testTimedOutCoordinatorSkipsAnnounceWhenGroupBecomesEmpty() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            CoordinatorStoreImpl store = new CoordinatorStoreImpl();
+            SourceCoordinator<?, ?> oldSourceA =
+                    getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
+
+            reportWatermarkEvent(oldSourceA, 0, 100);
+            assertLatestWatermarkAlignmentEvent(0, 1100);
+            int sentBefore = receivingTasks.getSentEventsForSubtask(0).size();
+
+            // Recreated coordinator starts before oldSourceA.close() finishes, evicting
+            // oldSourceA's entry and leaving the group empty.
+            getAndStartNewSourceCoordinator("sourceA", store, closeableRegistry);
+
+            // If oldSourceA's thread still ticks before stopping, it must skip announcing rather
+            // than emitting Long.MIN_VALUE + drift.
+            oldSourceA.announceCombinedWatermark();
+            assertThat(receivingTasks.getSentEventsForSubtask(0)).hasSize(sentBefore);
+        }
+    }
+
+    private SourceCoordinator<?, ?> getAndStartNewSourceCoordinator(
+            String operatorName,
+            OperatorID operatorId,
+            EventReceivingTasks eventReceivingTasks,
+            CoordinatorStoreImpl coordinatorStore,
+            WatermarkAlignmentParams watermarkAlignmentParams,
+            AutoCloseableRegistry closeableRegistry)
+            throws Exception {
+        MockOperatorCoordinatorContext opContext =
+                new MockOperatorCoordinatorContext(operatorId, NUM_SUBTASKS);
+        SourceCoordinatorProvider.CoordinatorExecutorThreadFactory threadFactory =
+                new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                        operatorName + "-" + operatorId.toHexString(), opContext);
+        SourceCoordinatorContext<MockSourceSplit> ctx =
+                new SourceCoordinatorContext<>(
+                        new JobID(),
+                        Executors.newScheduledThreadPool(1, threadFactory),
+                        Executors.newScheduledThreadPool(
+                                1, new ExecutorThreadFactory(operatorName + "-worker")),
+                        threadFactory,
+                        opContext,
+                        new MockSourceSplitSerializer(),
+                        new SplitAssignmentTracker<>(),
+                        false);
+        SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> coordinator =
+                new SourceCoordinator<>(
+                        new JobID(),
+                        operatorName,
+                        createMockSource(),
+                        ctx,
+                        coordinatorStore,
+                        watermarkAlignmentParams,
+                        null);
+        closeableRegistry.registerCloseable(coordinator);
+        coordinator.start();
+        for (int i = 0; i < NUM_SUBTASKS; i++) {
+            coordinator.executionAttemptReady(
+                    i, 0, eventReceivingTasks.createGatewayForSubtask(i, 0));
+        }
+        return coordinator;
     }
 
     private SourceCoordinator<?, ?> getAndStartNewSourceCoordinator(
@@ -285,19 +409,13 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
             CoordinatorStoreImpl coordinatorStore,
             AutoCloseableRegistry closeableRegistry)
             throws Exception {
-        SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> sourceCoordinator =
-                new SourceCoordinator<>(
-                        new JobID(),
-                        operatorName,
-                        createMockSource(),
-                        getNewSourceCoordinatorContext(),
-                        coordinatorStore,
-                        new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
-                        null);
-        closeableRegistry.registerCloseable(sourceCoordinator);
-        sourceCoordinator.start();
-        setAllReaderTasksReady(sourceCoordinator);
-        return sourceCoordinator;
+        return getAndStartNewSourceCoordinator(
+                operatorName,
+                new OperatorID(operatorName.hashCode(), 0L),
+                receivingTasks,
+                coordinatorStore,
+                new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                closeableRegistry);
     }
 
     @Test
