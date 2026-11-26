@@ -88,7 +88,17 @@ public final class DelegationTokenManagerTestHarness {
 
     /** The timer of the next obtain fires and the obtain it hands to the IO executor runs. */
     public void obtainIsDue() {
+        timerHandsTheObtainToTheIoExecutor();
+        ioExecutorRunsItsTasks();
+    }
+
+    /** The timer of the next obtain fires, the IO executor has not started the obtain yet. */
+    public void timerHandsTheObtainToTheIoExecutor() {
         scheduledExecutor.triggerScheduledTasks();
+    }
+
+    /** The IO executor runs the obtains which the timer handed to it. */
+    public void ioExecutorRunsItsTasks() {
         ioExecutor.triggerAll();
     }
 

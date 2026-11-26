@@ -368,6 +368,12 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     }
 
     private void runScheduledObtainAndRetryOnFailure() {
+        synchronized (stateLock) {
+            if (state != State.RUNNING) {
+                LOG.info("Scheduled delegation token obtain skipped, the manager is not running");
+                return;
+            }
+        }
         try {
             obtainDistributeAndScheduleNext();
         } catch (InterruptedException e) {

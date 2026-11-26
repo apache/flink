@@ -319,6 +319,19 @@ class DefaultDelegationTokenManagerLifecycleTest {
     }
 
     @Test
+    void stopPreventsAnObtainWhichTheTimerAlreadyHandedToTheIoExecutor() throws Exception {
+        manager.start();
+        harness.timerHandsTheObtainToTheIoExecutor();
+
+        manager.stop();
+        harness.ioExecutorRunsItsTasks();
+
+        assertThat(provider.obtainCalls()).isEqualTo(1);
+        assertThat(receiver.receivedGenerations()).containsExactly(1);
+        assertThat(harness.pendingObtainDelaysMillis()).isEmpty();
+    }
+
+    @Test
     void stopDuringAnObtainNeitherReschedulesNorDeliversItsTokens() throws Exception {
         manager.start();
         final RecordingListener listener = new RecordingListener();
