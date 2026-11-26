@@ -87,6 +87,8 @@ under the License.
 									<include>org.apache.parquet:parquet-encoding</include>
 									<include>org.apache.parquet:parquet-format-structures</include>
 									<include>org.apache.parquet:parquet-jackson</include>
+									<include>org.apache.parquet:parquet-variant</include>
+									<include>org.locationtech.jts:jts-core</include>
 									<include>org.codehaus.jackson:jackson-core-asl</include>
 									<include>org.codehaus.jackson:jackson-mapper-asl</include>
 									<include>commons-pool:commons-pool</include>
