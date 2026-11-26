@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -2153,9 +2154,13 @@ public class CheckpointCoordinator {
 
         for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
             final OperatorState state = operatorStates.get(coordContext.operatorId());
-            final ByteStreamStateHandle coordinatorState =
+            final StreamStateHandle coordinatorState =
                     state == null ? null : state.getCoordinatorState();
-            final byte[] bytes = coordinatorState == null ? null : coordinatorState.getData();
+            // the coordinator state is always held in memory
+            final byte[] bytes =
+                    coordinatorState == null
+                            ? null
+                            : ((ByteStreamStateHandle) coordinatorState).getData();
             coordContext.resetToCheckpoint(checkpointId, bytes);
         }
     }

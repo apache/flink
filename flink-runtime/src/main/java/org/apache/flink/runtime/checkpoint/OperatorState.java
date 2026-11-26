@@ -22,6 +22,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
@@ -60,8 +61,13 @@ public class OperatorState implements CompositeStateHandle {
     /** The handles to states created by the parallel tasks: subtaskIndex -> subtaskstate. */
     private final Map<Integer, OperatorSubtaskState> operatorSubtaskStates;
 
-    /** The state of the operator coordinator. Null, if no such state exists. */
-    @Nullable private ByteStreamStateHandle coordinatorState;
+    /**
+     * The state of the operator coordinator as it is persisted. Null, if no such state exists. It
+     * is a {@link ByteStreamStateHandle} until the checkpoint is finalized, and whenever the state
+     * is inline in the checkpoint metadata. Otherwise it is the handle to the state's own file,
+     * which the coordinator reads when it is restored.
+     */
+    @Nullable private StreamStateHandle coordinatorState;
 
     /** The parallelism of the operator when it was checkpointed. */
     private final int parallelism;
@@ -145,13 +151,13 @@ public class OperatorState implements CompositeStateHandle {
         }
     }
 
-    public void setCoordinatorState(@Nullable ByteStreamStateHandle coordinatorState) {
+    public void setCoordinatorState(@Nullable StreamStateHandle coordinatorState) {
         checkState(this.coordinatorState == null, "coordinator state already set");
         this.coordinatorState = coordinatorState;
     }
 
     @Nullable
-    public ByteStreamStateHandle getCoordinatorState() {
+    public StreamStateHandle getCoordinatorState() {
         return coordinatorState;
     }
 
