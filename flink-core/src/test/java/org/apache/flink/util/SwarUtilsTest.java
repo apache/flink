@@ -94,6 +94,35 @@ class SwarUtilsTest {
                 .isFalse();
     }
 
+    @ParameterizedTest
+    @MethodSource("delimitersAtEveryIndex")
+    void testIndexOf(byte b, int index) {
+        // neighbors that differ only in the lowest bit are where a borrow could fake a match
+        final byte[] bytes = filled((byte) (b ^ 0x01));
+        bytes[index] = b;
+        assertThat(SwarUtils.indexOf(bytes, 0, LENGTH, b)).isEqualTo(index);
+        // an unaligned start still finds the byte, unless it's before the start
+        assertThat(SwarUtils.indexOf(bytes, 1, LENGTH - 1, b)).isEqualTo(index > 0 ? index : -1);
+        assertThat(SwarUtils.indexOf(bytes, index + 1, LENGTH - index - 1, b)).isEqualTo(-1);
+    }
+
+    @ParameterizedTest
+    @MethodSource("indices")
+    void testIndexOfReturnsFirstMatch(int index) {
+        final byte[] bytes = filled((byte) 'x');
+        bytes[index] = '\n';
+        bytes[LENGTH - 1] = '\n';
+        assertThat(SwarUtils.indexOf(bytes, 0, LENGTH, (byte) '\n')).isEqualTo(index);
+    }
+
+    // bytes next to the one searched for, and bytes of 0x80 and above
+    @ParameterizedTest
+    @ValueSource(bytes = {0x09, 0x0B, 'x', (byte) 0x8A, (byte) 0xFF})
+    void testIndexOfWithoutMatch(byte b) {
+        assertThat(SwarUtils.indexOf(filled(b), 0, LENGTH, (byte) '\n')).isEqualTo(-1);
+        assertThat(SwarUtils.indexOf(filled((byte) '\n'), 0, 0, (byte) '\n')).isEqualTo(-1);
+    }
+
     static IntStream indices() {
         return IntStream.range(0, LENGTH);
     }
@@ -104,6 +133,10 @@ class SwarUtilsTest {
 
     static Stream<Arguments> controlCharsAtEveryIndex() {
         return atEveryIndex((byte) 0x00, (byte) '\n', (byte) 0x1F);
+    }
+
+    static Stream<Arguments> delimitersAtEveryIndex() {
+        return atEveryIndex((byte) '\n', (byte) 0x00, (byte) 0x7F, (byte) 0x80, (byte) 0xFF);
     }
 
     private static Stream<Arguments> atEveryIndex(Byte... bytes) {
