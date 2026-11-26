@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SwarUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -612,22 +613,35 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
             int startPos = this.readPos - delimPos;
             int count;
 
-            // Search for next occurrence of delimiter in read buffer.
-            while (this.readPos < this.limit && delimPos < this.delimiter.length) {
-                if ((this.readBuffer[this.readPos]) == this.delimiter[delimPos]) {
+            // Search for next occurrence of delimiter in read buffer. Locals, so that the loop
+            // doesn't go through the fields on each byte.
+            final byte[] buffer = this.readBuffer;
+            final byte[] delim = this.delimiter;
+            final int readLimit = this.limit;
+            int pos = this.readPos;
+            while (pos < readLimit && delimPos < delim.length) {
+                if (delimPos == 0) {
+                    // skip to the next first byte of the delimiter, a word at a time
+                    final int found = SwarUtils.indexOf(buffer, pos, readLimit - pos, delim[0]);
+                    if (found < 0) {
+                        pos = readLimit;
+                    } else {
+                        pos = found + 1;
+                        delimPos = 1;
+                    }
+                } else if (buffer[pos] == delim[delimPos]) {
                     // Found the expected delimiter character. Continue looking for the next
                     // character of delimiter.
                     delimPos++;
+                    pos++;
                 } else {
-                    // Delimiter does not match.
-                    // We have to reset the read position to the character after the first matching
-                    // character
-                    //   and search for the whole delimiter again.
-                    readPos -= delimPos;
+                    // Delimiter does not match. Search again from the character after the first
+                    // matching one.
+                    pos -= delimPos - 1;
                     delimPos = 0;
                 }
-                readPos++;
             }
+            this.readPos = pos;
 
             // check why we dropped out
             if (delimPos == this.delimiter.length) {

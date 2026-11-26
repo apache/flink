@@ -35,6 +35,11 @@ public final class SwarUtils {
     private static final VarHandle LONG_VIEW =
             MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.nativeOrder());
 
+    // Finding the first match needs the first byte in memory as the lowest one: a false match
+    // can only be above a real one.
+    private static final VarHandle LITTLE_ENDIAN_LONG_VIEW =
+            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
+
     private static final long ONES = 0x0101010101010101L;
     private static final long HIGH_BITS = 0x8080808080808080L;
 
@@ -77,6 +82,24 @@ public final class SwarUtils {
      */
     public static boolean containsLessThan(byte[] bytes, int offset, int len, int lessThan) {
         return containsLessThanOrAny(bytes, offset, len, false, (byte) 0, (byte) 0, lessThan);
+    }
+
+    /** The index of the first {@code b} in {@code bytes[offset, offset + len)}, or -1. */
+    public static int indexOf(byte[] bytes, int offset, int len, byte b) {
+        int i = offset;
+        final int end = offset + len;
+        for (; end - i >= Long.BYTES; i += Long.BYTES) {
+            final long found = hasByte((long) LITTLE_ENDIAN_LONG_VIEW.get(bytes, i), b);
+            if (found != 0) {
+                return i + (Long.numberOfTrailingZeros(found) >>> 3);
+            }
+        }
+        for (; i < end; i++) {
+            if (bytes[i] == b) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static boolean containsLessThanOrAny(
