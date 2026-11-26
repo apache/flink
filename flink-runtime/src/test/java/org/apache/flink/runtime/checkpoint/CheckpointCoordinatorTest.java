@@ -30,6 +30,8 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.MockOperatorCheckpointCoordinatorContextBuilder;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -108,6 +110,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -127,6 +130,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -143,6 +147,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -2951,6 +2956,134 @@ class CheckpointCoordinatorTest {
 
         assertThat(tracker.createSnapshot().getLatestRestoredCheckpoint().getCheckpointId())
                 .isEqualTo(42);
+    }
+
+    @Test
+    void testRestoreHandsCoordinatorStateStoredInAFileToTheCoordinator() throws Exception {
+        final MockOperatorCoordinatorCheckpointContext coordinator = coordinator(true);
+        final FileStateHandle file =
+                new FileStateHandle(new Path("file:///coordinator-state"), 4096);
+
+        assertThat(restoreCoordinatorStates(Collections.singletonMap(coordinator, file))).isTrue();
+
+        assertThat(coordinator.getRestoredStatesInFile()).containsExactly(file);
+        assertThat(coordinator.getRestoredInMemoryStates()).isEmpty();
+    }
+
+    @Test
+    void testRestoreHandsInlineCoordinatorStateToTheCoordinatorAsBytes() throws Exception {
+        final MockOperatorCoordinatorCheckpointContext coordinator = coordinator(true);
+
+        assertThat(
+                        restoreCoordinatorStates(
+                                Collections.singletonMap(
+                                        coordinator,
+                                        new ByteStreamStateHandle(
+                                                "coordinator-state", new byte[] {1, 2, 3}))))
+                .isTrue();
+
+        assertThat(coordinator.getRestoredInMemoryStates()).hasSize(1);
+        assertThat(coordinator.getRestoredInMemoryStates().get(0)).containsExactly(1, 2, 3);
+        assertThat(coordinator.getRestoredStatesInFile()).isEmpty();
+    }
+
+    @Test
+    void testRestoreResetsNoCoordinatorIfOneCannotReadItsStateFromAFile() throws Exception {
+        final MockOperatorCoordinatorCheckpointContext first = coordinator(true);
+        final MockOperatorCoordinatorCheckpointContext second = coordinator(false);
+        final Map<MockOperatorCoordinatorCheckpointContext, StreamStateHandle> states =
+                new LinkedHashMap<>();
+        states.put(first, new ByteStreamStateHandle("first", new byte[] {1}));
+        states.put(second, new FileStateHandle(new Path("file:///coordinator-state"), 4096));
+
+        assertThatThrownBy(() -> restoreCoordinatorStates(states))
+                .hasStackTraceContaining("can only restore state held in memory");
+
+        assertThat(first.getRestoredInMemoryStates()).isEmpty();
+        assertThat(first.getRestoredStatesInFile()).isEmpty();
+    }
+
+    private static MockOperatorCoordinatorCheckpointContext coordinator(
+            boolean supportsCoordinatorStateInFile) {
+        return new MockOperatorCheckpointCoordinatorContextBuilder()
+                .setOperatorID(new OperatorID())
+                .setSupportsCoordinatorStateInFile(supportsCoordinatorStateInFile)
+                .build();
+    }
+
+    @Test
+    void testRestoreChecksEveryCoordinatorBeforeRestoringAnyState() throws Exception {
+        final AtomicBoolean finishedStateChecked = new AtomicBoolean();
+        final CheckpointCoordinator checkpointCoordinator =
+                checkpointCoordinatorWithLatestStates(
+                        Collections.singletonMap(
+                                coordinator(false),
+                                new FileStateHandle(new Path("file:///coordinator-state"), 4096)),
+                        (tasks, operatorStates) -> {
+                            finishedStateChecked.set(true);
+                            return new VertexFinishedStateChecker(tasks, operatorStates);
+                        });
+
+        assertThatThrownBy(
+                        () ->
+                                checkpointCoordinator.restoreInitialCheckpointIfPresent(
+                                        Collections.emptySet(), true))
+                .hasStackTraceContaining("can only restore state held in memory");
+
+        // the check of finished operators runs before any task or master hook state is restored,
+        // so none was restored
+        assertThat(finishedStateChecked).isFalse();
+    }
+
+    /** Restores, in the order given, the coordinators of a checkpoint with the given states. */
+    private boolean restoreCoordinatorStates(
+            Map<MockOperatorCoordinatorCheckpointContext, StreamStateHandle> states)
+            throws Exception {
+        return checkpointCoordinatorWithLatestStates(states, VertexFinishedStateChecker::new)
+                .restoreLatestCheckpointedStateToAll(Collections.emptySet(), true);
+    }
+
+    /**
+     * Creates a checkpoint coordinator whose latest checkpoint has the given coordinator states.
+     */
+    private CheckpointCoordinator checkpointCoordinatorWithLatestStates(
+            Map<MockOperatorCoordinatorCheckpointContext, StreamStateHandle> states,
+            BiFunction<
+                            Set<ExecutionJobVertex>,
+                            Map<OperatorID, OperatorState>,
+                            VertexFinishedStateChecker>
+                    vertexFinishedStateCheckerFactory)
+            throws Exception {
+        final Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+        for (Map.Entry<MockOperatorCoordinatorCheckpointContext, StreamStateHandle> entry :
+                states.entrySet()) {
+            final OperatorID operatorId = entry.getKey().operatorId();
+            final OperatorState operatorState = new OperatorState(null, null, operatorId, 1, 1);
+            operatorState.setCoordinatorState(entry.getValue());
+            operatorStates.put(operatorId, operatorState);
+        }
+        final StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(1);
+        store.addCheckpointAndSubsumeOldestOne(
+                new CompletedCheckpoint(
+                        new JobID(),
+                        42,
+                        0,
+                        0,
+                        operatorStates,
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation(),
+                        null),
+                new CheckpointsCleaner(),
+                () -> {});
+        return new CheckpointCoordinatorBuilder()
+                .setCompletedCheckpointStore(store)
+                .setTimer(manuallyTriggeredScheduledExecutor)
+                .setCoordinatorsToCheckpoint(
+                        new ArrayList<OperatorCoordinatorCheckpointContext>(states.keySet()))
+                .setVertexFinishedStateCheckerFactory(vertexFinishedStateCheckerFactory)
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     @Test

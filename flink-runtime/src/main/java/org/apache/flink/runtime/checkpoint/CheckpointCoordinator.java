@@ -94,6 +94,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.FULL_CHECKPOINT
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The checkpoint coordinator coordinates the distributed snapshots of operators and state. It
@@ -1811,6 +1812,11 @@ public class CheckpointCoordinator {
             // re-assign the task states
             final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
+            if (operatorCoordinatorRestoreBehavior != OperatorCoordinatorRestoreBehavior.SKIP) {
+                // before any state is restored
+                checkCoordinatorsCanRestoreTheirState(operatorStates);
+            }
+
             if (checkForPartiallyFinishedOperators) {
                 VertexFinishedStateChecker vertexFinishedStateChecker =
                         vertexFinishedStateCheckerFactory.apply(tasks, operatorStates);
@@ -2153,16 +2159,45 @@ public class CheckpointCoordinator {
             throws Exception {
 
         for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
-            final OperatorState state = operatorStates.get(coordContext.operatorId());
             final StreamStateHandle coordinatorState =
-                    state == null ? null : state.getCoordinatorState();
-            // the coordinator state is always held in memory
-            final byte[] bytes =
-                    coordinatorState == null
-                            ? null
-                            : ((ByteStreamStateHandle) coordinatorState).getData();
-            coordContext.resetToCheckpoint(checkpointId, bytes);
+                    getCoordinatorState(operatorStates, coordContext);
+            if (isInMemory(coordinatorState)) {
+                final byte[] bytes =
+                        coordinatorState == null
+                                ? null
+                                : ((ByteStreamStateHandle) coordinatorState).getData();
+                coordContext.resetToCheckpoint(checkpointId, bytes);
+            } else {
+                // the coordinator reads the file itself, off this thread
+                coordContext.resetToCheckpointFromHandle(checkpointId, coordinatorState);
+            }
         }
+    }
+
+    /** Checks that every coordinator can restore the state it has in the given operator states. */
+    private void checkCoordinatorsCanRestoreTheirState(
+            Map<OperatorID, OperatorState> operatorStates) {
+        for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
+            final StreamStateHandle coordinatorState =
+                    getCoordinatorState(operatorStates, coordContext);
+            checkState(
+                    isInMemory(coordinatorState) || coordContext.supportsCoordinatorStateInFile(),
+                    "The coordinator state of operator %s is stored in %s, but its coordinator can only restore state held in memory.",
+                    coordContext.operatorId(),
+                    coordinatorState);
+        }
+    }
+
+    @Nullable
+    private static StreamStateHandle getCoordinatorState(
+            Map<OperatorID, OperatorState> operatorStates,
+            OperatorCoordinatorCheckpointContext coordContext) {
+        final OperatorState state = operatorStates.get(coordContext.operatorId());
+        return state == null ? null : state.getCoordinatorState();
+    }
+
+    private static boolean isInMemory(@Nullable StreamStateHandle coordinatorState) {
+        return coordinatorState == null || coordinatorState instanceof ByteStreamStateHandle;
     }
 
     // ------------------------------------------------------------------------
