@@ -50,9 +50,6 @@ flink-external-resources/flink-external-resource-gpu,\
 flink-libraries,\
 flink-libraries/flink-cep,\
 flink-libraries/flink-state-processing-api,\
-flink-queryable-state,\
-flink-queryable-state/flink-queryable-state-runtime,\
-flink-queryable-state/flink-queryable-state-client-java,\
 flink-container,\
 flink-dstl,\
 flink-dstl/flink-dstl-dfs,\
