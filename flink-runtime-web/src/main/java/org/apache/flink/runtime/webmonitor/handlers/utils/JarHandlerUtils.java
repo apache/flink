@@ -101,7 +101,7 @@ public class JarHandlerUtils {
             Configuration configuration = requestBody.getFlinkConfiguration();
 
             final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
-            Path jarFile = jarDir.resolve(pathParameter);
+            Path jarFile = resolveJarFile(jarDir, pathParameter);
 
             String entryClass =
                     fromRequestBodyOrQueryParameter(
@@ -292,5 +292,21 @@ public class JarHandlerUtils {
             tokens.add(matcher.group().trim().replace("\"", "").replace("\'", ""));
         }
         return tokens;
+    }
+
+    /**
+     * Returns the uploaded jar that {@code jarId} names in {@code jarDir}.
+     *
+     * @throws RestHandlerException if {@code jarId} does not name a regular file
+     */
+    public static Path resolveJarFile(final Path jarDir, final String jarId)
+            throws RestHandlerException {
+        final Path jarFile = jarDir.resolve(jarId);
+        if (!jarDir.equals(jarFile.getParent()) || !Files.isRegularFile(jarFile)) {
+            throw new RestHandlerException(
+                    String.format("Uploaded jar not found: %s", jarId),
+                    HttpResponseStatus.BAD_REQUEST);
+        }
+        return jarFile;
     }
 }

@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link JarDeleteHandler}. */
-class JarDeleteHandlerTest {
+class JarDeleteHandlerTest implements JarIdHandlerContract {
 
     private static final String TEST_JAR_NAME = "test.jar";
 
@@ -91,7 +91,7 @@ class JarDeleteHandlerTest {
                             final RestHandlerException restHandlerException =
                                     (RestHandlerException) throwable;
                             assertThat(restHandlerException.getMessage())
-                                    .contains("File doesnotexist.jar does not exist in");
+                                    .contains("jar not found: doesnotexist.jar");
                             assertThat(restHandlerException.getHttpResponseStatus())
                                     .isEqualTo(HttpResponseStatus.BAD_REQUEST);
                         });
@@ -119,6 +119,23 @@ class JarDeleteHandlerTest {
                         });
     }
 
+    @Override
+    public void handleJarIdRequest(final Path jarDir, final String jarId) throws Exception {
+        createHandler(jarDir)
+                .handleRequest(createRequestWithUnvalidatedJarId(jarId), restfulGateway)
+                .get();
+    }
+
+    @Override
+    public void assertJarHandled(final Path jar) {
+        assertThat(jar).doesNotExist();
+    }
+
+    @Override
+    public Path programJar() {
+        return jarDir.resolve(TEST_JAR_NAME);
+    }
+
     private JarDeleteHandler createHandler(final Path jarDir) {
         return new JarDeleteHandler(
                 () -> CompletableFuture.completedFuture(restfulGateway),
@@ -127,6 +144,13 @@ class JarDeleteHandlerTest {
                 new JarDeleteHeaders(),
                 jarDir,
                 Executors.directExecutor());
+    }
+
+    private static HandlerRequest<EmptyRequestBody> createRequestWithUnvalidatedJarId(
+            final String jarId) {
+        final JarDeleteMessageParameters parameters = new JarDeleteMessageParameters();
+        parameters.jarIdPathParameter.resolve(jarId);
+        return HandlerRequest.create(EmptyRequestBody.getInstance(), parameters);
     }
 
     private static HandlerRequest<EmptyRequestBody> createRequest(final String jarFileName)

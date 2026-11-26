@@ -302,6 +302,11 @@ class JarRunHandlerParameterTest
     }
 
     @Override
+    void handleRequest(Path jarDir, HandlerRequest<JarRunRequestBody> request) throws Exception {
+        createHandler(jarDir).handleRequest(request, restfulGateway).get();
+    }
+
+    @Override
     JobGraph validateDefaultGraph() {
         JobGraph jobGraph = super.validateDefaultGraph();
         final SavepointRestoreSettings savepointRestoreSettings =

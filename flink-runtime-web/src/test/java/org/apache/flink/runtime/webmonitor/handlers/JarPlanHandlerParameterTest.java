@@ -155,6 +155,11 @@ class JarPlanHandlerParameterTest
     }
 
     @Override
+    void handleRequest(Path jarDir, HandlerRequest<JarPlanRequestBody> request) throws Exception {
+        createHandler(jarDir).handleRequest(request, restfulGateway).get();
+    }
+
+    @Override
     void validateGraphWithFlinkConfig(JobGraph jobGraph) {
         final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
         assertThat(executionConfig.getParallelism())

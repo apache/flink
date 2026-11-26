@@ -58,8 +58,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base test class for jar request handlers. */
-abstract class JarHandlerParameterTest<
-        REQB extends JarRequestBody, M extends JarMessageParameters> {
+abstract class JarHandlerParameterTest<REQB extends JarRequestBody, M extends JarMessageParameters>
+        implements JarIdHandlerContract {
     enum ProgramArgsParType {
         String,
         List,
@@ -280,6 +280,28 @@ abstract class JarHandlerParameterTest<
                 : null;
     }
 
+    @Override
+    public void handleJarIdRequest(final Path jarDir, final String jarId) throws Exception {
+        LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(null);
+        handleRequest(jarDir, createRequestWithUnvalidatedJarId(jarId));
+    }
+
+    @Override
+    public void assertJarHandled(final Path jar) {
+        assertThat(LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null)).isNotNull();
+    }
+
+    @Override
+    public Path programJar() {
+        return jarWithManifest;
+    }
+
+    private HandlerRequest<REQB> createRequestWithUnvalidatedJarId(final String jarId) {
+        final M parameters = getUnresolvedJarMessageParameters();
+        parameters.jarIdPathParameter.resolve(jarId);
+        return HandlerRequest.create(getDefaultJarRequestBody(), parameters);
+    }
+
     protected static <REQB extends JarRequestBody, M extends JarMessageParameters>
             HandlerRequest<REQB> createRequest(
                     REQB requestBody, M parameters, M unresolvedMessageParameters, Path jar)
@@ -321,6 +343,9 @@ abstract class JarHandlerParameterTest<
     abstract REQB getJarRequestWithConfiguration();
 
     abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
+
+    /** Handles the request with a handler that uses the given upload directory. */
+    abstract void handleRequest(Path jarDir, HandlerRequest<REQB> request) throws Exception;
 
     JobGraph validateDefaultGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
