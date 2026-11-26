@@ -101,6 +101,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator<>();
 
+    private volatile Watermark watermarkInGroup;
+
     private final WatermarkAlignmentParams watermarkAlignmentParams;
 
     /** The name of the operator this SourceCoordinator is associated with. */
@@ -292,6 +294,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             closeQuietly(enumerator);
         }
         closeQuietly(context);
+        // After closing the context, which drops queued reports. A recreated coordinator shares
+        // the store and may already have reported if this close() outlived the closing
+        // timeout, so only the entry this coordinator wrote is removed.
+        if (started && watermarkAlignmentParams.isEnabled()) {
+            removeFromGroup();
+        }
         LOG.info("Source coordinator for source {} closed.", operatorName);
     }
 
@@ -336,6 +344,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
                     context.unregisterSourceReader(subtaskId, attemptNumber);
                     context.attemptFailed(subtaskId, attemptNumber);
+                    removeWatermarkOfSubtask(subtaskId);
                 },
                 "handling subtask %d (#%d) failure",
                 subtaskId,
@@ -353,6 +362,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             operatorName);
 
                     context.subtaskReset(subtaskId);
+                    removeWatermarkOfSubtask(subtaskId);
 
                     final List<SplitT> splitsToAddBack =
                             context.getAndRemoveUncheckpointedAssignment(subtaskId, checkpointId);
@@ -699,17 +709,44 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         combinedWatermark
                 .aggregate(subtask, watermark)
-                .ifPresent(
-                        newCombinedWatermark ->
-                                coordinatorStore.computeIfPresent(
-                                        watermarkAlignmentParams.getWatermarkGroup(),
-                                        (key, oldValue) -> {
-                                            WatermarkAggregator<String> watermarkAggregator =
-                                                    (WatermarkAggregator<String>) oldValue;
-                                            watermarkAggregator.aggregate(
-                                                    operatorName, newCombinedWatermark);
-                                            return watermarkAggregator;
-                                        }));
+                .ifPresent(this::updateAggregatedWatermarkOfGroup);
+    }
+
+    private void updateAggregatedWatermarkOfGroup(Watermark newCombinedWatermark) {
+        coordinatorStore.computeIfPresent(
+                watermarkAlignmentParams.getWatermarkGroup(),
+                (key, oldValue) -> {
+                    WatermarkAggregator<String> watermarkAggregator =
+                            (WatermarkAggregator<String>) oldValue;
+                    watermarkAggregator.aggregate(operatorName, newCombinedWatermark);
+                    watermarkInGroup = newCombinedWatermark;
+                    return watermarkAggregator;
+                });
+    }
+
+    /**
+     * Drops the watermark of a failed subtask. It does not bound the restarted attempt, which may
+     * resume from an earlier checkpoint, and keeping it would hold back the group while the subtask
+     * restarts, or for good if the new attempt never reports. A source without watermarks leaves
+     * the group, as at startup.
+     */
+    private void removeWatermarkOfSubtask(int subtaskId) {
+        if (combinedWatermark.remove(subtaskId)) {
+            if (combinedWatermark.keySet().isEmpty()) {
+                removeFromGroup();
+            } else {
+                updateAggregatedWatermarkOfGroup(combinedWatermark.getAggregatedWatermark());
+            }
+        }
+    }
+
+    private void removeFromGroup() {
+        coordinatorStore.computeIfPresent(
+                watermarkAlignmentParams.getWatermarkGroup(),
+                (key, oldValue) -> {
+                    ((WatermarkAggregator<String>) oldValue).remove(operatorName, watermarkInGroup);
+                    return oldValue;
+                });
     }
 
     private void ensureStarted() {
@@ -835,6 +872,32 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 return Optional.empty();
             }
             return Optional.of(newAggregatedWatermark);
+        }
+
+        /**
+         * Removes the {@link Watermark} for the given {@code key}.
+         *
+         * @return whether a {@link Watermark} was present for the given {@code key}.
+         */
+        public boolean remove(T key) {
+            WatermarkElement watermarkElement = watermarks.get(key);
+            return watermarkElement != null && remove(key, watermarkElement.watermark);
+        }
+
+        /**
+         * Removes the {@link Watermark} for the given {@code key} only if it is the {@code
+         * expected} instance.
+         *
+         * @return whether the {@link Watermark} was removed.
+         */
+        public boolean remove(T key, Watermark expected) {
+            WatermarkElement watermarkElement = watermarks.get(key);
+            if (watermarkElement == null || watermarkElement.watermark != expected) {
+                return false;
+            }
+            watermarks.remove(key);
+            orderedWatermarks.remove(watermarkElement);
+            return true;
         }
 
         public Set<T> keySet() {
