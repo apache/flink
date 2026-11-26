@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -116,6 +117,29 @@ class DefaultDelegationTokenManagerLifecycleTest {
 
         assertThat(listener.receivedGenerations()).containsExactly(2);
         assertThat(provider.obtainCalls()).isEqualTo(2);
+    }
+
+    @Test
+    void attachDoesNotHandOverTokensWhichExpired() throws Exception {
+        final AdjustableClock clock = new AdjustableClock(1_000_000L);
+        final DelegationTokenManagerTestHarness expiring =
+                new DelegationTokenManagerTestHarness(
+                        new MockTokenService(clock, Duration.ofSeconds(60)));
+        expiring.manager().start();
+        // The token service stays unreachable until the tokens which the process holds expired.
+        expiring.provider().failWith(new IllegalStateException("token service unreachable"));
+        clock.advance(Duration.ofSeconds(61));
+        expiring.obtainIsDue();
+        final RecordingListener listener = new RecordingListener();
+
+        expiring.manager().attachListener(listener);
+
+        assertThat(listener.receivedGenerations()).isEmpty();
+
+        expiring.provider().failWith(null);
+        expiring.obtainIsDue();
+
+        assertThat(listener.receivedGenerations()).containsExactly(2);
     }
 
     @Test
@@ -416,6 +440,40 @@ class DefaultDelegationTokenManagerLifecycleTest {
                 .hasMessageContaining("RUNNING");
         assertThat(provider.obtainCalls()).isEqualTo(1);
         assertThat(harness.pendingObtainDelaysMillis()).containsExactly(OBTAIN_DELAY_MILLIS);
+    }
+
+    /** A clock which only moves when the test says so. */
+    private static final class AdjustableClock extends Clock {
+
+        private volatile long millis;
+
+        AdjustableClock(long millis) {
+            this.millis = millis;
+        }
+
+        void advance(Duration duration) {
+            millis += duration.toMillis();
+        }
+
+        @Override
+        public long millis() {
+            return millis;
+        }
+
+        @Override
+        public Instant instant() {
+            return Instant.ofEpochMilli(millis);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /** Stands for the ResourceManager of a leader session and remembers what it was handed. */

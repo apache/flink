@@ -36,6 +36,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -120,6 +121,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @GuardedBy("stateLock")
     @Nullable
     private byte[] latestTokens;
+
+    /** The expiry of {@link #latestTokens}, {@link Long#MAX_VALUE} if the providers report none. */
+    @GuardedBy("stateLock")
+    private long latestTokensExpiry = Long.MAX_VALUE;
 
     /**
      * Serializes the listener callbacks so that a listener never sees older tokens after newer
@@ -283,7 +288,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
         if (container.hasTokens()) {
             delegationTokenReceiverRepository.onNewTokensObtained(container);
-            storeAndDeliverLatestTokens(InstantiationUtil.serializeObject(container));
+            storeAndDeliverLatestTokens(
+                    InstantiationUtil.serializeObject(container), expiry.orElse(Long.MAX_VALUE));
         } else {
             LOG.warn("No tokens obtained so skipping the update of the receivers and the delivery");
         }
@@ -303,31 +309,44 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         }
     }
 
-    private void storeAndDeliverLatestTokens(byte[] serializedTokens) throws Exception {
+    private void storeAndDeliverLatestTokens(byte[] serializedTokens, long expiry)
+            throws Exception {
         synchronized (stateLock) {
             latestTokens = serializedTokens;
+            latestTokensExpiry = expiry;
         }
         deliverLatestTokens();
     }
 
     /**
-     * Hands the newest tokens to the attached listener. Every delivery reads them while it holds
-     * the delivery lock, so a delivery which was waiting for another one does not hand over tokens
-     * which are older than the ones the other one handed over.
+     * Hands the newest tokens to the attached listener, unless they expired: a listener which
+     * distributes them would replace tokens which are still valid with ones which are not. Every
+     * delivery reads them while it holds the delivery lock, so a delivery which was waiting for
+     * another one does not hand over tokens which are older than the ones the other one handed
+     * over.
      */
     private void deliverLatestTokens() throws Exception {
         synchronized (deliveryLock) {
             final Listener currentListener;
             final byte[] tokens;
+            final long tokensExpiry;
             synchronized (stateLock) {
                 currentListener = listener;
                 tokens = latestTokens;
+                tokensExpiry = latestTokensExpiry;
             }
-            if (currentListener != null && tokens != null) {
-                LOG.info("Delivering the latest tokens to the listener");
-                currentListener.onNewTokensObtained(tokens);
-                LOG.info("Latest tokens delivered to the listener successfully");
+            if (currentListener == null || tokens == null) {
+                return;
             }
+            if (clock.millis() >= tokensExpiry) {
+                LOG.warn(
+                        "The latest delegation tokens expired at {}, they are not delivered to the listener",
+                        Instant.ofEpochMilli(tokensExpiry));
+                return;
+            }
+            LOG.info("Delivering the latest tokens to the listener");
+            currentListener.onNewTokensObtained(tokens);
+            LOG.info("Latest tokens delivered to the listener successfully");
         }
     }
 
