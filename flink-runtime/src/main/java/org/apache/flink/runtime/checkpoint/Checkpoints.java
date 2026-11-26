@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataV6Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV7Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -124,7 +126,7 @@ public class Checkpoints {
         storeCheckpointMetadata(
                 checkpointMetadata,
                 dos,
-                MetadataV6Serializer.INSTANCE,
+                metadataSerializerFor(checkpointMetadata),
                 out.getExclusiveCheckpointDir());
     }
 
@@ -135,7 +137,7 @@ public class Checkpoints {
     public static void storeCheckpointMetadataWithoutExclusiveDir(
             CheckpointMetadata checkpointMetadata, DataOutputStream out) throws IOException {
         storeCheckpointMetadataWithoutExclusiveDir(
-                checkpointMetadata, out, MetadataV6Serializer.INSTANCE);
+                checkpointMetadata, out, metadataSerializerFor(checkpointMetadata));
     }
 
     public static void storeCheckpointMetadata(
@@ -144,7 +146,7 @@ public class Checkpoints {
             @Nullable Path exclusiveDir)
             throws IOException {
         storeCheckpointMetadata(
-                checkpointMetadata, out, MetadataV6Serializer.INSTANCE, exclusiveDir);
+                checkpointMetadata, out, metadataSerializerFor(checkpointMetadata), exclusiveDir);
     }
 
     public static void storeCheckpointMetadataWithoutExclusiveDir(
@@ -153,6 +155,22 @@ public class Checkpoints {
             MetadataSerializer serializer)
             throws IOException {
         storeCheckpointMetadata(checkpointMetadata, out, serializer, null);
+    }
+
+    /**
+     * Returns the version 7 serializer if some coordinator state is in its own file, and the
+     * version 6 serializer otherwise, so that checkpoints without such state stay readable by Flink
+     * 2.1 and later. A later metadata version has to decide whether it is written for every
+     * checkpoint or, like this one, only when needed.
+     */
+    private static MetadataSerializer metadataSerializerFor(CheckpointMetadata checkpointMetadata) {
+        for (OperatorState operatorState : checkpointMetadata.getOperatorStates()) {
+            final StreamStateHandle coordinatorState = operatorState.getCoordinatorState();
+            if (coordinatorState != null && !(coordinatorState instanceof ByteStreamStateHandle)) {
+                return MetadataV7Serializer.INSTANCE;
+            }
+        }
+        return MetadataV6Serializer.INSTANCE;
     }
 
     public static void storeCheckpointMetadata(

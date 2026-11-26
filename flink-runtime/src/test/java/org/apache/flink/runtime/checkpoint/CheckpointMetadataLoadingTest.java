@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -28,10 +29,12 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -187,6 +190,30 @@ class CheckpointMetadataLoadingTest {
                                                 false, SavepointFormatType.CANONICAL)))
                 .hasMessageContaining("allowNonRestoredState")
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testCoordinatorStateStoredInAFileIsNotReadWhenTheSavepointIsLoaded(
+            @TempDir java.nio.file.Path tmp) throws Exception {
+        final OperatorID operatorId = new OperatorID();
+        // the coordinator reads the file itself when it is reset, so loading must not touch it
+        final FileStateHandle notYetRead =
+                new FileStateHandle(new Path(tmp.resolve("absent").toUri()), 4096);
+
+        final OperatorState state = new OperatorState(null, null, operatorId, 1, 1);
+        state.setCoordinatorState(notYetRead);
+
+        final CompletedCheckpoint loaded =
+                Checkpoints.loadAndValidateCheckpoint(
+                        new JobID(),
+                        createTasks(operatorId, 1, 1),
+                        createSavepointWithOperatorState(42L, state),
+                        cl,
+                        false,
+                        CheckpointProperties.forSavepoint(false, SavepointFormatType.CANONICAL));
+
+        assertThat(loaded.getOperatorStates().get(operatorId).getCoordinatorState())
+                .isEqualTo(notYetRead);
     }
 
     // ------------------------------------------------------------------------

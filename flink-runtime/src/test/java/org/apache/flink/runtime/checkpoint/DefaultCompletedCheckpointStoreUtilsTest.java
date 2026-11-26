@@ -22,12 +22,17 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.Logger;
@@ -40,6 +45,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -118,6 +124,77 @@ class DefaultCompletedCheckpointStoreUtilsTest {
         assertThat(completedCheckpoints)
                 .extracting(CompletedCheckpoint::getCheckpointID)
                 .containsExactly(0L, 1L, 2L);
+    }
+
+    @Test
+    void testRetrievingCheckpointsDoesNotReadCoordinatorStateFiles(
+            @TempDir java.nio.file.Path tempDir) throws Exception {
+        // for example the file of a NO_CLAIM snapshot that the store still retains but that the
+        // user deleted once a checkpoint succeeded, as the documentation allows
+        final FileStateHandle deletedFile =
+                new FileStateHandle(new Path(tempDir.resolve("deleted").toUri()), 4096);
+
+        final OperatorState operatorState = new OperatorState(null, null, new OperatorID(), 1, 1);
+        operatorState.setCoordinatorState(deletedFile);
+        final Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+        operatorStates.put(operatorState.getOperatorID(), operatorState);
+        final CompletedCheckpoint checkpoint =
+                new CompletedCheckpoint(
+                        new JobID(),
+                        0L,
+                        0,
+                        1,
+                        operatorStates,
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
+
+        // a real checkpoint store hands the checkpoint back through Java serialization
+        final RetrievableStateHandle<CompletedCheckpoint> handle =
+                new SerializingRetrievableStateHandle<>(checkpoint);
+        final TestingStateHandleStore<CompletedCheckpoint> stateHandleStore =
+                TestingStateHandleStore.<CompletedCheckpoint>newBuilder()
+                        .setGetAllSupplier(
+                                () -> Collections.singletonList(Tuple2.of(handle, "checkpoint-0")))
+                        .build();
+
+        final CompletedCheckpoint retrieved =
+                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                stateHandleStore, new SimpleCheckpointStoreUtil())
+                        .iterator()
+                        .next();
+
+        assertThat(retrieved.getOperatorStates().values().iterator().next().getCoordinatorState())
+                .isEqualTo(deletedFile);
+    }
+
+    /**
+     * A handle that returns a copy of the state that went through Java serialization, like a real
+     * store.
+     */
+    private static class SerializingRetrievableStateHandle<T extends Serializable>
+            implements RetrievableStateHandle<T> {
+        private static final long serialVersionUID = 1L;
+        private final byte[] serialized;
+
+        private SerializingRetrievableStateHandle(T state) throws IOException {
+            this.serialized = InstantiationUtil.serializeObject(state);
+        }
+
+        @Override
+        public T retrieveState() throws IOException, ClassNotFoundException {
+            return InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
+        }
+
+        @Override
+        public void discardState() {}
+
+        @Override
+        public long getStateSize() {
+            return serialized.length;
+        }
     }
 
     @Test
