@@ -1442,6 +1442,14 @@ public interface Table extends Explainable<Table>, Executable {
      *     .toChangelog();
      * }</pre>
      *
+     * <p>The optional {@code produces_full_deletes} boolean controls how DELETE rows are emitted.
+     * When {@code true} (default), the planner inserts a {@code ChangelogNormalize} operator for
+     * upsert sources that emit key-only deletes so the function emits fully populated DELETE rows
+     * downstream. When {@code false}, the function emits partial DELETE rows: row semantics
+     * preserves the planner-derived upsert key columns and nulls the rest, set semantics ({@code
+     * PARTITION BY}) preserves the partition key and nulls the rest. Requires an upsert key or
+     * {@code PARTITION BY}; otherwise the call is rejected.
+     *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
@@ -1460,9 +1468,8 @@ public interface Table extends Explainable<Table>, Executable {
      *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      * );
      *
-     * // Opt out of full-delete semantics. When `true` (default), DELETE rows carry the full
-     * // pre-image. When `false`, only the identifying key columns are preserved and the rest
-     * // are nulled. See in documentation for more details.
+     * // Opt out of full-delete semantics to emit partial DELETE rows.
+     * // Requires an upsert key or PARTITION BY; otherwise rejected.
      * Table result = table.toChangelog(
      *     lit(false).asArgument("produces_full_deletes")
      * );
