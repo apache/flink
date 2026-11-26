@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
@@ -49,7 +50,10 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.security.token.DelegationTokenContainer;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.MockDelegationTokenProvider;
@@ -60,15 +64,19 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,6 +85,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -84,6 +93,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
@@ -144,10 +154,34 @@ class MiniClusterITCase {
 
     @Test
     @Timeout(60)
-    void startReportsItsFailureEvenIfTheDelegationTokenManagerFailsToStop() {
+    void startReportsItsFailureEvenIfTheDelegationTokenManagerFailsToStop(
+            @TempDir Path workingDirectoryBase) throws Exception {
         final IllegalStateException startFailure = new IllegalStateException("HA services failed");
+        // A mini cluster which fails to start does not release what it started, so the test does.
+        final List<AutoCloseableAsync> startedServices = new CopyOnWriteArrayList<>();
+        final Configuration configuration = new Configuration();
+        configuration.set(ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirectoryBase.toString());
         final MiniClusterWithManagerFailingToStop miniCluster =
-                new MiniClusterWithManagerFailingToStop() {
+                new MiniClusterWithManagerFailingToStop(configuration) {
+                    @Override
+                    protected MetricRegistryImpl createMetricRegistry(
+                            Configuration configuration, long maximumMessageSizeInBytes) {
+                        final MetricRegistryImpl metricRegistry =
+                                super.createMetricRegistry(
+                                        configuration, maximumMessageSizeInBytes);
+                        startedServices.add(metricRegistry);
+                        return metricRegistry;
+                    }
+
+                    @Override
+                    protected RpcService createLocalRpcService(
+                            Configuration configuration, RpcSystem rpcSystem) throws Exception {
+                        final RpcService rpcService =
+                                super.createLocalRpcService(configuration, rpcSystem);
+                        startedServices.add(rpcService);
+                        return rpcService;
+                    }
+
                     @Override
                     protected HighAvailabilityServices createHighAvailabilityServices(
                             Configuration configuration, Executor executor) {
@@ -161,6 +195,11 @@ class MiniClusterITCase {
                     .hasSuppressedException(new IllegalStateException(STOP_FAILURE_MESSAGE));
         } finally {
             miniCluster.ioExecutor.shutdownNow();
+            FutureUtils.completeAll(
+                            startedServices.stream()
+                                    .map(AutoCloseableAsync::closeAsync)
+                                    .collect(Collectors.toList()))
+                    .get(30, TimeUnit.SECONDS);
         }
     }
 
@@ -986,7 +1025,15 @@ class MiniClusterITCase {
         private volatile ExecutorService ioExecutor;
 
         MiniClusterWithManagerFailingToStop() {
-            super(new MiniClusterConfiguration.Builder().withRandomPorts().build());
+            this(new Configuration());
+        }
+
+        MiniClusterWithManagerFailingToStop(Configuration configuration) {
+            super(
+                    new MiniClusterConfiguration.Builder()
+                            .withRandomPorts()
+                            .setConfiguration(configuration)
+                            .build());
         }
 
         @Override
