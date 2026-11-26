@@ -174,6 +174,34 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
     }
 
     @Test
+    void testRerunOfNamesOnlyReorderDdlChangesNothing()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        createMaterializedTableInCatalog(
+                "CREATE MATERIALIZED TABLE mt2 (b, a, c, d) AS SELECT * FROM t1", "mt2");
+
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation)
+                        parse(
+                                "CREATE OR ALTER MATERIALIZED TABLE mt2 (b, a, c, d) AS SELECT * FROM t1");
+
+        assertThat(op.getTableChanges()).isEmpty();
+    }
+
+    @Test
+    void testNamesOnlyListThatOnlyAppendsStoresQueryInTableOrder() {
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation)
+                        parse(
+                                "CREATE OR ALTER MATERIALIZED TABLE mt (a, b, c, d, e)"
+                                        + " AS SELECT 1 AS e, a, b, c, d FROM t1");
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+        final String expandedQuery = modifiedDefinitionQuery(op.getTableChanges());
+        assertThat(outputColumnNames(expandedQuery)).containsExactly("a", "b", "c", "d", "e");
+        assertThat(op.getNewTable().getExpandedQuery()).isEqualTo(expandedQuery);
+    }
+
+    @Test
     void testAlterMaterializedTableAsQueryWithoutDefinedSchema() {
         String sql =
                 "CREATE OR ALTER MATERIALIZED TABLE mt "
@@ -731,6 +759,15 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                                                         .isVirtual()))
                 .map(Schema.UnresolvedColumn::getName)
                 .collect(Collectors.toList());
+    }
+
+    private static String modifiedDefinitionQuery(List<TableChange> changes) {
+        return changes.stream()
+                .filter(TableChange.ModifyDefinitionQuery.class::isInstance)
+                .map(TableChange.ModifyDefinitionQuery.class::cast)
+                .map(TableChange.ModifyDefinitionQuery::getDefinitionQuery)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No ModifyDefinitionQuery change"));
     }
 
     private void createMaterializedTableInCatalog(String sql, String materializedTableName)

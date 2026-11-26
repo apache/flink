@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.materializedtable;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateMaterializedTable;
 import org.apache.flink.table.api.Schema;
@@ -36,6 +37,7 @@ import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.Con
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
@@ -148,9 +150,30 @@ final class SqlMaterializedTableMergeContext implements MaterializedTableMergeCo
 
     @Override
     public String getExpandedQuery() {
+        final List<String> queryColumns = getQuerySchema().getColumnNames();
         final SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
         final SqlNode validatedQuery = context.getSqlValidator().validate(selectQuery);
-        return context.expandSqlIdentifiers(context.toQuotedSqlString(validatedQuery));
+        return context.expandSqlIdentifiers(
+                context.toQuotedSqlString(alignWithColumnList(validatedQuery, queryColumns)));
+    }
+
+    /**
+     * A names-only column list sets the table's column order, and the refresh job writes the
+     * query's columns by position. So the stored query must produce them in the list's order.
+     */
+    private SqlNode alignWithColumnList(SqlNode validatedQuery, List<String> queryColumns) {
+        if (!sqlCreateMaterializedTable.isSchemaWithColumnsIdentifiersOnly()) {
+            return validatedQuery;
+        }
+        final List<String> listColumns =
+                SqlParseUtils.extractList(
+                        sqlCreateMaterializedTable.getColumnList(),
+                        column -> ((SqlIdentifier) column).getSimple());
+        if (listColumns.equals(queryColumns)) {
+            return validatedQuery;
+        }
+        return MaterializedTableUtils.reorderQueryColumns(
+                validatedQuery, queryColumns, listColumns);
     }
 
     @Override

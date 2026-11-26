@@ -45,6 +45,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
@@ -55,6 +56,7 @@ import org.apache.flink.table.operations.materializedtable.DropMaterializedTable
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.utils.TableFunc0;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -419,6 +421,179 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `EXPR$0`.`name`, `EXPR$0`.`age`\n"
                                 + "FROM `builtin`.`default`.`t1` AS `t1`,\n"
                                 + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `EXPR$0`");
+    }
+
+    @Test
+    void testCreateNamesOnlyColumnListReorderStoresQueryInTableOrder() {
+        final CreateMaterializedTableOperation op =
+                createMaterializedTableOperation(
+                        "CREATE MATERIALIZED TABLE mtbl1 (b, a) AS SELECT a, b FROM t1");
+
+        assertThat(op.getCatalogMaterializedTable().getExpandedQuery())
+                .isEqualTo(
+                        "SELECT `t1`.`b` AS `b`, `t1`.`a` AS `a`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`");
+    }
+
+    @Test
+    void testCreateNamesOnlyColumnListInQueryOrderKeepsQueryText() {
+        final CreateMaterializedTableOperation op =
+                createMaterializedTableOperation(
+                        "CREATE MATERIALIZED TABLE mtbl1 (a, b) AS SELECT a, b FROM t1");
+
+        assertThat(op.getCatalogMaterializedTable().getExpandedQuery())
+                .isEqualTo("SELECT `t1`.`a`, `t1`.`b`\nFROM `builtin`.`default`.`t1` AS `t1`");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderRemapsOrdinalOrderBy() {
+        final CreateMaterializedTableOperation op =
+                createMaterializedTableOperation(
+                        "CREATE MATERIALIZED TABLE mtbl1 (b, a, c)"
+                                + " AS SELECT a, b, c FROM t1 ORDER BY 1 DESC NULLS LAST, 2 NULLS FIRST, 3");
+
+        assertThat(op.getCatalogMaterializedTable().getExpandedQuery())
+                .endsWith("ORDER BY 2 DESC NULLS LAST, 1 NULLS FIRST, 3");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderRemapsOrdinalOrderByOverUnion() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (b, a)"
+                                        + " AS SELECT a, b FROM t1 UNION ALL SELECT a, b FROM t1"
+                                        + " ORDER BY 1")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(outputColumnNames(expandedQuery)).containsExactly("b", "a");
+        assertThat(expandedQuery).endsWith("ORDER BY 2");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderKeepsOrderByName() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (b, a, c)"
+                                        + " AS SELECT a, b, c FROM t1 ORDER BY c")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(outputColumnNames(expandedQuery)).containsExactly("b", "a", "c");
+        assertThat(expandedQuery).endsWith("ORDER BY `c`");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderPermutesUnionBranches() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (b, a)"
+                                        + " AS SELECT a, b FROM t1 UNION ALL SELECT a, b FROM t1")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(outputColumnNames(expandedQuery)).containsExactly("b", "a");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderKeepsUnionBranchAliases() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (y, x)"
+                                        + " AS SELECT a AS x, c AS y FROM t1"
+                                        + " UNION ALL"
+                                        + " (SELECT a AS y, c AS x FROM t1 ORDER BY x LIMIT 1)")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(expandedQuery)
+                .isEqualTo(
+                        "SELECT `t1`.`c` AS `y`, `t1`.`a` AS `x`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`\n"
+                                + "UNION ALL\n"
+                                + "(SELECT `t1`.`c` AS `x`, `t1`.`a` AS `y`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`\n"
+                                + "ORDER BY `x`\n"
+                                + "FETCH NEXT 1 ROWS ONLY)");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderKeepsNestedUnionBranchAliases() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (y, x)"
+                                        + " AS (SELECT a AS x, c AS y FROM t1"
+                                        + " UNION ALL"
+                                        + " (SELECT a AS y, c AS x FROM t1 ORDER BY x LIMIT 1))"
+                                        + " UNION ALL SELECT a, c FROM t1")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(expandedQuery)
+                .isEqualTo(
+                        "SELECT `t1`.`c` AS `y`, `t1`.`a` AS `x`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`\n"
+                                + "UNION ALL\n"
+                                + "(SELECT `t1`.`c` AS `x`, `t1`.`a` AS `y`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`\n"
+                                + "ORDER BY `x`\n"
+                                + "FETCH NEXT 1 ROWS ONLY)\n"
+                                + "UNION ALL\n"
+                                + "SELECT `t1`.`c`, `t1`.`a`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderUnderWith() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (b, a)"
+                                        + " AS WITH w AS (SELECT a, b FROM t1) SELECT a, b FROM w")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(outputColumnNames(expandedQuery)).containsExactly("b", "a");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderKeepsUnnamedExpressionNames() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (`EXPR$1`, `EXPR$0`)"
+                                        + " AS SELECT a + 1, c + 1 FROM t1")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        final ResolvedSchema outputSchema =
+                ((QueryOperation) parse(expandedQuery)).getResolvedSchema();
+        assertThat(outputSchema.getColumnNames()).containsExactly("EXPR$1", "EXPR$0");
+        assertThat(outputSchema.getColumnDataTypes())
+                .extracting(dataType -> dataType.getLogicalType().getTypeRoot())
+                .containsExactly(LogicalTypeRoot.INTEGER, LogicalTypeRoot.BIGINT);
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderKeepsDeduplicatedNames() {
+        final String expandedQuery =
+                createMaterializedTableOperation(
+                                "CREATE MATERIALIZED TABLE mtbl1 (b, a0, a)"
+                                        + " AS SELECT t1.a, t2.a, t1.b FROM t1, t1 AS t2")
+                        .getCatalogMaterializedTable()
+                        .getExpandedQuery();
+
+        assertThat(outputColumnNames(expandedQuery)).containsExactly("b", "a0", "a");
+    }
+
+    @Test
+    void testCreateNamesOnlyReorderOfValuesIsRejected() {
+        assertThatThrownBy(
+                        () ->
+                                createMaterializedTableOperation(
+                                        "CREATE MATERIALIZED TABLE mtbl1 (`EXPR$1`, `EXPR$0`)"
+                                                + " AS VALUES (1, 'x')"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Wrap the query in a SELECT that lists the columns in the column list's order");
     }
 
     @Test
