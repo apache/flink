@@ -80,6 +80,8 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 - **Full Checkpoint Data Size**: The accumulated checkpoint data size over all acknowledged subtasks.
 - **Processed (persisted) in-flight data**: The approximate number of bytes processed/persisted during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks. Persisted data could be larger than zero only if the unaligned checkpoints are enabled.
 
+Operator coordinator state that is stored in its own file (see `execution.checkpointing.coordinator-state-in-file.enabled`) is included in the Checkpointed Data Size and the Full Checkpoint Data Size. It belongs to no subtask, so the statistics of operators and subtasks do not include it.
+
 For subtasks there are a couple of more detailed stats available.
 
 {{< img src="/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History" >}}
