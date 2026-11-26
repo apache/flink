@@ -114,19 +114,17 @@ class JarRunApplicationHandlerParameterTest {
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
         init(tempDir);
-        final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
-                () -> CompletableFuture.completedFuture(restfulGateway);
-        final Duration timeout = Duration.ofSeconds(10);
-        final Map<String, String> responseHeaders = Collections.emptyMap();
+        handler = createHandler(jarDir);
+    }
 
-        handler =
-                new JarRunApplicationHandler(
-                        gatewayRetriever,
-                        timeout,
-                        responseHeaders,
-                        JarRunApplicationHeaders.getInstance(),
-                        jarDir,
-                        new Configuration());
+    private static JarRunApplicationHandler createHandler(final Path jarDir) {
+        return new JarRunApplicationHandler(
+                gatewayRetriever,
+                timeout,
+                responseHeaders,
+                JarRunApplicationHeaders.getInstance(),
+                jarDir,
+                new Configuration());
     }
 
     static void init(File tmpDir) throws Exception {
