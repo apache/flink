@@ -62,14 +62,7 @@ class JarDeleteHandlerTest {
     void setUp(@TempDir File tempDir) throws Exception {
         jarDir = tempDir.toPath();
         restfulGateway = new TestingRestfulGateway.Builder().build();
-        jarDeleteHandler =
-                new JarDeleteHandler(
-                        () -> CompletableFuture.completedFuture(restfulGateway),
-                        Duration.ofSeconds(10),
-                        Collections.emptyMap(),
-                        new JarDeleteHeaders(),
-                        jarDir,
-                        Executors.directExecutor());
+        jarDeleteHandler = createHandler(jarDir);
 
         Files.createFile(jarDir.resolve(TEST_JAR_NAME));
     }
@@ -122,6 +115,16 @@ class JarDeleteHandlerTest {
                             assertThat(restHandlerException.getHttpResponseStatus())
                                     .isEqualTo(HttpResponseStatus.INTERNAL_SERVER_ERROR);
                         });
+    }
+
+    private JarDeleteHandler createHandler(final Path jarDir) {
+        return new JarDeleteHandler(
+                () -> CompletableFuture.completedFuture(restfulGateway),
+                Duration.ofSeconds(10),
+                Collections.emptyMap(),
+                new JarDeleteHeaders(),
+                jarDir,
+                Executors.directExecutor());
     }
 
     private static HandlerRequest<EmptyRequestBody> createRequest(final String jarFileName)
