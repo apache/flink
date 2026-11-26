@@ -36,6 +36,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -61,19 +62,22 @@ class JarPlanHandlerParameterTest
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
         init(tempDir);
-        handler =
-                new JarPlanHandler(
-                        gatewayRetriever,
-                        timeout,
-                        responseHeaders,
-                        JarPlanGetHeaders.getInstance(),
-                        jarDir,
-                        new Configuration(),
-                        EXECUTOR_EXTENSION.getExecutor(),
-                        jobGraph -> {
-                            LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
-                            return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
-                        });
+        handler = createHandler(jarDir);
+    }
+
+    private static JarPlanHandler createHandler(final Path jarDir) {
+        return new JarPlanHandler(
+                gatewayRetriever,
+                timeout,
+                responseHeaders,
+                JarPlanGetHeaders.getInstance(),
+                jarDir,
+                new Configuration(),
+                EXECUTOR_EXTENSION.getExecutor(),
+                jobGraph -> {
+                    LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
+                    return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
+                });
     }
 
     @Override
