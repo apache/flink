@@ -84,6 +84,20 @@ to the cluster, without changing the configuration file.
 
 When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
 
+The job JAR can also be given as a URI on a remote file system, for example
+`s3://`, `hdfs://` or `https://`. The CLI fetches it into a new directory under the first
+[`io.tmp.dirs`]({{< ref "docs/deployment/config#io-tmp-dirs" >}}) entry before submitting the job
+and deletes it afterwards. The matching
+[file system plugin]({{< ref "docs/deployment/filesystems/overview" >}}) has to be available to the
+client. HTTP downloads honor `user.artifacts.raw-http-enabled` and `user.artifacts.http-headers`,
+as in Application Mode. A local file with the same path takes precedence over a URI.
+
+```bash
+$ ./bin/flink run \
+      --detached \
+      s3://my-bucket/jobs/StateMachineExample.jar
+```
+
 ### Job Monitoring
 
 You can monitor any running jobs using the `list` action:
