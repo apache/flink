@@ -75,8 +75,9 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
         List<String> results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
         results = new ArrayList<>(results);
         results.sort(String::compareTo);
-        expectedList.sort(String::compareTo);
+        List<String> sortedExpectedList = new ArrayList<>(expectedList);
+        sortedExpectedList.sort(String::compareTo);
 
-        assertThat(results).isEqualTo(expectedList);
+        assertThat(results).isEqualTo(sortedExpectedList);
     }
 }
