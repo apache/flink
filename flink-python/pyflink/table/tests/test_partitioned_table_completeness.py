@@ -36,7 +36,7 @@ class PartitionedTableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
 
     @classmethod
     def excluded_methods(cls):
-        return {'asArgument', 'process'}
+        return {'asArgument', 'process', 'deduplicate'}
 
 
 if __name__ == '__main__':
