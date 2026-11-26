@@ -222,7 +222,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         while (true) {
             // Check if the previous record count reached the limit of rateLimiter.
             if (!rateLimitPermissionFuture.isDone()) {
-                return trace(InputStatus.MORE_AVAILABLE);
+                // isAvailable() returns the permit future, so the task waits for the permit
+                // instead of polling again at once.
+                return trace(InputStatus.NOTHING_AVAILABLE);
             }
             // Process one record.
             final E record = recordsWithSplitId.nextRecordFromSplit();
@@ -339,6 +341,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     @Override
     public CompletableFuture<Void> isAvailable() {
+        if (!rateLimitPermissionFuture.isDone()) {
+            return rateLimitPermissionFuture;
+        }
         return currentFetch != null
                 ? FutureCompletingBlockingQueue.AVAILABLE
                 : elementsQueue.getAvailabilityFuture();

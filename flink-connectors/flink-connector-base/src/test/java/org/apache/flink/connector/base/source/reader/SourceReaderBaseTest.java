@@ -22,6 +22,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -232,6 +233,47 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         assertThat(System.currentTimeMillis() - startTime)
                 .isGreaterThan(Duration.ofSeconds(85).toMillis())
                 .isLessThan(Duration.ofSeconds(95).toMillis());
+    }
+
+    @Test
+    void testWaitsForRateLimiterPermitInsteadOfPolling() throws Exception {
+        final TestingRecordsWithSplitIds<String> records =
+                new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
+        final CompletableFuture<Void> permit = new CompletableFuture<>();
+        final SourceReader<String, ?> reader =
+                createReaderAndAwaitAvailable(
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(records),
+                        parallelism -> numberOfEvents -> permit);
+        final TestingReaderOutput<String> output = new TestingReaderOutput<>();
+
+        // The first poll emits a record and asks for the permit of the next one, so the second
+        // poll finds no permit and the reader is not polled again until it gets one.
+        assertThat(pollLikeSourceTask(reader, output, 100)).isEqualTo(2);
+        assertThat(output.getEmittedRecords()).containsExactly("value1");
+
+        // With the permit, one poll emits the last record and the next finds nothing left.
+        permit.complete(null);
+        assertThat(pollLikeSourceTask(reader, output, 100)).isEqualTo(2);
+        assertThat(output.getEmittedRecords()).containsExactly("value1", "value2");
+    }
+
+    /**
+     * Polls the reader as a source task does, at most {@code maxPolls} times: again at once after
+     * {@code MORE_AVAILABLE}, otherwise only once {@code isAvailable()} has completed. Returns the
+     * number of polls.
+     */
+    private static int pollLikeSourceTask(
+            SourceReader<String, ?> reader, ReaderOutput<String> output, int maxPolls)
+            throws Exception {
+        int polls = 0;
+        InputStatus status = InputStatus.MORE_AVAILABLE;
+        while (polls < maxPolls
+                && (status == InputStatus.MORE_AVAILABLE || reader.isAvailable().isDone())) {
+            status = reader.pollNext(output);
+            polls++;
+        }
+        return polls;
     }
 
     /** A rate limiter that reduce the maxPerSecond for specific splits. */
