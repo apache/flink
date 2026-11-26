@@ -345,6 +345,17 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
+    private BiFunction<ResourceManagerId, byte[], CompletableFuture<Acknowledge>>
+            updateDelegationTokensFunction =
+                    (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
+
+    public TestingTaskExecutorGatewayBuilder setUpdateDelegationTokensFunction(
+            BiFunction<ResourceManagerId, byte[], CompletableFuture<Acknowledge>>
+                    updateDelegationTokensFunction) {
+        this.updateDelegationTokensFunction = updateDelegationTokensFunction;
+        return this;
+    }
+
     public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
         return new TestingTaskExecutorGateway(
                 address,
@@ -368,6 +379,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 requestProfilingSupplier,
                 requestThreadInfoSamplesSupplier,
                 triggerCheckpointFunction,
-                confirmCheckpointFunction);
+                confirmCheckpointFunction,
+                updateDelegationTokensFunction);
     }
 }

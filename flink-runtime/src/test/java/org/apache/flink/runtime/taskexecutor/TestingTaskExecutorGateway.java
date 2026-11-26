@@ -134,6 +134,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     private final TriFunction<ExecutionAttemptID, Long, Long, CompletableFuture<Acknowledge>>
             confirmCheckpointFunction;
 
+    private final BiFunction<ResourceManagerId, byte[], CompletableFuture<Acknowledge>>
+            updateDelegationTokensFunction;
+
     TestingTaskExecutorGateway(
             String address,
             String hostname,
@@ -181,7 +184,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                             CompletableFuture<Acknowledge>>
                     triggerCheckpointFunction,
             TriFunction<ExecutionAttemptID, Long, Long, CompletableFuture<Acknowledge>>
-                    confirmCheckpointFunction) {
+                    confirmCheckpointFunction,
+            BiFunction<ResourceManagerId, byte[], CompletableFuture<Acknowledge>>
+                    updateDelegationTokensFunction) {
 
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
@@ -207,6 +212,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
         this.triggerCheckpointFunction = triggerCheckpointFunction;
         this.confirmCheckpointFunction = confirmCheckpointFunction;
+        this.updateDelegationTokensFunction = updateDelegationTokensFunction;
     }
 
     @Override
@@ -380,7 +386,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     @Override
     public CompletableFuture<Acknowledge> updateDelegationTokens(
             ResourceManagerId resourceManagerId, byte[] tokens) {
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        return updateDelegationTokensFunction.apply(resourceManagerId, tokens);
     }
 
     @Override

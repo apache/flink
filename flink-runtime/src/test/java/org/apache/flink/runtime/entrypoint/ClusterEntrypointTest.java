@@ -24,6 +24,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
@@ -45,8 +46,11 @@ import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystemUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.ExceptionThrowingDelegationTokenProvider;
 import org.apache.flink.runtime.security.token.ExceptionThrowingDelegationTokenReceiver;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
+import org.apache.flink.runtime.security.token.RecordingDelegationTokenManager;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.testutils.TestingClusterEntrypointProcess;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -62,14 +66,19 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -133,6 +142,52 @@ public class ClusterEntrypointTest extends TestLogger {
                 is(ApplicationStatus.UNKNOWN));
         assertThat(
                 ExceptionThrowingDelegationTokenReceiver.onNewTokensObtainedCallCount.get(), is(1));
+    }
+
+    @Test
+    public void testClusterStartShouldStartTheDelegationTokenManagerAndCloseShouldStopIt()
+            throws Exception {
+        final RecordingDelegationTokenManager tokenManager = new RecordingDelegationTokenManager();
+        final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder()
+                        .setConfiguration(flinkConfig)
+                        .setDelegationTokenManager(tokenManager)
+                        .build();
+
+        testingEntryPoint.startCluster();
+
+        assertThat(tokenManager.startCalls()).isEqualTo(1);
+        assertThat(tokenManager.stopCalls()).isZero();
+
+        testingEntryPoint.closeAsync().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+        assertThat(tokenManager.startCalls()).isEqualTo(1);
+        assertThat(tokenManager.stopCalls()).isEqualTo(1);
+    }
+
+    @Test
+    public void testCloseAsyncShouldCompleteIfTheDelegationTokenManagerFailsToStop()
+            throws Exception {
+        final DelegationTokenManager failingToStop =
+                new NoOpDelegationTokenManager() {
+                    @Override
+                    public void stop() {
+                        throw new IllegalStateException("cannot stop");
+                    }
+                };
+        final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder()
+                        .setConfiguration(flinkConfig)
+                        .setDelegationTokenManager(failingToStop)
+                        .build();
+        testingEntryPoint.startCluster();
+
+        assertThat(testingEntryPoint.closeAsync())
+                .as("termination of an entrypoint whose delegation token manager fails to stop")
+                .failsWithin(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IllegalStateException.class)
+                .withMessageContaining("cannot stop");
     }
 
     @Test
@@ -369,16 +424,33 @@ public class ClusterEntrypointTest extends TestLogger {
 
         private final DispatcherRunnerFactory dispatcherRunnerFactory;
 
+        @Nullable private final DelegationTokenManager delegationTokenManager;
+
         private TestingEntryPoint(
                 Configuration configuration,
                 HighAvailabilityServices haService,
                 ResourceManagerFactory<ResourceID> resourceManagerFactory,
-                DispatcherRunnerFactory dispatcherRunnerFactory) {
+                DispatcherRunnerFactory dispatcherRunnerFactory,
+                @Nullable DelegationTokenManager delegationTokenManager) {
             super(configuration);
             SignalHandler.register(LOG);
             this.haService = haService;
             this.resourceManagerFactory = resourceManagerFactory;
             this.dispatcherRunnerFactory = dispatcherRunnerFactory;
+            this.delegationTokenManager = delegationTokenManager;
+        }
+
+        @Override
+        protected DelegationTokenManager createDelegationTokenManager(
+                Configuration configuration,
+                PluginManager pluginManager,
+                ScheduledExecutor scheduledExecutor,
+                ExecutorService ioExecutor)
+                throws IOException {
+            return delegationTokenManager != null
+                    ? delegationTokenManager
+                    : super.createDelegationTokenManager(
+                            configuration, pluginManager, scheduledExecutor, ioExecutor);
         }
 
         @Override
@@ -420,6 +492,8 @@ public class ClusterEntrypointTest extends TestLogger {
 
             private Configuration configuration = new Configuration();
 
+            @Nullable private DelegationTokenManager delegationTokenManager;
+
             public Builder setHighAvailabilityServices(HighAvailabilityServices haService) {
                 this.haService = haService;
                 return this;
@@ -442,9 +516,19 @@ public class ClusterEntrypointTest extends TestLogger {
                 return this;
             }
 
+            public Builder setDelegationTokenManager(
+                    DelegationTokenManager delegationTokenManager) {
+                this.delegationTokenManager = delegationTokenManager;
+                return this;
+            }
+
             public TestingEntryPoint build() {
                 return new TestingEntryPoint(
-                        configuration, haService, resourceManagerFactory, dispatcherRunnerFactory);
+                        configuration,
+                        haService,
+                        resourceManagerFactory,
+                        dispatcherRunnerFactory,
+                        delegationTokenManager);
             }
         }
     }

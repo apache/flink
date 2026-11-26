@@ -39,13 +39,18 @@ public class NoOpDelegationTokenManager implements DelegationTokenManager {
     }
 
     @Override
-    public void obtainDelegationTokens() {
-        LOG.debug("obtainDelegationTokens");
+    public void start() {
+        LOG.debug("start");
     }
 
     @Override
-    public void start(Listener listener) {
-        LOG.debug("start");
+    public void attachListener(Listener listener) {
+        LOG.debug("attachListener");
+    }
+
+    @Override
+    public void detachListener(Listener listener) {
+        LOG.debug("detachListener");
     }
 
     @Override
