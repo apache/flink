@@ -30,6 +30,8 @@ public class DeduplicateSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 DeduplicateTestPrograms.ARRIVAL_ORDER,
+                DeduplicateTestPrograms.INSERT_ONLY_OUTPUT,
+                DeduplicateTestPrograms.ON_TIME,
                 DeduplicateTestPrograms.COMPOSITE_AND_NULL_KEY,
                 DeduplicateTestPrograms.SEQUENCE_BY);
     }

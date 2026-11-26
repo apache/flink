@@ -83,6 +83,7 @@ SELECT * FROM DEDUPLICATE(
   [keep => 'first' | 'last',]
   [sequence_by => DESCRIPTOR(col[, ...]),]
   [state_ttl => INTERVAL '1' HOUR,]
+  [on_time => DESCRIPTOR(time_col),]
   [uid => 'my-id']
 )
 ```
@@ -95,6 +96,7 @@ SELECT * FROM DEDUPLICATE(
 | `keep` | No | `'first'` (default) keeps the earliest arrival or the lowest `sequence_by` value, `'last'` keeps the latest arrival or the highest. Must be a literal. Arrival order is not deterministic across reruns, use `sequence_by` for a repeatable result. |
 | `sequence_by` | No | One or more columns that order the records of a key instead of their arrival, ascending, with strings and binaries compared lexicographically. The first column decides, later columns break ties, and `NULL` orders below every other value. On a tie, the later arrival wins for `'last'` and the earlier one for `'first'`. Columns must be of a type that `ORDER BY` supports, and not part of `PARTITION BY`. |
 | `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. Every record of a key, including a dropped duplicate, restarts the TTL. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
+| `on_time` | No | A time attribute to forward as a `rowtime` column. Only with `keep => 'first'` and no `sequence_by`. See [Keep time attributes](#keep-time-attributes). |
 | `uid` | No | A unique identifier for the PTF invocation. Defaults to `DEDUPLICATE`. Can be omitted if the PTF is invoked only once per job. See [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids). |
 
 
@@ -102,7 +104,9 @@ SELECT * FROM DEDUPLICATE(
 
 The output columns are the `PARTITION BY` columns, in the order listed, followed by the remaining input columns. Time attributes are emitted as regular timestamps.
 
-The result has one row per key. When a later row replaces the kept one, the row of that key is updated, so the result must be written to a table that accepts updates, for example one with a primary key on the `PARTITION BY` columns. Currently this holds for every `keep` mode, including `keep => 'first'` without `sequence_by`, which never replaces a row.
+The result has one row per key. When a later row replaces the kept one, the row of that key is updated, so the result must be written to a table that accepts updates, for example one with a primary key on the `PARTITION BY` columns.
+
+With `keep => 'first'` and no `sequence_by`, the kept row of a key never changes, so the result only contains inserts and can be written to an append-only table.
 
 {{< hint info >}}
 The first record of a key is emitted as `+I`. A record that replaces the kept one is emitted as `+U`, preceded by `-U` if the consumer needs retractions. A record that equals the kept one, or does not replace it, emits nothing. See [Updates and Changelogs]({{< ref "docs/dev/table/functions/ptfs" >}}#updates-and-changelogs).
@@ -168,6 +172,67 @@ SELECT * FROM DEDUPLICATE(
 | `(c1, Munich, 120)`   |
 
 `(c1, Hamburg, 110)` is dropped because its `lsn` is smaller than that of the kept row.
+
+#### Deduplicate exact matches
+
+In external systems, at-least-once delivery, retries, and reprocessing after a failure can write the same row more than once. To drop these copies, partition by the columns that identify a row and keep the default `keep => 'first'`.
+
+Here, a payment is delivered twice. Both copies share the `payment_id`, but each has its own `ingested_at`:
+
+| `payments` (`payment_id`, `amount`, `ingested_at`) |
+|:---------------------------------------------------|
+| `(p1, 50, 10:00:01)`                               |
+| `(p2, 20, 10:00:02)`                               |
+| `(p1, 50, 10:00:07)`                               |
+
+```sql
+INSERT INTO unique_payments
+SELECT * FROM DEDUPLICATE(
+  input => TABLE payments PARTITION BY payment_id,
+  state_ttl => INTERVAL '1' HOUR)
+```
+
+| Result                 |
+|:-----------------------|
+| `(p1, 50, 10:00:01)`   |
+| `(p2, 20, 10:00:02)`   |
+
+The second `p1` is dropped. Partition by the columns that are equal in every copy, here `payment_id`, and leave out columns that differ between copies, such as `ingested_at`.
+
+This query:
+
+- **Only emits inserts.** The first row of a key is emitted as soon as it arrives and never updated, so `unique_payments` can be an append-only table, and operations that require an insert-only input can consume the result.
+- **Does not depend on watermarks.** No row waits for a watermark or is dropped as late.
+- **Keeps one entry per key in state.** Set `state_ttl` to how long copies can keep arriving, for example the time a source needs to recover from a failure. A copy that arrives after its key expired is emitted again.
+
+#### Keep time attributes
+
+PTFs take an optional [`on_time`]({{< ref "docs/dev/table/functions/ptfs" >}}#time) argument to forward a time attribute: the output gets a `rowtime` column with the time of each row, which event-time operations such as window aggregations can use. For `DEDUPLICATE`, this works when the result only contains inserts, that is with `keep => 'first'` and no `sequence_by`:
+
+| `clicks` (`event_id`, `ts`) |
+|:----------------------------|
+| `(e1, 10:01)`               |
+| `(e2, 10:02)`               |
+| `(e1, 10:03)`               |
+| `(e3, 10:12)`               |
+
+```sql
+WITH unique_clicks AS (
+  SELECT * FROM DEDUPLICATE(
+    input => TABLE clicks PARTITION BY event_id,
+    on_time => DESCRIPTOR(ts))
+)
+SELECT window_start, COUNT(*) AS events
+FROM TUMBLE(TABLE unique_clicks, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES)
+GROUP BY window_start, window_end;
+```
+
+| Result          |
+|:----------------|
+| `(10:00, 2)`    |
+| `(10:10, 1)`    |
+
+The repeated `e1` is not counted. The first copy of a row is kept even if it arrives late, so a later window can drop it.
 
 #### Composite key
 

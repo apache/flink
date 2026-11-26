@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
@@ -76,13 +77,20 @@ public final class CallContextUtils {
      */
     public static <E extends Enum<E>> Optional<E> getEnumArgument(
             final CallContext callContext, final int pos, final Class<E> enumClass) {
-        return callContext
-                .getArgumentValue(pos, String.class)
-                .flatMap(
-                        value ->
-                                Arrays.stream(enumClass.getEnumConstants())
-                                        .filter(constant -> lowerCaseName(constant).equals(value))
-                                        .findFirst());
+        return toEnum(callContext.getArgumentValue(pos, String.class), enumClass);
+    }
+
+    /**
+     * Returns the constant of {@code enumClass} whose lower-case name equals the given value, or
+     * empty if the value is empty or names no constant.
+     */
+    public static <E extends Enum<E>> Optional<E> toEnum(
+            final Optional<String> value, final Class<E> enumClass) {
+        return value.flatMap(
+                v ->
+                        Arrays.stream(enumClass.getEnumConstants())
+                                .filter(constant -> lowerCaseName(constant).equals(v))
+                                .findFirst());
     }
 
     /**
@@ -147,6 +155,21 @@ public final class CallContextUtils {
                                                 + "'%s'. Use INTERVAL '0' SECOND to retain state "
                                                 + "indefinitely.",
                                         TimeUtils.formatWithHighestUnit(stateTtl)));
+    }
+
+    /**
+     * Returns an error message if the {@code DESCRIPTOR} argument at {@code pos} lists no column.
+     */
+    public static Optional<String> validateNonEmptyDescriptor(
+            final CallContext callContext, final int pos, final String argName) {
+        return callContext
+                .getArgumentValue(pos, ColumnList.class)
+                .filter(columns -> columns.getNames().isEmpty())
+                .map(
+                        columns ->
+                                String.format(
+                                        "The '%s' argument requires at least one column.",
+                                        argName));
     }
 
     private static String lowerCaseName(final Enum<?> constant) {

@@ -35,6 +35,7 @@ import scala.Enumeration;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Plan tests for the changelog mode and upsert key of the DEDUPLICATE built-in PTF. */
 class DeduplicateTableFunctionTest extends TableTestBase {
@@ -68,6 +69,42 @@ class DeduplicateTableFunctionTest extends TableTestBase {
                 "SELECT event, COUNT(*) AS users FROM DEDUPLICATE("
                         + "input => TABLE user_events PARTITION BY user_id, keep => 'last') "
                         + "GROUP BY event");
+    }
+
+    @Test
+    void testFirstArrivalIsInsertOnly() {
+        verifyPlan(
+                "SELECT * FROM DEDUPLICATE("
+                        + "input => TABLE customer_changes PARTITION BY customer_id)");
+    }
+
+    @Test
+    void testOnTimeAddsRowtimeAttribute() {
+        verifyPlan(
+                "SELECT * FROM DEDUPLICATE("
+                        + "input => TABLE user_events PARTITION BY user_id, "
+                        + "on_time => DESCRIPTOR(ts))");
+    }
+
+    @Test
+    void testOnTimeWithKeepLastIsRejected() {
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT * FROM DEDUPLICATE("
+                                                + "input => TABLE user_events PARTITION BY user_id, "
+                                                + "keep => 'last', on_time => DESCRIPTOR(ts))"))
+                .hasMessageContaining(
+                        "Time operations using the `on_time` argument are currently not "
+                                + "supported for PTFs that consume or produce updates.");
+    }
+
+    @Test
+    void testFirstWithSequenceByIsUpdating() {
+        verifyPlan(
+                "SELECT * FROM DEDUPLICATE("
+                        + "input => TABLE customer_changes PARTITION BY customer_id, "
+                        + "sequence_by => DESCRIPTOR(lsn))");
     }
 
     @Test

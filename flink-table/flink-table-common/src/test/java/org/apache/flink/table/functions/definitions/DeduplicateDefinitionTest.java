@@ -77,6 +77,9 @@ class DeduplicateDefinitionTest extends InputTypeStrategiesTestBase {
                         .expectErrorMessage(
                                 "DEDUPLICATE requires keep => 'first' or keep => 'last', but "
                                         + "received keep => 'FIRST'."),
+                sequenceBy("Empty sequence_by")
+                        .expectErrorMessage(
+                                "The 'sequence_by' argument requires at least one column."),
                 sequenceBy("Unknown sequence_by column", "nope")
                         .expectErrorMessage(
                                 "The sequence_by column 'nope' does not exist in the input of "
