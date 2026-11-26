@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
@@ -31,8 +30,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -435,7 +432,6 @@ public class AsyncKeyedStateBackendAdaptorTest {
     private static CheckpointableKeyedStateBackend<String> createBackend() throws Exception {
         ExecutionConfig executionConfig = new ExecutionConfig();
         return new HeapKeyedStateBackendBuilder<String>(
-                        new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                         StringSerializer.INSTANCE,
                         ClassLoader.getSystemClassLoader(),
                         128,

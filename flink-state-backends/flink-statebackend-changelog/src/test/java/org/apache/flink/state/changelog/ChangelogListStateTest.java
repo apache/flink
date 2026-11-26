@@ -168,15 +168,6 @@ public class ChangelogListStateTest {
         public void setCurrentNamespace(String namespace) {}
 
         @Override
-        public byte[] getSerializedValue(
-                byte[] serializedKeyAndNamespace,
-                TypeSerializer<String> safeKeySerializer,
-                TypeSerializer<String> safeNamespaceSerializer,
-                TypeSerializer<List<String>> safeValueSerializer) {
-            return new byte[0];
-        }
-
-        @Override
         public StateIncrementalVisitor<String, String, List<String>> getStateIncrementalVisitor(
                 int recommendedMaxNumberOfReturnedRecords) {
             return null;

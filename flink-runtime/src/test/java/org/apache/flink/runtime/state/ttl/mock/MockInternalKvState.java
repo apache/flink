@@ -59,15 +59,6 @@ abstract class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> 
     }
 
     @Override
-    public byte[] getSerializedValue(
-            byte[] serializedKeyAndNamespace,
-            TypeSerializer safeKeySerializer,
-            TypeSerializer safeNamespaceSerializer,
-            TypeSerializer safeValueSerializer) {
-        return null;
-    }
-
-    @Override
     public void clear() {
         getCurrentKeyValues().remove(currentNamespace);
     }

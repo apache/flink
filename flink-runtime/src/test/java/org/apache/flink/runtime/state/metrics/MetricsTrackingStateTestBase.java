@@ -31,7 +31,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
@@ -76,7 +75,6 @@ abstract class MetricsTrackingStateTestBase<K> {
                 new HashMapStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());
         JobID jobID = new JobID();
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         return stateBackend.createKeyedStateBackend(
                 new KeyedStateBackendParametersImpl<>(
@@ -86,7 +84,6 @@ abstract class MetricsTrackingStateTestBase<K> {
                         keySerializer,
                         numberOfKeyGroups,
                         keyGroupRange,
-                        kvStateRegistry,
                         TtlTimeProvider.DEFAULT,
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),

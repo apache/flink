@@ -269,7 +269,6 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
                                 IntSerializer.INSTANCE,
                                 keyGroupRange.getNumberOfKeyGroups(),
                                 keyGroupRange,
-                                env.getTaskKvStateRegistry(),
                                 TtlTimeProvider.DEFAULT,
                                 getMetricGroup(),
                                 getCustomInitializationMetrics(),

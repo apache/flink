@@ -34,7 +34,6 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
@@ -264,7 +263,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             ClassLoader userCodeClassLoader,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
@@ -289,7 +287,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             @Nullable CompletableFuture<Void> asyncCompactFuture) {
 
         super(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 executionConfig,

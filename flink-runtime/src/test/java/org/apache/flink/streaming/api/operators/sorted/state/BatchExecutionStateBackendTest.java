@@ -62,9 +62,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * state backend.
  *
  * <p>Some of the tests in {@link StateBackendTestBase} do not make sense for {@link
- * BatchExecutionKeyedStateBackend}, e.g. checkpointing tests, tests verifying methods used by the
- * queryable state etc. Moreover the tests had to be adjusted as the state backend assumes keys are
- * grouped.
+ * BatchExecutionKeyedStateBackend}, e.g. checkpointing tests. Moreover the tests had to be adjusted
+ * as the state backend assumes keys are grouped.
  */
 class BatchExecutionStateBackendTest {
 

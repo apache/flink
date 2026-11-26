@@ -135,8 +135,6 @@ public abstract class StateMap<K, N, S> implements Iterable<StateEntry<K, N, S>>
             K key, N namespace, T value, StateTransformationFunction<S, T> transformation)
             throws Exception;
 
-    // For queryable state ------------------------------------------------------------------------
-
     public abstract Stream<K> getKeys(N namespace);
 
     public abstract InternalKvState.StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(

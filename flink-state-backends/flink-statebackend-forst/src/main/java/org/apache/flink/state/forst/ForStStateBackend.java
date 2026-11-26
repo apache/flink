@@ -527,7 +527,6 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 env.getUserCodeClassLoader().asClassLoader(),
                                 resourceContainer,
                                 stateName -> resourceContainer.getColumnOptions(),
-                                parameters.getKvStateRegistry(),
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
                                 parameters.getKeyGroupRange(),

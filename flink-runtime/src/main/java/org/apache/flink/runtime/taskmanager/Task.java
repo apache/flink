@@ -76,12 +76,10 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
-import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.types.Either;
@@ -258,9 +256,6 @@ public class Task
     /** The cache for user-defined files that the invokable requires. */
     private final FileCache fileCache;
 
-    /** The service for kvState registration of this task. */
-    private final KvStateService kvStateService;
-
     /** The registry of this task which enables live reporting of accumulators. */
     private final AccumulatorRegistry accumulatorRegistry;
 
@@ -333,7 +328,6 @@ public class Task
             SharedResources sharedResources,
             IOManager ioManager,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
-            KvStateService kvStateService,
             BroadcastVariableManager bcVarManager,
             TaskEventDispatcher taskEventDispatcher,
             ExternalResourceInfoProvider externalResourceInfoProvider,
@@ -400,7 +394,6 @@ public class Task
 
         this.classLoaderHandle = Preconditions.checkNotNull(classLoaderHandle);
         this.fileCache = Preconditions.checkNotNull(fileCache);
-        this.kvStateService = Preconditions.checkNotNull(kvStateService);
         this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
         this.metrics = metricGroup;
@@ -712,9 +705,6 @@ public class Task
             //  call the user code initialization methods
             // ----------------------------------------------------------------
 
-            TaskKvStateRegistry kvStateRegistry =
-                    kvStateService.createKvStateTaskRegistry(jobId, getJobVertexId());
-
             Environment env =
                     new RuntimeEnvironment(
                             jobId,
@@ -734,7 +724,6 @@ public class Task
                             taskStateManager,
                             aggregateManager,
                             accumulatorRegistry,
-                            kvStateRegistry,
                             inputSplitProvider,
                             distributedCacheEntries,
                             partitionWriters,

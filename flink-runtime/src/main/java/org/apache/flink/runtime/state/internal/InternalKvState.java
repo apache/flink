@@ -80,33 +80,6 @@ public interface InternalKvState<K, N, V> extends State {
     void setCurrentNamespace(N namespace);
 
     /**
-     * Returns the serialized value for the given key and namespace.
-     *
-     * <p>If no value is associated with key and namespace, <code>null</code> is returned.
-     *
-     * <p><b>TO IMPLEMENTERS:</b> This method is called by multiple threads. Anything stateful (e.g.
-     * serializers) should be either duplicated or protected from undesired consequences of
-     * concurrent invocations.
-     *
-     * @param serializedKeyAndNamespace Serialized key and namespace
-     * @param safeKeySerializer A key serializer which is safe to be used even in multi-threaded
-     *     context
-     * @param safeNamespaceSerializer A namespace serializer which is safe to be used even in
-     *     multi-threaded context
-     * @param safeValueSerializer A value serializer which is safe to be used even in multi-threaded
-     *     context
-     * @return Serialized value or <code>null</code> if no value is associated with the key and
-     *     namespace.
-     * @throws Exception Exceptions during serialization are forwarded
-     */
-    byte[] getSerializedValue(
-            final byte[] serializedKeyAndNamespace,
-            final TypeSerializer<K> safeKeySerializer,
-            final TypeSerializer<N> safeNamespaceSerializer,
-            final TypeSerializer<V> safeValueSerializer)
-            throws Exception;
-
-    /**
      * Get global visitor of state entries.
      *
      * @param recommendedMaxNumberOfReturnedRecords hint to the visitor not to exceed this number of

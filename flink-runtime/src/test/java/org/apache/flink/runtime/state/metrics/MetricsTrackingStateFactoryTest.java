@@ -21,7 +21,6 @@
 package org.apache.flink.runtime.state.metrics;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -32,11 +31,9 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -238,7 +235,6 @@ public class MetricsTrackingStateFactoryTest {
 
     private MockKeyedStateBackend<String> createMock() {
         return new MockKeyedStateBackendBuilder<>(
-                        new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                         StringSerializer.INSTANCE,
                         getClass().getClassLoader(),
                         1,

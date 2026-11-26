@@ -46,7 +46,6 @@ import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -104,8 +103,6 @@ public class RuntimeEnvironment implements Environment {
 
     private final AccumulatorRegistry accumulatorRegistry;
 
-    private final TaskKvStateRegistry kvStateRegistry;
-
     private final TaskManagerRuntimeInfo taskManagerInfo;
     private final TaskMetricGroup metrics;
 
@@ -143,7 +140,6 @@ public class RuntimeEnvironment implements Environment {
             TaskStateManager taskStateManager,
             GlobalAggregateManager aggregateManager,
             AccumulatorRegistry accumulatorRegistry,
-            TaskKvStateRegistry kvStateRegistry,
             InputSplitProvider splitProvider,
             Map<String, Future<Path>> distCacheEntries,
             ResultPartitionWriter[] writers,
@@ -176,7 +172,6 @@ public class RuntimeEnvironment implements Environment {
         this.taskStateManager = checkNotNull(taskStateManager);
         this.aggregateManager = checkNotNull(aggregateManager);
         this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
-        this.kvStateRegistry = checkNotNull(kvStateRegistry);
         this.splitProvider = checkNotNull(splitProvider);
         this.distCacheEntries = checkNotNull(distCacheEntries);
         this.writers = checkNotNull(writers);
@@ -289,11 +284,6 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public AccumulatorRegistry getAccumulatorRegistry() {
         return accumulatorRegistry;
-    }
-
-    @Override
-    public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return kvStateRegistry;
     }
 
     @Override

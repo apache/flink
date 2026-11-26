@@ -56,7 +56,6 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -77,7 +76,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
-import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -230,7 +228,6 @@ class TaskCheckpointingBehaviourTest {
                 new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
-                new KvStateService(new KvStateRegistry(), null, null),
                 mock(BroadcastVariableManager.class),
                 new TaskEventDispatcher(),
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,

@@ -68,7 +68,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
-import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
@@ -195,9 +194,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     /** The classloader for the user code. Needed for calls into user code classes. */
     private final ClassLoader userClassLoader;
-
-    /** Registered KvState instances reported by the TaskManagers. */
-    private final KvStateLocationRegistry kvStateLocationRegistry;
 
     /** Blob writer used to offload RPC messages. */
     private final BlobWriter blobWriter;
@@ -366,9 +362,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.partitionGroupReleaseStrategyFactory =
                 checkNotNull(partitionGroupReleaseStrategyFactory);
-
-        this.kvStateLocationRegistry =
-                new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
 
         this.executionHistorySizeLimit = executionHistorySizeLimit;
 
@@ -579,11 +572,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Nullable
     public CheckpointCoordinator getCheckpointCoordinator() {
         return checkpointCoordinator;
-    }
-
-    @Override
-    public KvStateLocationRegistry getKvStateLocationRegistry() {
-        return kvStateLocationRegistry;
     }
 
     @Override
