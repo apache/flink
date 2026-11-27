@@ -702,7 +702,7 @@ public class ExecutionConfigOptions {
     // ------------------------------------------------------------------------
     //  UDF Options
     // ------------------------------------------------------------------------
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_EXEC_UDF_METRIC_ENABLED =
             key("table.exec.udf-metric-enabled")
                     .booleanType()
@@ -712,7 +712,7 @@ public class ExecutionConfigOptions {
                                     + "udfExceptionCount) are registered for SQL/Table user-defined functions. "
                                     + "Disabled by default; nothing is registered and there is zero overhead when off.");
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL =
             key("table.exec.udf-metric.sample-interval")
                     .intType()

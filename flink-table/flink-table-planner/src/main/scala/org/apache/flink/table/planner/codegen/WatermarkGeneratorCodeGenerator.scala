@@ -162,4 +162,7 @@ class WatermarkGeneratorFunctionContext(
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {
     super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
   }
+
+  // The generated watermark generator is opened by the source without a runtime context.
+  override def supportsUdfMetrics: Boolean = false
 }

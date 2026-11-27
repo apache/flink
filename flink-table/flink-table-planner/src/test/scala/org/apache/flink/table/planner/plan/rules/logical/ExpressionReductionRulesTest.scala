@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, FuncNotReducible, RichFunc1}
@@ -33,6 +34,14 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
   @Test
   def testExpressionReductionWithUDF(): Unit = {
+    util.addTemporarySystemFunction("MyUdf", Func1)
+    util.verifyRelPlan("SELECT MyUdf(1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithUDFAndUdfMetricsEnabled(): Unit = {
+    util.getTableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_ENABLED, Boolean.box(true))
     util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT MyUdf(1) FROM MyTable")
   }
