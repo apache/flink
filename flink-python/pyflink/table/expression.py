@@ -282,19 +282,25 @@ def _to_java_varargs(args):
     """
     Packs the given arguments into a Java Object[], as py4j does not do this for a Java varargs
     parameter.
+
+    Note: py4j converts Python collections only as method arguments, not as array elements, so
+    they go through objectToExpression. Other values skip it to avoid a call per argument.
     """
-    gateway = get_gateway()
-    ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+    jvm = get_gateway().jvm
     j_args = []
     for arg in args:
         j_arg = _get_java_expression(arg)
-        # py4j converts Python collections only as method arguments, not as array elements, so
-        # they go through objectToExpression. Other values skip it to avoid a call per argument.
-        if not isinstance(j_arg, JavaObject) and \
-                any(converter.can_convert(j_arg) for converter in INPUT_CONVERTER):
+        is_jobj = isinstance(j_arg, JavaObject)
+
+        # Manually convert collections (and anything that wasn't converted earlier and can
+        # be converted by py4j really) here
+        if not is_jobj and any(converter.can_convert(j_arg) for converter in INPUT_CONVERTER):
+            ApiExpressionUtils = jvm.org.apache.flink.table.expressions.ApiExpressionUtils
             j_arg = ApiExpressionUtils.objectToExpression(j_arg)
+
         j_args.append(j_arg)
-    return to_jarray(gateway.jvm.Object, j_args)
+    return to_jarray(jvm.Object, j_args)
+
 
 def _unary_op(op_name: str):
     def _(self) -> 'Expression':
