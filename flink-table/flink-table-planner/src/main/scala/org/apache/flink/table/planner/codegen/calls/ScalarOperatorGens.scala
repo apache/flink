@@ -1482,17 +1482,17 @@ object ScalarOperatorGens {
     val defaultTerm = primitiveDefaultValue(componentInfo)
 
     validateLiteralArrayIndex(index)
-    val idxStr = s"${index.resultTerm} - 1"
-    val arrayIsNull = s"${array.resultTerm}.isNullAt($idxStr)"
-    val arrayGet =
-      rowFieldReadAccess(idxStr, array.resultTerm, componentInfo)
+    val idx = newName(ctx, "idx")
+    val arrayIsNull = s"${array.resultTerm}.isNullAt($idx)"
+    val arrayGet = rowFieldReadAccess(idx, array.resultTerm, componentInfo)
 
     val arrayAccessCode =
       s"""
          |${array.code}
          |${index.code}
+         |int $idx = ${index.resultTerm} - 1;
          |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} ||
-         |   $idxStr < 0 || $idxStr >= ${array.resultTerm}.size() || $arrayIsNull;
+         |   $idx < 0 || $idx >= ${array.resultTerm}.size() || $arrayIsNull;
          |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
          |""".stripMargin
     GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, componentInfo)
