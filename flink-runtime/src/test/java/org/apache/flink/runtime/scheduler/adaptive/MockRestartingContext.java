@@ -63,7 +63,7 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
             @Nullable VertexParallelism expectedTargetVertexParallelism) {
         waitingForResourcesStateValidator.expectInput(
                 arguments -> {
-                    assertNonNull().accept(arguments);
+                    assertThat(arguments.getExecutionGraph()).isNotNull();
                     assertThat(arguments.getTargetVertexParallelism())
                             .isEqualTo(expectedTargetVertexParallelism);
                 });

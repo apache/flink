@@ -43,8 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration test proving that {@link WaitingForResources}, driven by the real {@link
  * DefaultStateTransitionManager} (not a no-op test double), correctly gates a rescale-triggered
- * restart on genuinely free slots reaching the pre-restart target, and falls back once the
- * rescale resource-stabilization timeout elapses.
+ * restart on genuinely free slots reaching the pre-restart target, and falls back once the rescale
+ * resource-stabilization timeout elapses.
  *
  * <p>Kept in its own file, following the precedent set by {@link
  * AdaptiveSchedulerFreeSlotVertexParallelismTest} and other companion test files extracted out of
@@ -63,8 +63,7 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
                 createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         // long enough that the stabilization timeout cannot fire during this test.
-        scheduler =
-                prepareScheduler(jobGraph, declarativeSlotPool, Duration.ofSeconds(10)).build();
+        scheduler = prepareScheduler(jobGraph, declarativeSlotPool, Duration.ofSeconds(10)).build();
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 new SubmissionBufferingTaskManagerGateway(2);
@@ -93,8 +92,10 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
 
         offerSlots(declarativeSlotPool, taskManagerGateway, 1);
 
+        // CreatingExecutionGraph is only a transient state on the way to Executing, so waiting for
+        // it specifically could miss the window.
         CommonTestUtils.waitUntilCondition(
-                () -> scheduler.getState() instanceof CreatingExecutionGraph,
+                () -> !(scheduler.getState() instanceof WaitingForResources),
                 RETRY_INTERVAL_MILLIS,
                 RETRY_ATTEMPTS);
     }
@@ -133,7 +134,7 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
         // the target is never reached, but the stabilization timeout must still force the
         // transition once it elapses, rather than waiting forever.
         CommonTestUtils.waitUntilCondition(
-                () -> scheduler.getState() instanceof CreatingExecutionGraph,
+                () -> !(scheduler.getState() instanceof WaitingForResources),
                 RETRY_INTERVAL_MILLIS,
                 RETRY_ATTEMPTS);
     }
@@ -184,8 +185,7 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
                         createConfiguration(rescaleResourceStabilizationTimeout));
     }
 
-    private static Configuration createConfiguration(
-            Duration rescaleResourceStabilizationTimeout) {
+    private static Configuration createConfiguration(Duration rescaleResourceStabilizationTimeout) {
         return new Configuration()
                 .set(
                         JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,

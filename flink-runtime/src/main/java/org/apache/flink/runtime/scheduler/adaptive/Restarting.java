@@ -189,7 +189,7 @@ class Restarting extends StateWithExecutionGraph {
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final Duration backoffTime;
-        private final @Nullable VertexParallelism targetVertexParallelism;
+        private final @Nullable VertexParallelism restartWithParallelism;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
 
@@ -200,7 +200,7 @@ class Restarting extends StateWithExecutionGraph {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Logger log,
                 Duration backoffTime,
-                @Nullable VertexParallelism targetVertexParallelism,
+                @Nullable VertexParallelism restartWithParallelism,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
@@ -209,7 +209,7 @@ class Restarting extends StateWithExecutionGraph {
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.backoffTime = backoffTime;
-            this.targetVertexParallelism = targetVertexParallelism;
+            this.restartWithParallelism = restartWithParallelism;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
         }
@@ -226,7 +226,7 @@ class Restarting extends StateWithExecutionGraph {
                     operatorCoordinatorHandler,
                     log,
                     backoffTime,
-                    targetVertexParallelism,
+                    restartWithParallelism,
                     userCodeClassLoader,
                     failureCollection);
         }

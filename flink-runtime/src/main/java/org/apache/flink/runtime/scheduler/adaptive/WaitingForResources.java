@@ -147,7 +147,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
     @Override
     public boolean hasDesiredResources() {
         if (targetVertexParallelism != null) {
-            return isFreeSlotVertexParallelismAtLeast(targetVertexParallelism);
+            return hasFreeSlotsFor(targetVertexParallelism);
         }
         return context.hasDesiredResources();
     }
@@ -162,7 +162,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
         return context.runIfState(this, callback, delay);
     }
 
-    private boolean isFreeSlotVertexParallelismAtLeast(VertexParallelism target) {
+    private boolean hasFreeSlotsFor(VertexParallelism target) {
         final Optional<VertexParallelism> maybeFreeSlotVertexParallelism =
                 context.getFreeSlotVertexParallelism();
         if (maybeFreeSlotVertexParallelism.isEmpty()) {
@@ -221,8 +221,8 @@ class WaitingForResources extends StateWithoutExecutionGraph
         Optional<VertexParallelism> getFreeSlotVertexParallelism();
 
         /**
-         * Returns the parallelism upper bound currently allowed for the given vertex by the
-         * latest job resource requirements, independent of slot availability.
+         * Returns the parallelism upper bound currently allowed for the given vertex by the latest
+         * job resource requirements, independent of slot availability.
          */
         int getUpperBoundParallelism(JobVertexID jobVertexId);
     }

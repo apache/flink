@@ -210,11 +210,9 @@ class WaitingForResourcesTest {
     void testDesiredResourcesRequireReachingRestartTargetRegardlessOfBaseCheck() {
         final JobVertexID jobVertexId = new JobVertexID();
         final VertexParallelism targetParallelism =
-                new VertexParallelism(
-                        Collections.singletonMap(jobVertexId, 2));
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 2));
         final VertexParallelism freeSlotParallelism =
-                new VertexParallelism(
-                        Collections.singletonMap(jobVertexId, 1));
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 1));
 
         // the (over-counted) base "sufficient" check is untouched by the restart target and can
         // freely say "enough resources" ...
@@ -225,7 +223,7 @@ class WaitingForResourcesTest {
         ctx.setHasDesiredResources(() -> true);
         // only 1 out of the 2 slots we had before the restart is genuinely free, so
         // "desired" (which is restart-target-aware) must not be satisfied yet.
-        ctx.setAchievableVertexParallelism(() -> Optional.of(freeSlotParallelism));
+        ctx.setFreeSlotVertexParallelism(() -> Optional.of(freeSlotParallelism));
 
         final WaitingForResources wfr =
                 new WaitingForResources(
@@ -246,16 +244,14 @@ class WaitingForResourcesTest {
     void testDesiredResourcesCapRestartTargetToLatestResourceRequirements() {
         final JobVertexID jobVertexId = new JobVertexID();
         final VertexParallelism targetParallelism =
-                new VertexParallelism(
-                        Collections.singletonMap(jobVertexId, 2));
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 2));
         final VertexParallelism freeSlotParallelism =
-                new VertexParallelism(
-                        Collections.singletonMap(jobVertexId, 1));
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 1));
 
         // a concurrent scale-down lowered what's actually needed for this vertex to 1, below the
         // pre-restart target of 2: the gate must not keep waiting for the stale target.
         ctx.setUpperBoundParallelism(vertex -> 1);
-        ctx.setAchievableVertexParallelism(() -> Optional.of(freeSlotParallelism));
+        ctx.setFreeSlotVertexParallelism(() -> Optional.of(freeSlotParallelism));
 
         final WaitingForResources wfr =
                 new WaitingForResources(
@@ -273,11 +269,10 @@ class WaitingForResourcesTest {
     void testDesiredResourcesAreMetOnceFreeSlotParallelismReachesRestartTarget() {
         final JobVertexID jobVertexId = new JobVertexID();
         final VertexParallelism targetParallelism =
-                new VertexParallelism(
-                        Collections.singletonMap(jobVertexId, 2));
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 2));
 
         ctx.setHasSufficientResources(() -> false);
-        ctx.setAchievableVertexParallelism(() -> Optional.of(targetParallelism));
+        ctx.setFreeSlotVertexParallelism(() -> Optional.of(targetParallelism));
 
         final WaitingForResources wfr =
                 new WaitingForResources(
@@ -297,11 +292,10 @@ class WaitingForResourcesTest {
     void testResourceTimeoutOverridesRestartTargetGuard() {
         final JobVertexID jobVertexId = new JobVertexID();
         final VertexParallelism targetParallelism =
-                new VertexParallelism(
-                        Collections.singletonMap(jobVertexId, 2));
+                new VertexParallelism(Collections.singletonMap(jobVertexId, 2));
 
         // free-slot-based parallelism never reaches the restart target ...
-        ctx.setAchievableVertexParallelism(Optional::empty);
+        ctx.setFreeSlotVertexParallelism(Optional::empty);
 
         new WaitingForResources(
                 ctx,
@@ -407,7 +401,7 @@ class WaitingForResourcesTest {
 
         private Supplier<Boolean> hasDesiredResourcesSupplier = () -> false;
         private Supplier<Boolean> hasSufficientResourcesSupplier = () -> false;
-        private Supplier<Optional<VertexParallelism>> achievableVertexParallelismSupplier =
+        private Supplier<Optional<VertexParallelism>> freeSlotVertexParallelismSupplier =
                 Optional::empty;
         private Function<JobVertexID, Integer> upperBoundParallelismFunction =
                 jobVertexId -> Integer.MAX_VALUE;
@@ -426,8 +420,8 @@ class WaitingForResourcesTest {
             hasSufficientResourcesSupplier = sup;
         }
 
-        public void setAchievableVertexParallelism(Supplier<Optional<VertexParallelism>> sup) {
-            achievableVertexParallelismSupplier = sup;
+        public void setFreeSlotVertexParallelism(Supplier<Optional<VertexParallelism>> sup) {
+            freeSlotVertexParallelismSupplier = sup;
         }
 
         public void setUpperBoundParallelism(Function<JobVertexID, Integer> fn) {
@@ -478,7 +472,7 @@ class WaitingForResourcesTest {
 
         @Override
         public Optional<VertexParallelism> getFreeSlotVertexParallelism() {
-            return achievableVertexParallelismSupplier.get();
+            return freeSlotVertexParallelismSupplier.get();
         }
 
         @Override

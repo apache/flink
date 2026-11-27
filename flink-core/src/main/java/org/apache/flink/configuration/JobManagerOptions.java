@@ -760,7 +760,9 @@ public class JobManagerOptions {
                                                     + "reprovisioned before the slot is returned to the pool. This value should be configured high "
                                                     + "enough to cover that delay across all restarted vertices, to avoid restarting with fewer "
                                                     + "resources than were available right before the restart.",
-                                            code(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key()))
+                                            code(
+                                                    TaskManagerOptions.TASK_CANCELLATION_TIMEOUT
+                                                            .key()))
                                     .build());
 
     @Documentation.Section({
