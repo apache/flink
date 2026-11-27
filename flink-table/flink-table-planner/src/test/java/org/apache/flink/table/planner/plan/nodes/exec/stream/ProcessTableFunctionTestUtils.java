@@ -64,6 +64,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.BROADCAST_SEMANTIC_TABLE;
+import static org.apache.flink.table.annotation.ArgumentTrait.IGNORE_RETRACTIONS;
 import static org.apache.flink.table.annotation.ArgumentTrait.NOTIFY_STATEFUL_SETS;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
@@ -477,6 +478,24 @@ public class ProcessTableFunctionTestUtils {
         public void eval(
                 Context ctx,
                 @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY, SUPPORT_UPDATES}) Row r) {
+            collectObjects(
+                    r,
+                    toModeSummary(
+                            ctx.tableSemanticsFor("r")
+                                    .changelogMode()
+                                    .orElseThrow(IllegalStateException::new)));
+        }
+    }
+
+    /** Testing function that fails if it receives an UPDATE_BEFORE or DELETE row. */
+    public static class RowSemanticTableIgnoreRetractionsArgFunction
+            extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ROW_SEMANTIC_TABLE, SUPPORT_UPDATES, IGNORE_RETRACTIONS}) Row r) {
+            if (r.getKind() == RowKind.UPDATE_BEFORE || r.getKind() == RowKind.DELETE) {
+                throw new IllegalStateException("Unexpected retraction: " + r);
+            }
             collectObjects(
                     r,
                     toModeSummary(

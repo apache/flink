@@ -208,6 +208,9 @@ public enum ArgumentTrait {
      * set to null, regardless of NOT NULL constraints. Use {@link #REQUIRE_FULL_DELETE} to enforce
      * that only full deletes enter the function.
      *
+     * <p>Use {@link #IGNORE_RETRACTIONS} if the function needs neither {@link
+     * RowKind#UPDATE_BEFORE} nor {@link RowKind#DELETE} messages.
+     *
      * <p>This trait is intended for advanced use cases. Please note that inputs are always
      * insert-only in batch mode. Thus, if the PTF should produce the same results in both batch and
      * streaming mode, results should be emitted based on watermarks and event-time.
@@ -221,6 +224,7 @@ public enum ArgumentTrait {
      *
      * @see #REQUIRE_UPDATE_BEFORE
      * @see #REQUIRE_FULL_DELETE
+     * @see #IGNORE_RETRACTIONS
      */
     SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES),
 
@@ -285,6 +289,40 @@ public enum ArgumentTrait {
      * @see #SUPPORT_UPDATES
      */
     REQUIRE_FULL_DELETE(false, StaticArgumentTrait.REQUIRE_FULL_DELETE),
+
+    /**
+     * Defines that a table argument which {@link #SUPPORT_UPDATES} reads only {@link
+     * RowKind#INSERT} and {@link RowKind#UPDATE_AFTER} messages. The function never receives {@link
+     * RowKind#UPDATE_BEFORE} or {@link RowKind#DELETE} messages of this table argument.
+     *
+     * <p>This trait is intended for functions that only look at the latest version of each row, for
+     * example to emit it as an event. The function must not rely on retractions, for example to
+     * learn the previous version of a row or that a row was deleted.
+     *
+     * <p>In return, the system can provide the updating table more cheaply. It drops retractions
+     * early and needs neither an upsert key nor a stateful normalization of an upsert changelog in
+     * front of the function.
+     *
+     * <p>The following example shows which changes enter the function:
+     *
+     * <pre>
+     * // Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+     * // backed by upsert changelog with changes
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+     *
+     * // Given a function `f` that declares `table_arg` with IGNORE_RETRACTIONS.
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable)
+     *
+     * // The following changes will enter the function:
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100]
+     * </pre>
+     *
+     * <p>Note: This trait is valid for table arguments that {@link #SUPPORT_UPDATES}. It cannot be
+     * combined with {@link #REQUIRE_UPDATE_BEFORE} or {@link #REQUIRE_FULL_DELETE}.
+     *
+     * @see #SUPPORT_UPDATES
+     */
+    IGNORE_RETRACTIONS(false, StaticArgumentTrait.IGNORE_RETRACTIONS),
 
     /**
      * Defines that an {@code on_time} argument must be provided, referencing a watermarked

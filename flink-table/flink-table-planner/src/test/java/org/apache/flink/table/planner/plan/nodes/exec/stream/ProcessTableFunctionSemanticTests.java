@@ -58,6 +58,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_ENFORCED_RETRACT,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_PARTIAL_DELETES,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_ENFORCED_FULL_DELETES,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_IGNORE_RETRACTIONS,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_RETRACT,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_UPSERT,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_PARTIAL_DELETES,
