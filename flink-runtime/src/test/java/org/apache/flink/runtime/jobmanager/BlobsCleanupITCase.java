@@ -41,13 +41,11 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
@@ -62,32 +60,27 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Small test to check that the {@link org.apache.flink.runtime.blob.BlobServer} cleanup is executed
  * after job termination.
  */
-public class BlobsCleanupITCase extends TestLogger {
+class BlobsCleanupITCase {
 
     private static final long RETRY_INTERVAL = 100L;
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private static File blobBaseDir;
 
     private static MiniClusterResource miniClusterResource;
 
     private static UnmodifiableConfiguration configuration;
 
-    private static File blobBaseDir;
-
-    @BeforeClass
-    public static void setup() throws Exception {
-        blobBaseDir = TEMPORARY_FOLDER.newFolder();
-
+    @BeforeAll
+    static void setup() throws Exception {
         Configuration cfg = new Configuration();
         cfg.set(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
         cfg.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
@@ -109,8 +102,8 @@ public class BlobsCleanupITCase extends TestLogger {
         miniClusterResource.before();
     }
 
-    @AfterClass
-    public static void teardown() {
+    @AfterAll
+    static void teardown() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
@@ -126,13 +119,13 @@ public class BlobsCleanupITCase extends TestLogger {
 
     /** Test cleanup for a job that finishes ordinarily. */
     @Test
-    public void testBlobServerCleanupFinishedJob() throws Exception {
+    void testBlobServerCleanupFinishedJob() throws Exception {
         testBlobServerCleanup(TestCase.JOB_FINISHES_SUCCESSFULLY);
     }
 
     /** Test cleanup for a job which is cancelled after submission. */
     @Test
-    public void testBlobServerCleanupCancelledJob() throws Exception {
+    void testBlobServerCleanupCancelledJob() throws Exception {
         testBlobServerCleanup(TestCase.JOB_IS_CANCELLED);
     }
 
@@ -141,7 +134,7 @@ public class BlobsCleanupITCase extends TestLogger {
      * job fails due to a limited restart policy).
      */
     @Test
-    public void testBlobServerCleanupFailedJob() throws Exception {
+    void testBlobServerCleanupFailedJob() throws Exception {
         testBlobServerCleanup(TestCase.JOB_FAILS);
     }
 
@@ -150,7 +143,7 @@ public class BlobsCleanupITCase extends TestLogger {
      * present).
      */
     @Test
-    public void testBlobServerCleanupFailedSubmission() throws Exception {
+    void testBlobServerCleanupFailedSubmission() throws Exception {
         testBlobServerCleanup(TestCase.JOB_SUBMISSION_FAILS);
     }
 
@@ -171,7 +164,7 @@ public class BlobsCleanupITCase extends TestLogger {
                         configuration,
                         jid,
                         Collections.singletonList(new Path(tempBlob.getAbsolutePath())));
-        assertThat(keys, hasSize(1));
+        assertThat(keys).hasSize(1);
         jobGraph.addUserJarBlobKey(keys.get(0));
 
         if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
@@ -183,18 +176,13 @@ public class BlobsCleanupITCase extends TestLogger {
                 miniCluster.submitJob(jobGraph);
 
         if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
-            try {
-                submissionFuture.get();
-                fail("Expected job submission failure.");
-            } catch (ExecutionException e) {
-                assertThat(
-                        ExceptionUtils.findThrowable(e, JobSubmissionException.class).isPresent(),
-                        is(true));
-            }
+            assertThatThrownBy(submissionFuture::get)
+                    .isInstanceOf(ExecutionException.class)
+                    .satisfies(anyCauseMatches(JobSubmissionException.class));
         } else {
             final JobSubmissionResult jobSubmissionResult = submissionFuture.get();
 
-            assertThat(jobSubmissionResult.getJobID(), is(jid));
+            assertThat(jobSubmissionResult.getJobID()).isEqualTo(jid);
 
             final CompletableFuture<JobResult> resultFuture = miniCluster.requestJobResult(jid);
 
@@ -206,15 +194,15 @@ public class BlobsCleanupITCase extends TestLogger {
                 // job will get restarted, BlobCache may re-download the BLOB if already deleted
                 // then the tasks will fail again and the restart strategy will finalise the job
                 final JobResult jobResult = resultFuture.get();
-                assertThat(jobResult.isSuccess(), is(false));
-                assertThat(jobResult.getJobStatus().orElse(null), is(JobStatus.FAILED));
+                assertThat(jobResult.isSuccess()).isFalse();
+                assertThat(jobResult.getJobStatus()).hasValue(JobStatus.FAILED);
             } else if (testCase == TestCase.JOB_IS_CANCELLED) {
 
                 miniCluster.cancelJob(jid);
 
                 final JobResult jobResult = resultFuture.get();
-                assertThat(jobResult.isSuccess(), is(false));
-                assertThat(jobResult.getJobStatus().orElse(null), is(JobStatus.CANCELED));
+                assertThat(jobResult.isSuccess()).isFalse();
+                assertThat(jobResult.getJobStatus()).hasValue(JobStatus.CANCELED);
             } else {
                 final JobResult jobResult = resultFuture.get();
                 Throwable cause =
@@ -225,15 +213,16 @@ public class BlobsCleanupITCase extends TestLogger {
                                                 throwable.deserializeError(
                                                         getClass().getClassLoader()))
                                 .orElse(null);
-                assertThat(
-                        ExceptionUtils.stringifyException(cause), jobResult.isSuccess(), is(true));
+                assertThat(jobResult.isSuccess())
+                        .as(ExceptionUtils.stringifyException(cause))
+                        .isTrue();
             }
         }
 
         // both BlobServer and BlobCache should eventually delete all files
 
         File[] blobDirs = blobBaseDir.listFiles((dir, name) -> name.startsWith("blobStore-"));
-        assertNotNull(blobDirs);
+        assertThat(blobDirs).isNotNull();
         for (File blobDir : blobDirs) {
             waitForEmptyBlobDir(blobDir, timeout.timeLeft());
         }

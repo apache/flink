@@ -22,25 +22,24 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SuperstepBarrier}. */
-public class SuperstepBarrierTest {
+class SuperstepBarrierTest {
 
     @Test
-    public void syncAllWorkersDone() throws InterruptedException {
+    void syncAllWorkersDone() throws InterruptedException {
         for (int n = 0; n < 20; n++) {
             sync(new AllWorkersDoneEvent());
         }
     }
 
     @Test
-    public void syncTermination() throws InterruptedException {
+    void syncTermination() throws InterruptedException {
         for (int n = 0; n < 20; n++) {
             sync(new TerminationEvent());
         }
@@ -62,11 +61,8 @@ public class SuperstepBarrierTest {
         headThread.join();
         syncThread.join();
 
-        if (event instanceof TerminationEvent) {
-            assertTrue(terminationSignaled.isTerminationSignaled());
-        } else {
-            assertFalse(terminationSignaled.isTerminationSignaled());
-        }
+        assertThat(terminationSignaled.isTerminationSignaled())
+                .isEqualTo(event instanceof TerminationEvent);
     }
 
     class IterationHead implements Runnable {

@@ -23,13 +23,9 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
-
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 import java.util.List;
@@ -42,29 +38,29 @@ import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResultTest.assertResultsEquals;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTest.assertVertexInfoEquals;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link DefaultLogicalTopology}. */
-public class DefaultLogicalTopologyTest extends TestLogger {
+class DefaultLogicalTopologyTest {
 
     private JobGraph jobGraph;
 
     private DefaultLogicalTopology logicalTopology;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         jobGraph = createJobGraph();
         logicalTopology = DefaultLogicalTopology.fromJobGraph(jobGraph);
     }
 
     @Test
-    public void testGetVertices() {
+    void testGetVertices() {
         // vertices from getVertices() should be topologically sorted
         final Iterable<JobVertex> jobVertices =
                 jobGraph.getVerticesSortedTopologicallyFromSources();
         final Iterable<DefaultLogicalVertex> logicalVertices = logicalTopology.getVertices();
 
-        assertEquals(Iterables.size(jobVertices), Iterables.size(logicalVertices));
+        assertThat(logicalVertices).hasSameSizeAs(jobVertices);
 
         final Iterator<JobVertex> jobVertexIterator = jobVertices.iterator();
         final Iterator<DefaultLogicalVertex> logicalVertexIterator = logicalVertices.iterator();
@@ -75,8 +71,8 @@ public class DefaultLogicalTopologyTest extends TestLogger {
     }
 
     @Test
-    public void testGetLogicalPipelinedRegions() {
-        assertEquals(2, IterableUtils.toStream(logicalTopology.getAllPipelinedRegions()).count());
+    void testGetLogicalPipelinedRegions() {
+        assertThat(logicalTopology.getAllPipelinedRegions()).hasSize(2);
     }
 
     private JobGraph createJobGraph() {

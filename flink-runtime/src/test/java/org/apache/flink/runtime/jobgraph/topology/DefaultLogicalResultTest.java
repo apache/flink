@@ -24,10 +24,9 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,11 +38,10 @@ import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTest.assertVertexInfoEquals;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link DefaultLogicalResult}. */
-public class DefaultLogicalResultTest extends TestLogger {
+class DefaultLogicalResultTest {
 
     private IntermediateDataSet result;
 
@@ -53,8 +51,8 @@ public class DefaultLogicalResultTest extends TestLogger {
 
     private JobVertex producerVertex;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         buildVerticesAndResults();
 
         logicalResult =
@@ -63,12 +61,12 @@ public class DefaultLogicalResultTest extends TestLogger {
     }
 
     @Test
-    public void testConstructor() {
+    void testConstructor() {
         assertResultInfoEquals(result, logicalResult);
     }
 
     @Test
-    public void testGetProducer() {
+    void testGetProducer() {
         assertVertexInfoEquals(producerVertex, logicalResult.getProducer());
     }
 
@@ -99,18 +97,18 @@ public class DefaultLogicalResultTest extends TestLogger {
         for (IntermediateDataSet result : results) {
             final DefaultLogicalResult logicalResult = logicalResultMap.remove(result.getId());
 
-            assertNotNull(logicalResult);
+            assertThat(logicalResult).isNotNull();
             assertResultInfoEquals(result, logicalResult);
         }
 
         // this ensures the two collections exactly matches
-        assertEquals(0, logicalResultMap.size());
+        assertThat(logicalResultMap).isEmpty();
     }
 
     static void assertResultInfoEquals(
             final IntermediateDataSet result, final DefaultLogicalResult logicalResult) {
 
-        assertEquals(result.getId(), logicalResult.getId());
-        assertEquals(result.getResultType(), logicalResult.getResultType());
+        assertThat(logicalResult.getId()).isEqualTo(result.getId());
+        assertThat(logicalResult.getResultType()).isEqualTo(result.getResultType());
     }
 }

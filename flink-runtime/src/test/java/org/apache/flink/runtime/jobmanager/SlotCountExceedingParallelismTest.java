@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
@@ -31,14 +32,13 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.BitSet;
@@ -50,24 +50,27 @@ import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewD
  * Tests that Flink can execute jobs with a higher parallelism than available number of slots. This
  * effectively tests that Flink can execute jobs with blocking results in a staged fashion.
  */
-public class SlotCountExceedingParallelismTest extends TestLogger {
+class SlotCountExceedingParallelismTest {
 
     // Test configuration
     private static final int NUMBER_OF_TMS = 2;
     private static final int NUMBER_OF_SLOTS_PER_TM = 2;
     private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
-    public static final String JOB_NAME =
+    private static final String JOB_NAME =
             "SlotCountExceedingParallelismTest (no slot sharing, blocking results)";
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    private static final InternalMiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .setNumberTaskManagers(NUMBER_OF_TMS)
                             .setNumberSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
                             .build());
+
+    @RegisterExtension
+    private static final AllCallbackWrapper<InternalMiniClusterExtension> MINI_CLUSTER_WRAPPER =
+            new AllCallbackWrapper<>(MINI_CLUSTER_EXTENSION);
 
     private static Configuration getFlinkConfiguration() {
         final Configuration config = new Configuration();
@@ -77,21 +80,21 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
     }
 
     @Test
-    public void testNoSlotSharingAndBlockingResultSender() throws Exception {
+    void testNoSlotSharingAndBlockingResultSender() throws Exception {
         // Sender with higher parallelism than available slots
         JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM * 2, PARALLELISM);
         submitJobGraphAndWait(jobGraph);
     }
 
     @Test
-    public void testNoSlotSharingAndBlockingResultReceiver() throws Exception {
+    void testNoSlotSharingAndBlockingResultReceiver() throws Exception {
         // Receiver with higher parallelism than available slots
         JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM, PARALLELISM * 2);
         submitJobGraphAndWait(jobGraph);
     }
 
     @Test
-    public void testNoSlotSharingAndBlockingResultBoth() throws Exception {
+    void testNoSlotSharingAndBlockingResultBoth() throws Exception {
         // Both sender and receiver with higher parallelism than available slots
         JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM * 2, PARALLELISM * 2);
         submitJobGraphAndWait(jobGraph);
@@ -101,7 +104,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
     private void submitJobGraphAndWait(final JobGraph jobGraph)
             throws JobExecutionException, InterruptedException {
-        MINI_CLUSTER_RESOURCE.getMiniCluster().executeJobBlocking(jobGraph);
+        MINI_CLUSTER_EXTENSION.getMiniCluster().executeJobBlocking(jobGraph);
     }
 
     private JobGraph createTestJobGraph(

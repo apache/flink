@@ -21,17 +21,16 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link StandaloneApplicationStore}. */
-public class StandaloneApplicationStoreTest {
+class StandaloneApplicationStoreTest {
 
     /** Tests that all operations work and don't change the state. */
     @Test
-    public void testNoOps() throws Exception {
+    void testNoOps() throws Exception {
         StandaloneApplicationStore applicationStore = new StandaloneApplicationStore();
         applicationStore.start();
 
@@ -39,15 +38,15 @@ public class StandaloneApplicationStoreTest {
         ApplicationStoreEntry applicationStoreEntry =
                 TestingApplicationStoreEntry.newBuilder().setApplicationId(applicationId).build();
 
-        assertEquals(0, applicationStore.getApplicationIds().size());
+        assertThat(applicationStore.getApplicationIds()).isEmpty();
 
         applicationStore.putApplication(applicationStoreEntry);
-        assertEquals(0, applicationStore.getApplicationIds().size());
+        assertThat(applicationStore.getApplicationIds()).isEmpty();
 
         applicationStore.globalCleanupAsync(applicationId, Executors.directExecutor()).join();
-        assertEquals(0, applicationStore.getApplicationIds().size());
+        assertThat(applicationStore.getApplicationIds()).isEmpty();
 
-        assertFalse(applicationStore.recoverApplication(applicationId).isPresent());
+        assertThat(applicationStore.recoverApplication(applicationId)).isEmpty();
 
         applicationStore.stop();
     }

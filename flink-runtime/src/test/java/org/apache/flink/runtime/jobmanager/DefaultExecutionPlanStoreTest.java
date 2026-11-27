@@ -32,14 +32,12 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -60,7 +58,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests for {@link DefaultExecutionPlanStore} with {@link TestingExecutionPlanStoreWatcher}, {@link
  * TestingStateHandleStore}, and {@link TestingExecutionPlanListener}.
  */
-public class DefaultExecutionPlanStoreTest extends TestLogger {
+class DefaultExecutionPlanStoreTest {
 
     private final ExecutionPlan testingExecutionPlan = JobGraphTestUtils.emptyJobGraph();
     private final long timeout = 100L;
@@ -70,23 +68,23 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     private TestingExecutionPlanStoreWatcher testingExecutionPlanStoreWatcher;
     private TestingExecutionPlanListener testingExecutionPlanListener;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         builder = TestingStateHandleStore.newBuilder();
         testingExecutionPlanStoreWatcher = new TestingExecutionPlanStoreWatcher();
         testingExecutionPlanListener = new TestingExecutionPlanListener();
         jobGraphStorageHelper = new TestingRetrievableStateStorageHelper<>();
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         if (testingExecutionPlanStoreWatcher != null) {
             testingExecutionPlanStoreWatcher.stop();
         }
     }
 
     @Test
-    public void testRecoverExecutionPlan() throws Exception {
+    void testRecoverExecutionPlan() throws Exception {
         final RetrievableStateHandle<ExecutionPlan> stateHandle =
                 jobGraphStorageHelper.store(testingExecutionPlan);
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
@@ -102,7 +100,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testRecoverExecutionPlanWhenNotExist() throws Exception {
+    void testRecoverExecutionPlanWhenNotExist() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setGetFunction(
                                 ignore -> {
@@ -120,7 +118,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testRecoverExecutionPlanFailedShouldReleaseHandle() throws Exception {
+    void testRecoverExecutionPlanFailedShouldReleaseHandle() throws Exception {
         final CompletableFuture<String> releaseFuture = new CompletableFuture<>();
         final FlinkException testException = new FlinkException("Test exception.");
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
@@ -144,7 +142,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testPutExecutionPlanWhenNotExist() throws Exception {
+    void testPutExecutionPlanWhenNotExist() throws Exception {
         final CompletableFuture<ExecutionPlan> addFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setExistsFunction(ignore -> IntegerResourceVersion.notExisting())
@@ -164,7 +162,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testPutExecutionPlanWhenAlreadyExist() throws Exception {
+    void testPutExecutionPlanWhenAlreadyExist() throws Exception {
         final CompletableFuture<Tuple3<String, IntegerResourceVersion, ExecutionPlan>>
                 replaceFuture = new CompletableFuture<>();
         final int resourceVersion = 100;
@@ -197,7 +195,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanup() throws Exception {
+    void testGlobalCleanup() throws Exception {
         final CompletableFuture<JobID> removeFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
@@ -216,7 +214,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanupWithNonExistName() throws Exception {
+    void testGlobalCleanupWithNonExistName() throws Exception {
         final CompletableFuture<JobID> removeFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setRemoveFunction(name -> removeFuture.complete(JobID.fromHexString(name)))
@@ -232,7 +230,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanupFailsIfRemovalReturnsFalse() throws Exception {
+    void testGlobalCleanupFailsIfRemovalReturnsFalse() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setRemoveFunction(name -> false).build();
 
@@ -249,8 +247,8 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGetJobIds() throws Exception {
-        final List<JobID> existingJobIds = Arrays.asList(new JobID(0, 0), new JobID(0, 1));
+    void testGetJobIds() throws Exception {
+        final List<JobID> existingJobIds = List.of(new JobID(0, 0), new JobID(0, 1));
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setGetAllHandlesSupplier(
                                 () ->
@@ -266,7 +264,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testOnAddedExecutionPlanShouldNotProcessKnownExecutionPlans() throws Exception {
+    void testOnAddedExecutionPlanShouldNotProcessKnownExecutionPlans() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
@@ -279,7 +277,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testOnAddedExecutionPlanShouldOnlyProcessUnknownExecutionPlans() throws Exception {
+    void testOnAddedExecutionPlanShouldOnlyProcessUnknownExecutionPlans() throws Exception {
         final RetrievableStateHandle<ExecutionPlan> stateHandle =
                 jobGraphStorageHelper.store(testingExecutionPlan);
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
@@ -295,12 +293,12 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         // Unknown job
         final JobID unknownJobId = JobID.generate();
         testingExecutionPlanStoreWatcher.addExecutionPlan(unknownJobId);
-        assertThat(testingExecutionPlanListener.getAddedExecutionPlans()).hasSize(1);
-        assertThat(testingExecutionPlanListener.getAddedExecutionPlans()).contains(unknownJobId);
+        assertThat(testingExecutionPlanListener.getAddedExecutionPlans())
+                .containsExactly(unknownJobId);
     }
 
     @Test
-    public void testOnRemovedExecutionPlanShouldOnlyProcessKnownExecutionPlans() throws Exception {
+    void testOnRemovedExecutionPlanShouldOnlyProcessKnownExecutionPlans() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
@@ -312,13 +310,12 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         testingExecutionPlanStoreWatcher.removeExecutionPlan(JobID.generate());
         // Known job
         testingExecutionPlanStoreWatcher.removeExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans()).hasSize(1);
         assertThat(testingExecutionPlanListener.getRemovedExecutionPlans())
-                .contains(testingExecutionPlan.getJobID());
+                .containsExactly(testingExecutionPlan.getJobID());
     }
 
     @Test
-    public void testOnRemovedExecutionPlanShouldNotProcessUnknownExecutionPlans() throws Exception {
+    void testOnRemovedExecutionPlanShouldNotProcessUnknownExecutionPlans() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
@@ -329,7 +326,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testOnAddedExecutionPlanIsIgnoredAfterBeingStop() throws Exception {
+    void testOnAddedExecutionPlanIsIgnoredAfterBeingStop() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
@@ -342,7 +339,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testOnRemovedExecutionPlanIsIgnoredAfterBeingStop() throws Exception {
+    void testOnRemovedExecutionPlanIsIgnoredAfterBeingStop() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
@@ -356,7 +353,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testStoppingExecutionPlanStoreShouldReleaseAllHandles() throws Exception {
+    void testStoppingExecutionPlanStoreShouldReleaseAllHandles() throws Exception {
         final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setReleaseAllHandlesRunnable(() -> completableFuture.complete(null))
@@ -369,7 +366,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testLocalCleanupShouldReleaseHandle() throws Exception {
+    void testLocalCleanupShouldReleaseHandle() throws Exception {
         final CompletableFuture<String> releaseFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setReleaseConsumer(releaseFuture::complete).build();
@@ -385,7 +382,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testRecoverPersistedJobResourceRequirements() throws Exception {
+    void testRecoverPersistedJobResourceRequirements() throws Exception {
         final Map<String, RetrievableStateHandle<ExecutionPlan>> handles = new HashMap<>();
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setAddFunction(
@@ -445,7 +442,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
     }
 
     @Test
-    public void testPutJobResourceRequirementsOfNonExistentJob() throws Exception {
+    void testPutJobResourceRequirementsOfNonExistentJob() throws Exception {
         final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
                 builder.setGetFunction(
                                 ignore -> {

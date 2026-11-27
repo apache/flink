@@ -18,156 +18,105 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SuperstepKickoffLatch}. */
-public class SuperstepKickoffLatchTest {
+class SuperstepKickoffLatchTest {
 
     @Test
-    public void testWaitFromOne() {
-        try {
-            SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
+    void testWaitFromOne() throws Exception {
+        SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
 
-            Waiter w = new Waiter(latch, 2);
-            Thread waiter = new Thread(w);
-            waiter.setDaemon(true);
-            waiter.start();
+        Waiter w = new Waiter(latch, 2);
+        Thread waiter = new Thread(w);
+        waiter.setDaemon(true);
+        waiter.start();
 
-            WatchDog wd = new WatchDog(waiter, 2000);
-            wd.start();
+        WatchDog wd = new WatchDog(waiter, 2000);
+        wd.start();
 
-            Thread.sleep(100);
+        Thread.sleep(100);
 
-            latch.triggerNextSuperstep();
+        latch.triggerNextSuperstep();
 
-            wd.join();
-            if (wd.getError() != null) {
-                throw wd.getError();
-            }
-
-            if (w.getError() != null) {
-                throw w.getError();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
-        }
+        wd.join();
+        assertThat(wd.getError()).isNull();
+        assertThat(w.getError()).isNull();
     }
 
     @Test
-    public void testWaitAlreadyFulfilled() {
-        try {
-            SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
-            latch.triggerNextSuperstep();
+    void testWaitAlreadyFulfilled() throws Exception {
+        SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
+        latch.triggerNextSuperstep();
 
-            Waiter w = new Waiter(latch, 2);
-            Thread waiter = new Thread(w);
-            waiter.setDaemon(true);
-            waiter.start();
+        Waiter w = new Waiter(latch, 2);
+        Thread waiter = new Thread(w);
+        waiter.setDaemon(true);
+        waiter.start();
 
-            WatchDog wd = new WatchDog(waiter, 2000);
-            wd.start();
+        WatchDog wd = new WatchDog(waiter, 2000);
+        wd.start();
 
-            Thread.sleep(100);
+        Thread.sleep(100);
 
-            wd.join();
-            if (wd.getError() != null) {
-                throw wd.getError();
-            }
-
-            if (w.getError() != null) {
-                throw w.getError();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
-        }
+        wd.join();
+        assertThat(wd.getError()).isNull();
+        assertThat(w.getError()).isNull();
     }
 
     @Test
-    public void testWaitIncorrect() {
-        try {
-            SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
-            latch.triggerNextSuperstep();
-            latch.triggerNextSuperstep();
+    void testWaitIncorrect() throws Exception {
+        SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
+        latch.triggerNextSuperstep();
+        latch.triggerNextSuperstep();
 
-            try {
-                latch.awaitStartOfSuperstepOrTermination(2);
-                Assert.fail("should throw exception");
-            } catch (IllegalStateException e) {
-                // good
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail("Error: " + e.getMessage());
-        }
+        assertThatThrownBy(() -> latch.awaitStartOfSuperstepOrTermination(2))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testWaitIncorrectAsync() {
-        try {
-            SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
-            latch.triggerNextSuperstep();
-            latch.triggerNextSuperstep();
+    void testWaitIncorrectAsync() throws Exception {
+        SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
+        latch.triggerNextSuperstep();
+        latch.triggerNextSuperstep();
 
-            Waiter w = new Waiter(latch, 2);
-            Thread waiter = new Thread(w);
-            waiter.setDaemon(true);
-            waiter.start();
+        Waiter w = new Waiter(latch, 2);
+        Thread waiter = new Thread(w);
+        waiter.setDaemon(true);
+        waiter.start();
 
-            WatchDog wd = new WatchDog(waiter, 2000);
-            wd.start();
+        WatchDog wd = new WatchDog(waiter, 2000);
+        wd.start();
 
-            Thread.sleep(100);
+        Thread.sleep(100);
 
-            wd.join();
-            if (wd.getError() != null) {
-                throw wd.getError();
-            }
-
-            if (w.getError() != null) {
-                if (!(w.getError() instanceof IllegalStateException)) {
-                    throw new Exception("wrong exception type " + w.getError());
-                }
-            } else {
-                Assert.fail("should cause exception");
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
-        }
+        wd.join();
+        assertThat(wd.getError()).isNull();
+        assertThat(w.getError()).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testWaitForTermination() {
-        try {
-            SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
-            latch.triggerNextSuperstep();
-            latch.triggerNextSuperstep();
+    void testWaitForTermination() throws Exception {
+        SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
+        latch.triggerNextSuperstep();
+        latch.triggerNextSuperstep();
 
-            Waiter w = new Waiter(latch, 4);
-            Thread waiter = new Thread(w);
-            waiter.setDaemon(true);
-            waiter.start();
+        Waiter w = new Waiter(latch, 4);
+        Thread waiter = new Thread(w);
+        waiter.setDaemon(true);
+        waiter.start();
 
-            WatchDog wd = new WatchDog(waiter, 2000);
-            wd.start();
+        WatchDog wd = new WatchDog(waiter, 2000);
+        wd.start();
 
-            latch.signalTermination();
+        latch.signalTermination();
 
-            wd.join();
-            if (wd.getError() != null) {
-                throw wd.getError();
-            }
-
-            if (w.getError() != null) {
-                throw w.getError();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
-        }
+        wd.join();
+        assertThat(wd.getError()).isNull();
+        assertThat(w.getError()).isNull();
     }
 
     private static class Waiter implements Runnable {

@@ -22,7 +22,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -31,17 +31,17 @@ import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BlockingBackChannel}. */
-public class BlockingBackChannelTest {
+class BlockingBackChannelTest {
 
     private static final int NUM_ITERATIONS = 3;
 
     private static final Integer INPUT_COMPLETELY_PROCESSED_MESSAGE = 1;
 
     @Test
-    public void multiThreaded() throws InterruptedException {
+    void multiThreaded() throws InterruptedException {
 
         BlockingQueue<Integer> dataChannel = new ArrayBlockingQueue<Integer>(1);
         List<String> actionLog = new ArrayList<>();
@@ -63,20 +63,20 @@ public class BlockingBackChannelTest {
         //			System.out.println("ACTION " + (++action) + ": " + log);
         //		}
 
-        assertEquals(12, actionLog.size());
-
-        assertEquals("head sends data", actionLog.get(0));
-        assertEquals("tail receives data", actionLog.get(1));
-        assertEquals("tail writes in iteration 0", actionLog.get(2));
-        assertEquals("head reads in iteration 0", actionLog.get(3));
-        assertEquals("head sends data", actionLog.get(4));
-        assertEquals("tail receives data", actionLog.get(5));
-        assertEquals("tail writes in iteration 1", actionLog.get(6));
-        assertEquals("head reads in iteration 1", actionLog.get(7));
-        assertEquals("head sends data", actionLog.get(8));
-        assertEquals("tail receives data", actionLog.get(9));
-        assertEquals("tail writes in iteration 2", actionLog.get(10));
-        assertEquals("head reads in iteration 2", actionLog.get(11));
+        assertThat(actionLog)
+                .containsExactly(
+                        "head sends data",
+                        "tail receives data",
+                        "tail writes in iteration 0",
+                        "head reads in iteration 0",
+                        "head sends data",
+                        "tail receives data",
+                        "tail writes in iteration 1",
+                        "head reads in iteration 1",
+                        "head sends data",
+                        "tail receives data",
+                        "tail writes in iteration 2",
+                        "head reads in iteration 2");
     }
 
     class IterationHead implements Runnable {

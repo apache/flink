@@ -26,19 +26,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for {@link InputOutputFormatContainer}. */
-public class InputOutputFormatContainerTest {
+class InputOutputFormatContainerTest {
 
     @Test
-    public void testInputOutputFormat() {
+    void testInputOutputFormat() {
         InputOutputFormatContainer formatContainer =
                 new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader());
 
@@ -64,32 +64,31 @@ public class InputOutputFormatContainerTest {
                 loadedFormatContainer.getInputFormats();
         Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats =
                 loadedFormatContainer.getOutputFormats();
-        assertEquals(1, inputFormats.size());
-        assertEquals(2, outputFormats.size());
+        assertThat(inputFormats).hasSize(1);
+        assertThat(outputFormats).hasSize(2);
 
         // verify the input format
         TestInputFormat inputFormat =
                 (TestInputFormat) inputFormats.get(operatorID1).getUserCodeObject();
-        assertEquals("test input format", inputFormat.getName());
+        assertThat(inputFormat.getName()).isEqualTo("test input format");
 
         Configuration inputFormatParams = loadedFormatContainer.getParameters(operatorID1);
-        assertEquals(1, inputFormatParams.keySet().size());
-        assertEquals("abc123", inputFormatParams.getString("parameter1", null));
+        assertThat(inputFormatParams.toMap()).containsOnly(entry("parameter1", "abc123"));
 
         // verify the output formats
-        assertTrue(outputFormats.get(operatorID2).getUserCodeObject() instanceof TestOutputFormat);
-        Configuration outputFormatParams1 = loadedFormatContainer.getParameters(operatorID2);
-        assertEquals(1, outputFormatParams1.keySet().size());
-        assertEquals("bcd234", outputFormatParams1.getString("parameter1", null));
+        assertThat(outputFormats.get(operatorID2).getUserCodeObject())
+                .isInstanceOf(TestOutputFormat.class);
+        assertThat(loadedFormatContainer.getParameters(operatorID2).toMap())
+                .containsOnly(entry("parameter1", "bcd234"));
 
-        assertTrue(outputFormats.get(operatorID3).getUserCodeObject() instanceof TestOutputFormat);
-        Configuration outputFormatParams2 = loadedFormatContainer.getParameters(operatorID3);
-        assertEquals(1, outputFormatParams2.keySet().size());
-        assertEquals("cde345", outputFormatParams2.getString("parameter1", null));
+        assertThat(outputFormats.get(operatorID3).getUserCodeObject())
+                .isInstanceOf(TestOutputFormat.class);
+        assertThat(loadedFormatContainer.getParameters(operatorID3).toMap())
+                .containsOnly(entry("parameter1", "cde345"));
     }
 
     @Test
-    public void testOnlyInputFormat() {
+    void testOnlyInputFormat() {
         InputOutputFormatContainer formatContainer =
                 new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader());
 
@@ -105,20 +104,19 @@ public class InputOutputFormatContainerTest {
 
         Map<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> inputFormats =
                 loadedFormatContainer.getInputFormats();
-        assertEquals(1, inputFormats.size());
-        assertEquals(0, loadedFormatContainer.getOutputFormats().size());
+        assertThat(inputFormats).hasSize(1);
+        assertThat(loadedFormatContainer.getOutputFormats()).isEmpty();
 
         TestInputFormat inputFormat =
                 (TestInputFormat) inputFormats.get(operatorID).getUserCodeObject();
-        assertEquals("test input format", inputFormat.getName());
+        assertThat(inputFormat.getName()).isEqualTo("test input format");
 
-        Configuration parameters = loadedFormatContainer.getParameters(operatorID);
-        assertEquals(1, parameters.keySet().size());
-        assertEquals("abc123", parameters.getString("parameter1", null));
+        assertThat(loadedFormatContainer.getParameters(operatorID).toMap())
+                .containsOnly(entry("parameter1", "abc123"));
     }
 
     @Test
-    public void testOnlyOutputFormat() {
+    void testOnlyOutputFormat() {
         InputOutputFormatContainer formatContainer =
                 new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader());
 
@@ -137,14 +135,14 @@ public class InputOutputFormatContainerTest {
 
         Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats =
                 loadedFormatContainer.getOutputFormats();
-        assertEquals(1, outputFormats.size());
-        assertEquals(0, loadedFormatContainer.getInputFormats().size());
+        assertThat(outputFormats).hasSize(1);
+        assertThat(loadedFormatContainer.getInputFormats()).isEmpty();
 
-        assertTrue(outputFormats.get(operatorID).getUserCodeObject() instanceof TestOutputFormat);
+        assertThat(outputFormats.get(operatorID).getUserCodeObject())
+                .isInstanceOf(TestOutputFormat.class);
 
-        Configuration loadedParameters = loadedFormatContainer.getParameters(operatorID);
-        assertEquals(1, loadedParameters.keySet().size());
-        assertEquals("bcd234", loadedParameters.getString("parameter1", null));
+        assertThat(loadedFormatContainer.getParameters(operatorID).toMap())
+                .containsOnly(entry("parameter1", "bcd234"));
     }
 
     // -------------------------------------------------------------------------
