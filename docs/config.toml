@@ -27,7 +27,7 @@ pygmentsUseClasses = true
   IsStable = true
 
   # Flag to indicate whether an outdated warning should be shown.
-  ShowOutDatedWarning = false
+  ShowOutDatedWarning = true
 
   # This are the version referenced in the docs. Please only use these variables
   # to reference a specific Flink version, because this is the only place where
