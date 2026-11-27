@@ -38,7 +38,7 @@ public class GeneratedCollectorWrapper<C extends Collector<?>> extends Generated
     @Override
     public C newInstance(ClassLoader classLoader) {
         try {
-            return clazz.newInstance();
+            return clazz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new RuntimeException(
                     "Could not instantiate class " + clazz.getCanonicalName(), e);

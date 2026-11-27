@@ -63,10 +63,10 @@ class FieldFromTupleTest {
     }
 
     @Test
-    void testSingleFieldExtraction() throws InstantiationException, IllegalAccessException {
+    void testSingleFieldExtraction() throws ReflectiveOperationException {
         // extract single fields
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
-            Tuple current = (Tuple) CLASSES[i].newInstance();
+            Tuple current = (Tuple) CLASSES[i].getDeclaredConstructor().newInstance();
             for (int j = 0; j < i; j++) {
                 current.setField(testStrings[j], j);
             }

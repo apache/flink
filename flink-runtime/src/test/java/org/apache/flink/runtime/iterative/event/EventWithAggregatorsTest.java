@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -106,15 +107,16 @@ public class EventWithAggregatorsTest {
 
             DataInputViewStreamWrapper in =
                     new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
-            IterationEventWithAggregators newEvent = event.getClass().newInstance();
+            IterationEventWithAggregators newEvent =
+                    event.getClass().getDeclaredConstructor().newInstance();
             newEvent.read(in);
             in.close();
 
             return newEvent;
         } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail("Test threw an exception: " + e.getMessage());
+            final Throwable cause = e instanceof InvocationTargetException ? e.getCause() : e;
+            cause.printStackTrace();
+            Assert.fail("Test threw an exception: " + cause);
             return null;
         }
     }

@@ -279,6 +279,24 @@ class UserDefinedFunctionHelperTest {
         assertThat(isClassNameSerializable(new StatefulScalarFunction())).isFalse();
     }
 
+    @Test
+    void testInstantiationRethrowsConstructorError() {
+        assertThatThrownBy(() -> instantiateFunction(ErrorThrowingScalarFunction.class))
+                .isSameAs(ErrorThrowingScalarFunction.ERROR);
+    }
+
+    @Test
+    void testInstantiationWrapsConstructorException() {
+        assertThatThrownBy(() -> instantiateFunction(ExceptionThrowingScalarFunction.class))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Cannot instantiate user-defined function class '"
+                                + ExceptionThrowingScalarFunction.class.getName()
+                                + "'.")
+                .cause()
+                .isSameAs(ExceptionThrowingScalarFunction.EXCEPTION);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test utilities
     // --------------------------------------------------------------------------------------------
@@ -466,6 +484,32 @@ class UserDefinedFunctionHelperTest {
 
     /** Valid scalar function. */
     public static class ValidScalarFunction extends ScalarFunction {
+        public String eval(int i) {
+            return null;
+        }
+    }
+
+    /** Scalar function whose constructor throws an error. */
+    public static class ErrorThrowingScalarFunction extends ScalarFunction {
+        static final AssertionError ERROR = new AssertionError("constructor error");
+
+        public ErrorThrowingScalarFunction() {
+            throw ERROR;
+        }
+
+        public String eval(int i) {
+            return null;
+        }
+    }
+
+    /** Scalar function whose constructor throws an ordinary exception. */
+    public static class ExceptionThrowingScalarFunction extends ScalarFunction {
+        static final IllegalStateException EXCEPTION = new IllegalStateException("constructor");
+
+        public ExceptionThrowingScalarFunction() {
+            throw EXCEPTION;
+        }
+
         public String eval(int i) {
             return null;
         }
