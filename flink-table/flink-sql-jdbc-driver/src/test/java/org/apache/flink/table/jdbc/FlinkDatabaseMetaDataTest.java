@@ -31,14 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for flink database metadata. */
 public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
     @Test
-    public void testCatalogSchemas() throws Exception {
+    void testCatalogSchemas() throws Exception {
 
         DriverUri driverUri = getDriverUri();
         try (FlinkConnection connection = new FlinkConnection(driverUri)) {
@@ -62,8 +59,8 @@ public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
 
             connection.setCatalog("test_catalog2");
             connection.setSchema("database21");
-            assertEquals("test_catalog2", connection.getCatalog());
-            assertEquals("database21", connection.getSchema());
+            assertThat(connection.getCatalog()).isEqualTo("test_catalog2");
+            assertThat(connection.getSchema()).isEqualTo("database21");
 
             DatabaseMetaData databaseMetaData =
                     new FlinkDatabaseMetaData(
@@ -88,108 +85,109 @@ public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
                             "default,test_catalog2");
 
             // Validate that the default catalog and database are not changed.
-            assertEquals("test_catalog2", connection.getCatalog());
-            assertEquals("database21", connection.getSchema());
+            assertThat(connection.getCatalog()).isEqualTo("test_catalog2");
+            assertThat(connection.getSchema()).isEqualTo("database21");
 
-            assertFalse(databaseMetaData.allProceduresAreCallable());
-            assertTrue(databaseMetaData.allTablesAreSelectable());
-            assertTrue(databaseMetaData.isReadOnly());
-            assertFalse(databaseMetaData.nullsAreSortedHigh());
-            assertTrue(databaseMetaData.nullsAreSortedLow());
-            assertFalse(databaseMetaData.nullsAreSortedAtStart());
-            assertFalse(databaseMetaData.nullsAreSortedAtEnd());
-            assertFalse(databaseMetaData.usesLocalFiles());
-            assertFalse(databaseMetaData.usesLocalFilePerTable());
-            assertTrue(databaseMetaData.supportsMixedCaseIdentifiers());
-            assertFalse(databaseMetaData.storesUpperCaseIdentifiers());
-            assertFalse(databaseMetaData.storesLowerCaseIdentifiers());
-            assertTrue(databaseMetaData.storesMixedCaseIdentifiers());
-            assertTrue(databaseMetaData.supportsMixedCaseQuotedIdentifiers());
-            assertFalse(databaseMetaData.storesUpperCaseQuotedIdentifiers());
-            assertFalse(databaseMetaData.storesLowerCaseQuotedIdentifiers());
-            assertTrue(databaseMetaData.storesMixedCaseQuotedIdentifiers());
-            assertTrue(databaseMetaData.supportsAlterTableWithAddColumn());
-            assertTrue(databaseMetaData.supportsAlterTableWithDropColumn());
-            assertTrue(databaseMetaData.supportsColumnAliasing());
-            assertTrue(databaseMetaData.nullPlusNonNullIsNull());
-            assertFalse(databaseMetaData.supportsConvert());
-            assertFalse(databaseMetaData.supportsConvert(1, 2));
-            assertTrue(databaseMetaData.supportsTableCorrelationNames());
-            assertFalse(databaseMetaData.supportsDifferentTableCorrelationNames());
-            assertTrue(databaseMetaData.supportsExpressionsInOrderBy());
-            assertTrue(databaseMetaData.supportsOrderByUnrelated());
-            assertTrue(databaseMetaData.supportsGroupBy());
-            assertTrue(databaseMetaData.supportsGroupByUnrelated());
-            assertTrue(databaseMetaData.supportsGroupByBeyondSelect());
-            assertTrue(databaseMetaData.supportsLikeEscapeClause());
-            assertFalse(databaseMetaData.supportsMultipleResultSets());
-            assertFalse(databaseMetaData.supportsMultipleTransactions());
-            assertTrue(databaseMetaData.supportsNonNullableColumns());
-            assertFalse(databaseMetaData.supportsMinimumSQLGrammar());
-            assertFalse(databaseMetaData.supportsCoreSQLGrammar());
-            assertFalse(databaseMetaData.supportsExtendedSQLGrammar());
-            assertFalse(databaseMetaData.supportsANSI92EntryLevelSQL());
-            assertFalse(databaseMetaData.supportsANSI92IntermediateSQL());
-            assertFalse(databaseMetaData.supportsANSI92FullSQL());
-            assertFalse(databaseMetaData.supportsIntegrityEnhancementFacility());
-            assertTrue(databaseMetaData.supportsOuterJoins());
-            assertTrue(databaseMetaData.supportsFullOuterJoins());
-            assertTrue(databaseMetaData.supportsLimitedOuterJoins());
-            assertTrue(databaseMetaData.isCatalogAtStart());
-            assertTrue(databaseMetaData.supportsSchemasInDataManipulation());
-            assertFalse(databaseMetaData.supportsSchemasInProcedureCalls());
-            assertTrue(databaseMetaData.supportsSchemasInTableDefinitions());
-            assertFalse(databaseMetaData.supportsSchemasInIndexDefinitions());
-            assertFalse(databaseMetaData.supportsSchemasInPrivilegeDefinitions());
-            assertTrue(databaseMetaData.supportsCatalogsInDataManipulation());
-            assertFalse(databaseMetaData.supportsCatalogsInProcedureCalls());
-            assertTrue(databaseMetaData.supportsCatalogsInTableDefinitions());
-            assertFalse(databaseMetaData.supportsCatalogsInIndexDefinitions());
-            assertFalse(databaseMetaData.supportsCatalogsInPrivilegeDefinitions());
-            assertFalse(databaseMetaData.supportsPositionedDelete());
-            assertFalse(databaseMetaData.supportsPositionedUpdate());
-            assertFalse(databaseMetaData.supportsSelectForUpdate());
-            assertFalse(databaseMetaData.supportsStoredProcedures());
-            assertTrue(databaseMetaData.supportsSubqueriesInComparisons());
-            assertTrue(databaseMetaData.supportsSubqueriesInExists());
-            assertTrue(databaseMetaData.supportsSubqueriesInIns());
-            assertTrue(databaseMetaData.supportsSubqueriesInQuantifieds());
-            assertTrue(databaseMetaData.supportsCorrelatedSubqueries());
-            assertTrue(databaseMetaData.supportsUnion());
-            assertTrue(databaseMetaData.supportsUnionAll());
-            assertFalse(databaseMetaData.supportsOpenCursorsAcrossCommit());
-            assertFalse(databaseMetaData.supportsOpenCursorsAcrossRollback());
-            assertFalse(databaseMetaData.supportsOpenStatementsAcrossCommit());
-            assertFalse(databaseMetaData.supportsOpenStatementsAcrossRollback());
-            assertFalse(databaseMetaData.doesMaxRowSizeIncludeBlobs());
-            assertFalse(databaseMetaData.supportsTransactions());
-            assertFalse(databaseMetaData.supportsTransactionIsolationLevel(1));
-            assertFalse(databaseMetaData.supportsDataDefinitionAndDataManipulationTransactions());
-            assertFalse(databaseMetaData.supportsDataManipulationTransactionsOnly());
-            assertFalse(databaseMetaData.dataDefinitionCausesTransactionCommit());
-            assertFalse(databaseMetaData.dataDefinitionIgnoredInTransactions());
-            assertFalse(databaseMetaData.supportsResultSetType(1));
-            assertFalse(databaseMetaData.supportsResultSetConcurrency(1, 2));
-            assertFalse(databaseMetaData.ownUpdatesAreVisible(1));
-            assertFalse(databaseMetaData.ownDeletesAreVisible(1));
-            assertFalse(databaseMetaData.ownInsertsAreVisible(1));
-            assertFalse(databaseMetaData.othersUpdatesAreVisible(1));
-            assertFalse(databaseMetaData.othersDeletesAreVisible(1));
-            assertFalse(databaseMetaData.othersInsertsAreVisible(1));
-            assertFalse(databaseMetaData.updatesAreDetected(1));
-            assertFalse(databaseMetaData.deletesAreDetected(1));
-            assertFalse(databaseMetaData.insertsAreDetected(1));
-            assertFalse(databaseMetaData.supportsBatchUpdates());
-            assertFalse(databaseMetaData.supportsSavepoints());
-            assertFalse(databaseMetaData.supportsNamedParameters());
-            assertFalse(databaseMetaData.supportsMultipleOpenResults());
-            assertFalse(databaseMetaData.supportsGetGeneratedKeys());
-            assertFalse(databaseMetaData.supportsResultSetHoldability(1));
-            assertFalse(databaseMetaData.locatorsUpdateCopy());
-            assertFalse(databaseMetaData.supportsStatementPooling());
-            assertFalse(databaseMetaData.supportsStoredFunctionsUsingCallSyntax());
-            assertFalse(databaseMetaData.autoCommitFailureClosesAllResultSets());
-            assertFalse(databaseMetaData.generatedKeyAlwaysReturned());
+            assertThat(databaseMetaData.allProceduresAreCallable()).isFalse();
+            assertThat(databaseMetaData.allTablesAreSelectable()).isTrue();
+            assertThat(databaseMetaData.isReadOnly()).isTrue();
+            assertThat(databaseMetaData.nullsAreSortedHigh()).isFalse();
+            assertThat(databaseMetaData.nullsAreSortedLow()).isTrue();
+            assertThat(databaseMetaData.nullsAreSortedAtStart()).isFalse();
+            assertThat(databaseMetaData.nullsAreSortedAtEnd()).isFalse();
+            assertThat(databaseMetaData.usesLocalFiles()).isFalse();
+            assertThat(databaseMetaData.usesLocalFilePerTable()).isFalse();
+            assertThat(databaseMetaData.supportsMixedCaseIdentifiers()).isTrue();
+            assertThat(databaseMetaData.storesUpperCaseIdentifiers()).isFalse();
+            assertThat(databaseMetaData.storesLowerCaseIdentifiers()).isFalse();
+            assertThat(databaseMetaData.storesMixedCaseIdentifiers()).isTrue();
+            assertThat(databaseMetaData.supportsMixedCaseQuotedIdentifiers()).isTrue();
+            assertThat(databaseMetaData.storesUpperCaseQuotedIdentifiers()).isFalse();
+            assertThat(databaseMetaData.storesLowerCaseQuotedIdentifiers()).isFalse();
+            assertThat(databaseMetaData.storesMixedCaseQuotedIdentifiers()).isTrue();
+            assertThat(databaseMetaData.supportsAlterTableWithAddColumn()).isTrue();
+            assertThat(databaseMetaData.supportsAlterTableWithDropColumn()).isTrue();
+            assertThat(databaseMetaData.supportsColumnAliasing()).isTrue();
+            assertThat(databaseMetaData.nullPlusNonNullIsNull()).isTrue();
+            assertThat(databaseMetaData.supportsConvert()).isFalse();
+            assertThat(databaseMetaData.supportsConvert(1, 2)).isFalse();
+            assertThat(databaseMetaData.supportsTableCorrelationNames()).isTrue();
+            assertThat(databaseMetaData.supportsDifferentTableCorrelationNames()).isFalse();
+            assertThat(databaseMetaData.supportsExpressionsInOrderBy()).isTrue();
+            assertThat(databaseMetaData.supportsOrderByUnrelated()).isTrue();
+            assertThat(databaseMetaData.supportsGroupBy()).isTrue();
+            assertThat(databaseMetaData.supportsGroupByUnrelated()).isTrue();
+            assertThat(databaseMetaData.supportsGroupByBeyondSelect()).isTrue();
+            assertThat(databaseMetaData.supportsLikeEscapeClause()).isTrue();
+            assertThat(databaseMetaData.supportsMultipleResultSets()).isFalse();
+            assertThat(databaseMetaData.supportsMultipleTransactions()).isFalse();
+            assertThat(databaseMetaData.supportsNonNullableColumns()).isTrue();
+            assertThat(databaseMetaData.supportsMinimumSQLGrammar()).isFalse();
+            assertThat(databaseMetaData.supportsCoreSQLGrammar()).isFalse();
+            assertThat(databaseMetaData.supportsExtendedSQLGrammar()).isFalse();
+            assertThat(databaseMetaData.supportsANSI92EntryLevelSQL()).isFalse();
+            assertThat(databaseMetaData.supportsANSI92IntermediateSQL()).isFalse();
+            assertThat(databaseMetaData.supportsANSI92FullSQL()).isFalse();
+            assertThat(databaseMetaData.supportsIntegrityEnhancementFacility()).isFalse();
+            assertThat(databaseMetaData.supportsOuterJoins()).isTrue();
+            assertThat(databaseMetaData.supportsFullOuterJoins()).isTrue();
+            assertThat(databaseMetaData.supportsLimitedOuterJoins()).isTrue();
+            assertThat(databaseMetaData.isCatalogAtStart()).isTrue();
+            assertThat(databaseMetaData.supportsSchemasInDataManipulation()).isTrue();
+            assertThat(databaseMetaData.supportsSchemasInProcedureCalls()).isFalse();
+            assertThat(databaseMetaData.supportsSchemasInTableDefinitions()).isTrue();
+            assertThat(databaseMetaData.supportsSchemasInIndexDefinitions()).isFalse();
+            assertThat(databaseMetaData.supportsSchemasInPrivilegeDefinitions()).isFalse();
+            assertThat(databaseMetaData.supportsCatalogsInDataManipulation()).isTrue();
+            assertThat(databaseMetaData.supportsCatalogsInProcedureCalls()).isFalse();
+            assertThat(databaseMetaData.supportsCatalogsInTableDefinitions()).isTrue();
+            assertThat(databaseMetaData.supportsCatalogsInIndexDefinitions()).isFalse();
+            assertThat(databaseMetaData.supportsCatalogsInPrivilegeDefinitions()).isFalse();
+            assertThat(databaseMetaData.supportsPositionedDelete()).isFalse();
+            assertThat(databaseMetaData.supportsPositionedUpdate()).isFalse();
+            assertThat(databaseMetaData.supportsSelectForUpdate()).isFalse();
+            assertThat(databaseMetaData.supportsStoredProcedures()).isFalse();
+            assertThat(databaseMetaData.supportsSubqueriesInComparisons()).isTrue();
+            assertThat(databaseMetaData.supportsSubqueriesInExists()).isTrue();
+            assertThat(databaseMetaData.supportsSubqueriesInIns()).isTrue();
+            assertThat(databaseMetaData.supportsSubqueriesInQuantifieds()).isTrue();
+            assertThat(databaseMetaData.supportsCorrelatedSubqueries()).isTrue();
+            assertThat(databaseMetaData.supportsUnion()).isTrue();
+            assertThat(databaseMetaData.supportsUnionAll()).isTrue();
+            assertThat(databaseMetaData.supportsOpenCursorsAcrossCommit()).isFalse();
+            assertThat(databaseMetaData.supportsOpenCursorsAcrossRollback()).isFalse();
+            assertThat(databaseMetaData.supportsOpenStatementsAcrossCommit()).isFalse();
+            assertThat(databaseMetaData.supportsOpenStatementsAcrossRollback()).isFalse();
+            assertThat(databaseMetaData.doesMaxRowSizeIncludeBlobs()).isFalse();
+            assertThat(databaseMetaData.supportsTransactions()).isFalse();
+            assertThat(databaseMetaData.supportsTransactionIsolationLevel(1)).isFalse();
+            assertThat(databaseMetaData.supportsDataDefinitionAndDataManipulationTransactions())
+                    .isFalse();
+            assertThat(databaseMetaData.supportsDataManipulationTransactionsOnly()).isFalse();
+            assertThat(databaseMetaData.dataDefinitionCausesTransactionCommit()).isFalse();
+            assertThat(databaseMetaData.dataDefinitionIgnoredInTransactions()).isFalse();
+            assertThat(databaseMetaData.supportsResultSetType(1)).isFalse();
+            assertThat(databaseMetaData.supportsResultSetConcurrency(1, 2)).isFalse();
+            assertThat(databaseMetaData.ownUpdatesAreVisible(1)).isFalse();
+            assertThat(databaseMetaData.ownDeletesAreVisible(1)).isFalse();
+            assertThat(databaseMetaData.ownInsertsAreVisible(1)).isFalse();
+            assertThat(databaseMetaData.othersUpdatesAreVisible(1)).isFalse();
+            assertThat(databaseMetaData.othersDeletesAreVisible(1)).isFalse();
+            assertThat(databaseMetaData.othersInsertsAreVisible(1)).isFalse();
+            assertThat(databaseMetaData.updatesAreDetected(1)).isFalse();
+            assertThat(databaseMetaData.deletesAreDetected(1)).isFalse();
+            assertThat(databaseMetaData.insertsAreDetected(1)).isFalse();
+            assertThat(databaseMetaData.supportsBatchUpdates()).isFalse();
+            assertThat(databaseMetaData.supportsSavepoints()).isFalse();
+            assertThat(databaseMetaData.supportsNamedParameters()).isFalse();
+            assertThat(databaseMetaData.supportsMultipleOpenResults()).isFalse();
+            assertThat(databaseMetaData.supportsGetGeneratedKeys()).isFalse();
+            assertThat(databaseMetaData.supportsResultSetHoldability(1)).isFalse();
+            assertThat(databaseMetaData.locatorsUpdateCopy()).isFalse();
+            assertThat(databaseMetaData.supportsStatementPooling()).isFalse();
+            assertThat(databaseMetaData.supportsStoredFunctionsUsingCallSyntax()).isFalse();
+            assertThat(databaseMetaData.autoCommitFailureClosesAllResultSets()).isFalse();
+            assertThat(databaseMetaData.generatedKeyAlwaysReturned()).isFalse();
         }
     }
 
@@ -210,12 +208,12 @@ public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
 
     private void executeDDL(String sql, Executor executor) {
         try (StatementResult result = executor.executeStatement(sql)) {
-            assertTrue(result.hasNext());
+            assertThat(result.hasNext()).isTrue();
             RowData rowData = result.next();
-            assertEquals(1, rowData.getArity());
-            assertEquals("OK", rowData.getString(0).toString());
+            assertThat(rowData.getArity()).isEqualTo(1);
+            assertThat(rowData.getString(0)).hasToString("OK");
 
-            assertFalse(result.hasNext());
+            assertThat(result.hasNext()).isFalse();
         }
     }
 }

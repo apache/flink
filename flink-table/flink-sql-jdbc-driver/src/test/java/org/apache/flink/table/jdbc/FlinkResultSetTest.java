@@ -43,11 +43,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkResultSet}. */
 public class FlinkResultSetTest {
@@ -71,7 +68,7 @@ public class FlinkResultSetTest {
                                     DataTypes.MAP(DataTypes.INT(), DataTypes.BIGINT()))));
 
     @Test
-    public void testResultSetPrimitiveData() throws Exception {
+    void testResultSetPrimitiveData() throws Exception {
         CloseableIterator<RowData> data =
                 CloseableIterator.adapterForIterator(
                         IntStream.range(0, RECORD_SIZE)
@@ -112,7 +109,7 @@ public class FlinkResultSetTest {
     }
 
     @Test
-    public void testStringResultSetNullData() throws Exception {
+    void testStringResultSetNullData() throws Exception {
         CloseableIterator<RowData> data =
                 CloseableIterator.adapterForIterator(
                         Collections.singletonList(
@@ -126,29 +123,29 @@ public class FlinkResultSetTest {
                         new TestingStatement(),
                         new StatementResult(
                                 SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
-            assertTrue(resultSet.next());
-            assertFalse(resultSet.getBoolean(1));
-            assertNull(resultSet.getObject(1));
-            assertEquals((byte) 0, resultSet.getByte(2));
-            assertNull(resultSet.getObject(2));
-            assertEquals((short) 0, resultSet.getShort(3));
-            assertNull(resultSet.getObject(3));
-            assertEquals(0, resultSet.getInt(4));
-            assertNull(resultSet.getObject(4));
-            assertEquals(0L, resultSet.getLong(5));
-            assertNull(resultSet.getObject(5));
-            assertEquals((float) 0.0, resultSet.getFloat(6));
-            assertNull(resultSet.getObject(6));
-            assertEquals(0.0, resultSet.getDouble(7));
-            assertNull(resultSet.getObject(7));
-            assertNull(resultSet.getBigDecimal(8));
-            assertNull(resultSet.getObject(8));
-            assertNull(resultSet.getString(9));
-            assertNull(resultSet.getObject(9));
-            assertNull(resultSet.getBytes(10));
-            assertNull(resultSet.getObject(10));
-            assertNull(resultSet.getObject(11));
-            assertFalse(resultSet.next());
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getBoolean(1)).isFalse();
+            assertThat(resultSet.getObject(1)).isNull();
+            assertThat(resultSet.getByte(2)).isEqualTo((byte) 0);
+            assertThat(resultSet.getObject(2)).isNull();
+            assertThat(resultSet.getShort(3)).isEqualTo((short) 0);
+            assertThat(resultSet.getObject(3)).isNull();
+            assertThat(resultSet.getInt(4)).isEqualTo(0);
+            assertThat(resultSet.getObject(4)).isNull();
+            assertThat(resultSet.getLong(5)).isEqualTo(0L);
+            assertThat(resultSet.getObject(5)).isNull();
+            assertThat(resultSet.getFloat(6)).isEqualTo((float) 0.0);
+            assertThat(resultSet.getObject(6)).isNull();
+            assertThat(resultSet.getDouble(7)).isEqualTo(0.0);
+            assertThat(resultSet.getObject(7)).isNull();
+            assertThat(resultSet.getBigDecimal(8)).isNull();
+            assertThat(resultSet.getObject(8)).isNull();
+            assertThat(resultSet.getString(9)).isNull();
+            assertThat(resultSet.getObject(9)).isNull();
+            assertThat(resultSet.getBytes(10)).isNull();
+            assertThat(resultSet.getObject(10)).isNull();
+            assertThat(resultSet.getObject(11)).isNull();
+            assertThat(resultSet.next()).isFalse();
         }
     }
 
@@ -156,87 +153,88 @@ public class FlinkResultSetTest {
         int resultCount = 0;
         while (resultSet.next()) {
             Integer val = resultSet.getInt("v4");
-            assertEquals(val, resultCount);
+            assertThat(resultCount).isEqualTo(val);
             resultCount++;
 
             // Get and validate each column value
-            assertEquals(val % 2 == 0, resultSet.getBoolean(1));
-            assertEquals(val % 2 == 0, resultSet.getBoolean("v1"));
-            assertEquals(val % 2 == 0, resultSet.getObject(1));
-            assertEquals(val % 2 == 0, resultSet.getObject("v1"));
-            assertEquals(val.byteValue(), resultSet.getByte(2));
-            assertEquals(val.byteValue(), resultSet.getByte("v2"));
-            assertEquals(val.byteValue(), resultSet.getObject(2));
-            assertEquals(val.byteValue(), resultSet.getObject("v2"));
-            assertEquals(val.shortValue(), resultSet.getShort(3));
-            assertEquals(val.shortValue(), resultSet.getShort("v3"));
-            assertEquals(val.shortValue(), resultSet.getObject(3));
-            assertEquals(val.shortValue(), resultSet.getObject("v3"));
-            assertEquals(val, resultSet.getInt(4));
-            assertEquals(val, resultSet.getInt("v4"));
-            assertEquals(val, resultSet.getObject(4));
-            assertEquals(val, resultSet.getObject("v4"));
-            assertEquals(val.longValue(), resultSet.getLong(5));
-            assertEquals(val.longValue(), resultSet.getLong("v5"));
-            assertEquals(val.longValue(), resultSet.getObject(5));
-            assertEquals(val.longValue(), resultSet.getObject("v5"));
-            assertTrue(resultSet.getFloat(6) - val - 0.1 < 0.0001);
-            assertTrue(resultSet.getFloat("v6") - val - 0.1 < 0.0001);
-            assertTrue((float) resultSet.getObject(6) - val - 0.1 < 0.0001);
-            assertTrue((float) resultSet.getObject("v6") - val - 0.1 < 0.0001);
-            assertTrue(resultSet.getDouble(7) - val - 0.22 < 0.0001);
-            assertTrue(resultSet.getDouble("v7") - val - 0.22 < 0.0001);
-            assertTrue((double) resultSet.getObject(7) - val - 0.22 < 0.0001);
-            assertTrue((double) resultSet.getObject("v7") - val - 0.22 < 0.0001);
-            assertEquals(new BigDecimal(val + ".55555"), resultSet.getBigDecimal(8));
-            assertEquals(new BigDecimal(val + ".55555"), resultSet.getBigDecimal("v8"));
-            assertEquals(new BigDecimal(val + ".55555"), resultSet.getObject(8));
-            assertEquals(new BigDecimal(val + ".55555"), resultSet.getObject("v8"));
-            assertEquals(val.toString(), resultSet.getString(9));
-            assertEquals(val.toString(), resultSet.getString("v9"));
-            assertEquals(val.toString(), resultSet.getObject(9));
-            assertEquals(val.toString(), resultSet.getObject("v9"));
-            assertEquals(val.toString(), new String(resultSet.getBytes(10)));
-            assertEquals(val.toString(), new String(resultSet.getBytes("v10")));
-            assertEquals(val.toString(), new String((byte[]) resultSet.getObject(10)));
-            assertEquals(val.toString(), new String((byte[]) resultSet.getObject("v10")));
+            assertThat(resultSet.getBoolean(1)).isEqualTo(val % 2 == 0);
+            assertThat(resultSet.getBoolean("v1")).isEqualTo(val % 2 == 0);
+            assertThat(resultSet.getObject(1)).isEqualTo(val % 2 == 0);
+            assertThat(resultSet.getObject("v1")).isEqualTo(val % 2 == 0);
+            assertThat(resultSet.getByte(2)).isEqualTo(val.byteValue());
+            assertThat(resultSet.getByte("v2")).isEqualTo(val.byteValue());
+            assertThat(resultSet.getObject(2)).isEqualTo(val.byteValue());
+            assertThat(resultSet.getObject("v2")).isEqualTo(val.byteValue());
+            assertThat(resultSet.getShort(3)).isEqualTo(val.shortValue());
+            assertThat(resultSet.getShort("v3")).isEqualTo(val.shortValue());
+            assertThat(resultSet.getObject(3)).isEqualTo(val.shortValue());
+            assertThat(resultSet.getObject("v3")).isEqualTo(val.shortValue());
+            assertThat(resultSet.getInt(4)).isEqualTo(val);
+            assertThat(resultSet.getInt("v4")).isEqualTo(val);
+            assertThat(resultSet.getObject(4)).isEqualTo(val);
+            assertThat(resultSet.getObject("v4")).isEqualTo(val);
+            assertThat(resultSet.getLong(5)).isEqualTo(val.longValue());
+            assertThat(resultSet.getLong("v5")).isEqualTo(val.longValue());
+            assertThat(resultSet.getObject(5)).isEqualTo(val.longValue());
+            assertThat(resultSet.getObject("v5")).isEqualTo(val.longValue());
+            assertThat(resultSet.getFloat(6) - val - 0.1 < 0.0001).isTrue();
+            assertThat(resultSet.getFloat("v6") - val - 0.1 < 0.0001).isTrue();
+            assertThat((float) resultSet.getObject(6) - val - 0.1 < 0.0001).isTrue();
+            assertThat((float) resultSet.getObject("v6") - val - 0.1 < 0.0001).isTrue();
+            assertThat(resultSet.getDouble(7) - val - 0.22 < 0.0001).isTrue();
+            assertThat(resultSet.getDouble("v7") - val - 0.22 < 0.0001).isTrue();
+            assertThat((double) resultSet.getObject(7) - val - 0.22 < 0.0001).isTrue();
+            assertThat((double) resultSet.getObject("v7") - val - 0.22 < 0.0001).isTrue();
+            assertThat(resultSet.getBigDecimal(8)).isEqualTo(new BigDecimal(val + ".55555"));
+            assertThat(resultSet.getBigDecimal("v8")).isEqualTo(new BigDecimal(val + ".55555"));
+            assertThat(resultSet.getObject(8)).isEqualTo(new BigDecimal(val + ".55555"));
+            assertThat(resultSet.getObject("v8")).isEqualTo(new BigDecimal(val + ".55555"));
+            assertThat(resultSet.getString(9)).isEqualTo(val.toString());
+            assertThat(resultSet.getString("v9")).isEqualTo(val.toString());
+            assertThat(resultSet.getObject(9)).isEqualTo(val.toString());
+            assertThat(resultSet.getObject("v9")).isEqualTo(val.toString());
+            assertThat(new String(resultSet.getBytes(10))).isEqualTo(val.toString());
+            assertThat(new String(resultSet.getBytes("v10"))).isEqualTo(val.toString());
+            assertThat(new String((byte[]) resultSet.getObject(10))).isEqualTo(val.toString());
+            assertThat(new String((byte[]) resultSet.getObject("v10"))).isEqualTo(val.toString());
 
             // Validate map data
             Map<String, Map<Integer, Long>> map = new HashMap<>();
             Map<Integer, Long> valueMap = new HashMap<>();
             valueMap.put(val, val.longValue());
             map.put(String.valueOf(val), valueMap);
-            assertEquals(map, resultSet.getObject(11));
-            assertEquals(map, resultSet.getObject("v11"));
+            assertThat(resultSet.getObject(11)).isEqualTo(map);
+            assertThat(resultSet.getObject("v11")).isEqualTo(map);
 
             // Get data according to wrong data type
-            assertThrowsExactly(
-                    SQLDataException.class,
-                    () -> resultSet.getLong(1),
-                    "java.lang.ClassCastException: java.lang.Boolean cannot be cast to java.lang.Long");
-            assertThrowsExactly(
-                    SQLDataException.class,
-                    () -> resultSet.getLong(6),
-                    "java.lang.ClassCastException: java.lang.Float cannot be cast to java.lang.Long");
-            assertThrowsExactly(
-                    SQLDataException.class,
-                    () -> resultSet.getLong(7),
-                    "java.lang.ClassCastException: java.lang.Double cannot be cast to java.lang.Long");
-            assertThrowsExactly(
-                    SQLDataException.class,
-                    () -> resultSet.getLong(8),
-                    "java.lang.ClassCastException: java.lang.BigDecimal cannot be cast to java.lang.Long");
+            assertThatThrownBy(() -> resultSet.getLong(1))
+                    .as(
+                            "java.lang.ClassCastException: java.lang.Boolean cannot be cast to java.lang.Long")
+                    .isExactlyInstanceOf(SQLDataException.class);
+            assertThatThrownBy(() -> resultSet.getLong(6))
+                    .as(
+                            "java.lang.ClassCastException: java.lang.Float cannot be cast to java.lang.Long")
+                    .isExactlyInstanceOf(SQLDataException.class);
+            assertThatThrownBy(() -> resultSet.getLong(7))
+                    .as(
+                            "java.lang.ClassCastException: java.lang.Double cannot be cast to java.lang.Long")
+                    .isExactlyInstanceOf(SQLDataException.class);
+            assertThatThrownBy(() -> resultSet.getLong(8))
+                    .as(
+                            "java.lang.ClassCastException: java.lang.BigDecimal cannot be cast to java.lang.Long")
+                    .isExactlyInstanceOf(SQLDataException.class);
 
             // Get not exist column
-            assertThrowsExactly(
-                    SQLDataException.class,
-                    () -> resultSet.getLong("id1"),
-                    "Column[id1] is not exist");
-            assertThrowsExactly(
-                    SQLException.class, () -> resultSet.getLong(12), "Column[11] is not exist");
-            assertThrowsExactly(
-                    SQLException.class, () -> resultSet.getLong(-1), "Column[-1] is not exist");
+            assertThatThrownBy(() -> resultSet.getLong("id1"))
+                    .as("Column[id1] is not exist")
+                    .isExactlyInstanceOf(SQLDataException.class);
+            assertThatThrownBy(() -> resultSet.getLong(12))
+                    .as("Column[11] is not exist")
+                    .isExactlyInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> resultSet.getLong(-1))
+                    .as("Column[-1] is not exist")
+                    .isExactlyInstanceOf(SQLException.class);
         }
-        assertEquals(resultCount, RECORD_SIZE);
+        assertThat(RECORD_SIZE).isEqualTo(resultCount);
     }
 }

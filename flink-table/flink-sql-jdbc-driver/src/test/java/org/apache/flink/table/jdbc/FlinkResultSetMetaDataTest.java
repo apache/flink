@@ -36,13 +36,13 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkResultSetMetaData}. */
 public class FlinkResultSetMetaDataTest {
     @Test
-    public void testResultSetMetaData() throws Exception {
+    void testResultSetMetaData() throws Exception {
         ResolvedSchema schema =
                 ResolvedSchema.of(
                         Column.physical("c1", DataTypes.BOOLEAN()),
@@ -67,61 +67,61 @@ public class FlinkResultSetMetaDataTest {
         FlinkResultSetMetaData metaData =
                 new FlinkResultSetMetaData(schema.getColumnNames(), schema.getColumnDataTypes());
 
-        assertEquals(18, metaData.getColumnCount());
+        assertThat(metaData.getColumnCount()).isEqualTo(18);
         for (int i = 1; i <= 18; i++) {
-            assertEquals("c" + i, metaData.getColumnName(i));
+            assertThat(metaData.getColumnName(i)).isEqualTo("c" + i);
             LogicalType logicalType = schema.getColumnDataTypes().get(i - 1).getLogicalType();
-            assertEquals(logicalType.asSummaryString(), metaData.getColumnTypeName(i));
-            assertEquals(logicalType.is(LogicalTypeFamily.NUMERIC), metaData.isSigned(i));
+            assertThat(metaData.getColumnTypeName(i)).isEqualTo(logicalType.asSummaryString());
+            assertThat(metaData.isSigned(i)).isEqualTo(logicalType.is(LogicalTypeFamily.NUMERIC));
         }
 
-        assertEquals(Types.BOOLEAN, metaData.getColumnType(1));
-        assertEquals(Boolean.class.getName(), metaData.getColumnClassName(1));
-        assertEquals(Types.TINYINT, metaData.getColumnType(2));
-        assertEquals(Byte.class.getName(), metaData.getColumnClassName(2));
-        assertEquals(Types.SMALLINT, metaData.getColumnType(3));
-        assertEquals(Short.class.getName(), metaData.getColumnClassName(3));
-        assertEquals(Types.INTEGER, metaData.getColumnType(4));
-        assertEquals(Integer.class.getName(), metaData.getColumnClassName(4));
-        assertEquals(Types.BIGINT, metaData.getColumnType(5));
-        assertEquals(Long.class.getName(), metaData.getColumnClassName(5));
-        assertEquals(Types.FLOAT, metaData.getColumnType(6));
-        assertEquals(Float.class.getName(), metaData.getColumnClassName(6));
-        assertEquals(Types.DOUBLE, metaData.getColumnType(7));
-        assertEquals(Double.class.getName(), metaData.getColumnClassName(7));
-        assertEquals(Types.DECIMAL, metaData.getColumnType(8));
-        assertEquals(BigDecimal.class.getName(), metaData.getColumnClassName(8));
-        assertEquals(Types.VARCHAR, metaData.getColumnType(9));
-        assertEquals(String.class.getName(), metaData.getColumnClassName(9));
-        assertEquals(Types.VARBINARY, metaData.getColumnType(10));
-        assertEquals("byte[]", metaData.getColumnClassName(10));
-        assertEquals(Types.TIME, metaData.getColumnType(11));
-        assertEquals(Time.class.getName(), metaData.getColumnClassName(11));
-        assertEquals(Types.DATE, metaData.getColumnType(12));
-        assertEquals(Date.class.getName(), metaData.getColumnClassName(12));
-        assertEquals(Types.TIMESTAMP, metaData.getColumnType(13));
-        assertEquals(Timestamp.class.getName(), metaData.getColumnClassName(13));
-        assertEquals(Types.TIMESTAMP, metaData.getColumnType(14));
-        assertEquals(Timestamp.class.getName(), metaData.getColumnClassName(14));
-        assertEquals(Types.TIMESTAMP_WITH_TIMEZONE, metaData.getColumnType(15));
-        assertEquals(OffsetDateTime.class.getName(), metaData.getColumnClassName(15));
-        assertEquals(Types.ARRAY, metaData.getColumnType(16));
-        assertEquals(Array.class.getName(), metaData.getColumnClassName(16));
-        assertEquals(Types.STRUCT, metaData.getColumnType(17));
-        assertEquals(RowData.class.getName(), metaData.getColumnClassName(17));
-        assertEquals(Types.JAVA_OBJECT, metaData.getColumnType(18));
-        assertEquals(Map.class.getName(), metaData.getColumnClassName(18));
+        assertThat(metaData.getColumnType(1)).isEqualTo(Types.BOOLEAN);
+        assertThat(metaData.getColumnClassName(1)).isEqualTo(Boolean.class.getName());
+        assertThat(metaData.getColumnType(2)).isEqualTo(Types.TINYINT);
+        assertThat(metaData.getColumnClassName(2)).isEqualTo(Byte.class.getName());
+        assertThat(metaData.getColumnType(3)).isEqualTo(Types.SMALLINT);
+        assertThat(metaData.getColumnClassName(3)).isEqualTo(Short.class.getName());
+        assertThat(metaData.getColumnType(4)).isEqualTo(Types.INTEGER);
+        assertThat(metaData.getColumnClassName(4)).isEqualTo(Integer.class.getName());
+        assertThat(metaData.getColumnType(5)).isEqualTo(Types.BIGINT);
+        assertThat(metaData.getColumnClassName(5)).isEqualTo(Long.class.getName());
+        assertThat(metaData.getColumnType(6)).isEqualTo(Types.FLOAT);
+        assertThat(metaData.getColumnClassName(6)).isEqualTo(Float.class.getName());
+        assertThat(metaData.getColumnType(7)).isEqualTo(Types.DOUBLE);
+        assertThat(metaData.getColumnClassName(7)).isEqualTo(Double.class.getName());
+        assertThat(metaData.getColumnType(8)).isEqualTo(Types.DECIMAL);
+        assertThat(metaData.getColumnClassName(8)).isEqualTo(BigDecimal.class.getName());
+        assertThat(metaData.getColumnType(9)).isEqualTo(Types.VARCHAR);
+        assertThat(metaData.getColumnClassName(9)).isEqualTo(String.class.getName());
+        assertThat(metaData.getColumnType(10)).isEqualTo(Types.VARBINARY);
+        assertThat(metaData.getColumnClassName(10)).isEqualTo("byte[]");
+        assertThat(metaData.getColumnType(11)).isEqualTo(Types.TIME);
+        assertThat(metaData.getColumnClassName(11)).isEqualTo(Time.class.getName());
+        assertThat(metaData.getColumnType(12)).isEqualTo(Types.DATE);
+        assertThat(metaData.getColumnClassName(12)).isEqualTo(Date.class.getName());
+        assertThat(metaData.getColumnType(13)).isEqualTo(Types.TIMESTAMP);
+        assertThat(metaData.getColumnClassName(13)).isEqualTo(Timestamp.class.getName());
+        assertThat(metaData.getColumnType(14)).isEqualTo(Types.TIMESTAMP);
+        assertThat(metaData.getColumnClassName(14)).isEqualTo(Timestamp.class.getName());
+        assertThat(metaData.getColumnType(15)).isEqualTo(Types.TIMESTAMP_WITH_TIMEZONE);
+        assertThat(metaData.getColumnClassName(15)).isEqualTo(OffsetDateTime.class.getName());
+        assertThat(metaData.getColumnType(16)).isEqualTo(Types.ARRAY);
+        assertThat(metaData.getColumnClassName(16)).isEqualTo(Array.class.getName());
+        assertThat(metaData.getColumnType(17)).isEqualTo(Types.STRUCT);
+        assertThat(metaData.getColumnClassName(17)).isEqualTo(RowData.class.getName());
+        assertThat(metaData.getColumnType(18)).isEqualTo(Types.JAVA_OBJECT);
+        assertThat(metaData.getColumnClassName(18)).isEqualTo(Map.class.getName());
     }
 
     @Test
-    public void testInvalidType() {
+    void testInvalidType() {
         ResolvedSchema schema =
                 ResolvedSchema.of(Column.physical("c1", DataTypes.MULTISET(DataTypes.STRING())));
-        assertThrowsExactly(
-                RuntimeException.class,
-                () ->
-                        new FlinkResultSetMetaData(
-                                schema.getColumnNames(), schema.getColumnDataTypes()),
-                "Not supported type[MULTISET<STRING>]");
+        assertThatThrownBy(
+                        () ->
+                                new FlinkResultSetMetaData(
+                                        schema.getColumnNames(), schema.getColumnDataTypes()))
+                .as("Not supported type[MULTISET<STRING>]")
+                .isExactlyInstanceOf(RuntimeException.class);
     }
 }
