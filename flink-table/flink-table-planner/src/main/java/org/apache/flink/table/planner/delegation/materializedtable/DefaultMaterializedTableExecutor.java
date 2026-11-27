@@ -952,7 +952,8 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                                             String.format(
                                                     "%s = '%s'",
                                                     EncodingUtils.escapeIdentifier(entry.getKey()),
-                                                    EncodingUtils.escapeSingleQuotes(String.valueOf(entry.getValue()))))
+                                                    EncodingUtils.escapeSingleQuotes(
+                                                            String.valueOf(entry.getValue()))))
                             .reduce((s1, s2) -> s1 + " AND " + s2)
                             .get());
         }

@@ -24,6 +24,7 @@ import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.jdbc.utils.DriverUtils;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -34,12 +35,14 @@ import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.jdbc.utils.DriverUtils.checkArgument;
 
@@ -148,7 +151,10 @@ public class FlinkConnection extends BaseConnection {
     }
 
     private void setSessionCatalog(String catalog) {
-        executor.configureSession(String.format("USE CATALOG %s;", catalog));
+        executor.configureSession(
+                String.format(
+                        "USE CATALOG %s;",
+                        EncodingUtils.escapeIdentifier(String.valueOf(catalog))));
     }
 
     @Override
@@ -191,7 +197,11 @@ public class FlinkConnection extends BaseConnection {
         } catch (SQLException e) {
             throw new SQLClientInfoException("Connection is closed", new HashMap<>(), e);
         }
-        executor.configureSession(String.format("SET '%s'='%s';", name, value));
+        executor.configureSession(
+                String.format(
+                        "SET '%s'='%s';",
+                        EncodingUtils.escapeSingleQuotes(String.valueOf(name)),
+                        EncodingUtils.escapeSingleQuotes(String.valueOf(value))));
     }
 
     @Override
@@ -228,7 +238,12 @@ public class FlinkConnection extends BaseConnection {
     }
 
     private void setSessionSchema(String schema) {
-        executor.configureSession(String.format("USE %s;", schema));
+        // A schema may be catalog-qualified (catalog.database), so escape each part separately.
+        String escaped =
+                Arrays.stream(String.valueOf(schema).split("\\.", -1))
+                        .map(EncodingUtils::escapeIdentifier)
+                        .collect(Collectors.joining("."));
+        executor.configureSession(String.format("USE %s;", escaped));
     }
 
     @Override
