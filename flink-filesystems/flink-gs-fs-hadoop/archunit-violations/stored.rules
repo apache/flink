@@ -1,4 +1,5 @@
 #
-#Sat Nov 25 07:24:30 CET 2023
+#Fri Nov 27 21:50:49 IST 2026
+Junit4\ is\ forbidden,\ please\ use\ Junit5\ instead=f3ca1673-2f0a-4f33-82f2-4c79550e79ab
 ITCASE\ tests\ should\ use\ a\ MiniCluster\ resource\ or\ extension=cce59259-d3cb-4048-a1bd-31197f847189
 Tests\ inheriting\ from\ AbstractTestBase\ should\ have\ name\ ending\ with\ ITCase=7c07a114-8bc4-455b-bc54-52ca5bc292ad

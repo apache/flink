@@ -19,6 +19,7 @@
 package org.apache.flink.architecture;
 
 import org.apache.flink.architecture.common.ImportOptions;
+import org.apache.flink.architecture.rules.BanJunit4Rules;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -41,4 +42,6 @@ public class TestCodeArchitectureTest {
 
     @ArchTest
     public static final ArchTests COMMON_TESTS = ArchTests.in(TestCodeArchitectureTestBase.class);
+
+    @ArchTest public static final ArchTests BAN_JUNIT4_TESTS = ArchTests.in(BanJunit4Rules.class);
 }
