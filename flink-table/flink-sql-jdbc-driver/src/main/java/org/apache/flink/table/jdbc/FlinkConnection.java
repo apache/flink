@@ -197,11 +197,19 @@ public class FlinkConnection extends BaseConnection {
         } catch (SQLException e) {
             throw new SQLClientInfoException("Connection is closed", new HashMap<>(), e);
         }
-        executor.configureSession(
-                String.format(
-                        "SET '%s'='%s';",
-                        EncodingUtils.escapeSingleQuotes(String.valueOf(name)),
-                        EncodingUtils.escapeSingleQuotes(String.valueOf(value))));
+        if (name == null) {
+            throw new SQLClientInfoException(
+                    "Client info property name must not be null", new HashMap<>());
+        }
+        String escapedName = EncodingUtils.escapeSingleQuotes(name);
+        if (value == null) {
+            // A null value clears the property, as required by java.sql.Connection.
+            executor.configureSession(String.format("RESET '%s';", escapedName));
+        } else {
+            executor.configureSession(
+                    String.format(
+                            "SET '%s'='%s';", escapedName, EncodingUtils.escapeSingleQuotes(value)));
+        }
     }
 
     @Override
