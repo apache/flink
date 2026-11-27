@@ -57,6 +57,9 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('greaterThanOrEqual(a, b)', str(expr1 >= expr2))
         self.assertEqual('in(a, array(1, 2))', str(expr1.in_([1, 2])))
         self.assertEqual('in(a, 1, array(2, 3))', str(expr1.in_(1, [2, 3])))
+        self.assertEqual('in(a, array(1, 2))', str(expr1.in_((1, 2))))
+        self.assertEqual("in(a, map('k', 1))", str(expr1.in_({'k': 1})))
+        self.assertEqual('in(a, array(array(1), array(2)))', str(expr1.in_([[1], [2]])))
         self.assertEqual('IS_NAN(a)', str(expr1.is_nan))
         self.assertEqual('IFNULL(a, 1)', str(expr1.if_null(1)))
 
@@ -460,6 +463,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                          str(json_array_agg(JsonOnNull.ABSENT, expr1)))
         self.assertEqual('MAP_FROM_ARRAYS(a, b)', str(map_from_arrays(expr1, expr2)))
         self.assertEqual('COALESCE(a, 1, null)', str(coalesce(expr1, 1, None)))
+        self.assertEqual('COALESCE(a, array(1, 2))', str(coalesce(expr1, [1, 2])))
         self.assertEqual('lag(a, 1)', str(lag(expr1)))
         self.assertEqual('lag(a, 2, 0)', str(lag(expr1, 2, 0)))
         self.assertEqual('lead(a, 1)', str(lead(expr1)))

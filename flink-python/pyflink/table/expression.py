@@ -18,6 +18,9 @@
 from enum import Enum
 from typing import Union, TypeVar, Generic, Any
 
+from py4j.java_gateway import JavaObject
+from py4j.protocol import INPUT_CONVERTER
+
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import (
@@ -281,8 +284,17 @@ def _to_java_varargs(args):
     parameter.
     """
     gateway = get_gateway()
-    return to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
-
+    ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+    j_args = []
+    for arg in args:
+        j_arg = _get_java_expression(arg)
+        # py4j converts Python collections only as method arguments, not as array elements, so
+        # they go through objectToExpression. Other values skip it to avoid a call per argument.
+        if not isinstance(j_arg, JavaObject) and \
+                any(converter.can_convert(j_arg) for converter in INPUT_CONVERTER):
+            j_arg = ApiExpressionUtils.objectToExpression(j_arg)
+        j_args.append(j_arg)
+    return to_jarray(gateway.jvm.Object, j_args)
 
 def _unary_op(op_name: str):
     def _(self) -> 'Expression':
@@ -994,12 +1006,10 @@ class Expression(Generic[T]):
             assert len(remaining_elements) == 0
             return _binary_op("in")(self, first_element_or_table._j_table)
         else:
-            gateway = get_gateway()
-            ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-            remaining_elements = (first_element_or_table, *remaining_elements)
-            exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in remaining_elements]
-            return _binary_op("in")(self, to_jarray(gateway.jvm.Object, exprs))
+            return _binary_op("in")(
+                self,
+                _to_java_varargs((first_element_or_table, *remaining_elements))
+            )
 
     @property
     def start(self) -> 'Expression':
@@ -1555,11 +1565,7 @@ class Expression(Generic[T]):
         :param obj: any expression
         :return: a formatted string. null if format is null or invalid.
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                 for e in obj]
-        return _binary_op("printf")(self, to_jarray(gateway.jvm.Object, exprs))
+        return _binary_op("printf")(self, _to_java_varargs(obj))
 
     def ltrim(self, trim_str=None) -> 'Expression[str]':
         """
@@ -1726,11 +1732,7 @@ class Expression(Generic[T]):
 
         :return: result type is the least common type of all expressions.
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in exprs]
-        return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
+        return _ternary_op("elt")(self, expr, _to_java_varargs(exprs))
 
     # ---------------------------- temporal functions ----------------------------------
 
