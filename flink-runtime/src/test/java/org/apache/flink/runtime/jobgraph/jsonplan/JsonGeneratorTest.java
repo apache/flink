@@ -109,7 +109,7 @@ class JsonGeneratorTest {
         assertThat(plan).isNotNull();
 
         // core fields
-        assertThat(plan.getJobId()).isEqualTo(jg.getJobID().toString());
+        assertThat(jg.getJobID()).hasToString(plan.getJobId());
         assertThat(plan.getName()).isEqualTo(jg.getName());
         assertThat(plan.getType()).isEqualTo(jg.getJobType().name());
 
@@ -188,10 +188,8 @@ class JsonGeneratorTest {
         for (int i = 0; i < jsonStreamEdges.size(); i++) {
             StreamGraphJsonSchema.JsonStreamEdgeSchema edgeToValidate = jsonStreamEdges.get(i);
             StreamEdge expectedEdge = streamEdges.get(i);
-            assertThat(edgeToValidate.getId())
-                    .isEqualTo(String.valueOf(expectedEdge.getSourceId()));
-            assertThat(edgeToValidate.getShipStrategy())
-                    .isEqualTo(expectedEdge.getPartitioner().toString());
+            assertThat(expectedEdge.getSourceId()).hasToString(edgeToValidate.getId());
+            assertThat(expectedEdge.getPartitioner()).hasToString(edgeToValidate.getShipStrategy());
             assertThat(edgeToValidate.getExchange())
                     .isEqualTo(expectedEdge.getExchangeMode().name());
         }

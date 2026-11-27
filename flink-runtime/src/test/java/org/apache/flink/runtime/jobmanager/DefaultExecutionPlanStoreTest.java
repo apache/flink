@@ -189,7 +189,7 @@ class DefaultExecutionPlanStoreTest {
 
         final Tuple3<String, IntegerResourceVersion, ExecutionPlan> actual =
                 replaceFuture.get(timeout, TimeUnit.MILLISECONDS);
-        assertThat(actual.f0).isEqualTo(testingExecutionPlan.getJobID().toString());
+        assertThat(testingExecutionPlan.getJobID()).hasToString(actual.f0);
         assertThat(actual.f1).isEqualTo(IntegerResourceVersion.valueOf(resourceVersion));
         assertThat(actual.f2.getJobID()).isEqualTo(testingExecutionPlan.getJobID());
     }

@@ -163,7 +163,7 @@ class DefaultApplicationStoreTest {
 
         final Tuple3<String, IntegerResourceVersion, ApplicationStoreEntry> actual =
                 replaceFuture.get(timeout, TimeUnit.MILLISECONDS);
-        assertThat(actual.f0).isEqualTo(testingApplication.getApplicationId().toString());
+        assertThat(testingApplication.getApplicationId()).hasToString(actual.f0);
         assertThat(actual.f1).isEqualTo(IntegerResourceVersion.valueOf(resourceVersion));
         assertThat(actual.f2.getApplicationId()).isEqualTo(testingApplication.getApplicationId());
     }

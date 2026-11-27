@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
+import org.apache.flink.util.function.RunnableWithException;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,21 +32,16 @@ class SuperstepKickoffLatchTest {
     void testWaitFromOne() throws Exception {
         SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
 
-        Waiter w = new Waiter(latch, 2);
-        Thread waiter = new Thread(w);
-        waiter.setDaemon(true);
-        waiter.start();
+        Throwable error =
+                awaitInWaiterThread(
+                        latch,
+                        2,
+                        () -> {
+                            Thread.sleep(100);
+                            latch.triggerNextSuperstep();
+                        });
 
-        WatchDog wd = new WatchDog(waiter, 2000);
-        wd.start();
-
-        Thread.sleep(100);
-
-        latch.triggerNextSuperstep();
-
-        wd.join();
-        assertThat(wd.getError()).isNull();
-        assertThat(w.getError()).isNull();
+        assertThat(error).isNull();
     }
 
     @Test
@@ -52,19 +49,7 @@ class SuperstepKickoffLatchTest {
         SuperstepKickoffLatch latch = new SuperstepKickoffLatch();
         latch.triggerNextSuperstep();
 
-        Waiter w = new Waiter(latch, 2);
-        Thread waiter = new Thread(w);
-        waiter.setDaemon(true);
-        waiter.start();
-
-        WatchDog wd = new WatchDog(waiter, 2000);
-        wd.start();
-
-        Thread.sleep(100);
-
-        wd.join();
-        assertThat(wd.getError()).isNull();
-        assertThat(w.getError()).isNull();
+        assertThat(awaitInWaiterThread(latch, 2, () -> {})).isNull();
     }
 
     @Test
@@ -83,19 +68,8 @@ class SuperstepKickoffLatchTest {
         latch.triggerNextSuperstep();
         latch.triggerNextSuperstep();
 
-        Waiter w = new Waiter(latch, 2);
-        Thread waiter = new Thread(w);
-        waiter.setDaemon(true);
-        waiter.start();
-
-        WatchDog wd = new WatchDog(waiter, 2000);
-        wd.start();
-
-        Thread.sleep(100);
-
-        wd.join();
-        assertThat(wd.getError()).isNull();
-        assertThat(w.getError()).isInstanceOf(IllegalStateException.class);
+        assertThat(awaitInWaiterThread(latch, 2, () -> {}))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -104,7 +78,17 @@ class SuperstepKickoffLatchTest {
         latch.triggerNextSuperstep();
         latch.triggerNextSuperstep();
 
-        Waiter w = new Waiter(latch, 4);
+        assertThat(awaitInWaiterThread(latch, 4, latch::signalTermination)).isNull();
+    }
+
+    /**
+     * Waits for the given superstep in a separate thread that a watchdog interrupts after 2s, and
+     * runs {@code whileWaiting} meanwhile. Returns the error the waiting thread got, if any.
+     */
+    private static Throwable awaitInWaiterThread(
+            SuperstepKickoffLatch latch, int waitFor, RunnableWithException whileWaiting)
+            throws Exception {
+        Waiter w = new Waiter(latch, waitFor);
         Thread waiter = new Thread(w);
         waiter.setDaemon(true);
         waiter.start();
@@ -112,11 +96,11 @@ class SuperstepKickoffLatchTest {
         WatchDog wd = new WatchDog(waiter, 2000);
         wd.start();
 
-        latch.signalTermination();
+        whileWaiting.run();
 
         wd.join();
         assertThat(wd.getError()).isNull();
-        assertThat(w.getError()).isNull();
+        return w.getError();
     }
 
     private static class Waiter implements Runnable {
