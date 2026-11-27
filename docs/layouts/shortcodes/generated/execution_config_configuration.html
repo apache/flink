@@ -357,6 +357,12 @@ By default no operator is disabled.</td>
             <td>Whether to compress spilled data. Currently we only support compress spilled data for sort and hash-agg and hash-join operators.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.state.schema-evolution.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When enabled, a RowData keyed-state value whose schema changed in a backward-compatible way (adding nullable fields, reordering fields by name, evolving a nested ROW) is migrated when state is restored, instead of the restore failing. Covered are the value of a value, reducing or aggregating state, the elements of a list state, and the values of a map state. A RowData held inside a list or map deeper than that, used as a map key, or held by a state whose serializer the operator pre-builds is still rejected at restore. Takes effect only on a state backend that migrates restored values at the object level, currently RocksDB; on other backends the restore still fails. Disabled by default.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.state.ttl</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
