@@ -123,7 +123,57 @@ class DefaultMaterializedTableExecutorTest {
                 .isEqualTo(
                         "INSERT OVERWRITE `catalog`.`database`.`my_materialized_table`\n"
                                 + "  SELECT * FROM (SELECT * FROM my_source_table)\n"
-                                + "  WHERE k1 = 'v1' AND k2 = 'v2'");
+                                + "  WHERE `k1` = 'v1' AND `k2` = 'v2'");
+    }
+
+    @Test
+    void testRefreshStatementEscapesPartitionSpec() {
+        ObjectIdentifier id = ObjectIdentifier.of("catalog", "database", "mt");
+        String query = "SELECT * FROM src";
+
+        assertThat(
+                        DefaultMaterializedTableExecutor.getRefreshStatement(
+                                id, query, Map.of("ds", "it's"), Map.of()))
+                .endsWith("WHERE `ds` = 'it''s'");
+
+        assertThat(
+                        DefaultMaterializedTableExecutor.getRefreshStatement(
+                                id, query, Map.of("ds", "x' OR '1'='1"), Map.of()))
+                .endsWith("WHERE `ds` = 'x'' OR ''1''=''1'");
+
+        assertThat(
+                        DefaultMaterializedTableExecutor.getRefreshStatement(
+                                id, query, Map.of("my col", "v"), Map.of()))
+                .endsWith("WHERE `my col` = 'v'");
+    }
+
+    @Test
+    void testInsertStatementEscapesDynamicOptions() {
+        ObjectIdentifier id = ObjectIdentifier.of("catalog", "database", "mt");
+
+        assertThat(
+                        DefaultMaterializedTableExecutor.getInsertStatement(
+                                id, "SELECT * FROM src", Map.of("path", "/tmp/it's")))
+                .contains("/*+ OPTIONS('path'='/tmp/it''s') */");
+
+        assertThat(
+                        DefaultMaterializedTableExecutor.getInsertStatement(
+                                id,
+                                "SELECT * FROM src",
+                                Map.of("k", "v', 'sink.parallelism'='100")))
+                .contains("/*+ OPTIONS('k'='v'', ''sink.parallelism''=''100') */");
+    }
+
+    @Test
+    void testInsertStatementWithNullOptionValue() {
+        ObjectIdentifier id = ObjectIdentifier.of("catalog", "database", "mt");
+        Map<String, String> nullOption = new HashMap<>();
+        nullOption.put("k", null);
+
+        assertThat(
+                        DefaultMaterializedTableExecutor.getInsertStatement(
+                                id, "SELECT * FROM src", nullOption))
+                .contains("/*+ OPTIONS('k'='null') */");
     }
 
     @Test

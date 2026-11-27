@@ -63,6 +63,7 @@ import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
 import org.apache.flink.table.refresh.RefreshHandler;
 import org.apache.flink.table.refresh.RefreshHandlerSerializer;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.workflow.CreatePeriodicRefreshWorkflow;
 import org.apache.flink.table.workflow.CreateRefreshWorkflow;
 import org.apache.flink.table.workflow.DeleteRefreshWorkflow;
@@ -949,7 +950,9 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
                             .map(
                                     entry ->
                                             String.format(
-                                                    "%s = '%s'", entry.getKey(), entry.getValue()))
+                                                    "%s = '%s'",
+                                                    EncodingUtils.escapeIdentifier(entry.getKey()),
+                                                    EncodingUtils.escapeSingleQuotes(String.valueOf(entry.getValue()))))
                             .reduce((s1, s2) -> s1 + " AND " + s2)
                             .get());
         }
@@ -1329,7 +1332,13 @@ public class DefaultMaterializedTableExecutor implements MaterializedTableExecut
         if (!dynamicOptions.isEmpty()) {
             String hints =
                     dynamicOptions.entrySet().stream()
-                            .map(e -> String.format("'%s'='%s'", e.getKey(), e.getValue()))
+                            .map(
+                                    e ->
+                                            String.format(
+                                                    "'%s'='%s'",
+                                                    EncodingUtils.escapeSingleQuotes(e.getKey()),
+                                                    EncodingUtils.escapeSingleQuotes(
+                                                            String.valueOf(e.getValue()))))
                             .collect(Collectors.joining(", "));
             builder.append(String.format(" /*+ OPTIONS(%s) */", hints));
         }
