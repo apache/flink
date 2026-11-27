@@ -42,6 +42,7 @@ public class MatchRecognizeRestoreTest extends RestoreTestBase {
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_FIRST,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_LAST,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_NEXT_ROW,
-                MatchRecognizeTestPrograms.MATCH_SKIP_PAST_LAST_ROW);
+                MatchRecognizeTestPrograms.MATCH_SKIP_PAST_LAST_ROW,
+                MatchRecognizeTestPrograms.MATCH_LATE_ROWS_AFTER_RESTORE);
     }
 }
