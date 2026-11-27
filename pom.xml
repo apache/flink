@@ -186,6 +186,8 @@ under the License.
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
 		<maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
+		<maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
+		<maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
 		<spotless.skip>false</spotless.skip>
 		<spotless.version>2.46.1</spotless.version>
 		<aosp.version>1.28.0</aosp.version>
@@ -2139,7 +2141,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.16.0</version>
+					<version>${maven-compiler-plugin.version}</version>
 					<configuration>
 						<!-- Make sure that we only use Java 11 compatible APIs -->
 						<source>${source.java.version}</source>
@@ -2307,7 +2309,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.6.1</version>
+					<version>${maven-shade-plugin.version}</version>
 				</plugin>
 				<!-- Pin the version of the maven remote resource plugin -->
 				<plugin>
