@@ -23,11 +23,11 @@ import org.apache.flink.table.client.gateway.StatementResult;
 
 import org.junit.jupiter.api.Test;
 
+import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkConnection}. */
@@ -93,24 +93,33 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
     @Test
     void testSetClientInfoNullValue() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
-            assertThatCode(() -> connection.setClientInfo("pipeline.name", null))
-                    .doesNotThrowAnyException();
+            connection.setClientInfo("pipeline.name", "a job");
+            assertThat(connection.getClientInfo("pipeline.name")).isEqualTo("a job");
+
+            connection.setClientInfo("pipeline.name", null);
+            assertThat(connection.getClientInfo("pipeline.name")).isNull();
         }
     }
 
     @Test
     void testSetClientInfoNullName() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
-            assertThatCode(() -> connection.setClientInfo(null, "v")).doesNotThrowAnyException();
+            assertThatThrownBy(() -> connection.setClientInfo(null, "v"))
+                    .isInstanceOf(SQLClientInfoException.class);
         }
     }
 
     @Test
     void testSetSchemaQualifiedName() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
-            connection.setSchema("default_catalog.default_database");
-            assertThat(connection.getCatalog()).isEqualTo("default_catalog");
-            assertThat(connection.getSchema()).isEqualTo("default_database");
+            Executor executor = connection.getExecutor();
+            executor.executeStatement("CREATE CATALOG `my cat` WITH ('type'='generic_in_memory');");
+            connection.setCatalog("my cat");
+            executor.executeStatement("CREATE DATABASE `my db`;");
+
+            connection.setSchema("my cat.my db");
+            assertThat(connection.getCatalog()).isEqualTo("my cat");
+            assertThat(connection.getSchema()).isEqualTo("my db");
         }
     }
 
