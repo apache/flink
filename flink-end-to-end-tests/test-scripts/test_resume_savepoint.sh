@@ -123,7 +123,7 @@ run_resume_savepoint_test() {
 
   wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
-  # if state is errorneous and the state machine job produces alerting state transitions,
+  # if state is erroneous and the state machine job produces alerting state transitions,
   # output would be non-empty and the test will not pass
 }
 

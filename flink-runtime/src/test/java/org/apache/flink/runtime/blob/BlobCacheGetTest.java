@@ -71,7 +71,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * from the {@link TransientBlobCache}, and how failing GET requests behave in the presence of
  * failures when used with a {@link BlobCacheService}.
  *
- * <p>Most successful GET requests are tested in conjunction wit the PUT requests by {@link
+ * <p>Most successful GET requests are tested in conjunction with the PUT requests by {@link
  * BlobCachePutTest}.
  */
 class BlobCacheGetTest {

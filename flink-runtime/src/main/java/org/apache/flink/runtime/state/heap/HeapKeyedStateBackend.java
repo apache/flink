@@ -266,7 +266,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                     && TtlAwareSerializer.needTtlStateMigration(
                             previousStateSerializer, newStateSerializer)) {
                 // State migration without ttl change will be performed automatically during
-                // checkpoint, so we only preform state ttl migration here.
+                // checkpoint, so we only perform state ttl migration here.
                 migrateTtlAwareStateValues(stateDesc, previousStateSerializer, newStateSerializer);
             }
 

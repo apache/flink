@@ -31,7 +31,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * SHOW Databases sql call. The full syntax for show databases is as followings:
+ * SHOW Databases sql call. The full syntax for show databases is as follows:
  *
  * <pre>{@code
  * SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE)

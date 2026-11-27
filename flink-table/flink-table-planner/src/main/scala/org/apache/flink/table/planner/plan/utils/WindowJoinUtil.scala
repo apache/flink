@@ -91,7 +91,7 @@ object WindowJoinUtil extends Logging {
       excludeWindowStartEqualityAndEndEqualityFromJoinInfoPairs(join)
     if (analyzeResult.isEmpty) {
       throw new IllegalArgumentException(
-        "Pleas give a Join which could be translated to window join!")
+        "Please give a Join which could be translated to window join!")
     }
     val (
       windowStartEqualityLeftKeys,

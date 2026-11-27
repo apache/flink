@@ -30,9 +30,9 @@ import java.io.Serializable;
 import java.util.Optional;
 
 /**
- * Wrapper around a {@link StreamStateHandle} to make the referenced state object retrievable trough
- * a simple get call. This implementation expects that the object was serialized through default
- * serialization of Java's {@link java.io.ObjectOutputStream}.
+ * Wrapper around a {@link StreamStateHandle} to make the referenced state object retrievable
+ * through a simple get call. This implementation expects that the object was serialized through
+ * default serialization of Java's {@link java.io.ObjectOutputStream}.
  *
  * @param <T> type of the retrievable object which is stored under the wrapped stream handle
  */

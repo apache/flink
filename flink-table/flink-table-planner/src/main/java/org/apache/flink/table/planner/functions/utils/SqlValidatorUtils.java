@@ -221,7 +221,7 @@ public class SqlValidatorUtils {
                         new ValidationException(
                                 String.format(
                                         "Unsupported expression %s is in runtime config at position %s. Currently, "
-                                                + "runtime config should be be a MAP of string literals.",
+                                                + "runtime config should be a MAP of string literals.",
                                         operand, operand.getParserPosition())));
             }
         } else {
@@ -229,7 +229,7 @@ public class SqlValidatorUtils {
                     new ValidationException(
                             String.format(
                                     "Unsupported expression %s is in runtime config at position %s. Currently, "
-                                            + "runtime config should be be a MAP of string literals.",
+                                            + "runtime config should be a MAP of string literals.",
                                     operand, operand.getParserPosition())));
         }
     }

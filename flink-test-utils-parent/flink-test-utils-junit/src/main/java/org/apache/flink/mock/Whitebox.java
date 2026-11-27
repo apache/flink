@@ -66,7 +66,7 @@ public class Whitebox {
                             + field
                             + "' on this class: '"
                             + clazz.getSimpleName()
-                            + "' but this field is not declared withing hierarchy of this class!");
+                            + "' but this field is not declared within hierarchy of this class!");
         }
         return f;
     }

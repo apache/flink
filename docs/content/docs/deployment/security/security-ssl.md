@@ -61,7 +61,7 @@ added to the container images, or attached to the YARN deployment.
 
   - In an environment where operators are constrained to use firm-wide Internal CA (cannot generated self-signed certificates),
     the recommendation is to still have a dedicated key pair / certificate for the Flink deployment, signed by that CA.
-    However, the TrustStore must then also contain the CA's public certificate tho accept the deployment's certificate
+    However, the TrustStore must then also contain the CA's public certificate to accept the deployment's certificate
     during the SSL handshake (requirement in JDK TrustStore implementation).
     
     **NOTE:** Because of that, it is critical that you specify the fingerprint of the deployment certificate

@@ -54,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A {@link SinkWriter} implementation for {@link FileSink}.
  *
- * <p>It writes data to and manages the different active {@link FileWriterBucket buckes} in the
+ * <p>It writes data to and manages the different active {@link FileWriterBucket buckets} in the
  * {@link FileSink}.
  *
  * @param <IN> The type of input elements.
