@@ -208,7 +208,8 @@ public class FlinkConnection extends BaseConnection {
         } else {
             executor.configureSession(
                     String.format(
-                            "SET '%s'='%s';", escapedName, EncodingUtils.escapeSingleQuotes(value)));
+                            "SET '%s'='%s';",
+                            escapedName, EncodingUtils.escapeSingleQuotes(value)));
         }
     }
 

@@ -54,12 +54,12 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
                     executor.executeStatement(
                             "CREATE CATALOG test_catalog WITH ('type'='generic_in_memory');");
             assertThat(result.hasNext()).isTrue();
-            assertThat(result.next().getString(0).toString()).isEqualTo("OK");
+            assertThat(result.next().getString(0)).hasToString("OK");
             connection.setCatalog("test_catalog");
 
             result = executor.executeStatement("CREATE DATABASE test_database;");
             assertThat(result.hasNext()).isTrue();
-            assertThat(result.next().getString(0).toString()).isEqualTo("OK");
+            assertThat(result.next().getString(0)).hasToString("OK");
             connection.setSchema("test_database");
 
             assertThat(connection.getCatalog()).isEqualTo("test_catalog");
@@ -75,7 +75,7 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
                     executor.executeStatement(
                             "CREATE CATALOG `my catalog` WITH ('type'='generic_in_memory');");
             assertThat(result.hasNext()).isTrue();
-            assertThat(result.next().getString(0).toString()).isEqualTo("OK");
+            assertThat(result.next().getString(0)).hasToString("OK");
 
             connection.setCatalog("my catalog");
             assertThat(connection.getCatalog()).isEqualTo("my catalog");

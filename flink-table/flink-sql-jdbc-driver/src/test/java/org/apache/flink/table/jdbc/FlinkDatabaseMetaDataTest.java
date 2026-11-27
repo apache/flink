@@ -211,7 +211,7 @@ public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
             assertThat(result.hasNext()).isTrue();
             RowData rowData = result.next();
             assertThat(rowData.getArity()).isEqualTo(1);
-            assertThat(rowData.getString(0).toString()).isEqualTo("OK");
+            assertThat(rowData.getString(0)).hasToString("OK");
 
             assertThat(result.hasNext()).isFalse();
         }
