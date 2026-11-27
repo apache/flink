@@ -281,6 +281,25 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
+  /**
+   * If the filter keeps UPDATE_BEFORE or DELETE rows, the same as for DropUpdateBefore. Otherwise
+   * the output has no deletes, so the monotonicity is known:
+   *   - CONSTANT for an insert-only input, whose rows never change.
+   *   - NOT_MONOTONIC otherwise: an update, or a dropped delete followed by a new insert of the
+   *     same key, may change any column in either direction.
+   */
+  def getRelModifiedMonotonicity(
+      rel: StreamPhysicalChangelogFilter,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    val keptRowKinds = rel.getKeptRowKinds
+    if (keptRowKinds.contains(RowKind.UPDATE_BEFORE) || keptRowKinds.contains(RowKind.DELETE)) {
+      getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
+    } else {
+      val monotonicity = if (allAppend(mq, rel.getInput)) CONSTANT else NOT_MONOTONIC
+      new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(monotonicity))
+    }
+  }
+
   def getRelModifiedMonotonicity(
       rel: StreamPhysicalWatermarkAssigner,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {

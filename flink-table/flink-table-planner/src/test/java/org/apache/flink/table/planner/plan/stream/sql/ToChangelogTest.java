@@ -204,6 +204,29 @@ public class ToChangelogTest extends TableTestBase {
     }
 
     @Test
+    void testNonKeyFilterWithDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.tableEnv()
+                .executeSql("CREATE VIEW a_names AS SELECT * FROM upsert_source WHERE name = 'a'");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE a_names, "
+                        + "op => DESCRIPTOR(op), "
+                        + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'], "
+                        + "produces_full_deletes => false)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
     void testTimeAttributesNotForwarded() {
         util.tableEnv()
                 .executeSql(

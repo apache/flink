@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonAsyncCalc;
@@ -65,6 +66,9 @@ class RestoreTestCompletenessTest {
                     // Covered by tests in WindowAggregateEventTimeRestoreTest
                     StreamExecLocalWindowAggregate.class,
                     StreamExecGlobalWindowAggregate.class,
+
+                    // Stateless, covered by ToAppendSemanticTests
+                    StreamExecChangelogFilter.class,
 
                     // There is jira for these 2 batch tests
                     // https://issues.apache.org/jira/browse/FLINK-40306

@@ -173,6 +173,13 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
   }
 
+  // Dropping rows never creates duplicates, so the keys of the input stay valid
+  def getUpsertKeys(
+      rel: StreamPhysicalChangelogFilter,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
+  }
+
   def getUpsertKeys(rel: Aggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnAggregate(rel.getGroupSet.toArray)
   }

@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.plan.trait.UpdateKindTrait$;
 import org.apache.flink.table.planner.plan.trait.UpdateKindTraitDef$;
 import org.apache.flink.table.planner.plan.utils.FlinkRelUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.types.inference.StaticArgumentTrait;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
@@ -55,24 +54,14 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>if there is no filter pushed into the changelog normalize
  *   <li>if we don't need to produce UPDATE_BEFORE
- *   <li>if it is not asked to deduplicate ({@code table.exec.source.cdc-events-duplicate})
  *   <li>we don't access any metadata columns
  * </ul>
- *
- * <p>A filter or metadata columns only affect the retractions that ChangelogNormalize produces.
- * They don't require ChangelogNormalize if the consumer ignores retractions (see {@link
- * StaticArgumentTrait#IGNORE_RETRACTIONS}).
  */
 public class ChangelogNormalizeRequirementResolver {
 
-    /**
-     * Returns whether ChangelogNormalize must be kept.
-     *
-     * @param retractionsIgnored whether the consumer ignores UPDATE_BEFORE and DELETE rows
-     */
-    public static boolean isRequired(
-            StreamPhysicalChangelogNormalize normalize, boolean retractionsIgnored) {
-        if (normalize.filterCondition() != null && !retractionsIgnored) {
+    /** Checks if it is safe to remove ChangelogNormalize. */
+    public static boolean isRequired(StreamPhysicalChangelogNormalize normalize) {
+        if (normalize.filterCondition() != null) {
             return true;
         }
         if (!Objects.equals(
@@ -90,7 +79,7 @@ public class ChangelogNormalizeRequirementResolver {
         // check if metadata columns are accessed
         final RelNode input = normalize.getInput();
 
-        return !retractionsIgnored && visit(input, bitSetForAllOutputColumns(input));
+        return visit(input, bitSetForAllOutputColumns(input));
     }
 
     private static ImmutableBitSet bitSetForAllOutputColumns(RelNode input) {

@@ -19,7 +19,9 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalRank, FlinkLogicalTableAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogFilter, StreamPhysicalDropUpdateBefore}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
+import org.apache.flink.types.RowKind
 
 import org.apache.calcite.rel.`type`.{RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
 import org.apache.calcite.rel.RelCollations
@@ -517,6 +519,43 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       new RelModifiedMonotonicity(Array.fill(7)(CONSTANT)),
       mq.getRelModifiedMonotonicity(streamDropUpdateBefore))
+  }
+
+  @Test
+  def testGetRelMonotonicityOnChangelogFilter(): Unit = {
+    val insertsAndUpdates = util.EnumSet.of(RowKind.INSERT, RowKind.UPDATE_AFTER)
+    assertEquals(
+      new RelModifiedMonotonicity(Array.fill(7)(CONSTANT)),
+      mq.getRelModifiedMonotonicity(
+        new StreamPhysicalChangelogFilter(
+          cluster,
+          streamPhysicalTraits,
+          studentStreamScan,
+          insertsAndUpdates))
+    )
+    assertEquals(
+      new RelModifiedMonotonicity(Array.fill(4)(NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(
+        new StreamPhysicalChangelogFilter(
+          cluster,
+          streamPhysicalTraits,
+          streamChangelogNormalize,
+          insertsAndUpdates))
+    )
+    // Keeps deletes, like DropUpdateBefore
+    assertEquals(
+      mq.getRelModifiedMonotonicity(
+        new StreamPhysicalDropUpdateBefore(
+          cluster,
+          streamPhysicalTraits,
+          streamChangelogNormalize)),
+      mq.getRelModifiedMonotonicity(
+        new StreamPhysicalChangelogFilter(
+          cluster,
+          streamPhysicalTraits,
+          streamChangelogNormalize,
+          util.EnumSet.of(RowKind.INSERT, RowKind.UPDATE_AFTER, RowKind.DELETE)))
+    )
   }
 
   @Test

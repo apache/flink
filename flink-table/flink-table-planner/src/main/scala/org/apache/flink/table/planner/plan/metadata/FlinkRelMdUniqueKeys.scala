@@ -350,6 +350,14 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     mq.getUniqueKeys(rel.getInput, ignoreNulls)
   }
 
+  // Dropping rows never creates duplicates, so the keys of the input stay valid
+  def getUniqueKeys(
+      rel: StreamPhysicalChangelogFilter,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(rel.getInput, ignoreNulls)
+  }
+
   def getUniqueKeys(
       rel: Aggregate,
       mq: RelMetadataQuery,

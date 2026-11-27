@@ -20,12 +20,14 @@ package org.apache.flink.table.planner.plan.metadata;
 
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogFilter;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
+import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Calc;
@@ -41,6 +43,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 import scala.Option;
@@ -306,6 +309,23 @@ public class FlinkRelMdImmutableColumnsTest extends FlinkRelMdHandlerTestBase {
                 new StreamPhysicalDropUpdateBefore(cluster(), streamPhysicalTraits(), scan);
         // Pass through: {0, 1, 2}
         assertEquals(ImmutableBitSet.of(0, 1, 2), mq().getImmutableColumns(dropUpdateBefore));
+    }
+
+    // -------------------------------------------------------------------------------------
+    // ChangelogFilter
+    // -------------------------------------------------------------------------------------
+
+    @Test
+    public void testGetImmutableColumnsOnChangelogFilter() {
+        RelNode scan = tableWithImmutableColsStreamScan();
+        RelNode changelogFilter =
+                new StreamPhysicalChangelogFilter(
+                        cluster(),
+                        streamPhysicalTraits(),
+                        scan,
+                        EnumSet.of(RowKind.INSERT, RowKind.UPDATE_AFTER));
+        // Pass through: {0, 1, 2}
+        assertEquals(ImmutableBitSet.of(0, 1, 2), mq().getImmutableColumns(changelogFilter));
     }
 
     // -------------------------------------------------------------------------------------
