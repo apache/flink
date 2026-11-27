@@ -63,6 +63,7 @@ import org.mockito.Mockito;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -654,6 +655,8 @@ public class CEPOperatorTest extends TestLogger {
             harness.processWatermark(21L);
 
             assertTrue(!operator2.hasNonEmptySharedBuffer(42));
+            assertFalse(operator2.hasEventCounters(42));
+            assertFalse(operator2.hasEventCounters(43));
             assertTrue(!operator2.hasNonEmptyPQ(42));
             assertEquals(0L, harness.numEventTimeTimers());
 
@@ -838,6 +841,66 @@ public class CEPOperatorTest extends TestLogger {
         }
     }
 
+    /**
+     * Processing time can go back, for example when the clock is stepped. An event that then gets
+     * the timestamp of an event a partial match still references must not reuse its EventId.
+     */
+    @Test
+    public void testProcessingTimeGoingBackDoesNotReuseEventIds() throws Exception {
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+                        .where(nameReadingOwnEvents("start", "start"))
+                        .next("middle")
+                        .where(nameReadingOwnEvents("middle", "middle"))
+                        .oneOrMore()
+                        .consecutive()
+                        .greedy()
+                        .next("end")
+                        .where(nameReadingOwnEvents("end", "end"));
+
+        CepOperator<Event, Integer, Map<String, List<Event>>> operator =
+                CepOperatorTestUtilities.getKeyedCepOperator(
+                        true, NFACompiler.compileFactory(pattern, false));
+        try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+                CepOperatorTestUtilities.getCepTestHarness(operator)) {
+            harness.open();
+
+            Event start = new Event(42, "start", 1.0);
+            Event middle1 = new Event(42, "middle", 2.0);
+            Event middle2 = new Event(42, "middle", 3.0);
+            Event middle3 = new Event(42, "middle", 4.0);
+            Event end = new Event(42, "end", 5.0);
+
+            harness.setProcessingTime(1000L);
+            harness.processElement(new StreamRecord<>(start));
+            harness.setProcessingTime(2000L);
+            harness.processElement(new StreamRecord<>(middle1));
+            harness.setProcessingTime(3000L);
+            harness.processElement(new StreamRecord<>(middle2));
+            harness.setProcessingTime(2000L);
+            harness.processElement(new StreamRecord<>(middle3));
+            harness.setProcessingTime(4000L);
+            harness.processElement(new StreamRecord<>(end));
+
+            Map<String, List<Event>> expected = new HashMap<>();
+            expected.put("start", Collections.singletonList(start));
+            expected.put("middle", Arrays.asList(middle1, middle2, middle3));
+            expected.put("end", Collections.singletonList(end));
+            assertEquals(Collections.singletonList(expected), harness.extractOutputValues());
+        }
+    }
+
+    /** Matches by name and reads the events of its own variable, like SQL's DEFINE. */
+    private static IterativeCondition<Event> nameReadingOwnEvents(String variable, String name) {
+        return new IterativeCondition<Event>() {
+            @Override
+            public boolean filter(Event value, Context<Event> ctx) throws Exception {
+                ctx.getEventsForPattern(variable).forEach(e -> {});
+                return value.getName().equals(name);
+            }
+        };
+    }
+
     @Test
     public void testCEPOperatorCleanupProcessingTime() throws Exception {
 
@@ -916,6 +979,7 @@ public class CEPOperatorTest extends TestLogger {
 
             // the pattern expired
             assertTrue(!operator2.hasNonEmptySharedBuffer(42));
+            assertFalse(operator2.hasEventCounters(42));
 
             assertEquals(0L, harness.numEventTimeTimers());
             assertTrue(!operator2.hasNonEmptyPQ(42));

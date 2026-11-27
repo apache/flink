@@ -80,9 +80,9 @@ public class NFAStateAccessTest {
                 NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
         nfaTestHarness.consumeRecords(inputEvents);
 
-        assertEquals(58, sharedBuffer.getStateReads());
-        assertEquals(41, sharedBuffer.getStateWrites());
-        assertEquals(99, sharedBuffer.getStateAccesses());
+        assertEquals(59, sharedBuffer.getStateReads());
+        assertEquals(27, sharedBuffer.getStateWrites());
+        assertEquals(86, sharedBuffer.getStateAccesses());
     }
 
     @Test
@@ -148,8 +148,8 @@ public class NFAStateAccessTest {
                 NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
         nfaTestHarness.consumeRecords(inputEvents);
 
-        assertEquals(90, sharedBuffer.getStateReads());
-        assertEquals(34, sharedBuffer.getStateWrites());
-        assertEquals(124, sharedBuffer.getStateAccesses());
+        assertEquals(91, sharedBuffer.getStateReads());
+        assertEquals(30, sharedBuffer.getStateWrites());
+        assertEquals(121, sharedBuffer.getStateAccesses());
     }
 }

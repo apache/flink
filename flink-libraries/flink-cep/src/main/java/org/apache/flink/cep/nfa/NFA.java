@@ -343,8 +343,6 @@ public class NFA<T> {
 
         nfaState.setNewPartialMatches(newPartialMatches);
 
-        sharedBufferAccessor.advanceTime(timestamp);
-
         return Tuple2.of(result, timeoutResult);
     }
 

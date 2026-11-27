@@ -1,0 +1,461 @@
+{
+  "flinkVersion" : "1.20",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyEventTimeTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "k",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "kind",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "id",
+              "dataType" : "INT"
+            }, {
+              "name" : "ts",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "rowtime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 3,
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(`ts`)"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 4,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime`"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`k` VARCHAR(2147483647), `kind` VARCHAR(2147483647), `id` INT, `ts` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyEventTimeTable]], fields=[k, kind, id, ts])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`k` VARCHAR(2147483647), `kind` VARCHAR(2147483647), `id` INT, `ts` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
+    "description" : "Calc(select=[k, kind, id, ts, TO_TIMESTAMP(ts) AS rowtime])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "TIMESTAMP(3)"
+    },
+    "rowtimeFieldIndex" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "k",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "kind",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "id",
+        "fieldType" : "INT"
+      }, {
+        "name" : "ts",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "k",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "kind",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "id",
+        "fieldType" : "INT"
+      }, {
+        "name" : "ts",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[k]])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-match_1",
+    "matchSpec" : {
+      "pattern" : {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "sqlKind" : "PATTERN_CONCAT",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "sqlKind" : "PATTERN_CONCAT",
+          "operands" : [ {
+            "kind" : "LITERAL",
+            "value" : "V",
+            "type" : "CHAR(1) NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$PATTERN_QUANTIFIER$1",
+            "operands" : [ {
+              "kind" : "LITERAL",
+              "value" : "M",
+              "type" : "CHAR(1) NOT NULL"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "LITERAL",
+              "value" : -1,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "LITERAL",
+              "value" : false,
+              "type" : "BOOLEAN NOT NULL"
+            } ],
+            "type" : "NULL"
+          } ],
+          "type" : "NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "L",
+          "type" : "CHAR(1) NOT NULL"
+        } ],
+        "type" : "NULL"
+      },
+      "patternDefinitions" : {
+        "L" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$PREV$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "L",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "end",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "M" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$<>$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$PREV$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "M",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "end",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "V" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$PREV$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "V",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "start",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        }
+      },
+      "measures" : {
+        "l" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "L",
+            "inputIndex" : 2,
+            "type" : "INT"
+          } ],
+          "type" : "INT"
+        },
+        "m" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "M",
+              "inputIndex" : 2,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          } ],
+          "type" : "INT"
+        },
+        "v" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "V",
+            "inputIndex" : 2,
+            "type" : "INT"
+          } ],
+          "type" : "INT"
+        }
+      },
+      "after" : {
+        "kind" : "LITERAL",
+        "symbol" : "MATCH_RECOGNIZE_AFTER_OPTION",
+        "value" : "SKIP_PAST_LAST_ROW",
+        "type" : {
+          "type" : "SYMBOL",
+          "nullable" : false
+        }
+      },
+      "subsets" : { },
+      "allRows" : false,
+      "partition" : {
+        "fields" : [ 0 ]
+      },
+      "orderBy" : {
+        "fields" : [ {
+          "index" : 4,
+          "isAscending" : true,
+          "nullIsLast" : false
+        } ]
+      },
+      "interval" : {
+        "kind" : "LITERAL",
+        "value" : "1800000",
+        "type" : "INTERVAL MINUTE NOT NULL"
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`k` VARCHAR(2147483647), `v` INT, `m` INT, `l` INT>",
+    "description" : "Match(partitionBy=[k], orderBy=[rowtime ASC], measures=[FINAL(V.id) AS v, FINAL(LAST(M.id, 0)) AS m, FINAL(L.id) AS l], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP PAST LAST ROW], pattern=[((_UTF-16LE'V', PATTERN_QUANTIFIER(_UTF-16LE'M', 0, -1, false)), _UTF-16LE'L')], define=[{V==(PREV(V.$1, 0), _UTF-16LE'start'), M=<>(PREV(M.$1, 0), _UTF-16LE'end'), L==(PREV(L.$1, 0), _UTF-16LE'end')}])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "k",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "v",
+              "dataType" : "INT"
+            }, {
+              "name" : "m",
+              "dataType" : "INT"
+            }, {
+              "name" : "l",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`k` VARCHAR(2147483647), `v` INT, `m` INT, `l` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[k, v, m, l])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
