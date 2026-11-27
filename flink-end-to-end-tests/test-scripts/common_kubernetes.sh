@@ -136,7 +136,8 @@ function start_kubernetes_if_not_running {
         # here.
         # Similarly, the kubelets are marking themself as "low disk space",
         # causing Flink to avoid this node (again, failing the test)
-        CHANGE_MINIKUBE_NONE_USER=true sudo -E minikube start --vm-driver=none \
+        # pass env explicitly: sudo-rs (Ubuntu 26.04+) ignores 'sudo -E'
+        sudo env HOME="$HOME" PATH="$PATH" CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
             --extra-config=kubelet.image-gc-high-threshold=99 \
             --extra-config=kubelet.image-gc-low-threshold=98 \
             --extra-config=kubelet.minimum-container-ttl-duration=120m \
@@ -170,6 +171,10 @@ function start_kubernetes {
     fi
 }
 
+function stop_minikube {
+    sudo env HOME="$HOME" PATH="$PATH" minikube stop
+}
+
 function stop_kubernetes {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo "$NON_LINUX_ENV_NOTE"
@@ -177,8 +182,7 @@ function stop_kubernetes {
         kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
-        stop_command="sudo -E minikube stop"
-        if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} "${stop_command}"; then
+        if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} stop_minikube; then
             echo "Could not stop minikube. Aborting..."
             exit 1
         fi
