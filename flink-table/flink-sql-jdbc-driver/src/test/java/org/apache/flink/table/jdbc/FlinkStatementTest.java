@@ -45,10 +45,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for flink statement. */
 public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
@@ -56,46 +52,48 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
 
     @Test
     @Timeout(value = 60)
-    public void testExecuteQuery() throws Exception {
+    void testExecuteQuery() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
             try (Statement statement = connection.createStatement()) {
                 // CREATE TABLE is not a query and has no results
-                assertFalse(
-                        statement.execute(
-                                String.format(
-                                        "CREATE TABLE test_table(id bigint, val int, str string, timestamp1 timestamp(0), timestamp2 timestamp_ltz(3), time_data time, date_data date) "
-                                                + "with ("
-                                                + "'connector'='filesystem',\n"
-                                                + "'format'='csv',\n"
-                                                + "'path'='%s')",
-                                        tempDir)));
-                assertEquals(0, statement.getUpdateCount());
+                assertThat(
+                                statement.execute(
+                                        String.format(
+                                                "CREATE TABLE test_table(id bigint, val int, str string, timestamp1 timestamp(0), timestamp2 timestamp_ltz(3), time_data time, date_data date) "
+                                                        + "with ("
+                                                        + "'connector'='filesystem',\n"
+                                                        + "'format'='csv',\n"
+                                                        + "'path'='%s')",
+                                                tempDir)))
+                        .isFalse();
+                assertThat(statement.getUpdateCount()).isEqualTo(0);
 
                 // INSERT TABLE returns job id
-                assertTrue(
-                        statement.execute(
-                                "INSERT INTO test_table VALUES "
-                                        + "(1, 11, '111', TIMESTAMP '2021-04-15 23:18:36', TO_TIMESTAMP_LTZ(400000000000, 3), TIME '12:32:00', DATE '2023-11-02'), "
-                                        + "(3, 33, '333', TIMESTAMP '2021-04-16 23:18:36', TO_TIMESTAMP_LTZ(500000000000, 3), TIME '13:32:00', DATE '2023-12-02'), "
-                                        + "(2, 22, '222', TIMESTAMP '2021-04-17 23:18:36', TO_TIMESTAMP_LTZ(600000000000, 3), TIME '14:32:00', DATE '2023-01-02'), "
-                                        + "(4, 44, '444', TIMESTAMP '2021-04-18 23:18:36', TO_TIMESTAMP_LTZ(700000000000, 3), TIME '15:32:00', DATE '2023-02-02')"));
+                assertThat(
+                                statement.execute(
+                                        "INSERT INTO test_table VALUES "
+                                                + "(1, 11, '111', TIMESTAMP '2021-04-15 23:18:36', TO_TIMESTAMP_LTZ(400000000000, 3), TIME '12:32:00', DATE '2023-11-02'), "
+                                                + "(3, 33, '333', TIMESTAMP '2021-04-16 23:18:36', TO_TIMESTAMP_LTZ(500000000000, 3), TIME '13:32:00', DATE '2023-12-02'), "
+                                                + "(2, 22, '222', TIMESTAMP '2021-04-17 23:18:36', TO_TIMESTAMP_LTZ(600000000000, 3), TIME '14:32:00', DATE '2023-01-02'), "
+                                                + "(4, 44, '444', TIMESTAMP '2021-04-18 23:18:36', TO_TIMESTAMP_LTZ(700000000000, 3), TIME '15:32:00', DATE '2023-02-02')"))
+                        .isTrue();
                 assertThatThrownBy(statement::getUpdateCount)
                         .isInstanceOf(SQLFeatureNotSupportedException.class)
                         .hasMessage("FlinkStatement#getUpdateCount is not supported for query");
 
                 String jobId;
                 try (ResultSet resultSet = statement.getResultSet()) {
-                    assertTrue(resultSet.next());
-                    assertEquals(1, resultSet.getMetaData().getColumnCount());
+                    assertThat(resultSet.next()).isTrue();
+                    assertThat(resultSet.getMetaData().getColumnCount()).isEqualTo(1);
                     jobId = resultSet.getString("job id");
-                    assertEquals(jobId, resultSet.getString(1));
-                    assertFalse(resultSet.next());
+                    assertThat(resultSet.getString(1)).isEqualTo(jobId);
+                    assertThat(resultSet.next()).isFalse();
                 }
-                assertNotNull(jobId);
+                assertThat(jobId).isNotNull();
                 // Wait job finished
                 boolean jobFinished = false;
                 while (!jobFinished) {
-                    assertTrue(statement.execute("SHOW JOBS"));
+                    assertThat(statement.execute("SHOW JOBS")).isTrue();
                     try (ResultSet resultSet = statement.getResultSet()) {
                         while (resultSet.next()) {
                             if (resultSet.getString(1).equals(jobId)) {
@@ -111,16 +109,20 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 // SELECT all data from test_table
                 statement.execute("SET 'table.local-time-zone' = 'UTC'");
                 try (ResultSet resultSet = statement.executeQuery("SELECT * FROM test_table")) {
-                    assertEquals(7, resultSet.getMetaData().getColumnCount());
+                    assertThat(resultSet.getMetaData().getColumnCount()).isEqualTo(7);
                     List<String> resultList = new ArrayList<>();
                     while (resultSet.next()) {
-                        assertEquals(resultSet.getLong("id"), resultSet.getLong(1));
-                        assertEquals(resultSet.getInt("val"), resultSet.getInt(2));
-                        assertEquals(resultSet.getString("str"), resultSet.getString(3));
-                        assertEquals(resultSet.getTimestamp("timestamp1"), resultSet.getObject(4));
-                        assertEquals(resultSet.getObject("timestamp2"), resultSet.getTimestamp(5));
-                        assertEquals(resultSet.getObject("time_data"), resultSet.getTime(6));
-                        assertEquals(resultSet.getObject("date_data"), resultSet.getDate(7));
+                        assertThat(resultSet.getLong(1)).isEqualTo(resultSet.getLong("id"));
+                        assertThat(resultSet.getInt(2)).isEqualTo(resultSet.getInt("val"));
+                        assertThat(resultSet.getString(3)).isEqualTo(resultSet.getString("str"));
+                        assertThat(resultSet.getObject(4))
+                                .isEqualTo(resultSet.getTimestamp("timestamp1"));
+                        assertThat(resultSet.getTimestamp(5))
+                                .isEqualTo(resultSet.getObject("timestamp2"));
+                        assertThat(resultSet.getTime(6))
+                                .isEqualTo(resultSet.getObject("time_data"));
+                        assertThat(resultSet.getDate(7))
+                                .isEqualTo(resultSet.getObject("date_data"));
                         resultList.add(
                                 String.format(
                                         "%s,%s,%s,%s,%s,%s,%s",
@@ -143,7 +145,7 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 // SELECT all data from test_table with local time zone
                 statement.execute("SET 'table.local-time-zone' = 'Asia/Shanghai'");
                 try (ResultSet resultSet = statement.executeQuery("SELECT * FROM test_table")) {
-                    assertEquals(7, resultSet.getMetaData().getColumnCount());
+                    assertThat(resultSet.getMetaData().getColumnCount()).isEqualTo(7);
                     List<String> resultList = new ArrayList<>();
                     while (resultSet.next()) {
                         resultList.add(
@@ -160,22 +162,22 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                                     "2021-04-18 23:18:36.0,1992-03-08 04:26:40.0");
                 }
 
-                assertTrue(statement.execute("SHOW JOBS"));
+                assertThat(statement.execute("SHOW JOBS")).isTrue();
                 try (ResultSet resultSet = statement.getResultSet()) {
                     // Check there are two finished jobs.
                     int count = 0;
                     while (resultSet.next()) {
-                        assertEquals("FINISHED", resultSet.getString(3));
+                        assertThat(resultSet.getString(3)).isEqualTo("FINISHED");
                         count++;
                     }
-                    assertEquals(3, count);
+                    assertThat(count).isEqualTo(3);
                 }
             }
         }
     }
 
     @Test
-    public void testCloseAllStatements() throws Exception {
+    void testCloseAllStatements() throws Exception {
         FlinkConnection connection = new FlinkConnection(getDriverUri());
         Statement statement1 = connection.createStatement();
         Statement statement2 = connection.createStatement();
@@ -184,13 +186,13 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
         statement1.close();
         connection.close();
 
-        assertTrue(statement1.isClosed());
-        assertTrue(statement2.isClosed());
-        assertTrue(statement3.isClosed());
+        assertThat(statement1.isClosed()).isTrue();
+        assertThat(statement2.isClosed()).isTrue();
+        assertThat(statement3.isClosed()).isTrue();
     }
 
     @Test
-    public void testCloseNonQuery() throws Exception {
+    void testCloseNonQuery() throws Exception {
         CompletableFuture<Void> closedFuture = new CompletableFuture<>();
         try (FlinkConnection connection = new FlinkConnection(new TestingExecutor(closedFuture))) {
             try (Statement statement = connection.createStatement()) {

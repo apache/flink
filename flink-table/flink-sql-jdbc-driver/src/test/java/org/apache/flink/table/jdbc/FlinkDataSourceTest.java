@@ -23,17 +23,17 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for flink data source. */
 public class FlinkDataSourceTest extends FlinkJdbcDriverTestBase {
 
     @Test
-    public void testDataSource() throws Exception {
+    void testDataSource() throws Exception {
         FlinkDataSource dataSource = new FlinkDataSource(getDriverUri().getURL(), new Properties());
         try (Connection connection = dataSource.getConnection()) {
-            assertEquals("default_catalog", connection.getCatalog());
-            assertEquals("default_database", connection.getSchema());
+            assertThat(connection.getCatalog()).isEqualTo("default_catalog");
+            assertThat(connection.getSchema()).isEqualTo("default_database");
         }
     }
 }

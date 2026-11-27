@@ -26,105 +26,103 @@ import org.junit.jupiter.api.Test;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkConnection}. */
 public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
 
     @Test
-    public void testCatalogSchema() throws Exception {
+    void testCatalogSchema() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
-            assertEquals("default_catalog", connection.getCatalog());
-            assertEquals("default_database", connection.getSchema());
+            assertThat(connection.getCatalog()).isEqualTo("default_catalog");
+            assertThat(connection.getSchema()).isEqualTo("default_database");
 
-            assertThrowsExactly(
-                    SQLException.class,
-                    () -> connection.setCatalog("invalid_catalog"),
-                    "Set catalog[invalid_catalog] fail");
-            assertThrowsExactly(
-                    SQLException.class,
-                    () -> connection.setSchema("invalid_database"),
-                    "Set schema[invalid_database] fail");
-            assertEquals("default_catalog", connection.getCatalog());
-            assertEquals("default_database", connection.getSchema());
+            assertThatThrownBy(() -> connection.setCatalog("invalid_catalog"))
+                    .as("Set catalog[invalid_catalog] fail")
+                    .isExactlyInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> connection.setSchema("invalid_database"))
+                    .as("Set schema[invalid_database] fail")
+                    .isExactlyInstanceOf(SQLException.class);
+            assertThat(connection.getCatalog()).isEqualTo("default_catalog");
+            assertThat(connection.getSchema()).isEqualTo("default_database");
 
             // Create new catalog and database
             Executor executor = connection.getExecutor();
             StatementResult result =
                     executor.executeStatement(
                             "CREATE CATALOG test_catalog WITH ('type'='generic_in_memory');");
-            assertTrue(result.hasNext());
-            assertEquals("OK", result.next().getString(0).toString());
+            assertThat(result.hasNext()).isTrue();
+            assertThat(result.next().getString(0).toString()).isEqualTo("OK");
             connection.setCatalog("test_catalog");
 
             result = executor.executeStatement("CREATE DATABASE test_database;");
-            assertTrue(result.hasNext());
-            assertEquals("OK", result.next().getString(0).toString());
+            assertThat(result.hasNext()).isTrue();
+            assertThat(result.next().getString(0).toString()).isEqualTo("OK");
             connection.setSchema("test_database");
 
-            assertEquals("test_catalog", connection.getCatalog());
-            assertEquals("test_database", connection.getSchema());
+            assertThat(connection.getCatalog()).isEqualTo("test_catalog");
+            assertThat(connection.getSchema()).isEqualTo("test_database");
         }
     }
 
     @Test
-    public void testSetCatalogWithQuotedName() throws Exception {
+    void testSetCatalogWithQuotedName() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
             Executor executor = connection.getExecutor();
             StatementResult result =
                     executor.executeStatement(
                             "CREATE CATALOG `my catalog` WITH ('type'='generic_in_memory');");
-            assertTrue(result.hasNext());
-            assertEquals("OK", result.next().getString(0).toString());
+            assertThat(result.hasNext()).isTrue();
+            assertThat(result.next().getString(0).toString()).isEqualTo("OK");
 
             connection.setCatalog("my catalog");
-            assertEquals("my catalog", connection.getCatalog());
+            assertThat(connection.getCatalog()).isEqualTo("my catalog");
         }
     }
 
     @Test
-    public void testSetClientInfoValueWithQuote() throws Exception {
+    void testSetClientInfoValueWithQuote() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
             connection.setClientInfo("pipeline.name", "it's a job");
-            assertEquals("it's a job", connection.getClientInfo("pipeline.name"));
+            assertThat(connection.getClientInfo("pipeline.name")).isEqualTo("it's a job");
         }
     }
 
     @Test
-    public void testSetClientInfoNullValue() throws Exception {
+    void testSetClientInfoNullValue() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
-            assertDoesNotThrow(() -> connection.setClientInfo("pipeline.name", null));
+            assertThatCode(() -> connection.setClientInfo("pipeline.name", null))
+                    .doesNotThrowAnyException();
         }
     }
 
     @Test
-    public void testSetClientInfoNullName() throws Exception {
+    void testSetClientInfoNullName() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
-            assertDoesNotThrow(() -> connection.setClientInfo(null, "v"));
+            assertThatCode(() -> connection.setClientInfo(null, "v")).doesNotThrowAnyException();
         }
     }
 
     @Test
-    public void testSetSchemaQualifiedName() throws Exception {
+    void testSetSchemaQualifiedName() throws Exception {
         try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
             connection.setSchema("default_catalog.default_database");
-            assertEquals("default_catalog", connection.getCatalog());
-            assertEquals("default_database", connection.getSchema());
+            assertThat(connection.getCatalog()).isEqualTo("default_catalog");
+            assertThat(connection.getSchema()).isEqualTo("default_database");
         }
     }
 
     @Test
-    public void testClientInfo() throws Exception {
+    void testClientInfo() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("key3", "val3");
         DriverUri driverUri = getDriverUri("jdbc:flink://%s:%s?key1=val1&key2=val2", properties);
         try (FlinkConnection connection = new FlinkConnection(driverUri)) {
-            assertEquals("val1", connection.getClientInfo("key1"));
-            assertEquals("val2", connection.getClientInfo("key2"));
-            assertEquals("val3", connection.getClientInfo("key3"));
+            assertThat(connection.getClientInfo("key1")).isEqualTo("val1");
+            assertThat(connection.getClientInfo("key2")).isEqualTo("val2");
+            assertThat(connection.getClientInfo("key3")).isEqualTo("val3");
 
             connection.setClientInfo("key1", "val11");
             Properties resetProp = new Properties();
@@ -132,13 +130,13 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
             resetProp.setProperty("key3", "val33");
             resetProp.setProperty("key4", "val44");
             connection.setClientInfo(resetProp);
-            assertEquals("val11", connection.getClientInfo("key1"));
-            assertEquals("val44", connection.getClientInfo("key4"));
+            assertThat(connection.getClientInfo("key1")).isEqualTo("val11");
+            assertThat(connection.getClientInfo("key4")).isEqualTo("val44");
             Properties clientInfo = connection.getClientInfo();
-            assertEquals("val11", clientInfo.getProperty("key1"));
-            assertEquals("val22", clientInfo.getProperty("key2"));
-            assertEquals("val33", clientInfo.getProperty("key3"));
-            assertEquals("val44", clientInfo.getProperty("key4"));
+            assertThat(clientInfo.getProperty("key1")).isEqualTo("val11");
+            assertThat(clientInfo.getProperty("key2")).isEqualTo("val22");
+            assertThat(clientInfo.getProperty("key3")).isEqualTo("val33");
+            assertThat(clientInfo.getProperty("key4")).isEqualTo("val44");
         }
     }
 }

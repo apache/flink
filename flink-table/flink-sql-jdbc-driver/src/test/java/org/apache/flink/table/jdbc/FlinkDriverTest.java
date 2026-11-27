@@ -26,67 +26,65 @@ import java.util.Properties;
 
 import static org.apache.flink.table.jdbc.DriverInfo.DRIVER_NAME;
 import static org.apache.flink.table.jdbc.DriverInfo.DRIVER_VERSION_MAJOR;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkDriver}. */
 public class FlinkDriverTest {
     @Test
-    public void testDriverInfo() {
-        assertEquals(DRIVER_VERSION_MAJOR, 2);
-        assertEquals(DRIVER_NAME, "Flink JDBC Driver");
+    void testDriverInfo() {
+        assertThat(DRIVER_VERSION_MAJOR).isEqualTo(2);
+        assertThat(DRIVER_NAME).isEqualTo("Flink JDBC Driver");
     }
 
     @Test
-    public void testDriverUri() throws Exception {
+    void testDriverUri() throws Exception {
         String uri =
                 "jdbc:flink://localhost:8888/catalog_name/database_name?sessionId=123&key1=val1&key2=val2";
-        assertTrue(DriverUri.acceptsURL(uri));
+        assertThat(DriverUri.acceptsURL(uri)).isTrue();
 
         Properties properties = new Properties();
         properties.put("key3", "val3");
         properties.put("key4", "val4");
         DriverUri driverUri = DriverUri.create(uri, properties);
-        assertEquals("catalog_name", driverUri.getCatalog().get());
-        assertEquals("database_name", driverUri.getDatabase().get());
-        assertEquals("localhost", driverUri.getAddress().getHostName());
-        assertEquals(8888, driverUri.getAddress().getPort());
-        assertEquals(5, driverUri.getProperties().size());
+        assertThat(driverUri.getCatalog().get()).isEqualTo("catalog_name");
+        assertThat(driverUri.getDatabase().get()).isEqualTo("database_name");
+        assertThat(driverUri.getAddress().getHostName()).isEqualTo("localhost");
+        assertThat(driverUri.getAddress().getPort()).isEqualTo(8888);
+        assertThat(driverUri.getProperties().size()).isEqualTo(5);
 
         String uriWithoutDBUri =
                 "jdbc:flink://localhost:8888/catalog_name?sessionId=123&key1=val1&key2=val2";
         DriverUri driverWithoutDBUri = DriverUri.create(uriWithoutDBUri, properties);
-        assertEquals("catalog_name", driverWithoutDBUri.getCatalog().get());
-        assertFalse(driverWithoutDBUri.getDatabase().isPresent());
-        assertEquals("localhost", driverWithoutDBUri.getAddress().getHostName());
-        assertEquals(8888, driverWithoutDBUri.getAddress().getPort());
-        assertEquals(5, driverWithoutDBUri.getProperties().size());
+        assertThat(driverWithoutDBUri.getCatalog().get()).isEqualTo("catalog_name");
+        assertThat(driverWithoutDBUri.getDatabase().isPresent()).isFalse();
+        assertThat(driverWithoutDBUri.getAddress().getHostName()).isEqualTo("localhost");
+        assertThat(driverWithoutDBUri.getAddress().getPort()).isEqualTo(8888);
+        assertThat(driverWithoutDBUri.getProperties().size()).isEqualTo(5);
     }
 
     @Test
-    public void testDriverInvalidUri() throws Exception {
+    void testDriverInvalidUri() throws Exception {
         // Invalid prefix
         for (String invalidPrefixUri :
                 Arrays.asList(
                         "flink://localhost:8888/catalog_name/database_name?sessionId=123&key1=val1&key2=val2",
                         "jdbc::flink://localhost:8888/catalog_name/database_name?sessionId=123&key1=val1&key2=val2",
                         "jdbc::flink//localhost:8888/catalog_name/database_name?sessionId=123&key1=val1&key2=val2")) {
-            assertFalse(DriverUri.acceptsURL(invalidPrefixUri));
-            assertThrowsExactly(
-                    SQLException.class,
-                    () -> DriverUri.create(invalidPrefixUri, new Properties()),
-                    String.format(
-                            "Flink JDBC URL[%s] must start with [jdbc:flink:]", invalidPrefixUri));
+            assertThat(DriverUri.acceptsURL(invalidPrefixUri)).isFalse();
+            assertThatThrownBy(() -> DriverUri.create(invalidPrefixUri, new Properties()))
+                    .as(
+                            String.format(
+                                    "Flink JDBC URL[%s] must start with [jdbc:flink:]",
+                                    invalidPrefixUri))
+                    .isExactlyInstanceOf(SQLException.class);
         }
 
         // Without host or port
         String noPortUri = "jdbc:flink://localhost/catalog";
-        assertThrowsExactly(
-                SQLException.class,
-                () -> DriverUri.create(noPortUri, new Properties()),
-                String.format("No port specified in uri: %s", noPortUri));
+        assertThatThrownBy(() -> DriverUri.create(noPortUri, new Properties()))
+                .as(String.format("No port specified in uri: %s", noPortUri))
+                .isExactlyInstanceOf(SQLException.class);
 
         Properties properties = new Properties();
         properties.setProperty("key3", "val33");
@@ -94,10 +92,9 @@ public class FlinkDriverTest {
                 Arrays.asList(
                         "jdbc:flink://localhost:8088/catalog?key1=val1&key2=val2&key3=val3",
                         "jdbc:flink://localhost:8088/catalog?key1=val1&key2=val2&key1=val3")) {
-            assertThrowsExactly(
-                    SQLException.class,
-                    () -> DriverUri.create(dupPropUri, properties),
-                    "Connection property 'key3' is both in the URL and an argument");
+            assertThatThrownBy(() -> DriverUri.create(dupPropUri, properties))
+                    .as("Connection property 'key3' is both in the URL and an argument")
+                    .isExactlyInstanceOf(SQLException.class);
         }
     }
 }
