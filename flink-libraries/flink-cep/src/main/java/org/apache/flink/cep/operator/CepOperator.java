@@ -33,11 +33,13 @@ import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
+import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.time.TimerService;
@@ -263,11 +265,21 @@ public class CepOperator<IN, KEY, OUT>
 
                 bufferEvent(value, timestamp);
 
-            } else if (lateDataOutputTag != null) {
-                output.collect(lateDataOutputTag, element);
             } else {
-                numLateRecordsDropped.inc();
+                outputLateElement(element);
             }
+        }
+    }
+
+    private void outputLateElement(IN element, long timestamp) {
+        outputLateElement(new StreamRecord<>(element, timestamp));
+    }
+
+    private void outputLateElement(StreamRecord<IN> element) {
+        if (lateDataOutputTag != null) {
+            output.collect(lateDataOutputTag, element);
+        } else {
+            numLateRecordsDropped.inc();
         }
     }
 
@@ -304,11 +316,23 @@ public class CepOperator<IN, KEY, OUT>
         // STEP 1
         PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
         NFAState nfaState = getNFAState();
+        // The watermark is not part of the snapshot, so after a restore elements that were late
+        // before the failure pass the check in processElement. Those at or before the newest event
+        // the NFA still references would break the event-time order the NFA relies on, so they are
+        // handled as late here.
+        long latestReferencedTimestamp = getLatestReferencedTimestamp(nfaState);
 
         // STEP 2
         while (!sortedTimestamps.isEmpty()
                 && sortedTimestamps.peek() <= timerService.currentWatermark()) {
             long timestamp = sortedTimestamps.poll();
+            if (timestamp <= latestReferencedTimestamp) {
+                for (IN element : elementQueueState.get(timestamp)) {
+                    outputLateElement(element, timestamp);
+                }
+                elementQueueState.remove(timestamp);
+                continue;
+            }
             advanceTime(nfaState, timestamp);
             try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
                 elements.forEachOrdered(
@@ -387,6 +411,28 @@ public class CepOperator<IN, KEY, OUT>
             nfaState.resetNewStartPartialMatch();
             computationStates.update(nfaState);
         }
+    }
+
+    /**
+     * Returns the timestamp of the newest event that a partial or completed match of the given NFA
+     * still references, or {@link Long#MIN_VALUE} if there is none. Every event in a match is at or
+     * before the match's last event, so this bounds the timestamps of all events in the shared
+     * buffer that are still in use for the current key.
+     */
+    private static long getLatestReferencedTimestamp(NFAState nfaState) {
+        long latest = Long.MIN_VALUE;
+        for (ComputationState state : nfaState.getPartialMatches()) {
+            latest = Math.max(latest, getLastEventTimestamp(state));
+        }
+        for (ComputationState state : nfaState.getCompletedMatches()) {
+            latest = Math.max(latest, getLastEventTimestamp(state));
+        }
+        return latest;
+    }
+
+    private static long getLastEventTimestamp(ComputationState state) {
+        NodeId lastEntry = state.getPreviousBufferEntry();
+        return lastEntry == null ? Long.MIN_VALUE : lastEntry.getEventId().getTimestamp();
     }
 
     private PriorityQueue<Long> getSortedTimestamps() throws Exception {
@@ -543,6 +589,12 @@ public class CepOperator<IN, KEY, OUT>
     boolean hasNonEmptySharedBuffer(KEY key) throws Exception {
         setCurrentKey(key);
         return !partialMatches.isEmpty();
+    }
+
+    @VisibleForTesting
+    boolean hasEventCounters(KEY key) throws Exception {
+        setCurrentKey(key);
+        return partialMatches.getEventCounters().hasNext();
     }
 
     @VisibleForTesting
