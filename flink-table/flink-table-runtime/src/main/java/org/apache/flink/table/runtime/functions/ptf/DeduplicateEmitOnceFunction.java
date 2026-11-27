@@ -66,9 +66,6 @@ public class DeduplicateEmitOnceFunction extends DeduplicateFunctionBase {
             @Nullable final ColumnList sequenceBy,
             @Nullable final Long stateTtl)
             throws Exception {
-        if (input.getRowKind() == RowKind.UPDATE_BEFORE) {
-            return;
-        }
         if (emitted.getValue() == null) {
             projectedOutput.replaceRow(input);
             projectedOutput.setRowKind(RowKind.INSERT);

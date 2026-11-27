@@ -92,10 +92,10 @@ SELECT * FROM DEDUPLICATE(
 
 | Parameter | Required | Description |
 |:----------|:---------|:------------|
-| `input` | Yes | The input table, append-only or updating. `PARTITION BY` is required and its columns are the key of the output. For updating input, the `PARTITION BY` columns must contain an upsert key of the input.|
+| `input` | Yes | The input table, append-only or updating. `PARTITION BY` is required and its columns are the key of the output. See [Updating input](#updating-input).|
 | `keep` | No | `'first'` (default) keeps the earliest arrival or the lowest `sequence_by` value, `'last'` keeps the latest arrival or the highest. Must be a literal. Arrival order is not deterministic across reruns, use `sequence_by` for a repeatable result. |
 | `sequence_by` | No | One or more columns that order the records of a key instead of their arrival, ascending, with strings and binaries compared lexicographically. The first column decides, later columns break ties, and `NULL` orders below every other value. On a tie, the later arrival wins for `'last'` and the earlier one for `'first'`. Columns must be of a type that `ORDER BY` supports, and not part of `PARTITION BY`. |
-| `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. Every record of a key, including a dropped duplicate, restarts the TTL. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
+| `state_ttl` | No | How long the state of an idle key is retained, as an `INTERVAL` literal. On append-only input, every record of a key, including a dropped duplicate, restarts the TTL. With several live rows per key, each row expires once it has not changed for the TTL and is then no longer a candidate, while the kept row is retained as long as any row of its key. Defaults to `table.exec.state.ttl`, and `INTERVAL '0' SECOND` disables expiry. After the state of a key expires, its next record is emitted as `+I` again. |
 | `on_time` | No | A time attribute to forward as a `rowtime` column. Only with `keep => 'first'` and no `sequence_by`. See [Keep time attributes](#keep-time-attributes). |
 | `uid` | No | A unique identifier for the PTF invocation. Defaults to `DEDUPLICATE`. Can be omitted if the PTF is invoked only once per job. See [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids). |
 
@@ -109,8 +109,15 @@ The result has one row per key. When a later row replaces the kept one, the row 
 On append-only input with `keep => 'first'` and no `sequence_by`, the kept row of a key never changes, so the result only contains inserts and can be written to an append-only table.
 
 {{< hint info >}}
-The first record of a key is emitted as `+I`. A record that replaces the kept one is emitted as `+U`, preceded by `-U` if the consumer needs retractions. A record that equals the kept one, or does not replace it, emits nothing. On updating input, `+U` is handled as a new record, `-U` is ignored, and `-D` removes the kept row, regardless of `sequence_by`, and is emitted as `-D` with that row. A retraction does not fall back to an earlier row, so the next record of the key is emitted as `+I`. See [Updates and Changelogs]({{< ref "docs/dev/table/functions/ptfs" >}}#updates-and-changelogs).
+The first record of a key is emitted as `+I`. A record that replaces the kept one is emitted as `+U`, preceded by `-U` if the consumer needs retractions. A record that equals the kept one, or does not replace it, emits nothing. See [Updates and Changelogs]({{< ref "docs/dev/table/functions/ptfs" >}}#updates-and-changelogs).
 {{< /hint >}}
+
+### Updating input
+
+On updating input, `DEDUPLICATE` returns the first or the last of the live rows of each key, that is, of the rows in the input table at that moment, as a batch query on the current table would. `sequence_by` orders different rows of a key, never versions of the same row, since the changelog of the input defines the versions.
+
+- If the `PARTITION BY` columns are an upsert key of the input, a key has at most one live row, so `keep` and `sequence_by` have no effect and every change is forwarded. A deleted row is emitted as `-D` with the full row, also if the input only carries its key.
+- Otherwise, a key can have several live rows, and all of them are kept in state. When the kept row is retracted, the best remaining row replaces it, or `-D` is emitted if none is left. An update of the only row of a key is emitted as `-D` followed by `+I`.
 
 ### Examples
 
@@ -234,9 +241,9 @@ GROUP BY window_start, window_end;
 
 The repeated `e1` is not counted. The first copy of a row is kept even if it arrives late, so a later window can drop it.
 
-#### Updating input
+#### Updating input with one row per key
 
-A CDC table with primary key `customer_id`:
+A CDC table with primary key `customer_id`, partitioned by its primary key:
 
 | `customers_cdc`          |
 |:-------------------------|
@@ -253,12 +260,41 @@ SELECT * FROM DEDUPLICATE(
   sequence_by => DESCRIPTOR(lsn))
 ```
 
-| Changes of the result    |                          |
-|:-------------------------|:-------------------------|
-| `+I(c1, Berlin, 100)`    |                          |
-| `+U(c1, Munich, 120)`    |                          |
-| `-D(c1, Munich, 120)`    | `Hamburg` → dropped      |
-| `+I(c1, Bremen, 115)`    | no state → first record  |
+| Changes of the result    |                            |
+|:-------------------------|:---------------------------|
+| `+I(c1, Berlin, 100)`    |                            |
+| `+U(c1, Munich, 120)`    |                            |
+| `+U(c1, Hamburg, 110)`   | `sequence_by` → no effect  |
+| `-D(c1, Hamburg, 110)`   | full row, not only the key |
+| `+I(c1, Bremen, 115)`    | no state → first record    |
+
+To discard versions of a row that arrive out of order, deduplicate the change events as an append-only table, as in [Order by a column](#order-by-a-column).
+
+#### Updating input with several rows per key
+
+Accounts with primary key `account_id`, partitioned by `customer_id`, so a customer can have several live accounts:
+
+| `accounts` (`customer_id`, `account_id`, `balance`) |
+|:----------------------------------------------------|
+| `+I(c1, a1, 10)`                                    |
+| `+I(c1, a2, 20)`                                    |
+| `-D(c1, a2, 20)`                                    |
+| `-U(c1, a1, 10)`                                    |
+| `+U(c1, a1, 15)`                                    |
+
+```sql
+SELECT * FROM DEDUPLICATE(
+  input => TABLE accounts PARTITION BY customer_id,
+  keep => 'last')
+```
+
+| Changes of the result |                                      |
+|:----------------------|:-------------------------------------|
+| `+I(c1, a1, 10)`      |                                      |
+| `+U(c1, a2, 20)`      |                                      |
+| `+U(c1, a1, 10)`      | `a2` deleted → falls back to `a1`    |
+| `-D(c1, a1, 10)`      | update of the only row → `-D`, `+I`  |
+| `+I(c1, a1, 15)`      |                                      |
 
 #### Composite key
 

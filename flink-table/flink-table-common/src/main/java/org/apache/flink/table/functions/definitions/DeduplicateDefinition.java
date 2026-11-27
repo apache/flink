@@ -149,7 +149,6 @@ public final class DeduplicateDefinition {
             return ChangelogMode.insertOnly();
         }
         final ChangelogMode inputMode = changelogContext.getTableChangelogMode(ARG_INPUT);
-        final boolean isDeleteInput = inputMode != null && inputMode.contains(RowKind.DELETE);
         final ChangelogMode requiredMode = changelogContext.getRequiredChangelogMode();
         final ChangelogMode.Builder builder =
                 ChangelogMode.newBuilder()
@@ -158,9 +157,16 @@ public final class DeduplicateDefinition {
         if (requiredMode != null && requiredMode.contains(RowKind.UPDATE_BEFORE)) {
             builder.addContainedKind(RowKind.UPDATE_BEFORE);
         }
-        if (isDeleteInput) {
+        if (inputMode != null
+                && (inputMode.contains(RowKind.DELETE)
+                        || inputMode.contains(RowKind.UPDATE_BEFORE))) {
             builder.addContainedKind(RowKind.DELETE);
         }
+        builder.keyOnlyDeletes(
+                inputMode != null
+                        && inputMode.keyOnlyDeletes()
+                        && requiredMode != null
+                        && requiredMode.keyOnlyDeletes());
         return builder.build();
     }
 

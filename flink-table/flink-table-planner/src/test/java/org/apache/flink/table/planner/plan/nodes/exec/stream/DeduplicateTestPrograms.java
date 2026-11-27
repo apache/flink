@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -254,8 +253,10 @@ public class DeduplicateTestPrograms {
     public static final TableTestProgram UPDATING_INPUT =
             TableTestProgram.of(
                             "deduplicate-updating-input",
-                            "-D retracts the kept row, +U without state is a first record, "
-                                    + "and -U is ignored")
+                            "with one live row per key, every change is forwarded whatever "
+                                    + "sequence_by says, a key-only -D is emitted with the full row, "
+                                    + "a -D without state emits nothing, and +U without state is a "
+                                    + "first record")
                     .setupTableSource(
                             SourceTestStep.newBuilder("customers_cdc")
                                     .addSchema(
@@ -280,7 +281,8 @@ public class DeduplicateTestPrograms {
                                     .consumedValues(
                                             "+I[c1, Berlin, 100]",
                                             "+U[c1, Munich, 120]",
-                                            "-D[c1, Munich, 120]",
+                                            "+U[c1, Hamburg, 110]",
+                                            "-D[c1, Hamburg, 110]",
                                             "+I[c1, Bremen, 115]")
                                     .build())
                     .runSql(
@@ -293,7 +295,7 @@ public class DeduplicateTestPrograms {
     public static final TableTestProgram UPDATING_INPUT_KEEP_FIRST =
             TableTestProgram.of(
                             "deduplicate-updating-input-keep-first",
-                            "keep first on updating input drops +U, and -D retracts the kept row")
+                            "with one live row per key, keep => 'first' has no effect")
                     .setupTableSource(
                             SourceTestStep.newBuilder("customers_cdc")
                                     .addSchema(
@@ -316,7 +318,9 @@ public class DeduplicateTestPrograms {
                                     .consumedValues(
                                             "+I[c1, Berlin]",
                                             "+I[c2, Paris]",
-                                            "-D[c1, Berlin]",
+                                            "+U[c1, Munich]",
+                                            "-D[c1, Munich]",
+                                            "+U[c2, Lyon]",
                                             "+I[c1, Bremen]")
                                     .build())
                     .runSql(
@@ -328,7 +332,8 @@ public class DeduplicateTestPrograms {
     public static final TableTestProgram RETRACT_INPUT =
             TableTestProgram.of(
                             "deduplicate-retract-input",
-                            "-U is ignored and the +U that follows replaces the kept row")
+                            "on retract input partitioned by its upsert key, an update "
+                                    + "replaces the kept row")
                     .setupTableSource(
                             SourceTestStep.newBuilder("customers_cdc")
                                     .addSchema(
@@ -355,28 +360,68 @@ public class DeduplicateTestPrograms {
                                     + "keep => 'last')")
                     .build();
 
-    public static final TableTestProgram UPDATING_INPUT_WITHOUT_UPSERT_KEY =
+    public static final TableTestProgram LIVE_ROWS =
             TableTestProgram.of(
-                            "deduplicate-updating-input-without-upsert-key",
-                            "updating input whose PARTITION BY does not contain an upsert key "
-                                    + "is rejected")
+                            "deduplicate-live-rows",
+                            "with several live rows per key, a retraction of the kept row falls "
+                                    + "back to the next live row, and of the last row emits -D; "
+                                    + "with 'first', a row keeps the arrival of its earliest copy")
                     .setupTableSource(
-                            SourceTestStep.newBuilder("customers_cdc")
-                                    .addSchema(CUSTOMER_UPSERT_SCHEMA)
-                                    .addMode(ChangelogMode.upsert())
+                            SourceTestStep.newBuilder("accounts")
+                                    .addSchema(
+                                            "customer_id STRING",
+                                            "account_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "balance INT")
+                                    .addMode(ChangelogMode.all())
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "c1", "Berlin", 100L))
+                                            Row.ofKind(RowKind.INSERT, "c1", "a1", 10),
+                                            Row.ofKind(RowKind.INSERT, "c1", "a2", 20),
+                                            Row.ofKind(RowKind.INSERT, "c2", "a3", 30),
+                                            Row.ofKind(RowKind.DELETE, "c1", "a2", 20),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "c1", "a1", 10),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "a1", 15),
+                                            Row.ofKind(RowKind.DELETE, "c2", "a3", 30))
                                     .build())
-                    .runFailingSql(
-                            "SELECT * FROM DEDUPLICATE("
-                                    + "input => TABLE customers_cdc PARTITION BY city)",
-                            ValidationException.class,
-                            "DEDUPLICATE on updating input requires the PARTITION BY columns to "
-                                    + "contain an upsert key of the input. PARTITION BY columns: "
-                                    + "(city). Upsert keys of the input: none. Partition "
-                                    + "by the columns of an upsert key, or use ROW_NUMBER(), which "
-                                    + "falls back to the previous row of a key after a "
-                                    + "retraction.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("visits")
+                                    .addSchema("user_id STRING", "page STRING")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "u1", "B"),
+                                            Row.ofKind(RowKind.INSERT, "u1", "A"),
+                                            Row.ofKind(RowKind.INSERT, "u1", "C"),
+                                            Row.ofKind(RowKind.INSERT, "u1", "A"),
+                                            Row.ofKind(RowKind.DELETE, "u1", "B"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "account_id STRING",
+                                            "balance INT")
+                                    .consumedValues(
+                                            "+I[c1, a1, 10]",
+                                            "+U[c1, a2, 20]",
+                                            "+I[c2, a3, 30]",
+                                            "+U[c1, a1, 10]",
+                                            "-D[c1, a1, 10]",
+                                            "+I[c1, a1, 15]",
+                                            "-D[c2, a3, 30]")
+                                    .build())
+                    .setupTableSink(
+                            upsertSink(
+                                    "first_visits",
+                                    USER_EVENTS_UPSERT_SCHEMA,
+                                    "+I[u1, B]",
+                                    "+U[u1, A]"))
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE accounts PARTITION BY customer_id, "
+                                    + "keep => 'last')")
+                    .runSql(
+                            "INSERT INTO first_visits SELECT * FROM DEDUPLICATE("
+                                    + "input => TABLE visits PARTITION BY user_id, "
+                                    + "keep => 'first')")
                     .build();
 
     public static final TableTestProgram SEQUENCE_BY =
