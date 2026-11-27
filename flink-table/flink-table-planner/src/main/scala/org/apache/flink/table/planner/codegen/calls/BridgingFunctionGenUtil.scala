@@ -605,7 +605,9 @@ object BridgingFunctionGenUtil {
   private def udfMetricsTermIfEnabled(
       ctx: CodeGeneratorContext,
       udfMetricName: Option[String]): Option[String] = udfMetricName match {
-    case Some(name) if ctx.tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_ENABLED) =>
+    case Some(name)
+        if ctx.tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_ENABLED) &&
+          ctx.supportsUdfMetrics =>
       val sampleInterval =
         ctx.tableConfig
           .get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL)
@@ -1040,5 +1042,8 @@ object BridgingFunctionGenUtil {
         classOf[FunctionContext],
         Seq("null, this.getClass().getClassLoader()", "null"))
     }
+
+    // The generated evaluator is opened without a runtime context.
+    override def supportsUdfMetrics: Boolean = false
   }
 }

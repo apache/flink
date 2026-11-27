@@ -25,9 +25,12 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -36,14 +39,20 @@ import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.event.Level;
 
+import java.lang.invoke.MethodHandle;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -79,6 +88,11 @@ class UdfMetricsITCase {
                             .setNumberSlotsPerTaskManager(1)
                             .setConfiguration(reporter.addToConfiguration(new Configuration()))
                             .build());
+
+    // Metric groups log a rejected duplicate registration through the MetricGroup logger.
+    @RegisterExtension
+    private final LoggerAuditingExtension metricGroupLog =
+            new LoggerAuditingExtension(MetricGroup.class, Level.WARN);
 
     private static final List<Row> SOURCE_ROWS = Arrays.asList(Row.of(1), Row.of(2), Row.of(3));
 
@@ -122,6 +136,16 @@ class UdfMetricsITCase {
         }
     }
 
+    /** Doubles an int, but throws for 3. */
+    public static class DoublerThrowingOnThree extends ScalarFunction {
+        public Integer eval(Integer i) {
+            if (i != null && i == 3) {
+                throw new RuntimeException("boom");
+            }
+            return i == null ? null : i * 2;
+        }
+    }
+
     /** Doubles an int after sleeping a fixed duration, so timing is measurably non-zero. */
     public static class SleepyDoubler extends ScalarFunction {
         public Integer eval(Integer i) {
@@ -142,6 +166,51 @@ class UdfMetricsITCase {
         public void eval(Integer i) {
             collect(i);
             collect(i);
+        }
+    }
+
+    /** Calls the registered function {@code innerudf} through an expression evaluator. */
+    public static class EvaluatorCaller extends ScalarFunction implements SpecializedFunction {
+        private final ExpressionEvaluator evaluator;
+        private transient MethodHandle handle;
+
+        public EvaluatorCaller() {
+            this(null);
+        }
+
+        private EvaluatorCaller(ExpressionEvaluator evaluator) {
+            this.evaluator = evaluator;
+        }
+
+        @Override
+        public EvaluatorCaller specialize(SpecializedContext context) {
+            return new EvaluatorCaller(
+                    context.createEvaluator(
+                            "innerudf(x)", DataTypes.INT(), DataTypes.FIELD("x", DataTypes.INT())));
+        }
+
+        @Override
+        public void open(FunctionContext context) {
+            handle = evaluator.open(context);
+        }
+
+        public Integer eval(Integer i) {
+            try {
+                return (Integer) handle.invokeExact(i);
+            } catch (Throwable t) {
+                throw new FlinkRuntimeException(t);
+            }
+        }
+    }
+
+    /** Returns its timestamp unchanged and counts its calls. */
+    public static class CountingTimestampIdentity extends ScalarFunction {
+        static final AtomicInteger CALLS = new AtomicInteger();
+
+        public @DataTypeHint("TIMESTAMP(3)") LocalDateTime eval(
+                @DataTypeHint("TIMESTAMP(3)") LocalDateTime ts) {
+            CALLS.incrementAndGet();
+            return ts;
         }
     }
 
@@ -284,6 +353,50 @@ class UdfMetricsITCase {
     }
 
     @Test
+    void testFunctionCallingExpressionEvaluator() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("innerudf", IntDoubler.class);
+        tEnv.createTemporarySystemFunction("evaluatorudf", EvaluatorCaller.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        // The evaluator that calls innerudf is opened without a runtime context, so the call
+        // inside it must not try to register metrics.
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT evaluatorudf(id) FROM src");
+
+        assertThat(histogram(jobId, processingTimePattern("evaluatorudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testFunctionInPushedDownWatermark() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("wmudf", CountingTimestampIdentity.class);
+        String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, LocalDateTime.of(2000, 1, 1, 0, 0, 1)),
+                                Row.of(2, LocalDateTime.of(2000, 1, 1, 0, 0, 2)),
+                                Row.of(3, LocalDateTime.of(2000, 1, 1, 0, 0, 3))));
+        tEnv.executeSql(
+                "CREATE TABLE wmsrc (id INT, ts TIMESTAMP(3), WATERMARK FOR ts AS wmudf(ts)) WITH ("
+                        + "'connector' = 'values', 'bounded' = 'true', "
+                        + "'enable-watermark-push-down' = 'true', 'disable-lookup' = 'true', "
+                        + "'data-id' = '"
+                        + dataId
+                        + "')");
+        createBlackHoleSink(tEnv, "sink", "id INT");
+        CountingTimestampIdentity.CALLS.set(0);
+
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT id FROM wmsrc");
+
+        // The source opens the pushed-down watermark generator without a runtime context, so
+        // wmudf runs there without metrics. A watermark assigner operator would meter it instead.
+        assertThat(CountingTimestampIdentity.CALLS.get()).isPositive();
+        assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).isEmpty();
+    }
+
+    @Test
     void testExceptionCounted() throws Exception {
         StreamTableEnvironment tEnv = createTableEnv(true);
         tEnv.createTemporarySystemFunction("boomudf", AlwaysThrows.class);
@@ -370,6 +483,26 @@ class UdfMetricsITCase {
     }
 
     @Test
+    void testBuiltInFunctionsNotMetered() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("userudf", IntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "t STRING, v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT TYPEOF(x), userudf(x) FROM src "
+                                + "CROSS JOIN UNNEST(ARRAY[id]) AS T(x)");
+
+        // TYPEOF and the function the planner adds for UNNEST are built-ins with a runtime class,
+        // generated through the same path as user-defined functions. Only userudf is metered.
+        assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).hasSize(1);
+        assertThat(histogram(jobId, processingTimePattern("userudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
     void testRepeatedFunctionSharesOneHandle() throws Exception {
         StreamTableEnvironment tEnv = createTableEnv(true);
         tEnv.createTemporarySystemFunction("sharedudf", IntDoubler.class);
@@ -450,6 +583,65 @@ class UdfMetricsITCase {
                 .isEqualTo(SOURCE_ROWS.size());
         assertThat(histogram(jobId, processingTimePattern("negateudf")).getCount())
                 .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testCorrelateInvocationAndConditionShareOneHandle() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("tableudf", DuplicateRows.class);
+        tEnv.createTemporarySystemFunction("throwudf", DoublerThrowingOnThree.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        TableResult result =
+                tEnv.executeSql(
+                        "INSERT INTO sink SELECT x FROM src, "
+                                + "LATERAL TABLE(tableudf(throwudf(id))) AS T(x) "
+                                + "WHERE throwudf(x) > 0");
+        JobID jobId = result.getJobClient().get().getJobID();
+        assertThatThrownBy(result::await).isInstanceOf(Exception.class);
+
+        // The invocation calls throwudf on 1 and 2 and throws on 3. The condition, generated into
+        // the collector class of the same operator, calls it on 2, 2, 4 and 4. Both classes
+        // report to one group: 2 + 4 samples and the exception.
+        assertThat(histogram(jobId, processingTimePattern("throwudf")).getCount()).isEqualTo(6);
+        assertThat(counter(jobId, exceptionCountPattern("throwudf")).getCount()).isEqualTo(1);
+        assertThat(metricGroupLog.getMessages())
+                .noneMatch(m -> m.contains("Name collision") && m.contains("throwudf"));
+    }
+
+    @Test
+    void testLookupJoinPreFilterAndConditionShareOneHandle() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("lookupudf", IntDoubler.class);
+        String probeId = TestValuesTableFactory.registerData(SOURCE_ROWS);
+        tEnv.executeSql(
+                "CREATE TABLE probe (id INT, proctime AS PROCTIME()) WITH ("
+                        + "'connector' = 'values', 'bounded' = 'true', 'data-id' = '"
+                        + probeId
+                        + "')");
+        String dimId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(Row.of(1, 10), Row.of(2, 20), Row.of(3, 30)));
+        tEnv.executeSql(
+                "CREATE TABLE dim (id INT, v INT) WITH ("
+                        + "'connector' = 'values', 'data-id' = '"
+                        + dimId
+                        + "')");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT dim.v FROM probe "
+                                + "LEFT JOIN dim FOR SYSTEM_TIME AS OF probe.proctime "
+                                + "ON probe.id = dim.id AND lookupudf(probe.id) > 2 "
+                                + "AND lookupudf(dim.v) > probe.id");
+
+        // The probe-side predicate is generated into a pre-filter class and the other one into
+        // the join condition class of the same operator. lookupudf runs on 1, 2 and 3 in the
+        // pre-filter and on 20 and 30 in the condition: 5 samples in one group.
+        assertThat(histogram(jobId, processingTimePattern("lookupudf")).getCount()).isEqualTo(5);
     }
 
     /**
