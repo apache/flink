@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
@@ -53,7 +52,7 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toList;
 
 /** The base class for statistics report testing. */
-public abstract class StatisticsReportTestBase extends TestLogger {
+public abstract class StatisticsReportTestBase {
 
     private static final int DEFAULT_PARALLELISM = 4;
 

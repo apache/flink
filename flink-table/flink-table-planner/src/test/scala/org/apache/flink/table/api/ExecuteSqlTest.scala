@@ -20,7 +20,7 @@ package org.apache.flink.table.api
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.{CollectionUtil, TestLogger}
+import org.apache.flink.util.CollectionUtil
 
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util
@@ -34,7 +34,7 @@ import java.nio.file.Path
 
 /** Test SQL statements which executed by [[TableEnvironment#executeSql()]] */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class ExecuteSqlTest(isStreaming: Boolean) extends TestLogger {
+class ExecuteSqlTest(isStreaming: Boolean) {
 
   @TempDir
   var tempFolder: Path = _
