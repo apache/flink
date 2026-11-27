@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import javax.annotation.Nullable;
 
@@ -63,18 +65,38 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
     }
 
     @Override
-    public RowData deserialize(@Nullable byte[] message) throws IOException {
+    public void deserialize(@Nullable byte[] message, Collector<RowData> out) throws IOException {
         if (message == null) {
-            return null;
+            return;
         }
         try {
-            return convertToRowData(deserializeToJsonNode(message));
-        } catch (Throwable t) {
-            if (ignoreParseErrors) {
-                return null;
+            final JsonNode root = deserializeToJsonNode(message);
+            if (root != null && root.isArray()) {
+                ArrayNode arrayNode = (ArrayNode) root;
+                for (int i = 0; i < arrayNode.size(); i++) {
+                    try {
+                        RowData result = convertToRowData(arrayNode.get(i));
+                        if (result != null) {
+                            out.collect(result);
+                        }
+                    } catch (Throwable t) {
+                        if (!ignoreParseErrors) {
+                            // will be caught by outer try-catch
+                            throw t;
+                        }
+                    }
+                }
+            } else {
+                RowData result = convertToRowData(root);
+                if (result != null) {
+                    out.collect(result);
+                }
             }
-            throw new IOException(
-                    format("Failed to deserialize JSON '%s'.", new String(message)), t);
+        } catch (Throwable t) {
+            if (!ignoreParseErrors) {
+                throw new IOException(
+                        format("Failed to deserialize JSON '%s'.", new String(message)), t);
+            }
         }
     }
 
