@@ -906,6 +906,13 @@ class CodeGeneratorContext(
   }
 
   /**
+   * Whether UDF calls generated in this context register metrics. The metrics are registered on the
+   * metric group of the runtime context, so a context whose generated class is opened without a
+   * runtime context must return false. A child context inherits its parent's answer.
+   */
+  def supportsUdfMetrics: Boolean = parentCtx == null || parentCtx.supportsUdfMetrics
+
+  /**
    * Returns the member field term of the [[UdfMetrics]] handle for the given UDF name, registering
    * it in the generated `open()` on first use. Subsequent calls for the same name return the cached
    * term, so every call site of one function in an operator feeds a single histogram and counter.
