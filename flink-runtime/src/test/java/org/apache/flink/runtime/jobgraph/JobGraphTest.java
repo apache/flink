@@ -343,16 +343,15 @@ class JobGraphTest {
     private static JobCheckpointingSettings createCheckpointSettingsWithInterval(
             final long checkpointInterval) {
         final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
-                new CheckpointCoordinatorConfiguration(
-                        checkpointInterval,
-                        Long.MAX_VALUE,
-                        Long.MAX_VALUE,
-                        Integer.MAX_VALUE,
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                        true,
-                        false,
-                        0,
-                        0);
+                CheckpointCoordinatorConfiguration.builder()
+                        .setCheckpointInterval(checkpointInterval)
+                        .setCheckpointIntervalDuringBacklog(checkpointInterval)
+                        .setCheckpointTimeout(Long.MAX_VALUE)
+                        .setMinPauseBetweenCheckpoints(Long.MAX_VALUE)
+                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                        .setCheckpointRetentionPolicy(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)
+                        .build();
 
         return new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null);
     }

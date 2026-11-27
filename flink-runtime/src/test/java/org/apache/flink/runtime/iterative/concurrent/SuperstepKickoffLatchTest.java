@@ -145,7 +145,6 @@ class SuperstepKickoffLatchTest {
             this.timeOut = timeout;
         }
 
-        @SuppressWarnings("deprecation")
         @Override
         public void run() {
             try {

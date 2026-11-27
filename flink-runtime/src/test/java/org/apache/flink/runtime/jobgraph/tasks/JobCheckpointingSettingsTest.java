@@ -34,16 +34,16 @@ class JobCheckpointingSettingsTest {
     void testIsJavaSerializable() throws Exception {
         JobCheckpointingSettings settings =
                 new JobCheckpointingSettings(
-                        new CheckpointCoordinatorConfiguration(
-                                1231231,
-                                1231,
-                                112,
-                                12,
-                                CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
-                                false,
-                                false,
-                                0,
-                                0),
+                        CheckpointCoordinatorConfiguration.builder()
+                                .setCheckpointInterval(1231231)
+                                .setCheckpointIntervalDuringBacklog(1231231)
+                                .setCheckpointTimeout(1231)
+                                .setMinPauseBetweenCheckpoints(112)
+                                .setMaxConcurrentCheckpoints(12)
+                                .setCheckpointRetentionPolicy(
+                                        CheckpointRetentionPolicy.RETAIN_ON_FAILURE)
+                                .setExactlyOnce(false)
+                                .build(),
                         new SerializedValue<>(new HashMapStateBackend()));
 
         JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);

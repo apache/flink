@@ -49,6 +49,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class JsonGeneratorTest {
 
+    private static final List<String> NODE_DESCRIPTION_PREFIXES =
+            List.of("source", "sink", "intermediate", "join");
+
     @Test
     void testGeneratorWithoutAnyAttachements() {
         JobVertex source1 = new JobVertex("source 1");
@@ -121,9 +124,13 @@ class JsonGeneratorTest {
                 .hasSize(9)
                 .allSatisfy(
                         node -> {
-                            assertThat(vertexIds).contains(JobVertexID.fromHexString(node.getId()));
-                            assertThat(List.of("source", "sink", "intermediate", "join"))
-                                    .anyMatch(node.getDescription()::startsWith);
+                            assertThat(JobVertexID.fromHexString(node.getId())).isIn(vertexIds);
+                            assertThat(node.getDescription())
+                                    .matches(
+                                            description ->
+                                                    NODE_DESCRIPTION_PREFIXES.stream()
+                                                            .anyMatch(description::startsWith),
+                                            "starts with one of " + NODE_DESCRIPTION_PREFIXES);
                         });
     }
 

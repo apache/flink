@@ -192,7 +192,7 @@ class ZooKeeperExecutionPlansStoreITCase {
 
             for (JobID jobId : actual) {
                 ExecutionPlan executionPlan = executionPlans.recoverExecutionPlan(jobId);
-                assertThat(expected).containsKey(executionPlan.getJobID());
+                assertThat(executionPlan.getJobID()).isIn(expected.keySet());
 
                 verifyExecutionPlans(expected.get(executionPlan.getJobID()), executionPlan);
 

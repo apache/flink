@@ -178,7 +178,7 @@ class ZooKeeperApplicationStoreITCase {
                 Optional<ApplicationStoreEntry> applicationStoreEntry =
                         applicationStore.recoverApplication(applicationId);
                 assertThat(applicationStoreEntry).isPresent();
-                assertThat(expected).containsKey(applicationStoreEntry.get().getApplicationId());
+                assertThat(applicationStoreEntry.get().getApplicationId()).isIn(expected.keySet());
 
                 verifyApplicationStoreEntries(
                         expected.get(applicationStoreEntry.get().getApplicationId()),
