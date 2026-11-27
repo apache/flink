@@ -576,7 +576,8 @@ public class RecordTest {
                 final Value retrieved = rec.getField(pos, new IntValue());
                 assertThat(retrieved).isNull();
             } else {
-                final Value retrieved = rec.getField(pos, e.getClass().newInstance());
+                final Value retrieved =
+                        rec.getField(pos, e.getClass().getDeclaredConstructor().newInstance());
                 assertThat(retrieved).isEqualTo(e);
             }
         }
@@ -589,7 +590,7 @@ public class RecordTest {
             if (e == null) {
                 assertThat(rec.getFieldInto(pos, new IntValue())).isFalse();
             } else {
-                final Value retrieved = e.getClass().newInstance();
+                final Value retrieved = e.getClass().getDeclaredConstructor().newInstance();
                 assertThat(rec.getFieldInto(pos, retrieved)).isTrue();
                 assertThat(e).isEqualTo(retrieved);
             }

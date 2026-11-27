@@ -45,7 +45,8 @@ public final class DeserializationUtils {
 
         while (!records.isEmpty()) {
             SerializationTestType expected = records.poll();
-            SerializationTestType actual = expected.getClass().newInstance();
+            SerializationTestType actual =
+                    expected.getClass().getDeclaredConstructor().newInstance();
 
             final DeserializationResult result = deserializer.getNextRecord(actual);
             if (result.isFullRecord()) {
