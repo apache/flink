@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex._
 
@@ -215,12 +216,12 @@ object NestedProjectionUtil {
     exprs.add(condition)
     val leftFieldCount = leftRowType.getFieldCount
     // 1. Build the used-field tree over the whole join output. Top-level columns that no
-    //    expression uses are added as whole columns, so that they pass through unchanged.
-    val usedIndices = build(exprs, joinRowType).columns.values().map(_.indexInOriginSchema).toSet
+    //    expression reads are added as whole columns first, so that they pass through unchanged.
+    val usedIndices = RelOptUtil.InputFinder.bits(exprs, null)
     val allColumns = new JArrayList[RexNode](exprs)
     joinRowType.getFieldList.foreach {
       field =>
-        if (!usedIndices.contains(field.getIndex)) {
+        if (!usedIndices.get(field.getIndex)) {
           allColumns.add(rexBuilder.makeInputRef(field.getType, field.getIndex))
         }
     }
@@ -375,14 +376,10 @@ object NestedProjectionUtil {
       sideProjects: JList[RexNode],
       nullable: Boolean,
       typeFactory: RelDataTypeFactory): JList[RelDataType] = {
-    val types = sideProjects.map(_.getType).toList.asJava
-    if (!nullable) {
-      types
-    } else {
-      val names = types.indices.map("f" + _).toList.asJava
-      val struct = typeFactory.createStructType(types, names)
-      typeFactory.createTypeWithNullability(struct, true).getFieldList.map(_.getType).toList.asJava
-    }
+    sideProjects
+      .map(p => if (nullable) typeFactory.createTypeWithNullability(p.getType, true) else p.getType)
+      .toList
+      .asJava
   }
 
   /**

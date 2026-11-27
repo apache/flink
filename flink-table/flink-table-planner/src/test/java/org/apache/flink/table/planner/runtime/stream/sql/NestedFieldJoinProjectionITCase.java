@@ -27,7 +27,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -208,9 +207,8 @@ class NestedFieldJoinProjectionITCase extends StreamingTestBase {
                         .lines()
                         .filter(line -> line.contains("Join("))
                         .collect(Collectors.joining("\n"));
-        assertThat(joins).isNotEmpty();
-        for (String struct : structs) {
-            assertThat(Pattern.compile("\\b" + struct + "\\b").matcher(joins).find()).isFalse();
-        }
+        assertThat(joins)
+                .isNotEmpty()
+                .doesNotContainPattern("\\b(" + String.join("|", structs) + ")\\b");
     }
 }

@@ -82,7 +82,7 @@ class NestedProjectionUtilJoinTest {
                 .containsExactly("$0", "$1.a", "$1.b", "$2", "$3.d");
         assertThat(strings(result.rightProjects())).containsExactly("$0", "$1.f");
         assertThat(strings(result.rewrittenProjects())).containsExactly("$4", "$1", "$2", "$6");
-        assertThat(result.rewrittenCondition().toString()).isEqualTo("=($0, $5)");
+        assertThat(result.rewrittenCondition()).hasToString("=($0, $5)");
     }
 
     @Test
@@ -108,7 +108,7 @@ class NestedProjectionUtilJoinTest {
         assertThat(strings(result.leftProjects())).containsExactly("$0", "$1.name");
         assertThat(strings(result.rightProjects())).containsExactly("$0", "$1.name");
         assertThat(strings(result.rewrittenProjects())).containsExactly("$1", "$3");
-        assertThat(result.rewrittenCondition().toString()).isEqualTo("=($0, $2)");
+        assertThat(result.rewrittenCondition()).hasToString("=($0, $2)");
     }
 
     @Test
@@ -141,7 +141,7 @@ class NestedProjectionUtilJoinTest {
         assertThat(strings(result.leftProjects()))
                 .containsExactly("$0", "$1.a.b.c", "$1.a.y", "$1.z");
         assertThat(strings(result.rewrittenProjects())).containsExactly("$1", "$3", "$2");
-        assertThat(result.rewrittenCondition().toString()).isEqualTo("=($0, $4)");
+        assertThat(result.rewrittenCondition()).hasToString("=($0, $4)");
     }
 
     @Test
@@ -162,7 +162,7 @@ class NestedProjectionUtilJoinTest {
         assertThat(strings(result.leftProjects())).containsExactly("$0.x");
         assertThat(strings(result.rightProjects())).containsExactly("$0", "$1");
         assertThat(strings(result.rewrittenProjects())).containsExactly("$0");
-        assertThat(result.rewrittenCondition().toString()).isEqualTo("true");
+        assertThat(result.rewrittenCondition()).hasToString("true");
     }
 
     @Test
@@ -289,7 +289,7 @@ class NestedProjectionUtilJoinTest {
 
         // the condition reads the plain inputs
         final RexCall rewrittenCond = (RexCall) result.rewrittenCondition();
-        assertThat(rewrittenCond.toString()).isEqualTo("=($1, $3)");
+        assertThat(rewrittenCond).hasToString("=($1, $3)");
         assertThat(rewrittenCond.getOperands().get(0).getType())
                 .as("left condition operand type")
                 .isEqualTo(leftCond.getType());
@@ -319,6 +319,41 @@ class NestedProjectionUtilJoinTest {
                 .isEqualTo(nullsOnRight);
     }
 
+    @Test
+    void testStructLeafUnderOuterJoinIsNullableInAllFields() {
+        // An outer join also makes the fields of a ROW nullable that is read whole. The pushed
+        // column keeps its declared type, and the project above the join gets the widened type.
+        final RelDataType left = row("id", intType());
+        final RelDataType right =
+                row(
+                        "id2",
+                        intType(),
+                        "t",
+                        row("addr", row("zip", intType(), "st", stringType()), "other", intType()));
+        final RelDataType join =
+                SqlValidatorUtil.deriveJoinRowType(
+                        left, right, JoinRelType.LEFT, typeFactory, null, List.of());
+
+        final RexNode addr = access(join, 2, "addr");
+        assertThat(addr.getType().getFieldList().get(0).getType().isNullable()).isTrue();
+
+        final JoinNestedProjectionResult result =
+                NestedProjectionUtil.rewriteForJoin(
+                        List.of(addr),
+                        equals(ref(left, 0), ref(right, 0)),
+                        join,
+                        left,
+                        right,
+                        false,
+                        true,
+                        rexBuilder);
+
+        assertThat(strings(result.rightProjects())).containsExactly("$0", "$1.addr");
+        assertThat(result.rightProjects().get(1).getType().getFieldList().get(0).getType())
+                .satisfies(zip -> assertThat(zip.isNullable()).isFalse());
+        assertThat(result.rewrittenProjects().get(0).getType()).isEqualTo(addr.getType());
+    }
+
     private static Stream<JoinRelType> supportedJoinTypes() {
         return Stream.of(JoinRelType.INNER, JoinRelType.LEFT, JoinRelType.RIGHT, JoinRelType.FULL);
     }
@@ -344,8 +379,7 @@ class NestedProjectionUtilJoinTest {
         assertThat(strings(result.leftProjects())).containsExactly("$0", "$1.a", "$1.b");
         assertThat(strings(result.rightProjects())).containsExactly("$0", "$1.f");
         assertThat(strings(result.rewrittenProjects())).containsExactly("+($1, $4)");
-        assertThat(result.rewrittenCondition().toString())
-                .isEqualTo("AND(=($0, $3), >($2, +($1, $4)))");
+        assertThat(result.rewrittenCondition()).hasToString("AND(=($0, $3), >($2, +($1, $4)))");
     }
 
     @Test
@@ -369,7 +403,7 @@ class NestedProjectionUtilJoinTest {
         assertThat(strings(result.rightProjects())).containsExactly("$0", "$1.f");
         assertThat(strings(result.rewrittenProjects()))
                 .containsExactly("CAST($1):BIGINT NOT NULL", "UPPER($2)");
-        assertThat(result.rewrittenCondition().toString()).isEqualTo(">($4, $0)");
+        assertThat(result.rewrittenCondition()).hasToString(">($4, $0)");
     }
 
     // ------------------------------------------------------------------------------------------
