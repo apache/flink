@@ -26,6 +26,8 @@ import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestTemplate;
@@ -59,16 +61,16 @@ class UsingRemoteJarITCase extends HdfsITCaseBase {
             createDebeziumDeserializationSchema(USER_ORDER_SCHEMA);
 
     private TestInfo testInfo;
-    private org.apache.hadoop.fs.Path hdPath;
-    private org.apache.hadoop.fs.FileSystem hdfs;
+    private static org.apache.hadoop.fs.Path hdPath;
+    private static org.apache.hadoop.fs.FileSystem hdfs;
 
     @BeforeEach
     void captureTestInfo(TestInfo testInfo) {
         this.testInfo = testInfo;
     }
 
-    @Override
-    void createHDFS() {
+    @BeforeAll
+    static void uploadJar() {
         hdPath = new org.apache.hadoop.fs.Path("/" + UUID.randomUUID() + "/test.jar");
         try {
             hdfs = hdPath.getFileSystem(hdConf);
@@ -80,8 +82,11 @@ class UsingRemoteJarITCase extends HdfsITCaseBase {
         }
     }
 
-    @Override
-    void destroyHDFS() {
+    @AfterAll
+    static void deleteJar() {
+        if (hdfs == null) {
+            return;
+        }
         try {
             hdfs.delete(hdPath.getParent(), true);
         } catch (IOException e) {

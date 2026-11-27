@@ -469,13 +469,13 @@ public class ExecutorImpl implements Executor {
     }
 
     private FetchResultsResponseBody fetchUtilResultsReady(OperationHandle operationHandle) {
-        FetchResultsResponseBody response;
+        FetchResultsResponseBody response = null;
         do {
             response =
                     getFetchResultResponse(
                             operationHandle,
                             0L,
-                            true,
+                            response != null,
                             e -> {
                                 // CliClient will not close the results. Try best to close it.
                                 closeOperationAsync(operationHandle);

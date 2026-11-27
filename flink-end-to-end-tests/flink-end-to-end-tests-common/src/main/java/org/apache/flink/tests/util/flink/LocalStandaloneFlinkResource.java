@@ -64,6 +64,8 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     private final FlinkResourceSetup setup;
 
     private FlinkDistribution distribution;
+    private boolean clusterRunning;
+    private boolean sqlGatewayRunning;
 
     LocalStandaloneFlinkResource(
             Path distributionDirectory,
@@ -112,10 +114,24 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
     private void shutdownCluster() {
         try {
-            distribution.stopFlinkCluster();
-            distribution.stopSqlGateway();
+            stopFlinkCluster();
+            stopSqlGateway();
         } catch (IOException e) {
             LOG.warn("Error while shutting down Flink cluster.", e);
+        }
+    }
+
+    private void stopFlinkCluster() throws IOException {
+        if (clusterRunning) {
+            distribution.stopFlinkCluster();
+            clusterRunning = false;
+        }
+    }
+
+    private void stopSqlGateway() throws IOException {
+        if (sqlGatewayRunning) {
+            distribution.stopSqlGateway();
+            sqlGatewayRunning = false;
         }
     }
 
@@ -135,6 +151,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     @Override
     public ClusterController startCluster(int numTaskManagers) throws IOException {
         distribution.setTaskExecutorHosts(Collections.nCopies(numTaskManagers, "localhost"));
+        clusterRunning = true;
         distribution.startFlinkCluster();
 
         try (final RestClient restClient =
@@ -186,6 +203,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
     @Override
     public GatewayController startSqlGateway() throws IOException {
+        sqlGatewayRunning = true;
         distribution.startSqlGateway();
 
         return new GatewayClusterControllerImpl(distribution);
@@ -197,7 +215,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         return distribution.searchAllLogs(pattern, matchProcessor);
     }
 
-    private static class GatewayClusterControllerImpl implements GatewayController {
+    private class GatewayClusterControllerImpl implements GatewayController {
 
         private final FlinkDistribution distribution;
 
@@ -208,7 +226,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         @Override
         public CompletableFuture<Void> closeAsync() {
             try {
-                distribution.stopSqlGateway();
+                stopSqlGateway();
                 return CompletableFuture.completedFuture(null);
             } catch (IOException e) {
                 return FutureUtils.completedExceptionally(e);
@@ -221,7 +239,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         }
     }
 
-    private static class StandaloneClusterController implements ClusterController {
+    private class StandaloneClusterController implements ClusterController {
 
         private final FlinkDistribution distribution;
 
@@ -244,7 +262,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         @Override
         public CompletableFuture<Void> closeAsync() {
             try {
-                distribution.stopFlinkCluster();
+                stopFlinkCluster();
                 return CompletableFuture.completedFuture(null);
             } catch (IOException e) {
                 return FutureUtils.completedExceptionally(e);
