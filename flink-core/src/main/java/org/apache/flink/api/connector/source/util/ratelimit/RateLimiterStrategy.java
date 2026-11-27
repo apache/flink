@@ -79,9 +79,10 @@ public interface RateLimiterStrategy<SplitT extends SourceSplit> extends Seriali
      * limit can subsequently be updated at runtime, e.g. by a coordinator that broadcasts a new
      * target rate (see {@link SupportsDynamicRateLimit}).
      *
-     * @param initialRecordsPerSecond The initial number of records produced per second. As with
-     *     {@link #perSecond(double)}, the actual number of produced records is subject to rounding
-     *     due to dividing the number of produced records among the parallel instances.
+     * @param initialRecordsPerSecond The initial number of records produced per second. The value
+     *     is capped by {@code source.dynamic-rate-limit.max-records-per-second}. As with {@link
+     *     #perSecond(double)}, the actual number of produced records is subject to rounding due to
+     *     dividing the number of produced records among the parallel instances.
      */
     static RateLimiterStrategy dynamic(double initialRecordsPerSecond) {
         return parallelism -> new GuavaDynamicRateLimiter<>(initialRecordsPerSecond / parallelism);

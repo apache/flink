@@ -34,4 +34,12 @@ public interface SupportsDynamicRateLimit {
      * @param recordsPerSecond The new target number of records per second for this subtask.
      */
     void updateTargetRate(double recordsPerSecond);
+
+    /**
+     * Returns the rate currently applied to this reader's subtask, or {@link Double#NaN} if it is
+     * unknown.
+     */
+    default double getTargetRate() {
+        return Double.NaN;
+    }
 }

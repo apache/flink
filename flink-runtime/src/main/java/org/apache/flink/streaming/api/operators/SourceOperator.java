@@ -533,6 +533,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
             lastDynamicRate = restoredDynamicRate;
             ((SupportsDynamicRateLimit) sourceReader).updateTargetRate(restoredDynamicRate);
+        } else if (isDynamicRateLimitActive()) {
+            capInitialDynamicRate();
         }
 
         // Register the reader to the coordinator.
@@ -798,7 +800,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                                     getRuntimeContext()
                                             .getTaskInfo()
                                             .getNumberOfParallelSubtasks()),
-                            dynamicRateLimitParams.getMaxRecordsPerSecond());
+                            maxRatePerSubtask());
         }
         if (waitingForCheckpoint && !context.isRestored()) {
             LOG.debug("Not a recovery, won't wait for the checkpoint to emit records");
@@ -909,6 +911,35 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return Double.NaN;
         }
         return Math.min(restoredRate, maxRecordsPerSecond);
+    }
+
+    private double maxRatePerSubtask() {
+        return dynamicRateLimitParams.getMaxRecordsPerSecond()
+                / getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+    }
+
+    /**
+     * The initial rate comes from the rate limiter strategy, which knows nothing about the
+     * configured maximum, so it is capped here until the coordinator sends the first rate.
+     */
+    private void capInitialDynamicRate() {
+        final SupportsDynamicRateLimit reader = (SupportsDynamicRateLimit) sourceReader;
+        final double cap = maxRatePerSubtask();
+        final double initial = reader.getTargetRate();
+        if (exceedsCap(initial, cap)) {
+            LOG.info(
+                    "Capping initial dynamic rate limit of {} records/s to {} records/s for subtask {}.",
+                    initial,
+                    cap,
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
+            lastDynamicRate = cap;
+            reader.updateTargetRate(cap);
+        }
+    }
+
+    @VisibleForTesting
+    static boolean exceedsCap(double rate, double cap) {
+        return Double.isFinite(rate) && rate > cap;
     }
 
     private boolean isDynamicRateLimitActive() {

@@ -27,7 +27,8 @@ import java.util.List;
  * of recent checkpoint durations, compared against fractions of the checkpoint interval. Below
  * {@code min} nothing is adjusted and above {@code max} the rate is throttled down immediately.
  * Within that band the average duration of the window is compared against {@code target}: above it
- * the rate is throttled down, otherwise it is ramped up toward the configured maximum.
+ * the rate is throttled down, otherwise it is ramped up. The result is always clamped to the
+ * configured maximum.
  *
  * <p>If the checkpoint interval is unknown, the fractions cannot be resolved and the average
  * duration of the more recent half of the window is compared against the older half instead: a
@@ -64,7 +65,7 @@ public class CheckpointDurationRateLimitCalculator implements RateLimitCalculato
             long checkpointIntervalMillis,
             DynamicRateLimitParams params) {
         if (recentDurationsMillis.isEmpty()) {
-            return currentThroughput;
+            return clamp(currentThroughput, params);
         }
 
         final boolean shouldThrottle;
@@ -72,7 +73,7 @@ public class CheckpointDurationRateLimitCalculator implements RateLimitCalculato
             final long latestDurationMillis =
                     recentDurationsMillis.get(recentDurationsMillis.size() - 1);
             if (latestDurationMillis < params.getMinDurationFraction() * checkpointIntervalMillis) {
-                return currentThroughput;
+                return clamp(currentThroughput, params);
             }
             shouldThrottle =
                     latestDurationMillis
@@ -82,22 +83,21 @@ public class CheckpointDurationRateLimitCalculator implements RateLimitCalculato
         } else {
             if (recentDurationsMillis.size() < 2) {
                 // not enough data points to establish a trend
-                return currentThroughput;
+                return clamp(currentThroughput, params);
             }
             shouldThrottle = computeTrend(recentDurationsMillis) > 0;
         }
 
-        final double newRate;
-        if (shouldThrottle) {
-            newRate = currentThroughput * params.getThrottleDownFactor();
-        } else {
-            // ramp up from the observed throughput, capped at the configured max
-            newRate =
-                    Math.min(
-                            currentThroughput * params.getRampUpFactor(),
-                            params.getMaxRecordsPerSecond());
-        }
-        return Math.max(newRate, MIN_RATE);
+        return clamp(
+                currentThroughput
+                        * (shouldThrottle
+                                ? params.getThrottleDownFactor()
+                                : params.getRampUpFactor()),
+                params);
+    }
+
+    private static double clamp(double rate, DynamicRateLimitParams params) {
+        return Math.min(Math.max(rate, MIN_RATE), params.getMaxRecordsPerSecond());
     }
 
     private boolean hasKnownInterval(long checkpointIntervalMillis) {

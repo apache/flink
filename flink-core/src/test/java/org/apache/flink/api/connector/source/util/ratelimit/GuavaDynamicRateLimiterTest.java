@@ -60,4 +60,13 @@ class GuavaDynamicRateLimiterTest {
         // effectively unlimited rate it should complete almost instantly.
         assertThat(elapsedMillis).isLessThan(1000);
     }
+
+    @Test
+    void testGetRateReflectsUpdates() {
+        GuavaDynamicRateLimiter<MockSourceSplit> limiter = new GuavaDynamicRateLimiter<>(10.0);
+        assertThat(limiter.getRate()).isEqualTo(10.0);
+
+        limiter.updateRate(25.0);
+        assertThat(limiter.getRate()).isEqualTo(25.0);
+    }
 }

@@ -123,6 +123,23 @@ class CheckpointDurationRateLimitCalculatorTest {
     }
 
     @Test
+    void testThrottleDownIsCappedAtConfiguredMax() {
+        // 4000 * 0.5 = 2000 is still above the max
+        assertThat(compute(Arrays.asList(600L, 600L), 4000.0, CHECKPOINT_INTERVAL_MS))
+                .isEqualTo(MAX_RECORDS_PER_SECOND);
+    }
+
+    @Test
+    void testUnchangedRateIsCappedAtConfiguredMax() {
+        assertThat(compute(Arrays.asList(10L, 10L), 4000.0, CHECKPOINT_INTERVAL_MS))
+                .isEqualTo(MAX_RECORDS_PER_SECOND);
+        assertThat(compute(Collections.emptyList(), 4000.0, CHECKPOINT_INTERVAL_MS))
+                .isEqualTo(MAX_RECORDS_PER_SECOND);
+        assertThat(compute(Collections.singletonList(100L), 4000.0, UNKNOWN_INTERVAL_MS))
+                .isEqualTo(MAX_RECORDS_PER_SECOND);
+    }
+
+    @Test
     void testResultNeverGoesBelowMinimumRate() {
         assertThat(compute(Arrays.asList(100L, 500L), 0.0, CHECKPOINT_INTERVAL_MS))
                 .isCloseTo(1.0, within(1e-9));

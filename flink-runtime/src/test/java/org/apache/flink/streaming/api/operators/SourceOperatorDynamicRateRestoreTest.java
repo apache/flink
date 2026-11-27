@@ -95,6 +95,14 @@ class SourceOperatorDynamicRateRestoreTest {
     }
 
     @Test
+    void testInitialRateAboveTheCapIsDetected() {
+        assertThat(SourceOperator.exceedsCap(500.0, 100.0)).isTrue();
+        assertThat(SourceOperator.exceedsCap(100.0, 100.0)).isFalse();
+        assertThat(SourceOperator.exceedsCap(50.0, 100.0)).isFalse();
+        assertThat(SourceOperator.exceedsCap(Double.NaN, 100.0)).isFalse();
+    }
+
+    @Test
     void testUnusableRestoredRateIsDropped() {
         assertThat(SourceOperator.clampRestoredRate(Double.NaN, 100.0)).isNaN();
         assertThat(SourceOperator.clampRestoredRate(0.0, 100.0)).isNaN();

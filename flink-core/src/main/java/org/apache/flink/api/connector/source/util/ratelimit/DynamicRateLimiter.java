@@ -36,4 +36,9 @@ public interface DynamicRateLimiter<SplitT extends SourceSplit> extends RateLimi
      * @param recordsPerSecond The new target number of records per second for this subtask.
      */
     void updateRate(double recordsPerSecond);
+
+    /** Returns the rate currently applied by this limiter, or {@link Double#NaN} if unknown. */
+    default double getRate() {
+        return Double.NaN;
+    }
 }

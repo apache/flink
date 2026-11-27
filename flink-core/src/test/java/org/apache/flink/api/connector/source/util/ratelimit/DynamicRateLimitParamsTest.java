@@ -91,6 +91,33 @@ class DynamicRateLimitParamsTest {
     }
 
     @Test
+    void testRampUpFactorBelowOneFails() {
+        Configuration config = new Configuration();
+        config.set(SourceOptions.SOURCE_DYNAMIC_RATE_LIMIT_ENABLED, true);
+        config.set(SourceOptions.SOURCE_DYNAMIC_RATE_LIMIT_RAMP_UP_FACTOR, 0.3);
+
+        assertThatThrownBy(() -> DynamicRateLimitParams.fromConfiguration(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ramp-up factor");
+    }
+
+    @Test
+    void testThrottleDownFactorOutsideZeroToOneFails() {
+        Configuration config = new Configuration();
+        config.set(SourceOptions.SOURCE_DYNAMIC_RATE_LIMIT_ENABLED, true);
+
+        config.set(SourceOptions.SOURCE_DYNAMIC_RATE_LIMIT_THROTTLE_DOWN_FACTOR, 0.0);
+        assertThatThrownBy(() -> DynamicRateLimitParams.fromConfiguration(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("throttle-down factor");
+
+        config.set(SourceOptions.SOURCE_DYNAMIC_RATE_LIMIT_THROTTLE_DOWN_FACTOR, 1.5);
+        assertThatThrownBy(() -> DynamicRateLimitParams.fromConfiguration(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("throttle-down factor");
+    }
+
+    @Test
     void testTargetOutsideMinMaxBandFails() {
         Configuration config = new Configuration();
         config.set(SourceOptions.SOURCE_DYNAMIC_RATE_LIMIT_ENABLED, true);

@@ -51,6 +51,11 @@ public class GuavaDynamicRateLimiter<SplitT extends SourceSplit>
     }
 
     @Override
+    public double getRate() {
+        return rateLimiter.getRate();
+    }
+
+    @Override
     public void updateRate(double recordsPerSecond) {
         rateLimiter.setRate(recordsPerSecond);
     }

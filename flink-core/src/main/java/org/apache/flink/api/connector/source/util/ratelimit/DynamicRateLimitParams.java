@@ -106,6 +106,12 @@ public final class DynamicRateLimitParams implements Serializable {
         this.enabled = enabled;
         this.rollingWindowSize = rollingWindowSize;
         this.maxRecordsPerSecond = maxRecordsPerSecond;
+        Preconditions.checkArgument(
+                throttleDownFactor > 0 && throttleDownFactor <= 1.0,
+                "Expected throttle-down factor in (0, 1] but was %s",
+                throttleDownFactor);
+        Preconditions.checkArgument(
+                rampUpFactor >= 1.0, "Expected ramp-up factor >= 1.0 but was %s", rampUpFactor);
         this.throttleDownFactor = throttleDownFactor;
         this.rampUpFactor = rampUpFactor;
         Preconditions.checkArgument(

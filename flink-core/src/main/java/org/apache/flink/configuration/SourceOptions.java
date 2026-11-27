@@ -52,8 +52,9 @@ public class SourceOptions {
                     .doubleType()
                     .defaultValue(Double.MAX_VALUE)
                     .withDescription(
-                            "The ceiling (records per second, across all subtasks) that the "
-                                    + "dynamic rate limit is allowed to ramp back up to.");
+                            "The upper bound (records per second, across all subtasks) of the "
+                                    + "dynamic rate limit. The computed target rate never "
+                                    + "exceeds it.");
 
     public static final ConfigOption<Double> SOURCE_DYNAMIC_RATE_LIMIT_THROTTLE_DOWN_FACTOR =
             key("source.dynamic-rate-limit.throttle-down-factor")
@@ -62,17 +63,17 @@ public class SourceOptions {
                     .withDescription(
                             "The factor the current target rate is multiplied by when checkpoint "
                                     + "durations are trending up beyond the configured threshold, "
-                                    + "e.g. 0.8 cuts the rate by 20%.");
+                                    + "e.g. 0.8 cuts the rate by 20%. Must be in (0, 1].");
 
     public static final ConfigOption<Double> SOURCE_DYNAMIC_RATE_LIMIT_RAMP_UP_FACTOR =
             key("source.dynamic-rate-limit.ramp-up-factor")
                     .doubleType()
-                    .defaultValue(0.3)
+                    .defaultValue(1.3)
                     .withDescription(
                             "The factor the current target rate is multiplied by when checkpoint "
                                     + "durations are flat or improving, capped at "
                                     + SOURCE_DYNAMIC_RATE_LIMIT_MAX_RECORDS_PER_SECOND.key()
-                                    + ", e.g. 1.1 raises the rate by 30%.");
+                                    + ", e.g. 1.3 raises the rate by 30%. Must be >= 1.0.");
 
     public static final ConfigOption<Double> SOURCE_DYNAMIC_RATE_LIMIT_MIN =
             key("source.dynamic-rate-limit.min")

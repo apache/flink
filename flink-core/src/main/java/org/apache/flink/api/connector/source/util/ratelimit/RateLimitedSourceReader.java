@@ -134,6 +134,13 @@ public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
     }
 
     @Override
+    public double getTargetRate() {
+        return rateLimiter instanceof DynamicRateLimiter
+                ? ((DynamicRateLimiter<SplitT>) rateLimiter).getRate()
+                : Double.NaN;
+    }
+
+    @Override
     public void updateTargetRate(double recordsPerSecond) {
         if (rateLimiter instanceof DynamicRateLimiter) {
             ((DynamicRateLimiter<SplitT>) rateLimiter).updateRate(recordsPerSecond);
