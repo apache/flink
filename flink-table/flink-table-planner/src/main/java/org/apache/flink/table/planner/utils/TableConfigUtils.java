@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.AggregatePhaseStrategy;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableConfigValidation;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -100,8 +99,8 @@ public class TableConfigUtils {
     }
 
     @Deprecated
-    public static long getMaxIdleStateRetentionTime(ReadableConfig tableConfig) {
-        return tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis() * 3 / 2;
+    public static long getMaxIdleStateRetentionTime(long stateRetentionTime) {
+        return stateRetentionTime * 3 / 2;
     }
 
     // Make sure that we cannot instantiate this class

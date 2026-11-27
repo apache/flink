@@ -178,6 +178,7 @@ SELECT * FROM upsert_kafka;
 
 {{< hint info >}}
 由于基于窗口的操作（例如[窗口连接]({{< ref "docs/sql/reference/queries/window-join" >}})、[窗口聚合]({{< ref "docs/sql/reference/queries/window-agg" >}})、[窗口 Top-N]({{< ref "docs/sql/reference/queries/window-topn" >}}) 等）和 [Interval Join]({{< ref "docs/sql/reference/queries/joins" >}}#interval-joins) 不依赖于 `table.exec.state.ttl` 来控制状态保留，因此它们的状态无法在算子级别进行配置。
+[MATCH_RECOGNIZE]({{< ref "docs/sql/reference/queries/match_recognize" >}}) 和基于有界 `RANGE` 间隔的 [Over 聚合]({{< ref "docs/sql/reference/queries/over-agg" >}}) 同样如此，其中 MATCH_RECOGNIZE 的状态只能通过 `WITHIN` 子句来限制。
 {{< /hint >}}
 
 **生成 Compiled Plan**
@@ -195,6 +196,7 @@ FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
 
 每个状态算子会显式地生成一个名为 "state" 的 JSON 数组，具有如下结构。
 理论上一个拥有 k 路输入的状态算子拥有 k 个状态。
+[Temporal Join]({{< ref "docs/sql/reference/queries/joins" >}}#temporal-joins) 是一个例外：同一个连接键的状态会整体过期，因此它的两路输入只有一个状态。
 ```json
 "state": [
     {

@@ -194,6 +194,7 @@ Now you can set different state TTL for deduplicate state and aggregate state.
 
 {{< hint info >}}
 Window-based operations (like [Window Join]({{< ref "docs/sql/reference/queries/window-join" >}}), [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), [Window Top-N]({{< ref "docs/sql/reference/queries/window-topn" >}}) *etc.*) and [Interval Joins]({{< ref "docs/sql/reference/queries/joins" >}}#interval-joins) do not rely on `table.exec.state.ttl` to control the state retention, and their state TTLs cannot be configured at operator-level.
+The same applies to [MATCH_RECOGNIZE]({{< ref "docs/sql/reference/queries/match_recognize" >}}#time-constraint), whose state can only be bounded with the `WITHIN` clause, and to [OVER aggregations]({{< ref "docs/sql/reference/queries/over-agg" >}}#range-intervals) over a bounded `RANGE` interval.
 
 {{< /hint >}}
 
@@ -212,6 +213,7 @@ FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
 
 Every operator that uses state will explicitly generate a JSON array named "state" with the following structure. 
 Theoretically, A k-th input stream operator will have k-th state.
+A [temporal join]({{< ref "docs/sql/reference/queries/joins" >}}#temporal-joins) is the exception: its state for a join key expires as a whole, so it has one entry for both inputs.
 ```json
 "state": [
     {

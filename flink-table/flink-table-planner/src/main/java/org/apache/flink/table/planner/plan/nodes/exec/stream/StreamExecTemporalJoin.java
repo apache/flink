@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
@@ -55,7 +56,10 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -85,6 +89,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX = "rightTimeAttributeIndex";
     public static final int FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE = -1;
 
+    public static final String STATE_NAME = "temporalJoinState";
+
     @JsonProperty(FIELD_NAME_JOIN_SPEC)
     private final JoinSpec joinSpec;
 
@@ -96,6 +102,15 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX)
     private final int rightTimeAttributeIndex;
+
+    /**
+     * A single entry although the operator has two inputs: it keeps one cleanup timer per join key
+     * that records from both inputs refresh, so the two sides cannot expire separately.
+     */
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
 
     public StreamExecTemporalJoin(
             ReadableConfig tableConfig,
@@ -117,7 +132,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 rightTimeAttributeIndex,
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
-                description);
+                description,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME));
     }
 
     @JsonCreator
@@ -131,7 +147,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX) int rightTimeAttributeIndex,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         Preconditions.checkArgument(inputProperties.size() == 2);
         Preconditions.checkArgument(
@@ -141,6 +158,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         this.isTemporalFunctionJoin = isTemporalTableFunctionJoin;
         this.leftTimeAttributeIndex = leftTimeAttributeIndex;
         this.rightTimeAttributeIndex = rightTimeAttributeIndex;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @Override
@@ -262,8 +280,10 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             GeneratedJoinCondition generatedJoinCondition) {
 
         boolean isLeftOuterJoin = joinSpec.getJoinType() == FlinkJoinType.LEFT;
-        long minRetentionTime = config.getStateRetentionTime();
-        long maxRetentionTime = TableConfigUtils.getMaxIdleStateRetentionTime(config);
+        final long minRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
+        final long maxRetentionTime =
+                TableConfigUtils.getMaxIdleStateRetentionTime(minRetentionTime);
         if (rightTimeAttributeIndex >= 0) {
             return new TemporalRowTimeJoinOperator(
                     InternalTypeInfo.of(leftInputType),

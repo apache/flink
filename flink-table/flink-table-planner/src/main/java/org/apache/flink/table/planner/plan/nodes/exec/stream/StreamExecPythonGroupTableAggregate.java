@@ -142,7 +142,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos,
                         dataViewSpecs,
                         config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(
+                                config.getStateRetentionTime()),
                         generateUpdateBefore,
                         inputCountIndex);
 
