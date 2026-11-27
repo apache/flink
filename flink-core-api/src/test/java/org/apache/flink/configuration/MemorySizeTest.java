@@ -255,4 +255,15 @@ class MemorySizeTest {
         assertThat(new MemorySize(1_000_000_000_000_000L).toHumanReadableString())
                 .isEqualTo("909.495tb (1000000000000000 bytes)");
     }
+
+    @Test
+    void testOfMebiBytesRange() {
+        final long maxMebiBytes = Long.MAX_VALUE / MEGA_BYTES.getMultiplier();
+        assertThat(MemorySize.ofMebiBytes(maxMebiBytes).getBytes())
+                .isEqualTo(maxMebiBytes * MEGA_BYTES.getMultiplier());
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> MemorySize.ofMebiBytes(1L << 44));
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> MemorySize.ofMebiBytes(Long.MIN_VALUE));
+    }
 }
