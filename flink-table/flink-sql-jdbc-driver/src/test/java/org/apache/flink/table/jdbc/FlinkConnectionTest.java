@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,6 +67,52 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
 
             assertEquals("test_catalog", connection.getCatalog());
             assertEquals("test_database", connection.getSchema());
+        }
+    }
+
+    @Test
+    public void testSetCatalogWithQuotedName() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            Executor executor = connection.getExecutor();
+            StatementResult result =
+                    executor.executeStatement(
+                            "CREATE CATALOG `my catalog` WITH ('type'='generic_in_memory');");
+            assertTrue(result.hasNext());
+            assertEquals("OK", result.next().getString(0).toString());
+
+            connection.setCatalog("my catalog");
+            assertEquals("my catalog", connection.getCatalog());
+        }
+    }
+
+    @Test
+    public void testSetClientInfoValueWithQuote() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            connection.setClientInfo("pipeline.name", "it's a job");
+            assertEquals("it's a job", connection.getClientInfo("pipeline.name"));
+        }
+    }
+
+    @Test
+    public void testSetClientInfoNullValue() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            assertDoesNotThrow(() -> connection.setClientInfo("pipeline.name", null));
+        }
+    }
+
+    @Test
+    public void testSetClientInfoNullName() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            assertDoesNotThrow(() -> connection.setClientInfo(null, "v"));
+        }
+    }
+
+    @Test
+    public void testSetSchemaQualifiedName() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            connection.setSchema("default_catalog.default_database");
+            assertEquals("default_catalog", connection.getCatalog());
+            assertEquals("default_database", connection.getSchema());
         }
     }
 
