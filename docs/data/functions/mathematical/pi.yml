@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: PI
+summary: Returns the value of π.
+
+syntax:
+  sql: PI()
+  java: pi()
+  python: pi()
+
+returns:
+  description: "`3.141592653589793`, the `DOUBLE` closest to π."
+  type: "`DOUBLE NOT NULL`."
+
+see_also:
+  - {name: E, ref: mathematical/e}
+  - {name: DEGREES, ref: mathematical/degrees}
+
+examples:
+  - title: The value of π
+    description: "`DEGREES` converts π radians to 180 degrees."
+    sql: |
+      SELECT PI() AS `PI()`, DEGREES(PI()) AS `DEGREES(PI())`;
+    result: |
+      | PI()              | DEGREES(PI()) |
+      |-------------------|---------------|
+      | 3.141592653589793 | 180.0         |
+
+  - title: In a formula
+    description: The circumference of a circle with radius `r`.
+    sql: |
+      SELECT r, 2 * PI() * r AS `2 * PI() * r`
+      FROM (VALUES (CAST(1 AS DOUBLE)), (CAST(0.5 AS DOUBLE))) AS t(r);
+    result: |
+      | r   | 2 * PI() * r      |
+      |-----|-------------------|
+      | 1.0 | 6.283185307179586 |
+      | 0.5 | 3.141592653589793 |

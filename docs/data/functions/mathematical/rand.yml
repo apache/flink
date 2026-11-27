@@ -1,0 +1,85 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: RAND
+summary: Returns a pseudorandom number from 0, inclusive, to 1, exclusive.
+
+syntax:
+  sql: RAND([seed])
+  java: |
+    rand()
+    rand(seed)
+  python: |
+    rand()
+    rand(seed)
+
+arguments:
+  - name: seed
+    type: TINYINT, SMALLINT, INT
+    required: false
+    description: The seed of the sequence of values.
+
+returns:
+  description: A pseudorandom `DOUBLE` from `0.0`, inclusive, to `1.0`, exclusive. Without a `seed`, or with a literal one, each row gets a new value.
+  nulls: Returns NULL if `seed` is NULL.
+  type: "`DOUBLE`, NOT NULL if `seed` is NOT NULL or omitted."
+
+notes:
+  - With a literal `seed`, the values follow a fixed sequence, the same in every run. Each parallel instance of the call starts the sequence again.
+  - With a `seed` from a column, each row gets the first value of the sequence for its seed, so rows with the same seed get the same value.
+
+see_also:
+  - {name: RAND_INTEGER, ref: mathematical/rand-integer}
+  - {name: UUID, ref: utility/uuid}
+
+examples:
+  - title: A new value in every row
+    description: Four rows get four different values, all from 0 up to 1.
+    sql: |
+      SELECT
+        COUNT(DISTINCT r) AS `COUNT(DISTINCT r)`,
+        MIN(r) >= 0 AND MAX(r) < 1 AS `MIN(r) >= 0 AND MAX(r) < 1`
+      FROM (SELECT RAND() AS r FROM (VALUES (1), (2), (3), (4)) AS t(n));
+    result: |
+      | COUNT(DISTINCT r) | MIN(r) >= 0 AND MAX(r) < 1 |
+      |-------------------|----------------------------|
+      | 4                 | TRUE                       |
+
+  - title: A literal seed
+    description: A literal seed returns the same sequence in every run.
+    sql: |
+      SELECT n, RAND(42) AS `RAND(42)`
+      FROM (VALUES (1), (2), (3)) AS t(n);
+    result: |
+      | n | RAND(42)            |
+      |---|---------------------|
+      | 1 | 0.7275636800328681  |
+      | 2 | 0.6832234717598454  |
+      | 3 | 0.30871945533265976 |
+
+  - title: A seed from a column
+    description: Rows with the same seed get the same value. A NULL seed returns NULL.
+    sql: |
+      SELECT seed, RAND(seed) AS `RAND(seed)`
+      FROM (VALUES (42), (42), (7), (CAST(NULL AS INT))) AS t(seed);
+    result: |
+      | seed | RAND(seed)         |
+      |------|--------------------|
+      | 42   | 0.7275636800328681 |
+      | 42   | 0.7275636800328681 |
+      | 7    | 0.7306990420600421 |
+      | NULL | NULL               |

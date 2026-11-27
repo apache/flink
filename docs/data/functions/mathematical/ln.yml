@@ -1,0 +1,56 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LN
+summary: Returns the natural logarithm of a number.
+
+syntax:
+  sql: LN(x)
+  java: $("x").ln()
+  python: col("x").ln
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: The logarithm of `x` to the base e. `0` returns `-Infinity`, and a negative `x` returns `NaN`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: LOG, ref: mathematical/log}
+  - {name: LOG10, ref: mathematical/log10}
+  - {name: EXP, ref: mathematical/exp}
+
+examples:
+  - title: Natural logarithms
+    description: Zero returns `-Infinity`, a negative number `NaN`, and a NULL value NULL.
+    sql: |
+      SELECT x, LN(x) AS `LN(x)`
+      FROM (VALUES (CAST(1 AS DOUBLE)), (E()), (CAST(10 AS DOUBLE)), (CAST(0 AS DOUBLE)), (CAST(-1 AS DOUBLE)), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x                 | LN(x)             |
+      |-------------------|-------------------|
+      | 1.0               | 0.0               |
+      | 2.718281828459045 | 1.0               |
+      | 10.0              | 2.302585092994046 |
+      | 0.0               | -Infinity         |
+      | -1.0              | NaN               |
+      | NULL              | NULL              |

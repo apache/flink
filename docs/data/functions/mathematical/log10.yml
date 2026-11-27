@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LOG10
+summary: Returns the base-10 logarithm of a number.
+
+syntax:
+  sql: LOG10(x)
+  java: $("x").log10()
+  python: col("x").log10
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: The logarithm of `x` to the base 10. `0` returns `-Infinity`, and a negative `x` returns `NaN`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: LOG, ref: mathematical/log}
+  - {name: LOG2, ref: mathematical/log2}
+  - {name: LN, ref: mathematical/ln}
+
+examples:
+  - title: Base-10 logarithms
+    description: Zero returns `-Infinity`, a negative number `NaN`, and a NULL value NULL.
+    sql: |
+      SELECT x, LOG10(x) AS `LOG10(x)`
+      FROM (VALUES (CAST(1000 AS DOUBLE)), (CAST(0.001 AS DOUBLE)), (CAST(2 AS DOUBLE)), (CAST(0 AS DOUBLE)), (CAST(-10 AS DOUBLE)), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x      | LOG10(x)           |
+      |--------|--------------------|
+      | 1000.0 | 3.0                |
+      | 0.001  | -3.0               |
+      | 2.0    | 0.3010299956639812 |
+      | 0.0    | -Infinity          |
+      | -10.0  | NaN                |
+      | NULL   | NULL               |
+
+  - title: Powers of ten
+    description: "`LOG10` is exact for powers of ten, while `LOG(10, x)` can miss the integer in the last digit."
+    sql: |
+      SELECT x, LOG10(x) AS `LOG10(x)`, LOG(10, x) AS `LOG(10, x)`
+      FROM (VALUES (1000), (1000000)) AS t(x);
+    result: |
+      | x       | LOG10(x) | LOG(10, x)         |
+      |---------|----------|--------------------|
+      | 1000    | 3.0      | 2.9999999999999996 |
+      | 1000000 | 6.0      | 5.999999999999999  |

@@ -1,0 +1,54 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: E
+summary: Returns the value of e, the base of the natural logarithm.
+
+syntax:
+  sql: E()
+  java: e()
+  python: e()
+
+returns:
+  description: "`2.718281828459045`, the `DOUBLE` closest to e."
+  type: "`DOUBLE NOT NULL`."
+
+see_also:
+  - {name: EXP, ref: mathematical/exp}
+  - {name: LN, ref: mathematical/ln}
+  - {name: PI, ref: mathematical/pi}
+
+examples:
+  - title: The value of e
+    description: "`LN` of e is `1.0`."
+    sql: |
+      SELECT E() AS `E()`, LN(E()) AS `LN(E())`;
+    result: |
+      | E()               | LN(E()) |
+      |-------------------|---------|
+      | 2.718281828459045 | 1.0     |
+
+  - title: In a formula
+    description: Raise e to the power `x`.
+    sql: |
+      SELECT x, POWER(E(), x) AS `POWER(E(), x)`
+      FROM (VALUES (CAST(1 AS DOUBLE)), (CAST(2 AS DOUBLE))) AS t(x);
+    result: |
+      | x   | POWER(E(), x)      |
+      |-----|--------------------|
+      | 1.0 | 2.718281828459045  |
+      | 2.0 | 7.3890560989306495 |

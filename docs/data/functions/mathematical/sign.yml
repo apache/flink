@@ -1,0 +1,80 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SIGN
+summary: Returns -1, 0 or 1 for a negative, zero or positive number.
+
+syntax:
+  sql: SIGN(x)
+  java: $("x").sign()
+  python: col("x").sign
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: "`-1` if `x` is negative, `0` if it's zero and `1` if it's positive, in the type of `x`. For a `DECIMAL`, the result shows the decimal places of `x`, such as `-1.00`. `NaN` returns `NaN`."
+  nulls: Returns NULL if `x` is NULL.
+  type: The type of `x`, NOT NULL if `x` is NOT NULL.
+
+notes:
+  - A `TINYINT` or `SMALLINT` argument fails. Cast it to `INT` first.
+
+see_also:
+  - {name: ABS, ref: mathematical/abs}
+
+examples:
+  - title: Sign of integers
+    description: A NULL value returns NULL.
+    sql: |
+      SELECT x, SIGN(x) AS `SIGN(x)`
+      FROM (VALUES (-5), (0), (7), (CAST(NULL AS INT))) AS t(x);
+    result: |
+      | x    | SIGN(x) |
+      |------|---------|
+      | -5   | -1      |
+      | 0    | 0       |
+      | 7    | 1       |
+      | NULL | NULL    |
+
+  - title: Sign of a DECIMAL
+    description: The result has the type of `x`, so its decimal places show.
+    sql: |
+      SELECT d, SIGN(d) AS `SIGN(d)`, TYPEOF(SIGN(d)) AS `TYPEOF(SIGN(d))`
+      FROM (VALUES (CAST(-5.5 AS DECIMAL(5, 2))), (CAST(0 AS DECIMAL(5, 2))), (CAST(123.45 AS DECIMAL(5, 2)))) AS t(d);
+    result: |
+      | d      | SIGN(d) | TYPEOF(SIGN(d))        |
+      |--------|---------|------------------------|
+      | -5.50  | -1.00   | DECIMAL(5, 2) NOT NULL |
+      | 0.00   | 0.00    | DECIMAL(5, 2) NOT NULL |
+      | 123.45 | 1.00    | DECIMAL(5, 2) NOT NULL |
+
+  - title: Sign of a DOUBLE
+    description: "`NaN` returns `NaN`, and an infinite value returns `1.0` or `-1.0`."
+    sql: |
+      SELECT x, SIGN(x) AS `SIGN(x)`
+      FROM (VALUES (CAST(-2.5 AS DOUBLE)), (CAST(0 AS DOUBLE)), (CAST('NaN' AS DOUBLE)), (CAST('Infinity' AS DOUBLE))) AS t(x);
+    result: |
+      | x        | SIGN(x) |
+      |----------|---------|
+      | -2.5     | -1.0    |
+      | 0.0      | 0.0     |
+      | NaN      | NaN     |
+      | Infinity | 1.0     |

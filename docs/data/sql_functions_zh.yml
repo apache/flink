@@ -108,141 +108,132 @@ logical:
     page: logical-operators
 
 arithmetic:
-  - sql: + numeric
-    table: + NUMERIC
-    description: 返回 numeric。
-  - sql: '- numeric'
-    table: '- NUMERIC'
-    description: 返回 numeric 的相反数。
-  - sql: numeric1 + numeric2
-    table: NUMERIC1 + NUMERIC2
-    description: 返回 numeric1 加 numeric2。
-  - sql: numeric1 - numeric2
-    table: NUMERIC1 - NUMERIC2
-    description: 返回 numeric1 减 numeric2。
-  - sql: numeric1 * numeric2
-    table: NUMERIC1 * NUMERIC2
-    description: 返回 numeric1 乘以 numeric2。
-  - sql: numeric1 / numeric2
-    table: NUMERIC1 / NUMERIC2
-    description: 返回 numeric1 除以 numeric2。
-  - sql: numeric1 % numeric2
-    table: MOD(NUMERIC1, NUMERIC2)
-    description: 返回 numeric1 除以 numeric2 的余数（模数）。仅当 numeric1 为负时，结果才为负。
-  - sql: POWER(numeric1, numeric2)
-    table: NUMERIC1.power(NUMERIC2)
-    description: 返回 numeric1 的 numeric2 次方。
-  - sql: ABS(numeric)
-    table: NUMERIC.abs()
-    description: 返回 numeric 的绝对值。
-  - sql: SQRT(numeric)
-    table: NUMERIC.sqrt()
-    description: 返回 numeric 的平方根。
-  - sql: LN(numeric)
-    table: NUMERIC.ln()
-    description: 返回 numeric 的自然对数（以 e 为底）。
-  - sql: LOG10(numeric)
-    table: NUMERIC.log10()
-    description: 返回以 10 为底的 numeric 的对数。
-  - sql: LOG2(numeric)
-    table: NUMERIC.log2()
-    description: 返回以 2 为底的 numeric 的对数。
+  - sql: ABS(x)
+    table: x.abs()
+    page: abs
+  - sql: ACOS(x)
+    table: x.acos()
+    page: acos
+  - sql: expr1 + expr2
+    table: expr1.plus(expr2)
+    page: arithmetic-operators
+  - sql: expr1 - expr2
+    table: expr1.minus(expr2)
+    page: arithmetic-operators
+  - sql: expr1 * expr2
+    table: expr1.times(expr2)
+    page: arithmetic-operators
+  - sql: expr1 / expr2
+    table: expr1.dividedBy(expr2)
+    page: arithmetic-operators
+  - sql: +expr
+    page: arithmetic-operators
+  - sql: '-expr'
+    table: negative(expr)
+    page: arithmetic-operators
+  - sql: ASIN(x)
+    table: x.asin()
+    page: asin
+  - sql: ATAN(x)
+    table: x.atan()
+    page: atan
+  - sql: ATAN2(y, x)
+    table: atan2(y, x)
+    page: atan2
   - sql: |
-      LOG(numeric2)
-      LOG(numeric1, numeric2)
-    table: |
-      NUMERIC1.log()
-      NUMERIC1.log(NUMERIC2)
-    description: |
-      当用一个参数调用时，返回 numeric2 的自然对数。当使用两个参数调用时，此函数返回 numeric2 以 numeric1
-      为底的对数，此时 numeric2 必须大于 0，numeric1 必须大于 1。
-  - sql: EXP(numeric)
-    table: NUMERIC.exp()
-    description: 返回 e 的 numeric 次幂。
-  - sql: |
-      CEIL(numeric)
-      CEILING(numeric)
-    table: |
-      NUMERIC.ceil()
-      NUMERIC.ceiling()
-    description: 向上取整，并返回大于或等于 numeric 的最小整数。
-  - sql: FLOOR(numeric)
-    table: NUMERIC.floor()
-    description: 向下取整，并返回小于或等于 numeric 的最大整数。
-  - sql: SIN(numeric)
-    table: NUMERIC.sin()
-    description: 返回 numeric 的正弦值。
-  - sql: SINH(numeric)
-    table: NUMERIC.sinh()
-    description: 返回 numeric 的双曲正弦值。返回类型为 DOUBLE。
-  - sql: COS(numeric)
-    table: NUMERIC.cos()
-    description: 返回 numeric 的余弦值。
-  - sql: TAN(numeric)
-    table: NUMERIC.tan()
-    description: 返回 numeric 的正切值。
-  - sql: TANH(numeric)
-    table: NUMERIC.tanh()
-    description: 返回 numeric 的双曲正切值。返回类型为 DOUBLE。
-  - sql: COT(numeric)
-    table: NUMERIC.cot()
-    description: 返回 numeric 的余切值。
-  - sql: ASIN(numeric)
-    table: NUMERIC.asin()
-    description: 返回 numeric 的反正弦值。
-  - sql: ACOS(numeric)
-    table: NUMERIC.acos()
-    description: 返回 numeric 的反余弦值。
-  - sql: ATAN(numeric)
-    table: NUMERIC.atan()
-    description: 返回 numeric 的反正切值。
-  - sql: ATAN2(numeric1, numeric2)
-    table: atan2(NUMERIC1, NUMERIC2)
-    description: 返回坐标 (numeric1, numeric2) 的反正切。
-  - sql: COSH(numeric)
-    table: NUMERIC.cosh()
-    description: 返回 numeric 的双曲余弦值。返回值类型为 DOUBLE。
-  - sql: DEGREES(numeric)
-    table: NUMERIC.degrees()
-    description: 返回弧度 numeric 的度数表示。
-  - sql: RADIANS(numeric)
-    table: NUMERIC.radians()
-    description: 返回度数 numeric 的弧度表示。
-  - sql: SIGN(numeric)
-    table: NUMERIC.sign()
-    description: 返回 numeric 的符号。
-  - sql: ROUND(numeric, INT)
-    table: NUMERIC.round(INT)
-    description: 返回 numeric 四舍五入保留 INT 小数位的值。
-  - sql: PI()
-    table: pi()
-    description: 返回无比接近 pi 的值。
+      CEIL(x)
+      CEILING(x)
+    table: x.ceil()
+    page: ceil
+  - sql: COS(x)
+    table: x.cos()
+    page: cos
+  - sql: COSH(x)
+    table: x.cosh()
+    page: cosh
+  - sql: COT(x)
+    table: x.cot()
+    page: cot
+  - sql: DEGREES(x)
+    table: x.degrees()
+    page: degrees
   - sql: E()
     table: e()
-    description: 返回无比接近 e 的值。
+    page: e
+  - sql: EXP(x)
+    table: x.exp()
+    page: exp
+  - sql: FLOOR(x)
+    table: x.floor()
+    page: floor
+  - sql: LN(x)
+    table: x.ln()
+    page: ln
+  - sql: |
+      LOG(x)
+      LOG(base, x)
+    table: |
+      x.log()
+      x.log(base)
+    page: log
+  - sql: LOG10(x)
+    table: x.log10()
+    page: log10
+  - sql: LOG2(x)
+    table: x.log2()
+    page: log2
+  - sql: MOD(dividend, divisor)
+    table: dividend.mod(divisor)
+    page: mod
+  - sql: dividend % divisor
+    page: mod
+  - sql: PI()
+    table: pi()
+    page: pi
+  - sql: POWER(base, exponent)
+    table: base.power(exponent)
+    page: power
+  - sql: RADIANS(x)
+    table: x.radians()
+    page: radians
   - sql: RAND()
     table: rand()
-    description: 返回 [0.0, 1.0) 范围内的伪随机双精度值。
-  - sql: RAND(INT)
-    table: rand(INT)
-    description: |
-      返回范围为 [0.0, 1.0) 的伪随机双精度值，初始种子为 INT。
-      如果两个 RAND 函数具有相同的初始种子，它们将返回相同的数字序列。
-  - sql: RAND_INTEGER(INT)
-    table: randInteger(INT)
-    description: 返回 [0, INT) 范围内的伪随机整数。
-  - sql: RAND_INTEGER(INT1, INT2)
-    table: randInteger(INT1, INT2)
-    description: |
-      返回范围为 [0, INT2) 的伪随机整数，初始种子为 INT1。
-      如果两个 RAND_INTEGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
-  - sql: TRUNCATE(numeric1, integer2)
-    table: NUMERIC1.truncate(INTEGER2)
-    description: |
-      返回截取 integer2 位小数的数字。如果 numeric1 或 integer2 为 `NULL`，则返回 `NULL`。
-      如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
-      此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
-      例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。
+    page: rand
+  - sql: RAND(seed)
+    table: rand(seed)
+    page: rand
+  - sql: RAND_INTEGER(bound)
+    table: randInteger(bound)
+    page: rand-integer
+  - sql: RAND_INTEGER(seed, bound)
+    table: randInteger(seed, bound)
+    page: rand-integer
+  - sql: ROUND(x [, digits])
+    table: x.round(digits)
+    page: round
+  - sql: SIGN(x)
+    table: x.sign()
+    page: sign
+  - sql: SIN(x)
+    table: x.sin()
+    page: sin
+  - sql: SINH(x)
+    table: x.sinh()
+    page: sinh
+  - sql: SQRT(x)
+    table: x.sqrt()
+    page: sqrt
+  - sql: TAN(x)
+    table: x.tan()
+    page: tan
+  - sql: TANH(x)
+    table: x.tanh()
+    page: tanh
+  - sql: TRUNCATE(x [, digits])
+    table: |
+      x.truncate()
+      x.truncate(digits)
+    page: truncate
 
 string:
   - sql: string1 || string2

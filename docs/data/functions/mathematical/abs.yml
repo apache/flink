@@ -1,0 +1,79 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: ABS
+summary: Returns the absolute value of a number.
+
+syntax:
+  sql: ABS(x)
+  java: $("x").abs()
+  python: col("x").abs
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: The absolute value of `x`.
+  nulls: Returns NULL if `x` is NULL.
+  type: The type of `x`, NOT NULL if `x` is NOT NULL.
+
+notes:
+  - The smallest value of an integer type has no positive counterpart in that type, so it comes back unchanged, such as `-2147483648` for an `INT`. Cast `x` to a wider type first, such as `BIGINT`.
+
+see_also:
+  - {name: SIGN, ref: mathematical/sign}
+
+examples:
+  - title: Absolute values
+    description: A NULL value returns NULL.
+    sql: |
+      SELECT x, ABS(x) AS `ABS(x)`
+      FROM (VALUES (-5), (0), (3), (CAST(NULL AS INT))) AS t(x);
+    result: |
+      | x    | ABS(x) |
+      |------|--------|
+      | -5   | 5      |
+      | 0    | 0      |
+      | 3    | 3      |
+      | NULL | NULL   |
+
+  - title: DECIMAL and DOUBLE values
+    description: The result keeps the type of `x`.
+    sql: |
+      SELECT d, ABS(d) AS `ABS(d)`, x, ABS(x) AS `ABS(x)`
+      FROM (VALUES
+        (CAST(-5.25 AS DECIMAL(5, 2)), CAST(-2.5 AS DOUBLE)),
+        (CAST(3 AS DECIMAL(5, 2)), CAST('-Infinity' AS DOUBLE))) AS t(d, x);
+    result: |
+      | d     | ABS(d) | x         | ABS(x)   |
+      |-------|--------|-----------|----------|
+      | -5.25 | 5.25   | -2.5      | 2.5      |
+      | 3.00  | 3.00   | -Infinity | Infinity |
+
+  - title: The smallest INT
+    description: The smallest `INT` stays negative. Cast it to `BIGINT` first.
+    sql: |
+      SELECT x, ABS(x) AS `ABS(x)`, ABS(CAST(x AS BIGINT)) AS `ABS(CAST(x AS BIGINT))`
+      FROM (VALUES (-2147483648), (-2147483647)) AS t(x);
+    result: |
+      | x           | ABS(x)      | ABS(CAST(x AS BIGINT)) |
+      |-------------|-------------|------------------------|
+      | -2147483648 | -2147483648 | 2147483648             |
+      | -2147483647 | 2147483647  | 2147483647             |

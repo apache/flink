@@ -1,0 +1,85 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: POWER
+summary: Returns a number raised to a power.
+
+syntax:
+  sql: POWER(base, exponent)
+  java: $("base").power(exponent)
+  python: col("base") ** exponent
+
+arguments:
+  - name: base
+    type: Any numeric type
+    required: true
+    description: The number to raise.
+  - name: exponent
+    type: Any numeric type
+    required: true
+    description: The power to raise `base` to.
+
+returns:
+  description: "`base` raised to the power `exponent`. A negative `base` with a fractional `exponent` returns `NaN`, and `0` to a negative power returns `Infinity`."
+  nulls: Returns NULL if `base` or `exponent` is NULL.
+  type: "`DOUBLE`, NOT NULL if both arguments are NOT NULL."
+
+notes:
+  - The result is a `DOUBLE`, also for integers, so a large integer result can be off in its last digits.
+
+see_also:
+  - {name: SQRT, ref: mathematical/sqrt}
+  - {name: EXP, ref: mathematical/exp}
+  - {name: LOG, ref: mathematical/log}
+
+examples:
+  - title: Integer exponents
+    description: A negative exponent gives a fraction. The result is a `DOUBLE`, and a NULL argument returns NULL.
+    sql: |
+      SELECT base, exponent, POWER(base, exponent) AS `POWER(base, exponent)`
+      FROM (VALUES (2, 10), (2, -1), (10, 0), (-2, 3), (2, CAST(NULL AS INT))) AS t(base, exponent);
+    result: |
+      | base | exponent | POWER(base, exponent) |
+      |------|----------|-----------------------|
+      | 2    | 10       | 1024.0                |
+      | 2    | -1       | 0.5                   |
+      | 10   | 0        | 1.0                   |
+      | -2   | 3        | -8.0                  |
+      | 2    | NULL     | NULL                  |
+
+  - title: Fractional exponents
+    description: A negative base with a fractional exponent returns `NaN`, and zero to a negative power returns `Infinity`.
+    sql: |
+      SELECT base, exponent, POWER(base, exponent) AS `POWER(base, exponent)`
+      FROM (VALUES (4.0, 0.5), (-8.0, 0.5), (0.0, -1.0)) AS t(base, exponent);
+    result: |
+      | base | exponent | POWER(base, exponent) |
+      |------|----------|-----------------------|
+      | 4.0  | 0.5      | 2.0                   |
+      | -8.0 | 0.5      | NaN                   |
+      | 0.0  | -1.0     | Infinity              |
+
+  - title: Large integer results
+    description: A `DOUBLE` can't hold every digit of `3` to the power `39`, so the cast to `BIGINT` is off in the last digits.
+    sql: |
+      SELECT base, exponent, POWER(base, exponent) AS `POWER(base, exponent)`, CAST(POWER(base, exponent) AS BIGINT) AS `CAST(POWER(base, exponent) AS BIGINT)`
+      FROM (VALUES (3, 39), (2, 62)) AS t(base, exponent);
+    result: |
+      | base | exponent | POWER(base, exponent) | CAST(POWER(base, exponent) AS BIGINT) |
+      |------|----------|-----------------------|---------------------------------------|
+      | 3    | 39       | 4.0525551530189763E18 | 4052555153018976256                   |
+      | 2    | 62       | 4.6116860184273879E18 | 4611686018427387904                   |

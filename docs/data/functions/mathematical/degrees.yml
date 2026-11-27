@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: DEGREES
+summary: Converts an angle from radians to degrees.
+
+syntax:
+  sql: DEGREES(x)
+  java: $("x").degrees()
+  python: col("x").degrees
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: An angle in radians.
+
+returns:
+  description: The angle `x` in degrees, `x * 180 / π`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: RADIANS, ref: mathematical/radians}
+  - {name: ASIN, ref: mathematical/asin}
+  - {name: ATAN2, ref: mathematical/atan2}
+
+examples:
+  - title: Convert radians to degrees
+    description: A NULL angle returns NULL.
+    sql: |
+      SELECT x, DEGREES(x) AS `DEGREES(x)`
+      FROM (VALUES (0.0E0), (PI() / 6), (PI() / 2), (PI()), (-PI()), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x                  | DEGREES(x)         |
+      |--------------------|--------------------|
+      | 0.0                | 0.0                |
+      | 0.5235987755982988 | 29.999999999999996 |
+      | 1.5707963267948966 | 90.0               |
+      | 3.141592653589793  | 180.0              |
+      | -3.141592653589793 | -180.0             |
+      | NULL               | NULL               |
+
+  - title: A round trip through RADIANS
+    description: The result is a `DOUBLE`, so converting degrees to radians and back can be off in the last digit.
+    sql: |
+      SELECT deg, DEGREES(RADIANS(deg)) AS `DEGREES(RADIANS(deg))`
+      FROM (VALUES (30), (45), (60)) AS t(deg);
+    result: |
+      | deg | DEGREES(RADIANS(deg)) |
+      |-----|-----------------------|
+      | 30  | 29.999999999999996    |
+      | 45  | 45.0                  |
+      | 60  | 59.99999999999999     |

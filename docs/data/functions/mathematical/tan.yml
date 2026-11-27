@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TAN
+summary: Returns the tangent of an angle in radians.
+
+syntax:
+  sql: TAN(x)
+  java: $("x").tan()
+  python: col("x").tan
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: An angle in radians.
+
+returns:
+  description: The tangent of `x`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: COT, ref: mathematical/cot}
+  - {name: ATAN, ref: mathematical/atan}
+  - {name: RADIANS, ref: mathematical/radians}
+
+examples:
+  - title: Tangent of common angles
+    description: The tangent isn't defined at π/2, and `PI() / 2` is only close to it, so the result is a very large number instead of an error. A NULL angle returns NULL.
+    sql: |
+      SELECT x, TAN(x) AS `TAN(x)`
+      FROM (VALUES (0.0E0), (PI() / 4), (PI() / 2), (-PI() / 4), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x                   | TAN(x)               |
+      |---------------------|----------------------|
+      | 0.0                 | 0.0                  |
+      | 0.7853981633974483  | 0.9999999999999999   |
+      | 1.5707963267948966  | 1.633123935319537E16 |
+      | -0.7853981633974483 | -0.9999999999999999  |
+      | NULL                | NULL                 |
+
+  - title: An angle in degrees
+    description: Convert degrees to radians with `RADIANS` first.
+    sql: |
+      SELECT deg, TAN(RADIANS(deg)) AS `TAN(RADIANS(deg))`
+      FROM (VALUES (0), (45), (60)) AS t(deg);
+    result: |
+      | deg | TAN(RADIANS(deg))  |
+      |-----|--------------------|
+      | 0   | 0.0                |
+      | 45  | 0.9999999999999999 |
+      | 60  | 1.7320508075688767 |

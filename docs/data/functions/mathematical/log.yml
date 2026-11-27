@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LOG
+summary: Returns the logarithm of a number, to the base e or to a given base.
+
+syntax:
+  sql: |
+    LOG(x)
+    LOG(base, x)
+  java: |
+    $("x").log()
+    $("x").log(base)
+  python: |
+    col("x").log()
+    col("x").log(base)
+
+arguments:
+  - name: base
+    type: Any numeric type
+    required: false
+    default: e
+    description: The base of the logarithm.
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: The logarithm of `x` to the base `base`. Without `base`, the natural logarithm, the same as `LN(x)`.
+  nulls: Returns NULL if an argument is NULL.
+  type: "`DOUBLE`, NOT NULL if every argument is NOT NULL."
+
+notes:
+  - In SQL, the base comes first. In the Table API, `x` is the expression that `log(base)` is called on.
+  - The result can miss an exact integer in the last digit, such as `2.9999999999999996` for `LOG(10, 1000)`. `LOG10` is exact for powers of ten.
+
+see_also:
+  - {name: LN, ref: mathematical/ln}
+  - {name: LOG10, ref: mathematical/log10}
+  - {name: LOG2, ref: mathematical/log2}
+
+examples:
+  - title: One argument
+    description: With one argument, `LOG` is the natural logarithm, the same as `LN`.
+    sql: |
+      SELECT x, LOG(x) AS `LOG(x)`, LN(x) AS `LN(x)`
+      FROM (VALUES (CAST(1 AS DOUBLE)), (E()), (CAST(100 AS DOUBLE))) AS t(x);
+    result: |
+      | x                 | LOG(x)            | LN(x)             |
+      |-------------------|-------------------|-------------------|
+      | 1.0               | 0.0               | 0.0               |
+      | 2.718281828459045 | 1.0               | 1.0               |
+      | 100.0             | 4.605170185988092 | 4.605170185988092 |
+
+  - title: A given base
+    description: The result can miss an integer in the last digit. A NULL argument returns NULL.
+    sql: |
+      SELECT base, x, LOG(base, x) AS `LOG(base, x)`
+      FROM (VALUES (2, 8), (2, 1024), (10, 1000), (3, 81), (2, CAST(NULL AS INT))) AS t(base, x);
+    result: |
+      | base | x    | LOG(base, x)       |
+      |------|------|--------------------|
+      | 2    | 8    | 3.0                |
+      | 2    | 1024 | 10.0               |
+      | 10   | 1000 | 2.9999999999999996 |
+      | 3    | 81   | 4.000000000000001  |
+      | 2    | NULL | NULL               |
+
+  - title: Unusual bases and values
+    description: A base below 1 works. A base of 1, a zero or a negative value returns `Infinity`, `-Infinity` or `NaN` instead of an error.
+    sql: |
+      SELECT base, x, LOG(base, x) AS `LOG(base, x)`
+      FROM (VALUES (0.5, 8.0), (1.0, 8.0), (2.0, 0.0), (2.0, -8.0), (-2.0, 8.0)) AS t(base, x);
+    result: |
+      | base | x    | LOG(base, x) |
+      |------|------|--------------|
+      | 0.5  | 8.0  | -3.0         |
+      | 1.0  | 8.0  | Infinity     |
+      | 2.0  | 0.0  | -Infinity    |
+      | 2.0  | -8.0 | NaN          |
+      | -2.0 | 8.0  | NaN          |

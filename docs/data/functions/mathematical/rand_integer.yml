@@ -1,0 +1,91 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: RAND_INTEGER
+summary: Returns a pseudorandom integer from 0, inclusive, to a bound, exclusive.
+
+syntax:
+  sql: |
+    RAND_INTEGER(bound)
+    RAND_INTEGER(seed, bound)
+  java: |
+    randInteger(bound)
+    randInteger(seed, bound)
+  python: |
+    rand_integer(bound)
+    rand_integer(bound, seed)
+
+arguments:
+  - name: seed
+    type: TINYINT, SMALLINT, INT
+    required: false
+    description: The seed of the sequence of values.
+  - name: bound
+    type: TINYINT, SMALLINT, INT
+    required: true
+    description: The upper bound, exclusive.
+
+returns:
+  description: A pseudorandom `INT` from `0`, inclusive, to `bound`, exclusive. Without a `seed`, or with a literal one, each row gets a new value.
+  nulls: Returns NULL if `seed` or `bound` is NULL.
+  type: "`INT`, NOT NULL if every argument is NOT NULL."
+
+notes:
+  - A `bound` of `0` or less fails the job.
+  - In Python, `rand_integer` takes `bound` first and `seed` second, the reverse of SQL.
+  - A `seed` works as for `RAND`. A literal gives a fixed sequence, and a column gives one value for each seed and bound.
+
+see_also:
+  - {name: RAND, ref: mathematical/rand}
+
+examples:
+  - title: Integers below the bound
+    description: Every value is from `0` up to, not including, `3`.
+    sql: |
+      SELECT MIN(r) >= 0 AND MAX(r) < 3 AS `MIN(r) >= 0 AND MAX(r) < 3`
+      FROM (SELECT RAND_INTEGER(3) AS r FROM (VALUES (1), (2), (3), (4), (5), (6)) AS t(n));
+    result: |
+      | MIN(r) >= 0 AND MAX(r) < 3 |
+      |----------------------------|
+      | TRUE                       |
+
+  - title: A literal seed
+    description: A literal seed returns the same sequence in every run.
+    sql: |
+      SELECT n, RAND_INTEGER(42, 10) AS `RAND_INTEGER(42, 10)`
+      FROM (VALUES (1), (2), (3), (4)) AS t(n);
+    result: |
+      | n | RAND_INTEGER(42, 10) |
+      |---|----------------------|
+      | 1 | 0                    |
+      | 2 | 3                    |
+      | 3 | 8                    |
+      | 4 | 4                    |
+
+  - title: Seed and bound from columns
+    description: Rows with the same seed and bound get the same value. A NULL bound returns NULL.
+    sql: |
+      SELECT seed, bound, RAND_INTEGER(seed, bound) AS `RAND_INTEGER(seed, bound)`
+      FROM (VALUES (42, 10), (42, 10), (42, 100), (5, 10), (5, CAST(NULL AS INT))) AS t(seed, bound);
+    result: |
+      | seed | bound | RAND_INTEGER(seed, bound) |
+      |------|-------|---------------------------|
+      | 42   | 10    | 0                         |
+      | 42   | 10    | 0                         |
+      | 42   | 100   | 30                        |
+      | 5    | 10    | 7                         |
+      | 5    | NULL  | NULL                      |
