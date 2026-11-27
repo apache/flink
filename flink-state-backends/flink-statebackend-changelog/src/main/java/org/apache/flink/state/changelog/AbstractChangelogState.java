@@ -81,20 +81,6 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     }
 
     @Override
-    public byte[] getSerializedValue(
-            byte[] serializedKeyAndNamespace,
-            TypeSerializer<K> safeKeySerializer,
-            TypeSerializer<N> safeNamespaceSerializer,
-            TypeSerializer<V> safeValueSerializer)
-            throws Exception {
-        return delegatedState.getSerializedValue(
-                serializedKeyAndNamespace,
-                safeKeySerializer,
-                safeNamespaceSerializer,
-                safeValueSerializer);
-    }
-
-    @Override
     public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
             int recommendedMaxNumberOfReturnedRecords) {
         return delegatedState.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);

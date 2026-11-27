@@ -20,12 +20,9 @@ package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -49,14 +46,11 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -65,7 +59,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -147,21 +140,6 @@ public class TestingJobMasterGatewayBuilder {
             acknowledgeCheckpointConsumer = ignored -> {};
     private Consumer<DeclineCheckpoint> declineCheckpointConsumer = ignored -> {};
     private Supplier<JobMasterId> fencingTokenSupplier = () -> JOB_MASTER_ID;
-    private BiFunction<JobID, String, CompletableFuture<KvStateLocation>>
-            requestKvStateLocationFunction =
-                    (ignoredA, registrationName) ->
-                            FutureUtils.completedExceptionally(
-                                    new UnknownKvStateLocation(registrationName));
-    private Function<
-                    Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>,
-                    CompletableFuture<Acknowledge>>
-            notifyKvStateRegisteredFunction =
-                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
-    private Function<
-                    Tuple4<JobID, JobVertexID, KeyGroupRange, String>,
-                    CompletableFuture<Acknowledge>>
-            notifyKvStateUnregisteredFunction =
-                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction =
             (a, b, c) -> CompletableFuture.completedFuture(new Object());
     private TriFunction<
@@ -354,37 +332,6 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setRequestKvStateLocationFunction(
-            BiFunction<JobID, String, CompletableFuture<KvStateLocation>>
-                    requestKvStateLocationFunction) {
-        this.requestKvStateLocationFunction = requestKvStateLocationFunction;
-        return this;
-    }
-
-    public TestingJobMasterGatewayBuilder setNotifyKvStateRegisteredFunction(
-            Function<
-                            Tuple6<
-                                    JobID,
-                                    JobVertexID,
-                                    KeyGroupRange,
-                                    String,
-                                    KvStateID,
-                                    InetSocketAddress>,
-                            CompletableFuture<Acknowledge>>
-                    notifyKvStateRegisteredFunction) {
-        this.notifyKvStateRegisteredFunction = notifyKvStateRegisteredFunction;
-        return this;
-    }
-
-    public TestingJobMasterGatewayBuilder setNotifyKvStateUnregisteredFunction(
-            Function<
-                            Tuple4<JobID, JobVertexID, KeyGroupRange, String>,
-                            CompletableFuture<Acknowledge>>
-                    notifyKvStateUnregisteredFunction) {
-        this.notifyKvStateUnregisteredFunction = notifyKvStateUnregisteredFunction;
-        return this;
-    }
-
     public TestingJobMasterGatewayBuilder setUpdateAggregateFunction(
             TriFunction<String, Object, byte[], CompletableFuture<Object>>
                     updateAggregateFunction) {
@@ -475,9 +422,6 @@ public class TestingJobMasterGatewayBuilder {
                 acknowledgeCheckpointConsumer,
                 declineCheckpointConsumer,
                 fencingTokenSupplier,
-                requestKvStateLocationFunction,
-                notifyKvStateRegisteredFunction,
-                notifyKvStateUnregisteredFunction,
                 updateAggregateFunction,
                 operatorEventSender,
                 deliverCoordinationRequestFunction,

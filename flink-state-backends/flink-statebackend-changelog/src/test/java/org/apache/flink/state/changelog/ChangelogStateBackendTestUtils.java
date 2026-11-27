@@ -38,7 +38,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
@@ -135,7 +134,6 @@ public class ChangelogStateBackendTestUtils {
             throws Exception {
 
         JobID jobID = new JobID();
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         Collection<KeyedStateHandle> stateHandles =
                 state == null ? Collections.emptyList() : Collections.singletonList(state);
         return stateBackend.createKeyedStateBackend(
@@ -146,7 +144,6 @@ public class ChangelogStateBackendTestUtils {
                         keySerializer,
                         numberOfKeyGroups,
                         keyGroupRange,
-                        kvStateRegistry,
                         TtlTimeProvider.DEFAULT,
                         metricGroup,
                         stateHandles,

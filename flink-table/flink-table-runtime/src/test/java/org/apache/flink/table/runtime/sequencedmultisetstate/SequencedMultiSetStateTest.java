@@ -33,11 +33,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.InternalKeyContext;
@@ -556,7 +554,6 @@ public class SequencedMultiSetStateTest {
             MockEnvironment env, TypeSerializer<T> keySerializer) throws IOException {
         String op = "test-operator";
         JobID jobId = new JobID();
-        JobVertexID jobVertexId = new JobVertexID();
         KeyGroupRange emptyKeyGroupRange = KeyGroupRange.of(0, 10);
         int numberOfKeyGroups = emptyKeyGroupRange.getNumberOfKeyGroups();
 
@@ -569,7 +566,6 @@ public class SequencedMultiSetStateTest {
                                 keySerializer,
                                 numberOfKeyGroups,
                                 emptyKeyGroupRange,
-                                new KvStateRegistry().createTaskRegistry(jobId, jobVertexId),
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),

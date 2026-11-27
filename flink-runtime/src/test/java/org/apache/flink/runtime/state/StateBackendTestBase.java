@@ -56,24 +56,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.queryablestate.KvStateID;
-import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateRegistryListener;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.heap.AbstractHeapState;
-import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -113,8 +102,6 @@ import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -218,7 +205,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                         keySerializer,
                                         numberOfKeyGroups,
                                         keyGroupRange,
-                                        env.getTaskKvStateRegistry(),
                                         TtlTimeProvider.DEFAULT,
                                         getMetricGroup(),
                                         getCustomInitializationMetrics(),
@@ -262,7 +248,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                 keySerializer,
                                 numberOfKeyGroups,
                                 keyGroupRange,
-                                env.getTaskKvStateRegistry(),
                                 TtlTimeProvider.DEFAULT,
                                 getMetricGroup(),
                                 getCustomInitializationMetrics(),
@@ -285,7 +270,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         KeyGroupRange groupRange = new KeyGroupRange(0, 1);
         JobID jobID = new JobID();
         int numberOfKeyGroups = groupRange.getNumberOfKeyGroups();
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
                 configuredBackend.createKeyedStateBackend(
@@ -296,7 +280,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                 IntSerializer.INSTANCE,
                                 numberOfKeyGroups,
                                 groupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 getMetricGroup(),
                                 getCustomInitializationMetrics(),
@@ -330,7 +313,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         KeyGroupRange groupRange = new KeyGroupRange(0, 1);
         JobID jobID = new JobID();
         int numberOfKeyGroups = groupRange.getNumberOfKeyGroups();
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
                 configuredBackend.createKeyedStateBackend(
@@ -341,7 +323,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                 IntSerializer.INSTANCE,
                                 numberOfKeyGroups,
                                 groupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 getMetricGroup(),
                                 getCustomInitializationMetrics(),
@@ -1464,58 +1445,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
-        TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-        TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
             ValueState<String> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> kvState =
-                    (InternalKvState<Integer, VoidNamespace, String>) state;
-
-            // this is only available after the backend initialized the serializer
-            TypeSerializer<String> valueSerializer = kvId.getSerializer();
 
             // some modifications to the state
             backend.setCurrentKey(1);
             assertThat(state.value()).isNull();
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
             state.update("1");
             backend.setCurrentKey(2);
             assertThat(state.value()).isNull();
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
             state.update("2");
             backend.setCurrentKey(1);
             assertThat(state.value()).isEqualTo("1");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("1");
 
             // draw a snapshot
             KeyedStateHandle snapshot1 =
@@ -1548,37 +1493,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // validate the original state
             backend.setCurrentKey(1);
             assertThat(state.value()).isEqualTo("u1");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u1");
             backend.setCurrentKey(2);
             assertThat(state.value()).isEqualTo("u2");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u2");
             backend.setCurrentKey(3);
             assertThat(state.value()).isEqualTo("u3");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    3,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u3");
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -1589,32 +1507,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             ValueState<String> restored1 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> restoredKvState1 =
-                    (InternalKvState<Integer, VoidNamespace, String>) restored1;
-
             backend.setCurrentKey(1);
             assertThat(restored1.value()).isEqualTo("1");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState1,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("1");
             backend.setCurrentKey(2);
             assertThat(restored1.value()).isEqualTo("2");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState1,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("2");
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -1625,43 +1521,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             ValueState<String> restored2 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> restoredKvState2 =
-                    (InternalKvState<Integer, VoidNamespace, String>) restored2;
-
             backend.setCurrentKey(1);
             assertThat(restored2.value()).isEqualTo("u1");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState2,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u1");
             backend.setCurrentKey(2);
             assertThat(restored2.value()).isEqualTo("u2");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState2,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u2");
             backend.setCurrentKey(3);
             assertThat(restored2.value()).isEqualTo("u3");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState2,
-                                    3,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u3");
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -1684,142 +1549,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             state.update(new MutableLong());
             state.value();
         } finally {
-            IOUtils.closeQuietly(backend);
-            backend.dispose();
-        }
-    }
-
-    /**
-     * Tests {@link ValueState#value()} and {@link InternalKvState#getSerializedValue(byte[],
-     * TypeSerializer, TypeSerializer, TypeSerializer)} accessing the state concurrently. They
-     * should not get in the way of each other.
-     */
-    @TestTemplate
-    @SuppressWarnings("unchecked")
-    void testValueStateRace() throws Exception {
-        final Integer namespace = 1;
-
-        final ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
-
-        final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-        final TypeSerializer<Integer> namespaceSerializer = IntSerializer.INSTANCE;
-
-        final CheckpointableKeyedStateBackend<Integer> backend =
-                createKeyedBackend(IntSerializer.INSTANCE);
-        try {
-            final ValueState<String> state =
-                    backend.getPartitionedState(namespace, IntSerializer.INSTANCE, kvId);
-
-            // this is only available after the backend initialized the serializer
-            final TypeSerializer<String> valueSerializer = kvId.getSerializer();
-
-            @SuppressWarnings("unchecked")
-            final InternalKvState<Integer, Integer, String> kvState =
-                    (InternalKvState<Integer, Integer, String>) state;
-
-            /**
-             * 1) Test that ValueState#value() before and after KvState#getSerializedValue(byte[])
-             * return the same value.
-             */
-
-            // set some key and namespace
-            final int key1 = 1;
-            backend.setCurrentKey(key1);
-            kvState.setCurrentNamespace(2);
-            state.update("2");
-            assertThat(state.value()).isEqualTo("2");
-
-            // query another key and namespace
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    3,
-                                    keySerializer,
-                                    namespace,
-                                    IntSerializer.INSTANCE,
-                                    valueSerializer))
-                    .isNull();
-
-            // the state should not have changed!
-            assertThat(state.value()).isEqualTo("2");
-
-            // re-set values
-            kvState.setCurrentNamespace(namespace);
-
-            /**
-             * 2) Test two threads concurrently using ValueState#value() and
-             * KvState#getSerializedValue(byte[]).
-             */
-
-            // some modifications to the state
-            final int key2 = 10;
-            backend.setCurrentKey(key2);
-            assertThat(state.value()).isNull();
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    key2,
-                                    keySerializer,
-                                    namespace,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
-            state.update("1");
-
-            final CheckedThread getter =
-                    new CheckedThread("State getter") {
-                        @Override
-                        public void go() throws Exception {
-                            while (!isInterrupted()) {
-                                assertThat(state.value()).isEqualTo("1");
-                            }
-                        }
-                    };
-
-            final CheckedThread serializedGetter =
-                    new CheckedThread("Serialized state getter") {
-                        @Override
-                        public void go() throws Exception {
-                            while (!isInterrupted() && getter.isAlive()) {
-                                final String serializedValue =
-                                        getSerializedValue(
-                                                kvState,
-                                                key2,
-                                                keySerializer,
-                                                namespace,
-                                                namespaceSerializer,
-                                                valueSerializer);
-                                assertThat(serializedValue).isEqualTo("1");
-                            }
-                        }
-                    };
-
-            getter.start();
-            serializedGetter.start();
-
-            // run both threads for max 100ms
-            Timer t = new Timer("stopper");
-            t.schedule(
-                    new TimerTask() {
-                        @Override
-                        public void run() {
-                            getter.interrupt();
-                            serializedGetter.interrupt();
-                            this.cancel();
-                        }
-                    },
-                    100);
-
-            // wait for both threads to finish
-            // serializedGetter will finish if its assertion fails or if
-            // getter is not alive any more
-            serializedGetter.sync();
-            // if serializedGetter crashed, getter will not know -> interrupt just in case
-            getter.interrupt();
-            getter.sync();
-            t.cancel(); // if not executed yet
-        } finally {
-            // clean up
             IOUtils.closeQuietly(backend);
             backend.dispose();
         }
@@ -1986,63 +1715,26 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
         ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
-        TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-        TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
             ListState<String> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> kvState =
-                    (InternalKvState<Integer, VoidNamespace, String>) state;
-
-            // this is only available after the backend initialized the serializer
-            TypeSerializer<String> valueSerializer = kvId.getElementSerializer();
 
             Joiner joiner = Joiner.on(",");
 
             // some modifications to the state
             backend.setCurrentKey(1);
             assertThat(state.get()).isNull();
-            assertThat(
-                            getSerializedList(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
             state.add("1");
 
             backend.setCurrentKey(2);
             assertThat(state.get()).isNull();
-            assertThat(
-                            getSerializedList(
-                                    kvState,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
             state.update(Arrays.asList("2"));
 
             backend.setCurrentKey(1);
             assertThat(joiner.join(state.get())).isEqualTo("1");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            kvState,
-                                            1,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("1");
 
             // draw a snapshot
             KeyedStateHandle snapshot1 =
@@ -2077,42 +1769,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // validate the original state
             backend.setCurrentKey(1);
             assertThat(joiner.join(state.get())).isEqualTo("1,u1");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            kvState,
-                                            1,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("1,u1");
 
             backend.setCurrentKey(2);
             assertThat(joiner.join(state.get())).isEqualTo("2,u2");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            kvState,
-                                            2,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("2,u2");
 
             backend.setCurrentKey(3);
             assertThat(joiner.join(state.get())).isEqualTo("u3");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            kvState,
-                                            3,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("u3");
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -2123,35 +1785,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             ListState<String> restored1 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> restoredKvState1 =
-                    (InternalKvState<Integer, VoidNamespace, String>) restored1;
-
             backend.setCurrentKey(1);
             assertThat(joiner.join(restored1.get())).isEqualTo("1");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            restoredKvState1,
-                                            1,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("1");
 
             backend.setCurrentKey(2);
             assertThat(joiner.join(restored1.get())).isEqualTo("2");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            restoredKvState1,
-                                            2,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("2");
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -2162,48 +1800,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             ListState<String> restored2 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> restoredKvState2 =
-                    (InternalKvState<Integer, VoidNamespace, String>) restored2;
-
             backend.setCurrentKey(1);
             assertThat(joiner.join(restored2.get())).isEqualTo("1,u1");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            restoredKvState2,
-                                            1,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("1,u1");
 
             backend.setCurrentKey(2);
             assertThat(joiner.join(restored2.get())).isEqualTo("2,u2");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            restoredKvState2,
-                                            2,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("2,u2");
 
             backend.setCurrentKey(3);
             assertThat(joiner.join(restored2.get())).isEqualTo("u3");
-            assertThat(
-                            joiner.join(
-                                    getSerializedList(
-                                            restoredKvState2,
-                                            3,
-                                            keySerializer,
-                                            VoidNamespace.INSTANCE,
-                                            namespaceSerializer,
-                                            valueSerializer)))
-                    .isEqualTo("u3");
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -2550,58 +2154,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         ReducingStateDescriptor<String> kvId =
                 new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
 
-        TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-        TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
             ReducingState<String> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> kvState =
-                    (InternalKvState<Integer, VoidNamespace, String>) state;
-
-            // this is only available after the backend initialized the serializer
-            TypeSerializer<String> valueSerializer = kvId.getSerializer();
 
             // some modifications to the state
             backend.setCurrentKey(1);
             assertThat(state.get()).isNull();
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
             state.add("1");
             backend.setCurrentKey(2);
             assertThat(state.get()).isNull();
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isNull();
             state.add("2");
             backend.setCurrentKey(1);
             assertThat(state.get()).isEqualTo("1");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("1");
 
             // draw a snapshot
             KeyedStateHandle snapshot1 =
@@ -2634,37 +2202,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // validate the original state
             backend.setCurrentKey(1);
             assertThat(state.get()).isEqualTo("1,u1");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("1,u1");
             backend.setCurrentKey(2);
             assertThat(state.get()).isEqualTo("2,u2");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("2,u2");
             backend.setCurrentKey(3);
             assertThat(state.get()).isEqualTo("u3");
-            assertThat(
-                            getSerializedValue(
-                                    kvState,
-                                    3,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u3");
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -2675,32 +2216,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             ReducingState<String> restored1 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> restoredKvState1 =
-                    (InternalKvState<Integer, VoidNamespace, String>) restored1;
-
             backend.setCurrentKey(1);
             assertThat(restored1.get()).isEqualTo("1");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState1,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("1");
             backend.setCurrentKey(2);
             assertThat(restored1.get()).isEqualTo("2");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState1,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("2");
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -2711,43 +2230,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             ReducingState<String> restored2 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<Integer, VoidNamespace, String> restoredKvState2 =
-                    (InternalKvState<Integer, VoidNamespace, String>) restored2;
-
             backend.setCurrentKey(1);
             assertThat(restored2.get()).isEqualTo("1,u1");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState2,
-                                    1,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("1,u1");
             backend.setCurrentKey(2);
             assertThat(restored2.get()).isEqualTo("2,u2");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState2,
-                                    2,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("2,u2");
             backend.setCurrentKey(3);
             assertThat(restored2.get()).isEqualTo("u3");
-            assertThat(
-                            getSerializedValue(
-                                    restoredKvState2,
-                                    3,
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    valueSerializer))
-                    .isEqualTo("u3");
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -3304,49 +2792,19 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         MapStateDescriptor<Integer, String> kvId =
                 new MapStateDescriptor<>("id", Integer.class, String.class);
 
-        TypeSerializer<String> keySerializer = StringSerializer.INSTANCE;
-        TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-
         CheckpointableKeyedStateBackend<String> backend =
                 createKeyedBackend(StringSerializer.INSTANCE);
         try {
             MapState<Integer, String> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<String, VoidNamespace, Map<Integer, String>> kvState =
-                    (InternalKvState<String, VoidNamespace, Map<Integer, String>>) state;
-
-            // these are only available after the backend initialized the serializer
-            TypeSerializer<Integer> userKeySerializer = kvId.getKeySerializer();
-            TypeSerializer<String> userValueSerializer = kvId.getValueSerializer();
 
             // some modifications to the state
             backend.setCurrentKey("1");
             assertThat(state.get(1)).isNull();
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "1",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isNull();
             state.put(1, "1");
             backend.setCurrentKey("2");
             assertThat(state.get(2)).isNull();
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "2",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isNull();
             state.put(2, "2");
 
             // put entry with different userKeyOffset
@@ -3356,37 +2814,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             backend.setCurrentKey("1");
             assertThat(state.contains(1)).isTrue();
             assertThat(state.get(1)).isEqualTo("1");
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "1",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(1, "1");
-                                }
-                            });
-
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "11",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(11, "11");
-                                }
-                            });
 
             // draw a snapshot
             KeyedStateHandle snapshot1 =
@@ -3426,62 +2853,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // validate the original state
             backend.setCurrentKey("1");
             assertThat(state.get(1)).isEqualTo("101");
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "1",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(1, "101");
-                                }
-                            });
 
             backend.setCurrentKey("2");
             assertThat(state.get(102)).isEqualTo("102");
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "2",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(2, "2");
-                                    put(102, "102");
-                                }
-                            });
-
             backend.setCurrentKey("3");
             assertThat(state.contains(103)).isTrue();
             assertThat(state.get(103)).isEqualTo("103");
-
-            assertThat(
-                            getSerializedMap(
-                                    kvState,
-                                    "3",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(103, "103");
-                                    put(1031, "1031");
-                                    put(1032, "1032");
-                                }
-                            });
 
             List<Integer> keys = new ArrayList<>();
             for (Integer key : state.keys()) {
@@ -3535,45 +2912,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             MapState<Integer, String> restored1 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<String, VoidNamespace, Map<Integer, String>> restoredKvState1 =
-                    (InternalKvState<String, VoidNamespace, Map<Integer, String>>) restored1;
-
             backend.setCurrentKey("1");
             assertThat(restored1.get(1)).isEqualTo("1");
-            assertThat(
-                            getSerializedMap(
-                                    restoredKvState1,
-                                    "1",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(1, "1");
-                                }
-                            });
 
             backend.setCurrentKey("2");
             assertThat(restored1.get(2)).isEqualTo("2");
-            assertThat(
-                            getSerializedMap(
-                                    restoredKvState1,
-                                    "2",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(2, "2");
-                                }
-                            });
 
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -3585,66 +2928,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             MapState<Integer, String> restored2 =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-            @SuppressWarnings("unchecked")
-            InternalKvState<String, VoidNamespace, Map<Integer, String>> restoredKvState2 =
-                    (InternalKvState<String, VoidNamespace, Map<Integer, String>>) restored2;
-
             backend.setCurrentKey("1");
             assertThat(restored2.get(1)).isEqualTo("101");
-            assertThat(
-                            getSerializedMap(
-                                    restoredKvState2,
-                                    "1",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(1, "101");
-                                }
-                            });
 
             backend.setCurrentKey("2");
             assertThat(restored2.get(102)).isEqualTo("102");
-            assertThat(
-                            getSerializedMap(
-                                    restoredKvState2,
-                                    "2",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(2, "2");
-                                    put(102, "102");
-                                }
-                            });
 
             backend.setCurrentKey("3");
             assertThat(restored2.get(103)).isEqualTo("103");
-            assertThat(
-                            getSerializedMap(
-                                    restoredKvState2,
-                                    "3",
-                                    keySerializer,
-                                    VoidNamespace.INSTANCE,
-                                    namespaceSerializer,
-                                    userKeySerializer,
-                                    userValueSerializer))
-                    .isEqualTo(
-                            new HashMap<Integer, String>() {
-                                {
-                                    put(103, "103");
-                                    put(1031, "1031");
-                                    put(1032, "1032");
-                                }
-                            });
+
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -4553,204 +3845,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         }
     }
 
-    /**
-     * Tests that {@link AbstractHeapState} instances respect the queryable flag and create
-     * concurrent variants for internal state structures.
-     */
-    @SuppressWarnings("unchecked")
-    void testConcurrentMapIfQueryable() throws Exception {
-        final int numberOfKeyGroups = 1;
-        final CheckpointableKeyedStateBackend<Integer> backend =
-                createKeyedBackend(
-                        IntSerializer.INSTANCE,
-                        numberOfKeyGroups,
-                        new KeyGroupRange(0, 0),
-                        new DummyEnvironment());
-
-        try {
-            {
-                // ValueState
-                ValueStateDescriptor<Integer> desc =
-                        new ValueStateDescriptor<>("value-state", Integer.class, -1);
-                desc.setQueryable("my-query");
-
-                ValueState<Integer> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Integer> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Integer>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.update(121818273);
-
-                assertThat(((AbstractHeapState<?, ?, ?>) kvState).getStateTable())
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-
-            {
-                // ListState
-                ListStateDescriptor<Integer> desc =
-                        new ListStateDescriptor<>("list-state", Integer.class);
-                desc.setQueryable("my-query");
-
-                ListState<Integer> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Integer> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Integer>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.add(121818273);
-
-                assertThat(((AbstractHeapState<?, ?, ?>) kvState).getStateTable())
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-
-            {
-                // ReducingState
-                ReducingStateDescriptor<Integer> desc =
-                        new ReducingStateDescriptor<>(
-                                "reducing-state",
-                                new ReduceFunction<Integer>() {
-                                    @Override
-                                    public Integer reduce(Integer value1, Integer value2)
-                                            throws Exception {
-                                        return value1 + value2;
-                                    }
-                                },
-                                Integer.class);
-                desc.setQueryable("my-query");
-
-                ReducingState<Integer> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Integer> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Integer>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.add(121818273);
-
-                assertThat(((AbstractHeapState<?, ?, ?>) kvState).getStateTable())
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-
-            {
-                // MapState
-                MapStateDescriptor<Integer, String> desc =
-                        new MapStateDescriptor<>("map-state", Integer.class, String.class);
-                desc.setQueryable("my-query");
-
-                MapState<Integer, String> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Map<Integer, String>> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Map<Integer, String>>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.put(121818273, "121818273");
-
-                int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-                StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-                assertThat(stateTable.get(keyGroupIndex))
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-        } finally {
-            IOUtils.closeQuietly(backend);
-            backend.dispose();
-        }
-    }
-
-    /** Tests registration with the KvStateRegistry. */
-    @TestTemplate
-    void testQueryableStateRegistration() throws Exception {
-        KvStateRegistry registry = env.getKvStateRegistry();
-
-        CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        CheckpointableKeyedStateBackend<Integer> backend =
-                createKeyedBackend(IntSerializer.INSTANCE, env);
-        try {
-            KeyGroupRange expectedKeyGroupRange = backend.getKeyGroupRange();
-
-            final TestingKvStateRegistryListener listener = new TestingKvStateRegistryListener();
-            registry.registerListener(HighAvailabilityServices.DEFAULT_JOB_ID, listener);
-
-            ValueStateDescriptor<Integer> desc =
-                    new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
-            desc.setQueryable("banana");
-
-            backend.getPartitionedState(
-                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-            // Verify registered
-            assertThat(
-                            listener.isRegistered(
-                                    env.getJobID(),
-                                    env.getJobVertexId(),
-                                    expectedKeyGroupRange,
-                                    "banana"))
-                    .isTrue();
-
-            KeyedStateHandle snapshot =
-                    runSnapshot(
-                            backend.snapshot(
-                                    682375462379L,
-                                    4,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
-                            sharedStateRegistry);
-
-            IOUtils.closeQuietly(backend);
-            backend.dispose();
-
-            assertThat(
-                            listener.isRegistered(
-                                    env.getJobID(),
-                                    env.getJobVertexId(),
-                                    expectedKeyGroupRange,
-                                    "banana"))
-                    .isFalse();
-            backend.dispose();
-
-            // Initialize again
-            backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-            if (snapshot != null) {
-                snapshot.discardState();
-            }
-
-            backend.getPartitionedState(
-                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-            // Verify registered again
-            assertThat(
-                            listener.isRegistered(
-                                    env.getJobID(),
-                                    env.getJobVertexId(),
-                                    expectedKeyGroupRange,
-                                    "banana"))
-                    .isTrue();
-        } finally {
-            IOUtils.closeQuietly(backend);
-            backend.dispose();
-        }
-    }
-
     @TestTemplate
     void testEmptyStateCheckpointing() throws Exception {
 
@@ -5437,92 +4531,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         return keyInKG;
     }
 
-    /** Returns the value by getting the serialized value and deserializing it if it is not null. */
-    protected static <V, K, N> V getSerializedValue(
-            InternalKvState<K, N, V> kvState,
-            K key,
-            TypeSerializer<K> keySerializer,
-            N namespace,
-            TypeSerializer<N> namespaceSerializer,
-            TypeSerializer<V> valueSerializer)
-            throws Exception {
-
-        byte[] serializedKeyAndNamespace =
-                KvStateSerializer.serializeKeyAndNamespace(
-                        key, keySerializer, namespace, namespaceSerializer);
-
-        byte[] serializedValue =
-                kvState.getSerializedValue(
-                        serializedKeyAndNamespace,
-                        kvState.getKeySerializer(),
-                        kvState.getNamespaceSerializer(),
-                        kvState.getValueSerializer());
-
-        if (serializedValue == null) {
-            return null;
-        } else {
-            return KvStateSerializer.deserializeValue(serializedValue, valueSerializer);
-        }
-    }
-
-    /** Returns the value by getting the serialized value and deserializing it if it is not null. */
-    private static <V, K, N> List<V> getSerializedList(
-            InternalKvState<K, N, V> kvState,
-            K key,
-            TypeSerializer<K> keySerializer,
-            N namespace,
-            TypeSerializer<N> namespaceSerializer,
-            TypeSerializer<V> valueSerializer)
-            throws Exception {
-
-        byte[] serializedKeyAndNamespace =
-                KvStateSerializer.serializeKeyAndNamespace(
-                        key, keySerializer, namespace, namespaceSerializer);
-
-        byte[] serializedValue =
-                kvState.getSerializedValue(
-                        serializedKeyAndNamespace,
-                        kvState.getKeySerializer(),
-                        kvState.getNamespaceSerializer(),
-                        kvState.getValueSerializer());
-
-        if (serializedValue == null) {
-            return null;
-        } else {
-            return KvStateSerializer.deserializeList(serializedValue, valueSerializer);
-        }
-    }
-
-    /** Returns the value by getting the serialized value and deserializing it if it is not null. */
-    private static <UK, UV, K, N> Map<UK, UV> getSerializedMap(
-            InternalKvState<K, N, Map<UK, UV>> kvState,
-            K key,
-            TypeSerializer<K> keySerializer,
-            N namespace,
-            TypeSerializer<N> namespaceSerializer,
-            TypeSerializer<UK> userKeySerializer,
-            TypeSerializer<UV> userValueSerializer)
-            throws Exception {
-
-        byte[] serializedKeyAndNamespace =
-                KvStateSerializer.serializeKeyAndNamespace(
-                        key, keySerializer, namespace, namespaceSerializer);
-
-        byte[] serializedValue =
-                kvState.getSerializedValue(
-                        serializedKeyAndNamespace,
-                        kvState.getKeySerializer(),
-                        kvState.getNamespaceSerializer(),
-                        kvState.getValueSerializer());
-
-        if (serializedValue == null) {
-            return null;
-        } else {
-            return KvStateSerializer.deserializeMap(
-                    serializedValue, userKeySerializer, userValueSerializer);
-        }
-    }
-
     public static KeyedStateHandle runSnapshot(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture,
             SharedStateRegistry sharedStateRegistry)
@@ -5937,50 +4945,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
     public static final class MutableLong {
         long value;
-    }
-
-    private static class TestingKvStateRegistryListener implements KvStateRegistryListener {
-
-        private final Map<String, KvStateID> registeredStates = new HashMap<>();
-
-        private String createKey(
-                JobID jobId,
-                JobVertexID jobVertexId,
-                KeyGroupRange keyGroupRange,
-                String registrationName) {
-            return String.format(
-                    "%s-%s-%s-%s",
-                    jobId, jobVertexId, keyGroupRange.prettyPrintInterval(), registrationName);
-        }
-
-        private boolean isRegistered(
-                JobID jobId,
-                JobVertexID jobVertexId,
-                KeyGroupRange keyGroupRange,
-                String registrationName) {
-            return registeredStates.containsKey(
-                    createKey(jobId, jobVertexId, keyGroupRange, registrationName));
-        }
-
-        @Override
-        public void notifyKvStateRegistered(
-                JobID jobId,
-                JobVertexID jobVertexId,
-                KeyGroupRange keyGroupRange,
-                String registrationName,
-                KvStateID kvStateId) {
-            registeredStates.put(
-                    createKey(jobId, jobVertexId, keyGroupRange, registrationName), kvStateId);
-        }
-
-        @Override
-        public void notifyKvStateUnregistered(
-                JobID jobId,
-                JobVertexID jobVertexId,
-                KeyGroupRange keyGroupRange,
-                String registrationName) {
-            registeredStates.remove(createKey(jobId, jobVertexId, keyGroupRange, registrationName));
-        }
     }
 
     private MockEnvironment buildMockEnv() throws Exception {

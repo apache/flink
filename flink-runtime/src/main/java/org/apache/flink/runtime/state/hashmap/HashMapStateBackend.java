@@ -106,7 +106,6 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
         SizeTrackingStateConfig sizeTrackingStateConfig =
                 sizeTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         return new HeapKeyedStateBackendBuilder<>(
-                        parameters.getKvStateRegistry(),
                         parameters.getKeySerializer(),
                         parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                         parameters.getNumberOfKeyGroups(),

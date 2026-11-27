@@ -83,7 +83,6 @@ public class TaskManagerServices {
     private final long managedMemorySize;
     private final IOManager ioManager;
     private final ShuffleEnvironment<?, ?> shuffleEnvironment;
-    private final KvStateService kvStateService;
     private final BroadcastVariableManager broadcastVariableManager;
     private final TaskSlotTable<Task> taskSlotTable;
     private final JobTable jobTable;
@@ -107,7 +106,6 @@ public class TaskManagerServices {
             long managedMemorySize,
             IOManager ioManager,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
-            KvStateService kvStateService,
             BroadcastVariableManager broadcastVariableManager,
             TaskSlotTable<Task> taskSlotTable,
             JobTable jobTable,
@@ -130,7 +128,6 @@ public class TaskManagerServices {
         this.managedMemorySize = managedMemorySize;
         this.ioManager = Preconditions.checkNotNull(ioManager);
         this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
-        this.kvStateService = Preconditions.checkNotNull(kvStateService);
         this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
         this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
         this.jobTable = Preconditions.checkNotNull(jobTable);
@@ -164,10 +161,6 @@ public class TaskManagerServices {
 
     public ShuffleEnvironment<?, ?> getShuffleEnvironment() {
         return shuffleEnvironment;
-    }
-
-    public KvStateService getKvStateService() {
-        return kvStateService;
     }
 
     public UnresolvedTaskManagerLocation getUnresolvedTaskManagerLocation() {
@@ -262,12 +255,6 @@ public class TaskManagerServices {
         }
 
         try {
-            kvStateService.shutdown();
-        } catch (Exception e) {
-            exception = ExceptionUtils.firstOrSuppressed(e, exception);
-        }
-
-        try {
             taskSlotTable.close();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -353,10 +340,6 @@ public class TaskManagerServices {
         LOG.info(
                 "TaskManager data connection initialized successfully; listening internally on port: {}",
                 listeningDataPort);
-
-        final KvStateService kvStateService =
-                KvStateService.fromConfiguration(taskManagerServicesConfiguration);
-        kvStateService.start();
 
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new UnresolvedTaskManagerLocation(
@@ -446,7 +429,6 @@ public class TaskManagerServices {
                 taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
                 ioManager,
                 shuffleEnvironment,
-                kvStateService,
                 broadcastVariableManager,
                 taskSlotTable,
                 jobTable,

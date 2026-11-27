@@ -169,8 +169,6 @@ class TypeSerializerTestCoverageTest {
                         org.apache.flink.table.runtime.operators.window.GlobalWindow.Serializer
                                 .class
                                 .getName(),
-                        org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class
-                                .getName(),
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
@@ -287,8 +285,7 @@ class TypeSerializerTestCoverageTest {
                     || typeSerializer.getName().contains("TestType$")
                     || typeSerializer.getName().contains("testutils")
                     || typeSerializer.getName().contains("ITCase$")
-                    || typeSerializer.getName().contains("$$anon")
-                    || typeSerializer.getName().contains("queryablestate")) {
+                    || typeSerializer.getName().contains("$$anon")) {
                 continue;
             }
 

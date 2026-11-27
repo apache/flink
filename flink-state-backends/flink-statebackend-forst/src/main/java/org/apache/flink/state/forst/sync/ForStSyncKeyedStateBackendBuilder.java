@@ -25,7 +25,6 @@ import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
@@ -149,7 +148,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             ClassLoader userCodeClassLoader,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
@@ -165,7 +163,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             StreamCompressionDecorator keyGroupCompressionDecorator,
             CloseableRegistry cancelStreamRegistry) {
         super(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 numberOfKeyGroups,
@@ -197,7 +194,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             ClassLoader userCodeClassLoader,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
@@ -218,7 +214,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 userCodeClassLoader,
                 optionsContainer,
                 columnFamilyOptionsFactory,
-                kvStateRegistry,
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
@@ -400,7 +395,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 this.userCodeClassLoader,
                 this.optionsContainer,
                 columnFamilyOptionsFactory,
-                this.kvStateRegistry,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 this.executionConfig,
                 this.ttlTimeProvider,

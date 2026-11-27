@@ -157,7 +157,6 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
                                         IntSerializer.INSTANCE,
                                         10,
                                         KeyGroupRange.of(0, 9),
-                                        env.getTaskKvStateRegistry(),
                                         TtlTimeProvider.DEFAULT,
                                         getMetricGroup(),
                                         getCustomInitializationMetrics(),

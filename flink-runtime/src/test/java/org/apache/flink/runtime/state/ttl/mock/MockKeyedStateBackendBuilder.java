@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.ttl.mock;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -49,7 +48,6 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
     private final MockSnapshotSupplier snapshotSupplier;
 
     public MockKeyedStateBackendBuilder(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             int numberOfKeyGroups,
@@ -63,7 +61,6 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
             CloseableRegistry cancelStreamRegistry,
             MockSnapshotSupplier snapshotSupplier) {
         super(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 numberOfKeyGroups,
@@ -86,7 +83,6 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 new MockRestoreOperation<>(restoreStateHandles, stateValues);
         restoreOperation.restore();
         return new MockKeyedStateBackend<>(
-                kvStateRegistry,
                 keySerializerProvider.currentSchemaSerializer(),
                 userCodeClassLoader,
                 executionConfig,

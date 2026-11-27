@@ -238,11 +238,8 @@ public abstract class StateTable<K, N, S>
         }
     }
 
-    // For queryable state ------------------------------------------------------------------------
-
     /**
-     * Returns the state for the composite of active key and given namespace. This is typically used
-     * by queryable state.
+     * Returns the state for the composite of active key and given namespace.
      *
      * @param key the key. Not null.
      * @param namespace the namespace. Not null.

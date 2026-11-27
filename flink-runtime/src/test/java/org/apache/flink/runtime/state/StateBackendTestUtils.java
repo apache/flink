@@ -242,7 +242,6 @@ public class StateBackendTestUtils {
             AbstractKeyedStateBackend<K> delegatedKeyedStateBackend =
                     delegatedStataBackend.createKeyedStateBackend(parameters);
             return new AbstractKeyedStateBackend<K>(
-                    parameters.getKvStateRegistry(),
                     parameters.getKeySerializer(),
                     parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                     parameters.getEnv().getExecutionConfig(),

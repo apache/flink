@@ -136,12 +136,6 @@ Every module from the root pom.xml, organized by function. Flink provides three 
   - `flink-gs-fs-hadoop` — Google Cloud Storage
   - `flink-fs-hadoop-shaded` — Shaded Hadoop dependencies
 
-### Queryable State
-
-- `flink-queryable-state/`
-  - `flink-queryable-state-runtime` — Server-side queryable state service
-  - `flink-queryable-state-client-java` — Client for querying operator state from running jobs
-
 ### Deployment
 
 - `flink-kubernetes` — Kubernetes integration

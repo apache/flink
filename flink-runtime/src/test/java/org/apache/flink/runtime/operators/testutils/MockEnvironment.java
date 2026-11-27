@@ -51,8 +51,6 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -123,10 +121,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
     private final AccumulatorRegistry accumulatorRegistry;
-
-    private final TaskKvStateRegistry taskKvStateRegistry;
-
-    private final KvStateRegistry kvStateRegistry;
 
     private final int bufferSize;
 
@@ -202,9 +196,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
         this.bufferSize = bufferSize;
 
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
-
-        this.kvStateRegistry = new KvStateRegistry();
-        this.taskKvStateRegistry = kvStateRegistry.createTaskRegistry(jobID, getJobVertexId());
 
         this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
         this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
@@ -313,10 +304,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
         return taskInfo;
     }
 
-    public KvStateRegistry getKvStateRegistry() {
-        return kvStateRegistry;
-    }
-
     @Override
     public UserCodeClassLoader getUserCodeClassLoader() {
         return userCodeClassLoader;
@@ -391,11 +378,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public AccumulatorRegistry getAccumulatorRegistry() {
         return this.accumulatorRegistry;
-    }
-
-    @Override
-    public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return taskKvStateRegistry;
     }
 
     @Override

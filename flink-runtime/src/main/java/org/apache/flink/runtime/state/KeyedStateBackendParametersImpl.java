@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateBackend.CustomInitializationMetrics;
 import org.apache.flink.runtime.state.StateBackend.KeyedStateBackendParameters;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -46,7 +45,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
     private final TypeSerializer<K> keySerializer;
     private final int numberOfKeyGroups;
     private final KeyGroupRange keyGroupRange;
-    private final TaskKvStateRegistry kvStateRegistry;
     private TtlTimeProvider ttlTimeProvider;
     private final MetricGroup metricGroup;
     private final CustomInitializationMetrics customInitializationMetrics;
@@ -61,7 +59,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
             TtlTimeProvider ttlTimeProvider,
             MetricGroup metricGroup,
             Collection<KeyedStateHandle> stateHandles,
@@ -73,7 +70,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
-                kvStateRegistry,
                 ttlTimeProvider,
                 metricGroup,
                 (name, value) -> {},
@@ -89,7 +85,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
             TtlTimeProvider ttlTimeProvider,
             MetricGroup metricGroup,
             CustomInitializationMetrics customInitializationMetrics,
@@ -102,7 +97,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
         this.keySerializer = keySerializer;
         this.numberOfKeyGroups = numberOfKeyGroups;
         this.keyGroupRange = keyGroupRange;
-        this.kvStateRegistry = kvStateRegistry;
         this.ttlTimeProvider = ttlTimeProvider;
         this.metricGroup = metricGroup;
         this.customInitializationMetrics = customInitializationMetrics;
@@ -119,7 +113,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
                 parameters.getKeySerializer(),
                 parameters.getNumberOfKeyGroups(),
                 parameters.getKeyGroupRange(),
-                parameters.getKvStateRegistry(),
                 parameters.getTtlTimeProvider(),
                 parameters.getMetricGroup(),
                 parameters.getCustomInitializationMetrics(),
@@ -156,11 +149,6 @@ public class KeyedStateBackendParametersImpl<K> implements KeyedStateBackendPara
     @Override
     public KeyGroupRange getKeyGroupRange() {
         return keyGroupRange;
-    }
-
-    @Override
-    public TaskKvStateRegistry getKvStateRegistry() {
-        return kvStateRegistry;
     }
 
     @Override

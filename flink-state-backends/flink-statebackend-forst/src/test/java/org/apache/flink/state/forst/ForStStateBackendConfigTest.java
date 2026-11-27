@@ -32,10 +32,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
@@ -338,7 +335,6 @@ class ForStStateBackendConfigTest {
         final MockEnvironment env = getMockEnvironment(dir1);
         JobID jobID = env.getJobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         ForStKeyedStateBackend<Integer> keyedBackend =
                 forStStateBackend.createAsyncKeyedStateBackend(
@@ -349,7 +345,6 @@ class ForStStateBackendConfigTest {
                                 IntSerializer.INSTANCE,
                                 1,
                                 keyGroupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),
@@ -383,8 +378,6 @@ class ForStStateBackendConfigTest {
             try {
                 JobID jobID = env.getJobID();
                 KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
-                TaskKvStateRegistry kvStateRegistry =
-                        new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID());
                 CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
                 forStStateBackend.createAsyncKeyedStateBackend(
                         new KeyedStateBackendParametersImpl<>(
@@ -394,7 +387,6 @@ class ForStStateBackendConfigTest {
                                 IntSerializer.INSTANCE,
                                 1,
                                 keyGroupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),
@@ -429,8 +421,6 @@ class ForStStateBackendConfigTest {
             try {
                 JobID jobID = env.getJobID();
                 KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
-                TaskKvStateRegistry kvStateRegistry =
-                        new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID());
                 CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
                 ForStKeyedStateBackend<Integer> keyedStateBackend =
                         forStStateBackend.createAsyncKeyedStateBackend(
@@ -441,7 +431,6 @@ class ForStStateBackendConfigTest {
                                         IntSerializer.INSTANCE,
                                         1,
                                         keyGroupRange,
-                                        kvStateRegistry,
                                         TtlTimeProvider.DEFAULT,
                                         new UnregisteredMetricsGroup(),
                                         Collections.emptyList(),

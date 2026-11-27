@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.metrics.MetricsTrackingStateFactory;
@@ -77,9 +76,6 @@ public abstract class AbstractKeyedStateBackend<K>
     /** Range of key-groups for which this backend is responsible. */
     protected final KeyGroupRange keyGroupRange;
 
-    /** KvStateRegistry helper for this task. */
-    protected final TaskKvStateRegistry kvStateRegistry;
-
     /**
      * Registry for all opened streams, so they can be closed if the task using this backend is
      * closed.
@@ -103,7 +99,6 @@ public abstract class AbstractKeyedStateBackend<K>
     protected final InternalKeyContext<K> keyContext;
 
     public AbstractKeyedStateBackend(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
@@ -113,7 +108,6 @@ public abstract class AbstractKeyedStateBackend<K>
             CloseableRegistry cancelStreamRegistry,
             InternalKeyContext<K> keyContext) {
         this(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 executionConfig,
@@ -126,7 +120,6 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     public AbstractKeyedStateBackend(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
@@ -137,7 +130,6 @@ public abstract class AbstractKeyedStateBackend<K>
             StreamCompressionDecorator keyGroupCompressionDecorator,
             InternalKeyContext<K> keyContext) {
         this(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 executionConfig,
@@ -158,7 +150,6 @@ public abstract class AbstractKeyedStateBackend<K>
     // Copy constructor
     protected AbstractKeyedStateBackend(AbstractKeyedStateBackend<K> abstractKeyedStateBackend) {
         this(
-                abstractKeyedStateBackend.kvStateRegistry,
                 abstractKeyedStateBackend.keySerializer,
                 abstractKeyedStateBackend.userCodeClassLoader,
                 abstractKeyedStateBackend.executionConfig,
@@ -178,7 +169,6 @@ public abstract class AbstractKeyedStateBackend<K>
 
     @SuppressWarnings("rawtypes")
     private AbstractKeyedStateBackend(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
@@ -206,7 +196,6 @@ public abstract class AbstractKeyedStateBackend<K>
                 numberOfKeyGroups,
                 keyGroupRange.getNumberOfKeyGroups());
 
-        this.kvStateRegistry = kvStateRegistry;
         this.keySerializer = keySerializer;
         this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
         this.cancelStreamRegistry = cancelStreamRegistry;
@@ -241,10 +230,6 @@ public abstract class AbstractKeyedStateBackend<K>
     public void dispose() {
 
         IOUtils.closeQuietly(cancelStreamRegistry);
-
-        if (kvStateRegistry != null) {
-            kvStateRegistry.unregisterAll();
-        }
 
         lastName = null;
         lastState = null;
@@ -405,20 +390,8 @@ public abstract class AbstractKeyedStateBackend<K>
                             latencyTrackingStateConfig,
                             sizeTrackingStateConfig);
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
-            publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
         return (S) kvState;
-    }
-
-    public void publishQueryableStateIfEnabled(
-            StateDescriptor<?, ?> stateDescriptor, InternalKvState<?, ?, ?> kvState) {
-        if (stateDescriptor.isQueryable()) {
-            if (kvStateRegistry == null) {
-                throw new IllegalStateException("State backend has not been initialized for job.");
-            }
-            String name = stateDescriptor.getQueryableStateName();
-            kvStateRegistry.registerKvState(keyGroupRange, name, kvState, userCodeClassLoader);
-        }
     }
 
     /**
