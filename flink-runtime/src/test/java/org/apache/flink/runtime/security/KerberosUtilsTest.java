@@ -18,26 +18,20 @@
 
 package org.apache.flink.runtime.security;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import javax.security.auth.login.AppConfigurationEntry;
-
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KerberosUtils}. */
-public class KerberosUtilsTest {
+class KerberosUtilsTest {
 
     @Test
-    public void testTicketCacheEntry() {
-        AppConfigurationEntry entry = KerberosUtils.ticketCacheEntry();
-        assertNotNull(entry);
+    void testTicketCacheEntry() {
+        assertThat(KerberosUtils.ticketCacheEntry()).isNotNull();
     }
 
     @Test
-    public void testKeytabEntry() {
-        String keytab = "user.keytab";
-        String principal = "user";
-        AppConfigurationEntry entry = KerberosUtils.keytabEntry(keytab, principal);
-        assertNotNull(entry);
+    void testKeytabEntry() {
+        assertThat(KerberosUtils.keytabEntry("user.keytab", "user")).isNotNull();
     }
 }
