@@ -32,7 +32,6 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -65,7 +64,7 @@ import static org.mockito.Mockito.verify;
  * ZooKeeperStateHandleStore}, {@link ZooKeeperExecutionPlanStoreWatcher}, {@link
  * ZooKeeperExecutionPlanStoreUtil}).
  */
-public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
+class ZooKeeperExecutionPlansStoreITCase {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
 
@@ -87,7 +86,7 @@ public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
             };
 
     @Test
-    public void testPutAndRemoveExecutionPlan() throws Exception {
+    void testPutAndRemoveExecutionPlan() throws Exception {
         ExecutionPlanStore executionPlans =
                 createZooKeeperExecutionPlanStore("/testPutAndRemoveExecutionPlan");
 
@@ -165,7 +164,7 @@ public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
     }
 
     @Test
-    public void testRecoverExecutionPlans() throws Exception {
+    void testRecoverExecutionPlans() throws Exception {
         ExecutionPlanStore executionPlans =
                 createZooKeeperExecutionPlanStore("/testRecoverExecutionPlans");
 
@@ -193,7 +192,7 @@ public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
 
             for (JobID jobId : actual) {
                 ExecutionPlan executionPlan = executionPlans.recoverExecutionPlan(jobId);
-                assertThat(expected).containsKey(executionPlan.getJobID());
+                assertThat(executionPlan.getJobID()).isIn(expected.keySet());
 
                 verifyExecutionPlans(expected.get(executionPlan.getJobID()), executionPlan);
 
@@ -214,7 +213,7 @@ public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
     }
 
     @Test
-    public void testConcurrentAddExecutionPlan() throws Exception {
+    void testConcurrentAddExecutionPlan() throws Exception {
         ExecutionPlanStore executionPlans = null;
         ExecutionPlanStore otherExecutionPlans = null;
 
@@ -278,7 +277,7 @@ public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
     }
 
     @Test
-    public void testUpdateExecutionPlanYouDidNotGetOrAdd() throws Exception {
+    void testUpdateExecutionPlanYouDidNotGetOrAdd() throws Exception {
         ExecutionPlanStore executionPlans =
                 createZooKeeperExecutionPlanStore("/testUpdateExecutionPlanYouDidNotGetOrAdd");
 
@@ -303,7 +302,7 @@ public class ZooKeeperExecutionPlansStoreITCase extends TestLogger {
      * <p>Tests that a close ZooKeeperExecutionPlanStore no longer holds any locks.
      */
     @Test
-    public void testExecutionPlanRemovalFailureAndLockRelease() throws Exception {
+    void testExecutionPlanRemovalFailureAndLockRelease() throws Exception {
         final ExecutionPlanStore submittedExecutionPlanStore =
                 createZooKeeperExecutionPlanStore("/testConcurrentAddExecutionPlan");
         final ExecutionPlanStore otherSubmittedExecutionPlanStore =

@@ -26,14 +26,13 @@ import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -48,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests for {@link DefaultApplicationStore} with {@link TestingStateHandleStore} and {@link
  * TestingApplicationStoreEntry}.
  */
-public class DefaultApplicationStoreTest extends TestLogger {
+class DefaultApplicationStoreTest {
 
     private final ApplicationStoreEntry testingApplication =
             TestingApplicationStoreEntry.newBuilder().build();
@@ -57,14 +56,14 @@ public class DefaultApplicationStoreTest extends TestLogger {
     private TestingStateHandleStore.Builder<ApplicationStoreEntry> builder;
     private TestingRetrievableStateStorageHelper<ApplicationStoreEntry> storageHelper;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         builder = TestingStateHandleStore.newBuilder();
         storageHelper = new TestingRetrievableStateStorageHelper<>();
     }
 
     @Test
-    public void testRecoverApplication() throws Exception {
+    void testRecoverApplication() throws Exception {
         final RetrievableStateHandle<ApplicationStoreEntry> stateHandle =
                 storageHelper.store(testingApplication);
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
@@ -80,7 +79,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testRecoverApplicationWhenNotExist() throws Exception {
+    void testRecoverApplicationWhenNotExist() throws Exception {
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setGetFunction(
                                 ignore -> {
@@ -96,7 +95,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testRecoverApplicationFailedShouldReleaseHandle() throws Exception {
+    void testRecoverApplicationFailedShouldReleaseHandle() throws Exception {
         final CompletableFuture<String> releaseFuture = new CompletableFuture<>();
         final FlinkException testException = new FlinkException("Test exception.");
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
@@ -119,7 +118,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testPutApplicationWhenNotExist() throws Exception {
+    void testPutApplicationWhenNotExist() throws Exception {
         final CompletableFuture<ApplicationStoreEntry> addFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setExistsFunction(ignore -> IntegerResourceVersion.notExisting())
@@ -138,7 +137,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testPutApplicationWhenAlreadyExist() throws Exception {
+    void testPutApplicationWhenAlreadyExist() throws Exception {
         final CompletableFuture<Tuple3<String, IntegerResourceVersion, ApplicationStoreEntry>>
                 replaceFuture = new CompletableFuture<>();
         final int resourceVersion = 100;
@@ -164,13 +163,13 @@ public class DefaultApplicationStoreTest extends TestLogger {
 
         final Tuple3<String, IntegerResourceVersion, ApplicationStoreEntry> actual =
                 replaceFuture.get(timeout, TimeUnit.MILLISECONDS);
-        assertThat(actual.f0).isEqualTo(testingApplication.getApplicationId().toString());
+        assertThat(testingApplication.getApplicationId()).hasToString(actual.f0);
         assertThat(actual.f1).isEqualTo(IntegerResourceVersion.valueOf(resourceVersion));
         assertThat(actual.f2.getApplicationId()).isEqualTo(testingApplication.getApplicationId());
     }
 
     @Test
-    public void testGlobalCleanup() throws Exception {
+    void testGlobalCleanup() throws Exception {
         final CompletableFuture<ApplicationID> removeFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> storageHelper.store(state))
@@ -193,7 +192,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanupWithNonExistName() throws Exception {
+    void testGlobalCleanupWithNonExistName() throws Exception {
         final CompletableFuture<ApplicationID> removeFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setRemoveFunction(
@@ -213,7 +212,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanupFailsIfRemovalReturnsFalse() throws Exception {
+    void testGlobalCleanupFailsIfRemovalReturnsFalse() throws Exception {
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setRemoveFunction(name -> false).build();
 
@@ -229,9 +228,9 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testGetApplicationIds() throws Exception {
+    void testGetApplicationIds() throws Exception {
         final Collection<ApplicationID> existingApplicationIds =
-                Arrays.asList(new ApplicationID(), new ApplicationID());
+                List.of(new ApplicationID(), new ApplicationID());
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setGetAllHandlesSupplier(
                                 () ->
@@ -246,7 +245,7 @@ public class DefaultApplicationStoreTest extends TestLogger {
     }
 
     @Test
-    public void testStoppingApplicationStoreShouldReleaseAllHandles() throws Exception {
+    void testStoppingApplicationStoreShouldReleaseAllHandles() throws Exception {
         final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         final TestingStateHandleStore<ApplicationStoreEntry> stateHandleStore =
                 builder.setReleaseAllHandlesRunnable(() -> completableFuture.complete(null))

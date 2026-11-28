@@ -23,40 +23,34 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class JobCheckpointingSettingsTest {
+class JobCheckpointingSettingsTest {
 
     /** Tests that the settings are actually serializable. */
     @Test
-    public void testIsJavaSerializable() throws Exception {
+    void testIsJavaSerializable() throws Exception {
         JobCheckpointingSettings settings =
                 new JobCheckpointingSettings(
-                        new CheckpointCoordinatorConfiguration(
-                                1231231,
-                                1231,
-                                112,
-                                12,
-                                CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
-                                false,
-                                false,
-                                0,
-                                0),
+                        CheckpointCoordinatorConfiguration.builder()
+                                .setCheckpointInterval(1231231)
+                                .setCheckpointIntervalDuringBacklog(1231231)
+                                .setCheckpointTimeout(1231)
+                                .setMinPauseBetweenCheckpoints(112)
+                                .setMaxConcurrentCheckpoints(12)
+                                .setCheckpointRetentionPolicy(
+                                        CheckpointRetentionPolicy.RETAIN_ON_FAILURE)
+                                .setExactlyOnce(false)
+                                .build(),
                         new SerializedValue<>(new HashMapStateBackend()));
 
         JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);
-        assertEquals(
-                settings.getCheckpointCoordinatorConfiguration(),
-                copy.getCheckpointCoordinatorConfiguration());
-        assertNotNull(copy.getDefaultStateBackend());
-        assertTrue(
-                copy.getDefaultStateBackend()
-                                .deserializeValue(this.getClass().getClassLoader())
-                                .getClass()
-                        == HashMapStateBackend.class);
+        assertThat(copy.getCheckpointCoordinatorConfiguration())
+                .isEqualTo(settings.getCheckpointCoordinatorConfiguration());
+        assertThat(copy.getDefaultStateBackend()).isNotNull();
+        assertThat(copy.getDefaultStateBackend().deserializeValue(getClass().getClassLoader()))
+                .isExactlyInstanceOf(HashMapStateBackend.class);
     }
 }

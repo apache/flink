@@ -24,10 +24,9 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,11 +40,10 @@ import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResultTest.assertResultsEquals;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link DefaultLogicalVertex}. */
-public class DefaultLogicalVertexTest extends TestLogger {
+class DefaultLogicalVertexTest {
 
     private JobVertex upstreamJobVertex;
 
@@ -59,8 +57,8 @@ public class DefaultLogicalVertexTest extends TestLogger {
 
     private Set<IntermediateDataSet> results;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         buildVerticesAndResults();
 
         upstreamLogicalVertex =
@@ -75,18 +73,18 @@ public class DefaultLogicalVertexTest extends TestLogger {
     }
 
     @Test
-    public void testConstructor() {
+    void testConstructor() {
         assertVertexInfoEquals(upstreamJobVertex, upstreamLogicalVertex);
         assertVertexInfoEquals(downstreamJobVertex, downstreamLogicalVertex);
     }
 
     @Test
-    public void testGetConsumedResults() {
+    void testGetConsumedResults() {
         assertResultsEquals(results, downstreamLogicalVertex.getConsumedResults());
     }
 
     @Test
-    public void testGetProducedResults() {
+    void testGetProducedResults() {
         assertResultsEquals(results, upstreamLogicalVertex.getProducedResults());
     }
 
@@ -120,17 +118,17 @@ public class DefaultLogicalVertexTest extends TestLogger {
         for (JobVertex jobVertex : jobVertices) {
             final DefaultLogicalVertex logicalVertex = logicalVertextMap.remove(jobVertex.getID());
 
-            assertNotNull(logicalVertex);
+            assertThat(logicalVertex).isNotNull();
             assertVertexInfoEquals(jobVertex, logicalVertex);
         }
 
         // this ensures the two collections exactly matches
-        assertEquals(0, logicalVertextMap.size());
+        assertThat(logicalVertextMap).isEmpty();
     }
 
     static void assertVertexInfoEquals(
             final JobVertex jobVertex, final DefaultLogicalVertex logicalVertex) {
 
-        assertEquals(jobVertex.getID(), logicalVertex.getId());
+        assertThat(logicalVertex.getId()).isEqualTo(jobVertex.getID());
     }
 }

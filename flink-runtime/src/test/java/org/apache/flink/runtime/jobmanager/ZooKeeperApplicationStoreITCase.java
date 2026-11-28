@@ -27,7 +27,6 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -48,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * IT tests for {@link DefaultApplicationStore} with all ZooKeeper components(e.g. {@link
  * ZooKeeperStateHandleStore}, {@link ZooKeeperApplicationStoreUtil}).
  */
-public class ZooKeeperApplicationStoreITCase extends TestLogger {
+class ZooKeeperApplicationStoreITCase {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
 
@@ -70,7 +69,7 @@ public class ZooKeeperApplicationStoreITCase extends TestLogger {
             };
 
     @Test
-    public void testPutAndRemoveApplication() throws Exception {
+    void testPutAndRemoveApplication() throws Exception {
         ApplicationStore applicationStore =
                 createZooKeeperApplicationStore("/testPutAndRemoveApplication");
 
@@ -149,7 +148,7 @@ public class ZooKeeperApplicationStoreITCase extends TestLogger {
     }
 
     @Test
-    public void testRecoverApplications() throws Exception {
+    void testRecoverApplications() throws Exception {
         ApplicationStore applicationStore =
                 createZooKeeperApplicationStore("/testRecoverApplications");
 
@@ -179,7 +178,7 @@ public class ZooKeeperApplicationStoreITCase extends TestLogger {
                 Optional<ApplicationStoreEntry> applicationStoreEntry =
                         applicationStore.recoverApplication(applicationId);
                 assertThat(applicationStoreEntry).isPresent();
-                assertThat(expected).containsKey(applicationStoreEntry.get().getApplicationId());
+                assertThat(applicationStoreEntry.get().getApplicationId()).isIn(expected.keySet());
 
                 verifyApplicationStoreEntries(
                         expected.get(applicationStoreEntry.get().getApplicationId()),
@@ -200,7 +199,7 @@ public class ZooKeeperApplicationStoreITCase extends TestLogger {
     }
 
     @Test
-    public void testUpdateApplicationYouDidNotGetOrAdd() throws Exception {
+    void testUpdateApplicationYouDidNotGetOrAdd() throws Exception {
         ApplicationStore applicationStore =
                 createZooKeeperApplicationStore("/testUpdateApplicationYouDidNotGetOrAdd");
 
@@ -228,7 +227,7 @@ public class ZooKeeperApplicationStoreITCase extends TestLogger {
      * <p>Tests that a close ZooKeeperApplicationStore no longer holds any locks.
      */
     @Test
-    public void testApplicationRemovalFailureAndLockRelease() throws Exception {
+    void testApplicationRemovalFailureAndLockRelease() throws Exception {
         final ApplicationStore submittedApplicationStore =
                 createZooKeeperApplicationStore("/testApplicationRemovalFailureAndLockRelease");
         final ApplicationStore otherSubmittedApplicationStore =

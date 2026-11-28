@@ -40,13 +40,12 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -57,18 +56,14 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.utils.ExecutionUtils.waitForTaskDeploymentDescriptorsCreation;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the updating of consumers depending on the producers result. */
-public class UpdatePartitionConsumersTest extends TestLogger {
+class UpdatePartitionConsumersTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static final long TIMEOUT = 5000L;
 
@@ -78,8 +73,8 @@ public class UpdatePartitionConsumersTest extends TestLogger {
     private JobVertex v3;
     private JobVertex v4;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         buildJobGraphWithBlockingEdgeWithinRegion();
     }
 
@@ -131,7 +126,7 @@ public class UpdatePartitionConsumersTest extends TestLogger {
      * finishes.
      */
     @Test
-    public void testUpdatePartitionConsumers() throws Exception {
+    void testUpdatePartitionConsumers() throws Exception {
         final SimpleAckingTaskManagerGateway taskManagerGateway =
                 new SimpleAckingTaskManagerGateway();
 
@@ -146,7 +141,7 @@ public class UpdatePartitionConsumersTest extends TestLogger {
                 new DefaultSchedulerBuilder(
                                 jobGraph,
                                 singleThreadMainThreadExecutor,
-                                EXECUTOR_RESOURCE.getExecutor())
+                                EXECUTOR_EXTENSION.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 new TestExecutionSlotAllocatorFactory(taskManagerGateway))
                         .build();
@@ -174,10 +169,10 @@ public class UpdatePartitionConsumersTest extends TestLogger {
 
         waitForTaskDeploymentDescriptorsCreation(ev1, ev2, ev3, ev4);
 
-        assertThat(ev1.getExecutionState(), is(ExecutionState.DEPLOYING));
-        assertThat(ev2.getExecutionState(), is(ExecutionState.DEPLOYING));
-        assertThat(ev3.getExecutionState(), is(ExecutionState.DEPLOYING));
-        assertThat(ev4.getExecutionState(), is(ExecutionState.DEPLOYING));
+        assertThat(ev1.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+        assertThat(ev2.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+        assertThat(ev3.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+        assertThat(ev4.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
 
         mainThreadExecutorService.execute(
                 () -> {
@@ -193,22 +188,22 @@ public class UpdatePartitionConsumersTest extends TestLogger {
 
         final InputGateDeploymentDescriptor ev4Igdd2 =
                 ev4TddFuture.get(TIMEOUT, TimeUnit.MILLISECONDS).getInputGates().get(1);
-        assertThat(ev4Igdd2.getShuffleDescriptors()[0], instanceOf(UnknownShuffleDescriptor.class));
+        assertThat(ev4Igdd2.getShuffleDescriptors()[0])
+                .isInstanceOf(UnknownShuffleDescriptor.class);
 
         final CompletableFuture<Void> updatePartitionFuture = new CompletableFuture<>();
         taskManagerGateway.setUpdatePartitionsConsumer(
                 (attemptId, partitionInfos, time) -> {
-                    assertThat(attemptId, equalTo(ev4.getCurrentExecutionAttempt().getAttemptId()));
+                    assertThat(attemptId)
+                            .isEqualTo(ev4.getCurrentExecutionAttempt().getAttemptId());
                     final List<PartitionInfo> partitionInfoList =
                             IterableUtils.toStream(partitionInfos).collect(Collectors.toList());
-                    assertThat(partitionInfoList, hasSize(1));
+                    assertThat(partitionInfoList).hasSize(1);
                     final PartitionInfo partitionInfo = partitionInfoList.get(0);
-                    assertThat(
-                            partitionInfo.getIntermediateDataSetID(),
-                            equalTo(v3.getProducedDataSets().get(0).getId()));
-                    assertThat(
-                            partitionInfo.getShuffleDescriptor(),
-                            instanceOf(NettyShuffleDescriptor.class));
+                    assertThat(partitionInfo.getIntermediateDataSetID())
+                            .isEqualTo(v3.getProducedDataSets().get(0).getId());
+                    assertThat(partitionInfo.getShuffleDescriptor())
+                            .isInstanceOf(NettyShuffleDescriptor.class);
                     updatePartitionFuture.complete(null);
                 });
 

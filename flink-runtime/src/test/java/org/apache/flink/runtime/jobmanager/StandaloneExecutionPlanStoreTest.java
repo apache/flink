@@ -23,30 +23,29 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class StandaloneExecutionPlanStoreTest {
+class StandaloneExecutionPlanStoreTest {
 
     /** Tests that all operations work and don't change the state. */
     @Test
-    public void testNoOps() throws Exception {
+    void testNoOps() throws Exception {
         StandaloneExecutionPlanStore executionPlans = new StandaloneExecutionPlanStore();
 
         ExecutionPlan executionPlan = JobGraphTestUtils.emptyJobGraph();
 
-        assertEquals(0, executionPlans.getJobIds().size());
+        assertThat(executionPlans.getJobIds()).isEmpty();
 
         executionPlans.putExecutionPlan(executionPlan);
-        assertEquals(0, executionPlans.getJobIds().size());
+        assertThat(executionPlans.getJobIds()).isEmpty();
 
         executionPlans
                 .globalCleanupAsync(executionPlan.getJobID(), Executors.directExecutor())
                 .join();
-        assertEquals(0, executionPlans.getJobIds().size());
+        assertThat(executionPlans.getJobIds()).isEmpty();
 
-        assertNull(executionPlans.recoverExecutionPlan(new JobID()));
+        assertThat(executionPlans.recoverExecutionPlan(new JobID())).isNull();
     }
 }

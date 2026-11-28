@@ -35,126 +35,107 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-public class JsonGeneratorTest {
+class JsonGeneratorTest {
+
+    private static final List<String> NODE_DESCRIPTION_PREFIXES =
+            List.of("source", "sink", "intermediate", "join");
 
     @Test
-    public void testGeneratorWithoutAnyAttachements() {
-        try {
-            JobVertex source1 = new JobVertex("source 1");
+    void testGeneratorWithoutAnyAttachements() {
+        JobVertex source1 = new JobVertex("source 1");
 
-            JobVertex source2 = new JobVertex("source 2");
-            source2.setInvokableClass(DummyInvokable.class);
+        JobVertex source2 = new JobVertex("source 2");
+        source2.setInvokableClass(DummyInvokable.class);
 
-            JobVertex source3 = new JobVertex("source 3");
+        JobVertex source3 = new JobVertex("source 3");
 
-            JobVertex intermediate1 = new JobVertex("intermediate 1");
-            JobVertex intermediate2 = new JobVertex("intermediate 2");
+        JobVertex intermediate1 = new JobVertex("intermediate 1");
+        JobVertex intermediate2 = new JobVertex("intermediate 2");
 
-            JobVertex join1 = new JobVertex("join 1");
-            JobVertex join2 = new JobVertex("join 2");
+        JobVertex join1 = new JobVertex("join 1");
+        JobVertex join2 = new JobVertex("join 2");
 
-            JobVertex sink1 = new JobVertex("sink 1");
-            JobVertex sink2 = new JobVertex("sink 2");
+        JobVertex sink1 = new JobVertex("sink 1");
+        JobVertex sink2 = new JobVertex("sink 2");
 
-            connectNewDataSetAsInput(
-                    intermediate1,
-                    source1,
-                    DistributionPattern.POINTWISE,
-                    ResultPartitionType.PIPELINED);
-            connectNewDataSetAsInput(
-                    intermediate2,
-                    source2,
-                    DistributionPattern.ALL_TO_ALL,
-                    ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                intermediate1,
+                source1,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                intermediate2,
+                source2,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.PIPELINED);
 
-            connectNewDataSetAsInput(
-                    join1,
-                    intermediate1,
-                    DistributionPattern.POINTWISE,
-                    ResultPartitionType.BLOCKING);
-            connectNewDataSetAsInput(
-                    join1,
-                    intermediate2,
-                    DistributionPattern.ALL_TO_ALL,
-                    ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                join1, intermediate1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                join1, intermediate2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-            connectNewDataSetAsInput(
-                    join2, join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            connectNewDataSetAsInput(
-                    join2, source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                join2, join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                join2, source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-            connectNewDataSetAsInput(
-                    sink1, join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            connectNewDataSetAsInput(
-                    sink2, join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink1, join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink2, join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-            JobGraph jg =
-                    JobGraphTestUtils.batchJobGraph(
-                            source1,
-                            source2,
-                            source3,
-                            intermediate1,
-                            intermediate2,
-                            join1,
-                            join2,
-                            sink1,
-                            sink2);
+        JobGraph jg =
+                JobGraphTestUtils.batchJobGraph(
+                        source1,
+                        source2,
+                        source3,
+                        intermediate1,
+                        intermediate2,
+                        join1,
+                        join2,
+                        sink1,
+                        sink2);
 
-            JobPlanInfo.Plan plan = JsonPlanGenerator.generatePlan(jg);
-            assertNotNull(plan);
+        JobPlanInfo.Plan plan = JsonPlanGenerator.generatePlan(jg);
+        assertThat(plan).isNotNull();
 
-            // core fields
-            assertEquals(jg.getJobID().toString(), plan.getJobId());
-            assertEquals(jg.getName(), plan.getName());
-            assertEquals(jg.getJobType().name(), plan.getType());
+        // core fields
+        assertThat(jg.getJobID()).hasToString(plan.getJobId());
+        assertThat(plan.getName()).isEqualTo(jg.getName());
+        assertThat(plan.getType()).isEqualTo(jg.getJobType().name());
 
-            assertThat(plan.getNodes()).isNotEmpty();
-            assertThat(plan.getNodes().size()).isEqualTo(9);
-
-            for (JobPlanInfo.Plan.Node node : plan.getNodes()) {
-                checkVertexExists(node.getId(), jg);
-
-                String description = node.getDescription();
-                assertTrue(
-                        description.startsWith("source")
-                                || description.startsWith("sink")
-                                || description.startsWith("intermediate")
-                                || description.startsWith("join"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    private void checkVertexExists(String vertexId, JobGraph graph) {
-        // validate that the vertex has a valid
-        JobVertexID id = JobVertexID.fromHexString(vertexId);
-        for (JobVertex vertex : graph.getVertices()) {
-            if (vertex.getID().equals(id)) {
-                return;
-            }
-        }
-        fail("could not find vertex with id " + vertexId + " in JobGraph");
+        List<JobVertexID> vertexIds =
+                StreamSupport.stream(jg.getVertices().spliterator(), false)
+                        .map(JobVertex::getID)
+                        .collect(Collectors.toList());
+        assertThat(plan.getNodes())
+                .hasSize(9)
+                .allSatisfy(
+                        node -> {
+                            assertThat(JobVertexID.fromHexString(node.getId())).isIn(vertexIds);
+                            assertThat(node.getDescription())
+                                    .matches(
+                                            description ->
+                                                    NODE_DESCRIPTION_PREFIXES.stream()
+                                                            .anyMatch(description::startsWith),
+                                            "starts with one of " + NODE_DESCRIPTION_PREFIXES);
+                        });
     }
 
     @Test
-    public void testGenerateStreamGraphJson() throws JsonProcessingException {
+    void testGenerateStreamGraphJson() throws JsonProcessingException {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromSequence(0L, 1L).disableChaining().print();
         StreamGraph streamGraph = env.getStreamGraph();
@@ -196,28 +177,28 @@ public class JsonGeneratorTest {
                         node -> {
                             StreamNode streamNode =
                                     streamGraph.getStreamNode(Integer.parseInt(node.getId()));
-                            assertEquals(node.getOperator(), streamNode.getOperatorName());
-                            assertEquals(
-                                    node.getParallelism(), (Integer) streamNode.getParallelism());
-                            assertEquals(
-                                    node.getDescription(), streamNode.getOperatorDescription());
+                            assertThat(node.getOperator()).isEqualTo(streamNode.getOperatorName());
+                            assertThat(node.getParallelism())
+                                    .isEqualTo(streamNode.getParallelism());
+                            assertThat(node.getDescription())
+                                    .isEqualTo(streamNode.getOperatorDescription());
                             validateStreamEdge(node.getInputs(), streamNode.getInEdges());
                             realJobVertexIds.add(node.getJobVertexId());
                         });
-        assertEquals(expectedJobVertexIds, realJobVertexIds);
+        assertThat(realJobVertexIds).containsExactlyElementsOf(expectedJobVertexIds);
     }
 
     private static void validateStreamEdge(
             List<StreamGraphJsonSchema.JsonStreamEdgeSchema> jsonStreamEdges,
             List<StreamEdge> streamEdges) {
-        assertEquals(jsonStreamEdges.size(), streamEdges.size());
+        assertThat(jsonStreamEdges).hasSameSizeAs(streamEdges);
         for (int i = 0; i < jsonStreamEdges.size(); i++) {
             StreamGraphJsonSchema.JsonStreamEdgeSchema edgeToValidate = jsonStreamEdges.get(i);
             StreamEdge expectedEdge = streamEdges.get(i);
-            assertEquals(String.valueOf(expectedEdge.getSourceId()), edgeToValidate.getId());
-            assertEquals(
-                    expectedEdge.getPartitioner().toString(), edgeToValidate.getShipStrategy());
-            assertEquals(expectedEdge.getExchangeMode().name(), edgeToValidate.getExchange());
+            assertThat(expectedEdge.getSourceId()).hasToString(edgeToValidate.getId());
+            assertThat(expectedEdge.getPartitioner()).hasToString(edgeToValidate.getShipStrategy());
+            assertThat(edgeToValidate.getExchange())
+                    .isEqualTo(expectedEdge.getExchangeMode().name());
         }
     }
 }

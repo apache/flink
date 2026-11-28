@@ -25,33 +25,31 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link IterationEventWithAggregators}. */
-public class EventWithAggregatorsTest {
+class EventWithAggregatorsTest {
 
-    private ClassLoader cl = ClassLoader.getSystemClassLoader();
+    private final ClassLoader cl = ClassLoader.getSystemClassLoader();
 
     @Test
-    public void testSerializationOfEmptyEvent() {
+    void testSerializationOfEmptyEvent() throws Exception {
         AllWorkersDoneEvent e = new AllWorkersDoneEvent();
         IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
 
-        Assert.assertEquals(0, deserialized.getAggregatorNames().length);
-        Assert.assertEquals(0, deserialized.getAggregates(cl).length);
+        assertThat(deserialized.getAggregatorNames()).isEmpty();
+        assertThat(deserialized.getAggregates(cl)).isEmpty();
     }
 
     @Test
-    public void testSerializationOfEventWithAggregateValues() {
+    void testSerializationOfEventWithAggregateValues() throws Exception {
         StringValue stringValue = new StringValue("test string");
         LongValue longValue = new LongValue(68743254);
 
@@ -65,60 +63,32 @@ public class EventWithAggregatorsTest {
         aggMap.put(stringValueName, stringAgg);
         aggMap.put(longValueName, longAgg);
 
-        Set<String> allNames = new HashSet<String>();
-        allNames.add(stringValueName);
-        allNames.add(longValueName);
-
-        Set<Value> allVals = new HashSet<Value>();
-        allVals.add(stringValue);
-        allVals.add(longValue);
-
         // run the serialization
         AllWorkersDoneEvent e = new AllWorkersDoneEvent(aggMap);
         IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
 
-        // verify the result
-        String[] names = deserialized.getAggregatorNames();
-        Value[] aggregates = deserialized.getAggregates(cl);
-
-        Assert.assertEquals(allNames.size(), names.length);
-        Assert.assertEquals(allVals.size(), aggregates.length);
-
-        // check that all the correct names and values are returned
-        for (String s : names) {
-            allNames.remove(s);
-        }
-        for (Value v : aggregates) {
-            allVals.remove(v);
-        }
-
-        Assert.assertTrue(allNames.isEmpty());
-        Assert.assertTrue(allVals.isEmpty());
+        assertThat(deserialized.getAggregatorNames())
+                .containsExactlyInAnyOrder(stringValueName, longValueName);
+        assertThat(deserialized.getAggregates(cl))
+                .containsExactlyInAnyOrder(stringValue, longValue);
     }
 
     private IterationEventWithAggregators pipeThroughSerialization(
-            IterationEventWithAggregators event) {
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            event.write(new DataOutputViewStreamWrapper(baos));
+            IterationEventWithAggregators event) throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        event.write(new DataOutputViewStreamWrapper(baos));
 
-            byte[] data = baos.toByteArray();
-            baos.close();
+        byte[] data = baos.toByteArray();
+        baos.close();
 
-            DataInputViewStreamWrapper in =
-                    new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
-            IterationEventWithAggregators newEvent =
-                    event.getClass().getDeclaredConstructor().newInstance();
-            newEvent.read(in);
-            in.close();
+        DataInputViewStreamWrapper in =
+                new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
+        IterationEventWithAggregators newEvent =
+                event.getClass().getDeclaredConstructor().newInstance();
+        newEvent.read(in);
+        in.close();
 
-            return newEvent;
-        } catch (Exception e) {
-            final Throwable cause = e instanceof InvocationTargetException ? e.getCause() : e;
-            cause.printStackTrace();
-            Assert.fail("Test threw an exception: " + cause);
-            return null;
-        }
+        return newEvent;
     }
 
     private static class TestAggregator<T extends Value> implements Aggregator<T> {

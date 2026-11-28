@@ -22,29 +22,24 @@ import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link IntermediateResultPartitionID}. */
-public class IntermediateResultPartitionIDTest {
+class IntermediateResultPartitionIDTest {
     private static final NettyBufferPool ALLOCATOR = new NettyBufferPool(1);
 
     @Test
-    public void testByteBufWriteAndRead() {
+    void testByteBufWriteAndRead() {
         final IntermediateResultPartitionID intermediateResultPartitionID =
                 new IntermediateResultPartitionID();
         final int byteBufLen = IntermediateResultPartitionID.getByteBufLength();
         final ByteBuf byteBuf = ALLOCATOR.directBuffer(byteBufLen, byteBufLen);
         intermediateResultPartitionID.writeTo(byteBuf);
 
-        assertThat(
-                byteBuf.writerIndex(),
-                is(equalTo(IntermediateResultPartitionID.getByteBufLength())));
-        assertThat(
-                IntermediateResultPartitionID.fromByteBuf(byteBuf),
-                is(equalTo(intermediateResultPartitionID)));
+        assertThat(byteBuf.writerIndex()).isEqualTo(byteBufLen);
+        assertThat(IntermediateResultPartitionID.fromByteBuf(byteBuf))
+                .isEqualTo(intermediateResultPartitionID);
     }
 }

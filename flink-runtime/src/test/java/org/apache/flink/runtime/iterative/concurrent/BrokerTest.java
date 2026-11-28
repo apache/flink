@@ -20,7 +20,7 @@ package org.apache.flink.runtime.iterative.concurrent;
 
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,13 +32,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link Broker}. */
-public class BrokerTest {
+class BrokerTest {
 
     @Test
-    public void mediation() throws Exception {
+    void mediation() throws Exception {
         Random random = new Random();
         for (int n = 0; n < 20; n++) {
             mediate(random.nextInt(10) + 1);
@@ -64,12 +64,12 @@ public class BrokerTest {
             for (Future<StringPair> future : executorService.invokeAll(tasks)) {
                 StringPair stringPair = future.get();
                 if (stringPair != null) {
-                    assertEquals("value" + stringPair.getFirst(), stringPair.getSecond());
+                    assertThat(stringPair.getSecond()).isEqualTo("value" + stringPair.getFirst());
                     numSuccessfulHandovers++;
                 }
             }
 
-            assertEquals(subtasks, numSuccessfulHandovers);
+            assertThat(numSuccessfulHandovers).isEqualTo(subtasks);
         } finally {
             executorService.shutdownNow();
         }
