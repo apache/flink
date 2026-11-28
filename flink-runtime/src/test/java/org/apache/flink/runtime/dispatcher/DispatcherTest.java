@@ -1099,6 +1099,55 @@ class DispatcherTest extends AbstractDispatcherTest {
                 .isZero();
     }
 
+    /**
+     * The JobManager failed after the dirty write of the job and before the dirty write of its
+     * single-job application, which is not persisted. The Dispatcher completes the application from
+     * the job result and cleans the job up.
+     */
+    @Test
+    public void testJobCleanupWithoutRecoveredJobGraphAndApplicationResult() throws Exception {
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
+        final CompletableFuture<ApplicationResultEntry> createdDirtyResult =
+                new CompletableFuture<>();
+        haServices.setApplicationResultStore(
+                TestingApplicationResultStore.builder()
+                        .withCreateDirtyResultConsumer(
+                                entry -> {
+                                    createdDirtyResult.complete(entry);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .build());
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setCleanupRunnerFactory(cleanupRunnerFactory)
+                        .setRecoveredDirtyJobs(
+                                Collections.singleton(
+                                        new JobResult.Builder()
+                                                .jobId(jobId)
+                                                .jobStatus(JobStatus.CANCELED)
+                                                .netRuntime(1)
+                                                .applicationId(applicationId)
+                                                .build()))
+                        .build(rpcService);
+
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        final ApplicationResult applicationResult =
+                createdDirtyResult
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+                        .getApplicationResult();
+        assertThat(applicationResult.getApplicationId()).isEqualTo(applicationId);
+        assertThat(applicationResult.getApplicationState()).isEqualTo(ApplicationState.CANCELED);
+        assertThat(cleanupRunnerFactory.takeCreatedJobManagerRunner().getJobID()).isEqualTo(jobId);
+        assertThat(jobManagerRunnerFactory.getQueueSize())
+                .as("No JobMaster should have been started.")
+                .isZero();
+    }
+
     @Test
     void testPersistedJobGraphWhenDispatcherIsShutDown() throws Exception {
         final TestingExecutionPlanStore submittedExecutionPlanStore =
