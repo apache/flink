@@ -68,7 +68,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the parameter handling of the {@link JarRunApplicationHandler}. */
-class JarRunApplicationHandlerParameterTest {
+class JarRunApplicationHandlerParameterTest implements JarIdHandlerContract {
     static final String[] PROG_ARGS = new String[] {"--host", "localhost", "--port", "1234"};
     static final int PARALLELISM = 4;
     static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
@@ -114,19 +114,17 @@ class JarRunApplicationHandlerParameterTest {
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
         init(tempDir);
-        final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
-                () -> CompletableFuture.completedFuture(restfulGateway);
-        final Duration timeout = Duration.ofSeconds(10);
-        final Map<String, String> responseHeaders = Collections.emptyMap();
+        handler = createHandler(jarDir);
+    }
 
-        handler =
-                new JarRunApplicationHandler(
-                        gatewayRetriever,
-                        timeout,
-                        responseHeaders,
-                        JarRunApplicationHeaders.getInstance(),
-                        jarDir,
-                        new Configuration());
+    private static JarRunApplicationHandler createHandler(final Path jarDir) {
+        return new JarRunApplicationHandler(
+                gatewayRetriever,
+                timeout,
+                responseHeaders,
+                JarRunApplicationHeaders.getInstance(),
+                jarDir,
+                new Configuration());
     }
 
     static void init(File tmpDir) throws Exception {
@@ -211,6 +209,31 @@ class JarRunApplicationHandlerParameterTest {
 
                             return true;
                         });
+    }
+
+    @Override
+    public void handleJarIdRequest(final Path jarDir, final String jarId) throws Exception {
+        LAST_SUBMITTED_APPLICATION_REFERENCE.set(null);
+        createHandler(jarDir)
+                .handleRequest(createRequestWithUnvalidatedJarId(jarId), restfulGateway)
+                .get();
+    }
+
+    @Override
+    public void assertJarHandled(final Path jar) {
+        assertThat(LAST_SUBMITTED_APPLICATION_REFERENCE.getAndSet(null)).isNotNull();
+    }
+
+    @Override
+    public Path programJar() {
+        return jarWithManifest;
+    }
+
+    private HandlerRequest<JarRunApplicationRequestBody> createRequestWithUnvalidatedJarId(
+            final String jarId) {
+        final JarRunApplicationMessageParameters parameters = getUnresolvedJarMessageParameters();
+        parameters.jarIdPathParameter.resolve(jarId);
+        return HandlerRequest.create(getDefaultJarRequestBody(), parameters);
     }
 
     @Test
