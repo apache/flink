@@ -1541,6 +1541,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                             jobManagerResourceID,
                             jobManagerRpcAddress,
                             jobID,
+                            executionPlan.getJobConfiguration(),
                             timeout);
                 }
             };
