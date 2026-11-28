@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, of, throwError, toArray } from 'rxjs';
 
 import { ApplicationDetail, ApplicationOverview } from '@flink-runtime-web/interfaces';
@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApplicationService } from './application.service';
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 
 describe('ApplicationService', () => {
   let httpClient: { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
@@ -150,6 +151,22 @@ describe('ApplicationService', () => {
       const emissions = await firstValueFrom(service.loadApplication('app-1').pipe(toArray()));
 
       expect(emissions).toEqual([]);
+    });
+
+    it('marks the request so a 404 is not reported as a server error', async () => {
+      httpClient.get.mockReturnValue(of(detail()));
+
+      await firstValueFrom(service.loadApplication('app-1'));
+
+      const [, options] = httpClient.get.mock.calls[0] as [string, { context: HttpContext }];
+      expect(options.context.get(EXPECTED_NOT_FOUND)).toBe(true);
+    });
+
+    it('propagates a 404 so callers can tell the application is gone', async () => {
+      const notFound = new HttpErrorResponse({ status: 404 });
+      httpClient.get.mockReturnValue(throwError(() => notFound));
+
+      await expect(firstValueFrom(service.loadApplication('app-1'))).rejects.toBe(notFound);
     });
   });
 });
