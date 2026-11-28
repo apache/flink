@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.NotSerializableException;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,5 +112,64 @@ public class FailedCheckpointStatsTest {
                 .isEqualTo(failed.getLatestAcknowledgedSubtaskStats());
         assertThat(copy.getStatus()).isEqualTo(failed.getStatus());
         assertThat(copy.getFailureMessage()).isEqualTo(failed.getFailureMessage());
+    }
+
+    @Test
+    void testFailureReasonExtractedFromCheckpointException() {
+        FailedCheckpointStats failed =
+                newFailedCheckpointStats(
+                        new CheckpointException(CheckpointFailureReason.IO_EXCEPTION));
+
+        assertThat(failed.getFailureReason()).isEqualTo(CheckpointFailureReason.IO_EXCEPTION);
+    }
+
+    @Test
+    void testFailureReasonExtractedFromWrappedCheckpointException() {
+        FailedCheckpointStats failed =
+                newFailedCheckpointStats(
+                        new RuntimeException(
+                                "wrapper",
+                                new CheckpointException(
+                                        CheckpointFailureReason.CHECKPOINT_EXPIRED)));
+
+        assertThat(failed.getFailureReason()).isEqualTo(CheckpointFailureReason.CHECKPOINT_EXPIRED);
+    }
+
+    @Test
+    void testFailureReasonNullForNonCheckpointExceptionCause() {
+        FailedCheckpointStats failed =
+                newFailedCheckpointStats(new RuntimeException("some other failure"));
+
+        assertThat(failed.getFailureReason()).isNull();
+    }
+
+    @Test
+    void testFailureReasonNullForNullCause() {
+        FailedCheckpointStats failed = newFailedCheckpointStats(null);
+
+        assertThat(failed.getFailureReason()).isNull();
+    }
+
+    private static FailedCheckpointStats newFailedCheckpointStats(@Nullable Throwable cause) {
+        Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+        JobVertexID jobVertexId = new JobVertexID();
+        taskStats.put(jobVertexId, new TaskStateStats(jobVertexId, 1));
+
+        return new FailedCheckpointStats(
+                0,
+                10123L,
+                CheckpointProperties.forCheckpoint(
+                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                1,
+                taskStats,
+                0,
+                0,
+                0,
+                0,
+                0,
+                false,
+                10123L,
+                null,
+                cause);
     }
 }

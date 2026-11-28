@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.FlinkRuntimeException;
+
 /** Various reasons why a checkpoint was failure. */
 public enum CheckpointFailureReason {
     PERIODIC_SCHEDULER_SHUTDOWN(true, "Periodic checkpoint scheduler is shut down."),
@@ -98,5 +100,51 @@ public enum CheckpointFailureReason {
      */
     public boolean isPreFlight() {
         return preFlight;
+    }
+
+    /**
+     * Whether a checkpoint failure with this reason counts toward the continuous checkpoint-failure
+     * threshold. This is the single source of truth shared by {@link
+     * CheckpointFailureManager#checkFailureCounter} (which fails the job once the tolerable failure
+     * number is exceeded) and the adaptive scheduler's rescale-on-failed-checkpoints countdown, so
+     * the two mechanisms cannot drift apart. Reasons such as tasks not yet running, coordinator
+     * shutdown, or checkpoint subsumption are not counted.
+     */
+    public boolean isCountedAgainstFailureThreshold() {
+        switch (this) {
+            case PERIODIC_SCHEDULER_SHUTDOWN:
+            case TOO_MANY_CHECKPOINT_REQUESTS:
+            case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
+            case NOT_ALL_REQUIRED_TASKS_RUNNING:
+            case CHECKPOINT_SUBSUMED:
+            case CHECKPOINT_COORDINATOR_SUSPEND:
+            case CHECKPOINT_COORDINATOR_SHUTDOWN:
+            case CHANNEL_STATE_SHARED_STREAM_EXCEPTION:
+            case JOB_FAILOVER_REGION:
+            // for compatibility purposes with user job behavior
+            case CHECKPOINT_DECLINED_TASK_NOT_READY:
+            case CHECKPOINT_DECLINED_TASK_CLOSING:
+            case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
+            case CHECKPOINT_DECLINED_SUBSUMED:
+            case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
+
+            case TASK_FAILURE:
+            case TASK_CHECKPOINT_FAILURE:
+            case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
+            // there are some edge cases shouldn't be counted as a failure, e.g. shutdown
+            case TRIGGER_CHECKPOINT_FAILURE:
+            case BLOCKING_OUTPUT_EXIST:
+                return false;
+
+            case IO_EXCEPTION:
+            case CHECKPOINT_ASYNC_EXCEPTION:
+            case CHECKPOINT_DECLINED:
+            case CHECKPOINT_EXPIRED:
+            case FINALIZE_CHECKPOINT_FAILURE:
+                return true;
+
+            default:
+                throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + name());
+        }
     }
 }

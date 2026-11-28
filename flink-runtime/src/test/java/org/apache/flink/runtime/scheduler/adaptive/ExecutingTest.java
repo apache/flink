@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -83,6 +84,7 @@ import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,7 +244,7 @@ class ExecutingTest {
 
                 // trigger an initial failed checkpoint event to show that the counting only starts
                 // with the subsequent change event
-                testInstance.onFailedCheckpoint();
+                testInstance.onFailedCheckpoint(CheckpointFailureReason.IO_EXCEPTION);
 
                 // trigger change
                 testInstance.onNewResourceRequirements();
@@ -253,7 +255,7 @@ class ExecutingTest {
                                     "No rescale operation should have been triggered for iteration #%d, yet.",
                                     rescaleIteration)
                             .hasValue(rescaleIteration - 1);
-                    testInstance.onFailedCheckpoint();
+                    testInstance.onFailedCheckpoint(CheckpointFailureReason.IO_EXCEPTION);
                 }
 
                 assertThat(rescaleTriggerCount)
@@ -284,13 +286,16 @@ class ExecutingTest {
 
             // trigger an initial failed checkpoint event to show that the counting only starts with
             // the subsequent change event
-            testInstance.onFailedCheckpoint();
+            testInstance.onFailedCheckpoint(CheckpointFailureReason.IO_EXCEPTION);
 
             // trigger change
             testInstance.onNewResourcesAvailable();
 
             IntStream.range(0, rescaleOnFailedCheckpointsCount - 1)
-                    .forEach(ignored -> testInstance.onFailedCheckpoint());
+                    .forEach(
+                            ignored ->
+                                    testInstance.onFailedCheckpoint(
+                                            CheckpointFailureReason.IO_EXCEPTION));
 
             assertThat(rescaleTriggeredCount)
                     .as("No rescaling should have been trigger, yet.")
@@ -306,18 +311,113 @@ class ExecutingTest {
                     .hasValue(1);
 
             IntStream.range(0, rescaleOnFailedCheckpointsCount - 1)
-                    .forEach(ignored -> testInstance.onFailedCheckpoint());
+                    .forEach(
+                            ignored ->
+                                    testInstance.onFailedCheckpoint(
+                                            CheckpointFailureReason.IO_EXCEPTION));
 
             assertThat(rescaleTriggeredCount)
                     .as(
                             "No additional rescaling should have been trigger by any subsequent failed checkpoint, yet.")
                     .hasValue(1);
 
-            testInstance.onFailedCheckpoint();
+            testInstance.onFailedCheckpoint(CheckpointFailureReason.IO_EXCEPTION);
 
             assertThat(rescaleTriggeredCount)
                     .as("The previous failed checkpoint should have triggered the rescale.")
                     .hasValue(2);
+        }
+    }
+
+    @Test
+    public void testIgnoredFailureReasonDoesNotTriggerRescale() throws Exception {
+        runRescaleTriggerCheckForReason(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING, 0);
+    }
+
+    @Test
+    public void testNullFailureReasonDoesNotTriggerRescale() throws Exception {
+        runRescaleTriggerCheckForReason(null, 0);
+    }
+
+    /**
+     * Guards that the rescale countdown honors exactly the set of failure reasons classified as
+     * counted by {@link CheckpointFailureReason#isCountedAgainstFailureThreshold()} — the same
+     * predicate used by {@code CheckpointFailureManager} — for every reason, so the two mechanisms
+     * cannot silently drift apart when a new reason is added.
+     */
+    @ParameterizedTest
+    @EnumSource(CheckpointFailureReason.class)
+    public void testRescaleCountdownHonorsFailureThresholdClassification(
+            CheckpointFailureReason reason) throws Exception {
+        runRescaleTriggerCheckForReason(reason, reason.isCountedAgainstFailureThreshold() ? 1 : 0);
+    }
+
+    @Test
+    public void testMixedFailureReasonsOnlyCountRelevant() throws Exception {
+        final AtomicInteger rescaleTriggerCount = new AtomicInteger();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                TestingStateTransitionManager.withOnTriggerEventOnly(
+                                        rescaleTriggerCount::incrementAndGet);
+
+        final int rescaleOnFailedCheckpointsCount = 2;
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setStateTransitionManagerFactory(stateTransitionManagerFactory)
+                            .setRescaleOnFailedCheckpointCount(rescaleOnFailedCheckpointsCount)
+                            .build(ctx);
+
+            testInstance.onNewResourceRequirements();
+
+            // ignored failures interspersed with a single relevant failure must not advance the
+            // countdown enough to trigger a rescale
+            testInstance.onFailedCheckpoint(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+            testInstance.onFailedCheckpoint(CheckpointFailureReason.IO_EXCEPTION);
+            testInstance.onFailedCheckpoint(CheckpointFailureReason.CHECKPOINT_SUBSUMED);
+            testInstance.onFailedCheckpoint(null);
+
+            assertThat(rescaleTriggerCount)
+                    .as("Only one relevant failure has been observed so far.")
+                    .hasValue(0);
+
+            testInstance.onFailedCheckpoint(CheckpointFailureReason.CHECKPOINT_EXPIRED);
+
+            assertThat(rescaleTriggerCount)
+                    .as("Two relevant failures should have triggered the rescale.")
+                    .hasValue(1);
+        }
+    }
+
+    private void runRescaleTriggerCheckForReason(
+            @Nullable CheckpointFailureReason reason, int expectedRescaleCount) throws Exception {
+        final AtomicInteger rescaleTriggerCount = new AtomicInteger();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                TestingStateTransitionManager.withOnTriggerEventOnly(
+                                        rescaleTriggerCount::incrementAndGet);
+
+        final int rescaleOnFailedCheckpointsCount = 2;
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setStateTransitionManagerFactory(stateTransitionManagerFactory)
+                            .setRescaleOnFailedCheckpointCount(rescaleOnFailedCheckpointsCount)
+                            .build(ctx);
+
+            testInstance.onNewResourceRequirements();
+
+            for (int i = 0; i < rescaleOnFailedCheckpointsCount * 2; i++) {
+                testInstance.onFailedCheckpoint(reason);
+            }
+
+            assertThat(rescaleTriggerCount)
+                    .as(
+                            "Failures with reason %s should have triggered %d rescale(s).",
+                            reason, expectedRescaleCount)
+                    .hasValue(expectedRescaleCount);
         }
     }
 
