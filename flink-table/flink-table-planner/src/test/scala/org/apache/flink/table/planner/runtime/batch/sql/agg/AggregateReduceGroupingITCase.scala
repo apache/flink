@@ -284,6 +284,38 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
   }
 
   @Test
+  def testAggOnLeftJoinWithNonEquiCondition(): Unit = {
+    // a3 does not determine a2 and c2: the rows (4, 20) and (4, null) of T3 have the same join key,
+    // but only the first one satisfies b3 > a2, as b3 is null in the second one
+    checkResult(
+      "SELECT a3, a2, c2, COUNT(*) FROM " +
+        "T3 LEFT JOIN T2 ON a3 = b2 AND b3 > a2 GROUP BY a3, a2, c2",
+      Seq(
+        row(1, 1, "X", 1),
+        row(2, 1, "Y", 2),
+        row(3, 2, null, 1),
+        row(4, 2, "Z", 1),
+        row(4, null, null, 1))
+    )
+  }
+
+  @Test
+  def testAggOnRightJoinWithNonEquiCondition(): Unit = {
+    // a3 does not determine a2 and c2: the rows (4, 20) and (4, null) of T3 have the same join key,
+    // but only the first one satisfies a2 < b3, as b3 is null in the second one
+    checkResult(
+      "SELECT a2, c2, a3, COUNT(*) FROM " +
+        "T2 RIGHT JOIN T3 ON b2 = a3 AND a2 < b3 GROUP BY a2, c2, a3",
+      Seq(
+        row(1, "X", 1, 1),
+        row(1, "Y", 2, 2),
+        row(2, null, 3, 1),
+        row(2, "Z", 4, 1),
+        row(null, null, 4, 1))
+    )
+  }
+
+  @Test
   def testAggOnLeftJoin(): Unit = {
     checkResult(
       "SELECT a1, b1, a2, b2, COUNT(c1) FROM " +

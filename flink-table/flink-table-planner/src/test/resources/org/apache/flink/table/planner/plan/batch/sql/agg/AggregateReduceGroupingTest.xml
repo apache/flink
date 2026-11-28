@@ -254,6 +254,35 @@ HashAggregate(isMerge=[false], groupBy=[a3, b3], auxGrouping=[a1, b1], select=[a
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testAggOnLeftJoinWithNonEquiCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, a2, c2, COUNT(*) FROM (SELECT * FROM T3 LEFT JOIN T2 ON a3 = b2 AND b3 > a2) t GROUP BY a3, a2, c2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
++- LogicalProject(a3=[$0], a2=[$4], c2=[$6])
+   +- LogicalProject(a3=[$0], b3=[$1], c3=[$2], d3=[$3], a2=[$4], b2=[$5], c2=[$6])
+      +- LogicalJoin(condition=[AND(=($0, $5), >($1, $4))], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a3, a2, c2], select=[a3, a2, c2, Final_COUNT(count1$0) AS EXPR$3])
++- Exchange(distribution=[hash[a3, a2, c2]])
+   +- LocalHashAggregate(groupBy=[a3, a2, c2], select=[a3, a2, c2, Partial_COUNT(*) AS count1$0])
+      +- Calc(select=[a3, a2, c2])
+         +- HashJoin(joinType=[LeftOuterJoin], where=[((a3 = b2) AND (b3 > a2))], select=[a3, b3, a2, b2, c2], build=[left])
+            :- Exchange(distribution=[hash[a3]])
+            :  +- Calc(select=[a3, b3])
+            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+            +- Exchange(distribution=[hash[b2]])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAggOnOver">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1, c, COUNT(d1) FROM (SELECT a1, b1, d1, COUNT(*) OVER (PARTITION BY c1) AS c FROM T1) t GROUP BY a1, b1, c]]>
