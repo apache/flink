@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -28,40 +30,61 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.OperatorSub
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResult;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV6Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV7Serializer;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.operators.coordination.TestingOperatorInfo;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.memory.PersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -100,6 +123,12 @@ class PendingCheckpointTest {
     }
 
     @TempDir private java.nio.file.Path tmpFolder;
+
+    @Nullable private PendingCheckpointStats pendingCheckpointStats;
+
+    private long coordinatorStateInlineThreshold = COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET;
+
+    private Set<OperatorID> coordinatorsWithStateInFile = Collections.emptySet();
 
     /** Tests that pending checkpoints can be subsumed iff they are forced. */
     @Test
@@ -484,6 +513,405 @@ class PendingCheckpointTest {
     }
 
     @Test
+    void testLargeCoordinatorStateIsStoredOutsideTheMetadata() throws Exception {
+        // above the 1 KB inline threshold of the location this test class uses
+        final byte[] bytes = randomBytes(4096);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes);
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(FileStateHandle.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV7Serializer.VERSION);
+        try (FSDataInputStream in = state.getCoordinatorState().openInputStream()) {
+            assertThat(in.readAllBytes()).isEqualTo(bytes);
+        }
+    }
+
+    @Test
+    void testFullyFinishedOperatorOfACoordinatorThatSupportsStateInAFileHasNoFile()
+            throws Exception {
+        final TestingOperatorInfo coordinator = new TestingOperatorInfo();
+        coordinatorsWithStateInFile = Collections.singleton(coordinator.operatorId());
+        // as when the source of the coordinator has finished: its operator state is replaced by a
+        // fully finished one, which has no coordinator state
+        final CheckpointPlan finishedPlan =
+                new DefaultCheckpointPlan(
+                        Collections.emptyList(),
+                        new ArrayList<>(ACK_TASKS),
+                        new ArrayList<>(TASKS_TO_COMMIT),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        true) {
+                    @Override
+                    public void fulfillFinishedTaskStatus(
+                            Map<OperatorID, OperatorState> operatorStates) {
+                        operatorStates.put(
+                                coordinator.operatorId(),
+                                new FullyFinishedOperatorState(
+                                        null, null, coordinator.operatorId(), 1, 1));
+                    }
+                };
+        final PendingCheckpoint checkpoint =
+                createPendingCheckpoint(
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        Collections.singletonList(coordinator.operatorId()),
+                        Collections.emptyList(),
+                        finishedPlan,
+                        Executors.directExecutor());
+        checkpoint.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+        checkpoint.acknowledgeCoordinatorState(
+                coordinator, new ByteStreamStateHandle("coordinator-state", randomBytes(4096)));
+
+        final CompletedCheckpoint completed =
+                checkpoint.finalizeCheckpoint(
+                        new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
+
+        assertThat(completed.getOperatorStates().get(coordinator.operatorId()))
+                .isInstanceOf(FullyFinishedOperatorState.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+        try (Stream<java.nio.file.Path> files =
+                Files.list(Paths.get(URI.create(completed.getExternalPointer())))) {
+            assertThat(files.map(file -> file.getFileName().toString()))
+                    .containsExactly(AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
+        }
+    }
+
+    @Test
+    void testLargeStateOfCoordinatorsThatCannotReadItFromAFileStaysInline() throws Exception {
+        final byte[] bytes = randomBytes(4096);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes, false);
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(((ByteStreamStateHandle) state.getCoordinatorState()).getData())
+                .isEqualTo(bytes);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+    }
+
+    @Test
+    void testSmallCoordinatorStateStaysInlineAndTheMetadataFormatIsUnchanged() throws Exception {
+        final byte[] bytes = randomBytes(100);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes);
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(((ByteStreamStateHandle) state.getCoordinatorState()).getData())
+                .isEqualTo(bytes);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdKeepsStateAboveTheStorageThresholdInline()
+            throws Exception {
+        coordinatorStateInlineThreshold = 8192;
+        final byte[] bytes = randomBytes(4096);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes);
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(((ByteStreamStateHandle) state.getCoordinatorState()).getData())
+                .isEqualTo(bytes);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdStoresStateBelowTheStorageThresholdInAFile()
+            throws Exception {
+        coordinatorStateInlineThreshold = 256;
+        final byte[] bytes = randomBytes(512);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes);
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(FileStateHandle.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV7Serializer.VERSION);
+        try (FSDataInputStream in = state.getCoordinatorState().openInputStream()) {
+            assertThat(in.readAllBytes()).isEqualTo(bytes);
+        }
+    }
+
+    @Test
+    void testCoordinatorStateOfExactlyTheInlineThresholdIsStoredInAFile() throws Exception {
+        coordinatorStateInlineThreshold = 512;
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(512));
+
+        assertThat(
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState())
+                .isInstanceOf(FileStateHandle.class);
+    }
+
+    @Test
+    void testCoordinatorStateJustBelowTheInlineThresholdStaysInline() throws Exception {
+        coordinatorStateInlineThreshold = 512;
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(511));
+
+        assertThat(
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState())
+                .isInstanceOf(ByteStreamStateHandle.class);
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdDecidesWhatIsCountedInTheCheckpointStateSize()
+            throws Exception {
+        coordinatorStateInlineThreshold = 256;
+        pendingCheckpointStats = createPendingCheckpointStats();
+        assertThat(finalizeWithCoordinatorState(randomBytes(512)).getStatistic().getStateSize())
+                .isEqualTo(512);
+
+        coordinatorStateInlineThreshold = 8192;
+        pendingCheckpointStats = createPendingCheckpointStats();
+        assertThat(finalizeWithCoordinatorState(randomBytes(4096)).getStatistic().getStateSize())
+                .isZero();
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdHasNoMaximum() throws Exception {
+        coordinatorStateInlineThreshold = 4 * 1024 * 1024;
+        final byte[] bytes = randomBytes(2 * 1024 * 1024);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes);
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+        final OperatorState restored =
+                coordinatorOperatorState(readMetadata(completed).getOperatorStates());
+        assertThat(((ByteStreamStateHandle) restored.getCoordinatorState()).getData())
+                .isEqualTo(bytes);
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdAboveTheLargestPossibleStateKeepsStateInline()
+            throws Exception {
+        // coordinator state is one byte array, so it never reaches 3 GB
+        coordinatorStateInlineThreshold = 3L * 1024 * 1024 * 1024;
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(4096));
+
+        assertThat(
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState())
+                .isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+    }
+
+    @Test
+    void testCoordinatorStateInlineThresholdDoesNotApplyToCoordinatorsThatCannotReadAFile()
+            throws Exception {
+        coordinatorStateInlineThreshold = 0;
+        final CompletedCheckpoint completed =
+                finalizeWithCoordinatorState(randomBytes(4096), false);
+
+        assertThat(
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState())
+                .isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+    }
+
+    @Test
+    void testCheckpointStoredForHighAvailabilityDoesNotRepeatOffloadedCoordinatorState()
+            throws Exception {
+        final byte[] bytes = randomBytes(64 * 1024);
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(bytes);
+
+        // a high availability checkpoint store keeps the completed checkpoint by Java-serializing
+        // it; the offloaded bytes are already in their own file and must not be written again
+        final int serialized = InstantiationUtil.serializeObject(completed).length;
+        assertThat(serialized).isLessThan(bytes.length);
+    }
+
+    @Test
+    void testCoordinatorStateFileIsDeletedWhenTheCheckpointIsSubsumed() throws Exception {
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(4096));
+        final FileStateHandle file =
+                (FileStateHandle)
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState();
+        final FileSystem fs = file.getFilePath().getFileSystem();
+        assertThat(fs.exists(file.getFilePath())).isTrue();
+
+        completed.markAsDiscardedOnSubsume().discard();
+
+        assertThat(fs.exists(file.getFilePath())).isFalse();
+    }
+
+    @Test
+    void testCoordinatorStateIsNotSubjectToTheMemoryStorageSizeLimit() throws Exception {
+        final byte[] bytes = randomBytes(4096);
+        final PendingCheckpoint checkpoint =
+                createPendingCheckpointWithAcknowledgedCoordinators(
+                        new ByteStreamStateHandle("coordinator-state", bytes));
+        // memory-backed storage capped at 1 KB; coordinator state has never been subject to it
+        checkpoint.setCheckpointTargetLocation(
+                new PersistentMetadataCheckpointStorageLocation(
+                        LocalFileSystem.getSharedInstance(),
+                        new Path(TempDirUtils.newFolder(tmpFolder).toURI()),
+                        1024));
+
+        final CompletedCheckpoint completed =
+                checkpoint.finalizeCheckpoint(
+                        new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
+
+        final OperatorState state =
+                coordinatorOperatorState(completed.getOperatorStates().values());
+        assertThat(state.getCoordinatorState()).isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(((ByteStreamStateHandle) state.getCoordinatorState()).getData())
+                .isEqualTo(bytes);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+    }
+
+    @Test
+    void testEarlierMetadataReadersRejectCoordinatorStateStoredOutsideTheMetadata()
+            throws Exception {
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(4096));
+
+        try (DataInputStream in = openMetadata(completed)) {
+            in.readInt(); // magic number
+            in.readInt(); // version
+            assertThatThrownBy(
+                            () ->
+                                    MetadataV6Serializer.INSTANCE.deserialize(
+                                            in,
+                                            getClass().getClassLoader(),
+                                            completed.getExternalPointer()))
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("Expected a ByteStreamStateHandle");
+        }
+    }
+
+    @Test
+    void testCoordinatorStateStoredInAFileIsCountedInTheCheckpointStateSize() throws Exception {
+        pendingCheckpointStats = createPendingCheckpointStats();
+
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(4096));
+
+        assertThat(completed.getStatistic().getStateSize()).isEqualTo(4096);
+        assertThat(completed.getStatistic().getCheckpointedSize()).isEqualTo(4096);
+        // the state belongs to no task
+        assertThat(completed.getStatistic().getAllTaskStateStats())
+                .isNotEmpty()
+                .allSatisfy(
+                        task -> {
+                            assertThat(task.getStateSize()).isZero();
+                            assertThat(task.getCheckpointedSize()).isZero();
+                        });
+    }
+
+    @Test
+    void testCoordinatorStateStoredInAFileIsNotPartOfTheMetadataSize() throws Exception {
+        pendingCheckpointStats = createPendingCheckpointStats();
+        final long inFile =
+                finalizeWithCoordinatorState(randomBytes(4096)).getStatistic().getMetadataSize();
+
+        coordinatorStateInlineThreshold = 8192;
+        pendingCheckpointStats = createPendingCheckpointStats();
+        final long inline =
+                finalizeWithCoordinatorState(randomBytes(4096)).getStatistic().getMetadataSize();
+
+        assertThat(inFile).isLessThan(4096);
+        assertThat(inline).isGreaterThan(4096);
+    }
+
+    @Test
+    void testCoordinatorStateOfExactlyTheStorageThresholdIsStoredInAFile() throws Exception {
+        // the location this test class uses has a 1 KB inline threshold, and its own streams keep
+        // state of exactly 1 KB inline
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(1024));
+
+        assertThat(
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState())
+                .isInstanceOf(FileStateHandle.class);
+    }
+
+    @Test
+    void testEmptyCoordinatorStateStaysInlineEvenWithAThresholdOfZero() throws Exception {
+        coordinatorStateInlineThreshold = 0;
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(new byte[0]);
+
+        assertThat(
+                        coordinatorOperatorState(completed.getOperatorStates().values())
+                                .getCoordinatorState())
+                .isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(readMetadataVersion(completed)).isEqualTo(MetadataV6Serializer.VERSION);
+        assertThat(completed.getExternalPointer()).isNotNull();
+        try (Stream<java.nio.file.Path> files =
+                Files.list(Paths.get(URI.create(completed.getExternalPointer())))) {
+            assertThat(files.map(file -> file.getFileName().toString()))
+                    .containsExactly(AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
+        }
+    }
+
+    @Test
+    void testCoordinatorStateKeptInlineIsNotCountedInTheCheckpointStateSize() throws Exception {
+        pendingCheckpointStats = createPendingCheckpointStats();
+
+        final CompletedCheckpoint completed = finalizeWithCoordinatorState(randomBytes(100));
+
+        assertThat(completed.getStatistic().getStateSize()).isZero();
+    }
+
+    @ParameterizedTest(name = "coordinator state inline threshold = {0}")
+    @ValueSource(longs = {COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET, 0})
+    void testCoordinatorStateFileIsDiscardedWhenFinalizationFailsPartway(long inlineThreshold)
+            throws Exception {
+        coordinatorStateInlineThreshold = inlineThreshold;
+        final PendingCheckpoint checkpoint =
+                createPendingCheckpointWithAcknowledgedCoordinators(
+                        new ByteStreamStateHandle("first", randomBytes(4096)),
+                        new ByteStreamStateHandle("second", randomBytes(4096)));
+        final Path dir = new Path(TempDirUtils.newFolder(tmpFolder).toURI());
+        // the second coordinator state cannot be written
+        checkpoint.setCheckpointTargetLocation(
+                new FsCheckpointStorageLocation(
+                        LocalFileSystem.getSharedInstance(),
+                        dir,
+                        dir,
+                        dir,
+                        CheckpointStorageLocationReference.getDefault(),
+                        1024,
+                        4096) {
+                    private int streams;
+
+                    @Override
+                    public FsCheckpointStateOutputStream
+                            createCheckpointStateOutputStreamWithoutInlining(
+                                    CheckpointedStateScope scope) throws IOException {
+                        if (++streams == 2) {
+                            throw new IOException("Expected test failure");
+                        }
+                        return super.createCheckpointStateOutputStreamWithoutInlining(scope);
+                    }
+                });
+
+        assertThatThrownBy(
+                        () ->
+                                checkpoint.finalizeCheckpoint(
+                                        new CheckpointsCleaner(),
+                                        () -> {},
+                                        Executors.directExecutor()))
+                .isInstanceOf(IOException.class);
+        final List<Path> written = new ArrayList<>();
+        for (OperatorState state : checkpoint.getOperatorStates().values()) {
+            if (state.getCoordinatorState() instanceof FileStateHandle) {
+                written.add(((FileStateHandle) state.getCoordinatorState()).getFilePath());
+            }
+        }
+        assertThat(written).hasSize(1);
+        assertThat(LocalFileSystem.getSharedInstance().exists(written.get(0))).isTrue();
+
+        abort(checkpoint, CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE);
+
+        assertThat(LocalFileSystem.getSharedInstance().exists(written.get(0))).isFalse();
+    }
+
+    @Test
     void testReportTaskFinishedOnRestore() throws IOException {
         RecordCheckpointPlan recordCheckpointPlan =
                 new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
@@ -559,13 +987,90 @@ class PendingCheckpointTest {
         return checkpoint;
     }
 
+    private CompletedCheckpoint finalizeWithCoordinatorState(byte[] bytes) throws IOException {
+        return finalizeWithCoordinatorState(bytes, true);
+    }
+
+    private CompletedCheckpoint finalizeWithCoordinatorState(
+            byte[] bytes, boolean supportsStateInFile) throws IOException {
+        final PendingCheckpoint checkpoint =
+                createPendingCheckpointWithAcknowledgedCoordinators(
+                        supportsStateInFile, new ByteStreamStateHandle("coordinator-state", bytes));
+        return checkpoint.finalizeCheckpoint(
+                new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
+    }
+
+    /** The one operator state carrying coordinator state; the checkpoint also has task states. */
+    private static OperatorState coordinatorOperatorState(Collection<OperatorState> states) {
+        final List<OperatorState> withCoordinatorState = new ArrayList<>();
+        for (OperatorState state : states) {
+            if (state.getCoordinatorState() != null) {
+                withCoordinatorState.add(state);
+            }
+        }
+        assertThat(withCoordinatorState).hasSize(1);
+        return withCoordinatorState.get(0);
+    }
+
+    private static DataInputStream openMetadata(CompletedCheckpoint completed) throws IOException {
+        final Path metadata =
+                new Path(
+                        completed.getExternalPointer(),
+                        AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
+        return new DataInputStream(metadata.getFileSystem().open(metadata));
+    }
+
+    private static int readMetadataVersion(CompletedCheckpoint completed) throws IOException {
+        try (DataInputStream in = openMetadata(completed)) {
+            in.readInt(); // magic number
+            return in.readInt();
+        }
+    }
+
+    private CheckpointMetadata readMetadata(CompletedCheckpoint completed) throws IOException {
+        try (DataInputStream in = openMetadata(completed)) {
+            return Checkpoints.loadCheckpointMetadata(
+                    in, getClass().getClassLoader(), completed.getExternalPointer());
+        }
+    }
+
+    /** Statistics of a checkpoint whose single subtask acknowledged without any state. */
+    private static PendingCheckpointStats createPendingCheckpointStats() {
+        final JobVertexID vertex = new JobVertexID();
+        final PendingCheckpointStats stats =
+                new PendingCheckpointStats(
+                        0,
+                        1,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        1,
+                        Collections.singletonMap(vertex, new TaskStateStats(vertex, 1)));
+        stats.reportSubtaskStats(vertex, new SubtaskStateStats(0, 1));
+        return stats;
+    }
+
+    private static byte[] randomBytes(int size) {
+        final byte[] bytes = new byte[size];
+        new Random(size).nextBytes(bytes);
+        return bytes;
+    }
+
     private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(
             ByteStreamStateHandle... handles) throws IOException {
+        return createPendingCheckpointWithAcknowledgedCoordinators(true, handles);
+    }
+
+    private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(
+            boolean supportsStateInFile, ByteStreamStateHandle... handles) throws IOException {
         final OperatorInfo[] coords = new OperatorInfo[handles.length];
         for (int i = 0; i < handles.length; i++) {
             coords[i] = new TestingOperatorInfo();
         }
 
+        coordinatorsWithStateInFile =
+                supportsStateInFile
+                        ? new HashSet<>(OperatorInfo.getIds(Arrays.asList(coords)))
+                        : Collections.emptySet();
         final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coords);
         for (int i = 0; i < handles.length; i++) {
             checkpoint.acknowledgeCoordinatorState(coords[i], handles[i]);
@@ -626,8 +1131,10 @@ class PendingCheckpointTest {
                         masterStateIdentifiers,
                         props,
                         new CompletableFuture<>(),
-                        null,
-                        new CompletableFuture<>());
+                        pendingCheckpointStats,
+                        new CompletableFuture<>(),
+                        coordinatorsWithStateInFile,
+                        coordinatorStateInlineThreshold);
         pendingCheckpoint.setCheckpointTargetLocation(location);
         return pendingCheckpoint;
     }

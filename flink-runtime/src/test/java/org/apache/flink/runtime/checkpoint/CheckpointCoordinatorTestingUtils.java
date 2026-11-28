@@ -56,6 +56,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -943,6 +944,7 @@ public class CheckpointCoordinatorTestingUtils {
         private BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator = null;
         private Runnable onCallingAbortCurrentTriggering = null;
         private OperatorID operatorID = null;
+        private boolean supportsCoordinatorStateInFile = false;
 
         public MockOperatorCheckpointCoordinatorContextBuilder setOnCallingCheckpointCoordinator(
                 BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator) {
@@ -962,9 +964,18 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public MockOperatorCheckpointCoordinatorContextBuilder setSupportsCoordinatorStateInFile(
+                boolean supportsCoordinatorStateInFile) {
+            this.supportsCoordinatorStateInFile = supportsCoordinatorStateInFile;
+            return this;
+        }
+
         public MockOperatorCoordinatorCheckpointContext build() {
             return new MockOperatorCoordinatorCheckpointContext(
-                    onCallingCheckpointCoordinator, onCallingAbortCurrentTriggering, operatorID);
+                    onCallingCheckpointCoordinator,
+                    onCallingAbortCurrentTriggering,
+                    operatorID,
+                    supportsCoordinatorStateInFile);
         }
     }
 
@@ -979,18 +990,25 @@ public class CheckpointCoordinatorTestingUtils {
         private final BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator;
         private final Runnable onCallingAbortCurrentTriggering;
         private final OperatorID operatorID;
+        private final boolean supportsCoordinatorStateInFile;
         private final List<Long> completedCheckpoints;
         private final List<Long> abortedCheckpoints;
+        private final List<byte[]> restoredInMemoryStates;
+        private final List<StreamStateHandle> restoredStatesInFile;
 
         private MockOperatorCoordinatorCheckpointContext(
                 BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator,
                 Runnable onCallingAbortCurrentTriggering,
-                OperatorID operatorID) {
+                OperatorID operatorID,
+                boolean supportsCoordinatorStateInFile) {
             this.onCallingCheckpointCoordinator = onCallingCheckpointCoordinator;
             this.onCallingAbortCurrentTriggering = onCallingAbortCurrentTriggering;
             this.operatorID = operatorID;
+            this.supportsCoordinatorStateInFile = supportsCoordinatorStateInFile;
             this.completedCheckpoints = new ArrayList<>();
             this.abortedCheckpoints = new ArrayList<>();
+            this.restoredInMemoryStates = new ArrayList<>();
+            this.restoredStatesInFile = new ArrayList<>();
         }
 
         @Override
@@ -1020,7 +1038,20 @@ public class CheckpointCoordinatorTestingUtils {
 
         @Override
         public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData)
-                throws Exception {}
+                throws Exception {
+            restoredInMemoryStates.add(checkpointData);
+        }
+
+        @Override
+        public boolean supportsCoordinatorStateInFile() {
+            return supportsCoordinatorStateInFile;
+        }
+
+        @Override
+        public void resetToCheckpointFromHandle(
+                long checkpointId, StreamStateHandle checkpointState) {
+            restoredStatesInFile.add(checkpointState);
+        }
 
         @Override
         public void subtaskReset(int subtask, long checkpointId) {}
@@ -1046,6 +1077,16 @@ public class CheckpointCoordinatorTestingUtils {
 
         public List<Long> getAbortedCheckpoints() {
             return abortedCheckpoints;
+        }
+
+        /** The states this coordinator was reset to as bytes, which may be null. */
+        public List<byte[]> getRestoredInMemoryStates() {
+            return restoredInMemoryStates;
+        }
+
+        /** The states this coordinator was reset to from their own files. */
+        public List<StreamStateHandle> getRestoredStatesInFile() {
+            return restoredStatesInFile;
         }
     }
 }

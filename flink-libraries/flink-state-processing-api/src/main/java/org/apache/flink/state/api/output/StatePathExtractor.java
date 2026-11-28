@@ -40,6 +40,15 @@ public class StatePathExtractor implements FlatMapFunction<OperatorState, Path> 
 
     @Override
     public void flatMap(OperatorState operatorState, Collector<Path> out) throws Exception {
+        // operator coordinator state
+        StreamStateHandle coordinatorState = operatorState.getCoordinatorState();
+        if (coordinatorState != null) {
+            Path path = getStateFilePathFromStreamStateHandle(coordinatorState);
+            if (path != null) {
+                out.collect(path);
+            }
+        }
+
         for (OperatorSubtaskState subTaskState : operatorState.getSubtaskStates().values()) {
             // managed operator state
             for (OperatorStateHandle operatorStateHandle : subTaskState.getManagedOperatorState()) {

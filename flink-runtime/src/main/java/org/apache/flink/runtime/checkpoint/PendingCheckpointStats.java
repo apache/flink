@@ -189,6 +189,12 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
     // Callbacks from the PendingCheckpoint instance
     // ------------------------------------------------------------------------
 
+    /** Reports coordinator state that was stored in its own file rather than in the metadata. */
+    void reportCoordinatorStateSize(long size) {
+        currentCheckpointedSize += size;
+        currentStateSize += size;
+    }
+
     /**
      * Reports statistics for a single subtask.
      *

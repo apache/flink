@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
 
@@ -52,7 +52,7 @@ public class FullyFinishedOperatorState extends OperatorState {
     }
 
     @Override
-    public void setCoordinatorState(@Nullable ByteStreamStateHandle coordinatorState) {
+    public void setCoordinatorState(@Nullable StreamStateHandle coordinatorState) {
         throw new UnsupportedOperationException(
                 "Could not set coordinator state to a fully finished operator state.");
     }

@@ -1195,7 +1195,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>lastCheckpointSize</td>
-      <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled.</td>
+      <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled. It includes operator coordinator state that is stored in its own file. The per-operator and per-subtask checkpoint statistics in the web UI and REST API do not include that state.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1210,12 +1210,12 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>lastCheckpointFullSize</td>
-      <td>The full size of the last checkpoint (in bytes).</td>
+      <td>The full size of the last checkpoint (in bytes), including operator coordinator state that is stored in its own file. The per-operator and per-subtask checkpoint statistics in the web UI and REST API do not include that state.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>lastCheckpointMetadataSize</td>
-      <td>The metadata file size of the last checkpoint (in bytes).</td>
+      <td>The metadata file size of the last checkpoint (in bytes). It does not include operator coordinator state that is stored in its own file.</td>
       <td>Gauge</td>
     </tr>
     <tr>

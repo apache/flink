@@ -39,6 +39,7 @@ public class MetadataSerializers {
         registerSerializer(MetadataV4Serializer.INSTANCE);
         registerSerializer(MetadataV5Serializer.INSTANCE);
         registerSerializer(MetadataV6Serializer.INSTANCE);
+        registerSerializer(MetadataV7Serializer.INSTANCE);
     }
 
     private static void registerSerializer(MetadataSerializer serializer) {

@@ -18,7 +18,9 @@
 
 package org.apache.flink.state.api.output;
 
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -32,6 +34,7 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.util.FileUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,7 +42,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,6 +77,7 @@ class SavepointOutputFormatSelfContainedTest {
     private static final long CHECKPOINT_ID = 1L;
     private static final String OPERATOR_UID = "uid";
     private static final String STATE_FILE_NAME = "sst-0001.state";
+    private static final String COORDINATOR_STATE_FILE_NAME = "coordinator-0001.state";
 
     @Test
     void testSavepointWithRetainedStateStaysSelfContained(@TempDir File tempDir) throws Exception {
@@ -128,6 +134,105 @@ class SavepointOutputFormatSelfContainedTest {
         assertThat(reloadedRelative.getFilePath().getPath())
                 .isEqualTo(new Path(targetSavepointPath, STATE_FILE_NAME).getPath());
         assertThat(new File(reloadedRelative.getFilePath().getPath())).exists();
+    }
+
+    @Test
+    void testSavepointWithRetainedCoordinatorStateStaysSelfContained(@TempDir File tempDir)
+            throws Exception {
+        File sourceSavepointDir = new File(tempDir, "sp-old");
+        File targetSavepointDir = new File(tempDir, "sp-new");
+        assertThat(sourceSavepointDir.mkdirs()).isTrue();
+
+        byte[] coordinatorStateBytes = "enumerator-state".getBytes(StandardCharsets.UTF_8);
+        File sourceCoordinatorFile = new File(sourceSavepointDir, COORDINATOR_STATE_FILE_NAME);
+        Files.write(sourceCoordinatorFile.toPath(), coordinatorStateBytes);
+        Path sourceCoordinatorPath =
+                new Path(
+                        new Path(sourceSavepointDir.getAbsolutePath()),
+                        COORDINATOR_STATE_FILE_NAME);
+
+        OperatorState operatorState =
+                new OperatorState(
+                        null,
+                        OPERATOR_UID,
+                        OperatorIDGenerator.fromUid(OPERATOR_UID),
+                        PARALLELISM,
+                        MAX_PARALLELISM);
+        operatorState.setCoordinatorState(
+                new RelativeFileStateHandle(
+                        sourceCoordinatorPath,
+                        COORDINATOR_STATE_FILE_NAME,
+                        coordinatorStateBytes.length));
+
+        List<Path> retainedFiles = new ArrayList<>();
+        new StatePathExtractor().flatMap(operatorState, new ListCollector<>(retainedFiles));
+        FileCopyFunction copyFunction = new FileCopyFunction(targetSavepointDir.getAbsolutePath());
+        copyFunction.open(FirstAttemptInitializationContext.of(SUBTASK_INDEX, PARALLELISM));
+        for (Path retainedFile : retainedFiles) {
+            copyFunction.writeRecord(retainedFile);
+        }
+        copyFunction.close();
+
+        Path targetSavepointPath = new Path(targetSavepointDir.getAbsolutePath());
+        SavepointOutputFormat format = new SavepointOutputFormat(targetSavepointPath);
+        format.setRuntimeContext(new MockStreamingRuntimeContext(PARALLELISM, SUBTASK_INDEX));
+        format.open(FirstAttemptInitializationContext.of(SUBTASK_INDEX, PARALLELISM));
+        format.writeRecord(
+                new CheckpointMetadata(
+                        CHECKPOINT_ID,
+                        Collections.singleton(operatorState),
+                        Collections.emptyList()));
+        format.close();
+
+        FileUtils.deleteDirectory(sourceSavepointDir);
+
+        OperatorState reloaded =
+                SavepointLoader.loadSavepointMetadata(targetSavepointPath.getPath())
+                        .getOperatorStates()
+                        .iterator()
+                        .next();
+        try (FSDataInputStream in = reloaded.getCoordinatorState().openInputStream()) {
+            assertThat(in.readAllBytes()).isEqualTo(coordinatorStateBytes);
+        }
+    }
+
+    @Test
+    void testInlineCoordinatorStateIsNotCopiedAndStaysInline(@TempDir File tempDir)
+            throws Exception {
+        byte[] coordinatorStateBytes = "enumerator-state".getBytes(StandardCharsets.UTF_8);
+        OperatorState operatorState =
+                new OperatorState(
+                        null,
+                        OPERATOR_UID,
+                        OperatorIDGenerator.fromUid(OPERATOR_UID),
+                        PARALLELISM,
+                        MAX_PARALLELISM);
+        operatorState.setCoordinatorState(
+                new ByteStreamStateHandle("coordinator-state", coordinatorStateBytes));
+
+        List<Path> retainedFiles = new ArrayList<>();
+        new StatePathExtractor().flatMap(operatorState, new ListCollector<>(retainedFiles));
+        assertThat(retainedFiles).isEmpty();
+
+        Path targetSavepointPath = new Path(tempDir.getAbsolutePath());
+        SavepointOutputFormat format = new SavepointOutputFormat(targetSavepointPath);
+        format.setRuntimeContext(new MockStreamingRuntimeContext(PARALLELISM, SUBTASK_INDEX));
+        format.open(FirstAttemptInitializationContext.of(SUBTASK_INDEX, PARALLELISM));
+        format.writeRecord(
+                new CheckpointMetadata(
+                        CHECKPOINT_ID,
+                        Collections.singleton(operatorState),
+                        Collections.emptyList()));
+        format.close();
+
+        StreamStateHandle reloaded =
+                SavepointLoader.loadSavepointMetadata(targetSavepointPath.getPath())
+                        .getOperatorStates()
+                        .iterator()
+                        .next()
+                        .getCoordinatorState();
+        assertThat(reloaded).isInstanceOf(ByteStreamStateHandle.class);
+        assertThat(((ByteStreamStateHandle) reloaded).getData()).isEqualTo(coordinatorStateBytes);
     }
 
     private static CheckpointMetadata createMetadata(RelativeFileStateHandle retainedHandle) {

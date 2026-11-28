@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.InternalOperatorCoordinatorMetric
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
@@ -45,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -205,6 +207,7 @@ public class OperatorCoordinatorHolder
         mainThreadExecutor.assertRunningInMainThread();
         checkState(context.isInitialized(), "Coordinator Context is not yet initialized");
         coordinator.start();
+        context.start();
     }
 
     @Override
@@ -284,6 +287,26 @@ public class OperatorCoordinatorHolder
     @Override
     public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData)
             throws Exception {
+        prepareReset();
+        coordinator.resetToCheckpoint(checkpointId, checkpointData);
+    }
+
+    @Override
+    public boolean supportsCoordinatorStateInFile() {
+        return coordinator.supportsCoordinatorStateInFile();
+    }
+
+    @Override
+    public void resetToCheckpointFromHandle(long checkpointId, StreamStateHandle checkpointState)
+            throws Exception {
+        prepareReset();
+        // the coordinator reads the file in another thread and may report a failure before it is
+        // started, when the scheduler cannot accept failures yet
+        context.holdFailuresUntilStarted();
+        coordinator.resetToCheckpointFromHandle(checkpointId, checkpointState);
+    }
+
+    private void prepareReset() {
         // the first time this method is called is early during execution graph construction,
         // before the main thread executor is set. hence this conditional check.
         if (mainThreadExecutor != null) {
@@ -302,8 +325,6 @@ public class OperatorCoordinatorHolder
         if (mainThreadExecutor != null) {
             setupAllSubtaskGateways();
         }
-
-        coordinator.resetToCheckpoint(checkpointId, checkpointData);
     }
 
     private void checkpointCoordinatorInternal(
@@ -592,12 +613,33 @@ public class OperatorCoordinatorHolder
         private final boolean supportsConcurrentExecutionAttempts;
         private final OperatorCoordinatorMetricGroup metricGroup;
 
+        // lazyInitialize sets these under this lock, and failJob, which coordinators may call from
+        // any thread, takes the same lock first, so it sees them once they are set
         private GlobalFailureHandler globalFailureHandler;
         private Executor schedulerExecutor;
         @Nullable private CheckpointCoordinator checkpointCoordinator;
         private int operatorParallelism;
 
         private volatile boolean failed;
+
+        /** Whether the coordinator has been started, after which the scheduler accepts failures. */
+        @GuardedBy("this")
+        private boolean started;
+
+        /**
+         * Whether a failure reported before the coordinator is started is held until then. Only set
+         * by a restore from a file before the start. The file is read in another thread, which can
+         * report a failure to read it before the scheduler can handle it: before this context is
+         * initialized, or, at the first restore of the default scheduler, before the scheduler's
+         * main thread executor accepts tasks.
+         */
+        @GuardedBy("this")
+        private boolean holdFailuresUntilStarted;
+
+        /** A failure held until the start, which then fails the job. */
+        @GuardedBy("this")
+        @Nullable
+        private Throwable failureBeforeStart;
 
         public LazyInitializedCoordinatorContext(
                 JobInfo jobInfo,
@@ -623,10 +665,25 @@ public class OperatorCoordinatorHolder
                 Executor schedulerExecutor,
                 @Nullable CheckpointCoordinator checkpointCoordinator,
                 final int operatorParallelism) {
-            this.globalFailureHandler = checkNotNull(globalFailureHandler);
-            this.schedulerExecutor = checkNotNull(schedulerExecutor);
-            this.checkpointCoordinator = checkpointCoordinator;
-            this.operatorParallelism = operatorParallelism;
+            synchronized (this) {
+                this.globalFailureHandler = checkNotNull(globalFailureHandler);
+                this.schedulerExecutor = checkNotNull(schedulerExecutor);
+                this.checkpointCoordinator = checkpointCoordinator;
+                this.operatorParallelism = operatorParallelism;
+            }
+        }
+
+        void start() {
+            final Throwable failure;
+            synchronized (this) {
+                started = true;
+                holdFailuresUntilStarted = false;
+                failure = failureBeforeStart;
+                failureBeforeStart = null;
+            }
+            if (failure != null) {
+                failJob(failure);
+            }
         }
 
         void unInitialize() {
@@ -643,8 +700,18 @@ public class OperatorCoordinatorHolder
             checkState(isInitialized(), "Context was not yet initialized");
         }
 
+        synchronized void holdFailuresUntilStarted() {
+            if (!started) {
+                holdFailuresUntilStarted = true;
+            }
+        }
+
         void resetFailed() {
             failed = false;
+            synchronized (this) {
+                // a held failure belongs to the restore that this reset replaces
+                failureBeforeStart = null;
+            }
         }
 
         @Override
@@ -669,6 +736,25 @@ public class OperatorCoordinatorHolder
 
         @Override
         public void failJob(final Throwable cause) {
+            synchronized (this) {
+                if (!started && holdFailuresUntilStarted) {
+                    if (failureBeforeStart == null) {
+                        LOG.warn(
+                                "Holding a failure of the coordinator of '{}' (operator {}) until the"
+                                        + " coordinator is started, which then fails the job.",
+                                operatorName,
+                                operatorId,
+                                cause);
+                        failureBeforeStart = cause;
+                    } else {
+                        LOG.debug(
+                                "Ignoring a failure before the start because an earlier one is held. "
+                                        + "The ignored failure cause is",
+                                cause);
+                    }
+                    return;
+                }
+            }
             checkInitialized();
 
             final FlinkException e =

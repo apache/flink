@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.FinishedTaskStateProvider.PartialFinishingNotSupportedByStateException;
@@ -44,7 +45,10 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.MdcUtils;
@@ -93,6 +97,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.FULL_CHECKPOINT
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The checkpoint coordinator coordinates the distributed snapshots of operators and state. It
@@ -241,6 +246,19 @@ public class CheckpointCoordinator {
 
     private final boolean isExactlyOnceMode;
 
+    /**
+     * The operators whose coordinator state may be stored in its own file. Empty if {@link
+     * CheckpointingOptions#COORDINATOR_STATE_IN_FILE_ENABLED} is false.
+     */
+    private final Set<OperatorID> coordinatorsWithStateInFile;
+
+    /**
+     * Coordinator state smaller than this stays inline, or {@link
+     * CheckpointCoordinatorConfiguration#COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET} to use the
+     * storage's inline threshold.
+     */
+    private final long coordinatorStateInlineThreshold;
+
     private final boolean recoverOutputOnDownstreamTask;
 
     /** Flag represents there is an in-flight trigger request. */
@@ -337,6 +355,16 @@ public class CheckpointCoordinator {
         this.checkpointPlanCalculator = checkNotNull(checkpointPlanCalculator);
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
+        this.coordinatorsWithStateInFile =
+                chkConfig.isCoordinatorStateInFileEnabled()
+                        ? coordinatorsToCheckpoint.stream()
+                                .filter(
+                                        OperatorCoordinatorCheckpointContext
+                                                ::supportsCoordinatorStateInFile)
+                                .map(OperatorInfo::operatorId)
+                                .collect(Collectors.toSet())
+                        : Collections.emptySet();
+        this.coordinatorStateInlineThreshold = chkConfig.getCoordinatorStateInlineThreshold();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
         this.recoverOutputOnDownstreamTask = chkConfig.isRecoverOutputOnDownstreamTask();
         this.alignedCheckpointTimeout = chkConfig.getAlignedCheckpointTimeout();
@@ -366,6 +394,8 @@ public class CheckpointCoordinator {
             throw new FlinkRuntimeException(
                     "Failed to create checkpoint storage at checkpoint coordinator side.", e);
         }
+
+        logCoordinatorStateInFile(job, chkConfig, checkpointStorage);
 
         try {
             // Make sure the checkpoint ID enumerator is running. Possibly
@@ -929,7 +959,9 @@ public class CheckpointCoordinator {
                         props,
                         onCompletionPromise,
                         pendingCheckpointStats,
-                        masterTriggerCompletionPromise);
+                        masterTriggerCompletionPromise,
+                        coordinatorsWithStateInFile,
+                        coordinatorStateInlineThreshold);
 
         synchronized (lock) {
             pendingCheckpoints.put(checkpointID, checkpoint);
@@ -1810,6 +1842,11 @@ public class CheckpointCoordinator {
             // re-assign the task states
             final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
+            if (operatorCoordinatorRestoreBehavior != OperatorCoordinatorRestoreBehavior.SKIP) {
+                // before any state is restored
+                checkCoordinatorsCanRestoreTheirState(operatorStates);
+            }
+
             if (checkForPartiallyFinishedOperators) {
                 VertexFinishedStateChecker vertexFinishedStateChecker =
                         vertexFinishedStateCheckerFactory.apply(tasks, operatorStates);
@@ -2152,11 +2189,79 @@ public class CheckpointCoordinator {
             throws Exception {
 
         for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
-            final OperatorState state = operatorStates.get(coordContext.operatorId());
-            final ByteStreamStateHandle coordinatorState =
-                    state == null ? null : state.getCoordinatorState();
-            final byte[] bytes = coordinatorState == null ? null : coordinatorState.getData();
-            coordContext.resetToCheckpoint(checkpointId, bytes);
+            final StreamStateHandle coordinatorState =
+                    getCoordinatorState(operatorStates, coordContext);
+            if (isInMemory(coordinatorState)) {
+                final byte[] bytes =
+                        coordinatorState == null
+                                ? null
+                                : ((ByteStreamStateHandle) coordinatorState).getData();
+                coordContext.resetToCheckpoint(checkpointId, bytes);
+            } else {
+                // the coordinator reads the file itself, off this thread
+                coordContext.resetToCheckpointFromHandle(checkpointId, coordinatorState);
+            }
+        }
+    }
+
+    /** Checks that every coordinator can restore the state it has in the given operator states. */
+    private void checkCoordinatorsCanRestoreTheirState(
+            Map<OperatorID, OperatorState> operatorStates) {
+        for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
+            final StreamStateHandle coordinatorState =
+                    getCoordinatorState(operatorStates, coordContext);
+            checkState(
+                    isInMemory(coordinatorState) || coordContext.supportsCoordinatorStateInFile(),
+                    "The coordinator state of operator %s is stored in %s, but its coordinator can only restore state held in memory.",
+                    coordContext.operatorId(),
+                    coordinatorState);
+        }
+    }
+
+    @Nullable
+    private static StreamStateHandle getCoordinatorState(
+            Map<OperatorID, OperatorState> operatorStates,
+            OperatorCoordinatorCheckpointContext coordContext) {
+        final OperatorState state = operatorStates.get(coordContext.operatorId());
+        return state == null ? null : state.getCoordinatorState();
+    }
+
+    private static boolean isInMemory(@Nullable StreamStateHandle coordinatorState) {
+        return coordinatorState == null || coordinatorState instanceof ByteStreamStateHandle;
+    }
+
+    /** Logs whether coordinator state may be stored in its own file, and from which size. */
+    private static void logCoordinatorStateInFile(
+            JobID job, CheckpointCoordinatorConfiguration chkConfig, CheckpointStorage storage) {
+        final String option = CheckpointingOptions.COORDINATOR_STATE_IN_FILE_ENABLED.key();
+        if (!chkConfig.isCoordinatorStateInFileEnabled()) {
+            LOG.info(
+                    "Storing operator coordinator state in its own file is disabled for job {} ({}=false).",
+                    job,
+                    option);
+        } else if (storage instanceof JobManagerCheckpointStorage) {
+            LOG.info(
+                    "Storing operator coordinator state in its own file is enabled for job {} ({}=true), but has no effect with JobManagerCheckpointStorage, which keeps state in memory.",
+                    job,
+                    option);
+        } else if (!(storage instanceof FileSystemCheckpointStorage)) {
+            LOG.info(
+                    "Storing operator coordinator state in its own file is enabled for job {} ({}=true). It applies only if the checkpoint storage {} writes checkpoints through an FsCheckpointStreamFactory, as FileSystemCheckpointStorage does.",
+                    job,
+                    option,
+                    storage.getClass().getName());
+        } else {
+            final long threshold =
+                    chkConfig.getCoordinatorStateInlineThreshold()
+                                    == CheckpointCoordinatorConfiguration
+                                            .COORDINATOR_STATE_INLINE_THRESHOLD_NOT_SET
+                            ? ((FileSystemCheckpointStorage) storage).getMinFileSizeThreshold()
+                            : chkConfig.getCoordinatorStateInlineThreshold();
+            LOG.info(
+                    "Storing operator coordinator state in its own file is enabled for job {} ({}=true). The state of coordinators that support it is stored in its own file unless it is empty or smaller than {}.",
+                    job,
+                    option,
+                    new MemorySize(threshold).toHumanReadableString());
         }
     }
 

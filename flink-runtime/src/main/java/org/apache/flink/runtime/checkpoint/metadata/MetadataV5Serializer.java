@@ -23,7 +23,7 @@ import org.apache.flink.runtime.checkpoint.FullyFinishedOperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
 
@@ -74,8 +74,7 @@ public class MetadataV5Serializer extends MetadataV4Serializer {
         final int parallelism = dis.readInt();
         final int maxParallelism = dis.readInt();
 
-        ByteStreamStateHandle coordinateState =
-                deserializeAndCheckByteStreamStateHandle(dis, context);
+        StreamStateHandle coordinateState = deserializeCoordinatorState(dis, context);
 
         final int numSubTaskStates = dis.readInt();
         if (numSubTaskStates < 0) {

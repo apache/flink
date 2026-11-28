@@ -91,6 +91,8 @@ Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，
 - **Full Checkpoint Data Size**: 所有已确认的 subtask 的 checkpoint 的全量数据大小。
 - **Processed (persisted) in-flight data**：在 checkpoint 对齐期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）所有已确认的 subtask 处理/持久化 的大约字节数。如果启用了 unaligned checkpoint，持久化的字节数可能会大于0。
 
+Operator coordinator state that is stored in its own file (see `execution.checkpointing.coordinator-state-in-file.enabled`) is included in the Checkpointed Data Size and the Full Checkpoint Data Size. It belongs to no subtask, so the statistics of operators and subtasks do not include it.
+
 对于 subtask，有两个更详细的统计信息可用。
 
 {{< img src="/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History">}}

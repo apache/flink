@@ -266,10 +266,54 @@ public class CheckpointingOptions {
                     .defaultValue(MemorySize.parse("20kb"))
                     .withDescription(
                             "The minimum size of state data files. All state chunks smaller than that are stored"
-                                    + " inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.")
+                                    + " inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB."
+                                    + " This option also applies to the state of operator coordinators that can restore it"
+                                    + " from a file, when 'execution.checkpointing.coordinator-state-in-file.enabled' is"
+                                    + " true and 'execution.checkpointing.coordinator-state-inline-threshold' is not set.")
                     .withDeprecatedKeys(
                             "state.storage.fs.memory-threshold",
                             "state.backend.fs.memory-threshold");
+
+    /**
+     * Whether large operator coordinator state may be stored in its own file rather than inline in
+     * the root checkpoint metadata file.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Boolean> COORDINATOR_STATE_IN_FILE_ENABLED =
+            ConfigOptions.key("execution.checkpointing.coordinator-state-in-file.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether operator coordinator state can be stored in its own file instead of inline in"
+                                    + " the root checkpoint metadata file. This applies only to file system checkpoint"
+                                    + " storage and to coordinators that can restore their state from a file, which include"
+                                    + " the coordinators of all sources built on the Source API. State smaller than"
+                                    + " 'execution.checkpointing.coordinator-state-inline-threshold' stays inline. If that"
+                                    + " option is not set, 'execution.checkpointing.data-inline-threshold' applies. The"
+                                    + " JobManager does not keep a copy of such state for its retained checkpoints, so every"
+                                    + " global failover, and every restart or rescale of the adaptive scheduler, reads it"
+                                    + " back from its file. Checkpoints and savepoints with coordinator state in its own"
+                                    + " file use a newer metadata format. Earlier Flink versions can neither restore them nor read the high"
+                                    + " availability entries of such checkpoints, so enable this only once you no longer"
+                                    + " need to roll back to an earlier version.");
+
+    /**
+     * The size below which operator coordinator state stays inline, when {@link
+     * #COORDINATOR_STATE_IN_FILE_ENABLED} is enabled.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<MemorySize> COORDINATOR_STATE_INLINE_THRESHOLD =
+            ConfigOptions.key("execution.checkpointing.coordinator-state-inline-threshold")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When 'execution.checkpointing.coordinator-state-in-file.enabled' is true, the state"
+                                    + " of operator coordinators that support it is stored in its own file on file system"
+                                    + " checkpoint storage unless it is smaller than this size, in which case it stays"
+                                    + " inline in the root checkpoint metadata file. If not set,"
+                                    + " 'execution.checkpointing.data-inline-threshold' applies. Unlike that option, it"
+                                    + " applies only to coordinator state and has no maximum. Empty state always stays"
+                                    + " inline.");
 
     /**
      * The default size of the write buffer for the checkpoint streams that write to file systems.

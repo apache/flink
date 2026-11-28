@@ -27,6 +27,18 @@
             <td>Option whether to discard a checkpoint's states in parallel using the ExecutorService passed into the cleaner</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.coordinator-state-in-file.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether operator coordinator state can be stored in its own file instead of inline in the root checkpoint metadata file. This applies only to file system checkpoint storage and to coordinators that can restore their state from a file, which include the coordinators of all sources built on the Source API. State smaller than 'execution.checkpointing.coordinator-state-inline-threshold' stays inline. If that option is not set, 'execution.checkpointing.data-inline-threshold' applies. The JobManager does not keep a copy of such state for its retained checkpoints, so every global failover, and every restart or rescale of the adaptive scheduler, reads it back from its file. Checkpoints and savepoints with coordinator state in its own file use a newer metadata format. Earlier Flink versions can neither restore them nor read the high availability entries of such checkpoints, so enable this only once you no longer need to roll back to an earlier version.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.coordinator-state-inline-threshold</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>When 'execution.checkpointing.coordinator-state-in-file.enabled' is true, the state of operator coordinators that support it is stored in its own file on file system checkpoint storage unless it is smaller than this size, in which case it stays inline in the root checkpoint metadata file. If not set, 'execution.checkpointing.data-inline-threshold' applies. Unlike that option, it applies only to coordinator state and has no maximum. Empty state always stays inline.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.create-directories-on-job-start</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -42,7 +54,7 @@
             <td><h5>execution.checkpointing.data-inline-threshold</h5></td>
             <td style="word-wrap: break-word;">20 kb</td>
             <td>MemorySize</td>
-            <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.</td>
+            <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB. This option also applies to the state of operator coordinators that can restore it from a file, when 'execution.checkpointing.coordinator-state-in-file.enabled' is true and 'execution.checkpointing.coordinator-state-inline-threshold' is not set.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.dir</h5></td>

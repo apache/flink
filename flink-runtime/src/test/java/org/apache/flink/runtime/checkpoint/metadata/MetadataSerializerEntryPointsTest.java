@@ -107,7 +107,8 @@ class MetadataSerializerEntryPointsTest {
                 MetadataV3Serializer.INSTANCE,
                 MetadataV4Serializer.INSTANCE,
                 MetadataV5Serializer.INSTANCE,
-                MetadataV6Serializer.INSTANCE);
+                MetadataV6Serializer.INSTANCE,
+                MetadataV7Serializer.INSTANCE);
     }
 
     private static List<MetadataSerializer> deserializeOnlySerializers() {
