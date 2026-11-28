@@ -21,6 +21,9 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +36,21 @@ class JarIdPathParameterTest {
     @Test
     void testJarIdWithParentDir() throws Exception {
         assertThatThrownBy(() -> jarIdPathParameter.convertFromString("../../test.jar"))
+                .isInstanceOf(ConversionException.class);
+    }
+
+    @ParameterizedTest(name = "jarId={0}")
+    @MethodSource(
+            "org.apache.flink.runtime.webmonitor.handlers.JarIdHandlerContract#jarIdsThatAreNotFileNames")
+    void testJarIdThatIsNotAFileNameIsRejected(final String jarId) {
+        assertThatThrownBy(() -> jarIdPathParameter.convertFromString(jarId))
+                .isInstanceOf(ConversionException.class);
+    }
+
+    @ParameterizedTest(name = "jarId={0}")
+    @ValueSource(strings = {"dir/test.jar", "/test.jar"})
+    void testJarIdWithPathSeparator(final String jarId) {
+        assertThatThrownBy(() -> jarIdPathParameter.convertFromString(jarId))
                 .isInstanceOf(ConversionException.class);
     }
 

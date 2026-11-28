@@ -35,8 +35,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.testutils.TestingUtils;
@@ -59,9 +57,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
@@ -101,10 +97,6 @@ class JarRunHandlerParameterTest
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
         init(tempDir);
-        final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
-                () -> CompletableFuture.completedFuture(restfulGateway);
-        final Duration timeout = Duration.ofSeconds(10);
-        final Map<String, String> responseHeaders = Collections.emptyMap();
 
         final Path jarLocation = Paths.get(System.getProperty("targetDir"));
         final String parameterProgramWithEagerSink = "parameter-program-with-eager-sink.jar";
@@ -113,16 +105,19 @@ class JarRunHandlerParameterTest
                         jarLocation.resolve(parameterProgramWithEagerSink),
                         jarDir.resolve("program-with-eager-sink.jar"));
 
-        handler =
-                new JarRunHandler(
-                        gatewayRetriever,
-                        timeout,
-                        responseHeaders,
-                        JarRunHeaders.getInstance(),
-                        jarDir,
-                        new Configuration(),
-                        EXECUTOR_EXTENSION.getExecutor(),
-                        ConfigurationVerifyingDetachedApplicationRunner::new);
+        handler = createHandler(jarDir);
+    }
+
+    private static JarRunHandler createHandler(final Path jarDir) {
+        return new JarRunHandler(
+                gatewayRetriever,
+                timeout,
+                responseHeaders,
+                JarRunHeaders.getInstance(),
+                jarDir,
+                new Configuration(),
+                EXECUTOR_EXTENSION.getExecutor(),
+                ConfigurationVerifyingDetachedApplicationRunner::new);
     }
 
     private static class ConfigurationVerifyingDetachedApplicationRunner
@@ -285,6 +280,11 @@ class JarRunHandlerParameterTest
     @Override
     void handleRequest(HandlerRequest<JarRunRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
+    }
+
+    @Override
+    void handleRequest(Path jarDir, HandlerRequest<JarRunRequestBody> request) throws Exception {
+        createHandler(jarDir).handleRequest(request, restfulGateway).get();
     }
 
     @Override

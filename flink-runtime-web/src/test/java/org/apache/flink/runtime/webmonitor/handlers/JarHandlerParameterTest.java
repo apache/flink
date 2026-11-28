@@ -56,8 +56,8 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for jar request handlers. */
-abstract class JarHandlerParameterTest<
-        REQB extends JarRequestBody, M extends JarMessageParameters> {
+abstract class JarHandlerParameterTest<REQB extends JarRequestBody, M extends JarMessageParameters>
+        implements JarIdHandlerContract {
     static final String[] PROG_ARGS = new String[] {"--host", "localhost", "--port", "1234"};
     static final int PARALLELISM = 4;
 
@@ -217,6 +217,28 @@ abstract class JarHandlerParameterTest<
         validateGraph();
     }
 
+    @Override
+    public void handleJarIdRequest(final Path jarDir, final String jarId) throws Exception {
+        LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(null);
+        handleRequest(jarDir, createRequestWithUnvalidatedJarId(jarId));
+    }
+
+    @Override
+    public void assertJarHandled(final Path jar) {
+        assertThat(LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null)).isNotNull();
+    }
+
+    @Override
+    public Path programJar() {
+        return jarWithManifest;
+    }
+
+    private HandlerRequest<REQB> createRequestWithUnvalidatedJarId(final String jarId) {
+        final M parameters = getUnresolvedJarMessageParameters();
+        parameters.jarIdPathParameter.resolve(jarId);
+        return HandlerRequest.create(getDefaultJarRequestBody(), parameters);
+    }
+
     protected static <REQB extends JarRequestBody, M extends JarMessageParameters>
             HandlerRequest<REQB> createRequest(
                     REQB requestBody, M parameters, M unresolvedMessageParameters, Path jar)
@@ -258,6 +280,9 @@ abstract class JarHandlerParameterTest<
     abstract REQB getJarRequestWithConfiguration();
 
     abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
+
+    /** Handles the request with a handler that uses the given upload directory. */
+    abstract void handleRequest(Path jarDir, HandlerRequest<REQB> request) throws Exception;
 
     ExecutionPlan validateDefaultGraph() throws Exception {
         ExecutionPlan executionPlan = LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
