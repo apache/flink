@@ -43,6 +43,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
@@ -54,6 +55,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.RawType;
@@ -91,6 +93,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1626,6 +1630,42 @@ public class FunctionITCase extends StreamingTestBase {
         assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
     }
 
+    @ParameterizedTest
+    @MethodSource("defaultArgumentCalls")
+    void testDefaultArgumentsDuringTypeInference(
+            Expression expression, String sqlExpression, boolean expectedDefault) {
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable(s1 STRING NOT NULL) "
+                                + "WITH ('connector' = 'COLLECTION')");
+        tEnv().createTemporarySystemFunction(
+                        "DefaultArgumentScalarFunction",
+                        new DefaultArgumentScalarFunction(expectedDefault));
+
+        assertThat(
+                        tEnv().from("SourceTable")
+                                .select(expression)
+                                .getResolvedSchema()
+                                .getColumnDataTypes())
+                .containsExactly(DataTypes.STRING());
+        assertThat(
+                        tEnv().sqlQuery("SELECT " + sqlExpression + " FROM SourceTable")
+                                .getResolvedSchema()
+                                .getColumnDataTypes())
+                .containsExactly(DataTypes.STRING());
+    }
+
+    private static Stream<Arguments> defaultArgumentCalls() {
+        return Stream.of(
+                Arguments.of(
+                        call("DefaultArgumentScalarFunction", $("s1")),
+                        "DefaultArgumentScalarFunction(s1)",
+                        true),
+                Arguments.of(
+                        call("DefaultArgumentScalarFunction", $("s1"), nullOf(DataTypes.STRING())),
+                        "DefaultArgumentScalarFunction(s1, CAST(NULL AS STRING))",
+                        false));
+    }
+
     @Test
     void testNamedArgumentAggregateFunction() throws Exception {
         final List<Row> sourceData =
@@ -2100,6 +2140,37 @@ public class FunctionITCase extends StreamingTestBase {
                 })
         public String eval(String arg1, String arg2) {
             return (arg1 + ": " + arg2);
+        }
+    }
+
+    /** Function that verifies argument markers during type inference. */
+    public static class DefaultArgumentScalarFunction extends ScalarFunction {
+
+        private final boolean expectedDefault;
+
+        public DefaultArgumentScalarFunction(boolean expectedDefault) {
+            this.expectedDefault = expectedDefault;
+        }
+
+        public String eval(String prefix, String value) {
+            return prefix + ":" + value;
+        }
+
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.scalar("prefix", DataTypes.STRING().notNull(), false),
+                            StaticArgument.scalar("optional", DataTypes.STRING(), true))
+                    .outputTypeStrategy(
+                            callContext -> {
+                                assertThat(callContext.isArgumentDefault(0)).isFalse();
+                                assertThat(callContext.isArgumentDefault(1))
+                                        .isEqualTo(expectedDefault);
+                                assertThat(callContext.isArgumentNull(1)).isTrue();
+                                return Optional.of(DataTypes.STRING());
+                            })
+                    .build();
         }
     }
 
