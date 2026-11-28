@@ -73,7 +73,6 @@ public final class JoinRecordAsyncStateViews {
     private static final class JoinKeyContainsUniqueKey implements JoinRecordAsyncStateView {
 
         private final ValueState<RowData> recordState;
-        private final List<OuterRecord> reusedList;
 
         private JoinKeyContainsUniqueKey(
                 StreamingRuntimeContext ctx,
@@ -86,8 +85,6 @@ public final class JoinRecordAsyncStateViews {
                 recordStateDesc.enableTimeToLive(ttlConfig);
             }
             this.recordState = ctx.getValueState(recordStateDesc);
-            // the result records always not more than 1
-            this.reusedList = new ArrayList<>(1);
         }
 
         @Override
@@ -103,17 +100,19 @@ public final class JoinRecordAsyncStateViews {
         @Override
         public StateFuture<List<OuterRecord>> findMatchedRecords(
                 Function<RowData, Boolean> condition) {
+            // The list must not be shared between lookups: it is read by later callbacks, and
+            // callbacks for other keys may run in between.
             return recordState
                     .asyncValue()
                     .thenApply(
                             v -> {
-                                reusedList.clear();
+                                List<OuterRecord> matchedRecords = new ArrayList<>(1);
                                 if (v != null) {
                                     if (condition.apply(v)) {
-                                        reusedList.add(new OuterRecord(v));
+                                        matchedRecords.add(new OuterRecord(v));
                                     }
                                 }
-                                return reusedList;
+                                return matchedRecords;
                             });
         }
     }
