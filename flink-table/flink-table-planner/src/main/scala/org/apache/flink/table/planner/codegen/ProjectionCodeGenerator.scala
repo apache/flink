@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, RexLiteralUtil}
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.{Constant, FunctionParam}
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
-import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.{BigIntType, BooleanType, LogicalType, RowType}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -224,12 +224,17 @@ object ProjectionCodeGenerator {
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case avgAggFunction: AvgAggFunction =>
-            fieldExprs += genValueProjectionForSumAggFunc(
-              ctx,
-              inputType,
-              inputTerm,
-              avgAggFunction.getSumType.getLogicalType,
-              aggInfo.agg.getArgList.get(0))
+            val fieldExpr =
+              reuseFieldExprForAggFunc(ctx, inputType, inputTerm, aggInfo.agg.getArgList.get(0))
+            val sumType = avgAggFunction.getSumType.getLogicalType
+            val isNull = GeneratedExpression(
+              fieldExpr.nullTerm,
+              NEVER_NULL,
+              fieldExpr.code,
+              new BooleanType(false))
+            val zero = generateLiteral(ctx, 0L, new BigIntType(false))
+            val value = fieldExpr.copy(code = NO_CODE)
+            fieldExprs += ScalarOperatorGens.generateIfElse(ctx, Seq(isNull, zero, value), sumType)
             fieldExprs += genValueProjectionForCountAggFunc(
               ctx,
               inputTerm,
