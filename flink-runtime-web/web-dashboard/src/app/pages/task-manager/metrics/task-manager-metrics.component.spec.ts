@@ -18,10 +18,10 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, ParamMap } from '@angular/router';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
-import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { MetricMap, TaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -84,10 +84,12 @@ const mockMetrics = {
 describe('TaskManagerMetricsComponent', () => {
   let fixture: ComponentFixture<TaskManagerMetricsComponent>;
   let element: HTMLElement;
+  let paramMap: BehaviorSubject<ParamMap>;
   const loadManager = vi.fn();
   const loadMetrics = vi.fn();
 
   beforeEach(async () => {
+    paramMap = new BehaviorSubject(convertToParamMap({ taskManagerId: 'tm-1' }));
     loadManager.mockReset().mockReturnValue(of(mockDetail));
     loadMetrics.mockReset().mockReturnValue(of(mockMetrics));
     await TestBed.configureTestingModule({
@@ -95,7 +97,10 @@ describe('TaskManagerMetricsComponent', () => {
       providers: [
         { provide: TaskManagerService, useValue: { loadManager, loadMetrics } },
         { provide: StatusService, useValue: { refresh$: of(true) } },
-        { provide: ActivatedRoute, useValue: { parent: { snapshot: { params: { taskManagerId: 'tm-1' } } } } }
+        {
+          provide: ActivatedRoute,
+          useValue: { parent: { paramMap, snapshot: { params: { taskManagerId: 'tm-1' } } } }
+        }
       ]
     }).compileComponents();
     fixture = TestBed.createComponent(TaskManagerMetricsComponent);
@@ -145,5 +150,46 @@ describe('TaskManagerMetricsComponent', () => {
     expect(text).not.toContain('Flink Memory Model');
     expect(text).not.toContain('Advanced');
     expect(text).not.toContain('NaN');
+  });
+
+  it('loads metrics for another TaskManager after the previous one returned 404', () => {
+    loadManager.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 404 })));
+    fixture.detectChanges();
+    expect(loadMetrics).not.toHaveBeenCalled();
+
+    loadManager.mockReturnValue(of({ ...mockDetail, id: 'tm-2' }));
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-2' }));
+    fixture.detectChanges();
+
+    expect(loadManager).toHaveBeenLastCalledWith('tm-2');
+    expect(loadMetrics).toHaveBeenCalledWith('tm-2', expect.arrayContaining(['Status.JVM.Memory.Heap.Used']));
+    expect(fixture.componentInstance.taskManagerDetail?.id).toBe('tm-2');
+    expect(element.textContent).toContain('Flink Memory Model');
+  });
+
+  it('clears stale detail and metrics while the next TaskManager is loading', () => {
+    fixture.detectChanges();
+    loadManager.mockReturnValue(new Subject<TaskManagerDetail>());
+
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-2' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.taskManagerDetail).toBeUndefined();
+    expect(fixture.componentInstance.metrics).toEqual({});
+    expect(element.textContent).not.toContain('Flink Memory Model');
+  });
+
+  it('cancels metrics requests for the previous TaskManager when the route changes', () => {
+    const previousMetrics = new Subject<MetricMap>();
+    loadMetrics.mockReturnValueOnce(previousMetrics);
+    fixture.detectChanges();
+
+    loadManager.mockReturnValue(of({ ...mockDetail, id: 'tm-2' }));
+    paramMap.next(convertToParamMap({ taskManagerId: 'tm-2' }));
+    previousMetrics.next({ 'Status.JVM.Memory.Heap.Used': 999 });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.taskManagerDetail?.id).toBe('tm-2');
+    expect(fixture.componentInstance.metrics).toEqual(mockMetrics);
   });
 });
