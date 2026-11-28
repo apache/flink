@@ -126,6 +126,15 @@ historyserver.log.jobmanager.url-pattern: http://my.log-browsing.url/<jobid>
 historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<tmid>
 ```
 
+### YARN log URLs
+
+When running on YARN, you can let the JobManager serve and archive the YARN NodeManager log URLs of the JobManager and the TaskManagers
+by setting [`historyserver.yarn.log.enable-custom-url-handlers`]({{< ref "docs/deployment/config" >}}#historyserver-yarn-log-enable-custom-url-handlers) to `true`
+in the configuration of the **job cluster** (not the HistoryServer).
+The URLs are built from the `CONTAINER_ID`, `NM_HOST`, `NM_HTTP_PORT` and `USER` environment variables of the JobManager container.
+This assumes that all NodeManagers use the same web port and serve `http`. If these environment variables are not set, the default log URLs are used.
+If the HistoryServer log URL patterns above are configured, they take precedence over the archived URLs.
+
 ## Available Requests
 
 Below is a list of available requests. All requests are of the sample form `http://hostname:8082/jobs`, below we list only the *path* part of the URLs.

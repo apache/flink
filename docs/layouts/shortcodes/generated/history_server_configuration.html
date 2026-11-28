@@ -116,5 +116,11 @@
             <td>String</td>
             <td>Local directory that is used by the history server REST API for temporary files.</td>
         </tr>
+        <tr>
+            <td><h5>historyserver.yarn.log.enable-custom-url-handlers</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, the JobManager serves and archives YARN NodeManager log URLs for the JobManager and TaskManagers, built from the CONTAINER_ID, NM_HOST, NM_HTTP_PORT and USER environment variables of its container. This only works on YARN and must be set in the configuration of the job cluster, not of the history server. The NodeManager HTTP port is assumed to be the same on all nodes and only http URLs are generated. If the environment variables are not available, the default log URLs are used. Log url patterns configured on the history server (historyserver.log.jobmanager.url-pattern and historyserver.log.taskmanager.url-pattern) take precedence over the archived URLs.</td>
+        </tr>
     </tbody>
 </table>

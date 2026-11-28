@@ -75,6 +75,21 @@ public class HistoryServerOptions {
                                     + " with replacing the special placeholders, `<jobid>`, to the id of job."
                                     + " Only http / https schemes are supported.");
 
+    public static final ConfigOption<Boolean>
+            HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS =
+                    key("historyserver.yarn.log.enable-custom-url-handlers")
+                            .booleanType()
+                            .defaultValue(false)
+                            .withDescription(
+                                    "If true, the JobManager serves and archives YARN NodeManager log URLs for the JobManager and"
+                                            + " TaskManagers, built from the CONTAINER_ID, NM_HOST, NM_HTTP_PORT and USER environment"
+                                            + " variables of its container. This only works on YARN and must be set in the configuration"
+                                            + " of the job cluster, not of the history server. The NodeManager HTTP port is assumed to be"
+                                            + " the same on all nodes and only http URLs are generated. If the environment variables are"
+                                            + " not available, the default log URLs are used. Log url patterns configured on the"
+                                            + " history server (historyserver.log.jobmanager.url-pattern and"
+                                            + " historyserver.log.taskmanager.url-pattern) take precedence over the archived URLs.");
+
     /** The local directory used by the HistoryServer web-frontend. */
     public static final ConfigOption<String> HISTORY_SERVER_WEB_DIR =
             key("historyserver.web.tmpdir")
