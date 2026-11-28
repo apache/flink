@@ -37,6 +37,10 @@ import java.security.Permission;
  * malicious users who try to tweak security manager on their own, but more for being dependable
  * against user mistakes by gracefully handling them informing users rather than causing silent
  * unavailability.
+ *
+ * <p>The Java Security Manager was permanently disabled in JDK 24 (<a
+ * href="https://openjdk.org/jeps/486">JEP 486</a>). On such JVMs the security manager features
+ * cannot be enabled, but the static process exit helpers keep working.
  */
 public class FlinkSecurityManager extends SecurityManager {
 
@@ -73,14 +77,13 @@ public class FlinkSecurityManager extends SecurityManager {
     }
 
     /**
-     * Instantiate FlinkUserSecurityManager from configuration. Return null if no security manager
-     * check is needed, so that a caller can skip setting security manager avoiding runtime check
-     * cost, if there is no security check set up already. Use {@link #setFromConfiguration} helper,
-     * which handles disabled case.
+     * Instantiate FlinkSecurityManager from configuration. Return null if no security manager check
+     * is needed, so that a caller can skip setting security manager avoiding runtime check cost, if
+     * there is no security check set up already. Use {@link #setFromConfiguration} helper, which
+     * handles disabled case.
      *
      * @param configuration to instantiate the security manager from
-     * @return FlinkUserSecurityManager instantiated based on configuration. Return null if
-     *     disabled.
+     * @return FlinkSecurityManager instantiated based on configuration. Return null if disabled.
      */
     @VisibleForTesting
     static FlinkSecurityManager fromConfiguration(Configuration configuration) {
@@ -110,12 +113,22 @@ public class FlinkSecurityManager extends SecurityManager {
             try {
                 System.setSecurityManager(flinkSecurityManager);
             } catch (Exception e) {
+                // UnsupportedOperationException: JDK 18-23 without -Djava.security.manager=allow,
+                // or JDK 24+ where the Security Manager is permanently disabled (JEP 486).
+                // Anything else: an existing security manager refuses to be replaced.
+                final String reason =
+                        e instanceof UnsupportedOperationException
+                                ? "the Java Security Manager is not available in this JVM: it was "
+                                        + "permanently disabled in JDK 24 (JEP 486) and must be "
+                                        + "explicitly enabled with '-Djava.security.manager=allow' "
+                                        + "on JDK 18 to 23."
+                                : "there is no permission to set a SecurityManager; update your "
+                                        + "existing SecurityManager to allow it.";
                 throw new IllegalConfigurationException(
                         String.format(
-                                "Could not register security manager due to no permission to "
-                                        + "set a SecurityManager. Either update your existing "
-                                        + "SecurityManager to allow the permission or do not use "
-                                        + "security manager features (e.g., '%s: %s', '%s: %s')",
+                                "Could not register security manager because %s Alternatively, "
+                                        + "disable the security manager features ('%s: %s', '%s: %s').",
+                                reason,
                                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT.key(),
                                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT.defaultValue(),
                                 ClusterOptions.HALT_ON_FATAL_ERROR.key(),
@@ -182,7 +195,7 @@ public class FlinkSecurityManager extends SecurityManager {
         // System.exit
         if (haltOnSystemExit) {
             // null the security manager to prevent infinite recursion
-            System.setSecurityManager(null);
+            clearSecurityManager();
             Runtime.getRuntime().halt(status);
         }
     }
@@ -209,11 +222,22 @@ public class FlinkSecurityManager extends SecurityManager {
      */
     public static void forceProcessExit(int exitCode) {
         // Unset ourselves to allow exiting in any case.
-        System.setSecurityManager(null);
+        clearSecurityManager();
         if (flinkSecurityManager != null && flinkSecurityManager.haltOnSystemExit) {
             Runtime.getRuntime().halt(exitCode);
         } else {
             System.exit(exitCode);
+        }
+    }
+
+    /**
+     * Unsets the system security manager, if any. On JDK 24+ {@code System.setSecurityManager}
+     * always throws (JEP 486), even when passed {@code null}, but there a security manager can
+     * never be installed in the first place, so there is nothing to unset either.
+     */
+    private static void clearSecurityManager() {
+        if (System.getSecurityManager() != null) {
+            System.setSecurityManager(null);
         }
     }
 }
