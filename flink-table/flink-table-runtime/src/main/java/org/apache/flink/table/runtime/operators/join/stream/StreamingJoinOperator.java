@@ -349,7 +349,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 // skip when there is no matched rows on the other side
             }
         } else { // input record is retract
-            // the retraction of a mini-batch pair is used as it is
+            // the retraction of a mini-batch pair is used as it is, pairedRetraction() resolved it
             final RowData retractedRecord =
                     isSuppress
                             ? input
@@ -397,6 +397,20 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 }
             }
         }
+    }
+
+    /**
+     * Returns the full record of a retraction that is paired with an accumulation in mini-batch
+     * mode, see {@link #retractedRecord}. It is looked up before the pair is processed, while the
+     * accumulation has not replaced the stored record yet, and both records of the pair use it.
+     */
+    protected RowData pairedRetraction(
+            RowData retraction, JoinRecordStateView stateView, boolean isLeft) throws Exception {
+        final RowKind retractionKind = retraction.getRowKind();
+        final RowData record = retractedRecord(retraction, retractionKind, stateView, isLeft);
+        // the stored record may be the object in state, processElement() sets it back to INSERT
+        record.setRowKind(retractionKind);
+        return record;
     }
 
     /**
