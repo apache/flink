@@ -94,7 +94,7 @@ SSL can be enabled separately for *internal* and *external* connectivity:
   - **security.ssl.internal.enabled**: Enable SSL for all *internal* connections.
   - **security.ssl.rest.enabled**: Enable SSL for *REST / external* connections.
 
-*Note: For backwards compatibility, the **security.ssl.enabled** option still exists and enables SSL for both internal and REST endpoints.*
+*Note: Flink 1.x supported the **security.ssl.enabled** option; Flink 2.x no longer supports this option. Instead, use the finer-grained **security.ssl.internal.enabled** or **security.ssl.rest.enabled**, as required.*
 
 For internal connectivity, you can optionally disable security for different connection types separately.
 When `security.ssl.internal.enabled` is set to `true`, you can set the following parameters to `false` to disable SSL for that particular connection type:
