@@ -53,6 +53,13 @@ class CompileUtilsTest {
     }
 
     @Test
+    void testWarmUp() throws Exception {
+        Class<?> warmed = CompileUtils.doWarmUp();
+        assertThat(warmed).isNotNull();
+        assertThat(warmed.getMethod("eval", long.class, long.class)).isNotNull();
+    }
+
+    @Test
     void testExpressionCacheReuse() {
         String code = "a + b";
 
