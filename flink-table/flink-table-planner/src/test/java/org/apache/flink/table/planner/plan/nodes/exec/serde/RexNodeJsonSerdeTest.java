@@ -67,10 +67,12 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.Sarg;
 import org.apache.calcite.util.TimeString;
@@ -82,6 +84,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -180,6 +183,59 @@ public class RexNodeJsonSerdeTest {
     public void testRexNodeSerde(RexNode rexNode) throws IOException {
         final RexNode actual = testJsonRoundTrip(rexNode, RexNode.class);
         assertThat(actual).isEqualTo(rexNode);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2})
+    void testRestoreOverloadedFunctionByOperandCount(int operandCount) throws IOException {
+        final RexBuilder builder = new RexBuilder(FACTORY);
+        final SqlFunction operator =
+                operandCount == 0
+                        ? FlinkSqlOperatorTable.UNIX_TIMESTAMP_NO_OPERAND
+                        : FlinkSqlOperatorTable.UNIX_TIMESTAMP;
+        final List<RexNode> operands =
+                List.of(
+                        builder.makeInputRef(FACTORY.createSqlType(SqlTypeName.VARCHAR), 0),
+                        builder.makeLiteral("yyyy-MM-dd"));
+        final RexNode call = builder.makeCall(operator, operands.subList(0, operandCount));
+
+        final RexCall restored = (RexCall) testJsonRoundTrip(call, RexNode.class);
+        assertThat(restored.getOperator()).isSameAs(operator);
+    }
+
+    @Test
+    void testRestoreAmbiguousFunctionFromStandardOperatorTable() throws IOException {
+        final SerdeContext context = JsonSerdeTestUtil.configuredSerdeContext();
+        final RexNode call = context.getRexBuilder().makeCall(FlinkSqlOperatorTable.PI_FUNCTION);
+        final String json = toJson(context, call);
+
+        final RexCall restored = (RexCall) JsonSerdeTestUtil.toObject(context, json, RexNode.class);
+        assertThat(restored.getOperator()).isSameAs(SqlStdOperatorTable.PI);
+    }
+
+    @Test
+    void testRestoreAmbiguousOverloads() {
+        final SerdeContext base = JsonSerdeTestUtil.configuredSerdeContext();
+        final SerdeContext context =
+                new SerdeContext(
+                        base.getParser(),
+                        base.getFlinkContext(),
+                        base.getTypeFactory(),
+                        SqlOperatorTables.of(
+                                SqlLibraryOperators.SUBSTR_MYSQL,
+                                SqlLibraryOperators.SUBSTR_ORACLE));
+        final RexBuilder builder = context.getRexBuilder();
+        final RexNode call =
+                builder.makeCall(
+                        SqlLibraryOperators.SUBSTR_MYSQL,
+                        builder.makeLiteral("abc"),
+                        builder.makeExactLiteral(BigDecimal.ONE));
+
+        assertThatThrownBy(() -> testJsonRoundTrip(context, call, RexNode.class))
+                .satisfies(
+                        anyCauseMatches(
+                                TableException.class,
+                                "Could not resolve internal system function '$SUBSTR$1'"));
     }
 
     @Test

@@ -27,6 +27,8 @@ import org.apache.flink.table.types.DataType
 
 import org.junit.jupiter.api.Test
 
+import java.time.ZoneId
+
 class DagOptimizationTest extends TableTestBase {
   private val util = streamTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -336,11 +338,13 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
       Boolean.box(false))
+    util.tableEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
     util.addTemporarySystemFunction("split", new TableFunc1)
+    val startTime = "2021-01-11 19:30:00"
     val sqlQuery1 =
-      """
-        |SELECT  a, b - MOD(b, 300) AS b, c FROM MyTable
-        |WHERE b >= UNIX_TIMESTAMP('${startTime}')
+      s"""
+         |SELECT  a, b - MOD(b, 300) AS b, c FROM MyTable
+         |WHERE b >= UNIX_TIMESTAMP('$startTime')
       """.stripMargin
     val table1 = util.tableEnv.sqlQuery(sqlQuery1)
     util.tableEnv.createTemporaryView("table1", table1)

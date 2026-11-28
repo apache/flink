@@ -20,13 +20,17 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.codegen.ExpressionReducer
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 
 import org.apache.calcite.rex.{RexBuilder, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.SqlOperatorBinding
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.apache.calcite.sql.validate.SqlMonotonicity
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mock
 
 import java.math.BigDecimal
 import java.util.Collections
@@ -37,6 +41,55 @@ class FlinkRexUtilTest {
   private val rexBuilder = new FlinkRexBuilder(typeFactory)
   private val varcharType = typeFactory.createSqlType(VARCHAR)
   private val intType = typeFactory.createSqlType(INTEGER)
+
+  @Test
+  def testUnixTimestampOperatorDeterminism(): Unit = {
+    assertTrue(FlinkSqlOperatorTable.UNIX_TIMESTAMP.isDeterministic)
+    assertFalse(FlinkSqlOperatorTable.UNIX_TIMESTAMP_NO_OPERAND.isDeterministic)
+  }
+
+  @Test
+  def testUnixTimestampOperatorMonotonicity(): Unit = {
+    val binding = mock(classOf[SqlOperatorBinding])
+    assertEquals(
+      SqlMonotonicity.NOT_MONOTONIC,
+      FlinkSqlOperatorTable.UNIX_TIMESTAMP.getMonotonicity(binding))
+    assertEquals(
+      SqlMonotonicity.INCREASING,
+      FlinkSqlOperatorTable.UNIX_TIMESTAMP_NO_OPERAND.getMonotonicity(binding))
+  }
+
+  @Test
+  def testUnixTimestampWithDeterministicOperands(): Unit = {
+    val call = rexBuilder.makeCall(
+      FlinkSqlOperatorTable.UNIX_TIMESTAMP,
+      rexBuilder.makeInputRef(varcharType, 0),
+      rexBuilder.makeLiteral("yyyy-MM-dd HH:mm:ss"))
+
+    assertFalse(FlinkRexUtil.getNonDeterministicCallName(call).isPresent)
+  }
+
+  @Test
+  def testUnixTimestampChecksEveryOperand(): Unit = {
+    val nonDeterministicOperand = rexBuilder.makeCall(FlinkSqlOperatorTable.UUID)
+    val calls = Seq(
+      rexBuilder.makeCall(FlinkSqlOperatorTable.UNIX_TIMESTAMP, nonDeterministicOperand),
+      rexBuilder.makeCall(
+        FlinkSqlOperatorTable.UNIX_TIMESTAMP,
+        rexBuilder.makeInputRef(varcharType, 0),
+        nonDeterministicOperand)
+    )
+
+    calls.foreach(
+      call => assertEquals("UUID", FlinkRexUtil.getNonDeterministicCallName(call).orElse(null)))
+  }
+
+  @Test
+  def testUnixTimestampWithoutOperandsIsNonDeterministic(): Unit = {
+    val call = rexBuilder.makeCall(FlinkSqlOperatorTable.UNIX_TIMESTAMP_NO_OPERAND)
+
+    assertEquals("UNIX_TIMESTAMP", FlinkRexUtil.getNonDeterministicCallName(call).orElse(null))
+  }
 
   @Test
   def testToCnf_ComplexPredicate(): Unit = {

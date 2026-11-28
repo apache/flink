@@ -59,6 +59,7 @@ public class CustomizedConverters {
         CONVERTERS.put(BuiltInFunctionDefinitions.JSON_QUERY, new JsonQueryConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.JSON_OBJECT, new JsonObjectConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.JSON_ARRAY, new JsonArrayConverter());
+        CONVERTERS.put(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, new UnixTimestampConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.DEFAULT, new DefaultConverter());
         CONVERTERS.put(InternalFunctionDefinitions.THROW_EXCEPTION, new ThrowExceptionConverter());
     }

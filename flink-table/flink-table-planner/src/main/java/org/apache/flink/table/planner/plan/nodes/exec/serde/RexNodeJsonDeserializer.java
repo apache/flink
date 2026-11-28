@@ -82,6 +82,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.extractNameFromQualifiedName;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinition.extractVersionFromQualifiedName;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.AggregateCallJsonSerializer.FIELD_NAME_ARG_LIST;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.loadClass;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ALPHA;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_LOWER;
@@ -405,6 +406,11 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
 
     /** Logic shared with {@link AggregateCallJsonDeserializer}. */
     static SqlOperator deserializeSqlOperator(JsonNode jsonNode, SerdeContext serdeContext) {
+        final JsonNode args =
+                jsonNode.path(
+                        jsonNode.has(FIELD_NAME_ARG_LIST)
+                                ? FIELD_NAME_ARG_LIST
+                                : FIELD_NAME_OPERANDS);
         final SqlSyntax syntax;
         if (jsonNode.has(FIELD_NAME_SYNTAX)) {
             syntax =
@@ -416,14 +422,14 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
 
         if (jsonNode.has(FIELD_NAME_INTERNAL_NAME)) {
             return deserializeInternalFunction(
-                    jsonNode.required(FIELD_NAME_INTERNAL_NAME).asText(), syntax, serdeContext);
+                    jsonNode.get(FIELD_NAME_INTERNAL_NAME).asText(), syntax, args, serdeContext);
         } else if (jsonNode.has(FIELD_NAME_CATALOG_NAME)) {
-            return deserializeCatalogFunction(jsonNode, syntax, serdeContext);
+            return deserializeCatalogFunction(jsonNode, syntax, args, serdeContext);
         } else if (jsonNode.has(FIELD_NAME_CLASS)) {
             return deserializeFunctionClass(jsonNode, serdeContext);
         } else if (jsonNode.has(FIELD_NAME_SYSTEM_NAME)) {
             return deserializeSystemFunction(
-                    jsonNode.required(FIELD_NAME_SYSTEM_NAME).asText(), syntax, serdeContext);
+                    jsonNode.get(FIELD_NAME_SYSTEM_NAME).asText(), syntax, args, serdeContext);
         } else if (jsonNode.has(FIELD_NAME_SQL_KIND)) {
             return deserializeInternalFunction(
                     syntax, SqlKind.valueOf(jsonNode.get(FIELD_NAME_SQL_KIND).asText()));
@@ -433,12 +439,12 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private static SqlOperator deserializeSystemFunction(
-            String systemName, SqlSyntax syntax, SerdeContext serdeContext) {
+            String systemName, SqlSyntax syntax, JsonNode args, SerdeContext serdeContext) {
         // This method covers both temporary system functions and permanent system
         // functions from a module
         final Optional<SqlOperator> systemOperator =
                 lookupOptionalSqlOperator(
-                        FunctionIdentifier.of(systemName), syntax, serdeContext, true);
+                        FunctionIdentifier.of(systemName), syntax, args, serdeContext, true);
         if (systemOperator.isPresent()) {
             return systemOperator.get();
         }
@@ -446,11 +452,11 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private static SqlOperator deserializeInternalFunction(
-            String internalName, SqlSyntax syntax, SerdeContext serdeContext) {
+            String internalName, SqlSyntax syntax, JsonNode args, SerdeContext serdeContext) {
         // Try $FUNC$1
         final Optional<SqlOperator> internalOperator =
                 lookupOptionalSqlOperator(
-                        FunctionIdentifier.of(internalName), syntax, serdeContext, false);
+                        FunctionIdentifier.of(internalName), syntax, args, serdeContext, false);
         if (internalOperator.isPresent()) {
             return internalOperator.get();
         }
@@ -458,7 +464,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         final String publicName = extractNameFromQualifiedName(internalName);
         final Optional<SqlOperator> latestOperator =
                 lookupOptionalSqlOperator(
-                        FunctionIdentifier.of(publicName), syntax, serdeContext, true);
+                        FunctionIdentifier.of(publicName), syntax, args, serdeContext, true);
         if (latestOperator.isPresent()) {
             return validateVersion(internalName, latestOperator.get());
         }
@@ -553,7 +559,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private static SqlOperator deserializeCatalogFunction(
-            JsonNode jsonNode, SqlSyntax syntax, SerdeContext serdeContext) {
+            JsonNode jsonNode, SqlSyntax syntax, JsonNode args, SerdeContext serdeContext) {
         final CatalogPlanRestore restoreStrategy =
                 serdeContext.getConfiguration().get(PLAN_RESTORE_CATALOG_OBJECTS);
         final FunctionIdentifier identifier =
@@ -565,7 +571,8 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             case ALL:
                 {
                     final Optional<SqlOperator> lookupOperator =
-                            lookupOptionalSqlOperator(identifier, syntax, serdeContext, false);
+                            lookupOptionalSqlOperator(
+                                    identifier, syntax, args, serdeContext, false);
                     if (lookupOperator.isPresent()) {
                         return lookupOperator.get();
                     } else if (jsonNode.has(FIELD_NAME_CLASS)) {
@@ -579,7 +586,8 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                         return deserializeFunctionClass(jsonNode, serdeContext);
                     }
                     final Optional<SqlOperator> lookupOperator =
-                            lookupOptionalSqlOperator(identifier, syntax, serdeContext, false);
+                            lookupOptionalSqlOperator(
+                                    identifier, syntax, args, serdeContext, false);
                     if (lookupOperator.map(RexNodeJsonDeserializer::isTemporary).orElse(false)) {
                         return lookupOperator.get();
                     }
@@ -587,7 +595,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 }
             case IDENTIFIER:
                 final Optional<SqlOperator> lookupOperator =
-                        lookupOptionalSqlOperator(identifier, syntax, serdeContext, true);
+                        lookupOptionalSqlOperator(identifier, syntax, args, serdeContext, true);
                 if (lookupOperator.isPresent()) {
                     return lookupOperator.get();
                 } else {
@@ -610,6 +618,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     private static Optional<SqlOperator> lookupOptionalSqlOperator(
             FunctionIdentifier identifier,
             SqlSyntax syntax,
+            JsonNode args,
             SerdeContext serdeContext,
             boolean throwOnError) {
         final List<SqlOperator> foundOperators = new ArrayList<>();
@@ -622,6 +631,11 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                             syntax,
                             foundOperators,
                             SqlNameMatchers.liberal());
+            // A Rex call can omit SQL-only operands, such as the target type of CAST.
+            if (foundOperators.size() > 1) {
+                final int arity = args.size();
+                foundOperators.removeIf(op -> !op.getOperandCountRange().isValidCount(arity));
+            }
             if (foundOperators.size() != 1) {
                 return Optional.empty();
             }

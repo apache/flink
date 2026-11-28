@@ -342,7 +342,7 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
 
   addSqlFunctionMethod(TANH, Seq(DECIMAL), BuiltInMethods.TANH_DEC)
 
-  addSqlFunctionMethod(UNIX_TIMESTAMP, Seq(), BuiltInMethods.UNIX_TIMESTAMP)
+  addSqlFunctionMethod(UNIX_TIMESTAMP_NO_OPERAND, Seq(), BuiltInMethods.UNIX_TIMESTAMP)
 
   addSqlFunctionMethod(
     UNIX_TIMESTAMP,
