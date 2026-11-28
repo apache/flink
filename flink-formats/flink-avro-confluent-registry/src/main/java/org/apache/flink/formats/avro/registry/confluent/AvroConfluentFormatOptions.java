@@ -49,6 +49,17 @@ public class AvroConfluentFormatOptions {
                                     + "is used as the value or key format. But for other connectors (e.g. 'filesystem'), "
                                     + "the subject option is required when used as sink.");
 
+    public static final ConfigOption<Boolean> TIME_MAPPING_AS_NUMBER =
+            ConfigOptions.key("time-mapping.as-number")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Maps the Avro logical types 'time-millis' and 'time-micros' of the provided 'schema' "
+                                    + "to INT and BIGINT instead of TIME(3) and TIME(6). A TIME holds milliseconds "
+                                    + "only, so the microseconds of a 'time-micros' are lost as a TIME and kept as "
+                                    + "a BIGINT. Only applies together with the 'schema' option: without it the Avro "
+                                    + "schema is derived from the table schema, where the column type decides.");
+
     public static final ConfigOption<String> SCHEMA =
             ConfigOptions.key("schema")
                     .stringType()
