@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
@@ -145,6 +146,15 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         if (windowBuffer != null) {
             windowBuffer.close();
         }
+    }
+
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        if (watermarkStatus.isIdle()) {
+            // Downstream may advance its watermark past buffered windows once this input is idle.
+            windowBuffer.flush();
+        }
+        super.processWatermarkStatus(watermarkStatus);
     }
 
     /** Compute memory size from memory faction. */
