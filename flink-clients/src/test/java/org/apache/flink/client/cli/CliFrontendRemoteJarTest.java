@@ -38,6 +38,8 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -289,6 +291,39 @@ class CliFrontendRemoteJarTest {
     }
 
     @Test
+    void testChangedLengthRefreshesTheCache(@TempDir Path remoteDir) throws Exception {
+        assumePosix();
+        String uri = copyTestJarTo(remoteDir);
+        CliFrontend frontend =
+                new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
+
+        buildAndDelete(frontend, uri);
+        Path remoteJar = remoteDir.resolve(JAR_NAME);
+        FileTime modificationTime = Files.getLastModifiedTime(remoteJar);
+        long length = Files.size(remoteJar);
+        addEntry(remoteJar, "added.txt");
+        Files.setLastModifiedTime(remoteJar, modificationTime);
+        assertThat(Files.size(remoteJar)).isNotEqualTo(length);
+        buildAndDelete(frontend, uri);
+
+        assertThat(cachedJar()).hasSameBinaryContentAs(remoteJar);
+    }
+
+    @Test
+    void testJarWithoutModificationTimeIsNotCached(@TempDir Path remoteDir) throws Exception {
+        assumePosix();
+        String uri = copyTestJarTo(remoteDir);
+        Files.setLastModifiedTime(remoteDir.resolve(JAR_NAME), FileTime.fromMillis(0));
+        CliFrontend frontend =
+                new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
+
+        buildAndDelete(frontend, uri);
+
+        assertThat(cacheDir()).isEmptyDirectory();
+        assertThat(tmpDir).isDirectoryNotContaining(path -> !path.equals(cacheDir()));
+    }
+
+    @Test
     void testCacheIsNotUsedWhenOthersCanAccessIt(@TempDir Path remoteDir) throws Exception {
         assumePosix();
         Files.createDirectory(
@@ -342,6 +377,12 @@ class CliFrontendRemoteJarTest {
     private static String copyTestJarTo(Path dir) throws Exception {
         Path jar = Files.copy(Paths.get(getTestJarPath()), dir.resolve(JAR_NAME));
         return jar.toUri().toString();
+    }
+
+    private static void addEntry(Path jar, String name) throws Exception {
+        try (FileSystem zip = FileSystems.newFileSystem(jar, (ClassLoader) null)) {
+            Files.write(zip.getPath(name), name.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     private void buildAndDelete(CliFrontend frontend, String uri) throws Exception {

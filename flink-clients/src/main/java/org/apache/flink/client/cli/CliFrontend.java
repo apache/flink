@@ -1148,7 +1148,10 @@ public class CliFrontend {
             Optional<JobJarCache> cache =
                     JobJarCache.open(ConfigurationUtils.parseTempDirectories(configuration)[0]);
             if (cache.isPresent()) {
-                return cache.get().get(jarUri, configuration);
+                Optional<File> cached = cache.get().get(jarUri, configuration);
+                if (cached.isPresent()) {
+                    return cached.get();
+                }
             }
         }
         File fetched =

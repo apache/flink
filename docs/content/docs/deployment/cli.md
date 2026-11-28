@@ -90,9 +90,11 @@ available to the client. A local file with the same path takes precedence over a
 
 A JAR from a file system such as `s3://` or `hdfs://` is kept in `flink-cli-jar-cache` under
 `io.tmp.dirs` and reused while the remote file keeps its length and modification time, so
-submitting several jobs from one JAR downloads it once. The cache is only used if that directory
-is owned by and accessible only to the current user; otherwise, and for `https://`, the JAR is
-fetched for each command and deleted afterwards. HTTP downloads honor
+submitting several jobs from one JAR downloads it once. The content is not compared: if you
+overwrite a JAR in a way that preserves both (for example a copy that keeps timestamps), upload
+it under a new name. The cache is only used if that directory is owned by and accessible only to
+the current user; otherwise, for `https://`, and for a file without a modification time, the JAR
+is fetched for each command and deleted afterwards. HTTP downloads honor
 `user.artifacts.raw-http-enabled` and `user.artifacts.http-headers`, as in Application Mode.
 
 ```bash

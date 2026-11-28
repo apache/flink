@@ -113,10 +113,18 @@ final class JobJarCache {
                                                 || permission == PosixFilePermission.OWNER_EXECUTE);
     }
 
-    /** Returns the cached copy of the JAR, fetching it first if missing or changed remotely. */
-    File get(String jarUri, Configuration configuration) throws Exception {
+    /**
+     * Returns the cached copy of the JAR, fetching it first if missing or changed remotely. Returns
+     * empty, without fetching, if the file system reports no modification time: the length alone
+     * cannot tell whether a cached copy is still current.
+     */
+    Optional<File> get(String jarUri, Configuration configuration) throws Exception {
         org.apache.flink.core.fs.Path remote = new org.apache.flink.core.fs.Path(jarUri);
         FileStatus remoteStatus = remote.getFileSystem().getFileStatus(remote);
+        if (remoteStatus.getModificationTime() <= 0) {
+            LOG.info("Not caching job JAR {}: it has no modification time.", jarUri);
+            return Optional.empty();
+        }
         String stamp = remoteStatus.getLen() + " " + remoteStatus.getModificationTime();
 
         Path entry = Files.createDirectories(root.resolve(sha256Hex(jarUri)));
@@ -127,7 +135,7 @@ final class JobJarCache {
                 && stamp.equals(
                         new String(Files.readAllBytes(statusFile), StandardCharsets.UTF_8))) {
             LOG.info("Reusing cached job JAR {} for {}.", jar, jarUri);
-            return jar.toFile();
+            return Optional.of(jar.toFile());
         }
 
         Path download = Files.createTempDirectory(entry, "fetch-");
@@ -145,7 +153,7 @@ final class JobJarCache {
             Files.move(fetched.toPath(), jar, StandardCopyOption.ATOMIC_MOVE);
             Files.move(newStatus, statusFile, StandardCopyOption.ATOMIC_MOVE);
             LOG.info("Fetched job JAR {} to {}.", jarUri, jar);
-            return jar.toFile();
+            return Optional.of(jar.toFile());
         } finally {
             FileUtils.deleteDirectoryQuietly(download.toFile());
         }
