@@ -967,22 +967,16 @@ Note: PyFlink only supports `ConcatFileCompactor` and `IdenticalFileCompactor`.
 
 #### General
 
-<span class="label label-danger">Important Note 1</span>: When using Hadoop < 2.7, please use
-the `OnCheckpointRollingPolicy` which rolls part files on every checkpoint. The reason is that if part files "traverse"
-the checkpoint interval, then, upon recovery from a failure the `FileSink` may use the `truncate()` method of the 
-filesystem to discard uncommitted data from the in-progress file. This method is not supported by pre-2.7 Hadoop versions 
-and Flink will throw an exception.
-
-<span class="label label-danger">Important Note 2</span>: Given that Flink sinks and UDFs in general do not differentiate between
+<span class="label label-danger">Important Note 1</span>: Given that Flink sinks and UDFs in general do not differentiate between
 normal job termination (*e.g.* finite input stream) and termination due to failure, upon normal termination of a job, the last 
 in-progress files will not be transitioned to the "finished" state.
 
-<span class="label label-danger">Important Note 3</span>: Flink and the `FileSink` never overwrites committed data.
+<span class="label label-danger">Important Note 2</span>: Flink and the `FileSink` never overwrites committed data.
 Given this, when trying to restore from an old checkpoint/savepoint which assumes an in-progress file which was committed
 by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports five filesystems: 
+<span class="label label-danger">Important Note 3</span>: Currently, the `FileSink` only supports five filesystems: 
 HDFS, S3, OSS, ABFS and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific

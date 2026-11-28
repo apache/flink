@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -28,7 +26,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
-import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,39 +151,6 @@ public class HadoopUtils {
             }
         }
         return false;
-    }
-
-    /** Checks if the Hadoop dependency is at least the given version. */
-    public static boolean isMinHadoopVersion(int major, int minor) throws FlinkRuntimeException {
-        final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
-        int maj = hadoopVersion.f0;
-        int min = hadoopVersion.f1;
-
-        return maj > major || (maj == major && min >= minor);
-    }
-
-    /** Checks if the Hadoop dependency is at most the given version. */
-    public static boolean isMaxHadoopVersion(int major, int minor) throws FlinkRuntimeException {
-        final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
-        int maj = hadoopVersion.f0;
-        int min = hadoopVersion.f1;
-
-        return maj < major || (maj == major && min < minor);
-    }
-
-    private static Tuple2<Integer, Integer> getMajorMinorBundledHadoopVersion() {
-        String versionString = VersionInfo.getVersion();
-        String[] versionParts = versionString.split("\\.");
-
-        if (versionParts.length < 2) {
-            throw new FlinkRuntimeException(
-                    "Cannot determine version of Hadoop, unexpected version string: "
-                            + versionString);
-        }
-
-        int maj = Integer.parseInt(versionParts[0]);
-        int min = Integer.parseInt(versionParts[1]);
-        return Tuple2.of(maj, min);
     }
 
     /**

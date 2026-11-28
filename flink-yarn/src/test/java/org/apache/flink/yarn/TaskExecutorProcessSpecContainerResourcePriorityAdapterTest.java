@@ -22,7 +22,6 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
-import org.apache.flink.runtime.util.HadoopUtils;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -34,7 +33,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link TaskExecutorProcessSpecContainerResourcePriorityAdapter}. */
 class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
@@ -187,8 +185,6 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
 
     @Test
     void testExternalResource() {
-        assumeThat(isExternalResourceSupported()).isTrue();
-
         final TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter =
                 getAdapterWithExternalResources(
                         SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY);
@@ -196,7 +192,8 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
                 getResource(adapter, TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE);
 
         final Map<String, Long> resultExternalResources =
-                ResourceInformationReflector.INSTANCE.getExternalResources(resource);
+                TaskExecutorProcessSpecContainerResourcePriorityAdapter.getExternalResources(
+                        resource);
         assertThat(resultExternalResources)
                 .hasSize(1)
                 .containsEntry(
@@ -205,8 +202,6 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
 
     @Test
     void testExternalResourceFailExceedMax() {
-        assumeThat(isExternalResourceSupported()).isTrue();
-
         assertThatThrownBy(
                         () ->
                                 getAdapterWithExternalResources(
@@ -219,8 +214,6 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
 
     @Test
     void testExternalResourceFailResourceTypeNotSupported() {
-        assumeThat(isExternalResourceSupported()).isTrue();
-
         assertThatThrownBy(
                         () ->
                                 getAdapterWithExternalResources(
@@ -228,19 +221,6 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
                                                 UNSUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
                                         .getPriorityAndResource(
                                                 TASK_EXECUTOR_PROCESS_SPEC_WITH_UNSUPPORTED_EXTERNAL_RESOURCE))
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    void testExternalResourceFailHadoopVersionNotSupported() {
-        assumeThat(isExternalResourceSupported()).isFalse();
-        assertThatThrownBy(
-                        () ->
-                                getAdapterWithExternalResources(
-                                                SUPPORTED_EXTERNAL_RESOURCE_NAME,
-                                                SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
-                                        .getPriorityAndResource(
-                                                TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -255,7 +235,7 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
                 Resource.newInstance(
                         MAX_CONTAINER_RESOURCE.getMemorySize(),
                         MAX_CONTAINER_RESOURCE.getVirtualCores());
-        ResourceInformationReflector.INSTANCE.setResourceInformation(
+        TaskExecutorProcessSpecContainerResourcePriorityAdapter.setExternalResource(
                 maxResource,
                 SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY,
                 SUPPORTED_EXTERNAL_RESOURCE_MAX);
@@ -277,10 +257,5 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
             TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter,
             TaskExecutorProcessSpec spec) {
         return adapter.getPriorityAndResource(spec).get().getPriority();
-    }
-
-    private static boolean isExternalResourceSupported() {
-        return HadoopUtils.isMinHadoopVersion(2, 10)
-                && ClassLoader.getSystemResource("resource-types.xml") != null;
     }
 }
