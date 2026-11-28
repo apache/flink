@@ -69,7 +69,10 @@ class WatermarkStrategy(object):
         :param idle_timeout: The idle timeout.
         :return: A new WatermarkStrategy with idle detection configured.
         """
-        return WatermarkStrategy(self._j_watermark_strategy.withIdleness(idle_timeout._j_duration))
+        watermark_strategy = WatermarkStrategy(
+            self._j_watermark_strategy.withIdleness(idle_timeout._j_duration))
+        watermark_strategy._timestamp_assigner = self._timestamp_assigner
+        return watermark_strategy
 
     def with_watermark_alignment(self, watermark_group: str, max_allowed_watermark_drift: Duration,
                                  update_interval: Optional[Duration] = None) -> 'WatermarkStrategy':
@@ -100,15 +103,18 @@ class WatermarkStrategy(object):
         .. versionadded:: 1.16.0
         """
         if update_interval is None:
-            return WatermarkStrategy(self._j_watermark_strategy.withWatermarkAlignment(
+            j_watermark_strategy = self._j_watermark_strategy.withWatermarkAlignment(
                 watermark_group, max_allowed_watermark_drift._j_duration
-            ))
+            )
         else:
-            return WatermarkStrategy(self._j_watermark_strategy.withWatermarkAlignment(
+            j_watermark_strategy = self._j_watermark_strategy.withWatermarkAlignment(
                 watermark_group,
                 max_allowed_watermark_drift._j_duration,
                 update_interval._j_duration,
-            ))
+            )
+        watermark_strategy = WatermarkStrategy(j_watermark_strategy)
+        watermark_strategy._timestamp_assigner = self._timestamp_assigner
+        return watermark_strategy
 
     @staticmethod
     def for_monotonous_timestamps() -> 'WatermarkStrategy':
