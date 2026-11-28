@@ -612,9 +612,12 @@ public class TableImpl implements Table {
         @Override
         public Table select(Expression... fields) {
             List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
+            List<Expression> groupingExpressions = table.preprocessExpressions(groupKeys);
             CategorizedExpressions extracted =
                     OperationExpressionsUtils.extractAggregationsAndProperties(
-                            expressionsWithResolvedCalls);
+                            expressionsWithResolvedCalls,
+                            table.operationTree.getResolvedSchema().getColumnNames(),
+                            groupingExpressions);
 
             if (!extracted.getWindowProperties().isEmpty()) {
                 throw new ValidationException(
@@ -622,10 +625,11 @@ public class TableImpl implements Table {
             }
 
             return table.createTable(
-                    table.operationTreeBuilder.project(
+                    table.operationTreeBuilder.aggregateAndProject(
+                            groupingExpressions,
+                            extracted.getAggregations(),
                             extracted.getProjections(),
-                            table.operationTreeBuilder.aggregate(
-                                    groupKeys, extracted.getAggregations(), table.operationTree)));
+                            table.operationTree));
         }
 
         @Override
@@ -658,10 +662,11 @@ public class TableImpl implements Table {
         @Override
         public Table select(Expression... fields) {
             return table.createTable(
-                    table.operationTreeBuilder.project(
-                            Arrays.asList(fields),
-                            table.operationTreeBuilder.aggregate(
-                                    groupKeys, aggregateFunction, table.operationTree)));
+                    table.operationTreeBuilder.aggregateAndProject(
+                            groupKeys,
+                            aggregateFunction,
+                            table.preprocessExpressions(fields),
+                            table.operationTree));
         }
     }
 
@@ -688,7 +693,7 @@ public class TableImpl implements Table {
                     table.operationTreeBuilder.project(
                             Arrays.asList(fields),
                             table.operationTreeBuilder.tableAggregate(
-                                    groupKey,
+                                    table.preprocessExpressions(groupKey),
                                     tableAggregateFunction.accept(table.lookupResolver),
                                     table.operationTree)));
         }
@@ -743,19 +748,18 @@ public class TableImpl implements Table {
             List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
             CategorizedExpressions extracted =
                     OperationExpressionsUtils.extractAggregationsAndProperties(
-                            expressionsWithResolvedCalls);
+                            expressionsWithResolvedCalls,
+                            table.operationTree.getResolvedSchema().getColumnNames(),
+                            groupKeys);
 
             return table.createTable(
-                    table.operationTreeBuilder.project(
+                    table.operationTreeBuilder.windowAggregateAndProject(
+                            groupKeys,
+                            window,
+                            extracted.getWindowProperties(),
+                            extracted.getAggregations(),
                             extracted.getProjections(),
-                            table.operationTreeBuilder.windowAggregate(
-                                    groupKeys,
-                                    window,
-                                    extracted.getWindowProperties(),
-                                    extracted.getAggregations(),
-                                    table.operationTree),
-                            // required for proper resolution of the time attribute in multi-windows
-                            true));
+                            table.operationTree));
         }
 
         @Override
@@ -794,9 +798,13 @@ public class TableImpl implements Table {
         @Override
         public Table select(Expression... fields) {
             List<Expression> expressionsWithResolvedCalls = table.preprocessExpressions(fields);
+            List<Expression> namedExpressions = new ArrayList<>(groupKeys);
+            namedExpressions.add(aggregateFunction.accept(table.lookupResolver));
             CategorizedExpressions extracted =
                     OperationExpressionsUtils.extractAggregationsAndProperties(
-                            expressionsWithResolvedCalls);
+                            expressionsWithResolvedCalls,
+                            table.operationTree.getResolvedSchema().getColumnNames(),
+                            namedExpressions);
 
             if (!extracted.getAggregations().isEmpty()) {
                 throw new ValidationException(
@@ -816,14 +824,13 @@ public class TableImpl implements Table {
             }
 
             return table.createTable(
-                    table.operationTreeBuilder.project(
+                    table.operationTreeBuilder.windowAggregateAndProject(
+                            groupKeys,
+                            window,
+                            extracted.getWindowProperties(),
+                            aggregateFunction,
                             extracted.getProjections(),
-                            table.operationTreeBuilder.windowAggregate(
-                                    groupKeys,
-                                    window,
-                                    extracted.getWindowProperties(),
-                                    aggregateFunction,
-                                    table.operationTree)));
+                            table.operationTree));
         }
     }
 
