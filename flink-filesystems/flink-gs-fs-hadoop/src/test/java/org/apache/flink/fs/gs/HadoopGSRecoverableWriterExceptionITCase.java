@@ -18,7 +18,6 @@
 
 package org.apache.flink.fs.gs;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterExceptionITCase;
@@ -41,7 +40,7 @@ class HadoopGSRecoverableWriterExceptionITCase
     @BeforeAll
     static void setup() throws IOException {
         GSTestCredentials.assumeCredentialsAvailable();
-        FileSystem.initialize(new Configuration(), null);
+        FileSystem.initialize(GSTestCredentials.createConfiguration(), null);
         basePath = new Path(GSTestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
         assertThat(basePath.getFileSystem().exists(basePath)).isFalse();
         skipped = false;
