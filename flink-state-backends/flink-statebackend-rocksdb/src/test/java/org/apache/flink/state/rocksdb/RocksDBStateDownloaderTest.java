@@ -316,6 +316,23 @@ class RocksDBStateDownloaderTest {
      */
     @Test
     void testMultipleDistinctFailuresMergedInMessage() throws Exception {
+        assertDistinctFailuresAreMerged();
+    }
+
+    /**
+     * Tests that the merged error message does not depend on the order in which the parallel
+     * downloads fail. The aggregated exception used to be read from a dependent stage of the
+     * conjunct future, which is not guaranteed to have run by the time waiting for the downloads
+     * returns, so the message intermittently missed some of the distinct failures.
+     */
+    @Test
+    void testMergedFailureMessageIsDeterministic() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            assertDistinctFailuresAreMerged();
+        }
+    }
+
+    private void assertDistinctFailuresAreMerged() throws Exception {
         int n = 3;
         CyclicBarrier barrier = new CyclicBarrier(n);
         IOException causeA = new IOException("error-A: bucket not accessible");
