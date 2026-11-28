@@ -16,8 +16,12 @@
 # limitations under the License.
 ################################################################################
 
+import datetime
+import os
 import pickle
+import time
 import unittest
+from unittest.mock import patch
 
 from pyflink.common import Row
 from pyflink.table import DataTypes
@@ -75,6 +79,25 @@ class PickledBytesConverterTests(unittest.TestCase):
     def test_invalid_nonempty_payload_is_rejected(self):
         with self.assertRaises(pickle.UnpicklingError):
             pickled_bytes_to_python_converter(b'not-a-pickle', DataTypes.STRING())
+
+    def test_timestamp_ignores_local_time_zone(self):
+        patcher = patch.dict(os.environ, {'TZ': 'America/Los_Angeles'})
+        patcher.start()
+        self.addCleanup(time.tzset)
+        self.addCleanup(patcher.stop)
+        time.tzset()
+        # Microseconds since 1970-01-01T00:00 of the wall clock, as PythonBridgeUtils sends them.
+        for micros, expected in (
+                (1583634600000000, datetime.datetime(2020, 3, 8, 2, 30)),  # DST gap
+                (-2208988800000000, datetime.datetime(1900, 1, 1)),
+                (-5364662400000000, datetime.datetime(1800, 1, 1)),
+                (1593604800123456, datetime.datetime(2020, 7, 1, 12, 0, 0, 123456)),
+                (-500000, datetime.datetime(1969, 12, 31, 23, 59, 59, 500000)),
+                (-62135596800000000, datetime.datetime(1, 1, 1)),
+                (253402300799999999, datetime.datetime(9999, 12, 31, 23, 59, 59, 999999))):
+            with self.subTest(expected=expected):
+                self.assertEqual(expected, pickled_bytes_to_python_converter(
+                    pickle.dumps(micros), DataTypes.TIMESTAMP(6)))
 
 
 if __name__ == '__main__':
