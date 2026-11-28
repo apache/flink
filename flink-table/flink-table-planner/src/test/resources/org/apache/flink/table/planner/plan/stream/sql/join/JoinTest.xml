@@ -90,6 +90,37 @@ Calc(select=[a1, b1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDistinctOnCrossJoinWithIsNullFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT DISTINCT a1, b2 FROM A, B) WHERE b2 IS NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b2=[$1])
++- LogicalFilter(condition=[IS NULL($1)])
+   +- LogicalAggregate(group=[{0, 1}])
+      +- LogicalProject(a1=[$0], b2=[$4])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, null:BIGINT AS b2])
++- GroupAggregate(groupBy=[a1], select=[a1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1])
+         +- Join(joinType=[InnerJoin], where=[true], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[single])
+            :  +- Calc(select=[a1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
+            +- Exchange(distribution=[single])
+               +- Calc(select=[b1], where=[IS NULL(b2)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFullJoin">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1]]>

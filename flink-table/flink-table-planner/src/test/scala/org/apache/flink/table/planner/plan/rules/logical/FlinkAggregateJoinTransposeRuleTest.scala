@@ -150,4 +150,28 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  @Test
+  def testCannotPushAggWithoutGroupingKeysToCrossJoinInput(): Unit = {
+    // an aggregate without grouping keys on T2 would return a row even if T2 is empty
+    util.verifyRelPlan("SELECT a, COUNT(*) FROM T, T2 GROUP BY a")
+  }
+
+  @Test
+  def testCannotPushGlobalAggToCrossJoinInputs(): Unit = {
+    // aggregates without grouping keys on T and T2 would return a row even for an empty input
+    util.verifyRelPlan("SELECT SUM(a), MIN(a) FROM T, T2")
+  }
+
+  @Test
+  def testCannotPushGlobalCountToCrossJoinWithSingleRowInput(): Unit = {
+    // the single-row input is not aggregated and may be empty, which would make the join empty
+    util.verifyRelPlan("SELECT COUNT(*) FROM T, (SELECT COUNT(*) FROM T2 HAVING COUNT(*) > 1)")
+  }
+
+  @Test
+  def testPushGlobalCountThroughCrossJoin(): Unit = {
+    // the count of an empty input is 0, which makes the product 0
+    util.verifyRelPlan("SELECT COUNT(*) FROM T, T2")
+  }
+
 }
