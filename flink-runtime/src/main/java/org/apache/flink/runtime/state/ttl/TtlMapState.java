@@ -130,7 +130,7 @@ class TtlMapState<K, N, UK, UV>
     @Override
     public boolean isEmpty() throws Exception {
         accessCallback.run();
-        return original.isEmpty();
+        return returnExpired ? original.isEmpty() : isEmptyExcluding(Collections.emptySet());
     }
 
     @Override
@@ -141,7 +141,7 @@ class TtlMapState<K, N, UK, UV>
         if (entries != null) {
             for (Map.Entry<UK, TtlValue<UV>> entry : entries) {
                 final TtlValue<UV> value = entry.getValue();
-                if (!excludedKeys.contains(entry.getKey())
+                if ((excludedKeys.isEmpty() || !excludedKeys.contains(entry.getKey()))
                         && value != null
                         && (returnExpired || !TtlUtils.expired(value, ttl, now))) {
                     return false;

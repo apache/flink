@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -34,6 +37,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -176,6 +180,53 @@ public abstract class TtlStateTestBase {
 
     protected boolean incrementalCleanupSupported() {
         return false;
+    }
+
+    @Test
+    void testMapStateIsEmptyIgnoresExpiredEntries() throws Exception {
+        MapState<String, String> state =
+                createMapState(StateTtlConfig.StateVisibility.NeverReturnExpired);
+        state.put("older", "first");
+        timeProvider.setCurrentTimestamp(TTL / 2);
+        state.put("newer", "second");
+
+        timeProvider.setCurrentTimestamp(TTL);
+        assertThat(state.isEmpty()).isFalse();
+        assertThat(state.get("older")).isNull();
+
+        // Checking emptiness must not extend the newer entry's TTL.
+        timeProvider.setCurrentTimestamp(TTL + TTL / 2);
+        assertThat(state.isEmpty()).isTrue();
+        assertThat(state.get("newer")).isNull();
+        assertThat(state.isEmpty()).isTrue();
+    }
+
+    @Test
+    void testMapStateIsNotEmptyWhenExpiredEntriesAreVisible() throws Exception {
+        MapState<String, String> state =
+                createMapState(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp);
+        state.put("key", "value");
+        timeProvider.setCurrentTimestamp(TTL);
+
+        assertThat(state.isEmpty()).isFalse();
+        assertThat(state.get("key")).isEqualTo("value");
+        assertThat(state.isEmpty()).isTrue();
+    }
+
+    private MapState<String, String> createMapState(StateTtlConfig.StateVisibility visibility)
+            throws Exception {
+        sbetc.createAndRestoreKeyedStateBackend(null);
+        sbetc.setCurrentKey("key");
+        MapStateDescriptor<String, String> descriptor =
+                new MapStateDescriptor<>(
+                        "map", StringSerializer.INSTANCE, StringSerializer.INSTANCE);
+        descriptor.enableTimeToLive(
+                getConfBuilder(TTL)
+                        .setUpdateType(StateTtlConfig.UpdateType.OnReadAndWrite)
+                        .setStateVisibility(visibility)
+                        .disableCleanupInBackground()
+                        .build());
+        return sbetc.createState(descriptor, "namespace");
     }
 
     @TestTemplate
