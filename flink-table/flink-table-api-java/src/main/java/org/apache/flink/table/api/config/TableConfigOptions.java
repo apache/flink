@@ -185,6 +185,17 @@ public class TableConfigOptions {
                                     + "For example, it prevented using rows in computed columns or join keys. "
                                     + "The new behavior takes the nullability into consideration.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_GROUP_BY_ALL_ENABLED =
+            key("table.group-by-all-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enables the 'GROUP BY ALL' clause, a shorthand that groups by every"
+                                    + " non-aggregated expression in the SELECT list. Disabled by"
+                                    + " default during the initial rollout; will be enabled by default"
+                                    + " in a future release.");
+
     // ------------------------------------------------------------------------------------------
     // Options for plan handling
     // ------------------------------------------------------------------------------------------
