@@ -1362,19 +1362,15 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], isBroadcast=[true], build=[right])\n:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])\n:  +- Sort(orderBy=[random ASC])\n:     +- [#2] Exchange(distribution=[hash[random]])\n+- [#1] Exchange(distribution=[broadcast])\n])
-:- Exchange(distribution=[broadcast])(reuse_id=[2])
-:  +- Calc(select=[random])(reuse_id=[1])
+MultipleInput(members=[\nSortMergeJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random])\n:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])\n:  +- SortMergeJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random])\n:     :- [#1] Exchange(distribution=[hash[random]])\n:     +- SortAggregate(isMerge=[false], groupBy=[random], select=[random])(reuse_id=[1])\n:        +- Sort(orderBy=[random ASC])\n:           +- [#1] Exchange(distribution=[hash[random]])\n+- Reused(reference_id=[1])\n])
+:- Exchange(distribution=[hash[random]])(reuse_id=[1])
+:  +- Calc(select=[random])
 :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[true])
 :        +- Exchange(distribution=[single])
 :           +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[false])
 :              +- Calc(select=[a AS random, RAND() AS EXPR$1])
 :                 +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
-+- Exchange(distribution=[hash[random]])
-   +- HashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], isBroadcast=[true], build=[right])
-      :- Exchange(distribution=[any], shuffle_mode=[BATCH])
-      :  +- Reused(reference_id=[1])
-      +- Reused(reference_id=[2])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

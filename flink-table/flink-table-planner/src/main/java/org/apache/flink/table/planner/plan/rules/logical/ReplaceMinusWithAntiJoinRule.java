@@ -39,6 +39,12 @@ import static org.apache.flink.table.planner.plan.utils.SetOpRewriteUtil.generat
  * org.apache.calcite.rel.core.Join}.
  *
  * <p>Only handle the case of input size 2.
+ *
+ * <p>{@link #BATCH_INSTANCE} also removes duplicates from the right input. The ANTI join only
+ * checks whether a match exists, so duplicates on the right are wasted work. Removing them before
+ * the join also lets the planner see the real size of the right input when it picks the build side.
+ * Streaming uses {@link #INSTANCE}, because the extra aggregate would add state and change the job
+ * graph.
  */
 @Value.Enclosing
 public class ReplaceMinusWithAntiJoinRule
@@ -46,6 +52,13 @@ public class ReplaceMinusWithAntiJoinRule
 
     public static final ReplaceMinusWithAntiJoinRule INSTANCE =
             ReplaceMinusWithAntiJoinRule.ReplaceMinusWithAntiJoinRuleConfig.DEFAULT.toRule();
+
+    public static final ReplaceMinusWithAntiJoinRule BATCH_INSTANCE =
+            ReplaceMinusWithAntiJoinRule.ReplaceMinusWithAntiJoinRuleConfig.DEFAULT
+                    .withDescription("ReplaceMinusWithAntiJoinRule:distinctRightInput")
+                    .as(ReplaceMinusWithAntiJoinRule.ReplaceMinusWithAntiJoinRuleConfig.class)
+                    .withIsDistinctRightInput(true)
+                    .toRule();
 
     private ReplaceMinusWithAntiJoinRule(ReplaceMinusWithAntiJoinRuleConfig config) {
         super(config);
@@ -69,6 +82,9 @@ public class ReplaceMinusWithAntiJoinRule
 
         relBuilder.push(left);
         relBuilder.push(right);
+        if (config.isDistinctRightInput()) {
+            relBuilder.distinct();
+        }
         relBuilder
                 .join(JoinRelType.ANTI, conditions)
                 .aggregate(
@@ -86,6 +102,15 @@ public class ReplaceMinusWithAntiJoinRule
                         .withOperandSupplier(b0 -> b0.operand(Minus.class).anyInputs())
                         .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
                         .withDescription("ReplaceMinusWithAntiJoinRule");
+
+        /** Whether to remove duplicates from the right input before the ANTI join. */
+        @Value.Default
+        default boolean isDistinctRightInput() {
+            return false;
+        }
+
+        /** Sets {@link #isDistinctRightInput()}. */
+        ReplaceMinusWithAntiJoinRuleConfig withIsDistinctRightInput(boolean distinctRightInput);
 
         @Override
         default ReplaceMinusWithAntiJoinRule toRule() {

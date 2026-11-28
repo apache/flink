@@ -329,9 +329,9 @@ object FlinkBatchRuleSets {
     FlinkSemiAntiJoinFilterTransposeRule.INSTANCE,
 
     // set operators
-    ReplaceIntersectWithSemiJoinRule.INSTANCE,
+    ReplaceIntersectWithSemiJoinRule.BATCH_INSTANCE,
     RewriteIntersectAllRule.INSTANCE,
-    ReplaceMinusWithAntiJoinRule.INSTANCE,
+    ReplaceMinusWithAntiJoinRule.BATCH_INSTANCE,
     RewriteMinusAllRule.INSTANCE
   )
 
