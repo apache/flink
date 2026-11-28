@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.core.testutils.ScheduledTask;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.util.clock.ManualClock;
@@ -281,6 +283,39 @@ class WaitingForResourcesTest {
         // choose time that includes inner execution as well
         ctx.runScheduledTasks(10);
         assertThat(executed).isTrue();
+    }
+
+    @Test
+    void testGetJobIncludesCheckpointStatsFromPreviousExecutionGraph() {
+        ExecutionGraph previousExecutionGraph = org.mockito.Mockito.mock(ExecutionGraph.class);
+        CheckpointStatsSnapshot expectedSnapshot = CheckpointStatsSnapshot.empty();
+        org.mockito.Mockito.when(previousExecutionGraph.getCheckpointStatsSnapshot())
+                .thenReturn(expectedSnapshot);
+
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        previousExecutionGraph,
+                        context -> TestingStateTransitionManager.withNoOp());
+
+        ArchivedExecutionGraph archivedGraph = wfr.getJob();
+        assertThat(archivedGraph.getCheckpointStatsSnapshot()).isSameAs(expectedSnapshot);
+    }
+
+    @Test
+    void testGetJobWithoutPreviousExecutionGraphReturnsNullCheckpointStats() {
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        context -> TestingStateTransitionManager.withNoOp());
+
+        ArchivedExecutionGraph archivedGraph = wfr.getJob();
+        assertThat(archivedGraph).isNotNull();
+        assertThat(archivedGraph.getCheckpointStatsSnapshot()).isNull();
     }
 
     private static class MockContext extends MockStateWithoutExecutionGraphContext

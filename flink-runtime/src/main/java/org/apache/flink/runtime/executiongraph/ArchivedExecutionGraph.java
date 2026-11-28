@@ -517,6 +517,37 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 null);
     }
 
+    /**
+     * Returns a new {@link ArchivedExecutionGraph} that is identical to this one but with the given
+     * {@link CheckpointStatsSnapshot}.
+     */
+    public ArchivedExecutionGraph withCheckpointStatsSnapshot(
+            @Nullable CheckpointStatsSnapshot newCheckpointStatsSnapshot) {
+        return new ArchivedExecutionGraph(
+                jobID,
+                jobName,
+                tasks,
+                verticesInCreationOrder,
+                stateTimestamps,
+                state,
+                jobType,
+                failureCause,
+                plan,
+                archivedUserAccumulators,
+                serializedUserAccumulators,
+                archivedExecutionConfig,
+                isStoppable,
+                jobCheckpointingConfiguration,
+                newCheckpointStatsSnapshot,
+                stateBackendName,
+                checkpointStorageName,
+                stateChangelogEnabled,
+                changelogStorageName,
+                streamGraphJson,
+                pendingOperatorCount,
+                applicationId);
+    }
+
     private static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
             JobID jobId,
             String jobName,
