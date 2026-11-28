@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
-import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Boolean => JBoolean}
@@ -410,6 +410,16 @@ class CorrelateITCase extends StreamingTestBase {
       TestValuesTableFactory
         .getResultsAsStrings("MySink")
         .sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testLeftJoinWithFalsePredicate(): Unit = {
+    val sql = "SELECT v FROM (VALUES ('a|b')) AS S(c) " +
+      "LEFT JOIN LATERAL TABLE(STRING_SPLIT(c, '|')) AS T(v) ON FALSE"
+
+    assertThatThrownBy(() => tEnv.sqlQuery(sql))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Only literal TRUE is accepted.")
   }
 
   @Test
