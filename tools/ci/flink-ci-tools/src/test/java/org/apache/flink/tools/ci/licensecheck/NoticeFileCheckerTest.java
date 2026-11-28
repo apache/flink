@@ -206,4 +206,21 @@ class NoticeFileCheckerTest {
                                 new NoticeContents(moduleName, Collections.emptyList())))
                 .containsOnlyKeys(NoticeFileChecker.Severity.CRITICAL);
     }
+
+    @Test
+    void testCheckNoticeFileRejectsVersionBeforeClassifier() {
+        // flink-python defines excess dependencies, so its declared ones are never compared
+        final String moduleName = "flink-python";
+
+        assertThat(
+                        NoticeFileChecker.checkNoticeFile(
+                                Collections.emptyMap(),
+                                moduleName,
+                                new NoticeContents(
+                                        moduleName,
+                                        Collections.emptyList(),
+                                        Collections.singletonList(
+                                                "- io.netty:netty-transport-native-epoll:4.1.110.Final:linux-x86_64"))))
+                .containsOnlyKeys(NoticeFileChecker.Severity.CRITICAL);
+    }
 }

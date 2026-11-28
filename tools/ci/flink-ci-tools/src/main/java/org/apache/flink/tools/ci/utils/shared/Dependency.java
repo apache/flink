@@ -98,14 +98,18 @@ public final class Dependency {
         return Optional.ofNullable(isOptional);
     }
 
+    /**
+     * Prints groupId:artifactId[:classifier]:version, the order NOTICE files use, followed by the
+     * scope and optional flag if known.
+     */
     @Override
     public String toString() {
         return groupId
                 + ":"
                 + artifactId
+                + (classifier != null ? ":" + classifier : "")
                 + ":"
                 + version
-                + (classifier != null ? ":" + classifier : "")
                 + (scope != null ? ":" + scope : "")
                 + (isOptional != null && isOptional ? " (optional)" : "");
     }
