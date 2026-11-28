@@ -588,11 +588,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             throws Exception {
 
         final UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-        if (HadoopUtils.isKerberosSecurityEnabled(currentUser)) {
-            boolean useTicketCache =
-                    flinkConfiguration.get(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
-
-            if (!HadoopUtils.areKerberosCredentialsValid(currentUser, useTicketCache)) {
+        // In Hadoop 3, a login user without a Kerberos ticket falls back to SIMPLE auth even when
+        // Kerberos security is configured, whereas PROXY or non-Kerberos secure deployments should
+        // still bypass Kerberos credential validation.
+        if (HadoopUtils.isKerberosSecurityEnabled(currentUser)
+                || (UserGroupInformation.isSecurityEnabled()
+                        && HadoopUtils.isKerberosSecurityEnabled(yarnConfiguration)
+                        && currentUser.getAuthenticationMethod()
+                                == UserGroupInformation.AuthenticationMethod.SIMPLE)) {
+            if (!HadoopUtils.areKerberosCredentialsValid(currentUser)) {
                 throw new RuntimeException(
                         "Hadoop security with Kerberos is enabled but the login user "
                                 + "does not have Kerberos credentials or delegation tokens!");

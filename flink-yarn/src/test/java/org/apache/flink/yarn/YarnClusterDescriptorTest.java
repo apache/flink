@@ -28,9 +28,11 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
@@ -42,7 +44,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -58,12 +63,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosPrincipal;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1086,6 +1095,262 @@ class YarnClusterDescriptorTest {
                     new TestApplicationSubmissionContext();
             yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
             assertThat(testAppCtx.logAggregationContext).isNull();
+        }
+    }
+
+    @Test
+    void testDeployFailsWhenKerberosEnabledWithoutCredentials() throws Exception {
+        final YarnConfiguration kerberosYarnConf = new YarnConfiguration();
+        kerberosYarnConf.set(
+                CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+
+        runWithHadoopSecurity(
+                kerberosYarnConf,
+                () -> {
+                    final UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
+                    assertThat(UserGroupInformation.isSecurityEnabled()).isTrue();
+                    assertThat(loginUser.getAuthenticationMethod())
+                            .isEqualTo(UserGroupInformation.AuthenticationMethod.SIMPLE);
+                    assertThat(loginUser.hasKerberosCredentials()).isFalse();
+
+                    try (final YarnClusterDescriptor descriptor =
+                            createYarnClusterDescriptor(new Configuration(), kerberosYarnConf)) {
+                        descriptor.setLocalJarPath(new Path(flinkJar.getPath()));
+
+                        assertThatThrownBy(
+                                        () -> descriptor.deploySessionCluster(clusterSpecification))
+                                .isInstanceOf(ClusterDeploymentException.class)
+                                .hasRootCauseInstanceOf(RuntimeException.class)
+                                .hasRootCauseMessage(
+                                        "Hadoop security with Kerberos is enabled but the login user "
+                                                + "does not have Kerberos credentials or delegation tokens!");
+                    }
+                });
+    }
+
+    @Test
+    void testDeployAllowsHdfsDelegationTokenAndEnforcesFetchTokenConfig() throws Exception {
+        final YarnConfiguration kerberosYarnConf = new YarnConfiguration();
+        kerberosYarnConf.set(
+                CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+
+        runWithHadoopSecurity(
+                kerberosYarnConf,
+                () -> {
+                    final UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
+                    final Token<?> hdfsToken = new Token<>();
+                    hdfsToken.setKind(new Text("HDFS_DELEGATION_TOKEN"));
+                    loginUser.addToken(hdfsToken);
+
+                    final Configuration flinkConfig = new Configuration();
+                    flinkConfig.set(SecurityOptions.DELEGATION_TOKENS_ENABLED, false);
+                    flinkConfig.set(
+                            SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS,
+                            Collections.singletonList("hdfs://namenode:8020"));
+
+                    try (final YarnClusterDescriptor descriptor =
+                            createYarnClusterDescriptor(flinkConfig, kerberosYarnConf)) {
+                        descriptor.setLocalJarPath(new Path(flinkJar.getPath()));
+
+                        assertThatThrownBy(
+                                        () -> descriptor.deploySessionCluster(clusterSpecification))
+                                .isInstanceOf(ClusterDeploymentException.class)
+                                .hasRootCauseInstanceOf(IllegalConfigurationException.class)
+                                .hasRootCauseMessage(
+                                        String.format(
+                                                "When %s is disabled, %s must be disabled as well.",
+                                                SecurityOptions.DELEGATION_TOKENS_ENABLED.key(),
+                                                SecurityOptions
+                                                        .KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS
+                                                        .key()));
+                    }
+                });
+    }
+
+    @Test
+    void testDeployAllowsValidKerberosCredentials() throws Exception {
+        final YarnConfiguration kerberosYarnConf = new YarnConfiguration();
+        kerberosYarnConf.set(
+                CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+
+        runWithHadoopSecurity(
+                kerberosYarnConf,
+                () -> {
+                    final Subject subject = new Subject();
+                    subject.getPrincipals().add(new KerberosPrincipal("test-user@EXAMPLE.COM"));
+                    final UserGroupInformation kerberosUser =
+                            UserGroupInformation.getUGIFromSubject(subject);
+                    assertThat(kerberosUser.getAuthenticationMethod())
+                            .isEqualTo(UserGroupInformation.AuthenticationMethod.KERBEROS);
+                    assertThat(kerberosUser.hasKerberosCredentials()).isTrue();
+
+                    final Configuration flinkConfig = new Configuration();
+                    flinkConfig.set(SecurityOptions.DELEGATION_TOKENS_ENABLED, false);
+                    flinkConfig.set(
+                            SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS,
+                            Collections.singletonList("hdfs://namenode:8020"));
+
+                    kerberosUser.doAs(
+                            (PrivilegedExceptionAction<Void>)
+                                    () -> {
+                                        try (final YarnClusterDescriptor descriptor =
+                                                createYarnClusterDescriptor(
+                                                        flinkConfig, kerberosYarnConf)) {
+                                            descriptor.setLocalJarPath(
+                                                    new Path(flinkJar.getPath()));
+
+                                            // Passes the Kerberos credentials check and hits the
+                                            // subsequent config check inside the same Kerberos
+                                            // block, proving the block was entered.
+                                            assertThatThrownBy(
+                                                            () ->
+                                                                    descriptor.deploySessionCluster(
+                                                                            clusterSpecification))
+                                                    .isInstanceOf(ClusterDeploymentException.class)
+                                                    .hasRootCauseInstanceOf(
+                                                            IllegalConfigurationException.class)
+                                                    .hasRootCauseMessage(
+                                                            String.format(
+                                                                    "When %s is disabled, %s must be disabled as well.",
+                                                                    SecurityOptions
+                                                                            .DELEGATION_TOKENS_ENABLED
+                                                                            .key(),
+                                                                    SecurityOptions
+                                                                            .KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS
+                                                                            .key()));
+                                        }
+                                        return null;
+                                    });
+                });
+    }
+
+    @Test
+    void testDeployAllowsProxyUserOnKerberosCluster() throws Exception {
+        final YarnConfiguration kerberosYarnConf = new YarnConfiguration();
+        kerberosYarnConf.set(
+                CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+
+        runWithHadoopSecurity(
+                kerberosYarnConf,
+                () -> {
+                    final UserGroupInformation realUser = UserGroupInformation.getLoginUser();
+                    final UserGroupInformation proxyUser =
+                            UserGroupInformation.createProxyUser("impersonated-user", realUser);
+                    assertThat(proxyUser.getAuthenticationMethod())
+                            .isEqualTo(UserGroupInformation.AuthenticationMethod.PROXY);
+
+                    proxyUser.doAs(
+                            (PrivilegedExceptionAction<Void>)
+                                    () -> {
+                                        try (final YarnClusterDescriptor descriptor =
+                                                createYarnClusterDescriptor(
+                                                        new Configuration(), kerberosYarnConf)) {
+                                            descriptor.setLocalJarPath(
+                                                    new Path(flinkJar.getPath()));
+
+                                            // Should pass the Kerberos check and fail on the
+                                            // downstream slots > vcores validation instead.
+                                            assertThatThrownBy(
+                                                            () ->
+                                                                    descriptor.deploySessionCluster(
+                                                                            clusterSpecification))
+                                                    .isInstanceOf(ClusterDeploymentException.class)
+                                                    .hasRootCauseInstanceOf(
+                                                            IllegalConfigurationException.class);
+                                        }
+                                        return null;
+                                    });
+                });
+    }
+
+    @Test
+    void testDeploySkipsKerberosCheckForNonKerberosSecureCluster() throws Exception {
+        final YarnConfiguration tokenYarnConf = new YarnConfiguration();
+        tokenYarnConf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "token");
+
+        runWithHadoopSecurity(
+                tokenYarnConf,
+                () -> {
+                    final UserGroupInformation tokenUser =
+                            UserGroupInformation.createRemoteUser("token-user");
+                    assertThat(UserGroupInformation.isSecurityEnabled()).isTrue();
+
+                    tokenUser.doAs(
+                            (PrivilegedExceptionAction<Void>)
+                                    () -> {
+                                        try (final YarnClusterDescriptor descriptor =
+                                                createYarnClusterDescriptor(
+                                                        new Configuration(), tokenYarnConf)) {
+                                            descriptor.setLocalJarPath(
+                                                    new Path(flinkJar.getPath()));
+
+                                            assertThatThrownBy(
+                                                            () ->
+                                                                    descriptor.deploySessionCluster(
+                                                                            clusterSpecification))
+                                                    .isInstanceOf(ClusterDeploymentException.class)
+                                                    .hasRootCauseInstanceOf(
+                                                            IllegalConfigurationException.class);
+                                        }
+                                        return null;
+                                    });
+                });
+    }
+
+    @Test
+    void testDeployFailsWhenUseTicketCacheDisabledWithoutCredentials() throws Exception {
+        final YarnConfiguration kerberosYarnConf = new YarnConfiguration();
+        kerberosYarnConf.set(
+                CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+
+        runWithHadoopSecurity(
+                kerberosYarnConf,
+                () -> {
+                    final Configuration flinkConfig = new Configuration();
+                    flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
+
+                    try (final YarnClusterDescriptor descriptor =
+                            createYarnClusterDescriptor(flinkConfig, kerberosYarnConf)) {
+                        descriptor.setLocalJarPath(new Path(flinkJar.getPath()));
+
+                        assertThatThrownBy(
+                                        () -> descriptor.deploySessionCluster(clusterSpecification))
+                                .isInstanceOf(ClusterDeploymentException.class)
+                                .hasRootCauseInstanceOf(RuntimeException.class)
+                                .hasRootCauseMessage(
+                                        "Hadoop security with Kerberos is enabled but the login user "
+                                                + "does not have Kerberos credentials or delegation tokens!");
+                    }
+                });
+    }
+
+    private static void runWithHadoopSecurity(
+            YarnConfiguration hadoopConf, ThrowingRunnable<Exception> action) throws Exception {
+        final String prevRealm = System.getProperty("java.security.krb5.realm");
+        final String prevKdc = System.getProperty("java.security.krb5.kdc");
+        final String prevConf = System.getProperty("java.security.krb5.conf");
+        try {
+            System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
+            System.setProperty("java.security.krb5.kdc", "kdc");
+            System.setProperty("java.security.krb5.conf", "/dev/null");
+
+            UserGroupInformation.reset();
+            UserGroupInformation.setConfiguration(hadoopConf);
+            action.run();
+        } finally {
+            UserGroupInformation.reset();
+            UserGroupInformation.setConfiguration(new org.apache.hadoop.conf.Configuration());
+            restoreSystemProperty("java.security.krb5.realm", prevRealm);
+            restoreSystemProperty("java.security.krb5.kdc", prevKdc);
+            restoreSystemProperty("java.security.krb5.conf", prevConf);
+        }
+    }
+
+    private static void restoreSystemProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
         }
     }
 
