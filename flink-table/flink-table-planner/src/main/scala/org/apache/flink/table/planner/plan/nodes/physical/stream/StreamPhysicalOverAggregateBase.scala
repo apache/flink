@@ -42,10 +42,8 @@ abstract class StreamPhysicalOverAggregateBase(
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = {
-    if (
-      logicWindow.groups.size() != 1
-      || logicWindow.groups.get(0).orderKeys.getFieldCollations.size() != 1
-    ) {
+    // several windows are only supported with the same order key
+    if (logicWindow.groups.get(0).orderKeys.getFieldCollations.size() != 1) {
       return false
     }
     val orderKey = logicWindow.groups.get(0).orderKeys.getFieldCollations.get(0)
@@ -68,32 +66,56 @@ abstract class StreamPhysicalOverAggregateBase(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val overWindow: Group = logicWindow.groups.get(0)
+    val firstWindow: Group = logicWindow.groups.get(0)
     val constants: Seq[RexLiteral] = logicWindow.constants.asScala
-    val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
+    val partitionKeys: Array[Int] = firstWindow.keys.toArray
 
     val inputRowType = getInput.getRowType
-    super
+    val writer = super
       .explainTerms(pw)
       .itemIf(
         "partitionBy",
         RelExplainUtil.fieldToString(partitionKeys, inputRowType),
         partitionKeys.nonEmpty)
-      .item("orderBy", RelExplainUtil.collationToString(overWindow.orderKeys, inputRowType))
-      .item("window", RelExplainUtil.windowRangeToString(logicWindow, overWindow))
-      .item(
-        "select",
-        RelExplainUtil
-          .overAggregationToString(inputRowType, outputRowType, constants, namedAggregates))
+      .item("orderBy", RelExplainUtil.collationToString(firstWindow.orderKeys, inputRowType))
+
+    if (logicWindow.groups.size() == 1) {
+      writer
+        .item("window", RelExplainUtil.windowRangeToString(logicWindow, firstWindow))
+        .item(
+          "select",
+          RelExplainUtil.overAggregationToString(
+            inputRowType,
+            outputRowType,
+            constants,
+            generateNamedAggregates(firstWindow, 0)))
+    } else {
+      var offset = inputRowType.getFieldCount
+      logicWindow.groups.asScala.zipWithIndex.foreach {
+        case (group, index) =>
+          val namedAggregates = generateNamedAggregates(group, index)
+          val select = RelExplainUtil.overAggregationToString(
+            inputRowType,
+            outputRowType,
+            constants,
+            namedAggregates,
+            outputInputName = false,
+            rowTypeOffset = offset)
+          offset += namedAggregates.size
+          writer.item(
+            "window#" + index,
+            select + RelExplainUtil.windowRangeToString(logicWindow, group))
+      }
+      writer.item("select", getRowType.getFieldNames.asScala.mkString(", "))
+    }
   }
 
-  private def generateNamedAggregates: Seq[CalcitePair[AggregateCall, String]] = {
-    val overWindow: Group = logicWindow.groups.get(0)
-
+  private def generateNamedAggregates(
+      overWindow: Group,
+      windowIndex: Int): Seq[CalcitePair[AggregateCall, String]] = {
     val aggregateCalls = overWindow.getAggregateCalls(logicWindow)
     for (i <- 0 until aggregateCalls.size())
-      yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "w0$o" + i)
+      yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), s"w$windowIndex$$o$i")
   }
 
 }

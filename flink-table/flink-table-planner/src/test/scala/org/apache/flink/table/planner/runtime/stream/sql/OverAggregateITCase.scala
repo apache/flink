@@ -602,6 +602,92 @@ class OverAggregateITCase(mode: StateBackendMode, unboundedOverVersion: Int)
   }
 
   @TestTemplate
+  def testRowTimeBoundedMultipleRangeOver(): Unit = {
+    val data: Seq[Either[(Long, (Long, Int, String)), Long]] = Seq(
+      Left((1500L, (1L, 15, "Hello"))),
+      Left((1600L, (1L, 16, "Hello"))),
+      Left((1000L, (1L, 1, "Hello"))),
+      Left((2000L, (2L, 2, "Hello"))),
+      Right(1000L),
+      Left((2000L, (2L, 2, "Hello"))),
+      Left((2000L, (2L, 3, "Hello"))),
+      Left((3000L, (3L, 3, "Hello"))),
+      Right(2000L),
+      Left((4000L, (4L, 4, "Hello"))),
+      Right(3000L),
+      Left((5000L, (5L, 5, "Hello"))),
+      Right(5000L),
+      Left((6000L, (6L, 6, "Hello"))),
+      Left((6500L, (6L, 65, "Hello"))),
+      Right(7000L),
+      Left((9000L, (6L, 9, "Hello"))),
+      Left((9500L, (6L, 18, "Hello"))),
+      Left((9000L, (6L, 9, "Hello"))),
+      Right(10000L),
+      Left((10000L, (7L, 7, "Hello World"))),
+      Left((11000L, (7L, 17, "Hello World"))),
+      Left((11000L, (7L, 77, "Hello World"))),
+      Right(12000L),
+      Left((14000L, (7L, 18, "Hello World"))),
+      Right(14000L),
+      Left((15000L, (8L, 8, "Hello World"))),
+      Right(17000L),
+      Left((20000L, (20L, 20, "Hello World"))),
+      Right(19000L)
+    )
+
+    val source = failingDataSource(data)
+    val t1 = source
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+    tEnv.createTemporaryView("T1", t1)
+
+    def range(seconds: Int): String =
+      s"PARTITION BY c ORDER BY rowtime " +
+        s"RANGE BETWEEN INTERVAL '$seconds' SECOND PRECEDING AND CURRENT ROW"
+
+    // MAX with retraction and COUNT(DISTINCT) keep data views in state, which must not clash
+    // between the windows that share one operator
+    val multiWindowQuery =
+      s"""
+         |SELECT c, b,
+         |  SUM(a) OVER w1, MAX(b) OVER w1,
+         |  SUM(a) OVER w2, COUNT(DISTINCT b) OVER w2,
+         |  AVG(b) OVER w3, MAX(b) OVER w3
+         |FROM T1
+         |WINDOW w1 AS (${range(1)}), w2 AS (${range(2)}), w3 AS (${range(3)})
+         |""".stripMargin
+
+    // the same windows, one per nested query, as users have to write it without shared state
+    val nestedQuery =
+      s"""
+         |SELECT c, b, s1, m1, s2, d2,
+         |  AVG(b) OVER (${range(3)}), MAX(b) OVER (${range(3)})
+         |FROM (
+         |  SELECT *, SUM(a) OVER (${range(2)}) AS s2, COUNT(DISTINCT b) OVER (${range(2)}) AS d2
+         |  FROM (
+         |    SELECT *, SUM(a) OVER (${range(1)}) AS s1, MAX(b) OVER (${range(1)}) AS m1
+         |    FROM T1))
+         |""".stripMargin
+
+    assertThat(tEnv.explainSql(multiWindowQuery)).contains("window#2")
+
+    val multiWindowSink = new TestingAppendSink
+    tEnv.sqlQuery(multiWindowQuery).toDataStream.addSink(multiWindowSink)
+    val nestedSink = new TestingAppendSink
+    tEnv.sqlQuery(nestedQuery).toDataStream.addSink(nestedSink)
+    env.execute()
+
+    assertThat(multiWindowSink.getAppendResults.size).isEqualTo(data.count(_.isLeft))
+    assertThat(multiWindowSink.getAppendResults.sorted)
+      .isEqualTo(nestedSink.getAppendResults.sorted)
+  }
+
+  @TestTemplate
   def testRowTimeBoundedPartitionedRowsOver(): Unit = {
     val data: Seq[Either[(Long, (Long, Int, String)), Long]] = Seq(
       Left((1L, (1L, 1, "Hello"))),
