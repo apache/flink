@@ -730,7 +730,7 @@ public class ZooKeeperUtils {
      * Splits the given ZooKeeper path into its parts.
      *
      * @param path path to split
-     * @return splited path
+     * @return split path
      */
     public static String[] splitZooKeeperPath(String path) {
         return path.split("/");
