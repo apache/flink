@@ -1833,8 +1833,8 @@ class TableEnvironmentTest {
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => tableEnv.dropTable("default_catalog.default_database.T2", false))
-      .withMessageContaining(
-        "Table with identifier 'default_catalog.default_database.T2' does not exist.")
+      .withMessageContaining("Table `default_catalog`.`default_database`.`T2` does not exist. " +
+        "Check the name and the current catalog and database.")
 
     assertThat(tableEnv.dropTable("default_catalog.default_database.T2")).isFalse
     assertThat(tableEnv.dropTable("invalid.default_database.T2")).isFalse
