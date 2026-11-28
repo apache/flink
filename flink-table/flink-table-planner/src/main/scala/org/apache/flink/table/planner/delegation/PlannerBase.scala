@@ -64,7 +64,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
 
-import java.io.{File, IOException}
+import java.io.IOException
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
@@ -206,7 +206,16 @@ abstract class PlannerBase(
         if (url == null) {
           throw new IOException("Cannot load the plan reference from classpath: " + planReference)
         }
-        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
+        // A cached JarFile would stay open after the classloader is closed, and a JAR rebuilt at
+        // the same path would be read through it. Without caching, closing the stream closes the JarFile.
+        val connection = url.openConnection()
+        connection.setUseCaches(false)
+        val in = connection.getInputStream
+        try {
+          objectReader.readValue(in, classOf[ExecNodeGraph])
+        } finally {
+          in.close()
+        }
       case _ =>
         throw new IllegalStateException(
           "Unknown PlanReference. This is a bug, please contact the developers")

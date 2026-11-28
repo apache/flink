@@ -182,10 +182,9 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
     ```
     This will deserialize the JSON file and submit an insert statement job.
 
-To run a plan that your Table API program ships as a resource in its JAR, read the resource
-and use `PlanReference.fromJsonString`, as in the Java example in
+To run a plan that your Table API program ships as a resource in its JAR, use
+`PlanReference.fromResource`, as in the Java example in
 [Upgrading the Flink Version]({{< ref "docs/ops/upgrading" >}}#upgrading-the-flink-version).
-`PlanReference.fromResource` fails for a file inside a JAR.
 
 ### Tables and Functions
 

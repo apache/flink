@@ -29,19 +29,25 @@ import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -190,6 +196,29 @@ class CompiledPlanITCase extends JsonPlanTestBase {
                 .await();
 
         assertResult(DATA, sinkPath);
+    }
+
+    @Test
+    void testLoadPlanFromResourceInJar() throws Exception {
+        File sinkPath = createSourceSinkTables();
+        File jar = TempDirUtils.newFile(tempFolder, "plans.jar");
+
+        writePlanJar(jar, tableEnv.compilePlanSql("INSERT INTO sink SELECT * FROM src"));
+        try (URLClassLoader classLoader = userCodeClassLoader(jar)) {
+            tableEnv.loadPlan(PlanReference.fromResource(classLoader, "plans/plan.json"));
+        }
+
+        // The rebuilt JAR at the same path must be read again, not from a JarFile cached from
+        // the first read.
+        writePlanJar(
+                jar, tableEnv.compilePlanSql("INSERT INTO sink SELECT * FROM src WHERE b = 1"));
+        try (URLClassLoader classLoader = userCodeClassLoader(jar)) {
+            tableEnv.loadPlan(PlanReference.fromResource(classLoader, "plans/plan.json"))
+                    .execute()
+                    .await();
+        }
+
+        assertResult(Arrays.asList("1,1,hi", "2,1,hello"), sinkPath);
     }
 
     @Test
@@ -523,6 +552,23 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     private File createSourceSinkTables() throws IOException {
         createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
         return createTestCsvSinkTable("sink", COLUMNS_DEFINITION);
+    }
+
+    private static URLClassLoader userCodeClassLoader(File jar) throws IOException {
+        return FlinkUserCodeClassLoaders.childFirst(
+                new URL[] {jar.toURI().toURL()},
+                CompiledPlanITCase.class.getClassLoader(),
+                new String[0],
+                t -> {},
+                true);
+    }
+
+    private static void writePlanJar(File jar, CompiledPlan plan) throws IOException {
+        try (JarOutputStream out = new JarOutputStream(new FileOutputStream(jar))) {
+            out.putNextEntry(new JarEntry("plans/plan.json"));
+            out.write(plan.asJsonString().getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
     }
 
     private String getPreparedToCompareCompiledPlan(final String planAsString) {
