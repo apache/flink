@@ -34,7 +34,7 @@ import java.util.Optional;
  * elsewhere is visible on the next call. Separate calls are not read atomically.
  */
 @PublicEvolving
-public interface MaterializedTable {
+public interface MaterializedTable extends Explainable<MaterializedTable> {
 
     /** The fully qualified identifier of the materialized table. */
     ObjectIdentifier getIdentifier();

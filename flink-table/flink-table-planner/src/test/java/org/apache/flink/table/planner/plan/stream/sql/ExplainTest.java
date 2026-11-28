@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.Explainable;
+import org.apache.flink.table.api.MaterializedTableDescriptor;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -46,6 +48,9 @@ public class ExplainTest extends TableTestBase {
      */
     private static final boolean REGENERATE_FILES =
             "true".equalsIgnoreCase(System.getenv("PLAN_TEST_FORCE_OVERWRITE"));
+
+    private static final MaterializedTableDescriptor VALUES_DESCRIPTOR =
+            MaterializedTableDescriptor.newBuilder().option("connector", "values").build();
 
     private StreamTableTestUtil util;
     private TestInfo testInfo;
@@ -78,6 +83,10 @@ public class ExplainTest extends TableTestBase {
                         + "    `b`\n"
                         + "  FROM\n"
                         + "    MyTable");
+        verifyExplain(
+                util.getTableEnv()
+                        .sqlQuery("SELECT `a`, `b` FROM MyTable")
+                        .materializeInto("MyMTTable", VALUES_DESCRIPTOR));
     }
 
     @Test
@@ -95,6 +104,10 @@ public class ExplainTest extends TableTestBase {
                         + "    `b`\n"
                         + "  FROM\n"
                         + "    MyTable");
+        verifyExplain(
+                util.getTableEnv()
+                        .sqlQuery("SELECT `b`, CAST(`a` AS BIGINT) AS `a` FROM MyTable")
+                        .materializeInto("MyMTTable", VALUES_DESCRIPTOR));
     }
 
     @Test
@@ -118,6 +131,24 @@ public class ExplainTest extends TableTestBase {
                         + "    `c`\n"
                         + "  FROM\n"
                         + "    MyTable");
+    }
+
+    @Test
+    void testExplainMaterializedTable() {
+        createMaterializedTableInCatalog(
+                "CREATE OR ALTER MATERIALIZED TABLE MyMTTable\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable");
+
+        verifyExplain(
+                util.getTableEnv().fromMaterializedTable("MyMTTable"),
+                "testExplainCreateMaterializedTable");
     }
 
     @Test
@@ -148,6 +179,10 @@ public class ExplainTest extends TableTestBase {
                         + "    `c`\n"
                         + "  FROM\n"
                         + "    MyTable");
+        verifyExplain(
+                util.getTableEnv()
+                        .sqlQuery("SELECT CAST(`a` AS BIGINT) AS `a`, `b`, `c` FROM MyTable")
+                        .materializeInto("MyMTTable", VALUES_DESCRIPTOR));
     }
 
     @Test
@@ -263,12 +298,27 @@ public class ExplainTest extends TableTestBase {
     }
 
     private void verifyExplain(final String statement) {
-        final String displayName = this.testInfo.getDisplayName();
-        verifyExplain(statement, displayName.substring(0, displayName.length() - 2));
+        verifyExplain(statement, currentTestName());
     }
 
     private void verifyExplain(final String statement, final String fileName) {
-        final String actual = util.getTableEnv().explainSql(statement);
+        verifyPlan(util.getTableEnv().explainSql(statement), fileName);
+    }
+
+    private void verifyExplain(final Explainable<?> explainable) {
+        verifyExplain(explainable, currentTestName());
+    }
+
+    private void verifyExplain(final Explainable<?> explainable, final String fileName) {
+        verifyPlan(explainable.explain(), fileName);
+    }
+
+    private String currentTestName() {
+        final String displayName = this.testInfo.getDisplayName();
+        return displayName.substring(0, displayName.length() - 2);
+    }
+
+    private void verifyPlan(final String actual, final String fileName) {
         final String fullFileName = fileName + ".out";
         if (REGENERATE_FILES) {
             writeToResource(fullFileName, actual);
