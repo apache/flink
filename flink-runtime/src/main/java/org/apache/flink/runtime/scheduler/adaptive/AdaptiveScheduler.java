@@ -235,9 +235,13 @@ public class AdaptiveScheduler
             Duration submissionStabilizationTimeoutDefault =
                     JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT
                             .defaultValue();
+            Duration rescaleResourceStabilizationTimeoutDefault =
+                    JobManagerOptions.SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT
+                            .defaultValue();
             if (executionMode == SchedulerExecutionMode.REACTIVE) {
                 submissionResourceWaitTimeoutDefault = Duration.ofMillis(-1);
                 submissionStabilizationTimeoutDefault = Duration.ZERO;
+                rescaleResourceStabilizationTimeoutDefault = Duration.ZERO;
             }
 
             final Duration executingCooldownTimeout =
@@ -300,6 +304,11 @@ public class AdaptiveScheduler
                                     JobManagerOptions
                                             .SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT)
                             .orElse(submissionStabilizationTimeoutDefault),
+                    configuration
+                            .getOptional(
+                                    JobManagerOptions
+                                            .SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT)
+                            .orElse(rescaleResourceStabilizationTimeoutDefault),
                     configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT),
                     executingCooldownTimeout,
                     configuration.get(
@@ -316,6 +325,7 @@ public class AdaptiveScheduler
         private final SchedulerExecutionMode executionMode;
         private final Duration submissionResourceWaitTimeout;
         private final Duration submissionResourceStabilizationTimeout;
+        private final Duration rescaleResourceStabilizationTimeout;
         private final Duration slotIdleTimeout;
         private final Duration executingCooldownTimeout;
         private final Duration executingResourceStabilizationTimeout;
@@ -328,6 +338,7 @@ public class AdaptiveScheduler
                 SchedulerExecutionMode executionMode,
                 Duration submissionResourceWaitTimeout,
                 Duration submissionResourceStabilizationTimeout,
+                Duration rescaleResourceStabilizationTimeout,
                 Duration slotIdleTimeout,
                 Duration executingCooldownTimeout,
                 Duration executingResourceStabilizationTimeout,
@@ -338,6 +349,7 @@ public class AdaptiveScheduler
             this.executionMode = executionMode;
             this.submissionResourceWaitTimeout = submissionResourceWaitTimeout;
             this.submissionResourceStabilizationTimeout = submissionResourceStabilizationTimeout;
+            this.rescaleResourceStabilizationTimeout = rescaleResourceStabilizationTimeout;
             this.slotIdleTimeout = slotIdleTimeout;
             this.executingCooldownTimeout = executingCooldownTimeout;
             this.executingResourceStabilizationTimeout = executingResourceStabilizationTimeout;
@@ -357,6 +369,10 @@ public class AdaptiveScheduler
 
         public Duration getSubmissionResourceStabilizationTimeout() {
             return submissionResourceStabilizationTimeout;
+        }
+
+        public Duration getRescaleResourceStabilizationTimeout() {
+            return rescaleResourceStabilizationTimeout;
         }
 
         public Duration getSlotIdleTimeout() {
@@ -1213,7 +1229,9 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
+    public void goToWaitingForResources(
+            @Nullable ExecutionGraph previousExecutionGraph,
+            @Nullable VertexParallelism targetVertexParallelism) {
         declareDesiredResources();
 
         transitionToState(
@@ -1221,8 +1239,11 @@ public class AdaptiveScheduler
                         this,
                         LOG,
                         settings.getSubmissionResourceWaitTimeout(),
-                        this::createWaitingForResourceStateTransitionManager,
-                        previousExecutionGraph));
+                        targetVertexParallelism != null
+                                ? this::createRestartWaitingForResourceStateTransitionManager
+                                : this::createWaitingForResourceStateTransitionManager,
+                        previousExecutionGraph,
+                        targetVertexParallelism));
     }
 
     private StateTransitionManager createWaitingForResourceStateTransitionManager(
@@ -1232,6 +1253,16 @@ public class AdaptiveScheduler
                 clock,
                 Duration.ZERO, // skip cooldown phase
                 settings.getSubmissionResourceStabilizationTimeout(),
+                Duration.ZERO); // trigger immediately once the stabilization phase is over
+    }
+
+    private StateTransitionManager createRestartWaitingForResourceStateTransitionManager(
+            StateTransitionManager.Context ctx) {
+        return stateTransitionManagerFactory.create(
+                ctx,
+                clock,
+                Duration.ZERO, // skip cooldown phase
+                settings.getRescaleResourceStabilizationTimeout(),
                 Duration.ZERO); // trigger immediately once the stabilization phase is over
     }
 
@@ -1585,6 +1616,17 @@ public class AdaptiveScheduler
     public Optional<VertexParallelism> getAvailableVertexParallelism() {
         return slotAllocator.determineParallelism(
                 jobInformation, declarativeSlotPool.getAllSlotsInformation());
+    }
+
+    @Override
+    public Optional<VertexParallelism> getFreeSlotVertexParallelism() {
+        return slotAllocator.determineParallelism(
+                jobInformation, declarativeSlotPool.getFreeSlotTracker().getFreeSlotsInformation());
+    }
+
+    @Override
+    public int getUpperBoundParallelism(JobVertexID jobVertexId) {
+        return jobInformation.getVertexInformation(jobVertexId).getParallelism();
     }
 
     @Override
