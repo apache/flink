@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 
-import java.util.{LinkedHashMap => JLinkedHashMap, LinkedList => JLinkedList, List => JList}
+import java.util.{ArrayList => JArrayList, LinkedHashMap => JLinkedHashMap, LinkedList => JLinkedList, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -88,6 +88,25 @@ class NestedSchema(
     val inputRowType: RelDataType,
     val columns: JLinkedHashMap[String, NestedColumn] = new JLinkedHashMap[String, NestedColumn]) {}
 
+/**
+ * Result of [[NestedProjectionUtil.rewriteForJoin]].
+ *
+ * @param leftProjects
+ *   expressions over the left join input, one per used leaf of the left side
+ * @param rightProjects
+ *   expressions over the right join input, one per used leaf of the right side
+ * @param rewrittenProjects
+ *   the project expressions above the join, rewritten to read the output of `leftProjects ++
+ *   rightProjects`
+ * @param rewrittenCondition
+ *   the join condition, rewritten to read the output of `leftProjects ++ rightProjects`
+ */
+case class JoinNestedProjectionResult(
+    leftProjects: JList[RexNode],
+    rightProjects: JList[RexNode],
+    rewrittenProjects: JList[RexNode],
+    rewrittenCondition: RexNode)
+
 object NestedProjectionUtil {
 
   /**
@@ -123,7 +142,22 @@ object NestedProjectionUtil {
    * NestedFieldReWriter.
    */
   def rewrite(exprs: JList[RexNode], schema: NestedSchema, builder: RexBuilder): JList[RexNode] = {
-    val writer = new NestedSchemaRewriter(schema, builder)
+    val writer = new NestedSchemaRewriter(schema, builder, null)
+    exprs.map(_.accept(writer)).toList.asJava
+  }
+
+  /**
+   * Like [[rewrite]], but types each rewritten leaf reference with
+   * `leafTypes(indexOfLeafInNewSchema)` instead of the leaf's declared type. The declared type
+   * ignores the nullability that a nullable enclosing struct (or an outer join) adds to the
+   * projected column.
+   */
+  private def rewrite(
+      exprs: JList[RexNode],
+      schema: NestedSchema,
+      builder: RexBuilder,
+      leafTypes: JList[RelDataType]): JList[RexNode] = {
+    val writer = new NestedSchemaRewriter(schema, builder, leafTypes)
     exprs.map(_.accept(writer)).toList.asJava
   }
 
@@ -147,6 +181,249 @@ object NestedProjectionUtil {
       indexInOriginSchema: Int,
       originFieldType: RelDataType): NestedColumn = {
     new NestedColumn(name, indexInOriginSchema, originFieldType, isLeaf = true)
+  }
+
+  /**
+   * Prepares pushing the nested field accesses of ROW columns to projects below a join.
+   *
+   * `projects` are the expressions of the project above the join and `condition` is the join
+   * condition. The method finds the nested fields they access and returns one projection per join
+   * input that outputs these nested fields as flat columns. It also rewrites `projects` and
+   * `condition` to read the flat columns instead of the ROW fields. The flat columns are numbered
+   * left input first, then right input.
+   *
+   * ROW columns from which nested fields are accessed are replaced by the extracted fields. All
+   * other top-level columns pass through as whole columns.
+   *
+   * The rewritten condition is typed against the join inputs. The rewritten projects are typed
+   * against the join output, so the columns of a side that generates nulls are nullable.
+   *
+   * @param generatesNullsOnLeft
+   *   true if the join type is an outer join that pads the left side with nulls (RIGHT or FULL)
+   * @param generatesNullsOnRight
+   *   true if the join type is an outer join that pads the right side with nulls (LEFT or FULL)
+   */
+  def rewriteForJoin(
+      projects: JList[RexNode],
+      condition: RexNode,
+      joinRowType: RelDataType,
+      leftRowType: RelDataType,
+      rightRowType: RelDataType,
+      generatesNullsOnLeft: Boolean,
+      generatesNullsOnRight: Boolean,
+      rexBuilder: RexBuilder): JoinNestedProjectionResult = {
+    val exprs = new JArrayList[RexNode](projects)
+    exprs.add(condition)
+    val leftFieldCount = leftRowType.getFieldCount
+    // 1. Build the used-field tree over the whole join output. Top-level columns that no
+    //    expression reads are added as whole columns first, so that they pass through unchanged.
+    val usedIndices = RelOptUtil.InputFinder.bits(exprs, null)
+    val allColumns = new JArrayList[RexNode](exprs)
+    joinRowType.getFieldList.foreach {
+      field =>
+        if (!usedIndices.get(field.getIndex)) {
+          allColumns.add(rexBuilder.makeInputRef(field.getType, field.getIndex))
+        }
+    }
+    val schema = build(allColumns, joinRowType)
+
+    // 2. Partition top-level columns by side, ordered by their pos in the original join row type
+    val leftCols = new JArrayList[NestedColumn]
+    val rightCols = new JArrayList[NestedColumn]
+    schema.columns.values().forEach {
+      c => if (c.indexInOriginSchema < leftFieldCount) leftCols.add(c) else rightCols.add(c)
+    }
+    val byOriginIndex =
+      java.util.Comparator.comparingInt[NestedColumn](c => c.indexInOriginSchema)
+    java.util.Collections.sort(leftCols, byOriginIndex)
+    java.util.Collections.sort(rightCols, byOriginIndex)
+
+    // 3. Assign global new-schema leaf positions: all left leaves first (0..leftCnt-1),
+    //    then right leaves (leftCnt..leftCnt+rightCnt-1). DFS in (sorted) column order.
+    val leftCnt = assignLeafIndices(leftCols, startIndex = 0)
+    val rightCnt = assignLeafIndices(rightCols, startIndex = leftCnt)
+
+    // 4. Build the projection of each input over the input's own row type.
+    val leftProjects = buildSideProjects(leftCols, leftRowType, indexShift = 0, leftCnt, rexBuilder)
+    val rightProjects =
+      buildSideProjects(rightCols, rightRowType, indexShift = -leftFieldCount, rightCnt, rexBuilder)
+
+    // 5. Rewrite the condition and the projects to read the flat columns. A flat column has the
+    //    type of the projection that produces it. The projects read the join output, where the
+    //    columns of a null-generating side are nullable, so they get the nullable types.
+    val typeFactory = rexBuilder.getTypeFactory
+    val conditionLeafTypes = new JArrayList[RelDataType]
+    conditionLeafTypes.addAll(leafTypes(leftProjects, nullable = false, typeFactory))
+    conditionLeafTypes.addAll(leafTypes(rightProjects, nullable = false, typeFactory))
+    val projectLeafTypes = new JArrayList[RelDataType]
+    projectLeafTypes.addAll(leafTypes(leftProjects, generatesNullsOnLeft, typeFactory))
+    projectLeafTypes.addAll(leafTypes(rightProjects, generatesNullsOnRight, typeFactory))
+
+    val rewrittenProjects = rewrite(projects, schema, rexBuilder, projectLeafTypes)
+    val rewrittenCondition =
+      rewrite(
+        java.util.Collections.singletonList(condition),
+        schema,
+        rexBuilder,
+        conditionLeafTypes)
+        .get(0)
+
+    JoinNestedProjectionResult(leftProjects, rightProjects, rewrittenProjects, rewrittenCondition)
+  }
+
+  /**
+   * DFS-assign [[NestedColumn.indexOfLeafInNewSchema]] over the given columns (and their
+   * descendants) starting at `startIndex`. Returns the number of leaf positions assigned.
+   */
+  private def assignLeafIndices(cols: JList[NestedColumn], startIndex: Int): Int = {
+    var idx = startIndex
+    cols.forEach(c => idx = assignLeafIndicesRec(c, idx))
+    idx - startIndex
+  }
+
+  private def assignLeafIndicesRec(col: NestedColumn, startIndex: Int): Int = {
+    if (col.isLeaf || col.children.isEmpty) {
+      col.setIndexOfLeafInNewSchema(startIndex)
+      startIndex + 1
+    } else {
+      var idx = startIndex
+      col.children.values().forEach(child => idx = assignLeafIndicesRec(child, idx))
+      idx
+    }
+  }
+
+  /**
+   * Builds one `RexNode` per leaf under the given top-level columns, as field-access chains rooted
+   * at an input ref into the side's own input row. Both the ref index and its declared type come
+   * from `sideRowType` (the side's non-widened join INPUT row type) at the rebased position
+   * `col.indexInOriginSchema + indexShift`. The result is ordered by `indexOfLeafInNewSchema`
+   * ascending, as a contiguous block of size `expectedCount`.
+   */
+  private def buildSideProjects(
+      cols: JList[NestedColumn],
+      sideRowType: RelDataType,
+      indexShift: Int,
+      expectedCount: Int,
+      rexBuilder: RexBuilder): JList[RexNode] = {
+    val slots = new Array[RexNode](expectedCount)
+    if (expectedCount == 0) {
+      return java.util.Arrays.asList(slots: _*)
+    }
+    // The leaf indices are global, so this side's block starts at its smallest index.
+    var base = Int.MaxValue
+    cols.forEach(c => base = math.min(base, minLeafIndex(c)))
+    cols.forEach {
+      col =>
+        // Right-side columns are indexed in the join row, but the projection reads the input row.
+        val rebasedIndex = col.indexInOriginSchema + indexShift
+        val rootType = sideRowType.getFieldList.get(rebasedIndex).getType
+        val rootRef = rexBuilder.makeInputRef(rootType, rebasedIndex)
+        // Place each leaf's access chain at its position in the projection.
+        collectLeafAccesses(col, rootRef, rexBuilder).forEach {
+          pair => slots(pair._1.indexOfLeafInNewSchema - base) = pair._2
+        }
+    }
+    java.util.Arrays.asList(slots: _*)
+  }
+
+  /** Smallest `indexOfLeafInNewSchema` assigned anywhere under `col` (including `col` itself). */
+  private def minLeafIndex(col: NestedColumn): Int = {
+    if (col.isLeaf || col.children.isEmpty) {
+      col.indexOfLeafInNewSchema
+    } else {
+      var min = Int.MaxValue
+      col.children.values().forEach(child => min = math.min(min, minLeafIndex(child)))
+      min
+    }
+  }
+
+  /**
+   * Collects, for every leaf under `col` (or `col` itself if it has no children / is a leaf), a
+   * pair of the leaf [[NestedColumn]] and the `RexNode` field-access chain rooted at `rootRex` that
+   * reaches it.
+   */
+  private def collectLeafAccesses(
+      col: NestedColumn,
+      rootRex: RexNode,
+      rexBuilder: RexBuilder): JList[(NestedColumn, RexNode)] = {
+    val result = new JArrayList[(NestedColumn, RexNode)]()
+    collectLeafAccessesInto(col, rootRex, rexBuilder, result)
+    result
+  }
+
+  private def collectLeafAccessesInto(
+      col: NestedColumn,
+      rex: RexNode,
+      rexBuilder: RexBuilder,
+      acc: JList[(NestedColumn, RexNode)]): Unit = {
+    if (col.isLeaf || col.children.isEmpty) {
+      acc.add((col, rex))
+    } else {
+      col.children.values().forEach {
+        child =>
+          // by index: a case-insensitive name lookup can pick the wrong field of ROW<a, A>
+          val childRex = rexBuilder.makeFieldAccess(rex, child.indexInOriginSchema)
+          collectLeafAccessesInto(child, childRex, rexBuilder, acc)
+      }
+    }
+  }
+
+  /**
+   * The types of the columns produced by `sideProjects`. If `nullable` is set, they are made
+   * nullable the way a join makes the columns of a null-generating input nullable.
+   */
+  private def leafTypes(
+      sideProjects: JList[RexNode],
+      nullable: Boolean,
+      typeFactory: RelDataTypeFactory): JList[RelDataType] = {
+    sideProjects
+      .map(p => if (nullable) typeFactory.createTypeWithNullability(p.getType, true) else p.getType)
+      .toList
+      .asJava
+  }
+
+  /**
+   * Returns true if pushing the used leaves below the join removes at least one leaf.
+   *
+   * This is the case if `projects` and/or `condition` read a ROW column only through field accesses
+   * and do not read all of its leaves.
+   */
+  def hasPrunableNestedLeaf(
+      projects: JList[RexNode],
+      condition: RexNode,
+      rowType: RelDataType): Boolean = {
+    val exprs = new JArrayList[RexNode](projects)
+    exprs.add(condition)
+    build(exprs, rowType).columns.values().exists(isPrunable)
+  }
+
+  private def isPrunable(col: NestedColumn): Boolean = {
+    // A whole-column reference (col.isLeaf) or a reference with no field access at all
+    // (no children) has nothing to prune.
+    if (col.isLeaf || col.children.isEmpty) {
+      false
+    } else {
+      leafCount(col) < totalLeafCount(col.originFieldType)
+    }
+  }
+
+  /** Number of leaves referenced under `col` (i.e. in the used-field tree). */
+  private def leafCount(col: NestedColumn): Int = {
+    if (col.isLeaf || col.children.isEmpty) {
+      // a leaf that is a struct is used whole, i.e. with all of its own leaves
+      totalLeafCount(col.originFieldType)
+    } else {
+      col.children.values().map(leafCount).sum
+    }
+  }
+
+  /** Total number of leaves in `tpe`, recursing into nested ROW types. */
+  private def totalLeafCount(tpe: RelDataType): Int = {
+    if (tpe.isStruct) {
+      tpe.getFieldList.map(f => totalLeafCount(f.getType)).sum
+    } else {
+      1
+    }
   }
 
   private def traverse(
@@ -195,14 +472,25 @@ object NestedProjectionUtil {
  *      reference founded before; 2. if the process hasn't found the first reference, the process
  *      continues to search under the current parent.
  */
-private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) extends RexShuttle {
+private class NestedSchemaRewriter(
+    schema: NestedSchema,
+    builder: RexBuilder,
+    leafTypes: JList[RelDataType])
+  extends RexShuttle {
+
+  private def leafRef(column: NestedColumn): RexInputRef = {
+    val tpe =
+      if (leafTypes == null) column.originFieldType
+      else leafTypes.get(column.indexOfLeafInNewSchema)
+    new RexInputRef(column.indexOfLeafInNewSchema, tpe)
+  }
+
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     val name = schema.inputRowType.getFieldNames.get(inputRef.getIndex)
     if (!schema.columns.containsKey(name)) {
       throw new TableException("Illegal input field access" + name)
     } else {
-      val field = schema.columns.get(name)
-      new RexInputRef(field.indexOfLeafInNewSchema, field.originFieldType)
+      leafRef(schema.columns.get(name))
     }
   }
 
@@ -221,17 +509,11 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
         val name = schema.inputRowType.getFieldNames.get(ref.getIndex)
         val parent = schema.columns.get(name)
         if (parent.isLeaf) {
-          (
-            Some(
-              copyFieldAccess(
-                new RexInputRef(parent.indexOfLeafInNewSchema, parent.originFieldType),
-                fieldAccess.getField.getName,
-                builder)),
-            parent)
+          (Some(copyFieldAccess(leafRef(parent), fieldAccess.getField.getName, builder)), parent)
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
-            (Some(new RexInputRef(child.indexOfLeafInNewSchema, child.originFieldType)), child)
+            (Some(leafRef(child)), child)
           } else {
             (Option.empty, child)
           }
@@ -243,7 +525,7 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
-            (Some(new RexInputRef(child.indexOfLeafInNewSchema, child.originFieldType)), child)
+            (Some(leafRef(child)), child)
           } else {
             (Option.empty, child)
           }

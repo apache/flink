@@ -1,0 +1,280 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAllLeavesUsedIsNotTransposed">
+    <Resource name="sql">
+      <![CDATA[SELECT D.deep.l1, D.deep.z FROM D JOIN R ON D.id = R.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(l1=[$1.l1], z=[$1.z])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, D]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(l1=[$1.l1], z=[$1.z])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, D]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeeplyNestedLeavesAtDifferentDepths">
+    <Resource name="sql">
+      <![CDATA[SELECT D.deep.l1.l2.l3, D.deep.l1.y, D.deep.z, R.info.city FROM D JOIN R ON D.id = R.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(l3=[$1.l1.l2.l3], y=[$1.l1.y], z=[$1.z], city=[$3.city])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, D]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(l3=[$1], y=[$2], z=[$3], city=[$5])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :- LogicalProject(id=[$0], $f1=[$1.l1.l2.l3], $f2=[$1.l1.y], $f3=[$1.z])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, D]])
+   +- LogicalProject(id=[$0], $f1=[$1.city])
+      +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullOuterJoinNotNullNestedLeafInCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT L.nested.name FROM L FULL JOIN RNN ON L.nested.name = RNN.info.city]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name])
++- LogicalProject(id=[$0], nested=[$1], id0=[$3], info=[$4])
+   +- LogicalJoin(condition=[=($2, $5)], joinType=[full])
+      :- LogicalProject(id=[$0], nested=[$1], $f2=[$1.name])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+      +- LogicalProject(id=[$0], info=[$1], $f2=[$1.city])
+         +- LogicalTableScan(table=[[default_catalog, default_database, RNN]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1])
++- LogicalJoin(condition=[=($2, $5)], joinType=[full])
+   :- LogicalProject(id=[$0], $f1=[$1.name], $f2=[$1.name])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalProject(id=[$0], info=[$1], $f2=[$1.city])
+      +- LogicalTableScan(table=[[default_catalog, default_database, RNN]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerEquiJoinSingleLeaf">
+    <Resource name="sql">
+      <![CDATA[SELECT L.nested.name, R.info.city FROM L JOIN R ON L.id = R.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name], city=[$3.city])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1], city=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalProject(id=[$0], $f1=[$1.name])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalProject(id=[$0], $f1=[$1.city])
+      +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinNotNullNestedLeafWidensToNullable">
+    <Resource name="sql">
+      <![CDATA[SELECT L.nested.name, RNN.info.city FROM L LEFT JOIN RNN ON L.id = RNN.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name], city=[$3.city]), rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) city)]
++- LogicalJoin(condition=[=($0, $2)], joinType=[left]), rowType=[RecordType(INTEGER id, RecordType:peek_no_expand(VARCHAR(2147483647) name, INTEGER value) nested, INTEGER id0, RecordType:peek_no_expand(VARCHAR(2147483647) city, INTEGER zip) info)]
+   :- LogicalTableScan(table=[[default_catalog, default_database, L]]), rowType=[RecordType(INTEGER id, RecordType:peek_no_expand(VARCHAR(2147483647) name, INTEGER value) nested)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, RNN]]), rowType=[RecordType(INTEGER id, RecordType:peek_no_expand(VARCHAR(2147483647) city, INTEGER zip) info)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1], city=[$3]), rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) city)]
++- LogicalJoin(condition=[=($0, $2)], joinType=[left]), rowType=[RecordType(INTEGER id, VARCHAR(2147483647) $f1, INTEGER id0, VARCHAR(2147483647) $f10)]
+   :- LogicalProject(id=[$0], $f1=[$1.name]), rowType=[RecordType(INTEGER id, VARCHAR(2147483647) $f1)]
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, L]]), rowType=[RecordType(INTEGER id, RecordType:peek_no_expand(VARCHAR(2147483647) name, INTEGER value) nested)]
+   +- LogicalProject(id=[$0], $f1=[$1.city]), rowType=[RecordType(INTEGER id, VARCHAR(2147483647) $f1)]
+      +- LogicalTableScan(table=[[default_catalog, default_database, RNN]]), rowType=[RecordType(INTEGER id, RecordType:peek_no_expand(VARCHAR(2147483647) city, INTEGER zip) info)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonEquiNestedCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT L.nested.name FROM L JOIN R ON L.id = R.id AND L.nested.`value` > R.info.zip]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name])
++- LogicalJoin(condition=[AND(=($0, $2), >($1.value, $3.zip))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1])
++- LogicalJoin(condition=[AND(=($0, $3), >($2, $4))], joinType=[inner])
+   :- LogicalProject(id=[$0], $f1=[$1.name], $f2=[$1.value])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalProject(id=[$0], $f1=[$1.zip])
+      +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNullLeafOfNullableStructInCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT LNN.id, R.id FROM LNN LEFT JOIN R ON LNN.id = R.id AND LNN.nested.v IS NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], id0=[$2])
++- LogicalJoin(condition=[AND(=($0, $2), IS NULL($1.v))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, LNN]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], id0=[$2])
++- LogicalJoin(condition=[AND(=($0, $2), IS NULL($1))], joinType=[left])
+   :- LogicalProject(id=[$0], $f1=[$1.v])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, LNN]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelfJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT a.nested.name, b.nested.name FROM L a JOIN L b ON a.nested.`value` = b.nested.`value`]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name], name0=[$3.name])
++- LogicalProject(id=[$0], nested=[$1], id0=[$3], nested0=[$4])
+   +- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
+      :- LogicalProject(id=[$0], nested=[$1], $f2=[$1.value])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+      +- LogicalProject(id=[$0], nested=[$1], $f2=[$1.value])
+         +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1], name0=[$4])
++- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
+   :- LogicalProject(id=[$0], $f1=[$1.name], $f2=[$1.value])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalProject(id=[$0], $f1=[$1.name], $f2=[$1.value])
+      +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSemiJoinNotTransposed">
+    <Resource name="sql">
+      <![CDATA[SELECT L.nested.name FROM L WHERE L.id IN (SELECT R.id FROM R)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(id=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, R]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1.name])
++- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalProject(id=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStructLeafUsedWholeAndAccessedDeeper">
+    <Resource name="sql">
+      <![CDATA[SELECT L.id, RA.info.addr, RA.info.addr.zip FROM L JOIN RA ON L.id = RA.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], addr=[$3.addr], zip=[$3.addr.zip])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, RA]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], addr=[$3], zip=[$3.zip])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   +- LogicalProject(id=[$0], $f1=[$1.addr])
+      +- LogicalTableScan(table=[[default_catalog, default_database, RA]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT L.nested.name, R.info.city, S.extra.tag FROM L JOIN R ON L.id = R.id JOIN S ON R.id = S.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1.name], city=[$3.city], tag=[$5.tag])
++- LogicalJoin(condition=[=($2, $4)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, S]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$1], city=[$3], tag=[$5])
++- LogicalJoin(condition=[=($2, $4)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :  :- LogicalProject(id=[$0], $f1=[$1.name])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, L]])
+   :  +- LogicalProject(id=[$0], $f1=[$1.city])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, R]])
+   +- LogicalProject(id=[$0], $f1=[$1.tag])
+      +- LogicalTableScan(table=[[default_catalog, default_database, S]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

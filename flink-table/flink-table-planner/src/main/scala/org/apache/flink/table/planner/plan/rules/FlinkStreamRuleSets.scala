@@ -216,6 +216,8 @@ object FlinkStreamRuleSets {
     new FlinkProjectJoinTransposeRule(
       PushProjector.ExprCondition.FALSE,
       RelFactories.LOGICAL_BUILDER),
+    // push referenced nested-field leaves of a Join below it, narrowing the join's row type
+    ProjectNestedFieldJoinTransposeRule.INSTANCE,
     // push a projection to the children of a multi join
     ProjectMultiJoinTransposeRule.INSTANCE,
     // push a projection to the children of a semi/anti Join
