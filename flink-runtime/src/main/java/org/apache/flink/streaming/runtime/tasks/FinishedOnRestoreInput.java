@@ -28,12 +28,16 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 public class FinishedOnRestoreInput<IN> implements Input<IN> {
     private final RecordWriterOutput<?>[] streamOutputs;
     private final int inputCount;
+    private final String taskName;
 
     private int watermarksSeen = 0;
+    private int finishedStatusSeen = 0;
 
-    public FinishedOnRestoreInput(RecordWriterOutput<?>[] streamOutputs, int inputCount) {
+    public FinishedOnRestoreInput(
+            RecordWriterOutput<?>[] streamOutputs, int inputCount, String taskName) {
         this.streamOutputs = streamOutputs;
         this.inputCount = inputCount;
+        this.taskName = taskName;
     }
 
     @Override
@@ -46,8 +50,8 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
         if (watermark.getTimestamp() != Watermark.MAX_WATERMARK.getTimestamp()) {
             throw new IllegalStateException(
                     String.format(
-                            "We should not receive any watermarks [%s] other than the MAX_WATERMARK if finished on restore",
-                            watermark));
+                            "We should not receive any watermarks [%s] other than the MAX_WATERMARK if finished on restore. Task: %s",
+                            watermark, taskName));
         }
         if (++watermarksSeen == inputCount) {
             for (RecordWriterOutput<?> streamOutput : streamOutputs) {
@@ -58,7 +62,21 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
 
     @Override
     public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
-        throw new IllegalStateException();
+        // A task that finished on restore only ever sees FINISHED from upstream; ACTIVE and IDLE
+        // describe a temporary state that cannot apply to an input which is already complete.
+        if (!watermarkStatus.isFinished()) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Unexpected watermark status [%s] received for finished on restore task. Task: %s",
+                            watermarkStatus, taskName));
+        }
+        // Aggregate FINISHED across all inputs and forward it once every input has reported,
+        // mirroring how MAX_WATERMARK is handled above.
+        if (++finishedStatusSeen == inputCount) {
+            for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+                streamOutput.emitWatermarkStatus(watermarkStatus);
+            }
+        }
     }
 
     @Override
