@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -73,6 +74,11 @@ class TaskFailureITCase extends JavaProgramTestBase {
             StreamExecutionEnvironment env =
                     StreamExecutionEnvironment.getExecutionEnvironment(configuration);
             env.setParallelism(1);
+            // At-least-once checkpointing makes the collect iterator tolerate a job restart
+            // instead of throwing "Job restarted" when it observed attempt 0 before attempt 1
+            // started. The long interval ensures no checkpoint actually runs during the test.
+            env.enableCheckpointing(
+                    Duration.ofMinutes(10).toMillis(), CheckpointingMode.AT_LEAST_ONCE);
 
             DataStream<Long> stream = env.fromSequence(1, 9).map(mapper);
             DataStream.Collector<Long> collector = new DataStream.Collector<>();
