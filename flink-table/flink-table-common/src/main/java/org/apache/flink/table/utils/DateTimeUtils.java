@@ -1345,7 +1345,7 @@ public class DateTimeUtils {
             case YEAR:
             case QUARTER:
             case WEEK:
-                int days = (int) (utcTs / MILLIS_PER_DAY + EPOCH_JULIAN);
+                int days = (int) (Math.floorDiv(utcTs, MILLIS_PER_DAY) + EPOCH_JULIAN);
                 return julianDateFloor(range, days, true) * MILLIS_PER_DAY - offset;
             default:
                 // for MINUTE and SECONDS etc...,
@@ -1778,7 +1778,7 @@ public class DateTimeUtils {
     }
 
     public static long unixTimestampFloor(TimeUnitRange range, long timestamp) {
-        int date = (int) (timestamp / MILLIS_PER_DAY);
+        int date = (int) Math.floorDiv(timestamp, MILLIS_PER_DAY);
         final long f = julianDateFloor(range, date + EPOCH_JULIAN, true);
         return f * MILLIS_PER_DAY;
     }
