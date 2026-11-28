@@ -18,6 +18,9 @@
 from enum import Enum
 from typing import Union, TypeVar, Generic, Any
 
+from py4j.java_gateway import JavaObject
+from py4j.protocol import INPUT_CONVERTER
+
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import (
@@ -273,6 +276,30 @@ def _get_java_expression(expr, to_expr: bool = False):
         return gateway.jvm.Expressions.lit(expr)
     else:
         return expr
+
+
+def _to_java_varargs(args):
+    """
+    Packs the given arguments into a Java Object[], as py4j does not do this for a Java varargs
+    parameter.
+
+    Note: py4j converts Python collections only as method arguments, not as array elements, so
+    they go through objectToExpression. Other values skip it to avoid a call per argument.
+    """
+    jvm = get_gateway().jvm
+    j_args = []
+    for arg in args:
+        j_arg = _get_java_expression(arg)
+        is_jobj = isinstance(j_arg, JavaObject)
+
+        # Manually convert collections (and anything that wasn't converted earlier and can
+        # be converted by py4j really) here
+        if not is_jobj and any(converter.can_convert(j_arg) for converter in INPUT_CONVERTER):
+            ApiExpressionUtils = jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+            j_arg = ApiExpressionUtils.objectToExpression(j_arg)
+
+        j_args.append(j_arg)
+    return to_jarray(jvm.Object, j_args)
 
 
 def _unary_op(op_name: str):
@@ -985,12 +1012,10 @@ class Expression(Generic[T]):
             assert len(remaining_elements) == 0
             return _binary_op("in")(self, first_element_or_table._j_table)
         else:
-            gateway = get_gateway()
-            ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-            remaining_elements = (first_element_or_table, *remaining_elements)
-            exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in remaining_elements]
-            return _binary_op("in")(self, to_jarray(gateway.jvm.Object, exprs))
+            return _binary_op("in")(
+                self,
+                _to_java_varargs((first_element_or_table, *remaining_elements))
+            )
 
     @property
     def start(self) -> 'Expression':
@@ -1546,11 +1571,7 @@ class Expression(Generic[T]):
         :param obj: any expression
         :return: a formatted string. null if format is null or invalid.
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                 for e in obj]
-        return _binary_op("printf")(self, to_jarray(gateway.jvm.Object, exprs))
+        return _binary_op("printf")(self, _to_java_varargs(obj))
 
     def ltrim(self, trim_str=None) -> 'Expression[str]':
         """
@@ -1717,11 +1738,7 @@ class Expression(Generic[T]):
 
         :return: result type is the least common type of all expressions.
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in exprs]
-        return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
+        return _ternary_op("elt")(self, expr, _to_java_varargs(exprs))
 
     # ---------------------------- temporal functions ----------------------------------
 
@@ -1873,7 +1890,7 @@ class Expression(Generic[T]):
         Returns an array with unique elements.
         If the array itself is null, the function will return null. Keeps ordering of elements.
         """
-        return _binary_op("arrayDistinct")(self)
+        return _unary_op("arrayDistinct")(self)
 
     def array_position(self, needle) -> 'Expression':
         """
@@ -1907,7 +1924,7 @@ class Expression(Generic[T]):
         Returns an array in reverse order.
         If the array itself is null, the function will return null.
         """
-        return _binary_op("arrayReverse")(self)
+        return _unary_op("arrayReverse")(self)
 
     def array_slice(self, start_offset, end_offset=None) -> 'Expression':
         """
@@ -1920,9 +1937,9 @@ class Expression(Generic[T]):
         Returns null if any input is null.
         """
         if end_offset is None:
-            return _binary_op("array_slice")(self, start_offset)
+            return _binary_op("arraySlice")(self, start_offset)
         else:
-            return _ternary_op("array_slice")(self, start_offset, end_offset)
+            return _ternary_op("arraySlice")(self, start_offset, end_offset)
 
     def array_sort(self, ascending_order=None, null_first=None) -> 'Expression':
         """
@@ -1954,7 +1971,7 @@ class Expression(Generic[T]):
         the elements in the second array, and so forth, up to the Nth array.
         If any input array is NULL, the function returns NULL.
         """
-        return _binary_op("arrayConcat")(self, *arrays)
+        return _binary_op("arrayConcat")(self, _to_java_varargs(arrays))
 
     def array_max(self) -> 'Expression':
         """
@@ -2032,7 +2049,7 @@ class Expression(Generic[T]):
 
         .. seealso:: :py:attr:`~Expression.map_union`
         """
-        return _binary_op("mapUnion")(self, *maps)
+        return _binary_op("mapUnion")(self, _to_java_varargs(maps))
 
     @property
     def map_values(self) -> 'Expression':
@@ -2637,7 +2654,7 @@ class Expression(Generic[T]):
         :return: expression representing the updated structured type with modified
                  field values
         """
-        return _varargs_op("objectUpdate")(self, *kv)
+        return _binary_op("objectUpdate")(self, _to_java_varargs(kv))
 
     # ---------------------------- Bitmap functions -----------------------------
 
