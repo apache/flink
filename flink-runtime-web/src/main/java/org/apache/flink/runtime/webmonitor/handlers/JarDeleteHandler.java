@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -73,24 +74,21 @@ public class JarDeleteHandler
         final String jarId = request.getPathParameter(JarIdPathParameter.class);
         return CompletableFuture.supplyAsync(
                 () -> {
-                    final Path jarToDelete = jarDir.resolve(jarId);
-                    if (!Files.exists(jarToDelete)) {
+                    final Path jarToDelete;
+                    try {
+                        jarToDelete = JarHandlerUtils.resolveJarFile(jarDir, jarId);
+                    } catch (final RestHandlerException e) {
+                        throw new CompletionException(e);
+                    }
+                    try {
+                        Files.delete(jarToDelete);
+                        return EmptyResponseBody.getInstance();
+                    } catch (final IOException e) {
                         throw new CompletionException(
                                 new RestHandlerException(
-                                        String.format(
-                                                "File %s does not exist in %s.", jarId, jarDir),
-                                        HttpResponseStatus.BAD_REQUEST));
-                    } else {
-                        try {
-                            Files.delete(jarToDelete);
-                            return EmptyResponseBody.getInstance();
-                        } catch (final IOException e) {
-                            throw new CompletionException(
-                                    new RestHandlerException(
-                                            String.format("Failed to delete jar %s.", jarToDelete),
-                                            HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                                            e));
-                        }
+                                        String.format("Failed to delete jar %s.", jarToDelete),
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                                        e));
                     }
                 },
                 executor);

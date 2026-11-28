@@ -29,6 +29,7 @@ import org.apache.flink.runtime.webmonitor.handlers.JarPlanRequestBody;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunMessageParameters;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -36,7 +37,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,7 +56,14 @@ class JarHandlerUtilsTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(JarHandlerUtilsTest.class);
 
+    private static final String JAR_ID = "someJar";
+
     @TempDir private Path tempDir;
+
+    @BeforeEach
+    void createJar() throws IOException {
+        Files.createFile(tempDir.resolve(JAR_ID));
+    }
 
     @Test
     void testTokenizeNonQuoted() {
@@ -179,7 +189,7 @@ class JarHandlerUtilsTest {
         final JarRunMessageParameters parameters =
                 JarRunHeaders.getInstance().getUnresolvedMessageParameters();
 
-        parameters.jarIdPathParameter.resolve("someJar");
+        parameters.jarIdPathParameter.resolve(JAR_ID);
 
         return parameters;
     }
