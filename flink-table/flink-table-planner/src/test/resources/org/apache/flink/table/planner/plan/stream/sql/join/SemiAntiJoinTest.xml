@@ -307,7 +307,7 @@ Join(joinType=[LeftSemiJoin], where=[true], select=[c], leftInputSpec=[NoUniqueK
 :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[single])
    +- Calc(select=[], where=[m IS NOT NULL])
-      +- GroupAggregate(select=[MIN(i) AS m])
+      +- GroupAggregate(select=[MIN_RETRACT(i) AS m])
          +- Exchange(distribution=[single])
             +- Calc(select=[true AS i])
                +- Join(joinType=[FullOuterJoin], where=[(e = j)], select=[e, j], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])

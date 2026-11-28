@@ -525,7 +525,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
   def getRelModifiedMonotonicity(rel: Join, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     val joinType = rel.getJoinType
-    if (joinType.equals(JoinRelType.ANTI)) {
+    if (joinType.equals(JoinRelType.ANTI) || joinType.isOuterJoin) {
       return null
     }
 
