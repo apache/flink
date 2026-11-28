@@ -71,6 +71,11 @@ public class TestingFileSystem extends FileSystem {
     //  Factories
     // ------------------------------------------------------------------------
 
+    /** Creates a view of a test filesystem for instrumented test implementations. */
+    protected TestingFileSystem(TestingFileSystem template) {
+        this(template.scheme, template.directories, template.files);
+    }
+
     public static TestingFileSystem createWithFiles(final String scheme, final Path... files) {
         return createWithFiles(scheme, Arrays.asList(files));
     }
@@ -178,7 +183,7 @@ public class TestingFileSystem extends FileSystem {
 
     @Override
     public URI getUri() {
-        return URI.create(scheme + "://");
+        return URI.create(scheme + ":/");
     }
 
     @Override
