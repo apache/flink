@@ -1,0 +1,54 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SINH
+summary: Returns the hyperbolic sine of a number.
+
+syntax:
+  sql: SINH(x)
+  java: $("x").sinh()
+  python: col("x").sinh
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: The hyperbolic sine of `x`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: COSH, ref: mathematical/cosh}
+  - {name: TANH, ref: mathematical/tanh}
+
+examples:
+  - title: Hyperbolic sine
+    description: A NULL value returns NULL.
+    sql: |
+      SELECT x, SINH(x) AS `SINH(x)`
+      FROM (VALUES (-1), (0), (1), (2), (CAST(NULL AS INT))) AS t(x);
+    result: |
+      | x    | SINH(x)             |
+      |------|---------------------|
+      | -1   | -1.1752011936438014 |
+      | 0    | 0.0                 |
+      | 1    | 1.1752011936438014  |
+      | 2    | 3.626860407847019   |
+      | NULL | NULL                |

@@ -1,0 +1,56 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: ASIN
+summary: Returns the arcsine of a number, as an angle in radians.
+
+syntax:
+  sql: ASIN(x)
+  java: $("x").asin()
+  python: col("x").asin
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The sine of an angle, from -1 to 1.
+
+returns:
+  description: The angle in radians whose sine is `x`, from -π/2 to π/2. A value of `x` outside -1 to 1 returns `NaN`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: SIN, ref: mathematical/sin}
+  - {name: ACOS, ref: mathematical/acos}
+  - {name: DEGREES, ref: mathematical/degrees}
+
+examples:
+  - title: Arcsine in radians and degrees
+    description: Wrap the result in `DEGREES` to get degrees. A value outside -1 to 1 returns `NaN`, and a NULL value returns NULL.
+    sql: |
+      SELECT x, ASIN(x) AS `ASIN(x)`, DEGREES(ASIN(x)) AS `DEGREES(ASIN(x))`
+      FROM (VALUES (-1.0), (0.0), (0.5), (1.0), (2.0), (CAST(NULL AS DECIMAL(2, 1)))) AS t(x);
+    result: |
+      | x    | ASIN(x)             | DEGREES(ASIN(x))   |
+      |------|---------------------|--------------------|
+      | -1.0 | -1.5707963267948966 | -90.0              |
+      | 0.0  | 0.0                 | 0.0                |
+      | 0.5  | 0.5235987755982989  | 30.000000000000004 |
+      | 1.0  | 1.5707963267948966  | 90.0               |
+      | 2.0  | NaN                 | NaN                |
+      | NULL | NULL                | NULL               |

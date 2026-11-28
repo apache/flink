@@ -1,0 +1,140 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: Arithmetic operators
+summary: Returns the sum, difference, product, quotient or negation of numbers, with `+`, `-`, `*` and `/`.
+
+syntax:
+  sql: |
+    +expr
+    -expr
+    expr1 + expr2
+    expr1 - expr2
+    expr1 * expr2
+    expr1 / expr2
+  java: |
+    negative($("expr"))
+    $("expr1").plus(expr2)
+    $("expr1").minus(expr2)
+    $("expr1").times(expr2)
+    $("expr1").dividedBy(expr2)
+  python: |
+    -col("expr")
+    col("expr1") + expr2
+    col("expr1") - expr2
+    col("expr1") * expr2
+    col("expr1") / expr2
+
+arguments:
+  - name: expr, expr1, expr2
+    type: Any numeric type
+    required: true
+    description: The operands.
+
+returns:
+  description: The sum, difference, product or quotient of `expr1` and `expr2`. Unary `-` flips the sign of `expr`, and unary `+` returns it unchanged. A division of two integers drops the fraction, toward zero.
+  nulls: Returns NULL if an operand is NULL.
+  type: Two integer types give the larger of the two. An integer with a `FLOAT` or `DOUBLE` gives that type, and with a `DECIMAL` a `DECIMAL`. A `DECIMAL` with a `FLOAT` or `DOUBLE` gives `DOUBLE`. A `DOUBLE` with a `FLOAT` gives `DOUBLE`, but a `FLOAT` with a `DOUBLE` gives `FLOAT` instead of `DOUBLE`. Unary `+` and `-` keep the type of `expr`. NOT NULL if every operand is NOT NULL.
+
+notes:
+  - The scale of a `DECIMAL` result follows from the scales `s1` and `s2` of the operands and the precision `p2` of the second one. `+` and `-` give the larger of `s1` and `s2`, `*` gives `s1 + s2`, and `/` gives `s1 + p2 + 1`, but at least 6. An integer counts as a `DECIMAL` with scale 0 and the precision of its type, such as 10 for `INT`. The precision is what the result needs, up to 38. A result that would need more than 38 digits keeps fewer decimal places, but at least 6, or all of them if it has fewer than 6.
+  - An integer result that doesn't fit its type wraps around without an error, so `2147483647 + 1` is `-2147483648` for two `INT` operands. Cast an operand to `BIGINT` or `DECIMAL` to get the right result.
+  - A division by zero fails the job when the result is an integer or a `DECIMAL`. When the result is a `FLOAT` or `DOUBLE`, it returns `Infinity`, `-Infinity` or `NaN`.
+
+see_also:
+  - {name: MOD, ref: mathematical/mod}
+  - {name: POWER, ref: mathematical/power}
+  - {name: ABS, ref: mathematical/abs}
+
+examples:
+  - title: Calculate with integers
+    description: A division of two integers drops the fraction, toward zero. A NULL operand returns NULL.
+    sql: |
+      SELECT a, b, a + b AS `a + b`, a - b AS `a - b`, a * b AS `a * b`, a / b AS `a / b`
+      FROM (VALUES (7, 2), (-7, 2), (7, CAST(NULL AS INT))) AS t(a, b);
+    result: |
+      | a  | b    | a + b | a - b | a * b | a / b |
+      |----|------|-------|-------|-------|-------|
+      | 7  | 2    | 9     | 5     | 14    | 3     |
+      | -7 | 2    | -5    | -9    | -14   | -3    |
+      | 7  | NULL | NULL  | NULL  | NULL  | NULL  |
+
+  - title: Get a fraction from integers
+    description: Cast an operand to `DECIMAL` or `DOUBLE` to keep the fraction. A `DECIMAL` result has a fixed scale.
+    sql: |
+      SELECT a, b,
+        a / b AS `a / b`,
+        a / CAST(b AS DECIMAL(10, 1)) AS `a / CAST(b AS DECIMAL(10, 1))`,
+        CAST(a AS DOUBLE) / b AS `CAST(a AS DOUBLE) / b`
+      FROM (VALUES (7, 2), (1, 3)) AS t(a, b);
+    result: |
+      | a | b | a / b | a / CAST(b AS DECIMAL(10, 1)) | CAST(a AS DOUBLE) / b |
+      |---|---|-------|-------------------------------|-----------------------|
+      | 7 | 2 | 3     | 3.50000000000                 | 3.5                   |
+      | 1 | 3 | 0     | 0.33333333333                 | 0.3333333333333333    |
+
+  - title: Result types of mixed operands
+    description: An integer with a `BIGINT` gives a `BIGINT`, with a `DECIMAL` a `DECIMAL`, and a `DOUBLE` makes the result a `DOUBLE`.
+    sql: |
+      SELECT
+        TYPEOF(i + b) AS `TYPEOF(i + b)`,
+        TYPEOF(i + d) AS `TYPEOF(i + d)`,
+        TYPEOF(d * d) AS `TYPEOF(d * d)`,
+        TYPEOF(i / d) AS `TYPEOF(i / d)`,
+        TYPEOF(x + d) AS `TYPEOF(x + d)`
+      FROM (VALUES (1, CAST(1 AS BIGINT), CAST(1.25 AS DECIMAL(5, 2)), CAST(1 AS DOUBLE))) AS t(i, b, d, x);
+    result: |
+      | TYPEOF(i + b)   | TYPEOF(i + d)           | TYPEOF(d * d)           | TYPEOF(i / d)           | TYPEOF(x + d)   |
+      |-----------------|-------------------------|-------------------------|-------------------------|-----------------|
+      | BIGINT NOT NULL | DECIMAL(13, 2) NOT NULL | DECIMAL(11, 4) NOT NULL | DECIMAL(18, 6) NOT NULL | DOUBLE NOT NULL |
+
+  - title: DECIMAL is exact, DOUBLE isn't
+    description: Decimal literals such as `0.1` are `DECIMAL` values, which add up exactly. Their `DOUBLE` values don't.
+    sql: |
+      SELECT a, b, a + b AS `a + b`, CAST(a AS DOUBLE) + CAST(b AS DOUBLE) AS `CAST(a AS DOUBLE) + CAST(b AS DOUBLE)`
+      FROM (VALUES (0.1, 0.2), (1.5, 2.25)) AS t(a, b);
+    result: |
+      | a   | b    | a + b | CAST(a AS DOUBLE) + CAST(b AS DOUBLE) |
+      |-----|------|-------|---------------------------------------|
+      | 0.1 | 0.20 | 0.30  | 0.30000000000000004                   |
+      | 1.5 | 2.25 | 3.75  | 3.75                                  |
+
+  - title: Divide a DOUBLE by zero
+    description: The result is `Infinity`, `-Infinity` or `NaN`, and the job keeps running.
+    sql: |
+      SELECT x, y, x / y AS `x / y`
+      FROM (VALUES
+        (CAST(1 AS DOUBLE), CAST(0 AS DOUBLE)),
+        (CAST(-1 AS DOUBLE), CAST(0 AS DOUBLE)),
+        (CAST(0 AS DOUBLE), CAST(0 AS DOUBLE))) AS t(x, y);
+    result: |
+      | x    | y   | x / y     |
+      |------|-----|-----------|
+      | 1.0  | 0.0 | Infinity  |
+      | -1.0 | 0.0 | -Infinity |
+      | 0.0  | 0.0 | NaN       |
+
+  - title: Integer overflow
+    description: An `INT` result that doesn't fit wraps around, and negating the smallest `INT` returns it unchanged. A `BIGINT` operand gives the right result.
+    sql: |
+      SELECT a, a + 1 AS `a + 1`, CAST(a AS BIGINT) + 1 AS `CAST(a AS BIGINT) + 1`, -a AS `-a`
+      FROM (VALUES (2147483647), (-2147483648)) AS t(a);
+    result: |
+      | a           | a + 1       | CAST(a AS BIGINT) + 1 | -a          |
+      |-------------|-------------|-----------------------|-------------|
+      | 2147483647  | -2147483648 | 2147483648            | -2147483647 |
+      | -2147483648 | -2147483647 | -2147483647           | -2147483648 |

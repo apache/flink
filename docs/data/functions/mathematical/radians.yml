@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: RADIANS
+summary: Converts an angle from degrees to radians.
+
+syntax:
+  sql: RADIANS(x)
+  java: $("x").radians()
+  python: col("x").radians
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: An angle in degrees.
+
+returns:
+  description: The angle `x` in radians, `x * π / 180`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: DEGREES, ref: mathematical/degrees}
+  - {name: SIN, ref: mathematical/sin}
+  - {name: COS, ref: mathematical/cos}
+
+examples:
+  - title: Convert degrees to radians
+    description: A NULL angle returns NULL.
+    sql: |
+      SELECT deg, RADIANS(deg) AS `RADIANS(deg)`
+      FROM (VALUES (0), (30), (90), (180), (-90), (CAST(NULL AS INT))) AS t(deg);
+    result: |
+      | deg  | RADIANS(deg)        |
+      |------|---------------------|
+      | 0    | 0.0                 |
+      | 30   | 0.5235987755982988  |
+      | 90   | 1.5707963267948966  |
+      | 180  | 3.141592653589793   |
+      | -90  | -1.5707963267948966 |
+      | NULL | NULL                |
+
+  - title: Pass degrees to a trigonometric function
+    description: Trigonometric functions such as `SIN` and `COS` take radians, so convert an angle in degrees first.
+    sql: |
+      SELECT deg, SIN(RADIANS(deg)) AS `SIN(RADIANS(deg))`, COS(RADIANS(deg)) AS `COS(RADIANS(deg))`
+      FROM (VALUES (0), (30), (90)) AS t(deg);
+    result: |
+      | deg | SIN(RADIANS(deg))   | COS(RADIANS(deg))     |
+      |-----|---------------------|-----------------------|
+      | 0   | 0.0                 | 1.0                   |
+      | 30  | 0.49999999999999994 | 0.8660254037844387    |
+      | 90  | 1.0                 | 6.123233995736766E-17 |

@@ -138,7 +138,7 @@ instant without a date or a time.
 `TIME` keeps microseconds, so `12:30:45.1234567` is stored as `12:30:45.123456`. `TIMESTAMP` and
 `TIMESTAMP_LTZ` keep nanoseconds if the value has digits below a microsecond and is in the
 nanosecond range. The nanosecond range is
-`1677-09-21 00:12:44` to `2262-04-11 23:47:16.854775807` UTC. A `dateTime` without an
+`1677-09-21 00:12:43.145224192` to `2262-04-11 23:47:16.854775807` UTC. A `dateTime` without an
 offset is compared as if it were in UTC, so the range is the same in every session time zone.
 Outside the range, the value keeps microseconds, so `2300-01-01T00:00:00.000000001` is stored as
 `2300-01-01 00:00:00`. Further digits are truncated, like in a cast, instead of keeping the text as

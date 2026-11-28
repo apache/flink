@@ -1,0 +1,69 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: LOG2
+summary: Returns the base-2 logarithm of a number.
+
+syntax:
+  sql: LOG2(x)
+  java: $("x").log2()
+  python: col("x").log2
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number.
+
+returns:
+  description: The logarithm of `x` to the base 2. `0` returns `-Infinity`, and a negative `x` returns `NaN`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: LOG, ref: mathematical/log}
+  - {name: LOG10, ref: mathematical/log10}
+  - {name: LN, ref: mathematical/ln}
+
+examples:
+  - title: Base-2 logarithms
+    description: Zero returns `-Infinity`, a negative number `NaN`, and a NULL value NULL.
+    sql: |
+      SELECT x, LOG2(x) AS `LOG2(x)`
+      FROM (VALUES (CAST(8 AS DOUBLE)), (CAST(1024 AS DOUBLE)), (CAST(1000 AS DOUBLE)), (CAST(0.5 AS DOUBLE)), (CAST(0 AS DOUBLE)), (CAST(-8 AS DOUBLE)), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x      | LOG2(x)           |
+      |--------|-------------------|
+      | 8.0    | 3.0               |
+      | 1024.0 | 10.0              |
+      | 1000.0 | 9.965784284662087 |
+      | 0.5    | -1.0              |
+      | 0.0    | -Infinity         |
+      | -8.0   | NaN               |
+      | NULL   | NULL              |
+
+  - title: Powers of two
+    description: The result can miss the integer in the last digit, even for a power of two.
+    sql: |
+      SELECT x, LOG2(x) AS `LOG2(x)`
+      FROM (VALUES (CAST(536870912 AS DOUBLE)), (CAST(1073741824 AS DOUBLE)), (CAST(8 AS DOUBLE))) AS t(x);
+    result: |
+      | x             | LOG2(x)            |
+      |---------------|--------------------|
+      | 5.36870912E8  | 29.000000000000004 |
+      | 1.073741824E9 | 30.0               |
+      | 8.0           | 3.0                |

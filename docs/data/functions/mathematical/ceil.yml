@@ -1,0 +1,69 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: CEIL
+summary: Returns the smallest integer value that is greater than or equal to a number.
+
+syntax:
+  sql: |
+    CEIL(x)
+    CEILING(x)
+  java: $("x").ceil()
+  python: col("x").ceil()
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number to round up.
+
+returns:
+  description: "`x` rounded up to an integer value. `CEILING` is the same function."
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DECIMAL(p, 0)` for a `DECIMAL(p, s)`, otherwise the type of `x`. NOT NULL if `x` is NOT NULL."
+
+notes:
+  - CEIL also rounds a date or time up to a unit, as in `CEIL(ts TO HOUR)`. The [date and time functions]({{< ref "docs/sql/built-in-functions/date-and-time" >}}) describe that form.
+
+see_also:
+  - {name: FLOOR, ref: mathematical/floor}
+  - {name: ROUND, ref: mathematical/round}
+  - {name: TRUNCATE, ref: mathematical/truncate}
+
+examples:
+  - title: Round up
+    description: A negative number rounds toward zero. A NULL value returns NULL.
+    sql: |
+      SELECT d, CEIL(d) AS `CEIL(d)`, CEILING(d) AS `CEILING(d)`
+      FROM (VALUES (1.5), (-1.5), (2.0), (CAST(NULL AS DECIMAL(2, 1)))) AS t(d);
+    result: |
+      | d    | CEIL(d) | CEILING(d) |
+      |------|---------|------------|
+      | 1.5  | 2       | 2          |
+      | -1.5 | -1      | -1         |
+      | 2.0  | 2       | 2          |
+      | NULL | NULL    | NULL       |
+
+  - title: The result type
+    description: A `DECIMAL` loses its decimal places, and a `DOUBLE` stays a `DOUBLE`.
+    sql: |
+      SELECT d, CEIL(d) AS `CEIL(d)`, TYPEOF(CEIL(d)) AS `TYPEOF(CEIL(d))`, x, CEIL(x) AS `CEIL(x)`, TYPEOF(CEIL(x)) AS `TYPEOF(CEIL(x))`
+      FROM (VALUES (CAST(1.25 AS DECIMAL(10, 2)), CAST(1.25 AS DOUBLE))) AS t(d, x);
+    result: |
+      | d    | CEIL(d) | TYPEOF(CEIL(d))         | x    | CEIL(x) | TYPEOF(CEIL(x)) |
+      |------|---------|-------------------------|------|---------|-----------------|
+      | 1.25 | 2       | DECIMAL(10, 0) NOT NULL | 1.25 | 2.0     | DOUBLE NOT NULL |

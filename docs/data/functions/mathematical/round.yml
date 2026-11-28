@@ -1,0 +1,97 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: ROUND
+summary: Returns a number rounded to a given number of decimal places.
+
+syntax:
+  sql: ROUND(x [, digits])
+  java: $("x").round(digits)
+  python: col("x").round(digits)
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number to round.
+  - name: digits
+    type: TINYINT, SMALLINT, INT
+    required: false
+    default: "`0`"
+    description: The number of decimal places to keep. A negative value rounds to the left of the decimal point, so `-2` rounds to hundreds. The Table API requires it.
+
+returns:
+  description: "`x` rounded to `digits` decimal places. A half rounds away from zero, so `2.5` gives `3` and `-2.5` gives `-3`."
+  nulls: Returns NULL if `x` or `digits` is NULL.
+  type: For a `DECIMAL(p, s)` and a `digits` below `s` that is a literal or omitted, a `DECIMAL` with `digits` decimal places, or none if `digits` is negative, and room for one more integer digit. Otherwise the type of `x`. NOT NULL if both arguments are NOT NULL.
+
+notes:
+  - A `DOUBLE` is rounded from its shortest decimal form, so `ROUND(2.675E0, 2)` is `2.68`, although 2.675 has no exact binary value. A `FLOAT` isn't, so `ROUND(CAST(2.675 AS FLOAT), 2)` is `2.67`.
+  - For a `DECIMAL` `x` and a `digits` below the scale of `x` that isn't a literal, such as a column, the result is wrong, such as `0.123` instead of `12.3` for `ROUND(12.345, n)` with `n` `1`. Use a literal `digits`, or cast `x` to `DOUBLE`, which keeps about 15 significant digits.
+  - A `FLOAT` or `DOUBLE` that is `NaN` or infinite fails the job.
+
+see_also:
+  - {name: TRUNCATE, ref: mathematical/truncate}
+  - {name: CEIL, ref: mathematical/ceil}
+  - {name: FLOOR, ref: mathematical/floor}
+
+examples:
+  - title: Round to decimal places
+    description: Without `digits`, the result is an integer value. A negative `digits` rounds to the left of the decimal point. A NULL value returns NULL.
+    sql: |
+      SELECT d, ROUND(d, 2) AS `ROUND(d, 2)`, ROUND(d) AS `ROUND(d)`, ROUND(d, -1) AS `ROUND(d, -1)`
+      FROM (VALUES (12.3456), (-12.3456), (CAST(NULL AS DECIMAL(6, 4)))) AS t(d);
+    result: |
+      | d        | ROUND(d, 2) | ROUND(d) | ROUND(d, -1) |
+      |----------|-------------|----------|--------------|
+      | 12.3456  | 12.35       | 12       | 10           |
+      | -12.3456 | -12.35      | -12      | -10          |
+      | NULL     | NULL        | NULL     | NULL         |
+
+  - title: Halves round away from zero
+    description: "`2.5` rounds to `3`, and `-2.5` to `-3`."
+    sql: |
+      SELECT d, ROUND(d) AS `ROUND(d)`, ROUND(d, 2) AS `ROUND(d, 2)`
+      FROM (VALUES (2.500), (-2.500), (0.125), (-0.125)) AS t(d);
+    result: |
+      | d      | ROUND(d) | ROUND(d, 2) |
+      |--------|----------|-------------|
+      | 2.500  | 3        | 2.50        |
+      | -2.500 | -3       | -2.50       |
+      | 0.125  | 0        | 0.13        |
+      | -0.125 | 0        | -0.13       |
+
+  - title: Round a DOUBLE and a FLOAT
+    description: A `DOUBLE` rounds its shortest decimal form, so `2.675` rounds up. The same value as a `FLOAT` rounds down.
+    sql: |
+      SELECT x, ROUND(x, 2) AS `ROUND(x, 2)`, ROUND(CAST(x AS FLOAT), 2) AS `ROUND(CAST(x AS FLOAT), 2)`
+      FROM (VALUES (CAST(2.675 AS DOUBLE)), (CAST(1.005 AS DOUBLE))) AS t(x);
+    result: |
+      | x     | ROUND(x, 2) | ROUND(CAST(x AS FLOAT), 2) |
+      |-------|-------------|----------------------------|
+      | 2.675 | 2.68        | 2.67                       |
+      | 1.005 | 1.01        | 1.0                        |
+
+  - title: The result type
+    description: For a `DECIMAL`, the decimal places of the result follow `digits`.
+    sql: |
+      SELECT d, ROUND(d, 2) AS `ROUND(d, 2)`, TYPEOF(ROUND(d, 2)) AS `TYPEOF(ROUND(d, 2))`, TYPEOF(ROUND(d, -2)) AS `TYPEOF(ROUND(d, -2))`
+      FROM (VALUES (CAST(1234.5678 AS DECIMAL(10, 4)))) AS t(d);
+    result: |
+      | d         | ROUND(d, 2) | TYPEOF(ROUND(d, 2))    | TYPEOF(ROUND(d, -2))   |
+      |-----------|-------------|------------------------|------------------------|
+      | 1234.5678 | 1234.57     | DECIMAL(9, 2) NOT NULL | DECIMAL(7, 0) NOT NULL |

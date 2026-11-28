@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: COT
+summary: Returns the cotangent of an angle in radians.
+
+syntax:
+  sql: COT(x)
+  java: $("x").cot()
+  python: col("x").cot
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: An angle in radians.
+
+returns:
+  description: The cotangent of `x`, which is 1 divided by the tangent of `x`. `COT(0)` is `Infinity`.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: TAN, ref: mathematical/tan}
+  - {name: RADIANS, ref: mathematical/radians}
+
+examples:
+  - title: Cotangent of common angles
+    description: At `0`, the result is `Infinity` instead of an error. A NULL angle returns NULL.
+    sql: |
+      SELECT x, COT(x) AS `COT(x)`
+      FROM (VALUES (0.0E0), (PI() / 4), (PI() / 2), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x                  | COT(x)                |
+      |--------------------|-----------------------|
+      | 0.0                | Infinity              |
+      | 0.7853981633974483 | 1.0000000000000002    |
+      | 1.5707963267948966 | 6.123233995736766E-17 |
+      | NULL               | NULL                  |

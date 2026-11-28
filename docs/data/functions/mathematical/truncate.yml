@@ -1,0 +1,100 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: TRUNCATE
+summary: Returns a number cut to a given number of decimal places, without rounding.
+
+syntax:
+  sql: TRUNCATE(x [, digits])
+  java: |
+    $("x").truncate()
+    $("x").truncate(digits)
+  python: |
+    col("x").truncate()
+    col("x").truncate(digits)
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number to cut.
+  - name: digits
+    type: TINYINT, SMALLINT, INT
+    required: false
+    default: "`0`"
+    description: The number of decimal places to keep. A negative value sets that many digits left of the decimal point to zero.
+
+returns:
+  description: "`x` cut toward zero to `digits` decimal places."
+  nulls: Returns NULL if `x` or `digits` is NULL.
+  type: For a `DECIMAL(p, s)` and a `digits` below `s` that is a literal or omitted, a `DECIMAL` with `digits` decimal places, or none if `digits` is negative, and room for one more integer digit. Otherwise the type of `x`. NOT NULL if both arguments are NOT NULL.
+
+notes:
+  - For a `DECIMAL` `x` and a `digits` below the scale of `x` that isn't a literal, such as a column, the result is wrong, such as `0.123` instead of `12.3` for `TRUNCATE(12.345, n)` with `n` `1`. Use a literal `digits`, or cast `x` to `DOUBLE`, which keeps about 15 significant digits.
+  - A `DOUBLE` is cut from its shortest decimal form, so `TRUNCATE(0.7E0, 1)` is `0.7`. A `FLOAT` isn't, so `TRUNCATE(CAST(0.7 AS FLOAT), 1)` is `0.6` instead of `0.7`.
+  - A `FLOAT` or `DOUBLE` that is `NaN`, infinite, or `1E20` or more in absolute value fails the job.
+  - A `TINYINT` or `SMALLINT` `x` fails. Cast it to `INT` first.
+
+see_also:
+  - {name: ROUND, ref: mathematical/round}
+  - {name: FLOOR, ref: mathematical/floor}
+  - {name: CEIL, ref: mathematical/ceil}
+
+examples:
+  - title: Cut toward zero
+    description: Without `digits`, the result is an integer value. A negative `digits` sets digits left of the decimal point to zero. A NULL value returns NULL.
+    sql: |
+      SELECT d, TRUNCATE(d, 1) AS `TRUNCATE(d, 1)`, TRUNCATE(d) AS `TRUNCATE(d)`, TRUNCATE(d, -1) AS `TRUNCATE(d, -1)`
+      FROM (VALUES (12.99), (-12.99), (CAST(NULL AS DECIMAL(4, 2)))) AS t(d);
+    result: |
+      | d      | TRUNCATE(d, 1) | TRUNCATE(d) | TRUNCATE(d, -1) |
+      |--------|----------------|-------------|-----------------|
+      | 12.99  | 12.9           | 12          | 10              |
+      | -12.99 | -12.9          | -12         | -10             |
+      | NULL   | NULL           | NULL        | NULL            |
+
+  - title: The result type
+    description: A `DECIMAL` without `digits` gives an integer value, while a `DOUBLE` stays a `DOUBLE`.
+    sql: |
+      SELECT d, TRUNCATE(d) AS `TRUNCATE(d)`, TYPEOF(TRUNCATE(d)) AS `TYPEOF(TRUNCATE(d))`, x, TRUNCATE(x) AS `TRUNCATE(x)`, TYPEOF(TRUNCATE(x)) AS `TYPEOF(TRUNCATE(x))`
+      FROM (VALUES (42.324, CAST(42.324 AS DOUBLE))) AS t(d, x);
+    result: |
+      | d      | TRUNCATE(d) | TYPEOF(TRUNCATE(d))    | x      | TRUNCATE(x) | TYPEOF(TRUNCATE(x)) |
+      |--------|-------------|------------------------|--------|-------------|---------------------|
+      | 42.324 | 42          | DECIMAL(3, 0) NOT NULL | 42.324 | 42.0        | DOUBLE NOT NULL     |
+
+  - title: Cut a DOUBLE and a FLOAT
+    description: A `DOUBLE` is cut from its shortest decimal form. The same value as a `FLOAT` is cut from its binary value, which is slightly lower.
+    sql: |
+      SELECT x, TRUNCATE(x, 1) AS `TRUNCATE(x, 1)`, TRUNCATE(CAST(x AS FLOAT), 1) AS `TRUNCATE(CAST(x AS FLOAT), 1)`
+      FROM (VALUES (CAST(0.7 AS DOUBLE)), (CAST(2.3 AS DOUBLE))) AS t(x);
+    result: |
+      | x   | TRUNCATE(x, 1) | TRUNCATE(CAST(x AS FLOAT), 1) |
+      |-----|----------------|-------------------------------|
+      | 0.7 | 0.7            | 0.6                           |
+      | 2.3 | 2.3            | 2.2                           |
+
+  - title: Integers
+    description: A negative `digits` sets the last digits of an integer to zero.
+    sql: |
+      SELECT i, TRUNCATE(i, -2) AS `TRUNCATE(i, -2)`
+      FROM (VALUES (1259), (-1259)) AS t(i);
+    result: |
+      | i     | TRUNCATE(i, -2) |
+      |-------|-----------------|
+      | 1259  | 1200            |
+      | -1259 | -1200           |

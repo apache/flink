@@ -108,131 +108,132 @@ logical:
     page: logical-operators
 
 arithmetic:
-  - sql: + numeric
-    table: + NUMERIC
-    description: Returns NUMERIC.
-  - sql: '- numeric'
-    table: '- numeric'
-    description: Returns negative Numeric
-  - sql: numeric1 + numeric2
-    table: NUMERIC1 + NUMERIC2
-    description: Returns NUMERIC1 plus NUMERIC2.
-  - sql: numeric1 - numeric2
-    table: NUMERIC1 - NUMERIC2
-    description: Return NUMERIC1 minus NUMERIC2
-  - sql: numeric1 * numeric2
-    table: NUMERIC1 * NUMERIC2
-    description: Returns NUMERIC1 multiplied by NUMERIC2
-  - sql: numeric1 / numeric2
-    table: NUMERIC1 / NUMERIC2
-    description: Returns NUMERIC1 divided by NUMERIC2
-  - sql: numeric1 % numeric2
-    table: MOD(numeric1, numeric2)
-    description: Returns the remainder (modulus) of numeric1 divided by numeric2. The result is negative only if numeric1 is negative.
-  - sql: POWER(numeric1, numeric2)
-    table: NUMERIC1.power(NUMERIC2)
-    description: Returns NUMERIC1 raised to the power of NUMERIC2.
-  - sql: ABS(numeric)
-    table: numeric.abs()
-    description: Returns the absolute value of numeric.
-  - sql: SQRT(numeric)
-    table: NUMERIC.sqrt()
-    description: Returns the square root of NUMERIC.
-  - sql: LN(numeric)
-    table: NUMERIC.ln()
-    description: Returns the natural logarithm (base e) of NUMERIC.
-  - sql: LOG10(numeric)
-    table: numeric.log10()
-    description: Returns the base 10 logarithm of numeric.
-  - sql: LOG2(numeric)
-    table: numeric.log2()
-    description: Returns the base 2 logarithm of numeric.
+  - sql: ABS(x)
+    table: x.abs()
+    page: abs
+  - sql: ACOS(x)
+    table: x.acos()
+    page: acos
+  - sql: expr1 + expr2
+    table: expr1.plus(expr2)
+    page: arithmetic-operators
+  - sql: expr1 - expr2
+    table: expr1.minus(expr2)
+    page: arithmetic-operators
+  - sql: expr1 * expr2
+    table: expr1.times(expr2)
+    page: arithmetic-operators
+  - sql: expr1 / expr2
+    table: expr1.dividedBy(expr2)
+    page: arithmetic-operators
+  - sql: +expr
+    page: arithmetic-operators
+  - sql: '-expr'
+    table: negative(expr)
+    page: arithmetic-operators
+  - sql: ASIN(x)
+    table: x.asin()
+    page: asin
+  - sql: ATAN(x)
+    table: x.atan()
+    page: atan
+  - sql: ATAN2(y, x)
+    table: atan2(y, x)
+    page: atan2
   - sql: |
-      LOG(numeric2)
-      LOG(numeric1, numeric2)
-    table: |
-      NUMERIC1.log()
-      NUMERIC1.log(NUMERIC2)
-    description: When called with one argument, returns the natural logarithm of numeric2. When called with two arguments, this function returns the logarithm of numeric2 to the base numeric1. Currently, numeric2 must be greater than 0 and numeric1 must be greater than 1.
-  - sql: EXP(numeric)
-    table: NUMERIC.exp()
-    description: Returns e raised to the power of numeric.
-  - sql: |
-      CEIL(numeric)
-      CEILING(numeric)
-    table: |
-      NUMERIC.ceil()
-      NUMERIC.ceiling()
-    description: Rounds numeric up, and returns the smallest number that is greater than or equal to numeric.
-  - sql: FLOOR(numeric)
-    table: NUMERIC.floor()
-    description: Rounds numeric down, and returns the largest number that is less than or equal to numeric.
-  - sql: SIN(numeric)
-    table: NUMERIC.sin()
-    description: Returns the sine of numeric.
-  - sql: SINH(numeric)
-    table: NUMERIC.sinh()
-    description: Returns the hyperbolic sine of numeric. The return type is DOUBLE.
-  - sql: COS(numeric)
-    table: NUMERIC.cos()
-    description: Returns the cosine of numeric.
-  - sql: TAN(numeric)
-    table: NUMERIC.tan()
-    description: Returns the tangent of numeric.
-  - sql: TANH(numeric)
-    table: NUMERIC.tanh()
-    description: Returns the hyperbolic tangent of numeric. The return type is DOUBLE.
-  - sql: COT(numeric)
-    table: NUMERIC.cot()
-    description: Returns the cotangent of a numeric.
-  - sql: ASIN(numeric)
-    table: NUMERIC.asin()
-    description: Returns the arc sine of numeric.
-  - sql: ACOS(numeric)
-    table: NUMERIC.acos()
-    description: Returns the arc cosine of numeric.
-  - sql: ATAN(numeric)
-    table: NUMERIC.atan()
-    description: Returns the arc tangent of numeric.
-  - sql: ATAN2(numeric1, numeric2)
-    table: atan2(NUMERIC1, NUMERIC2)
-    description: Returns the arc tangent of a coordinate (NUMERIC1, NUMERIC2).
-  - sql: COSH(numeric)
-    table: NUMERIC.cosh()
-    description: Returns the hyperbolic cosine of NUMERIC. Return value type is DOUBLE.
-  - sql: DEGREES(numeric)
-    table: NUMERIC.degrees()
-    description: Returns the degree representation of a radian NUMERIC.
-  - sql: RADIANS(numeric)
-    table: NUMERIC.radians()
-    description: Returns the radian representation of a degree NUMERIC.
-  - sql: SIGN(numeric)
-    table: NUMERIC.sign()
-    description: Returns the signum of NUMERIC.
-  - sql: ROUND(NUMERIC, INT)
-    table: NUMERIC.round(INT)
-    description: Returns a number rounded to INT decimal places for NUMERIC.
-  - sql: PI()
-    table: pi()
-    description: Returns a value that is closer than any other values to pi.
+      CEIL(x)
+      CEILING(x)
+    table: x.ceil()
+    page: ceil
+  - sql: COS(x)
+    table: x.cos()
+    page: cos
+  - sql: COSH(x)
+    table: x.cosh()
+    page: cosh
+  - sql: COT(x)
+    table: x.cot()
+    page: cot
+  - sql: DEGREES(x)
+    table: x.degrees()
+    page: degrees
   - sql: E()
     table: e()
-    description: Returns a value that is closer than any other values to e.
+    page: e
+  - sql: EXP(x)
+    table: x.exp()
+    page: exp
+  - sql: FLOOR(x)
+    table: x.floor()
+    page: floor
+  - sql: LN(x)
+    table: x.ln()
+    page: ln
+  - sql: |
+      LOG(x)
+      LOG(base, x)
+    table: |
+      x.log()
+      x.log(base)
+    page: log
+  - sql: LOG10(x)
+    table: x.log10()
+    page: log10
+  - sql: LOG2(x)
+    table: x.log2()
+    page: log2
+  - sql: MOD(dividend, divisor)
+    table: dividend.mod(divisor)
+    page: mod
+  - sql: dividend % divisor
+    page: mod
+  - sql: PI()
+    table: pi()
+    page: pi
+  - sql: POWER(base, exponent)
+    table: base.power(exponent)
+    page: power
+  - sql: RADIANS(x)
+    table: x.radians()
+    page: radians
   - sql: RAND()
     table: rand()
-    description: Returns a pseudorandom double value in the range [0.0, 1.0)
-  - sql: RAND(INT)
-    table: rand(INT)
-    description: Returns a pseudorandom double value in the range [0.0, 1.0) with an initial seed integer. Two RAND functions will return identical sequences of numbers if they have the same initial seed.
-  - sql: RAND_INTEGER(INT)
-    table: randInteger(INT)
-    description: Returns a pseudorandom integer value in the range [0, INT)
-  - sql: RAND_INTEGER(INT1, INT2)
-    table: randInteger(INT1, INT2)
-    description: Returns a pseudorandom integer value in the range [0, INT2) with an initial seed INT1. Two RAND_INTEGER functions will return identical sequences of numbers if they have the same initial seed and bound.
-  - sql: TRUNCATE(numeric1, integer2)
-    table: NUMERIC1.truncate(INTEGER2)
-    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
+    page: rand
+  - sql: RAND(seed)
+    table: rand(seed)
+    page: rand
+  - sql: RAND_INTEGER(bound)
+    table: randInteger(bound)
+    page: rand-integer
+  - sql: RAND_INTEGER(seed, bound)
+    table: randInteger(seed, bound)
+    page: rand-integer
+  - sql: ROUND(x [, digits])
+    table: x.round(digits)
+    page: round
+  - sql: SIGN(x)
+    table: x.sign()
+    page: sign
+  - sql: SIN(x)
+    table: x.sin()
+    page: sin
+  - sql: SINH(x)
+    table: x.sinh()
+    page: sinh
+  - sql: SQRT(x)
+    table: x.sqrt()
+    page: sqrt
+  - sql: TAN(x)
+    table: x.tan()
+    page: tan
+  - sql: TANH(x)
+    table: x.tanh()
+    page: tanh
+  - sql: TRUNCATE(x [, digits])
+    table: |
+      x.truncate()
+      x.truncate(digits)
+    page: truncate
 
 string:
   - sql: string1 || string2

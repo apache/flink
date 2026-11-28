@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: FLOOR
+summary: Returns the largest integer value that is less than or equal to a number.
+
+syntax:
+  sql: FLOOR(x)
+  java: $("x").floor()
+  python: col("x").floor()
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: The number to round down.
+
+returns:
+  description: "`x` rounded down to an integer value."
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DECIMAL(p, 0)` for a `DECIMAL(p, s)`, otherwise the type of `x`. NOT NULL if `x` is NOT NULL."
+
+notes:
+  - FLOOR also rounds a date or time down to a unit, as in `FLOOR(ts TO HOUR)`. The [date and time functions]({{< ref "docs/sql/built-in-functions/date-and-time" >}}) describe that form.
+
+see_also:
+  - {name: CEIL, ref: mathematical/ceil}
+  - {name: ROUND, ref: mathematical/round}
+  - {name: TRUNCATE, ref: mathematical/truncate}
+
+examples:
+  - title: Round down
+    description: A negative number rounds away from zero. A NULL value returns NULL.
+    sql: |
+      SELECT d, FLOOR(d) AS `FLOOR(d)`
+      FROM (VALUES (1.5), (-1.5), (2.0), (CAST(NULL AS DECIMAL(2, 1)))) AS t(d);
+    result: |
+      | d    | FLOOR(d) |
+      |------|----------|
+      | 1.5  | 1        |
+      | -1.5 | -2       |
+      | 2.0  | 2        |
+      | NULL | NULL     |
+
+  - title: The result type
+    description: A `DECIMAL` loses its decimal places, and a `DOUBLE` stays a `DOUBLE`.
+    sql: |
+      SELECT d, FLOOR(d) AS `FLOOR(d)`, TYPEOF(FLOOR(d)) AS `TYPEOF(FLOOR(d))`, x, FLOOR(x) AS `FLOOR(x)`, TYPEOF(FLOOR(x)) AS `TYPEOF(FLOOR(x))`
+      FROM (VALUES (CAST(-1.25 AS DECIMAL(10, 2)), CAST(-1.25 AS DOUBLE))) AS t(d, x);
+    result: |
+      | d     | FLOOR(d) | TYPEOF(FLOOR(d))        | x     | FLOOR(x) | TYPEOF(FLOOR(x)) |
+      |-------|----------|-------------------------|-------|----------|------------------|
+      | -1.25 | -2       | DECIMAL(10, 0) NOT NULL | -1.25 | -2.0     | DOUBLE NOT NULL  |

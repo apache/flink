@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+name: SIN
+summary: Returns the sine of an angle in radians.
+
+syntax:
+  sql: SIN(x)
+  java: $("x").sin()
+  python: col("x").sin
+
+arguments:
+  - name: x
+    type: Any numeric type
+    required: true
+    description: An angle in radians.
+
+returns:
+  description: The sine of `x`, from -1 to 1.
+  nulls: Returns NULL if `x` is NULL.
+  type: "`DOUBLE`, NOT NULL if `x` is NOT NULL."
+
+see_also:
+  - {name: COS, ref: mathematical/cos}
+  - {name: ASIN, ref: mathematical/asin}
+  - {name: RADIANS, ref: mathematical/radians}
+
+examples:
+  - title: Sine of common angles
+    description: The result is a `DOUBLE` approximation, so `SIN(PI())` is a tiny number instead of `0`. A NULL angle returns NULL.
+    sql: |
+      SELECT x, SIN(x) AS `SIN(x)`
+      FROM (VALUES (0.0E0), (PI() / 6), (PI() / 2), (PI()), (CAST(NULL AS DOUBLE))) AS t(x);
+    result: |
+      | x                  | SIN(x)                 |
+      |--------------------|------------------------|
+      | 0.0                | 0.0                    |
+      | 0.5235987755982988 | 0.49999999999999994    |
+      | 1.5707963267948966 | 1.0                    |
+      | 3.141592653589793  | 1.2246467991473532E-16 |
+      | NULL               | NULL                   |
+
+  - title: An angle in degrees
+    description: Convert degrees to radians with `RADIANS` first. Without it, the number is read as radians.
+    sql: |
+      SELECT deg, SIN(deg) AS `SIN(deg)`, SIN(RADIANS(deg)) AS `SIN(RADIANS(deg))`
+      FROM (VALUES (0), (30), (90), (180)) AS t(deg);
+    result: |
+      | deg | SIN(deg)            | SIN(RADIANS(deg))      |
+      |-----|---------------------|------------------------|
+      | 0   | 0.0                 | 0.0                    |
+      | 30  | -0.9880316240928617 | 0.49999999999999994    |
+      | 90  | 0.8939966636005579  | 1.0                    |
+      | 180 | -0.8011526357338304 | 1.2246467991473532E-16 |
