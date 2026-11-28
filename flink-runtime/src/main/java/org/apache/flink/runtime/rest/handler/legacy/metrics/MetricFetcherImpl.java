@@ -25,6 +25,7 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -258,10 +259,24 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
                 .queryMetrics(timeout)
                 .thenComposeAsync(
                         (MetricDumpSerialization.MetricSerializationResult result) -> {
-                            metrics.addAll(deserializer.deserialize(result));
+                            final List<MetricDump> metricDumps = deserializer.deserialize(result);
+                            metrics.addAll(metricDumps, isComplete(result, metricDumps));
                             return FutureUtils.completedVoidFuture();
                         },
                         executor);
+    }
+
+    /**
+     * Whether the given dumps are the full set of metrics the queried component currently reports.
+     * Only a complete dump may be used to remove metrics from the {@link MetricStore}, as every
+     * metric missing from the dump would be removed otherwise.
+     */
+    private static boolean isComplete(
+            MetricDumpSerialization.MetricSerializationResult result,
+            List<MetricDump> metricDumps) {
+        final int numSerializedMetrics =
+                result.numCounters + result.numGauges + result.numMeters + result.numHistograms;
+        return !result.incomplete && metricDumps.size() == numSerializedMetrics;
     }
 
     @Nonnull

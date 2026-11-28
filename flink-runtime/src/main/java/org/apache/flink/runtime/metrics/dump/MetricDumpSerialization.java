@@ -82,6 +82,14 @@ public class MetricDumpSerialization {
         public final int numMeters;
         public final int numHistograms;
 
+        /**
+         * Whether metrics registered with the query service were omitted from this result, either
+         * because they could not be serialized or because the serialized dump exceeded the maximum
+         * message size. An incomplete result does not reflect the full set of metrics the query
+         * service currently reports.
+         */
+        public final boolean incomplete;
+
         public MetricSerializationResult(
                 byte[] serializedCounters,
                 byte[] serializedGauges,
@@ -91,6 +99,28 @@ public class MetricDumpSerialization {
                 int numGauges,
                 int numMeters,
                 int numHistograms) {
+            this(
+                    serializedCounters,
+                    serializedGauges,
+                    serializedMeters,
+                    serializedHistograms,
+                    numCounters,
+                    numGauges,
+                    numMeters,
+                    numHistograms,
+                    false);
+        }
+
+        public MetricSerializationResult(
+                byte[] serializedCounters,
+                byte[] serializedGauges,
+                byte[] serializedMeters,
+                byte[] serializedHistograms,
+                int numCounters,
+                int numGauges,
+                int numMeters,
+                int numHistograms,
+                boolean incomplete) {
 
             Preconditions.checkNotNull(serializedCounters);
             Preconditions.checkNotNull(serializedGauges);
@@ -108,6 +138,7 @@ public class MetricDumpSerialization {
             this.numGauges = numGauges;
             this.numMeters = numMeters;
             this.numHistograms = numHistograms;
+            this.incomplete = incomplete;
         }
     }
 
@@ -127,7 +158,8 @@ public class MetricDumpSerialization {
          * Serializes the given metrics and returns the resulting byte array.
          *
          * <p>Should a {@link Metric} accessed in this method throw an exception it will be omitted
-         * from the returned {@link MetricSerializationResult}.
+         * from the returned {@link MetricSerializationResult}, which is then marked as {@link
+         * MetricSerializationResult#incomplete}.
          *
          * <p>If the serialization of any primitive or String fails then the returned {@link
          * MetricSerializationResult} is partially corrupted. Such a result can be deserialized
@@ -201,6 +233,10 @@ public class MetricDumpSerialization {
                 }
             }
 
+            final int numRegisteredMetrics =
+                    counters.size() + gauges.size() + histograms.size() + meters.size();
+            final int numSerializedMetrics = numCounters + numGauges + numHistograms + numMeters;
+
             return new MetricSerializationResult(
                     countersBuffer.getCopyOfBuffer(),
                     gaugesBuffer.getCopyOfBuffer(),
@@ -209,7 +245,8 @@ public class MetricDumpSerialization {
                     numCounters,
                     numGauges,
                     numMeters,
-                    numHistograms);
+                    numHistograms,
+                    numSerializedMetrics < numRegisteredMetrics);
         }
 
         public void close() {

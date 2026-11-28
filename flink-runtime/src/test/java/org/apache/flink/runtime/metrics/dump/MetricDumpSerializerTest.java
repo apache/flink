@@ -82,6 +82,33 @@ class MetricDumpSerializerTest {
     }
 
     @Test
+    void testResultIsIncompleteIfMetricCannotBeSerialized() {
+        MetricDumpSerialization.MetricDumpSerializer serializer =
+                new MetricDumpSerialization.MetricDumpSerializer();
+        MetricDumpSerialization.MetricDumpDeserializer deserializer =
+                new MetricDumpSerialization.MetricDumpDeserializer();
+
+        Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
+        counters.put(
+                new SimpleCounter(),
+                new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "c"));
+
+        Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
+        gauges.put(
+                () -> {
+                    throw new RuntimeException("Expected test exception.");
+                },
+                new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "g"));
+
+        MetricDumpSerialization.MetricSerializationResult output =
+                serializer.serialize(
+                        counters, gauges, Collections.emptyMap(), Collections.emptyMap());
+
+        assertThat(output.incomplete).isTrue();
+        assertThat(deserializer.deserialize(output)).hasSize(1);
+    }
+
+    @Test
     void testJavaSerialization() throws IOException {
         MetricDumpSerialization.MetricDumpSerializer serializer =
                 new MetricDumpSerialization.MetricDumpSerializer();
@@ -168,6 +195,7 @@ class MetricDumpSerializerTest {
 
         MetricDumpSerialization.MetricSerializationResult serialized =
                 serializer.serialize(counters, gauges, histograms, meters);
+        assertThat(serialized.incomplete).isFalse();
         List<MetricDump> deserialized = deserializer.deserialize(serialized);
 
         // ===== Counters

@@ -194,7 +194,8 @@ public class MetricQueryService extends RpcEndpoint implements MetricQueryServic
                 numCounters,
                 numGauges,
                 numMeters,
-                numHistograms);
+                numHistograms,
+                serializationResult.incomplete || hasExceededBefore);
     }
 
     private boolean exceedsMessageSizeLimit(final int currentSize) {

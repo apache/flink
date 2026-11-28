@@ -37,9 +37,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableMap;
@@ -162,13 +165,23 @@ public class MetricStore {
     }
 
     /**
-     * Add metric dumps to the store.
+     * Adds the metric dumps of a single metric query service to the store.
      *
-     * @param metricDumps to add.
+     * <p>If the dump is complete, metrics of the contained execution attempts that are no longer
+     * reported, e.g. because their metric group was closed, are removed from the store. Execution
+     * attempts that are not contained in the dump are left untouched, so that finished and
+     * cancelled tasks keep their last reported values.
+     *
+     * @param metricDumps to add
+     * @param isComplete whether the dumps contain all metrics the query service currently reports
      */
-    synchronized void addAll(List<MetricDump> metricDumps) {
+    synchronized void addAll(List<MetricDump> metricDumps, boolean isComplete) {
+        final Map<ExecutionAttemptKey, Set<String>> reportedMetrics = new HashMap<>();
         for (MetricDump metric : metricDumps) {
-            add(metric);
+            add(metric, reportedMetrics);
+        }
+        if (isComplete) {
+            reportedMetrics.forEach(this::removeUnreportedMetrics);
         }
     }
 
@@ -249,6 +262,15 @@ public class MetricStore {
 
     @VisibleForTesting
     public void add(MetricDump metric) {
+        add(metric, new HashMap<>());
+    }
+
+    /**
+     * Adds a single metric dump and records the keys written to the execution attempt stores in
+     * {@code reportedMetrics}, so that {@link #removeUnreportedMetrics} can drop the keys that an
+     * attempt stopped reporting.
+     */
+    private void add(MetricDump metric, Map<ExecutionAttemptKey, Set<String>> reportedMetrics) {
         try {
             QueryScopeInfo info = metric.scopeInfo;
             TaskManagerMetricStore tm;
@@ -308,7 +330,16 @@ public class MetricStore {
                     attempt =
                             subtask.attempts.computeIfAbsent(
                                     taskInfo.attemptNumber, k -> new ComponentMetricStore());
-                    addMetric(attempt, name, metric);
+                    addMetric(
+                            attempt,
+                            name,
+                            metric,
+                            reportedMetricsOf(
+                                    reportedMetrics,
+                                    taskInfo.jobID,
+                                    taskInfo.vertexID,
+                                    taskInfo.subtaskIndex,
+                                    taskInfo.attemptNumber));
                     // If the attempt is representative one, its metrics can be updated to the
                     // subtask and task metric store.
                     if (isRepresentativeAttempt) {
@@ -344,7 +375,16 @@ public class MetricStore {
                     attempt =
                             subtask.attempts.computeIfAbsent(
                                     operatorInfo.attemptNumber, k -> new ComponentMetricStore());
-                    addMetric(attempt, operatorInfo.operatorName + "." + name, metric);
+                    addMetric(
+                            attempt,
+                            operatorInfo.operatorName + "." + name,
+                            metric,
+                            reportedMetricsOf(
+                                    reportedMetrics,
+                                    operatorInfo.jobID,
+                                    operatorInfo.vertexID,
+                                    operatorInfo.subtaskIndex,
+                                    operatorInfo.attemptNumber));
 
                     // If the attempt is representative one, its metrics can be updated to the
                     // subtask and task metric store.
@@ -401,34 +441,133 @@ public class MetricStore {
                 == attemptNumber;
     }
 
+    private static Consumer<String> reportedMetricsOf(
+            Map<ExecutionAttemptKey, Set<String>> reportedMetrics,
+            String jobID,
+            String vertexID,
+            int subtaskIndex,
+            int attemptNumber) {
+        return reportedMetrics.computeIfAbsent(
+                        new ExecutionAttemptKey(jobID, vertexID, subtaskIndex, attemptNumber),
+                        k -> new HashSet<>())
+                ::add;
+    }
+
+    private void removeUnreportedMetrics(ExecutionAttemptKey key, Set<String> reportedMetrics) {
+        final JobMetricStore job = jobs.get(key.jobID);
+        if (job == null) {
+            return;
+        }
+        final TaskMetricStore task = job.tasks.get(key.vertexID);
+        if (task == null) {
+            return;
+        }
+        final SubtaskMetricStore subtask = task.subtasks.get(key.subtaskIndex);
+        if (subtask == null) {
+            return;
+        }
+        final ComponentMetricStore attempt = subtask.attempts.get(key.attemptNumber);
+        if (attempt == null) {
+            return;
+        }
+        attempt.retainMetrics(reportedMetrics);
+        // The subtask and task stores only contain the metrics of the representative attempt, so
+        // they must only be cleaned up based on what the representative attempt reports.
+        if (isRepresentativeAttempt(key.jobID, key.vertexID, key.subtaskIndex, key.attemptNumber)) {
+            subtask.retainMetrics(reportedMetrics);
+            task.retainSubtaskMetrics(key.subtaskIndex, reportedMetrics);
+        }
+    }
+
     private void addMetric(ComponentMetricStore target, String name, MetricDump metric) {
+        addMetric(target, name, metric, ignored -> {});
+    }
+
+    private void addMetric(
+            ComponentMetricStore target,
+            String name,
+            MetricDump metric,
+            Consumer<String> addedMetricNames) {
         switch (metric.getCategory()) {
             case METRIC_CATEGORY_COUNTER:
                 MetricDump.CounterDump counter = (MetricDump.CounterDump) metric;
-                target.addMetric(name, String.valueOf(counter.count));
+                addMetric(target, name, String.valueOf(counter.count), addedMetricNames);
                 break;
             case METRIC_CATEGORY_GAUGE:
                 MetricDump.GaugeDump gauge = (MetricDump.GaugeDump) metric;
-                target.addMetric(name, gauge.value);
+                addMetric(target, name, gauge.value, addedMetricNames);
                 break;
             case METRIC_CATEGORY_HISTOGRAM:
                 MetricDump.HistogramDump histogram = (MetricDump.HistogramDump) metric;
-                target.addMetric(name + "_min", String.valueOf(histogram.min));
-                target.addMetric(name + "_max", String.valueOf(histogram.max));
-                target.addMetric(name + "_mean", String.valueOf(histogram.mean));
-                target.addMetric(name + "_median", String.valueOf(histogram.median));
-                target.addMetric(name + "_stddev", String.valueOf(histogram.stddev));
-                target.addMetric(name + "_p75", String.valueOf(histogram.p75));
-                target.addMetric(name + "_p90", String.valueOf(histogram.p90));
-                target.addMetric(name + "_p95", String.valueOf(histogram.p95));
-                target.addMetric(name + "_p98", String.valueOf(histogram.p98));
-                target.addMetric(name + "_p99", String.valueOf(histogram.p99));
-                target.addMetric(name + "_p999", String.valueOf(histogram.p999));
+                addMetric(target, name + "_min", String.valueOf(histogram.min), addedMetricNames);
+                addMetric(target, name + "_max", String.valueOf(histogram.max), addedMetricNames);
+                addMetric(target, name + "_mean", String.valueOf(histogram.mean), addedMetricNames);
+                addMetric(
+                        target,
+                        name + "_median",
+                        String.valueOf(histogram.median),
+                        addedMetricNames);
+                addMetric(
+                        target,
+                        name + "_stddev",
+                        String.valueOf(histogram.stddev),
+                        addedMetricNames);
+                addMetric(target, name + "_p75", String.valueOf(histogram.p75), addedMetricNames);
+                addMetric(target, name + "_p90", String.valueOf(histogram.p90), addedMetricNames);
+                addMetric(target, name + "_p95", String.valueOf(histogram.p95), addedMetricNames);
+                addMetric(target, name + "_p98", String.valueOf(histogram.p98), addedMetricNames);
+                addMetric(target, name + "_p99", String.valueOf(histogram.p99), addedMetricNames);
+                addMetric(target, name + "_p999", String.valueOf(histogram.p999), addedMetricNames);
                 break;
             case METRIC_CATEGORY_METER:
                 MetricDump.MeterDump meter = (MetricDump.MeterDump) metric;
-                target.addMetric(name, String.valueOf(meter.rate));
+                addMetric(target, name, String.valueOf(meter.rate), addedMetricNames);
                 break;
+        }
+    }
+
+    private static void addMetric(
+            ComponentMetricStore target,
+            String name,
+            String value,
+            Consumer<String> addedMetricNames) {
+        target.addMetric(name, value);
+        addedMetricNames.accept(name);
+    }
+
+    /** Identifies the execution attempt whose metrics are kept in a single attempt store. */
+    private static final class ExecutionAttemptKey {
+        private final String jobID;
+        private final String vertexID;
+        private final int subtaskIndex;
+        private final int attemptNumber;
+
+        private ExecutionAttemptKey(
+                String jobID, String vertexID, int subtaskIndex, int attemptNumber) {
+            this.jobID = jobID;
+            this.vertexID = vertexID;
+            this.subtaskIndex = subtaskIndex;
+            this.attemptNumber = attemptNumber;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final ExecutionAttemptKey that = (ExecutionAttemptKey) o;
+            return subtaskIndex == that.subtaskIndex
+                    && attemptNumber == that.attemptNumber
+                    && jobID.equals(that.jobID)
+                    && vertexID.equals(that.vertexID);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(jobID, vertexID, subtaskIndex, attemptNumber);
         }
     }
 
@@ -487,6 +626,11 @@ public class MetricStore {
                                 metrics.remove(key);
                                 transientMetrics.remove(key);
                             });
+        }
+
+        void retainMetrics(Set<String> metricsToRetain) {
+            metrics.keySet().retainAll(metricsToRetain);
+            transientMetrics.retainAll(metricsToRetain);
         }
     }
 
@@ -575,6 +719,20 @@ public class MetricStore {
                             });
 
             subtasks.keySet().retainAll(activeSubtasks);
+        }
+
+        /**
+         * Retains only the given metrics of the subtask, which are stored with the pattern
+         * subtaskIndex.metricName in this store.
+         */
+        void retainSubtaskMetrics(int subtaskIndex, Set<String> metricsToRetain) {
+            final String prefix = subtaskIndex + ".";
+            final Predicate<String> isUnreportedSubtaskMetric =
+                    key ->
+                            key.startsWith(prefix)
+                                    && !metricsToRetain.contains(key.substring(prefix.length()));
+            metrics.keySet().removeIf(isUnreportedSubtaskMetric);
+            transientMetrics.removeIf(isUnreportedSubtaskMetric);
         }
 
         void removeTransientMetrics(int subtaskIndex) {
