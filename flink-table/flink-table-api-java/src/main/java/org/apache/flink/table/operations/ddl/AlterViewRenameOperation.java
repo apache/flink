@@ -34,10 +34,20 @@ public class AlterViewRenameOperation extends AlterViewOperation {
 
     private final ObjectIdentifier newViewIdentifier;
 
+    private final boolean ignoreIfNotExists;
+
     public AlterViewRenameOperation(
             ObjectIdentifier viewIdentifier, ObjectIdentifier newViewIdentifier) {
+        this(viewIdentifier, newViewIdentifier, false);
+    }
+
+    public AlterViewRenameOperation(
+            ObjectIdentifier viewIdentifier,
+            ObjectIdentifier newViewIdentifier,
+            boolean ignoreIfNotExists) {
         super(viewIdentifier);
         this.newViewIdentifier = newViewIdentifier;
+        this.ignoreIfNotExists = ignoreIfNotExists;
     }
 
     public ObjectIdentifier getNewViewIdentifier() {
@@ -60,7 +70,7 @@ public class AlterViewRenameOperation extends AlterViewOperation {
             catalog.renameTable(
                     getViewIdentifier().toObjectPath(),
                     getNewViewIdentifier().getObjectName(),
-                    false);
+                    ignoreIfNotExists);
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (TableAlreadyExistException | TableNotExistException e) {
             throw new ValidationException(

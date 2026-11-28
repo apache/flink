@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ddl.view.SqlAlterView;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -178,25 +177,61 @@ public class SqlNodeConvertUtils {
     }
 
     /**
-     * Validate the view to alter is valid and existed and return the {@link CatalogView} to alter.
+     * Resolves the view to alter, or returns an empty optional when it does not exist or is a
+     * temporary view. Callers decide whether that is an error based on {@code IF EXISTS}.
      */
-    static CatalogView validateAlterView(SqlAlterView alterView, ConvertContext context) {
+    static Optional<CatalogView> findAlterView(SqlAlterView alterView, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(alterView.getFullName());
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         Optional<ContextResolvedTable> optionalCatalogTable =
                 context.getCatalogManager().getTable(viewIdentifier);
-        // check the view exist and is not a temporary view
         if (optionalCatalogTable.isEmpty() || optionalCatalogTable.get().isTemporary()) {
-            throw new ValidationException(
-                    String.format("View %s doesn't exist or is a temporary view.", viewIdentifier));
+            return Optional.empty();
         }
-        // check the view is exactly a view
-        CatalogBaseTable baseTable = optionalCatalogTable.get().getResolvedTable();
-        ValidationUtils.validateTableKind(baseTable, TableKind.VIEW, "alter view");
+        ValidationUtils.validateTableKind(
+                optionalCatalogTable.get().getResolvedTable(), TableKind.VIEW, "alter view");
+        return Optional.of((CatalogView) optionalCatalogTable.get().getResolvedTable());
+    }
 
-        return (CatalogView) baseTable;
+    /**
+     * Validate the view to alter is valid and existed and return the {@link CatalogView} to alter.
+     */
+    static CatalogView validateAlterView(SqlAlterView alterView, ConvertContext context) {
+        Optional<CatalogView> optionalView = findAlterView(alterView, context);
+        if (optionalView.isPresent()) {
+            return optionalView.get();
+        }
+
+        // check the view exists and is not a temporary view
+        throw viewNotExistException(alterView, context);
+    }
+
+    /**
+     * Like {@link #validateAlterView(SqlAlterView, ConvertContext)}, but returns {@code null}
+     * instead of failing when the view is absent and the statement carries {@code IF EXISTS}.
+     */
+    static @Nullable CatalogView validateAlterViewWithIfExists(
+            SqlAlterView alterView, ConvertContext context) {
+        Optional<CatalogView> optionalView = findAlterView(alterView, context);
+        if (optionalView.isPresent()) {
+            return optionalView.get();
+        }
+
+        if (alterView.ifExists()) {
+            return null;
+        }
+        throw viewNotExistException(alterView, context);
+    }
+
+    private static ValidationException viewNotExistException(
+            SqlAlterView alterView, ConvertContext context) {
+        ObjectIdentifier viewIdentifier =
+                context.getCatalogManager()
+                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
+        return new ValidationException(
+                String.format("View %s doesn't exist or is a temporary view.", viewIdentifier));
     }
 
     private static void validateDuplicatedColumnNames(

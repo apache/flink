@@ -30,9 +30,17 @@ public class AlterViewAsOperation extends AlterViewOperation {
 
     private final CatalogView newView;
 
+    private final boolean ignoreIfNotExists;
+
     public AlterViewAsOperation(ObjectIdentifier viewIdentifier, CatalogView newView) {
+        this(viewIdentifier, newView, false);
+    }
+
+    public AlterViewAsOperation(
+            ObjectIdentifier viewIdentifier, CatalogView newView, boolean ignoreIfNotExists) {
         super(viewIdentifier);
         this.newView = newView;
+        this.ignoreIfNotExists = ignoreIfNotExists;
     }
 
     public CatalogView getNewView() {
@@ -48,7 +56,7 @@ public class AlterViewAsOperation extends AlterViewOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
-        ctx.getCatalogManager().alterTable(getNewView(), getViewIdentifier(), false);
+        ctx.getCatalogManager().alterTable(getNewView(), getViewIdentifier(), ignoreIfNotExists);
         return TableResultImpl.TABLE_RESULT_OK;
     }
 }
