@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -312,7 +313,17 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             checkState(tokensUpdateFuture == null, "Manager is already started");
         }
 
-        startTokensUpdate();
+        // Keep the initial update on the same executor as scheduled refreshes. Waiting with
+        // FutureTask avoids running the provider on a ForkJoinWorkerThread and triggering
+        // ForkJoinPool compensation while freshUGI.doAs() is effective.
+        final FutureTask<Void> initialUpdate =
+                new FutureTask<>(
+                        () -> {
+                            startTokensUpdate();
+                            return null;
+                        });
+        ioExecutor.execute(initialUpdate);
+        initialUpdate.get();
     }
 
     @VisibleForTesting
