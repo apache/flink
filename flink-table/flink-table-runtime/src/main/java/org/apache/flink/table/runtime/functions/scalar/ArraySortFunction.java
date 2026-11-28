@@ -109,8 +109,14 @@ public class ArraySortFunction extends BuiltInScalarFunction {
         @Override
         public int compare(Object o1, Object o2) {
             try {
-                boolean isGreater = (boolean) greaterHandle.invoke(o1, o2);
-                return isAscending ? (isGreater ? 1 : -1) : (isGreater ? -1 : 1);
+                // Two probes so equal elements return 0 (Comparator contract).
+                if ((boolean) greaterHandle.invoke(o1, o2)) {
+                    return isAscending ? 1 : -1;
+                }
+                if ((boolean) greaterHandle.invoke(o2, o1)) {
+                    return isAscending ? -1 : 1;
+                }
+                return 0;
             } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
