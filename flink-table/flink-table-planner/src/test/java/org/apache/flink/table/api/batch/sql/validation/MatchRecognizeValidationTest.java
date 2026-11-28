@@ -288,7 +288,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
                         + "  PATTERN (A B)\n"
                         + "  DEFINE\n"
                         + "    A AS a = 1,\n"
-                        + "    B AS b = 'b'\n"
+                        + "    B AS b = 2\n"
                         + ") AS T";
         assertThatExceptionOfType(TableException.class)
                 .isThrownBy(() -> tEnv.executeSql(sql))

@@ -125,7 +125,7 @@ class StateTtlHintTest extends TableTestBase {
     void testJoinStateTtlHintWithSubQueryContainsJoin() {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1 "
-                        + "join (select T2.* from T2 join T3 on T2.b2 = T3.b3) TMP on T1.a1 = TMP.b2";
+                        + "join (select T2.* from T2 join T3 on T2.b2 = T3.b3) TMP on T1.a1 = TMP.a2";
         assertThatThrownBy(() -> verify(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(

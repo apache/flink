@@ -322,9 +322,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
         util.verifyExecPlan(
           "SELECT * FROM MyTable AS T JOIN LookupTable "
             + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id"))
-      .hasMessageContaining("implicit type conversion between VARCHAR(2147483647) and INTEGER " +
-        "is not supported on join's condition now")
-      .isInstanceOf[TableException]
+      .hasMessageContaining("Cannot compare STRING with INT in '`T`.`b` = `D`.`id`'")
+      .isInstanceOf[ValidationException]
   }
 
   @Test

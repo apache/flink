@@ -68,6 +68,7 @@ import org.apache.calcite.sql.SqlSnapshot;
 import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWindowTableFunction;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
@@ -170,6 +171,55 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             }
         }
         super.validateLiteral(literal);
+    }
+
+    @Override
+    public void validateCall(SqlCall call, SqlValidatorScope scope) {
+        super.validateCall(call, scope);
+        checkNoNumericAndCharacterStringComparison(call, scope);
+    }
+
+    /**
+     * Rejects a comparison of a numeric with a character string value, e.g. {@code int_col =
+     * str_col}. It would need an implicit type conversion, which isn't supported (see FLIP-154), so
+     * code generation would fail on it.
+     */
+    private void checkNoNumericAndCharacterStringComparison(SqlCall call, SqlValidatorScope scope) {
+        switch (call.getKind()) {
+            case EQUALS:
+            case NOT_EQUALS:
+            case IS_DISTINCT_FROM:
+            case IS_NOT_DISTINCT_FROM:
+                break;
+            default:
+                return;
+        }
+        final SqlValidatorScope operandScope = scope.getOperandScope(call);
+        final RelDataType leftType = deriveType(operandScope, call.operand(0));
+        final RelDataType rightType = deriveType(operandScope, call.operand(1));
+        final int stringOperand;
+        if (SqlTypeUtil.isNumeric(leftType) && SqlTypeUtil.isCharacter(rightType)) {
+            stringOperand = 1;
+        } else if (SqlTypeUtil.isCharacter(leftType) && SqlTypeUtil.isNumeric(rightType)) {
+            stringOperand = 0;
+        } else {
+            return;
+        }
+        throw new ValidationException(
+                String.format(
+                        "Cannot compare %s with %s in '%s'. Implicit type conversion between "
+                                + "numeric and character string types is not supported. Use CAST "
+                                + "to convert one side explicitly, e.g. CAST(%s AS %s).",
+                        toSummaryString(leftType),
+                        toSummaryString(rightType),
+                        call,
+                        // Quotes the names, which SqlIdentifier#toString doesn't
+                        call.operand(stringOperand).toSqlString(AnsiSqlDialect.DEFAULT).getSql(),
+                        toSummaryString(stringOperand == 0 ? rightType : leftType)));
+    }
+
+    private static String toSummaryString(RelDataType type) {
+        return FlinkTypeFactory.toLogicalType(type).copy(true).asSummaryString();
     }
 
     @Override

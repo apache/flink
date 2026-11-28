@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -219,8 +219,7 @@ class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestBase {
                 String rightColumnName = "f" + (i + columnBaseIdx);
                 DataType rightType = rightTypesOnFailure.get(i);
                 String exceptionMsg =
-                        getImplicitConversionFromStringExceptionMsg(
-                                rightType.getLogicalType().getTypeRoot());
+                        getImplicitConversionFromStringExceptionMsg(rightType.getLogicalType());
                 testSetSpec.testSqlValidationError(
                         String.format(
                                 "CAST(%s AS %s) = CAST(%s AS %s)",
@@ -230,10 +229,8 @@ class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestBase {
             return testSetSpec;
         }
 
-        private String getImplicitConversionFromStringExceptionMsg(LogicalTypeRoot rightType) {
-            return String.format(
-                    "implicit type conversion between VARCHAR and %s is not supported now",
-                    rightType.toString());
+        private String getImplicitConversionFromStringExceptionMsg(LogicalType rightType) {
+            return String.format("Cannot compare STRING with %s", rightType.asSummaryString());
         }
     }
 }

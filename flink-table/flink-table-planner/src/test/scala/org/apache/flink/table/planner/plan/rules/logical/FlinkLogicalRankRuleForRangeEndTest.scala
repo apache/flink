@@ -132,8 +132,8 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
     val sqlQuery =
       """
         |SELECT * FROM (
-        | SELECT a, b, RANK() OVER (PARTITION BY a ORDER BY c) rk FROM MyTable) t
-        |WHERE rk = b
+        | SELECT a, b, c, RANK() OVER (PARTITION BY a ORDER BY c) rk FROM MyTable) t
+        |WHERE rk = c
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }

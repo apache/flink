@@ -63,9 +63,9 @@ abstract class JoinTestBase extends TableTestBase {
 
   @Test
   def testJoinNonMatchingKeyTypes(): Unit = {
-    // INTEGER and VARCHAR(65536) does not have common type now
-    assertThatExceptionOfType(classOf[TableException])
+    assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g"))
+      .withMessageContaining("Cannot compare INT with STRING")
   }
 
   @Test

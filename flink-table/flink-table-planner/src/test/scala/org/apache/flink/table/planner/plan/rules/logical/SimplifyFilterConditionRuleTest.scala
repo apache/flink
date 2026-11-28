@@ -51,7 +51,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
   @Test
   def testSimpleCondition(): Unit = {
     util.verifyRelPlan(
-      "SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true")
+      "SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true")
   }
 
   @Test
@@ -89,7 +89,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
   @Test
   def testComplexCondition1(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE " +
-      "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS " +
+      "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true AND EXISTS " +
       "(SELECT * FROM y WHERE x.a = y.d AND 2=2 AND " +
       "(SELECT count(*) FROM z WHERE i = 5 AND j = 6) > 0)"
     util.verifyRelPlan(sqlQuery)
@@ -98,7 +98,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
   @Test
   def testComplexCondition2(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE " +
-      "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS " +
+      "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true AND EXISTS " +
       "(SELECT * FROM y WHERE x.a = y.d AND " +
       "(SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)"
     util.verifyRelPlan(sqlQuery)
@@ -107,7 +107,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
   @Test
   def testComplexCondition3(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE " +
-      "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS " +
+      "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = '3') AND true AND EXISTS " +
       "(SELECT * FROM y WHERE x.a = y.d AND 2=2 AND " +
       "(SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)"
     util.verifyRelPlan(sqlQuery)
