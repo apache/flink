@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeNullHandling;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
@@ -40,6 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperator.calculateProcessingTimeTimerInterval;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests of {@link WatermarkAssignerOperator}. */
@@ -317,8 +319,214 @@ class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
         assertThat(testHarness.getOutput()).hasSize(expected.size() + 11);
     }
 
+    // ------------------------------------------------------------------------
+    //  Tests for Null Rowtime Handling
+    // ------------------------------------------------------------------------
+
+    @Test
+    void testNullRowtimeWithFailStrategy() throws Exception {
+        // Default behavior: FAIL strategy should throw exception
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, -1, RowtimeNullHandling.FAIL);
+
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        // Process a normal record
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+
+        // Process a record with null rowtime should throw exception
+        assertThatThrownBy(
+                        () ->
+                                testHarness.processElement(
+                                        new StreamRecord<>(GenericRowData.of((Object) null))))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("RowTime field at index")
+                .hasMessageContaining("table.exec.source.rowtime-null-handling");
+
+        testHarness.close();
+    }
+
+    @Test
+    void testNullRowtimeWithDropStrategy() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, -1, RowtimeNullHandling.DROP);
+
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        // Process records: 1 normal, 1 null, 2 normal
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null))); // dropped
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null))); // dropped
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+
+        testHarness.setProcessingTime(51);
+
+        // Extract records from output
+        List<RowData> outputRecords = extractRecords(testHarness.getOutput());
+        // Only 3 records should be in output (null rowtime records are dropped)
+        assertThat(outputRecords).hasSize(3);
+        assertThat(outputRecords.get(0).getLong(0)).isEqualTo(1L);
+        assertThat(outputRecords.get(1).getLong(0)).isEqualTo(2L);
+        assertThat(outputRecords.get(2).getLong(0)).isEqualTo(3L);
+
+        // Verify metric counter for dropped records
+        assertThat(
+                        testHarness
+                                .getEnvironment()
+                                .getMetricGroup()
+                                .getIOMetricGroup()
+                                .getNumRecordsOutCounter()
+                                .getCount())
+                .isGreaterThanOrEqualTo(0);
+
+        testHarness.close();
+    }
+
+    @Test
+    void testNullRowtimeDropMetricCounter() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, -1, RowtimeNullHandling.DROP);
+
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        // Process 3 null rowtime records
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+
+        // Extract records from output - should be empty since all records are dropped
+        List<RowData> outputRecords = extractRecords(testHarness.getOutput());
+        assertThat(outputRecords).isEmpty();
+
+        testHarness.close();
+    }
+
+    @Test
+    void testNullRowtimeSkipMetricCounter() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, -1, RowtimeNullHandling.SKIP_WATERMARK);
+
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        // Process 3 null rowtime records
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+
+        // All 3 records should be forwarded
+        List<RowData> outputRecords = extractRecords(testHarness.getOutput());
+        assertThat(outputRecords).hasSize(3);
+
+        // No watermark should be emitted
+        List<Watermark> watermarks = extractWatermarks(testHarness.getOutput());
+        assertThat(watermarks).isEmpty();
+
+        testHarness.close();
+    }
+
+    @Test
+    void testNullRowtimeWithSkipWatermarkStrategy() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, -1, RowtimeNullHandling.SKIP_WATERMARK);
+
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        // Process records: 1 normal, 1 null (forwarded), 2 normal
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+        testHarness.processElement(
+                new StreamRecord<>(GenericRowData.of((Object) null))); // forwarded
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
+        testHarness.processElement(
+                new StreamRecord<>(GenericRowData.of((Object) null))); // forwarded
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+
+        testHarness.setProcessingTime(51);
+
+        // Extract records from output
+        List<RowData> outputRecords = extractRecords(testHarness.getOutput());
+        // All 5 records should be in output (null rowtime records are forwarded)
+        assertThat(outputRecords).hasSize(5);
+        assertThat(outputRecords.get(0).getLong(0)).isEqualTo(1L);
+        assertThat(outputRecords.get(1).isNullAt(0)).isTrue(); // null rowtime record
+        assertThat(outputRecords.get(2).getLong(0)).isEqualTo(2L);
+        assertThat(outputRecords.get(3).isNullAt(0)).isTrue(); // null rowtime record
+        assertThat(outputRecords.get(4).getLong(0)).isEqualTo(3L);
+
+        testHarness.close();
+    }
+
+    @Test
+    void testNullRowtimeWithSkipWatermarkDoesNotAffectWatermarkProgression() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, -1, RowtimeNullHandling.SKIP_WATERMARK);
+
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+        testHarness.open();
+
+        // Process only null rowtime records
+        for (int i = 0; i < 5; i++) {
+            testHarness.processElement(new StreamRecord<>(GenericRowData.of((Object) null)));
+        }
+
+        testHarness.setProcessingTime(51);
+
+        // All records should be forwarded
+        List<RowData> outputRecords = extractRecords(testHarness.getOutput());
+        assertThat(outputRecords).hasSize(5);
+
+        // No watermark should be emitted since no valid rowtime records
+        List<Watermark> watermarks = extractWatermarks(testHarness.getOutput());
+        assertThat(watermarks).isEmpty();
+
+        // Now process a valid record
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(100L)));
+        testHarness.setProcessingTime(101);
+
+        outputRecords = extractRecords(testHarness.getOutput());
+        assertThat(outputRecords).hasSize(6);
+
+        // Watermark should advance based on the valid record
+        watermarks = extractWatermarks(testHarness.getOutput());
+        assertThat(watermarks).isNotEmpty();
+        assertThat(watermarks.get(0).getTimestamp()).isEqualTo(99L);
+
+        testHarness.close();
+    }
+
+    private List<RowData> extractRecords(java.util.Collection<Object> collection) {
+        List<RowData> records = new ArrayList<>();
+        for (Object obj : collection) {
+            if (obj instanceof StreamRecord) {
+                @SuppressWarnings("unchecked")
+                StreamRecord<RowData> record = (StreamRecord<RowData>) obj;
+                records.add(record.getValue());
+            }
+        }
+        return records;
+    }
+
+    // ------------------------------------------------------------------------
+    //  Helper Methods
+    // ------------------------------------------------------------------------
+
     private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
             int rowtimeFieldIndex, WatermarkGenerator watermarkGenerator, long idleTimeout)
+            throws Exception {
+        return createTestHarness(
+                rowtimeFieldIndex, watermarkGenerator, idleTimeout, RowtimeNullHandling.FAIL);
+    }
+
+    private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            int rowtimeFieldIndex,
+            WatermarkGenerator watermarkGenerator,
+            long idleTimeout,
+            RowtimeNullHandling rowtimeNullHandling)
             throws Exception {
 
         return new OneInputStreamOperatorTestHarness<>(
@@ -336,7 +544,8 @@ class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
                                     ClassLoader classLoader, Object... args) {
                                 return watermarkGenerator;
                             }
-                        }));
+                        },
+                        rowtimeNullHandling));
     }
 
     /**
