@@ -170,13 +170,17 @@ The following table shows where the ``PROCESS`` execution mode and the ``THREAD`
       - No
       - No
     * - Async I/O
-      - No
+      - Yes
+      - Yes
+    * - Async I/O with Retry
+      - Yes
       - No
 
 .. note::
     Currently, it still doesn't support to execute Python UDFs in ``THREAD`` execution mode in all places.
     It will fall back to ``PROCESS`` execution mode in these cases. So it may happen that you configure a job
     to execute in ``THREAD`` execution mode, however, it's actually executed in ``PROCESS`` execution mode.
+    The exception is Async I/O with a retry strategy, which fails with an error in ``THREAD`` execution mode.
 
 Execution Behavior
 ==================
