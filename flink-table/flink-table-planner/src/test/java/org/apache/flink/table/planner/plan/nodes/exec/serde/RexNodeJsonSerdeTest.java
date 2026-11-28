@@ -67,6 +67,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -81,6 +82,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
@@ -361,6 +363,42 @@ public class RexNodeJsonSerdeTest {
                                 TableException.class,
                                 "Could not resolve internal system function '$<$2'. "
                                         + "Only the latest version '$<$1' is available."));
+    }
+
+    @ParameterizedTest
+    @MethodSource("versionedOperators")
+    public void testVersionedOperator(RexCall call, SqlOperator operatorV1) throws IOException {
+        final SerdeContext serdeContext = JsonSerdeTestUtil.configuredSerdeContext();
+        final String name = call.getOperator().getName();
+        final String nameV1 = "\"$" + name + "$1\"";
+        final String nameV2 = "\"$" + name + "$2\"";
+        final String json = toJson(serdeContext, call);
+        assertThat(json).contains(nameV2);
+        assertThat(JsonSerdeTestUtil.toObject(serdeContext, json, RexNode.class)).isEqualTo(call);
+
+        final String jsonV1 = json.replace(nameV2, nameV1);
+        final RexCall callV1 =
+                (RexCall) JsonSerdeTestUtil.toObject(serdeContext, jsonV1, RexNode.class);
+        assertThat(callV1.getOperator()).isSameAs(operatorV1);
+        assertThat(callV1.getType()).isEqualTo(call.getType());
+        assertThat(toJson(serdeContext, callV1)).isEqualTo(jsonV1);
+    }
+
+    private static Stream<Arguments> versionedOperators() {
+        final RexBuilder rexBuilder = new RexBuilder(FACTORY);
+        final RexNode array =
+                rexBuilder.makeInputRef(
+                        FACTORY.createArrayType(FACTORY.createSqlType(SqlTypeName.INTEGER), -1), 0);
+        return Stream.of(
+                Arguments.of(
+                        rexBuilder.makeCall(
+                                FlinkSqlOperatorTable.ITEM,
+                                array,
+                                rexBuilder.makeExactLiteral(BigDecimal.ONE)),
+                        FlinkSqlOperatorTable.ITEM_V1),
+                Arguments.of(
+                        rexBuilder.makeCall(FlinkSqlOperatorTable.ELEMENT, array),
+                        FlinkSqlOperatorTable.ELEMENT_V1));
     }
 
     @Nested

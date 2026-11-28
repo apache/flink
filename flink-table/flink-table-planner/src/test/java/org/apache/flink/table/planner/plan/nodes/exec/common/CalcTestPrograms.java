@@ -37,6 +37,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Map;
 
 /** {@link TableTestProgram}s for testing {@link StreamExecCalc} and {@link BatchExecCalc}. */
 public class CalcTestPrograms {
@@ -313,6 +314,44 @@ public class CalcTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT PARSE_JSON(s), TRY_PARSE_JSON(s), v['k'] FROM t")
+                    .build();
+
+    /**
+     * Restores a plan with version 1 of ITEM and ELEMENT, which returns the default value of the
+     * element type instead of NULL for a missing element of a NOT NULL type. Regenerating the plan
+     * would compile version 2.
+     */
+    public static final TableTestProgram CALC_MISSING_ELEMENT_V1 =
+            TableTestProgram.of(
+                            "calc-missing-element-v1",
+                            "validates that a plan with version 1 of ITEM and ELEMENT keeps its results")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "a ARRAY<INT NOT NULL>",
+                                            "m MAP<STRING, INT NOT NULL>",
+                                            "r ROW<f INT NOT NULL>",
+                                            "e ARRAY<INT NOT NULL>")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    new Integer[] {1, 2},
+                                                    Map.of("k", 1),
+                                                    Row.of(1),
+                                                    new Integer[] {1}))
+                                    .producedAfterRestore(
+                                            Row.of(
+                                                    new Integer[] {1},
+                                                    Map.of(),
+                                                    null,
+                                                    new Integer[] {}))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a2 INT", "mk INT", "rf INT", "e1 INT")
+                                    .consumedBeforeRestore("+I[2, 1, 1, 1]")
+                                    .consumedAfterRestore("+I[-1, -1, -1, -1]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT a[2], m['k'], r['f'], ELEMENT(e) FROM t")
                     .build();
 
     // --------------------------------------------------------------------------------------------

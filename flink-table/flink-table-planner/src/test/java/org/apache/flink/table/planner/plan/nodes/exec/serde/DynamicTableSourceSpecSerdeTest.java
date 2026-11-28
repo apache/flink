@@ -40,6 +40,7 @@ import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.LimitPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.MetadataFilterPushDownSpec;
@@ -62,6 +63,7 @@ import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -343,7 +345,57 @@ public class DynamicTableSourceSpecSerdeTest {
                                                                 new BigDecimal(10)))),
                                         predicateRowType3)));
 
-        return Stream.of(spec1, spec2, spec3);
+        final ResolvedSchema resolvedSchema4 =
+                ResolvedSchema.of(Column.physical("arr", DataTypes.ARRAY(DataTypes.INT())));
+
+        final CatalogTable catalogTable4 =
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema4).build())
+                        .options(
+                                Map.of(
+                                        "connector",
+                                        FileSystemTableFactory.IDENTIFIER,
+                                        "format",
+                                        TestCsvFormatFactory.IDENTIFIER,
+                                        "path",
+                                        "/tmp"))
+                        .build();
+
+        final RexNode arr =
+                rexBuilder.makeInputRef(
+                        factory.createArrayType(factory.createSqlType(SqlTypeName.INTEGER), -1), 0);
+        final RexNode one = rexBuilder.makeExactLiteral(BigDecimal.ONE);
+
+        // Plans compiled before version 2 of ITEM and ELEMENT restore version 1. The filesystem
+        // source accepts every filter.
+        DynamicTableSourceSpec spec4 =
+                new DynamicTableSourceSpec(
+                        ContextResolvedTable.temporary(
+                                ObjectIdentifier.of(
+                                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
+                                        "MyTableVersion1"),
+                                new ResolvedCatalogTable(catalogTable4, resolvedSchema4)),
+                        List.of(
+                                new FilterPushDownSpec(
+                                        List.of(
+                                                // arr[1] > 1
+                                                rexBuilder.makeCall(
+                                                        SqlStdOperatorTable.GREATER_THAN,
+                                                        rexBuilder.makeCall(
+                                                                FlinkSqlOperatorTable.ITEM_V1,
+                                                                arr,
+                                                                one),
+                                                        one),
+                                                // ELEMENT(arr) > 1
+                                                rexBuilder.makeCall(
+                                                        SqlStdOperatorTable.GREATER_THAN,
+                                                        rexBuilder.makeCall(
+                                                                FlinkSqlOperatorTable.ELEMENT_V1,
+                                                                arr),
+                                                        one)))));
+
+        return Stream.of(spec1, spec2, spec3, spec4);
     }
 
     @ParameterizedTest

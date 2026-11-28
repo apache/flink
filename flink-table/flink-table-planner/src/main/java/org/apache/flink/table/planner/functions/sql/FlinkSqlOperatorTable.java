@@ -1137,7 +1137,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     // ARRAY OPERATORS
     public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR = new SqlArrayConstructor();
-    public static final SqlOperator ELEMENT = SqlStdOperatorTable.ELEMENT;
+    public static final SqlFunction ELEMENT = SqlStdOperatorTable.ELEMENT;
 
     // MAP OPERATORS
     public static final SqlOperator MAP_VALUE_CONSTRUCTOR = new SqlMapConstructor();
@@ -1296,6 +1296,28 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // --------------------------------------------------------------------------------------------
 
     /**
+     * Returns the default value of the element type instead of NULL for a missing element of a NOT
+     * NULL type, for example -1 for {@code ARRAY<INT NOT NULL>}.
+     */
+    public static final BuiltInSqlOperator ITEM_V1 =
+            BuiltInSqlOperator.newBuilder(ITEM).version(1).internal().build();
+
+    /** Returns NULL for a missing element. */
+    private static final BuiltInSqlOperator ITEM_V2 =
+            BuiltInSqlOperator.newBuilder(ITEM).version(2).build();
+
+    /**
+     * Returns the default value of the element type instead of NULL for a NULL or empty array of a
+     * NOT NULL element type.
+     */
+    public static final BuiltInSqlFunction ELEMENT_V1 =
+            BuiltInSqlFunction.newBuilder(ELEMENT).version(1).internal().build();
+
+    /** Returns NULL for a NULL or empty array. */
+    private static final BuiltInSqlFunction ELEMENT_V2 =
+            BuiltInSqlFunction.newBuilder(ELEMENT).version(2).build();
+
+    /**
      * Maps operators that are not a {@link VersionedSqlOperator} to the {@link
      * VersionedSqlOperator} that defines their latest version in a compiled plan.
      *
@@ -1347,5 +1369,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
      * }
      * }</pre>
      */
-    public static final Map<SqlOperator, VersionedSqlOperator> VERSIONED_OPERATORS = Map.of();
+    public static final Map<SqlOperator, VersionedSqlOperator> VERSIONED_OPERATORS =
+            Map.of(ITEM, ITEM_V2, ELEMENT, ELEMENT_V2);
 }

@@ -875,6 +875,48 @@ class ExprCodeGenerator(
     case _ => 1
   }
 
+  private def generateItem(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
+    operands.head.resultType.getTypeRoot match {
+      case LogicalTypeRoot.ARRAY =>
+        val array = operands.head
+        val index = operands(1)
+        requireInteger(index)
+        generateArrayElementAt(ctx, array, index, resultType)
+
+      case LogicalTypeRoot.MAP =>
+        val key = operands(1)
+        generateMapGet(ctx, operands.head, key, resultType)
+
+      case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
+        generateDot(ctx, operands, resultType)
+
+      case LogicalTypeRoot.VARIANT =>
+        val key = operands(1)
+        generateVariantGet(ctx, operands.head, key)
+
+      case _ => throw new CodeGenException("Expect an array, a map, a row or a variant.")
+    }
+  }
+
+  /**
+   * Returns the result type of version 1 of ITEM and ELEMENT, so that restored plans keep their
+   * results. It is the type of the accessed element, so a missing element of a NOT NULL type gives
+   * the default value of the type instead of NULL. VARIANT access ignores the result type.
+   */
+  private def elementTypeV1(
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): LogicalType = {
+    operands.head.resultType match {
+      case array: ArrayType => array.getElementType
+      case map: MapType => map.getValueType
+      case row: RowType => row.getTypeAt(row.getFieldIndex(operands(1).literalValue.get.toString))
+      case _ => resultType
+    }
+  }
+
   private def isCoalesceLike(operator: SqlOperator): Boolean = operator match {
     case bsf: BridgingSqlFunction =>
       bsf.getDefinition == BuiltInFunctionDefinitions.COALESCE ||
@@ -1149,26 +1191,10 @@ class ExprCodeGenerator(
         generateMap(ctx, resultType, operands)
 
       case ITEM =>
-        operands.head.resultType.getTypeRoot match {
-          case LogicalTypeRoot.ARRAY =>
-            val array = operands.head
-            val index = operands(1)
-            requireInteger(index)
-            generateArrayElementAt(ctx, array, index)
+        generateItem(ctx, operands, resultType)
 
-          case LogicalTypeRoot.MAP =>
-            val key = operands(1)
-            generateMapGet(ctx, operands.head, key)
-
-          case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
-            generateDot(ctx, operands)
-
-          case LogicalTypeRoot.VARIANT =>
-            val key = operands(1)
-            generateVariantGet(ctx, operands.head, key)
-
-          case _ => throw new CodeGenException("Expect an array, a map, a row or a variant.")
-        }
+      case ITEM_V1 =>
+        generateItem(ctx, operands, elementTypeV1(operands, resultType))
 
       case CARDINALITY =>
         operands.head.resultType match {
@@ -1186,10 +1212,15 @@ class ExprCodeGenerator(
       case ELEMENT =>
         val array = operands.head
         requireArray(array)
-        generateArrayElement(ctx, array)
+        generateArrayElement(ctx, array, resultType)
+
+      case ELEMENT_V1 =>
+        val array = operands.head
+        requireArray(array)
+        generateArrayElement(ctx, array, elementTypeV1(operands, resultType))
 
       case DOT =>
-        generateDot(ctx, operands)
+        generateDot(ctx, operands, resultType)
 
       case PROCTIME =>
         // attribute is proctime indicator.
