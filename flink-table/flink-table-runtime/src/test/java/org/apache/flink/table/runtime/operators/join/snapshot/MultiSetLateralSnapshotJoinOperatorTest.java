@@ -62,8 +62,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_CHANGE_BUFFER_STATE_NAME;
-import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_TABLE_STATE_NAME;
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.PROBE_BUFFER_STATE_NAME;
+import static org.apache.flink.table.runtime.operators.join.snapshot.MultiSetBuildStateView.BUILD_TABLE_STATE_NAME;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
@@ -73,8 +73,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
-/** Harness tests for {@link LateralSnapshotJoinOperator}. */
-class LateralSnapshotJoinOperatorTest {
+/** Harness tests for {@link LateralSnapshotJoinOperator} with the multi-set build-side layout. */
+class MultiSetLateralSnapshotJoinOperatorTest {
 
     // ----------------------------------------------------------------- Schema
 
@@ -201,7 +201,8 @@ class LateralSnapshotJoinOperatorTest {
                 filterNullKeys,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
-                stateTtlMs);
+                stateTtlMs,
+                BuildSideSpec.multiSet());
     }
 
     private static LateralSnapshotJoinOperator newOperator(
@@ -872,7 +873,8 @@ class LateralSnapshotJoinOperatorTest {
                         new boolean[] {true, true},
                         100L,
                         null,
-                        null);
+                        null,
+                        BuildSideSpec.multiSet());
 
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -2318,7 +2320,8 @@ class LateralSnapshotJoinOperatorTest {
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
         Map<String, Long> result = new LinkedHashMap<>();
-        for (Map.Entry<RowData, Long> e : op.getBuildTableState().entries()) {
+        for (Map.Entry<RowData, Long> e :
+                ((MultiSetBuildStateView) op.getBuildState()).getBuildTableState().entries()) {
             result.put(e.getKey().getString(1).toString(), e.getValue());
         }
         return result;

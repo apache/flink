@@ -80,15 +80,15 @@ import java.util.concurrent.ScheduledFuture;
  *
  * <ul>
  *   <li>Build-side (input2 / right) changes are handled the same way in both phases: they are
- *       buffered in {@code buildChangeBuffer} and applied lazily to a per-key multi-set in {@code
- *       buildTableState} on the next per-key access (build- or probe-side) once the build-side
- *       watermark has advanced past the buffer's tag, or at the flip. The buffer is keyed by the
- *       build-side row-time attribute ({@code buildRowtimeIndex}) and applied in row-time order
- *       once the build watermark reaches it; changes sharing a row-time are applied in arrival
- *       order, which mirrors the upstream emit order (a retraction directly precedes its
+ *       buffered in {@code buildChangeBuffer} and applied lazily to a per-key build table (see
+ *       {@link BuildStateView}) on the next per-key access (build- or probe-side) once the
+ *       build-side watermark has advanced past the buffer's tag, or at the flip. The buffer is
+ *       keyed by the build-side row-time attribute ({@code buildRowtimeIndex}) and applied in
+ *       row-time order once the build watermark reaches it; changes sharing a row-time are applied
+ *       in arrival order, which mirrors the upstream emit order (a retraction directly precedes its
  *       accumulation). Gating application on the row-time preserves atomic update visibility across
  *       {@code -U}/{@code +U} pairs in JOIN phase. Accumulations whose join key can never match are
- *       not stored.
+ *       not stored. Layouts keyed by an upsert key apply changes on arrival instead.
  *   <li>Probe-side (input1 / left) records are handled differently per phase. During LOAD each is
  *       buffered in {@code probeBuffer} under a synthetic, increasing timestamp with one event-time
  *       timer registered per record. At the flip these timers fire (one record each, interruptibly)
@@ -138,9 +138,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private static final String OPERATOR_PHASE_STATE_NAME = "lateral-snapshot-phase";
 
     /** Keyed state names. */
-    @VisibleForTesting static final String BUILD_TABLE_STATE_NAME = "build-table";
-
     @VisibleForTesting static final String BUILD_CHANGE_BUFFER_STATE_NAME = "build-change-buffer";
+
     @VisibleForTesting static final String BUFFERED_AT_WM_STATE_NAME = "buffered-at-wm";
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
     private static final String PROBE_BUFFER_SEQ_STATE_NAME = "probe-buffer-seq";
@@ -211,6 +210,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     private final GeneratedJoinCondition generatedJoinCondition;
 
+    /** The layout of the committed build side. */
+    private final BuildSideSpec buildSideSpec;
+
     /**
      * Per-equi-key flag indicating whether rows with a NULL in that key position must be filtered
      * before the join condition runs (SQL semantics: {@code NULL = NULL} is not true).
@@ -243,9 +245,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     // -------------------------- transient runtime fields --------------------------
 
+    /** The committed build side of the current key. */
+    private transient BuildStateView buildState;
+
     private transient JoinConditionWithNullFilters joinCondition;
     private transient GenericRowData nullPaddedBuild;
     private transient TimestampedCollector<RowData> collector;
+
+    /** Joins a probe row against the build rows and collects the matches. */
+    private transient ProbeJoiner probeJoiner;
 
     private transient InternalTimerService<VoidNamespace> timerService;
 
@@ -276,15 +284,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     // -------------------------- keyed state --------------------------
 
     /**
-     * Build-side table as multi-set (row → reference count). Holds the committed snapshot, i.e. all
-     * build changes up to the last applied build watermark; probes join against this.
-     */
-    private transient MapState<RowData, Long> buildTableState;
-
-    /**
-     * Build-side changes not yet visible in {@link #buildTableState}, keyed by their build row-time
-     * (multiple changes with the same row-time share a list value). Changes are applied to {@code
-     * buildTableState} once the build watermark reaches their row-time.
+     * Build-side changes not yet visible in the committed build table, keyed by their build
+     * row-time (multiple changes with the same row-time share a list value). Changes are applied to
+     * the build table once the build watermark reaches their row-time.
      */
     private transient MapState<Long, List<RowData>> buildChangeBuffer;
 
@@ -342,7 +344,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             boolean[] filterNullKeys,
             long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
-            @Nullable Long stateTtlMs) {
+            @Nullable Long stateTtlMs,
+            BuildSideSpec buildSideSpec) {
         this.isLeftOuterJoin = isLeftOuterJoin;
         this.leftType = Preconditions.checkNotNull(leftType);
         this.rightType = Preconditions.checkNotNull(rightType);
@@ -354,6 +357,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             throw new IllegalArgumentException("buildRowtimeIndex out of bounds for build row");
         }
         this.generatedJoinCondition = Preconditions.checkNotNull(generatedJoinCondition);
+        this.buildSideSpec = Preconditions.checkNotNull(buildSideSpec);
         this.filterNullKeys = Preconditions.checkNotNull(filterNullKeys);
         this.loadCompletedTime = loadCompletedTime;
         if (this.loadCompletedTime < 0) {
@@ -423,11 +427,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         super.open();
 
         // Setup keyed states
-        buildTableState =
-                getRuntimeContext()
-                        .getMapState(
-                                new MapStateDescriptor<>(
-                                        BUILD_TABLE_STATE_NAME, rightType, Types.LONG));
+        buildState = BuildStateViews.create(getRuntimeContext(), buildSideSpec, rightType);
+        probeJoiner = new ProbeJoiner();
         buildChangeBuffer =
                 getRuntimeContext()
                         .getMapState(
@@ -506,14 +507,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
         LOG.info(
                 "Opened LateralSnapshotJoinOperator: phase={}, leftOuter={}, loadCompletedTime={}, "
-                        + "idleTimeoutMs={}, stateTtlMs=[{}, {}], buildRowtimeIndex={}",
+                        + "idleTimeoutMs={}, stateTtlMs=[{}, {}], buildRowtimeIndex={}, buildSide={}",
                 phase,
                 isLeftOuterJoin,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
                 minStateTtlMs,
                 maxStateTtlMs,
-                buildRowtimeIndex);
+                buildRowtimeIndex,
+                buildSideSpec.getLayout());
 
         if (filterNullKeys.length == 0 && minStateTtlMs > 0) {
             // No equi-key: all build-side rows share a single (empty) key, so state_ttl can only
@@ -583,6 +585,12 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         if (RowDataUtil.isAccumulateMsg(build) && joinCondition.currentKeyCannotMatch()) {
             // A build row that can never match is not stored. Its retraction is still applied, to
             // remove the row if an earlier version stored it.
+            return;
+        }
+        if (!buildState.requiresRowtimeOrdering()) {
+            // apply the build-side change immediately if possible (upsert changes)
+            applyBuildChange(build);
+            refreshStateTtl();
             return;
         }
         // Apply any buffered build-side changes if the build-side watermark has advanced.
@@ -803,18 +811,24 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     /**
-     * Joins a probe-side row against the current build-side table and applies the join predicate.
-     * Returns a null-padded result if the row doesn't match any build-side row and this is a LEFT
-     * OUTER join.
+     * Applies the join condition to the build rows visited by {@link
+     * BuildStateView#forEachRow(BuildStateView.RowVisitor)} and emits each match. A single instance
+     * is reused for all probes.
      */
-    private void joinProbeRow(RowData probe) throws Exception {
-        boolean matched = false;
-        long fanOut = 0;
-        for (Map.Entry<RowData, Long> entry : buildTableState.entries()) {
-            RowData buildRow = entry.getKey();
-            long count = entry.getValue();
+    private final class ProbeJoiner implements BuildStateView.RowVisitor {
+        private RowData probe;
+        private long fanOut;
+
+        long join(RowData probe) throws Exception {
+            this.probe = probe;
+            this.fanOut = 0;
+            buildState.forEachRow(this);
+            return fanOut;
+        }
+
+        @Override
+        public void visit(RowData buildRow, long count) throws Exception {
             if (joinCondition.apply(probe, buildRow)) {
-                matched = true;
                 // Each emitted record uses a fresh JoinedRowData wrapper.
                 // Reusing a row object here is unsafe when subsequent collects mutate it.
                 for (long i = 0; i < count; i++) {
@@ -822,10 +836,20 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                     out.replace(probe, buildRow);
                     out.setRowKind(RowKind.INSERT);
                     collector.collect(out);
-                    fanOut++;
                 }
+                fanOut += count;
             }
         }
+    }
+
+    /**
+     * Joins a probe-side row against the current build-side table and applies the join predicate.
+     * Returns a null-padded result if the row doesn't match any build-side row and this is a LEFT
+     * OUTER join.
+     */
+    private void joinProbeRow(RowData probe) throws Exception {
+        long fanOut = probeJoiner.join(probe);
+        boolean matched = fanOut > 0;
         if (!matched && isLeftOuterJoin) {
             // No join match, emit a null-padded LEFT OUTER join result
             JoinedRowData out = new JoinedRowData();
@@ -858,6 +882,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      */
     @Nullable
     private Long applyBufferedChangesUpToCurrentWm() throws Exception {
+        if (!buildState.requiresRowtimeOrdering()) {
+            return null;
+        }
         Long bufferedAt = bufferedAtWmState.value();
         if (bufferedAt == null) {
             // Nothing buffered for this key.
@@ -944,28 +971,19 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         return hasKept;
     }
 
-    /** Applies a list of build-side changes to the {@code buildTableState} multi-set. */
+    /** Applies a list of build-side changes to the committed build table for the current key. */
     private void applyBuildChanges(List<RowData> changes) throws Exception {
         for (RowData change : changes) {
-            RowKind changeType = change.getRowKind();
-            change.setRowKind(RowKind.INSERT);
-            Long currentCnt = buildTableState.get(change);
-            if (changeType == RowKind.INSERT || changeType == RowKind.UPDATE_AFTER) {
-                buildTableState.put(change, currentCnt == null ? 1L : currentCnt + 1L);
-            } else {
-                if (currentCnt == null || currentCnt <= 0L) {
-                    // Rows that can never match are not stored, so their retractions are expected
-                    // to find nothing.
-                    if (!joinCondition.currentKeyCannotMatch()) {
-                        numUnmatchedBuildRetractions.inc();
-                    }
-                    continue;
-                }
-                if (currentCnt == 1L) {
-                    buildTableState.remove(change);
-                } else {
-                    buildTableState.put(change, currentCnt - 1L);
-                }
+            applyBuildChange(change);
+        }
+    }
+
+    private void applyBuildChange(RowData change) throws Exception {
+        if (!buildState.apply(change)) {
+            // Rows that can never match are not stored, so their retractions are expected to find
+            // nothing.
+            if (!joinCondition.currentKeyCannotMatch()) {
+                numUnmatchedBuildRetractions.inc();
             }
         }
     }
@@ -982,7 +1000,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * defensively; its best-effort gauge is intentionally not adjusted here.
      */
     private void clearAllPerKeyState() {
-        buildTableState.clear();
+        buildState.clear();
         clearBuildChangeBuffer();
         clearProbeBuffer();
         ttlExpiryState.clear();
@@ -1013,6 +1031,16 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     // -------------------------- accessors (testing) --------------------------
 
     @VisibleForTesting
+    public BuildSideSpec getBuildSideSpec() {
+        return buildSideSpec;
+    }
+
+    @VisibleForTesting
+    BuildStateView getBuildState() {
+        return buildState;
+    }
+
+    @VisibleForTesting
     Phase getPhase() {
         return phase;
     }
@@ -1041,11 +1069,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting
     boolean isIdleFlipTimerActive() {
         return idleFlipTimer != null;
-    }
-
-    @VisibleForTesting
-    MapState<RowData, Long> getBuildTableState() {
-        return buildTableState;
     }
 
     @VisibleForTesting
