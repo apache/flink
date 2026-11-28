@@ -25,9 +25,11 @@ import org.apache.flink.types.RowKind;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * For the case that input has joinKey contains uniqueKey. The size of records in state is not
@@ -35,14 +37,30 @@ import java.util.Optional;
  */
 public class JoinKeyContainsUniqueKeyBundle extends BufferBundle<List<RowData>> {
 
+    /**
+     * Tracks join keys whose first accumulate record (+I) was folded away together with a retract
+     * within the same batch, leaving state effectively empty. A subsequent +U for such a key must
+     * be treated as +I because no prior value exists downstream.
+     */
+    private final Set<RowData> insertedAndCleared = new HashSet<>();
+
     @Override
     public int addRecord(RowData joinKey, @Nullable RowData uniqueKey, RowData record) {
+        if (insertedAndCleared.remove(joinKey) && record.getRowKind() == RowKind.UPDATE_AFTER) {
+            record.setRowKind(RowKind.INSERT);
+        }
         bundle.computeIfAbsent(joinKey, key -> new ArrayList<>());
         if (!foldRecord(joinKey, record)) {
             actualSize++;
             bundle.computeIfAbsent(joinKey, key -> new ArrayList<>()).add(record);
         }
         return ++count;
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        insertedAndCleared.clear();
     }
 
     @Override
@@ -60,13 +78,16 @@ public class JoinKeyContainsUniqueKeyBundle extends BufferBundle<List<RowData>> 
     // +--------------------------+----------------------------+----------------------------+
     // |   Before the last        |       Last record          |          Result            |
     // |--------------------------|----------------------------|----------------------------|
-    // |    +I/+U                 |        +U/+I               |    Only keep the last      |
-    // |                          |                            |       (+U/+I) record       |
+    // |    +I                    |        +U                  |    Keep +U as +I           |
+    // |    +I/+U                 |        +I                  |    Only keep the last (+I) |
+    // |    +U                    |        +U                  |    Only keep the last (+U) |
     // |--------------------------|----------------------------|----------------------------|
     // |    -D/-U                 |        -D/-U               |    Only keep the last      |
     // |                          |                            |       (-D/-U) record       |
     // |--------------------------|----------------------------|----------------------------|
-    // |    +I/+U                 |        -U/-D               |       Clear both           |
+    // |    +I                    |        -U/-D               |    Clear both; mark key    |
+    // |                          |                            |    in insertedAndCleared   |
+    // |    +U                    |        -U/-D               |       Clear both           |
     // +--------------------------+----------------------------+----------------------------+
 
     /**
@@ -87,6 +108,14 @@ public class JoinKeyContainsUniqueKeyBundle extends BufferBundle<List<RowData>> 
             if (RowDataUtil.isAccumulateMsg(last)) {
                 if (RowDataUtil.isRetractMsg(record)) {
                     shouldFoldRecord = true;
+                    if (last.getRowKind() == RowKind.INSERT) {
+                        // State was empty before this batch; track so a later +U is corrected.
+                        insertedAndCleared.add(joinKey);
+                    }
+                } else if (last.getRowKind() == RowKind.INSERT
+                        && record.getRowKind() == RowKind.UPDATE_AFTER) {
+                    // +I followed by +U within one batch: the net effect is an INSERT.
+                    record.setRowKind(RowKind.INSERT);
                 }
                 actualSize--;
                 list.remove(list.size() - 1);
