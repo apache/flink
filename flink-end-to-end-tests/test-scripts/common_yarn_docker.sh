@@ -27,6 +27,9 @@ FLINK_TARBALL=flink.tar.gz
 FLINK_DIRNAME=$(basename "${FLINK_DIR}")
 
 MAX_RETRY_SECONDS=120
+# TaskManagers on a NodeManager with a cold localization cache can take more than 2 minutes to
+# download the Flink distribution from HDFS on a loaded CI machine.
+SLOT_REQUEST_TIMEOUT_SECONDS=300
 CLUSTER_SETUP_RETRIES=3
 IMAGE_BUILD_RETRIES=5
 
@@ -39,11 +42,12 @@ start_time=$(date +%s)
 
 # Make sure we stop our cluster at the end
 function cluster_shutdown {
-  if [ ${TRAPPED_EXIT_CODE} != 0 ];then
+  if [ "${TRAPPED_EXIT_CODE}" != 0 ]; then
       debug_copy_and_show_logs
   fi
-  docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" down
-  rm "${FLINK_TARBALL_DIR}/${FLINK_TARBALL}"
+  docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" down -v
+  rm -f "${FLINK_TARBALL_DIR}/${FLINK_TARBALL}"
+  rm -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
 }
 on_exit cluster_shutdown
 
@@ -98,11 +102,36 @@ function start_hadoop_cluster() {
 
 function build_image() {
     echo "Pre-downloading Hadoop tarball"
-    local cache_path
-    cache_path=$(get_artifact "https://archive.apache.org/dist/hadoop/common/hadoop-3.4.3/hadoop-3.4.3.tar.gz")
-    ln "${cache_path}" "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
+    local hadoop_tarball="hadoop-3.4.3.tar.gz"
+    local hadoop_sha512="e25be7e57b4d3c5bfe83895844321a21d6cf7331266d524d8983c27cf484e576c3d79b3b60d590f8cddecf16229d0e232de2491b1b61b362ee7d67072c7290e1"
+    local docker_arch
+    docker_arch=$(docker info --format '{{.Architecture}}' 2>/dev/null || uname -m)
+    if [[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
+        if [[ "${DOCKER_DEFAULT_PLATFORM}" == *"arm64"* || "${DOCKER_DEFAULT_PLATFORM}" == *"aarch64"* ]]; then
+            hadoop_tarball="hadoop-3.4.3-aarch64.tar.gz"
+            hadoop_sha512="2f5c1719b801eedecc5bbed0d4c6d61d7c4850dbb5944fb79da24474f694cb5d0f00b07d1b54cade83f6ca492e1697225f47737cc1a4478ca04102062cf314d5"
+        fi
+    elif [[ "${docker_arch}" == "aarch64" || "${docker_arch}" == "arm64" ]]; then
+        hadoop_tarball="hadoop-3.4.3-aarch64.tar.gz"
+        hadoop_sha512="2f5c1719b801eedecc5bbed0d4c6d61d7c4850dbb5944fb79da24474f694cb5d0f00b07d1b54cade83f6ca492e1697225f47737cc1a4478ca04102062cf314d5"
+    fi
 
-    echo "Building Hadoop Docker container"
+    local cache_path
+    cache_path=$(get_artifact "https://archive.apache.org/dist/hadoop/common/hadoop-3.4.3/${hadoop_tarball}" "${hadoop_sha512}") || return 1
+    local target_tarball="${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
+    ln -f "${cache_path}" "${target_tarball}" || cp -f "${cache_path}" "${target_tarball}"
+
+    local java_version=21
+    if [[ "${PROFILE:-}" == *"jdk17"* || "${PROFILE:-}" == *"jdk11"* ]]; then
+        java_version=17
+    elif [[ "${PROFILE:-}" == *"jdk21"* ]]; then
+        java_version=21
+    elif [[ "${PROFILE:-}" == *"jdk25"* ]]; then
+        java_version=25
+    fi
+    export DOCKER_HADOOP_JAVA_VERSION="${DOCKER_HADOOP_JAVA_VERSION:-${java_version}}"
+
+    echo "Building Hadoop Docker container (JDK ${DOCKER_HADOOP_JAVA_VERSION})"
     docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" build
 }
 
@@ -124,14 +153,14 @@ function start_hadoop_cluster_and_prepare_flink() {
     # Now, at least the container is ready
     docker exec master bash -c "tar xzf /home/hadoop-user/${FLINK_TARBALL} --directory /home/hadoop-user/"
 
-    # Minimal Flink config, bebe
+    # Append Kerberos and slot timeout settings while preserving default config (including JDK 17+ env.java.opts.all)
     FLINK_CONFIG=$(cat << END
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
-slot.request.timeout: 120000
+slot.request.timeout: $((SLOT_REQUEST_TIMEOUT_SECONDS * 1000))
 END
 )
-    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
+    docker exec master bash -c "sed -i '/^security\.kerberos\.login\.\(keytab\|principal\):/d; /^slot\.request\.timeout:/d' /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml && printf '\n%s\n' \"${FLINK_CONFIG}\" >> /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 
     echo "Flink config:"
     docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
@@ -147,7 +176,7 @@ function debug_copy_and_show_logs {
 
     local log_directory="${TEST_DATA_DIR}/logs"
     local yarn_docker_containers
-    yarn_docker_containers="master $(docker ps --format '{{.Names}}' | grep worker)"
+    yarn_docker_containers="master $(docker ps --format '{{.Names}}' | grep worker || true)"
 
     extract_hadoop_logs "${log_directory}" "${yarn_docker_containers}"
     print_logs "${log_directory}"
@@ -198,7 +227,8 @@ function wait_for_single_yarn_application {
         current_time=$(date +%s)
         time_diff=$((current_time - start_time))
 
-        if [[ $time_diff -ge $MAX_RETRY_SECONDS ]]; then
+        # Wait longer than the slot request timeout so that a job without slots fails in Flink first
+        if [[ $time_diff -ge $((SLOT_REQUEST_TIMEOUT_SECONDS + MAX_RETRY_SECONDS)) ]]; then
             echo "Application ${application_id} is in state ${application_state} and we have waited too long, quitting..."
             exit 1
         else
@@ -206,10 +236,10 @@ function wait_for_single_yarn_application {
             sleep 1
         fi
 
-        application_state=$(docker exec master bash -c "yarn application -status ${application_id}" | grep "\sState" | sed 's/.*State : \(\w*\)/\1/')
+        application_state=$(docker exec master bash -c "yarn application -status ${application_id}" | grep "[[:space:]]State" | sed 's/.*State : \([[:alnum:]_]*\)/\1/')
     done
 
-    final_application_state=$(docker exec master bash -c "yarn application -status ${application_id}" | grep "\sFinal-State" | sed 's/.*Final-State : \(\w*\)/\1/')
+    final_application_state=$(docker exec master bash -c "yarn application -status ${application_id}" | grep "[[:space:]]Final-State" | sed 's/.*Final-State : \([[:alnum:]_]*\)/\1/')
 
     echo "Final Application State: ${final_application_state}"
 

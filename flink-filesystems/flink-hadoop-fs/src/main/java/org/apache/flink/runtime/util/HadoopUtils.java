@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -121,14 +122,16 @@ public class HadoopUtils {
                         == UserGroupInformation.AuthenticationMethod.KERBEROS;
     }
 
-    public static boolean areKerberosCredentialsValid(
-            UserGroupInformation ugi, boolean useTicketCache) {
-        Preconditions.checkState(isKerberosSecurityEnabled(ugi));
+    /** Checks whether Kerberos security is enabled in the given Hadoop configuration. */
+    public static boolean isKerberosSecurityEnabled(Configuration hadoopConfiguration) {
+        return SecurityUtil.getAuthenticationMethod(hadoopConfiguration)
+                == UserGroupInformation.AuthenticationMethod.KERBEROS;
+    }
 
-        // note: UGI::hasKerberosCredentials inaccurately reports false
-        // for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
-        // so we check only in ticket cache scenario.
-        if (useTicketCache && !ugi.hasKerberosCredentials()) {
+    public static boolean areKerberosCredentialsValid(UserGroupInformation ugi) {
+        Preconditions.checkState(UserGroupInformation.isSecurityEnabled());
+
+        if (!ugi.hasKerberosCredentials()) {
             if (hasHDFSDelegationToken(ugi)) {
                 LOG.warn(
                         "Hadoop security is enabled but current login user does not have Kerberos credentials, "

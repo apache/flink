@@ -26,7 +26,6 @@ REQUIREMENTS_PATH="${TEST_DATA_DIR}/requirements.txt"
 
 echo "pytest==8.3.5" > "${REQUIREMENTS_PATH}"
 
-# These tests are known to fail on JDK11. See FLINK-13719
 cd "${CURRENT_DIR}/../"
 source "${CURRENT_DIR}"/common_yarn_docker.sh
 # test submitting on yarn
@@ -51,7 +50,6 @@ source /tmp/.uv/bin/activate
 pip install --group /tmp/pyproject.toml:dev
 pip install /tmp/${PYFLINK_LIBRARIES_PACKAGE_FILE}
 pip install /tmp/${PYFLINK_PACKAGE_FILE}
-apt-get install -y zip
 cd /tmp
 zip -q -r /tmp/venv.zip .uv
 "

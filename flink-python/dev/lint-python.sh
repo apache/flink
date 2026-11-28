@@ -31,7 +31,7 @@ function download() {
         wget "$1" -O "$2" -q -T20 -t3
         DOWNLOAD_STATUS="$?"
     else
-        curl "$1" -o "$2" --progress-bar --connect-timeout 20 --retry 3
+        curl -L "$1" -o "$2" --progress-bar --connect-timeout 20 --retry 3
         DOWNLOAD_STATUS="$?"
     fi
     if [ $DOWNLOAD_STATUS -ne 0 ]; then

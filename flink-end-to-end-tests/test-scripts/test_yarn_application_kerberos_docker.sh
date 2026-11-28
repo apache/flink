@@ -81,7 +81,7 @@ if [[ ! "${YARN_APPLICATION_LOGS}" =~ "Receive initial delegation tokens from re
 fi
 
 echo "Running Job without configured keytab, the exception you see below is expected"
-docker exec master bash -c "echo \"\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
+docker exec master bash -c "sed -i '/^security\.kerberos\.login\./d' /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 # verify that it doesn't work if we don't configure a keytab
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run \
@@ -91,9 +91,9 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -Djobmanager.memory.process.size=1000m \
     -Dparallelism.default=3 \
     -Dtaskmanager.memory.jvm-metaspace.size=128m \
-    /home/hadoop-user/${FLINK_DIRNAME}/examples/streaming/WordCount.jar --output ${OUTPUT_PATH}" > stderrAndstdoutFile 2>&1
-STD_ERR_AND_STD_OUT=$(cat stderrAndstdoutFile)
-rm stderrAndstdoutFile
+    /home/hadoop-user/${FLINK_DIRNAME}/examples/streaming/WordCount.jar --output ${OUTPUT_PATH}" > "${TEST_DATA_DIR}/stderrAndstdoutFile" 2>&1
+STD_ERR_AND_STD_OUT=$(cat "${TEST_DATA_DIR}/stderrAndstdoutFile")
+rm -f "${TEST_DATA_DIR}/stderrAndstdoutFile"
 echo "==== STD_ERR_AND_STD_OUT_BEGIN ===="
 echo "${STD_ERR_AND_STD_OUT}"
 echo "==== STD_ERR_AND_STD_OUT_END ===="

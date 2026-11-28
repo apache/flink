@@ -15,8 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-version: '3.5'
-
 networks:
   docker-hadoop-cluster-network:
     name: docker-hadoop-cluster-network
@@ -34,7 +32,10 @@ services:
       DOMAIN_REALM: kdc.kerberos.com
 
   master:
-    build: hadoop
+    build:
+      context: hadoop
+      args:
+        JAVA_VERSION: ${DOCKER_HADOOP_JAVA_VERSION:-21}
     image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/test-hadoop:latest}
     command: master
     depends_on:
@@ -48,7 +49,10 @@ services:
       DOMAIN_REALM: kdc.kerberos.com
 
   worker1:
-    build: hadoop
+    build:
+      context: hadoop
+      args:
+        JAVA_VERSION: ${DOCKER_HADOOP_JAVA_VERSION:-21}
     image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/test-hadoop:latest}
     command: worker
     depends_on:
@@ -63,7 +67,10 @@ services:
       DOMAIN_REALM: kdc.kerberos.com
 
   worker2:
-    build: hadoop
+    build:
+      context: hadoop
+      args:
+        JAVA_VERSION: ${DOCKER_HADOOP_JAVA_VERSION:-21}
     image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/test-hadoop:latest}
     command: worker
     depends_on:
