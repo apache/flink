@@ -78,7 +78,7 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
   }
 
   // ----------------------------------------------------------------------------------------
-  // Tests for queries matches WITHOUT_CALC patten
+  // Tests for queries matches WITHOUT_CALC pattern
   // Rewrite always happens in the case
   // ----------------------------------------------------------------------------------------
   @Test
@@ -97,7 +97,7 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
   }
 
   // ----------------------------------------------------------------------------------------
-  // Tests for queries matches WITH_CALC patten
+  // Tests for queries matches WITH_CALC pattern
   // ----------------------------------------------------------------------------------------
 
   /** push down calc and watermark assigner as a whole if shuffle keys are kept after Calc. */

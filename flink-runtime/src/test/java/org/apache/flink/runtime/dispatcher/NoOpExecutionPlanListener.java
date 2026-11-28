@@ -22,7 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 
 /**
- * No operation {@link ExecutionPlanStore.ExecutionPlanListener} implemetation for testing purposes.
+ * No operation {@link ExecutionPlanStore.ExecutionPlanListener} implementation for testing
+ * purposes.
  */
 public enum NoOpExecutionPlanListener implements ExecutionPlanStore.ExecutionPlanListener {
     INSTANCE;

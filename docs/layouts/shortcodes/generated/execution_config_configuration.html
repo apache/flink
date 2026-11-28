@@ -42,7 +42,7 @@
             <td><h5>table.exec.async-ml-predict.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ORDERED</td>
             <td><p>Enum</p></td>
-            <td>Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect the correctness of the results.
+            <td>Output mode for async ML predict, which describes whether or not the output should attempt to be ordered or not. The supported options are: ALLOW_UNORDERED means the operator emits the result when execution finishes. The planner will attempt to use ALLOW_UNORDERED when it doesn't affect the correctness of the results.
 ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.<br /><br />Possible values:<ul><li>"ORDERED"</li><li>"ALLOW_UNORDERED"</li></ul></td>
         </tr>
         <tr>

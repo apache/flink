@@ -70,7 +70,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
  * BlobServer}.
  *
- * <p>Successful GET requests are tested in conjunction wit the PUT requests by {@link
+ * <p>Successful GET requests are tested in conjunction with the PUT requests by {@link
  * BlobServerPutTest}.
  */
 class BlobServerGetTest {

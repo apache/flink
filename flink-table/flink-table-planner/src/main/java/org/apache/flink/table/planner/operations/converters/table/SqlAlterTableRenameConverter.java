@@ -27,7 +27,7 @@ import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 
 /**
  * Convert ALTER TABLE [IF EXISTS] [[catalogName.] dataBasesName].tableName RENAME TO
- * [[catalogName.] dataBasesName].newTableName statemen.
+ * [[catalogName.] dataBasesName].newTableName statement.
  */
 public class SqlAlterTableRenameConverter extends AbstractAlterTableConverter<SqlAlterTableRename> {
     @Override

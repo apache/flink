@@ -60,10 +60,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * or results in an empty queue (takes the last element).
  *
  * <p>Note that this model generally assumes that <i>false positives</i> are okay, meaning that the
- * availability future completes despite there being no data availabile in the queue. The consumer
- * is responsible for polling data and obtaining another future to wait on. This is similar to the
- * way that Java's Monitors and Conditions can have the <i>spurious wakeup</i> of the waiting
- * threads and commonly need to be used in loop with the waiting condition.
+ * availability future completes despite there being no data available in the queue. The consumer is
+ * responsible for polling data and obtaining another future to wait on. This is similar to the way
+ * that Java's Monitors and Conditions can have the <i>spurious wakeup</i> of the waiting threads
+ * and commonly need to be used in loop with the waiting condition.
  *
  * <h3>Producer Wakeup</h3>
  *

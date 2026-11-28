@@ -607,7 +607,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
             final MemorySegment current = getCurrentSegment();
             if (current == null) {
                 throw new IllegalStateException(
-                        "Illegal State in HashPartition: No current buffer when finilizing build side.");
+                        "Illegal State in HashPartition: No current buffer when finalizing build side.");
             }
             finalizeSegment(current, getCurrentPositionInSegment());
             clear();

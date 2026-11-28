@@ -56,7 +56,7 @@ object RankUtil {
 
   private[this] object Lower extends BoundDefine // defined lower bound
   private[this] object Upper extends BoundDefine // defined upper bound
-  private[this] object Both extends BoundDefine // defined lower and uppper bound
+  private[this] object Both extends BoundDefine // defined lower and upper bound
 
   /**
    * Extracts the TopN offset and fetch bounds from a predicate.

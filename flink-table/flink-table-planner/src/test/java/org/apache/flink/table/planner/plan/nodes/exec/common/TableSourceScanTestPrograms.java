@@ -279,7 +279,7 @@ public class TableSourceScanTestPrograms {
     public static final TableTestProgram REUSE_SOURCE =
             TableTestProgram.of(
                             "table-source-scan-reuse-source",
-                            "validates table source scan by verifying if source is resused")
+                            "validates table source scan by verifying if source is reused")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT", "b BIGINT", "c VARCHAR", "d TIMESTAMP(3)")

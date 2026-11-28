@@ -31,7 +31,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import javax.annotation.Nullable;
 
 /**
- * SHOW PROCEDURES sql call. The full syntax for show procedures is as followings:
+ * SHOW PROCEDURES sql call. The full syntax for show procedures is as follows:
  *
  * <pre>{@code
  * SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)

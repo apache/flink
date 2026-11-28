@@ -266,7 +266,7 @@ public class ChangelogStateBackendTestUtils {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
 
-            // make sure the asycn phase completes successfully
+            // make sure the async phase completes successfully
             if (asyncComplete.isCompletedExceptionally()) {
                 asyncComplete.get();
             }
@@ -354,7 +354,7 @@ public class ChangelogStateBackendTestUtils {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
 
-            // make sure the asycn phase completes successfully
+            // make sure the async phase completes successfully
             if (asyncComplete.isCompletedExceptionally()) {
                 asyncComplete.get();
             }

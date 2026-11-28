@@ -26,7 +26,7 @@ public final class TestEventPayload {
     // id of the session w.r.t the key
     private int sessionId;
 
-    // id of the event w.r.t. tje session id
+    // id of the event w.r.t. the session id
     private int eventId;
 
     // the watermark under which the event was emitted

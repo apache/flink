@@ -242,7 +242,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
             lastAccumulator = function.getAccumulators();
             accState.update(lastAccumulator);
 
-            // if are are rows with timestamp > watermark, register a timer for the next watermark
+            // if there are rows with timestamp > watermark, register a timer for the next watermark
             if (existEarlyRecord) {
                 ctx.timerService().registerEventTimeTimer(curWatermark + 1);
             }

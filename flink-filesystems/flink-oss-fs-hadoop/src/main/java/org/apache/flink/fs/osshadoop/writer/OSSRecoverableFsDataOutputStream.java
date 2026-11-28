@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * A RecoverableFsDataOutputStream to OSS that is based on a recoverable multipart upload.
  *
- * <p>This class is NOT thread-safe. Concurrent writes tho this stream result in corrupt or lost
+ * <p>This class is NOT thread-safe. Concurrent writes to this stream result in corrupt or lost
  * data.
  *
  * <p>The {@link #close()} method may be called concurrently when cancelling / shutting down. It

@@ -27,8 +27,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 
 /**
- * Operation to describe a SHOW CATALOGS statement. The full syntax for SHOW CATALOGS is as
- * followings:
+ * Operation to describe a SHOW CATALOGS statement. The full syntax for SHOW CATALOGS is as follows:
  *
  * <pre>{@code
  * SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
