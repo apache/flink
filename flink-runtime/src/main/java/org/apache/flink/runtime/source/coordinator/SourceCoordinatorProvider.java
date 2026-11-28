@@ -21,6 +21,7 @@ package org.apache.flink.runtime.source.coordinator;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -46,6 +47,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     private final Source<?, SplitT, ?> source;
     private final int numWorkerThreads;
     private final WatermarkAlignmentParams alignmentParams;
+    private final DynamicRateLimitParams dynamicRateLimitParams;
     @Nullable private final String coordinatorListeningID;
 
     /**
@@ -66,11 +68,43 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
             int numWorkerThreads,
             WatermarkAlignmentParams alignmentParams,
             @Nullable String coordinatorListeningID) {
+        this(
+                operatorName,
+                operatorID,
+                source,
+                numWorkerThreads,
+                alignmentParams,
+                DynamicRateLimitParams.DISABLED,
+                coordinatorListeningID);
+    }
+
+    /**
+     * Construct the {@link SourceCoordinatorProvider}.
+     *
+     * @param operatorName the name of the operator.
+     * @param operatorID the ID of the operator this coordinator corresponds to.
+     * @param source the Source that will be used for this coordinator.
+     * @param numWorkerThreads the number of threads the should provide to the SplitEnumerator for
+     *     doing async calls. See {@link
+     *     org.apache.flink.api.connector.source.SplitEnumeratorContext#callAsync(Callable,
+     *     BiConsumer) SplitEnumeratorContext.callAsync()}.
+     * @param dynamicRateLimitParams the configuration for the checkpoint-duration-driven dynamic
+     *     rate limit broadcast to source readers.
+     */
+    public SourceCoordinatorProvider(
+            String operatorName,
+            OperatorID operatorID,
+            Source<?, SplitT, ?> source,
+            int numWorkerThreads,
+            WatermarkAlignmentParams alignmentParams,
+            DynamicRateLimitParams dynamicRateLimitParams,
+            @Nullable String coordinatorListeningID) {
         super(operatorID);
         this.operatorName = operatorName;
         this.source = source;
         this.numWorkerThreads = numWorkerThreads;
         this.alignmentParams = alignmentParams;
+        this.dynamicRateLimitParams = dynamicRateLimitParams;
         this.coordinatorListeningID = coordinatorListeningID;
     }
 
@@ -96,6 +130,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
                 sourceCoordinatorContext,
                 context.getCoordinatorStore(),
                 alignmentParams,
+                dynamicRateLimitParams,
                 coordinatorListeningID);
     }
 

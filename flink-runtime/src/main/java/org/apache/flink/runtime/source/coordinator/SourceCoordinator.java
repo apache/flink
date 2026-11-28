@@ -32,14 +32,19 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 import org.apache.flink.api.connector.source.SupportsHandleExecutionAttemptSourceEvent;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
+import org.apache.flink.api.connector.source.util.ratelimit.RateAllocator;
+import org.apache.flink.api.connector.source.util.ratelimit.SubtaskRateInfo;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.source.event.DynamicRateLimitEvent;
 import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.ReportedRecordsEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
@@ -52,6 +57,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
@@ -65,10 +72,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -106,6 +115,26 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     private volatile Watermark watermarkInGroup;
 
     private final WatermarkAlignmentParams watermarkAlignmentParams;
+
+    private final DynamicRateLimitParams dynamicRateLimitParams;
+    private final CheckpointDurationTracker checkpointDurationTracker;
+    private final Clock clock;
+    private final Map<Integer, Double> reportedThroughputs = new HashMap<>();
+
+    /** Throughput reported per checkpoint id and subtask, until that checkpoint completes. */
+    private final Map<Long, Map<Integer, Double>> reportedRecordRates = new HashMap<>();
+
+    private final Map<Integer, Double> currentAllocations = new HashMap<>();
+    private double currentTargetRecordsPerSecond;
+
+    /**
+     * Whether a rate was derived from checkpoint durations yet. Until then the target is just the
+     * configured maximum, which must not override the rate a restored reader recovered itself.
+     */
+    private boolean dynamicRateAdjusted;
+
+    /** Whether this coordinator was restored from a checkpoint. */
+    private boolean restoredFromCheckpoint;
 
     private final JobID jobID;
 
@@ -153,6 +182,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 context,
                 coordinatorStore,
                 WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                DynamicRateLimitParams.DISABLED,
                 null);
     }
 
@@ -164,6 +194,50 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             CoordinatorStore coordinatorStore,
             WatermarkAlignmentParams watermarkAlignmentParams,
             @Nullable String coordinatorListeningID) {
+        this(
+                jobID,
+                operatorName,
+                source,
+                context,
+                coordinatorStore,
+                watermarkAlignmentParams,
+                DynamicRateLimitParams.DISABLED,
+                coordinatorListeningID);
+    }
+
+    public SourceCoordinator(
+            JobID jobID,
+            String operatorName,
+            Source<?, SplitT, EnumChkT> source,
+            SourceCoordinatorContext<SplitT> context,
+            CoordinatorStore coordinatorStore,
+            WatermarkAlignmentParams watermarkAlignmentParams,
+            DynamicRateLimitParams dynamicRateLimitParams,
+            @Nullable String coordinatorListeningID) {
+        this(
+                jobID,
+                operatorName,
+                source,
+                context,
+                coordinatorStore,
+                watermarkAlignmentParams,
+                dynamicRateLimitParams,
+                coordinatorListeningID,
+                SystemClock.getInstance());
+    }
+
+    @VisibleForTesting
+    SourceCoordinator(
+            JobID jobID,
+            String operatorName,
+            Source<?, SplitT, EnumChkT> source,
+            SourceCoordinatorContext<SplitT> context,
+            CoordinatorStore coordinatorStore,
+            WatermarkAlignmentParams watermarkAlignmentParams,
+            DynamicRateLimitParams dynamicRateLimitParams,
+            @Nullable String coordinatorListeningID,
+            Clock clock) {
+        this.clock = clock;
         this.jobID = jobID;
         this.operatorName = operatorName;
         this.source = source;
@@ -172,6 +246,26 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         this.context = context;
         this.coordinatorStore = coordinatorStore;
         this.watermarkAlignmentParams = watermarkAlignmentParams;
+        this.dynamicRateLimitParams = dynamicRateLimitParams;
+        this.checkpointDurationTracker =
+                new CheckpointDurationTracker(dynamicRateLimitParams.getRollingWindowSize());
+        this.currentTargetRecordsPerSecond = dynamicRateLimitParams.getMaxRecordsPerSecond();
+        if (dynamicRateLimitParams.isEnabled()) {
+            LOG.info(
+                    "Dynamic rate limit enabled for source {}: maxRecordsPerSecond={}, "
+                            + "rollingWindowSize={}, throttleDownFactor={}, rampUpFactor={}, "
+                            + "durationFractions(min/target/max)={}/{}/{}, calculator={}, allocator={}",
+                    operatorName,
+                    dynamicRateLimitParams.getMaxRecordsPerSecond(),
+                    dynamicRateLimitParams.getRollingWindowSize(),
+                    dynamicRateLimitParams.getThrottleDownFactor(),
+                    dynamicRateLimitParams.getRampUpFactor(),
+                    dynamicRateLimitParams.getMinDurationFraction(),
+                    dynamicRateLimitParams.getTargetDurationFraction(),
+                    dynamicRateLimitParams.getMaxDurationFraction(),
+                    dynamicRateLimitParams.getRateLimitCalculator().getClass().getName(),
+                    dynamicRateLimitParams.getRateAllocator().getClass().getName());
+        }
         this.coordinatorListeningID = coordinatorListeningID;
 
         if (watermarkAlignmentParams.isEnabled()
@@ -231,6 +325,67 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             context.sendEventToSourceOperatorIfTaskReady(
                     subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
         }
+    }
+
+    @VisibleForTesting
+    void announceDynamicRateLimit() {
+        dynamicRateAdjusted = true;
+        updateAllocations();
+        LOG.info(
+                "Distributing dynamic rate limit={} for source {}: {}",
+                currentTargetRecordsPerSecond,
+                operatorName,
+                currentAllocations);
+        for (Integer subtaskId : context.registeredReaders().keySet()) {
+            sendRateLimitToSubtask(subtaskId);
+        }
+    }
+
+    private void sendRateLimitToSubtask(int subtaskId) {
+        final double rate =
+                currentAllocations.getOrDefault(
+                        subtaskId, currentTargetRecordsPerSecond / context.currentParallelism());
+        context.sendEventToSourceOperatorIfTaskReady(subtaskId, new DynamicRateLimitEvent(rate));
+    }
+
+    /**
+     * Splits {@link #currentTargetRecordsPerSecond} across all subtasks with the configured {@link
+     * RateAllocator}, falling back to an even share for any subtask that gets no valid rate.
+     */
+    private void updateAllocations() {
+        final int parallelism = context.currentParallelism();
+        final double evenShare = currentTargetRecordsPerSecond / parallelism;
+
+        final List<SubtaskRateInfo> subtasks = new ArrayList<>(parallelism);
+        for (int subtask = 0; subtask < parallelism; subtask++) {
+            subtasks.add(
+                    new SubtaskRateInfo(
+                            subtask,
+                            currentAllocations.getOrDefault(subtask, Double.NaN),
+                            reportedThroughputs.getOrDefault(subtask, Double.NaN)));
+        }
+
+        final Map<Integer, Double> allocated =
+                dynamicRateLimitParams
+                        .getRateAllocator()
+                        .allocate(currentTargetRecordsPerSecond, subtasks);
+
+        final Map<Integer, Double> validated = new HashMap<>();
+        double sum = 0;
+        for (int subtask = 0; subtask < parallelism; subtask++) {
+            final Double rate = allocated.get(subtask);
+            final double valid =
+                    rate != null && Double.isFinite(rate) && rate > 0 ? rate : evenShare;
+            validated.put(subtask, valid);
+            sum += valid;
+        }
+        if (sum > currentTargetRecordsPerSecond * (1 + 1e-6)) {
+            final double scale = currentTargetRecordsPerSecond / sum;
+            validated.replaceAll((subtask, rate) -> rate * scale);
+        }
+
+        currentAllocations.clear();
+        currentAllocations.putAll(validated);
     }
 
     @Override
@@ -347,6 +502,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                         handleReportedWatermark(
                                 subtask,
                                 new Watermark(((ReportedWatermarkEvent) event).getWatermark()));
+                    } else if (event instanceof ReportedRecordsEvent) {
+                        handleReportedRecords(subtask, (ReportedRecordsEvent) event);
                     } else {
                         throw new FlinkException("Unrecognized Operator Event: " + event);
                     }
@@ -371,6 +528,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                     context.unregisterSourceReader(subtaskId, attemptNumber);
                     context.attemptFailed(subtaskId, attemptNumber);
                     removeWatermarkOfSubtask(subtaskId);
+                    forgetReportedThroughput(subtaskId);
                 },
                 "handling subtask %d (#%d) failure",
                 subtaskId,
@@ -389,6 +547,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
                     context.subtaskReset(subtaskId);
                     removeWatermarkOfSubtask(subtaskId);
+                    forgetReportedThroughput(subtaskId);
 
                     final List<SplitT> splitsToAddBack =
                             context.getAndRemoveUncheckpointedAssignment(subtaskId, checkpointId);
@@ -453,6 +612,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                                 result.complete(baos.toByteArray());
                             }
                         } else {
+                            if (dynamicRateLimitParams.isEnabled()) {
+                                checkpointDurationTracker.onCheckpointStart(
+                                        checkpointId, clock.absoluteTimeMillis());
+                            }
                             context.onCheckpoint(checkpointId);
                             result.complete(toBytes(checkpointId));
                         }
@@ -480,6 +643,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             operatorName);
                     context.onCheckpointComplete(checkpointId);
                     enumerator.notifyCheckpointComplete(checkpointId);
+
+                    if (dynamicRateLimitParams.isEnabled()) {
+                        adjustDynamicRateLimit(checkpointId);
+                    }
                 },
                 "notifying the enumerator of completion of checkpoint %d",
                 checkpointId);
@@ -494,6 +661,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             checkpointId,
                             operatorName);
                     enumerator.notifyCheckpointAborted(checkpointId);
+                    reportedRecordRates.remove(checkpointId);
                 },
                 "calling notifyCheckpointAborted()");
     }
@@ -513,6 +681,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         }
 
         LOG.info("Restoring SplitEnumerator of source {} from checkpoint.", operatorName);
+        restoredFromCheckpoint = true;
 
         final ClassLoader userCodeClassLoader =
                 context.getCoordinatorContext().getUserCodeClassloader();
@@ -716,6 +885,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 context.sendEventToSourceOperatorIfTaskReady(
                         subtask, new IsProcessingBacklogEvent(isBacklog));
             }
+
+            if (dynamicRateLimitParams.isEnabled() && dynamicRateAdjusted) {
+                sendRateLimitToSubtask(subtask);
+            }
         }
     }
 
@@ -774,6 +947,100 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                     ((WatermarkAggregator<String>) oldValue).remove(operatorName, watermarkInGroup);
                     return oldValue;
                 });
+    }
+
+    private void adjustDynamicRateLimit(long checkpointId) {
+        final OptionalLong checkpointDuration =
+                checkpointDurationTracker.onCheckpointComplete(
+                        checkpointId, clock.absoluteTimeMillis());
+        updateReportedThroughputs(checkpointId);
+        if (!checkpointDuration.isPresent()) {
+            return;
+        }
+        // Scale off the observed throughput rather than the last broadcast target, which may
+        // already lag behind it. A coordinator restored from state reports a rate right away,
+        // based on the current target. Otherwise wait until a record rate was observed.
+        final double observedThroughput = getCurrentTotalThroughput();
+        if (Double.isNaN(observedThroughput) && !restoredFromCheckpoint) {
+            LOG.info(
+                    "Not adjusting the dynamic rate limit of source {}: no record rate observed.",
+                    operatorName);
+            return;
+        }
+        final double baseline =
+                Double.isNaN(observedThroughput)
+                        ? currentTargetRecordsPerSecond
+                        : observedThroughput;
+        currentTargetRecordsPerSecond =
+                dynamicRateLimitParams
+                        .getRateLimitCalculator()
+                        .computeNewRate(
+                                checkpointDurationTracker.getRecentDurations(),
+                                baseline,
+                                context.getCheckpointIntervalMillis(),
+                                dynamicRateLimitParams);
+        announceDynamicRateLimit();
+    }
+
+    private void handleReportedRecords(int subtask, ReportedRecordsEvent event) {
+        if (!dynamicRateLimitParams.isEnabled()) {
+            return;
+        }
+        LOG.debug(
+                "New reported records={} over {}ms for checkpoint {} from subTaskId={} of source {}.",
+                event.getNumRecords(),
+                event.getElapsedMillis(),
+                event.getCheckpointId(),
+                subtask,
+                operatorName);
+        if (event.getElapsedMillis() <= 0) {
+            return;
+        }
+        reportedRecordRates
+                .computeIfAbsent(event.getCheckpointId(), id -> new HashMap<>())
+                .put(subtask, event.getNumRecords() * 1000.0 / event.getElapsedMillis());
+    }
+
+    /**
+     * Makes the throughputs reported for the completed checkpoint the current ones. Subtasks that
+     * did not report keep their previous throughput.
+     */
+    private void updateReportedThroughputs(long completedCheckpointId) {
+        final Map<Integer, Double> rates = reportedRecordRates.remove(completedCheckpointId);
+        reportedRecordRates.keySet().removeIf(id -> id <= completedCheckpointId);
+        if (rates != null) {
+            reportedThroughputs.putAll(rates);
+        }
+        final int parallelism = context.currentParallelism();
+        reportedThroughputs.keySet().removeIf(subtask -> subtask >= parallelism);
+    }
+
+    @VisibleForTesting
+    int getNumCheckpointsWithReportedRecords() {
+        return reportedRecordRates.size();
+    }
+
+    private void forgetReportedThroughput(int subtaskId) {
+        reportedThroughputs.remove(subtaskId);
+        reportedRecordRates.values().forEach(rates -> rates.remove(subtaskId));
+    }
+
+    /**
+     * Returns the sum of the most recently reported per-subtask throughputs, or {@code Double.NaN}
+     * if not every subtask has reported yet or nothing was emitted. A partial sum would understate
+     * the total, and an idle source must not be taken as a baseline, otherwise the rate would
+     * collapse to its minimum and could not recover.
+     */
+    private double getCurrentTotalThroughput() {
+        final int parallelism = context.currentParallelism();
+        for (int subtask = 0; subtask < parallelism; subtask++) {
+            if (!reportedThroughputs.containsKey(subtask)) {
+                return Double.NaN;
+            }
+        }
+        final double total =
+                reportedThroughputs.values().stream().mapToDouble(Double::doubleValue).sum();
+        return total > 0 ? total : Double.NaN;
     }
 
     private void ensureStarted() {

@@ -26,8 +26,10 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.connector.source.util.ratelimit.SupportsDynamicRateLimit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -72,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @PublicEvolving
 public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitStateT>
-        implements SourceReader<T, SplitT> {
+        implements SourceReader<T, SplitT>, SupportsDynamicRateLimit {
     private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBase.class);
 
     /** A queue to buffer the elements fetched by the fetcher thread. */
@@ -117,6 +119,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     /** Future that tracks the result of acquiring permission from {@link #rateLimiter}. */
     @Nullable private CompletableFuture<Void> rateLimitPermissionFuture;
+
+    private boolean warnedAboutStaticRateLimiter;
 
     /**
      * The primary constructor for the source reader.
@@ -383,6 +387,20 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
         LOG.info("Received unhandled source event: {}", sourceEvent);
+    }
+
+    @Override
+    public void updateTargetRate(double recordsPerSecond) {
+        if (rateLimiter instanceof DynamicRateLimiter) {
+            ((DynamicRateLimiter<SplitT>) rateLimiter).updateRate(recordsPerSecond);
+        } else if (!warnedAboutStaticRateLimiter) {
+            warnedAboutStaticRateLimiter = true;
+            LOG.warn(
+                    "Dynamic rate limit is enabled but the rate limiter {} does not support "
+                            + "updating its rate; use RateLimiterStrategy#dynamic. The new target "
+                            + "rate is ignored.",
+                    rateLimiter == null ? "(none)" : rateLimiter.getClass().getName());
+        }
     }
 
     @Override
