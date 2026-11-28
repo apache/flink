@@ -49,6 +49,9 @@ public class NoOpBlocklistHandler implements BlocklistHandler {
     @Override
     public void deregisterBlocklistListener(BlocklistListener blocklistListener) {}
 
+    @Override
+    public void start(ComponentMainThreadExecutor mainThreadExecutor) {}
+
     /** The factory to instantiate {@link NoOpBlocklistHandler}. */
     public static class Factory implements BlocklistHandler.Factory {
 
@@ -56,7 +59,6 @@ public class NoOpBlocklistHandler implements BlocklistHandler {
         public BlocklistHandler create(
                 BlocklistContext blocklistContext,
                 Function<ResourceID, String> taskManagerNodeIdRetriever,
-                ComponentMainThreadExecutor mainThreadExecutor,
                 Logger log) {
             return new NoOpBlocklistHandler();
         }
