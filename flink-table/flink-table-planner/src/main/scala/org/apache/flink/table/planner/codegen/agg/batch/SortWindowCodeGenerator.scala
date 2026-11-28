@@ -99,6 +99,8 @@ class SortWindowCodeGenerator(
     val windowsGrouping = CodeGenUtils.newName(ctx, "windowsGrouping")
     val enablePreAcc = choosePreAcc || isMerge
     val windowElementType = getWindowsGroupingElementInfo(enablePreAcc)
+    val windowGroupingTimeFieldIndex =
+      if (enablePreAcc) grouping.length else inputTimeFieldIndex
 
     val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
       enablePreAcc,
@@ -108,7 +110,7 @@ class SortWindowCodeGenerator(
       windowsGrouping,
       buffLimitSize,
       windowElementType,
-      inputTimeFieldIndex,
+      windowGroupingTimeFieldIndex,
       currentWindow,
       None,
       outputType)
@@ -191,6 +193,8 @@ class SortWindowCodeGenerator(
     val windowsGrouping = CodeGenUtils.newName(ctx, "windowsGrouping")
     val enablePreAcc = choosePreAcc || isMerge
     val windowElementType = getWindowsGroupingElementInfo(enablePreAcc)
+    val windowGroupingTimeFieldIndex =
+      if (enablePreAcc) grouping.length else inputTimeFieldIndex
 
     val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
       enablePreAcc,
@@ -200,10 +204,11 @@ class SortWindowCodeGenerator(
       windowsGrouping,
       buffLimitSize,
       windowElementType,
-      inputTimeFieldIndex,
+      windowGroupingTimeFieldIndex,
       currentWindow,
       Some(lastKey),
-      outputType)
+      outputType
+    )
 
     val (processCurrentKeyInput, endProcessCurrentKeyInput) =
       if (enablePreAcc) {
