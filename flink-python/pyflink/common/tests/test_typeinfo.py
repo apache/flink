@@ -16,7 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.common.typeinfo import Types, RowTypeInfo, TupleTypeInfo, _from_java_type
+import datetime
+
+from pyflink.common.typeinfo import Types, RowTypeInfo, TupleTypeInfo, _from_java_type, \
+    LocalTimeTypeInfo
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -114,6 +117,18 @@ class TypeInfoTests(PyFlinkTestCase):
         self.assertEqual(basic_sql_timestamp_type_info,
                          _from_java_type(basic_sql_timestamp_type_info.get_java_type_info()))
 
+        local_date_type_info = LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_DATE)
+        self.assertEqual(local_date_type_info,
+                         _from_java_type(local_date_type_info.get_java_type_info()))
+
+        local_time_type_info = LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_TIME)
+        self.assertEqual(local_time_type_info,
+                         _from_java_type(local_time_type_info.get_java_type_info()))
+
+        local_date_time_type_info = LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME)
+        self.assertEqual(local_date_time_type_info,
+                         _from_java_type(local_date_time_type_info.get_java_type_info()))
+
         row_type_info = Types.ROW([Types.INT(), Types.STRING()])
         self.assertEqual(row_type_info, _from_java_type(row_type_info.get_java_type_info()))
 
@@ -143,3 +158,34 @@ class TypeInfoTests(PyFlinkTestCase):
         list_type_info = Types.LIST(Types.INT())
         self.assertEqual(list_type_info,
                          _from_java_type(list_type_info.get_java_type_info()))
+
+    def test_local_date(self):
+        type_info = LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_DATE)
+        self.assertEqual(type_info.to_internal_type(datetime.date(1969, 12, 31)), -1)
+        self.assertEqual(type_info.from_internal_type(-1), datetime.date(1969, 12, 31))
+        self.assertEqual(type_info.to_internal_type(datetime.datetime(2023, 11, 14, 10, 0)), 19675)
+
+    def test_local_time(self):
+        type_info = LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_TIME)
+        value = datetime.time(23, 59, 59, 123456)
+        self.assertEqual(type_info.to_internal_type(value), 86_399_123_456)
+        self.assertEqual(type_info.from_internal_type(86_399_123_456), value)
+
+    def test_local_date_time(self):
+        type_info = LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME)
+        value = datetime.datetime(2023, 11, 14, 22, 13, 20, 123456)
+        self.assertEqual(type_info.to_internal_type(value), 1_700_000_000_123_456)
+        self.assertEqual(type_info.from_internal_type(1_700_000_000_123_456), value)
+        before_epoch = datetime.datetime(1969, 12, 31, 23, 59, 59, 123456)
+        self.assertEqual(type_info.to_internal_type(before_epoch), -876_544)
+        self.assertEqual(type_info.from_internal_type(-876_544), before_epoch)
+        with self.assertRaisesRegex(TypeError, 'timezone-aware'):
+            type_info.to_internal_type(
+                datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc))
+
+    def test_none_passes_through(self):
+        for type_info in (LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_DATE),
+                          LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_TIME),
+                          LocalTimeTypeInfo(LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME)):
+            self.assertIsNone(type_info.to_internal_type(None))
+            self.assertIsNone(type_info.from_internal_type(None))

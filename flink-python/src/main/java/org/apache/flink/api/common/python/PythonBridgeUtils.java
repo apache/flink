@@ -22,6 +22,7 @@ import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -259,6 +260,19 @@ public final class PythonBridgeUtils {
                     return pickler.dumps(((Date) obj).toLocalDate().toEpochDay());
                 } else if (sqlTimeTypeInfo == TIME) {
                     return pickler.dumps(((Time) obj).toLocalTime().toNanoOfDay() / 1000);
+                }
+            } else if (dataType instanceof LocalTimeTypeInfo) {
+                final LocalTimeTypeInfo<?> localTimeTypeInfo =
+                        LocalTimeTypeInfo.getInfoFor(dataType.getTypeClass());
+                if (localTimeTypeInfo == LocalTimeTypeInfo.LOCAL_DATE) {
+                    return pickler.dumps(((LocalDate) obj).toEpochDay());
+                } else if (localTimeTypeInfo == LocalTimeTypeInfo.LOCAL_TIME) {
+                    return pickler.dumps(((LocalTime) obj).toNanoOfDay() / 1000);
+                } else if (localTimeTypeInfo == LocalTimeTypeInfo.LOCAL_DATE_TIME) {
+                    final LocalDateTime localDateTime = (LocalDateTime) obj;
+                    return pickler.dumps(
+                            localDateTime.toEpochSecond(ZoneOffset.UTC) * 1_000_000L
+                                    + localDateTime.getNano() / 1_000);
                 }
             } else if (dataType instanceof RowTypeInfo || dataType instanceof TupleTypeInfo) {
                 TypeInformation<?>[] fieldTypes = ((TupleTypeInfoBase<?>) dataType).getFieldTypes();
