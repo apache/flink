@@ -269,7 +269,12 @@
         "fieldType" : "BIGINT"
       } ]
     },
-    "description" : "PythonOverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, pyFunc(c, c) AS w0$o0])"
+    "description" : "PythonOverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, pyFunc(c, c) AS w0$o0])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "overAggregateState"
+    } ]
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",

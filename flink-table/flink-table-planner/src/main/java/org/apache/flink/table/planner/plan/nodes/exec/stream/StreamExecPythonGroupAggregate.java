@@ -36,6 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
@@ -49,11 +50,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
@@ -77,6 +81,8 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     public static final String PYTHON_GROUP_AGGREGATE_TRANSFORMATION = "python-group-aggregate";
 
+    public static final String STATE_NAME = "groupAggregateState";
+
     private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";
 
@@ -94,6 +100,11 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
 
     public StreamExecPythonGroupAggregate(
             ReadableConfig tableConfig,
@@ -117,7 +128,8 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
                 needRetraction,
                 Collections.singletonList(inputProperty),
                 outputType,
-                description);
+                description,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME));
     }
 
     @JsonCreator
@@ -132,7 +144,8 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
@@ -140,6 +153,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
         checkArgument(aggCalls.length == aggCallNeedRetractions.length);
         this.generateUpdateBefore = generateUpdateBefore;
         this.needRetraction = needRetraction;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -147,7 +161,9 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
 
-        if (grouping.length > 0 && config.getStateRetentionTime() < 0) {
+        final long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
+        if (grouping.length > 0 && stateRetentionTime < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval "
@@ -185,8 +201,8 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         pythonFunctionInfos,
                         dataViewSpecs,
-                        config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                        stateRetentionTime,
+                        TableConfigUtils.getMaxIdleStateRetentionTime(stateRetentionTime),
                         inputCountIndex,
                         countStarInserted);
         // partitioned aggregation

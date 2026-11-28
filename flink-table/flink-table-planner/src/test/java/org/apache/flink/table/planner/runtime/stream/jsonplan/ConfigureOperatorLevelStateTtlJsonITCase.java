@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.jsonplan;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
@@ -31,10 +32,13 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for configuring operator-level state TTL via {@link
@@ -117,6 +121,124 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
                         + " a.order_id, a.line_order_id, b.ship_mode "
                         + "FROM Orders a JOIN LineOrders b ON a.line_order_id = b.line_order_id",
                 json -> json);
+    }
+
+    @Test
+    void testStateTtlThroughCompiledPlanForOverAggregate() throws Exception {
+        String dataId =
+                TestValuesTableFactory.registerRowData(
+                        Arrays.asList(
+                                GenericRowData.of(1, 1L),
+                                GenericRowData.of(1, 2L),
+                                GenericRowData.of(1, 3L)));
+        createTestSourceTable(
+                "Orders",
+                new String[] {"`buyer` INT", "`amount` BIGINT", "`proctime` AS PROCTIME()"},
+                null,
+                getProperties(dataId, 2, "4s"));
+        createTestValuesSinkTable("RunningTotals", "`buyer` INT", "`total` BIGINT");
+        compileSqlAndExecutePlan(
+                        "INSERT INTO RunningTotals SELECT buyer, SUM(amount) "
+                                + "OVER (PARTITION BY buyer ORDER BY proctime) FROM Orders",
+                        withStateTtl("stream-exec-over-aggregate", 2000L))
+                .await();
+
+        // the third record arrives 4s after the second one, so with a state TTL of 2s the
+        // running total starts again
+        List<String> expected = Arrays.asList("+I[1, 1]", "+I[1, 3]", "+I[1, 3]");
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("RunningTotals"));
+    }
+
+    @Test
+    void testStateTtlThroughCompiledPlanForTemporalJoin() throws Exception {
+        String ordersDataId =
+                TestValuesTableFactory.registerRowData(
+                        Arrays.asList(
+                                GenericRowData.of(
+                                        StringData.fromString("EUR"),
+                                        10L,
+                                        TimestampData.fromEpochMillis(2000L)),
+                                GenericRowData.of(
+                                        StringData.fromString("EUR"),
+                                        20L,
+                                        TimestampData.fromEpochMillis(3000L))));
+        createTestSourceTable(
+                "Orders",
+                new String[] {
+                    "`currency` STRING",
+                    "`amount` BIGINT",
+                    "`order_time` TIMESTAMP(3)",
+                    "WATERMARK FOR `order_time` AS `order_time`"
+                },
+                null,
+                getProperties(ordersDataId, 1, "4s"));
+        String ratesDataId =
+                TestValuesTableFactory.registerRowData(
+                        Collections.singletonList(
+                                GenericRowData.of(
+                                        StringData.fromString("EUR"),
+                                        2L,
+                                        TimestampData.fromEpochMillis(1000L))));
+        createTestSourceTable(
+                "Rates",
+                new String[] {
+                    "`currency` STRING",
+                    "`rate` BIGINT",
+                    "`rate_time` TIMESTAMP(3)",
+                    "WATERMARK FOR `rate_time` AS `rate_time`",
+                    "PRIMARY KEY (`currency`) NOT ENFORCED"
+                },
+                null,
+                getProperties(ratesDataId, 1, "0s"));
+        createTestValuesSinkTable("Amounts", "`amount` BIGINT");
+        compileSqlAndExecutePlan(
+                        "INSERT INTO Amounts SELECT o.amount * r.rate FROM Orders AS o "
+                                + "JOIN Rates FOR SYSTEM_TIME AS OF o.order_time AS r "
+                                + "ON o.currency = r.currency",
+                        withStateTtl("stream-exec-temporal-join", 1000L))
+                .await();
+
+        // the second order arrives 4s after the first one, so with a state TTL of 1s the rate
+        // has been cleaned up and the second order finds no match
+        List<String> expected = Arrays.asList("+I[20]");
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("Amounts"));
+    }
+
+    @Test
+    void testNoStateInCompiledPlanForBoundedRangeOverAggregate() throws Exception {
+        createTestSourceTable(
+                "Orders",
+                new String[] {"`buyer` INT", "`amount` BIGINT", "`proctime` AS PROCTIME()"},
+                null,
+                getProperties(
+                        TestValuesTableFactory.registerRowData(Collections.emptyList()), 1, "0s"));
+        createTestValuesSinkTable("RunningTotals", "`buyer` INT", "`total` BIGINT");
+        JsonNode plan =
+                JsonTestUtils.readFromString(
+                        tableEnv.compilePlanSql(
+                                        "INSERT INTO RunningTotals SELECT buyer, SUM(amount) OVER ("
+                                                + "PARTITION BY buyer ORDER BY proctime RANGE "
+                                                + "BETWEEN INTERVAL '1' MINUTE PRECEDING AND "
+                                                + "CURRENT ROW) FROM Orders")
+                                .asJsonString());
+
+        // a bounded RANGE window has no state retention time, so there is no TTL to configure
+        assertThat(plan.get("nodes"))
+                .filteredOn(n -> n.get("type").asText().startsWith("stream-exec-over-aggregate"))
+                .singleElement()
+                .satisfies(n -> assertThat(n.has("state")).isFalse());
+    }
+
+    private static Function<String, String> withStateTtl(String execNodeType, long stateTtl) {
+        return json -> {
+            try {
+                JsonNode target = JsonTestUtils.readFromString(json);
+                JsonTestUtils.setExecNodeStateMetadata(target, execNodeType, 0, stateTtl);
+                return JsonTestUtils.writeToString(target);
+            } catch (IOException e) {
+                throw new TableException("Cannot modify compiled json plan.", e);
+            }
+        };
     }
 
     private void innerTestDeduplicateAndGroupAggregate(

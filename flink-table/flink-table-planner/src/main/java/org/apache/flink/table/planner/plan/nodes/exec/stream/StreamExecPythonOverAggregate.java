@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -54,11 +55,14 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -88,6 +92,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
     public static final String FIELD_NAME_OVER_SPEC = "overSpec";
 
+    public static final String STATE_NAME = "overAggregateState";
+
     private static final String
             ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME =
                     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream."
@@ -108,6 +114,11 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_OVER_SPEC)
     private final OverSpec overSpec;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
+
     public StreamExecPythonOverAggregate(
             ReadableConfig tableConfig,
             OverSpec overSpec,
@@ -122,7 +133,10 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                 overSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
-                description);
+                description,
+                StreamExecOverAggregate.usesStateTtl(overSpec)
+                        ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
+                        : null);
     }
 
     @JsonCreator
@@ -133,10 +147,12 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.overSpec = checkNotNull(overSpec);
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -159,7 +175,9 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
 
         final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
+        final long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
+        if (partitionKeys.length > 0 && stateRetentionTime < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -208,8 +226,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         group.getAggCalls().toArray(new AggregateCall[0]),
                         precedingOffset,
                         group.isRows(),
-                        config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                        stateRetentionTime,
+                        TableConfigUtils.getMaxIdleStateRetentionTime(stateRetentionTime),
                         pythonConfig,
                         config,
                         planner.getFlinkContext().getClassLoader());
