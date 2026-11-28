@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -34,7 +35,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,8 +47,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.EAGER;
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
@@ -134,6 +145,40 @@ class HistoryServerArchiveFetcherTest {
                 archiveMetaInfoCache,
                 4,
                 4);
+    }
+
+    private HistoryServerArchiveFetcher<?> createArchiveFetcher(
+            ArchiveRetainedStrategy retainedStrategy, int cachedRetainedJobs, int numViewedJobs)
+            throws Exception {
+        return new HistoryServerArchiveFetcher<>(
+                Collections.singletonList(createRefreshLocation(remoteArchiveRootPath)),
+                localArchiveRootPath,
+                event -> archiveEvents.add(event),
+                true,
+                retainedStrategy,
+                archiveStorage,
+                archiveMetaInfoCache,
+                4,
+                4,
+                cachedRetainedJobs,
+                numViewedJobs);
+    }
+
+    private Path createArchive(JobID jobId, long modificationTime) throws Exception {
+        Path archive = createJobArchive(remoteArchiveRootPath, jobId, true);
+        assertThat(new File(archive.toUri()).setLastModified(modificationTime)).isTrue();
+        return archive;
+    }
+
+    private boolean isCachedLocally(JobID jobId) throws Exception {
+        return archiveStorage.exists("overviews/" + jobId + ".json");
+    }
+
+    private void view(HistoryServerArchiveFetcher<?> fetcher, JobID jobId, Path archive)
+            throws Exception {
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), archive);
+        fetcher.markRecentlyViewed(jobId.toString());
+        waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
     }
 
     // =========================================================================
@@ -418,6 +463,763 @@ class HistoryServerArchiveFetcherTest {
         fetcher.scanArchives(EAGER, false);
         assertThat(archiveEvents).isEmpty();
         assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isFalse();
+    }
+
+    @TestTemplate
+    void testArchivesBeyondCachedLimitAreOnlyCachedLocallyWithinLimit() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(newest)).isTrue();
+        assertThat(isCachedLocally(older)).isFalse();
+        assertThat(olderArchive.getFileSystem().exists(olderArchive)).isTrue();
+    }
+
+    @TestTemplate
+    void testCachedArchivePushedOutOfLimitIsEvictedLocallyOnly() throws Exception {
+        JobID first = JobID.generate();
+        JobID second = JobID.generate();
+        Path firstArchive = createArchive(first, 1000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(first)).isTrue();
+
+        createArchive(second, 2000);
+        archiveEvents.clear();
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(first)).isFalse();
+        assertThat(isCachedLocally(second)).isTrue();
+        assertThat(firstArchive.getFileSystem().exists(firstArchive)).isTrue();
+        assertThat(archiveEvents)
+                .anyMatch(
+                        e ->
+                                e.getId().equals(first.toString())
+                                        && e.getType()
+                                                == HistoryServerArchiveFetcher.ArchiveEventType
+                                                        .DELETED);
+    }
+
+    @TestTemplate
+    void testViewedArchiveBeyondLimitSurvivesNextScan() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(older)).isFalse();
+        view(fetcher, older, olderArchive);
+        assertThat(isCachedLocally(older)).isTrue();
+
+        archiveEvents.clear();
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(newest)).isTrue();
+        assertThat(isCachedLocally(older)).isTrue();
+        assertThat(archiveEvents)
+                .noneMatch(
+                        e ->
+                                e.getId().equals(older.toString())
+                                        && e.getType()
+                                                == HistoryServerArchiveFetcher.ArchiveEventType
+                                                        .DELETED);
+    }
+
+    @TestTemplate
+    void testViewingApplicationJobsDoesNotEvictThem() throws Exception {
+        JobID appJobA = JobID.generate();
+        JobID appJobB = JobID.generate();
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        for (JobID id : Arrays.asList(appJobA, appJobB)) {
+            archiveStorage.putArchiveContent("overviews/" + id + ".json", "{}");
+            archiveMetaInfoCache.put(
+                    id.toString(),
+                    new ArchiveMetaInfo(
+                            id.toString(),
+                            CREATED,
+                            new Path(
+                                    remoteArchiveRootPath.toURI().toString(),
+                                    "cluster/applications/app/jobs/" + id)));
+        }
+
+        fetcher.markRecentlyViewed(appJobA.toString());
+        fetcher.markRecentlyViewed(appJobB.toString());
+
+        assertThat(isCachedLocally(appJobA)).isTrue();
+        assertThat(isCachedLocally(appJobB)).isTrue();
+        assertThat(archiveMetaInfoCache).containsKeys(appJobA.toString(), appJobB.toString());
+    }
+
+    @TestTemplate
+    void testLeastRecentlyViewedArchiveIsEvictedLocally() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+        assertThat(old1Archive.getFileSystem().exists(old1Archive)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewingJobInsideCachedWindowDoesNotTakeViewedSlot() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old = JobID.generate();
+        Path oldArchive = createArchive(old, 1000);
+        Path newestArchive = createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old, oldArchive);
+        view(fetcher, newest, newestArchive);
+
+        assertThat(isCachedLocally(old)).isTrue();
+        assertThat(isCachedLocally(newest)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchivesAreNotEvictedWhenCachedLimitIsNotSet() throws Exception {
+        JobID first = JobID.generate();
+        JobID second = JobID.generate();
+        Path firstArchive = createArchive(first, 1000);
+        Path secondArchive = createArchive(second, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, -1, 1);
+        view(fetcher, first, firstArchive);
+        view(fetcher, second, secondArchive);
+
+        assertThat(isCachedLocally(first)).isTrue();
+        assertThat(isCachedLocally(second)).isTrue();
+    }
+
+    @TestTemplate
+    void testArchiveWithFetchInFlightIsNotEvictedByViewingAnotherJob() throws Exception {
+        JobID newest = JobID.generate();
+        JobID inFlight = JobID.generate();
+        JobID other = JobID.generate();
+        Path inFlightArchive = createArchive(inFlight, 1000);
+        Path otherArchive = createArchive(other, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, inFlight, inFlightArchive);
+        archiveMetaInfoCache.get(inFlight.toString()).setEventType(DETAIL_PARSING);
+
+        view(fetcher, other, otherArchive);
+        assertThat(isCachedLocally(inFlight)).isTrue();
+
+        // once the fetch is done, the next view evicts it
+        archiveMetaInfoCache.get(inFlight.toString()).setEventType(CREATED);
+        fetcher.markRecentlyViewed(other.toString());
+        assertThat(isCachedLocally(inFlight)).isFalse();
+        assertThat(isCachedLocally(other)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchiveIsTrackedWhenRefreshDirIsNotQualified() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        HistoryServer.RefreshLocation location = createRefreshLocation(remoteArchiveRootPath);
+        Path unqualified = new Path(remoteArchiveRootPath.getAbsolutePath());
+        fetcher =
+                new HistoryServerArchiveFetcher<>(
+                        Collections.singletonList(
+                                new HistoryServer.RefreshLocation(unqualified, location.getFs())),
+                        localArchiveRootPath,
+                        event -> archiveEvents.add(event),
+                        true,
+                        RETAIN_ALL,
+                        archiveStorage,
+                        archiveMetaInfoCache,
+                        4,
+                        4,
+                        1,
+                        1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchiveThatLaterEntersCachedWindowIsNotEvictedByScan() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        Path newestArchive = createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, older, olderArchive);
+
+        // the older job moves into the cached window and is then scan-cached
+        newestArchive.getFileSystem().delete(newestArchive, false);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(older)).isTrue();
+
+        // two newer archives push it out of the window again, but it is still viewed
+        createArchive(JobID.generate(), 3000);
+        createArchive(JobID.generate(), 4000);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(older)).isTrue();
+    }
+
+    @TestTemplate
+    void testViewedArchiveIsCleanedWhenRemoteArchiveIsDeleted() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, older, olderArchive);
+        assertThat(isCachedLocally(older)).isTrue();
+
+        olderArchive.getFileSystem().delete(olderArchive, false);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(older)).isFalse();
+        assertThat(archiveMetaInfoCache).doesNotContainKey(older.toString());
+        assertThat(isCachedLocally(newest)).isTrue();
+    }
+
+    @TestTemplate
+    void testFinishedFetchDoesNotPinViewedArchive() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        // a stale finished task must not count as an in-flight fetch
+        archiveMetaInfoCache.get(old1.toString()).setEventType(CREATED);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+    }
+
+    @TestTemplate
+    void testPinnedArchiveIsNotEvictedUntilReleased() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        fetcher.acquireJob(old1.toString());
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isTrue();
+
+        fetcher.releaseJob(old1.toString());
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+    }
+
+    @TestTemplate
+    void testScanEvictionWaitsForLastRequestRelease() throws Exception {
+        JobID first = JobID.generate();
+        Path firstArchive = createArchive(first, 1000);
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(LAZY);
+        waitForArchiveLoaded(archiveMetaInfoCache, first.toString());
+        String key = "jobs/" + first + "/config.json";
+        String content = archiveStorage.readArchiveContent(archiveStorage.getEntry(key));
+
+        fetcher.acquireJob(first.toString());
+        fetcher.acquireJob(first.toString());
+        try {
+            createArchive(JobID.generate(), 2000);
+            fetcher.fetchArchives(LAZY);
+            assertThat(archiveStorage.readArchiveContent(archiveStorage.getEntry(key)))
+                    .isEqualTo(content);
+            fetcher.releaseJob(first.toString());
+            assertThat(archiveStorage.exists(key)).isTrue();
+        } finally {
+            fetcher.releaseJob(first.toString());
+        }
+        assertThat(archiveStorage.exists(key)).isFalse();
+        assertThat(isCachedLocally(first)).isFalse();
+        assertThat(firstArchive.getFileSystem().exists(firstArchive)).isTrue();
+    }
+
+    @TestTemplate
+    void testCleanupWaitsForUninterruptibleDetailWrite() throws Exception {
+        JobID jobId = JobID.generate();
+        Path archive = createArchive(jobId, 1000);
+        String key = "jobs/" + jobId + "/config.json";
+        HistoryServerTestUtils.UninterruptibleArchiveStorage<Object> storage =
+                new HistoryServerTestUtils.UninterruptibleArchiveStorage<>(archiveStorage, key);
+        archiveStorage = storage;
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), archive);
+        Path refreshPath = new Path(remoteArchiveRootPath.toURI().toString());
+        CompletableFuture<Void> cleanup = null;
+        try {
+            assertThat(storage.writeStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            CountDownLatch cleanupStarted = new CountDownLatch(1);
+            cleanup =
+                    CompletableFuture.runAsync(
+                            () -> {
+                                cleanupStarted.countDown();
+                                fetcher.cleanupExpiredArchives(
+                                        Collections.singletonMap(
+                                                refreshPath,
+                                                Collections.singleton(jobId.toString())));
+                            });
+            assertThat(cleanupStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            CompletableFuture<Void> pendingCleanup = cleanup;
+            assertThatThrownBy(() -> pendingCleanup.get(200, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+        } finally {
+            storage.allowWrite.complete(null);
+            assertThat(storage.writeFinished.await(10, TimeUnit.SECONDS)).isTrue();
+            if (cleanup != null) {
+                cleanup.get(10, TimeUnit.SECONDS);
+            }
+        }
+        assertThat(archiveStorage.exists(key)).isFalse();
+        assertThat(isCachedLocally(jobId)).isFalse();
+        assertThat(archiveMetaInfoCache).doesNotContainKey(jobId.toString());
+    }
+
+    @TestTemplate
+    void testFailedRefreshPreservesExistingCache() throws Exception {
+        JobID jobId = JobID.generate();
+        Path archive = createArchive(jobId, 1000);
+        String overviewKey = "overviews/" + jobId + ".json";
+        String detailKey = "jobs/" + jobId + "/config.json";
+        AtomicBoolean failWrites = new AtomicBoolean();
+        archiveStorage =
+                new HistoryServerTestUtils.DelegatingArchiveStorage<>(archiveStorage) {
+                    @Override
+                    public void putArchiveContent(String key, String content) throws IOException {
+                        if (failWrites.get() && overviewKey.equals(key)) {
+                            throw new IOException("Injected refresh failure");
+                        }
+                        super.putArchiveContent(key, content);
+                    }
+                };
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.processJobArchive(jobId.toString(), archive);
+        String overview = archiveStorage.readArchiveContent(archiveStorage.getEntry(overviewKey));
+        String details = archiveStorage.readArchiveContent(archiveStorage.getEntry(detailKey));
+
+        failWrites.set(true);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(archiveStorage.getEntry(overviewKey)).isNotNull();
+        assertThat(archiveStorage.readArchiveContent(archiveStorage.getEntry(overviewKey)))
+                .isEqualTo(overview);
+        assertThat(archiveStorage.readArchiveContent(archiveStorage.getEntry(detailKey)))
+                .isEqualTo(details);
+        assertThat(archiveEvents)
+                .noneMatch(
+                        event ->
+                                event.getType()
+                                        == HistoryServerArchiveFetcher.ArchiveEventType.DELETED);
+        failWrites.set(false);
+        fetcher.fetchArchives(EAGER);
+        assertThat(archiveEvents).anyMatch(event -> event.getType() == CREATED);
+    }
+
+    @TestTemplate
+    void testPendingEvictionIsCancelledWhenJobReentersScanWindow() throws Exception {
+        JobID first = JobID.generate();
+        createArchive(first, 1000);
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        fetcher.acquireJob(first.toString());
+        try {
+            Path newer = createArchive(JobID.generate(), 2000);
+            fetcher.fetchArchives(EAGER);
+            assertThat(isCachedLocally(first)).isTrue();
+            assertThat(newer.getFileSystem().delete(newer, false)).isTrue();
+            fetcher.fetchArchives(EAGER);
+        } finally {
+            fetcher.releaseJob(first.toString());
+        }
+        assertThat(isCachedLocally(first)).isTrue();
+        assertThat(fetcher.cachedArchivesPerRefreshDirectory.values())
+                .containsExactly(Collections.singleton(first.toString()));
+    }
+
+    @TestTemplate
+    void testPendingScanEvictionRespectsNewlyViewedJob() throws Exception {
+        JobID first = JobID.generate();
+        createArchive(first, 1000);
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(LAZY);
+        waitForArchiveLoaded(archiveMetaInfoCache, first.toString());
+        fetcher.acquireJob(first.toString());
+        try {
+            createArchive(JobID.generate(), 2000);
+            fetcher.fetchArchives(LAZY);
+            fetcher.markRecentlyViewed(first.toString());
+        } finally {
+            fetcher.releaseJob(first.toString());
+        }
+        assertThat(isCachedLocally(first)).isTrue();
+        JobID another = JobID.generate();
+        view(fetcher, another, createArchive(another, 500));
+        assertThat(isCachedLocally(first)).isFalse();
+        assertThat(isCachedLocally(another)).isTrue();
+    }
+
+    @TestTemplate
+    void testRemoteRetentionDoesNotDeletePinnedLocalEntry() throws Exception {
+        JobID first = JobID.generate();
+        Path archive = createArchive(first, 1000);
+        fetcher = createArchiveFetcher((file, index) -> index <= 1, -1, 1);
+        fetcher.fetchArchives(EAGER);
+        fetcher.acquireJob(first.toString());
+        try {
+            createArchive(JobID.generate(), 2000);
+            fetcher.fetchArchives(EAGER);
+            assertThat(archive.getFileSystem().exists(archive)).isFalse();
+            assertThat(isCachedLocally(first)).isTrue();
+        } finally {
+            fetcher.releaseJob(first.toString());
+        }
+        assertThat(isCachedLocally(first)).isFalse();
+    }
+
+    @TestTemplate
+    void testViewedQuotaIsSharedAcrossRefreshDirectories() throws Exception {
+        File secondDir = new File(remoteArchiveRootPath, "second");
+        assertThat(secondDir.mkdir()).isTrue();
+        JobID firstLatest = JobID.generate();
+        JobID firstOld = JobID.generate();
+        JobID secondLatest = JobID.generate();
+        JobID secondOld = JobID.generate();
+        createArchive(firstLatest, 2000);
+        Path firstOldArchive = createArchive(firstOld, 1000);
+        createJobArchive(secondDir, secondLatest, true);
+        Path secondOldArchive = createJobArchive(secondDir, secondOld, true);
+        assertThat(new File(secondOldArchive.toUri()).setLastModified(1000)).isTrue();
+        fetcher =
+                new HistoryServerArchiveFetcher<>(
+                        Arrays.asList(
+                                createRefreshLocation(remoteArchiveRootPath),
+                                createRefreshLocation(secondDir)),
+                        localArchiveRootPath,
+                        event -> {},
+                        true,
+                        RETAIN_ALL,
+                        archiveStorage,
+                        archiveMetaInfoCache,
+                        4,
+                        4,
+                        1,
+                        1);
+        fetcher.fetchArchives(LAZY);
+        view(fetcher, firstOld, firstOldArchive);
+        view(fetcher, secondOld, secondOldArchive);
+        fetcher.fetchArchives(LAZY);
+
+        assertThat(isCachedLocally(firstLatest)).isTrue();
+        assertThat(isCachedLocally(secondLatest)).isTrue();
+        assertThat(isCachedLocally(firstOld)).isFalse();
+        assertThat(isCachedLocally(secondOld)).isTrue();
+        assertThat(firstOldArchive.getFileSystem().exists(firstOldArchive)).isTrue();
+    }
+
+    @TestTemplate
+    void testReplacementFetchDrainsCancelledWriter() throws Exception {
+        JobID jobId = JobID.generate();
+        Path oldArchive = createArchive(jobId, 1000);
+        String key = "jobs/" + jobId + "/config.json";
+        HistoryServerTestUtils.UninterruptibleArchiveStorage<Object> storage =
+                new HistoryServerTestUtils.UninterruptibleArchiveStorage<>(archiveStorage, key);
+        archiveStorage = storage;
+        File replacementDir = new File(remoteArchiveRootPath, "replacement");
+        assertThat(replacementDir.mkdir()).isTrue();
+        Path replacementArchive = new Path(replacementDir.toURI().toString(), jobId.toString());
+        String updated = "{\"jid\":\"" + jobId + "\",\"name\":\"replacement\"}";
+        FsJsonArchivist.writeArchivedJsons(
+                replacementArchive,
+                Arrays.asList(
+                        new ArchivedJson("/jobs/" + jobId, updated),
+                        new ArchivedJson("/jobs/" + jobId + "/config", updated)));
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), oldArchive);
+        CompletableFuture<Void> replacing = null;
+        try {
+            assertThat(storage.writeStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            replacing =
+                    CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    fetcher.lazyFetchArchiveProactively(
+                                            jobId.toString(), replacementArchive);
+                                } catch (Exception e) {
+                                    throw new CompletionException(e);
+                                }
+                            });
+            CompletableFuture<Void> pending = replacing;
+            assertThatThrownBy(() -> pending.get(200, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+        } finally {
+            storage.allowWrite.complete(null);
+            if (replacing != null) {
+                replacing.get(10, TimeUnit.SECONDS);
+            }
+        }
+        waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
+        assertThat(archiveStorage.readArchiveContent(archiveStorage.getEntry(key)))
+                .isEqualTo(updated);
+        assertThat(archiveMetaInfoCache.get(jobId.toString()).getArchivePath())
+                .isEqualTo(replacementArchive);
+    }
+
+    @TestTemplate
+    void testRequestsAreNotBlockedWhileScanReadsAnArchive() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old = JobID.generate();
+        Path oldArchive = createArchive(old, 1000);
+        createArchive(newest, 2000);
+        CountDownLatch readStarted = new CountDownLatch(1);
+        CountDownLatch finishRead = new CountDownLatch(1);
+        fetcher =
+                new HistoryServerArchiveFetcher<Object>(
+                        Collections.singletonList(createRefreshLocation(remoteArchiveRootPath)),
+                        localArchiveRootPath,
+                        event -> {},
+                        true,
+                        RETAIN_ALL,
+                        archiveStorage,
+                        archiveMetaInfoCache,
+                        4,
+                        4,
+                        1,
+                        1) {
+                    @Override
+                    List<ArchiveEvent> lazyProcessArchive(
+                            String archiveId, Path archivePath, Path refreshDir) throws Exception {
+                        readStarted.countDown();
+                        finishRead.await();
+                        return super.lazyProcessArchive(archiveId, archivePath, refreshDir);
+                    }
+                };
+
+        CompletableFuture<Void> scan =
+                CompletableFuture.runAsync(() -> fetcher.fetchArchives(LAZY));
+        assertThat(readStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+        CompletableFuture<Void> request =
+                CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                view(fetcher, old, oldArchive);
+                                fetcher.acquireJob(old.toString());
+                                fetcher.releaseJob(old.toString());
+                            } catch (Exception e) {
+                                throw new CompletionException(e);
+                            }
+                        });
+        request.get(10, TimeUnit.SECONDS);
+        assertThat(scan).isNotDone();
+
+        finishRead.countDown();
+        scan.get(10, TimeUnit.SECONDS);
+        assertThat(isCachedLocally(newest)).isTrue();
+    }
+
+    @TestTemplate
+    void testRequestsAreNotBlockedWhileAnEvictionDeletesFiles() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+        CountDownLatch deleteStarted = new CountDownLatch(1);
+        CountDownLatch finishDelete = new CountDownLatch(1);
+        fetcher =
+                new HistoryServerArchiveFetcher<Object>(
+                        Collections.singletonList(createRefreshLocation(remoteArchiveRootPath)),
+                        localArchiveRootPath,
+                        event -> {},
+                        true,
+                        RETAIN_ALL,
+                        archiveStorage,
+                        archiveMetaInfoCache,
+                        4,
+                        4,
+                        1,
+                        1) {
+                    @Override
+                    ArchiveEvent deleteJobFiles(String jobId) {
+                        if (jobId.equals(old1.toString())) {
+                            deleteStarted.countDown();
+                            try {
+                                finishDelete.await();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                        return super.deleteJobFiles(jobId);
+                    }
+                };
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+
+        // viewing the second job starts to evict the first one
+        CompletableFuture<Void> viewSecond =
+                CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                view(fetcher, old2, old2Archive);
+                            } catch (Exception e) {
+                                throw new CompletionException(e);
+                            }
+                        });
+        assertThat(deleteStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+        // unrelated requests go through, a request for the job being deleted waits for it
+        CompletableFuture<Void> unrelated =
+                CompletableFuture.runAsync(
+                        () -> {
+                            fetcher.markRecentlyViewed(newest.toString());
+                            fetcher.acquireJob(newest.toString());
+                            fetcher.releaseJob(newest.toString());
+                        });
+        unrelated.get(10, TimeUnit.SECONDS);
+        CompletableFuture<Void> sameJob =
+                CompletableFuture.runAsync(() -> fetcher.acquireJob(old1.toString()));
+        assertThatThrownBy(() -> sameJob.get(300, TimeUnit.MILLISECONDS))
+                .isInstanceOf(java.util.concurrent.TimeoutException.class);
+
+        finishDelete.countDown();
+        sameJob.get(10, TimeUnit.SECONDS);
+        viewSecond.get(10, TimeUnit.SECONDS);
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+    }
+
+    @TestTemplate
+    @SuppressWarnings("unchecked")
+    void testWaiterOfCancelledFetchReturnsInsteadOfFailing() throws Exception {
+        JobID jobId = JobID.generate();
+        Path archive = createArchive(jobId, 1000);
+        CountDownLatch detailWriteStarted = new CountDownLatch(1);
+        ArchiveStorage<Object> blockingStorage =
+                (ArchiveStorage<Object>)
+                        Proxy.newProxyInstance(
+                                getClass().getClassLoader(),
+                                new Class<?>[] {ArchiveStorage.class},
+                                (proxy, method, args) -> {
+                                    if (method.getName().equals("putArchiveContent")
+                                            && ((String) args[0])
+                                                    .startsWith("jobs/" + jobId + "/")) {
+                                        detailWriteStarted.countDown();
+                                        // blocks until the fetch is cancelled
+                                        new CountDownLatch(1).await();
+                                    }
+                                    try {
+                                        return method.invoke(archiveStorage, args);
+                                    } catch (InvocationTargetException e) {
+                                        throw e.getCause();
+                                    }
+                                });
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), archive);
+        assertThat(detailWriteStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread waiter =
+                new Thread(
+                        () -> {
+                            try {
+                                fetcher.waitLazyFetchArchiveFinished(jobId.toString());
+                            } catch (Throwable t) {
+                                failure.set(t);
+                            }
+                        });
+        waiter.start();
+        while (waiter.getState() != Thread.State.WAITING) {
+            Thread.sleep(10);
+        }
+
+        fetcher.cleanUpLazyFetchTask(jobId.toString());
+
+        waiter.join(10_000);
+        assertThat(waiter.isAlive()).isFalse();
+        assertThat(failure.get()).isNull();
+    }
+
+    @TestTemplate
+    void testFailedOnDemandFetchClearsMetaAndCanBeRetried() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old = JobID.generate();
+        Path oldArchive = createArchive(old, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(old)).isFalse();
+
+        Path hidden = new Path(oldArchive.getParent(), "hidden-" + old);
+        oldArchive.getFileSystem().rename(oldArchive, hidden);
+        assertThatThrownBy(() -> fetcher.lazyProcessJobArchive(old.toString(), oldArchive, true))
+                .isInstanceOf(Exception.class);
+        assertThat(archiveMetaInfoCache).doesNotContainKey(old.toString());
+
+        oldArchive.getFileSystem().rename(hidden, oldArchive);
+        view(fetcher, old, oldArchive);
+        assertThat(isCachedLocally(old)).isTrue();
+    }
+
+    @TestTemplate
+    void testRetainedLimitStillDeletesRemoteWhenCachedLimitIsSet() throws Exception {
+        JobID newest = JobID.generate();
+        JobID middle = JobID.generate();
+        JobID oldest = JobID.generate();
+        Path oldestArchive = createArchive(oldest, 1000);
+        Path middleArchive = createArchive(middle, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher((file, index) -> index <= 2, 1, 1);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(oldestArchive.getFileSystem().exists(oldestArchive)).isFalse();
+        assertThat(middleArchive.getFileSystem().exists(middleArchive)).isTrue();
+        assertThat(isCachedLocally(middle)).isFalse();
     }
 
     @TestTemplate
