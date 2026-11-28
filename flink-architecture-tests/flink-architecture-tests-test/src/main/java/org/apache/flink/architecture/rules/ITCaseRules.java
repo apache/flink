@@ -24,8 +24,6 @@ import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
-import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -37,8 +35,8 @@ import static org.apache.flink.architecture.common.Conditions.fulfill;
 import static org.apache.flink.architecture.common.GivenJavaClasses.javaClassesThat;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.annotatedWith;
 import static org.apache.flink.architecture.common.Predicates.areFieldOfType;
-import static org.apache.flink.architecture.common.Predicates.arePublicFinalOfTypeWithAnnotation;
-import static org.apache.flink.architecture.common.Predicates.arePublicStaticFinalOfTypeWithAnnotation;
+import static org.apache.flink.architecture.common.Predicates.arePublicFinalOfType;
+import static org.apache.flink.architecture.common.Predicates.arePublicStaticFinalOfType;
 import static org.apache.flink.architecture.common.Predicates.areStaticFinalOfTypeWithAnnotation;
 import static org.apache.flink.architecture.common.Predicates.containAnyFieldsInClassHierarchyThat;
 import static org.apache.flink.architecture.common.Predicates.getClassSimpleNameFromFqName;
@@ -56,6 +54,11 @@ public class ITCaseRules {
             "org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment";
     private static final String TEST_ENV_FQ_NAME =
             "org.apache.flink.connector.testframe.junit.annotations.TestEnv";
+    private static final String MINI_CLUSTER_WITH_CLIENT_RESOURCE_FQ_NAME =
+            "org.apache.flink.test.util.MiniClusterWithClientResource";
+    // Referenced by name so that this module compiles without JUnit 4 on the classpath.
+    private static final String JUNIT4_CLASS_RULE_FQ_NAME = "org.junit.ClassRule";
+    private static final String JUNIT4_RULE_FQ_NAME = "org.junit.Rule";
 
     @ArchTest
     public static final ArchRule INTEGRATION_TEST_ENDING_WITH_ITCASE =
@@ -152,15 +155,14 @@ public class ITCaseRules {
 
     private static DescribedPredicate<JavaClass> miniClusterWithClientResourceClassRule() {
         return containAnyFieldsInClassHierarchyThat(
-                arePublicStaticFinalOfTypeWithAnnotation(
-                        "org.apache.flink.test.util.MiniClusterWithClientResource",
-                        ClassRule.class));
+                arePublicStaticFinalOfType(MINI_CLUSTER_WITH_CLIENT_RESOURCE_FQ_NAME)
+                        .and(annotatedWith(JUNIT4_CLASS_RULE_FQ_NAME)));
     }
 
     private static DescribedPredicate<JavaClass> miniClusterWithClientResourceRule() {
         return containAnyFieldsInClassHierarchyThat(
-                arePublicFinalOfTypeWithAnnotation(
-                        "org.apache.flink.test.util.MiniClusterWithClientResource", Rule.class));
+                arePublicFinalOfType(MINI_CLUSTER_WITH_CLIENT_RESOURCE_FQ_NAME)
+                        .and(annotatedWith(JUNIT4_RULE_FQ_NAME)));
     }
 
     private static DescribedPredicate<JavaClass> inFlinkRuntimePackages() {
