@@ -34,15 +34,20 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.state.forst.ForStIterateOperation.CACHE_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for {@link ForStIterateOperation}. */
@@ -191,6 +196,69 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         }
     }
 
+    /** Verifies that a failing iterate request closes the native iterator it created. */
+    @Test
+    void testIteratorClosedWhenProcessFails() throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> mapState =
+                buildForStMapState("map-iter");
+        // More than CACHE_SIZE_LIMIT entries, so process() retains a live iterator when it fails.
+        prepareData(CACHE_SIZE_LIMIT + 10, mapState, db);
+
+        TestIterRequest request = new TestIterRequest(buildContextKey(1), mapState, null, true);
+        List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest = new ArrayList<>();
+        batchRequest.add(request);
+
+        ForStIterateOperation iterOperation =
+                new ForStIterateOperation(db, batchRequest, Runnable::run);
+        assertThatThrownBy(() -> iterOperation.process().get())
+                .hasRootCauseInstanceOf(FailingDeserializationException.class);
+
+        assertThat(request.observedIterator)
+                .as("process() should have created an iterator before failing")
+                .isNotNull();
+        assertThat(request.closeCount).hasValue(1);
+        assertThat(request.observedIterator.isOwningHandle())
+                .as("native iterator handle should have been released")
+                .isFalse();
+        assertThat(request.rocksIterator).isNull();
+    }
+
+    /**
+     * Verifies that a continuation skipped after an earlier request in the batch failed closes its
+     * carried-over native iterator.
+     */
+    @Test
+    void testIteratorClosedWhenBatchAlreadyFailed() throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> mapState =
+                buildForStMapState("map-iter");
+        prepareData(CACHE_SIZE_LIMIT + 10, mapState, db);
+
+        // A same-thread executor makes ordering deterministic: the first request fails and sets
+        // the shared error, so the continuation takes the "already failed" branch.
+        TestIterRequest failing = new TestIterRequest(buildContextKey(1), mapState, null, true);
+        RocksIterator carriedIterator = db.newIterator(mapState.getColumnFamilyHandle());
+        TestIterRequest continuation =
+                new TestIterRequest(buildContextKey(1), mapState, carriedIterator, false);
+
+        List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest = new ArrayList<>();
+        batchRequest.add(failing);
+        batchRequest.add(continuation);
+
+        ForStIterateOperation iterOperation =
+                new ForStIterateOperation(db, batchRequest, Runnable::run);
+        assertThatThrownBy(() -> iterOperation.process().get())
+                .hasRootCauseInstanceOf(FailingDeserializationException.class);
+
+        assertThat(continuation.completedExceptionally)
+                .as("the continuation should have been failed without being processed")
+                .doesNotHaveValue(null);
+        assertThat(continuation.closeCount).hasValue(1);
+        assertThat(carriedIterator.isOwningHandle())
+                .as("carried-over native iterator handle should have been released")
+                .isFalse();
+        assertThat(continuation.rocksIterator).isNull();
+    }
+
     private void prepareData(
             int num, ForStMapState<Integer, VoidNamespace, String, String> mapState, RocksDB db)
             throws Exception {
@@ -201,6 +269,62 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
             byte[] keyBytes = mapState.serializeKey(contextKey);
             byte[] valueBytes = mapState.serializeValue(value);
             db.put(mapState.getColumnFamilyHandle(), keyBytes, valueBytes);
+        }
+    }
+
+    /** Thrown by {@link TestIterRequest} to drive the iterate failure paths. */
+    private static class FailingDeserializationException extends RuntimeException {
+        FailingDeserializationException() {
+            super("Injected deserialization failure.");
+        }
+    }
+
+    /**
+     * An iterate request that records {@link #close()} calls and captures the native iterator that
+     * {@link ForStDBIterRequest#process} created, so a test can assert the handle was released.
+     */
+    private static class TestIterRequest
+            extends ForStDBIterRequest<Integer, VoidNamespace, String, String, String> {
+
+        private final boolean failOnDeserialize;
+
+        final AtomicInteger closeCount = new AtomicInteger();
+        final AtomicReference<Throwable> completedExceptionally = new AtomicReference<>();
+        volatile RocksIterator observedIterator;
+
+        TestIterRequest(
+                ContextKey<Integer, VoidNamespace> contextKey,
+                ForStMapState<Integer, VoidNamespace, String, String> table,
+                @Nullable RocksIterator rocksIterator,
+                boolean failOnDeserialize) {
+            super(contextKey, table, null, rocksIterator);
+            this.failOnDeserialize = failOnDeserialize;
+            this.observedIterator = rocksIterator;
+        }
+
+        @Override
+        public void completeStateFutureExceptionally(String message, Throwable ex) {
+            completedExceptionally.set(ex);
+        }
+
+        @Override
+        public Collection<String> deserializeElement(List<RawEntry> entries, int userKeyOffset) {
+            // Capture the iterator while process() still holds it, before any close() nulls it.
+            observedIterator = rocksIterator;
+            if (failOnDeserialize) {
+                throw new FailingDeserializationException();
+            }
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void buildIteratorAndCompleteFuture(
+                Collection<String> partialResult, boolean encounterEnd) {}
+
+        @Override
+        public void close() throws IOException {
+            closeCount.incrementAndGet();
+            super.close();
         }
     }
 
