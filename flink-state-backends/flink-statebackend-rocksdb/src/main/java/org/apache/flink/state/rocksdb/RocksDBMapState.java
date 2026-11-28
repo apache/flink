@@ -300,8 +300,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
         try (RocksIteratorWrapper iterator =
-                RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
-                        backend.db, columnFamily, backend.getReadOptions(), prefixBytes)) {
+                backend.getPrefixBoundedIteratorFactory()
+                        .newIterator(backend.db, columnFamily, prefixBytes)) {
 
             iterator.seek(prefixBytes);
 
@@ -313,11 +313,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
     public void clear() {
         final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
         try (RocksIteratorWrapper iterator =
-                        RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
-                                backend.db,
-                                columnFamily,
-                                backend.getReadOptions(),
-                                keyPrefixBytes);
+                        backend.getPrefixBoundedIteratorFactory()
+                                .newIterator(backend.db, columnFamily, keyPrefixBytes);
                 RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
                         new RocksDBWriteBatchWrapper(
                                 backend.db,
@@ -618,8 +615,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             // exception
             // occurred in the below code block.
             try (RocksIteratorWrapper iterator =
-                    RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
-                            db, columnFamily, backend.getReadOptions(), keyPrefixBytes)) {
+                    backend.getPrefixBoundedIteratorFactory()
+                            .newIterator(db, columnFamily, keyPrefixBytes)) {
 
                 /*
                  * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,

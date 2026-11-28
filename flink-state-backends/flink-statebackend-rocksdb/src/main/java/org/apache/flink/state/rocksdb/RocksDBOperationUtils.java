@@ -30,6 +30,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
+import org.rocksdb.AbstractSlice;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -129,13 +130,26 @@ public class RocksDBOperationUtils {
      * caller's options are not modified. If the prefix has no exclusive upper bound (see {@code
      * getPrefixEnd}), the caller's options are used as they are and the iterator is unbounded: no
      * key outside such a prefix can follow it, so nothing extra is visited.
+     *
+     * <p>Code that creates an iterator per state access can use a {@link
+     * PrefixBoundedIteratorFactory} to reuse the native upper-bound slice.
      */
     static RocksIteratorWrapper getRocksIteratorBoundedByPrefix(
             RocksDB db,
             ColumnFamilyHandle columnFamilyHandle,
             ReadOptions readOptions,
             byte[] prefix) {
-        final byte[] prefixEnd = getPrefixEnd(prefix);
+        return getRocksIteratorBoundedByPrefix(
+                db, columnFamilyHandle, readOptions, prefix, getPrefixEndLength(prefix));
+    }
+
+    static RocksIteratorWrapper getRocksIteratorBoundedByPrefix(
+            RocksDB db,
+            ColumnFamilyHandle columnFamilyHandle,
+            ReadOptions readOptions,
+            byte[] prefix,
+            int prefixEndLength) {
+        final byte[] prefixEnd = getPrefixEnd(prefix, prefixEndLength);
         if (prefixEnd == null) {
             return getRocksIterator(db, columnFamilyHandle, readOptions);
         }
@@ -143,8 +157,26 @@ public class RocksDBOperationUtils {
         final Slice upperBound = new Slice(prefixEnd);
         ReadOptions boundedReadOptions = null;
         try {
-            boundedReadOptions = new ReadOptions(readOptions);
-            boundedReadOptions.setIterateUpperBound(upperBound);
+            boundedReadOptions = copyForPrefixBoundedIterators(readOptions, upperBound);
+            return new RocksIteratorWrapper(
+                    db.newIterator(columnFamilyHandle, boundedReadOptions),
+                    boundedReadOptions,
+                    upperBound);
+        } catch (RuntimeException | Error e) {
+            IOUtils.closeQuietly(boundedReadOptions);
+            IOUtils.closeQuietly(upperBound);
+            throw e;
+        }
+    }
+
+    /**
+     * Copies {@code readOptions} for an iterator bounded by a key prefix. The caller owns both the
+     * copy and the upper bound.
+     */
+    static ReadOptions copyForPrefixBoundedIterators(
+            ReadOptions readOptions, AbstractSlice<?> upperBound) {
+        final ReadOptions boundedReadOptions = new ReadOptions(readOptions);
+        try {
             // Auto-prefix mode is needed because, with a prefix extractor configured, the default
             // seek mode honors the upper bound only if it shares the seek key's extracted prefix.
             boundedReadOptions.setAutoPrefixMode(true);
@@ -156,13 +188,10 @@ public class RocksDBOperationUtils {
             // The seek key is the lower end of every bounded scan. A configured lower bound above
             // it would silently skip entries, so the copy carries none.
             boundedReadOptions.setIterateLowerBound(null);
-            return new RocksIteratorWrapper(
-                    db.newIterator(columnFamilyHandle, boundedReadOptions),
-                    boundedReadOptions,
-                    upperBound);
+            boundedReadOptions.setIterateUpperBound(upperBound);
+            return boundedReadOptions;
         } catch (RuntimeException | Error e) {
             IOUtils.closeQuietly(boundedReadOptions);
-            IOUtils.closeQuietly(upperBound);
             throw e;
         }
     }
@@ -181,15 +210,22 @@ public class RocksDBOperationUtils {
      */
     @Nullable
     @VisibleForTesting
-    static byte[] getPrefixEnd(byte[] prefix) {
-        for (int i = prefix.length - 1; i >= 0; --i) {
-            if (prefix[i] != (byte) 0xFF) {
-                final byte[] prefixEnd = Arrays.copyOf(prefix, i + 1);
-                ++prefixEnd[i];
-                return prefixEnd;
-            }
+    static byte[] getPrefixEnd(byte[] prefix, int prefixEndLength) {
+        if (prefixEndLength == 0) {
+            return null;
         }
-        return null;
+        final byte[] prefixEnd = Arrays.copyOf(prefix, prefixEndLength);
+        ++prefixEnd[prefixEndLength - 1];
+        return prefixEnd;
+    }
+
+    /** Length of the exclusive upper bound, or zero if the prefix has no successor. */
+    static int getPrefixEndLength(byte[] prefix) {
+        int length = prefix.length;
+        while (length > 0 && prefix[length - 1] == (byte) 0xFF) {
+            --length;
+        }
+        return length;
     }
 
     public static void registerKvStateInformation(
