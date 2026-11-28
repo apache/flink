@@ -278,7 +278,7 @@ class TtlMapState<K, N, UK, UV>
 
         @Override
         public boolean isEmpty() {
-            return false;
+            return originalIterator.isEmpty();
         }
     }
 }
