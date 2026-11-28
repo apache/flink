@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -80,6 +81,12 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
 
     private transient List<RowData> reusableCollectList;
 
+    private boolean parseErrorMetricsEnabled;
+
+    private transient Counter numMessagesWithParseErrors;
+
+    private transient boolean messageHasParseError;
+
     public AbstractJsonDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
@@ -109,6 +116,31 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
         }
         reusableCollectList = new ArrayList<>();
         collector = new ListCollector<>(reusableCollectList);
+        if (parseErrorMetricsEnabled && ignoreParseErrors) {
+            numMessagesWithParseErrors =
+                    context.getMetricGroup().addGroup("json").counter("numMessagesWithParseErrors");
+            LOG.info("Registered metric json.numMessagesWithParseErrors for ignored parse errors.");
+        }
+    }
+
+    // CDC formats own their message boundaries and opt in separately.
+    void enableParseErrorMetrics() {
+        parseErrorMetricsEnabled = true;
+    }
+
+    protected final Runnable getParseErrorListener() {
+        return this::markParseError;
+    }
+
+    protected final void markParseError() {
+        messageHasParseError = true;
+    }
+
+    protected final void finishMessage() {
+        if (messageHasParseError && numMessagesWithParseErrors != null) {
+            numMessagesWithParseErrors.inc();
+        }
+        messageHasParseError = false;
     }
 
     /**
@@ -153,13 +185,19 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
         AbstractJsonDeserializationSchema that = (AbstractJsonDeserializationSchema) o;
         return failOnMissingField == that.failOnMissingField
                 && ignoreParseErrors == that.ignoreParseErrors
+                && parseErrorMetricsEnabled == that.parseErrorMetricsEnabled
                 && resultTypeInfo.equals(that.resultTypeInfo)
                 && timestampFormat.equals(that.timestampFormat);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo, timestampFormat);
+        return Objects.hash(
+                failOnMissingField,
+                ignoreParseErrors,
+                parseErrorMetricsEnabled,
+                resultTypeInfo,
+                timestampFormat);
     }
 
     /**

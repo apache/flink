@@ -165,6 +165,7 @@ class JsonFormatFactoryTest {
                         false,
                         true,
                         TimestampFormat.ISO_8601);
+        expectedDeser.enableParseErrorMetrics();
 
         DeserializationSchema<RowData> actualDeser =
                 createTableSource(options)
@@ -252,7 +253,7 @@ class JsonFormatFactoryTest {
                                 ScanRuntimeProviderContext.INSTANCE,
                                 SCHEMA.toPhysicalRowDataType());
 
-        DeserializationSchema<RowData> expectedDeser =
+        AbstractJsonDeserializationSchema expectedDeser =
                 enabled
                         ? new JsonParserRowDataDeserializationSchema(
                                 PHYSICAL_TYPE,
@@ -266,6 +267,7 @@ class JsonFormatFactoryTest {
                                 false,
                                 true,
                                 TimestampFormat.ISO_8601);
+        expectedDeser.enableParseErrorMetrics();
 
         assertThat(actualDeser).isInstanceOf(expectedClass);
         assertThat(actualDeser).isEqualTo(expectedDeser);
