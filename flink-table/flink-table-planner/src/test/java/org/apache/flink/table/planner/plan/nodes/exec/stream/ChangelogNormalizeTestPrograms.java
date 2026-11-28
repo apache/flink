@@ -51,9 +51,11 @@ public class ChangelogNormalizeTestPrograms {
     static final Row[] AFTER_DATA = {
         Row.ofKind(RowKind.INSERT, "four", 4, "d"),
         Row.ofKind(RowKind.INSERT, "five", 5, "e"),
+        // Keep the update to "four" between the insert and delete for "six" so a mini-batch of
+        // two cannot combine them.
+        Row.ofKind(RowKind.INSERT, "six", 6, "f"),
         Row.ofKind(RowKind.UPDATE_BEFORE, "four", 4, "d"),
         Row.ofKind(RowKind.UPDATE_AFTER, "four", 4, "dd"),
-        Row.ofKind(RowKind.INSERT, "six", 6, "f"),
         Row.ofKind(RowKind.DELETE, "six", 6, "f")
     };
 
@@ -71,9 +73,9 @@ public class ChangelogNormalizeTestPrograms {
     static final String[] AFTER_OUTPUT = {
         "+I[four, 4, d]",
         "+I[five, 5, e]",
+        "+I[six, 6, f]",
         "-U[four, 4, d]",
         "+U[four, 4, dd]",
-        "+I[six, 6, f]",
         "-D[six, 6, f]"
     };
 
