@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import java.io.EOFException;
@@ -29,6 +30,13 @@ import java.util.Arrays;
 
 /** A simple and efficient serializer for the {@link java.io.DataOutput} interface. */
 public class DataOutputSerializer implements DataOutputView, MemorySegmentWritable {
+
+    /**
+     * Maximum array length the JVM can allocate. Some VMs reserve a few header bytes, so we cap
+     * below {@link Integer#MAX_VALUE} for safety. Matches the bound used by {@code
+     * java.util.ArrayList}.
+     */
+    @VisibleForTesting static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
     private byte[] buffer;
 
@@ -333,26 +341,54 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
         }
     }
 
+    /**
+     * Computes the new buffer length for a {@link #resize(int)} call.
+     *
+     * <p>Uses {@code long} arithmetic so that doubling does not silently overflow once the current
+     * buffer length crosses {@code Integer.MAX_VALUE / 2}. When doubling would exceed {@link
+     * #MAX_ARRAY_SIZE}, the buffer jumps directly to the cap rather than growing by {@code
+     * minCapacityAdd} bytes at a time — the latter would degrade every subsequent resize into a
+     * full copy of a ~1–2 GB buffer.
+     *
+     * @throws IOException if the required size exceeds {@link #MAX_ARRAY_SIZE}.
+     */
+    @VisibleForTesting
+    static int computeNewBufferLength(int currentLength, int minCapacityAdd) throws IOException {
+        Preconditions.checkArgument(currentLength >= 0, "currentLength must be non-negative");
+        Preconditions.checkArgument(minCapacityAdd > 0, "minCapacityAdd must be positive");
+        long requiredLen = (long) currentLength + minCapacityAdd;
+        if (requiredLen > MAX_ARRAY_SIZE) {
+            throw new IOException(
+                    "Serialization failed because the record length ("
+                            + requiredLen
+                            + " bytes) would exceed the maximum Java array size ("
+                            + MAX_ARRAY_SIZE
+                            + " bytes).");
+        }
+        long doubledLen = (long) currentLength * 2L;
+        if (doubledLen > MAX_ARRAY_SIZE) {
+            return MAX_ARRAY_SIZE;
+        }
+        return (int) Math.max(doubledLen, requiredLen);
+    }
+
     private void resize(int minCapacityAdd) throws IOException {
-        int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
+        int newLen = computeNewBufferLength(this.buffer.length, minCapacityAdd);
         byte[] nb;
         try {
             nb = new byte[newLen];
-        } catch (NegativeArraySizeException e) {
-            throw new IOException(
-                    "Serialization failed because the record length would exceed 2GB (max addressable array size in Java).");
         } catch (OutOfMemoryError e) {
             // this was too large to allocate, try the smaller size (if possible)
-            if (newLen > this.buffer.length + minCapacityAdd) {
-                newLen = this.buffer.length + minCapacityAdd;
+            int minLen = this.buffer.length + minCapacityAdd;
+            if (newLen > minLen) {
                 try {
-                    nb = new byte[newLen];
+                    nb = new byte[minLen];
                 } catch (OutOfMemoryError ee) {
                     // still not possible. give an informative exception message that reports the
                     // size
                     throw new IOException(
                             "Failed to serialize element. Serialized size (> "
-                                    + newLen
+                                    + minLen
                                     + " bytes) exceeds JVM heap space",
                             ee);
                 }
