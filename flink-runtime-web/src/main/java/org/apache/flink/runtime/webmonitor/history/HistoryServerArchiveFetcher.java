@@ -31,8 +31,6 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
-import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -57,9 +55,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
@@ -78,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <Entry> the type of entries returned by the underlying {@link ArchiveStorage}.
  */
-public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
+public class HistoryServerArchiveFetcher<Entry> {
 
     /** Possible archive operations in history-server. */
     public enum ArchiveEventType {
@@ -135,12 +131,8 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     protected final ArchiveStorage<Entry> archiveStorage;
 
-    /** Executor for loading archives. */
-    private final ExecutorService commonFetchExecutor;
+    private final LazyFetchTaskRegistry lazyFetchTaskRegistry;
 
-    private final ExecutorService individualFetchExecutor;
-    private final Map<String, Future<?>> commonFetchTasks;
-    private final Map<String, Future<?>> individualFetchTasks;
     private final ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache;
 
     HistoryServerArchiveFetcher(
@@ -151,8 +143,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             ArchiveRetainedStrategy retainedStrategy,
             ArchiveStorage<Entry> archiveStorage,
             ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
-            int lazyFetchExecutorCommonPoolSize,
-            int lazyFetchExecutorIndividualPoolSize)
+            LazyFetchTaskRegistry lazyFetchTaskRegistry)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
@@ -165,16 +156,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         checkNotNull(webDir);
         this.archiveStorage = archiveStorage;
         this.archiveMetaInfoCache = archiveMetaInfoCache;
-        this.commonFetchExecutor =
-                Executors.newFixedThreadPool(
-                        lazyFetchExecutorCommonPoolSize,
-                        new ExecutorThreadFactory("HistoryServer-commonFetchExecutor"));
-        this.individualFetchExecutor =
-                Executors.newFixedThreadPool(
-                        lazyFetchExecutorIndividualPoolSize,
-                        new ExecutorThreadFactory("HistoryServer-individualFetchExecutor"));
-        this.commonFetchTasks = new ConcurrentHashMap<>();
-        this.individualFetchTasks = new ConcurrentHashMap<>();
+        this.lazyFetchTaskRegistry = checkNotNull(lazyFetchTaskRegistry);
         updateJobOverview();
 
         if (LOG.isInfoEnabled()) {
@@ -565,17 +547,8 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         }
         archiveMetaInfo.setEventType(ArchiveEventType.OVERVIEW_PARSING);
 
-        ExecutorService fetchExecutor;
-        Map<String, Future<?>> fetchTasks;
-        if (individual) {
-            fetchExecutor = individualFetchExecutor;
-            fetchTasks = individualFetchTasks;
-        } else {
-            fetchExecutor = commonFetchExecutor;
-            fetchTasks = commonFetchTasks;
-        }
-
-        archiveMetaInfo.setEventType(ArchiveEventType.OVERVIEW_PARSING);
+        ExecutorService fetchExecutor = lazyFetchTaskRegistry.getFetchExecutor(individual);
+        Map<String, Future<?>> fetchTasks = lazyFetchTaskRegistry.getFetchTasks(individual);
 
         Collection<ArchivedJson> archivedJsons = FsJsonArchivist.readArchivedJsons(jobArchive);
         List<ArchivedJson> detailArchives = new ArrayList<>();
@@ -684,35 +657,20 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             case PENDING:
             case OVERVIEW_PARSING:
             case OVERVIEW_CREATED:
-                return commonFetchTasks.containsKey(jobId)
-                        && !individualFetchTasks.containsKey(jobId);
+                return lazyFetchTaskRegistry.hasCommonFetchTask(jobId)
+                        && !lazyFetchTaskRegistry.hasIndividualFetchTask(jobId);
             default:
                 return false;
         }
     }
 
     void cleanUpLazyFetchTask(String jobId) {
-        Future<?> commonFetchTask = commonFetchTasks.get(jobId);
-        if (commonFetchTask != null) {
-            commonFetchTask.cancel(true);
-            commonFetchTasks.remove(jobId);
-        }
-        Future<?> individualFetchTask = individualFetchTasks.get(jobId);
-        if (individualFetchTask != null) {
-            individualFetchTask.cancel(true);
-            individualFetchTasks.remove(jobId);
-        }
-    }
-
-    @Override
-    public void close() {
-        ExecutorUtils.gracefulShutdown(1L, TimeUnit.SECONDS, commonFetchExecutor);
-        ExecutorUtils.gracefulShutdown(1L, TimeUnit.SECONDS, individualFetchExecutor);
+        lazyFetchTaskRegistry.cancelFetchTasks(jobId);
     }
 
     @VisibleForTesting
     Future<?> getCommonFetchTask(String jobId) {
-        return commonFetchTasks.get(jobId);
+        return lazyFetchTaskRegistry.getCommonFetchTask(jobId);
     }
 
     void resetWhenTriggerLazyFetch(String jobId) {
@@ -721,14 +679,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     }
 
     void waitLazyFetchArchiveFinished(String jobId) throws Exception {
-        Future<?> commonFetchTask = commonFetchTasks.get(jobId);
-        if (commonFetchTask != null) {
-            commonFetchTask.get();
-        }
-        Future<?> individualFetchTask = individualFetchTasks.get(jobId);
-        if (individualFetchTask != null) {
-            individualFetchTask.get();
-        }
+        lazyFetchTaskRegistry.waitFetchTasksFinished(jobId);
     }
 
     ArchiveMetaInfo getArchiveMetaInfo(String jobId) {

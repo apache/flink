@@ -132,6 +132,12 @@ public class HistoryServer {
      */
     private final HistoryServerApplicationArchiveFetcher<?> applicationArchiveFetcher;
 
+    /**
+     * The executors and in-flight tasks that are used by both archive fetchers to lazily fetch the
+     * detail content of job archives.
+     */
+    private final LazyFetchTaskRegistry lazyFetchTaskRegistry;
+
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
 
@@ -300,10 +306,10 @@ public class HistoryServer {
         ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache = new ConcurrentHashMap<>();
         ConcurrentHashMap<String, ArchiveMetaInfo> applicationArchiveMetaInfoCache =
                 new ConcurrentHashMap<>();
-        int lazyFetchExecutorCommonPoolSize =
-                config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE);
-        int lazyFetchExecutorIndividualPoolSize =
-                config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE);
+        lazyFetchTaskRegistry =
+                new LazyFetchTaskRegistry(
+                        config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE),
+                        config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE));
         archiveFetcher =
                 new HistoryServerArchiveFetcher<>(
                         refreshDirs,
@@ -313,8 +319,7 @@ public class HistoryServer {
                         CompositeArchiveRetainedStrategy.createForJobFromConfig(config),
                         archiveStorage,
                         archiveMetaInfoCache,
-                        lazyFetchExecutorCommonPoolSize,
-                        lazyFetchExecutorIndividualPoolSize);
+                        lazyFetchTaskRegistry);
         applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,
@@ -325,8 +330,7 @@ public class HistoryServer {
                         archiveStorage,
                         archiveMetaInfoCache,
                         applicationArchiveMetaInfoCache,
-                        lazyFetchExecutorCommonPoolSize,
-                        lazyFetchExecutorIndividualPoolSize);
+                        lazyFetchTaskRegistry);
 
         historyServerHandler =
                 historyServerHandlerFactory.createHistoryServerHandler(
@@ -505,15 +509,9 @@ public class HistoryServer {
                 }
 
                 try {
-                    archiveFetcher.close();
+                    lazyFetchTaskRegistry.close();
                 } catch (Throwable t) {
-                    LOG.warn("Error while closing archive fetcher.", t);
-                }
-
-                try {
-                    applicationArchiveFetcher.close();
-                } catch (Throwable t) {
-                    LOG.warn("Error while closing application archive fetcher.", t);
+                    LOG.warn("Error while closing lazy fetch task registry.", t);
                 }
 
                 try {

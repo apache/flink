@@ -72,6 +72,7 @@ class HistoryServerArchiveFetcherTest {
     private ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache;
     private List<HistoryServerArchiveFetcher.ArchiveEvent> archiveEvents;
     private HistoryServerArchiveFetcher<?> fetcher;
+    private LazyFetchTaskRegistry lazyFetchTaskRegistry;
 
     @Parameters(name = "storageFactory={0}")
     private static Collection<ArchiveStorageFactory<?>> storageFactories() {
@@ -91,6 +92,7 @@ class HistoryServerArchiveFetcherTest {
         archiveMetaInfoCache = new ConcurrentHashMap<>();
         archiveEvents = new ArrayList<>();
         archiveStorage = storageFactory.create(localArchiveRootPath);
+        lazyFetchTaskRegistry = new LazyFetchTaskRegistry(4, 4);
     }
 
     @AfterEach
@@ -100,8 +102,9 @@ class HistoryServerArchiveFetcherTest {
         // localArchiveRootPath, and a task still running during cleanup fails the temp-dir
         // deletion.
         try {
-            if (fetcher != null) {
-                fetcher.close();
+            if (lazyFetchTaskRegistry != null) {
+                lazyFetchTaskRegistry.close();
+                lazyFetchTaskRegistry = null;
             }
         } finally {
             fetcher = null;
@@ -132,8 +135,7 @@ class HistoryServerArchiveFetcherTest {
                 RETAIN_ALL,
                 storage,
                 archiveMetaInfoCache,
-                4,
-                4);
+                lazyFetchTaskRegistry);
     }
 
     // =========================================================================
