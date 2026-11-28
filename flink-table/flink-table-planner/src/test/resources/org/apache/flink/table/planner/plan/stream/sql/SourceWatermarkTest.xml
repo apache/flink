@@ -178,8 +178,8 @@ LogicalProject(e=[$2.d.e], d=[$2.d])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c.d.e AS e, c.d AS d])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], watermark=[-(c.d.f, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[c])
+Calc(select=[c_d.e AS e, c_d AS d])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c_d], watermark=[-(c_d.f, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[c_d])
 ]]>
     </Resource>
   </TestCase>

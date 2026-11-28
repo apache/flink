@@ -123,7 +123,22 @@ object NestedProjectionUtil {
    * NestedFieldReWriter.
    */
   def rewrite(exprs: JList[RexNode], schema: NestedSchema, builder: RexBuilder): JList[RexNode] = {
-    val writer = new NestedSchemaRewriter(schema, builder)
+    val writer = new NestedSchemaRewriter(schema, builder, null)
+    exprs.map(_.accept(writer)).toList.asJava
+  }
+
+  /**
+   * Like [[rewrite]], but types each rewritten leaf reference with
+   * `leafTypes(indexOfLeafInNewSchema)` instead of the leaf's declared type. The declared type
+   * ignores the nullability that a nullable enclosing struct (or an outer join) adds to the
+   * projected column.
+   */
+  def rewrite(
+      exprs: JList[RexNode],
+      schema: NestedSchema,
+      builder: RexBuilder,
+      leafTypes: JList[RelDataType]): JList[RexNode] = {
+    val writer = new NestedSchemaRewriter(schema, builder, leafTypes)
     exprs.map(_.accept(writer)).toList.asJava
   }
 
@@ -195,14 +210,25 @@ object NestedProjectionUtil {
  *      reference founded before; 2. if the process hasn't found the first reference, the process
  *      continues to search under the current parent.
  */
-private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) extends RexShuttle {
+private class NestedSchemaRewriter(
+    schema: NestedSchema,
+    builder: RexBuilder,
+    leafTypes: JList[RelDataType])
+  extends RexShuttle {
+
+  private def leafRef(column: NestedColumn): RexInputRef = {
+    val tpe =
+      if (leafTypes == null) column.originFieldType
+      else leafTypes.get(column.indexOfLeafInNewSchema)
+    new RexInputRef(column.indexOfLeafInNewSchema, tpe)
+  }
+
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     val name = schema.inputRowType.getFieldNames.get(inputRef.getIndex)
     if (!schema.columns.containsKey(name)) {
       throw new TableException("Illegal input field access" + name)
     } else {
-      val field = schema.columns.get(name)
-      new RexInputRef(field.indexOfLeafInNewSchema, field.originFieldType)
+      leafRef(schema.columns.get(name))
     }
   }
 
@@ -221,17 +247,11 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
         val name = schema.inputRowType.getFieldNames.get(ref.getIndex)
         val parent = schema.columns.get(name)
         if (parent.isLeaf) {
-          (
-            Some(
-              copyFieldAccess(
-                new RexInputRef(parent.indexOfLeafInNewSchema, parent.originFieldType),
-                fieldAccess.getField.getName,
-                builder)),
-            parent)
+          (Some(copyFieldAccess(leafRef(parent), fieldAccess.getField.getName, builder)), parent)
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
-            (Some(new RexInputRef(child.indexOfLeafInNewSchema, child.originFieldType)), child)
+            (Some(leafRef(child)), child)
           } else {
             (Option.empty, child)
           }
@@ -243,7 +263,7 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
-            (Some(new RexInputRef(child.indexOfLeafInNewSchema, child.originFieldType)), child)
+            (Some(leafRef(child)), child)
           } else {
             (Option.empty, child)
           }
