@@ -562,8 +562,9 @@ public class TypeExtractor {
                 lambdaOutputTypeArgumentIndices != null,
                 "Indices for output type arguments within lambda not provided");
 
-        // explicit result type has highest precedence
-        if (function instanceof ResultTypeQueryable) {
+        // An aggregate function's explicit result type does not describe its accumulator.
+        if (function instanceof ResultTypeQueryable
+                && !(baseClass == AggregateFunction.class && outputTypeArgumentIndex == 1)) {
             return ((ResultTypeQueryable<OUT>) function).getProducedType();
         }
 
