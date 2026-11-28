@@ -24,7 +24,7 @@ import operator
 import types
 import unittest
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, TypedDict, cast
+from typing import Any, Callable, NamedTuple, Optional, TypedDict, cast
 from unittest import mock
 
 import pandas as pd
@@ -874,6 +874,22 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(TypeError, "DataType or SQL"):
             pf.udf(lambda value: value, return_dtype=InvalidOutput)
+
+    def test_unresolvable_composite_return_dtype_throws_error(self):
+        @dataclass
+        class EmptyDataclass:
+            pass
+
+        class EmptyNamedTuple(NamedTuple):
+            pass
+
+        for return_dtype in (EmptyDataclass, EmptyNamedTuple):
+            with self.subTest(return_dtype=return_dtype):
+                with self.assertRaisesRegex(
+                    TypeError,
+                    f"Cannot resolve return_dtype from '{return_dtype.__name__}'",
+                ):
+                    pf.udf(lambda value: value, return_dtype=return_dtype)
 
     def test_malformed_forward_references_have_clean_inference_behavior(self):
         def pandas_after_malformed(
