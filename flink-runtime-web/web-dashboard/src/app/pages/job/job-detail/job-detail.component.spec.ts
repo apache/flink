@@ -31,7 +31,6 @@ const cdr = { markForCheck: vi.fn() } as unknown as ChangeDetectorRef;
 
 describe('JobDetailComponent', () => {
   const loadJob = vi.fn();
-  const loadExceptions = vi.fn();
   const setJobDetail = vi.fn();
   let component: JobDetailComponent;
 
@@ -41,7 +40,7 @@ describe('JobDetailComponent', () => {
     isHistoryServer = false
   ): JobDetailComponent {
     return new JobDetailComponent(
-      { loadJob, loadExceptions } as unknown as JobService,
+      { loadJob } as unknown as JobService,
       { setJobDetail } as unknown as JobLocalService,
       { refresh$, configuration: { features: { 'web-history': isHistoryServer } } } as unknown as StatusService,
       { params: params$ } as unknown as ActivatedRoute,
@@ -51,7 +50,6 @@ describe('JobDetailComponent', () => {
 
   beforeEach(() => {
     loadJob.mockReset();
-    loadExceptions.mockReset().mockReturnValue(of({ 'root-exception': '' }));
     setJobDetail.mockReset();
     component = createComponent();
   });
@@ -65,19 +63,6 @@ describe('JobDetailComponent', () => {
     expect(loadJob).toHaveBeenCalledWith('job-1');
     expect(setJobDetail).toHaveBeenCalledWith(job);
     expect(component.isLoading).toBe(false);
-    expect(component.isError).toBe(false);
-  });
-
-  it('surfaces the root exception when the job fails to load', () => {
-    loadJob.mockReturnValue(throwError(() => new Error('boom')));
-    loadExceptions.mockReturnValue(of({ 'root-exception': 'java.lang.RuntimeException: boom' }));
-
-    component.ngOnInit();
-
-    expect(component.isError).toBe(true);
-    expect(component.isLoading).toBe(false);
-    expect(loadExceptions).toHaveBeenCalledWith('job-1', 10);
-    expect(component.errorDetails).toBe('java.lang.RuntimeException: boom');
   });
 
   it('stops polling and reports the job as gone once it is no longer found', () => {
@@ -92,9 +77,7 @@ describe('JobDetailComponent', () => {
 
     expect(loadJob).toHaveBeenCalledTimes(1);
     expect(component.notFound).toBe(true);
-    expect(component.isError).toBe(false);
     expect(component.isLoading).toBe(false);
-    expect(loadExceptions).not.toHaveBeenCalled();
   });
 
   it('polls the new job when the job ID changes after the previous job was not found', () => {
