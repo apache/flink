@@ -143,7 +143,7 @@ public class BridgingSqlFunction extends SqlFunction {
                 "Scalar or table function kind expected.");
 
         final TypeInference systemTypeInference =
-                SystemTypeInference.of(functionKind, typeInference);
+                SystemTypeInference.of(resolvedFunction.getDefinition(), typeInference);
 
         if (functionKind == FunctionKind.TABLE
                 || functionKind == FunctionKind.ASYNC_TABLE

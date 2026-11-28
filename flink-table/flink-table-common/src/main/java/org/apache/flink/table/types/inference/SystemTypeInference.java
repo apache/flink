@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -97,6 +98,18 @@ public class SystemTypeInference {
             Pattern.compile("^[a-zA-Z_][a-zA-Z-_0-9]*$").asPredicate();
 
     public static TypeInference of(FunctionKind functionKind, TypeInference origin) {
+        return of(functionKind, origin, false);
+    }
+
+    public static TypeInference of(FunctionDefinition definition, TypeInference origin) {
+        final boolean disableOnTimeArg =
+                definition instanceof BuiltInFunctionDefinition
+                        && ((BuiltInFunctionDefinition) definition).isOnTimeArgumentDisabled();
+        return of(definition.getKind(), origin, disableOnTimeArg);
+    }
+
+    private static TypeInference of(
+            FunctionKind functionKind, TypeInference origin, boolean disableOnTimeArg) {
         final TypeInference.Builder builder = TypeInference.newBuilder();
 
         final List<StaticArgument> systemArgs =
@@ -112,7 +125,8 @@ public class SystemTypeInference {
                         functionKind,
                         systemArgs,
                         origin.getInputTypeStrategy(),
-                        origin.disableSystemArguments()));
+                        origin.disableSystemArguments(),
+                        disableOnTimeArg));
         if (functionKind == FunctionKind.PROCESS_TABLE) {
             checkBroadcastTraits(systemArgs, origin.getStateTypeStrategies());
         }
@@ -345,11 +359,13 @@ public class SystemTypeInference {
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
             InputTypeStrategy inputStrategy,
-            boolean disableSystemArgs) {
+            boolean disableSystemArgs,
+            boolean disableOnTimeArg) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             return inputStrategy;
         }
-        return new SystemInputStrategy(staticArgs, inputStrategy, disableSystemArgs);
+        return new SystemInputStrategy(
+                staticArgs, inputStrategy, disableSystemArgs, disableOnTimeArg);
     }
 
     private static TypeStrategy deriveSystemOutputStrategy(
@@ -688,14 +704,17 @@ public class SystemTypeInference {
         private final List<StaticArgument> staticArgs;
         private final InputTypeStrategy origin;
         private final boolean disableSystemArgs;
+        private final boolean disableOnTimeArg;
 
         private SystemInputStrategy(
                 List<StaticArgument> staticArgs,
                 InputTypeStrategy origin,
-                boolean disableSystemArgs) {
+                boolean disableSystemArgs,
+                boolean disableOnTimeArg) {
             this.staticArgs = staticArgs;
             this.origin = origin;
             this.disableSystemArgs = disableSystemArgs;
+            this.disableOnTimeArg = disableOnTimeArg;
         }
 
         @Override
@@ -727,6 +746,9 @@ public class SystemTypeInference {
             // Resolve once so the rest of validation iterates the effective signature.
             final List<StaticArgument> resolvedArgs = resolveStaticArgs(callContext, staticArgs);
             try {
+                if (!disableSystemArgs && disableOnTimeArg) {
+                    checkNoOnTimeArg(callContext);
+                }
                 checkTableArgs(resolvedArgs, callContext);
                 if (!disableSystemArgs) {
                     checkUidArg(callContext);
@@ -743,6 +765,25 @@ public class SystemTypeInference {
             // Access the original input type strategy to give the function a chance to return a
             // valid signature
             return origin.getExpectedSignatures(definition);
+        }
+
+        private static void checkNoOnTimeArg(CallContext callContext) {
+            final int onTimePos =
+                    callContext.getArgumentDataTypes().size()
+                            - 1
+                            - PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
+            final boolean hasOnTime =
+                    callContext
+                            .getArgumentValue(onTimePos, ColumnList.class)
+                            .map(columns -> !columns.getNames().isEmpty())
+                            .orElse(false);
+            if (hasOnTime) {
+                throw new ValidationException(
+                        String.format(
+                                "The 'on_time' argument is not supported because function '%s' "
+                                        + "does not support time attributes.",
+                                callContext.getName()));
+            }
         }
 
         private static void checkUidArg(CallContext callContext) {
