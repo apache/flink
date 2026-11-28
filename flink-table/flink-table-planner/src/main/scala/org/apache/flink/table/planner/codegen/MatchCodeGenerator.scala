@@ -99,6 +99,10 @@ class MatchCodeGenerator(
   private val reusablePatternLists: mutable.HashMap[String, GeneratedPatternList] =
     mutable.HashMap[String, GeneratedPatternList]()
 
+  /** Caches generated single-element lists holding only the current event, by pattern variable. */
+  private val reusableCurrentEventLists: mutable.HashMap[String, GeneratedPatternList] =
+    mutable.HashMap[String, GeneratedPatternList]()
+
   /**
    * Used to deduplicate aggregations calculation. The deduplication is performed by
    * [[RexNode#toString]]. Those expressions needs to be accessible from splits, if such exists.
@@ -153,7 +157,9 @@ class MatchCodeGenerator(
   }
 
   private def reusePatternLists(): String = {
-    reusablePatternLists.values.map(_.code).mkString("\n")
+    val patternEventList = reusablePatternLists.values.map(_.code).mkString("\n")
+    val patternCurrentEventList = reusableCurrentEventLists.values.map(_.code).mkString("\n")
+    patternEventList + "\n" + patternCurrentEventList
   }
 
   private def addReusablePatternNames(): Unit = {
@@ -251,8 +257,9 @@ class MatchCodeGenerator(
 
         (
           baseClass,
-          s"boolean filter(Object _in1, $contextType $contextTerm)",
-          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+          s"boolean filter(final Object _in1, final $contextType $contextTerm)",
+          List(s"final $inputTypeTerm $input1Term = ($inputTypeTerm) _in1;")
+        )
       } else if (clazz == classOf[PatternProcessFunction[_, _]]) {
         val baseClass = classOf[PatternProcessFunction[_, _]]
         val inputTypeTerm =
@@ -473,8 +480,7 @@ class MatchCodeGenerator(
       patternName: String,
       currentPattern: String): GeneratedPatternList = {
     val Seq(listName, eventNameTerm) = newNames(ctx, "patternEvents", "event")
-
-    ctx.addReusableMember(s"java.util.List $listName;")
+    val Seq(listNameFunc) = newNames(ctx, "patternEventsFunc")
 
     val addCurrent = if (currentPattern == patternName || patternName == ALL_PATTERN_VARIABLE) {
       j"""
@@ -514,7 +520,24 @@ class MatchCodeGenerator(
          |$addCurrent
          |""".stripMargin
 
-    GeneratedPatternList(listName, code)
+    val lazyCode =
+      j"""
+         |final java.util.function.Supplier<java.util.List> $listNameFunc = new java.util.function.Supplier<java.util.List>() {
+         |           java.util.List $listName = null;
+         |            @Override
+         |            public java.util.List get() {
+         |                if($listName == null) {
+         |                    try {
+         |                        $code
+         |                    } catch (Exception e) {
+         |                      throw new RuntimeException(e);
+         |                  }
+         |                }
+         |                return $listName;
+         |            }
+         |       };
+         |""".stripMargin
+    GeneratedPatternList(s"((java.util.List) $listNameFunc.get())", lazyCode)
   }
 
   private def generateMeasurePatternVariableExp(patternName: String): GeneratedPatternList = {
@@ -550,7 +573,18 @@ class MatchCodeGenerator(
   private def findEventByLogicalPosition(patternFieldAlpha: String): GeneratedExpression = {
     val Seq(rowNameTerm, isRowNull) = newNames(ctx, "row", "isRowNull")
 
-    val listName = findEventsByPatternName(patternFieldAlpha).resultTerm
+    val listName = currentPattern match {
+      case Some(p) =>
+        if (p == patternFieldAlpha && !first && offset == 0) {
+          // LAST(A, 0) in A's own DEFINE is the incoming event, so a single-element list
+          // suffices and avoids collecting all events matched for A so far.
+          findCurrentEventListByPatternName(patternFieldAlpha).resultTerm
+        } else {
+          findEventsByPatternName(patternFieldAlpha).resultTerm
+        }
+      case None => findEventsByPatternName(patternFieldAlpha).resultTerm
+    }
+
     val resultIndex = if (first) {
       j"""$offset"""
     } else {
@@ -570,6 +604,27 @@ class MatchCodeGenerator(
     GeneratedExpression(rowNameTerm, "", funcCode, input1Type)
   }
 
+  private def findCurrentEventListByPatternName(patternFieldAlpha: String): GeneratedPatternList = {
+    reusableCurrentEventLists.get(patternFieldAlpha) match {
+      case Some(expr) => expr
+      case None =>
+        val exp = currentPattern match {
+          case Some(p) =>
+            if (patternFieldAlpha != p) {
+              throw new CodeGenException(
+                "Could not generate current event list because current pattern" + currentPattern
+                  + "is not same as finding pattern " + patternFieldAlpha + ".")
+            }
+            generateCurrentEventListExp()
+          case None =>
+            throw new CodeGenException(
+              "Could not generate current event list if current pattern is NULL.")
+        }
+        reusableCurrentEventLists(patternFieldAlpha) = exp
+        exp
+    }
+  }
+
   private def findEventsByPatternName(patternFieldAlpha: String): GeneratedPatternList = {
     reusablePatternLists.get(patternFieldAlpha) match {
       case Some(expr) =>
@@ -583,6 +638,16 @@ class MatchCodeGenerator(
         reusablePatternLists(patternFieldAlpha) = exp
         exp
     }
+  }
+
+  private def generateCurrentEventListExp(): GeneratedPatternList = {
+    val Seq(listName) = newNames(ctx, "patternEvents")
+    ctx.addReusableMember(s"java.util.List $listName;")
+    val code = j"""
+                  |$listName = new java.util.ArrayList();
+                  |$listName.add($input1Term);
+                  |""".stripMargin
+    GeneratedPatternList(listName, code)
   }
 
   private def generatePatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
@@ -614,6 +679,36 @@ class MatchCodeGenerator(
 
     private val calculateAggFuncName = s"calculateAgg_$variableUID"
 
+    /**
+     * Term of the per-record supplier memoizing this variable's aggregate row. Shared by all
+     * aggregates of the variable so `calculateAgg` runs at most once per record, yet stays lazy:
+     * short-circuited conditions never trigger the computation.
+     */
+    private lazy val sharedAggRowFuncTerm: String = {
+      val allAggRowTerm = s"aggRow_$variableUID"
+      val rowsForVariableCode = findEventsByPatternName(variable)
+      val funcTerm = newName(ctx, "allAggRowTermFunc")
+      val lazyCodeForAgg =
+        j"""
+           |final java.util.function.Supplier<$GENERIC_ROW> $funcTerm = new java.util.function.Supplier<$GENERIC_ROW>() {
+           |           $GENERIC_ROW $allAggRowTerm = null;
+           |            @Override
+           |            public $GENERIC_ROW get() {
+           |                if($allAggRowTerm == null) {
+           |                    try {
+           |                        $allAggRowTerm = $calculateAggFuncName(${rowsForVariableCode.resultTerm});
+           |                    } catch (Exception e) {
+           |                      throw new RuntimeException(e);
+           |                  }
+           |                }
+           |                return $allAggRowTerm;
+           |            }
+           |       };
+           |""".stripMargin
+      ctx.addReusablePerRecordStatement(lazyCodeForAgg)
+      funcTerm
+    }
+
     def generateDeduplicatedAggAccess(aggCall: RexCall): GeneratedExpression = {
       reusableAggregationExpr.get(aggCall.toString) match {
         case Some(expr) =>
@@ -635,34 +730,50 @@ class MatchCodeGenerator(
       val primitiveSingleAggResultTypeTerm = primitiveTypeTermForType(singleAggResultType)
       val boxedSingleAggResultTypeTerm = boxedTypeTermForType(singleAggResultType)
 
-      val allAggRowTerm = s"aggRow_$variableUID"
-
-      val rowsForVariableCode = findEventsByPatternName(variable)
-      val codeForAgg =
-        j"""
-           |$GENERIC_ROW $allAggRowTerm = $calculateAggFuncName(${rowsForVariableCode.resultTerm});
-           |""".stripMargin
-
-      ctx.addReusablePerRecordStatement(codeForAgg)
+      val allAggRowTermFunc = sharedAggRowFuncTerm
 
       val defaultValue = primitiveDefaultValue(singleAggResultType)
-      val codeForSingleAgg =
+
+      val singleAggFunc = newName(ctx, "singleAgg")
+      val singleAggFuncReturnType =
+        s"org.apache.commons.lang3.tuple.Pair<Boolean, $boxedSingleAggResultTypeTerm>"
+      val lazyCodeSingleAggFunc =
         j"""
-           |boolean $singleAggNullTerm;
-           |$primitiveSingleAggResultTypeTerm $singleAggResultTerm;
-           |if ($allAggRowTerm.getField(${aggregates.size}) != null) {
-           |  $singleAggResultTerm = ($boxedSingleAggResultTypeTerm) $allAggRowTerm
-           |    .getField(${aggregates.size});
-           |  $singleAggNullTerm = false;
-           |} else {
-           |  $singleAggNullTerm = true;
-           |  $singleAggResultTerm = $defaultValue;
-           |}
+           |final java.util.function.Supplier<$singleAggFuncReturnType> $singleAggFunc
+           |  = new java.util.function.Supplier<$singleAggFuncReturnType>() {
+           |  boolean isExecuted = false;
+           |  boolean $singleAggNullTerm;
+           |  $boxedSingleAggResultTypeTerm $singleAggResultTerm;
+           |   @Override
+           |   public $singleAggFuncReturnType get() {
+           |      if(!isExecuted) {
+           |         try {
+           |             $GENERIC_ROW row = ($GENERIC_ROW)($allAggRowTermFunc.get());
+           |             if (row.getField(${aggregates.size}) != null) {
+           |                $singleAggResultTerm = ($boxedSingleAggResultTypeTerm) row.getField(${aggregates.size});
+           |                $singleAggNullTerm = false;
+           |            } else {
+           |              $singleAggNullTerm = true;
+           |              $singleAggResultTerm = $defaultValue;
+           |            }
+           |         } catch (Exception e) {
+           |           throw new RuntimeException(e);
+           |         }
+           |         isExecuted = true;
+           |     }
+           |     return org.apache.commons.lang3.tuple.Pair.of($singleAggNullTerm, ($boxedSingleAggResultTypeTerm)$singleAggResultTerm);
+           |  }
+           |};
            |""".stripMargin
 
-      ctx.addReusablePerRecordStatement(codeForSingleAgg)
+      ctx.addReusablePerRecordStatement(lazyCodeSingleAggFunc)
 
-      GeneratedExpression(singleAggResultTerm, singleAggNullTerm, NO_CODE, singleAggResultType)
+      GeneratedExpression(
+        s"($boxedSingleAggResultTypeTerm)((($singleAggFuncReturnType)($singleAggFunc.get())).getRight())",
+        s"(Boolean)((($singleAggFuncReturnType)($singleAggFunc.get())).getLeft())",
+        NO_CODE,
+        singleAggResultType
+      )
     }
 
     def generateAggFunction(): Unit = {
