@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -50,12 +51,18 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperator;
+import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperatorV2;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -77,12 +84,15 @@ import java.util.Optional;
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(StreamExecTemporalJoin.class);
+
     public static final String TEMPORAL_JOIN_TRANSFORMATION = "temporal-join";
 
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN = "isTemporalFunctionJoin";
     public static final String FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX = "leftTimeAttributeIndex";
     public static final String FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX = "rightTimeAttributeIndex";
+    public static final String FIELD_NAME_EVENT_TIME_JOIN_VERSION = "eventTimeJoinVersion";
     public static final int FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE = -1;
 
     @JsonProperty(FIELD_NAME_JOIN_SPEC)
@@ -96,6 +106,14 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX)
     private final int rightTimeAttributeIndex;
+
+    /**
+     * Version of the event-time join operator, see {@link
+     * ExecutionConfigOptions#TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION}. Persisted in the plan
+     * because the versions have incompatible state.
+     */
+    @JsonProperty(FIELD_NAME_EVENT_TIME_JOIN_VERSION)
+    private final int eventTimeJoinVersion;
 
     public StreamExecTemporalJoin(
             ReadableConfig tableConfig,
@@ -117,7 +135,9 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 rightTimeAttributeIndex,
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
-                description);
+                description,
+                tableConfig.get(
+                        ExecutionConfigOptions.TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION));
     }
 
     @JsonCreator
@@ -131,7 +151,9 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX) int rightTimeAttributeIndex,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @Nullable @JsonProperty(FIELD_NAME_EVENT_TIME_JOIN_VERSION)
+                    Integer eventTimeJoinVersion) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         Preconditions.checkArgument(inputProperties.size() == 2);
         Preconditions.checkArgument(
@@ -141,6 +163,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         this.isTemporalFunctionJoin = isTemporalTableFunctionJoin;
         this.leftTimeAttributeIndex = leftTimeAttributeIndex;
         this.rightTimeAttributeIndex = rightTimeAttributeIndex;
+        // plans compiled before the field was introduced always used version 1
+        this.eventTimeJoinVersion = eventTimeJoinVersion == null ? 1 : eventTimeJoinVersion;
     }
 
     @Override
@@ -265,15 +289,35 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         long minRetentionTime = config.getStateRetentionTime();
         long maxRetentionTime = TableConfigUtils.getMaxIdleStateRetentionTime(config);
         if (rightTimeAttributeIndex >= 0) {
-            return new TemporalRowTimeJoinOperator(
-                    InternalTypeInfo.of(leftInputType),
-                    InternalTypeInfo.of(rightInputType),
-                    generatedJoinCondition,
-                    leftTimeAttributeIndex,
-                    rightTimeAttributeIndex,
-                    minRetentionTime,
-                    maxRetentionTime,
-                    isLeftOuterJoin);
+            LOG.info("Using event-time temporal join version {}.", eventTimeJoinVersion);
+            // There is no state migration path between the versions.
+            switch (eventTimeJoinVersion) {
+                case 1:
+                    return new TemporalRowTimeJoinOperator(
+                            InternalTypeInfo.of(leftInputType),
+                            InternalTypeInfo.of(rightInputType),
+                            generatedJoinCondition,
+                            leftTimeAttributeIndex,
+                            rightTimeAttributeIndex,
+                            minRetentionTime,
+                            maxRetentionTime,
+                            isLeftOuterJoin);
+                case 2:
+                    return new TemporalRowTimeJoinOperatorV2(
+                            InternalTypeInfo.of(leftInputType),
+                            InternalTypeInfo.of(rightInputType),
+                            generatedJoinCondition,
+                            leftTimeAttributeIndex,
+                            rightTimeAttributeIndex,
+                            minRetentionTime,
+                            maxRetentionTime,
+                            isLeftOuterJoin);
+                default:
+                    throw new UnsupportedOperationException(
+                            "Unsupported event-time temporal join version: "
+                                    + eventTimeJoinVersion
+                                    + ". Valid versions are 1 and 2.");
+            }
         } else {
             if (isTemporalFunctionJoin) {
                 return new TemporalProcessTimeJoinOperator(
