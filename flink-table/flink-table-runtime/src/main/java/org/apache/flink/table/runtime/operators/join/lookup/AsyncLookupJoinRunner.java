@@ -21,16 +21,20 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
+import org.apache.flink.table.runtime.functions.table.lookup.CachingAsyncLookupFunction;
 import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
@@ -71,6 +75,8 @@ public class AsyncLookupJoinRunner extends AbstractAsyncFunctionRunner<Object> {
      */
     private transient List<JoinedRowResultFuture> allResultFutures;
 
+    private transient ProcessingTimeService processingTimeService;
+
     protected transient FilterCondition preFilterCondition;
 
     public AsyncLookupJoinRunner(
@@ -91,7 +97,27 @@ public class AsyncLookupJoinRunner extends AbstractAsyncFunctionRunner<Object> {
     }
 
     @Override
+    public void setRuntimeContext(RuntimeContext runtimeContext) {
+        super.setRuntimeContext(runtimeContext);
+        if (runtimeContext instanceof StreamingRuntimeContext) {
+            processingTimeService =
+                    ((StreamingRuntimeContext) runtimeContext).getProcessingTimeService();
+        }
+    }
+
+    @Override
     public void open(OpenContext openContext) throws Exception {
+        // Bind the function instance the generated fetcher will open and invoke.
+        for (Object reference : generatedFetcher.getReferences()) {
+            if (reference instanceof CachingAsyncLookupFunction) {
+                reference = ((CachingAsyncLookupFunction) reference).getDelegate();
+            }
+            if (reference instanceof RetryableAsyncLookupFunctionDelegator) {
+                ((RetryableAsyncLookupFunctionDelegator) reference)
+                        .setProcessingTimeService(processingTimeService);
+                break;
+            }
+        }
         super.open(openContext);
         ClassLoader cl = getRuntimeContext().getUserCodeClassLoader();
         this.preFilterCondition = generatedPreFilterCondition.newInstance(cl);

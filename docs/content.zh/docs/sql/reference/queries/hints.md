@@ -553,10 +553,8 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 这样当新来的订单流数据未查到 `Customers` 表 12 点的新数据时，就能开启等待重试来查找期望的更新值。
 
 #### 常见问题排查
-开启延迟重试查找后，较容易遇到的问题是维表查找节点形成反压，通过 web ui Task Manager 页面的 Thread Dump 功能可以快速确认是否延迟重试引起。
-从异步和同步查找分别来看，thread sleep 调用栈会出现在：
-1. 异步查找：`RetryableAsyncLookupFunctionDelegator`
-2. 同步查找：`RetryableLookupFunctionDelegator`
+延迟重试可能导致维表查找节点产生反压。同步查找等待重试时，可以在 Task Manager 页面的线程转储中看到线程在 `RetryableLookupFunctionDelegator` 中休眠。
+等待重试的异步查找会占用异步缓冲区的容量，直到查找完成。
 
 {{< hint info >}}
 注意：
