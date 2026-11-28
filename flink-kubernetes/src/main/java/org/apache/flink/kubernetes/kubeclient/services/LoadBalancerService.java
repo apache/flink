@@ -48,8 +48,9 @@ public class LoadBalancerService extends ServiceType {
     public Optional<Endpoint> getRestEndpoint(
             Service targetService,
             NamespacedKubernetesClient internalClient,
-            KubernetesConfigOptions.NodePortAddressType nodePortAddressType) {
-        int restPort = getRestPortFromExternalService(targetService);
+            KubernetesConfigOptions.NodePortAddressType nodePortAddressType,
+            String restPortName) {
+        int restPort = getRestPortFromExternalService(targetService, restPortName);
         return getRestEndPointFromService(
                 internalClient, nodePortAddressType, targetService, restPort);
     }

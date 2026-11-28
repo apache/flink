@@ -261,6 +261,25 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                 KubernetesConfigOptions.ServiceExposedType.ClusterIP, servicePort, null, false);
     }
 
+    protected Service buildExternalServiceWithClusterIP(
+            ServicePort firstPort, ServicePort... otherPorts) {
+        final Service service =
+                buildExternalService(
+                        KubernetesConfigOptions.ServiceExposedType.ClusterIP,
+                        firstPort,
+                        null,
+                        false);
+        return new ServiceBuilder(service).editSpec().addToPorts(otherPorts).endSpec().build();
+    }
+
+    protected static ServicePort buildServicePort(String name, int port) {
+        return new ServicePortBuilder()
+                .withName(name)
+                .withPort(port)
+                .withNewTargetPort(port)
+                .build();
+    }
+
     protected Service buildExternalServiceWithHeadlessClusterIP() {
         final ServicePort servicePort =
                 new ServicePortBuilder()

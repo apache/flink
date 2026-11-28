@@ -84,6 +84,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     private final Duration initialRetryInterval;
     private final Duration maxRetryInterval;
     private final KubernetesConfigOptions.NodePortAddressType nodePortAddressType;
+    private final String restServicePortName;
 
     private final NamespacedKubernetesClient internalClient;
     private final ScheduledExecutorService kubeClientExecutorService;
@@ -117,6 +118,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         this.nodePortAddressType =
                 flinkConfig.get(
                         KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);
+        this.restServicePortName = flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_PORT_NAME);
         this.internalClient = checkNotNull(client);
         this.kubeClientExecutorService = checkNotNull(executorService);
         this.masterDeploymentRef = new AtomicReference<>();
@@ -199,7 +201,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
         return serviceExposedType
                 .serviceType()
-                .getRestEndpoint(service, internalClient, nodePortAddressType);
+                .getRestEndpoint(service, internalClient, nodePortAddressType, restServicePortName);
     }
 
     @Override

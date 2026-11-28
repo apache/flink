@@ -44,8 +44,9 @@ public class ClusterIPService extends ServiceType {
     public Optional<Endpoint> getRestEndpoint(
             Service targetService,
             NamespacedKubernetesClient internalClient,
-            KubernetesConfigOptions.NodePortAddressType nodePortAddressType) {
-        int restPort = getRestPortFromExternalService(targetService);
+            KubernetesConfigOptions.NodePortAddressType nodePortAddressType,
+            String restPortName) {
+        int restPort = getRestPortFromExternalService(targetService, restPortName);
 
         // Return the external service.namespace directly when using ClusterIP.
         return Optional.of(

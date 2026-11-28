@@ -31,7 +31,6 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /** An abstract class represents the service type that flink supported. */
 public abstract class ServiceType {
@@ -64,7 +63,7 @@ public abstract class ServiceType {
                                 .getType())
                 .withSelector(kubernetesJobManagerParameters.getSelectors())
                 .addNewPort()
-                .withName(Constants.REST_PORT_NAME)
+                .withName(kubernetesJobManagerParameters.getRestServicePortName())
                 .withPort(kubernetesJobManagerParameters.getRestPort())
                 .withNewTargetPort(kubernetesJobManagerParameters.getRestBindPort())
                 .endPort()
@@ -87,12 +86,14 @@ public abstract class ServiceType {
      * @param targetService the target service to retrieve from.
      * @param internalClient the client to interact with api server.
      * @param nodePortAddressType the target address type of the node.
+     * @param restPortName the name of the rest port in the service.
      * @return the rest endpoint.
      */
     public abstract Optional<Endpoint> getRestEndpoint(
             Service targetService,
             NamespacedKubernetesClient internalClient,
-            KubernetesConfigOptions.NodePortAddressType nodePortAddressType);
+            KubernetesConfigOptions.NodePortAddressType nodePortAddressType,
+            String restPortName);
 
     /**
      * Gets the rest port from the service port.
@@ -109,25 +110,32 @@ public abstract class ServiceType {
      */
     public abstract String getType();
 
-    /** Get rest port from the external Service. */
-    public int getRestPortFromExternalService(Service externalService) {
-        final List<ServicePort> servicePortCandidates =
-                externalService.getSpec().getPorts().stream()
-                        .filter(x -> x.getName().equals(Constants.REST_PORT_NAME))
-                        .collect(Collectors.toList());
+    /**
+     * Get rest port from the external Service. The port named {@code restPortName} is used, which
+     * keeps the lookup working when other ports were added to the Service. A Service with a single
+     * port is read as it is, because the cluster may have been deployed with another rest port name
+     * than the one configured where it is retrieved.
+     */
+    public int getRestPortFromExternalService(Service externalService, String restPortName) {
+        final List<ServicePort> ports = externalService.getSpec().getPorts();
+        final String serviceName = externalService.getMetadata().getName();
 
-        if (servicePortCandidates.isEmpty()) {
+        if (ports == null || ports.isEmpty()) {
             throw new RuntimeException(
-                    "Failed to find port \""
-                            + Constants.REST_PORT_NAME
-                            + "\" in Service \""
-                            + externalService.getMetadata().getName()
-                            + "\"");
+                    "Failed to find any port in Service \"" + serviceName + "\"");
         }
 
-        final ServicePort externalServicePort = servicePortCandidates.get(0);
+        final Optional<ServicePort> namedPort =
+                ports.stream().filter(port -> restPortName.equals(port.getName())).findFirst();
+        if (namedPort.isPresent()) {
+            return getRestPort(namedPort.get());
+        }
+        if (ports.size() == 1) {
+            return getRestPort(ports.get(0));
+        }
 
-        return getRestPort(externalServicePort);
+        throw new RuntimeException(
+                "Failed to find port \"" + restPortName + "\" in Service \"" + serviceName + "\"");
     }
 
     // Helper method
