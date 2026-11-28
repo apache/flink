@@ -19,14 +19,22 @@
 package org.apache.flink.util;
 
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders.ResolveOrder;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.jar.JarFile;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -243,6 +251,36 @@ class FlinkUserCodeClassLoadersTest {
         // It will be true only if all the super classes (except class Object) of the caller are
         // registered as parallel capable.
         assertThat(TestParentFirstClassLoader.isParallelCapable).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ResolveOrder.class)
+    void testClosingOfResourceJar(ResolveOrder resolveOrder) throws Exception {
+        final Path jarPath = TempDirUtils.newFolder(tempFolder).toPath().resolve("resource.jar");
+        Files.copy(userJar.toPath(), jarPath);
+
+        try (MutableURLClassLoader classLoader =
+                FlinkUserCodeClassLoaders.create(
+                        resolveOrder,
+                        new URL[] {jarPath.toUri().toURL()},
+                        ClassLoader.getPlatformClassLoader(),
+                        new String[0],
+                        NOOP_EXCEPTION_HANDLER,
+                        true)) {
+            final String resourceName = USER_CLASS + ".class";
+            try (InputStream resource = classLoader.getResourceAsStream(resourceName)) {
+                assertThat(resource).isNotNull();
+                assertThat(resource.readAllBytes()).isNotEmpty();
+            }
+
+            final JarURLConnection connection =
+                    (JarURLConnection) classLoader.getResource(resourceName).openConnection();
+            try (JarFile jarFile = connection.getJarFile()) {
+                classLoader.close();
+
+                assertThatThrownBy(jarFile::size).isInstanceOf(IllegalStateException.class);
+            }
+        }
     }
 
     @Test
