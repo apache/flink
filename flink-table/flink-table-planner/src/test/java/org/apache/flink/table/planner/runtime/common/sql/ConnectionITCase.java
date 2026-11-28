@@ -111,6 +111,82 @@ class ConnectionITCase extends AbstractTestBase {
     }
 
     @TestTemplate
+    void testDropTemporaryConnection() {
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
+
+        tEnv.executeSql("DROP TEMPORARY CONNECTION my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @TestTemplate
+    void testDropTemporaryConnectionIfExists() {
+        tEnv.executeSql("DROP TEMPORARY CONNECTION IF EXISTS my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @TestTemplate
+    void testDropMissingTemporaryConnectionRejected() {
+        assertThatThrownBy(() -> tEnv.executeSql("DROP TEMPORARY CONNECTION my_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Temporary connection with identifier '%s' does not exist.",
+                        connectionIdentifier("my_conn").asSummaryString());
+    }
+
+    @TestTemplate
+    void testDropPermanentConnection() throws Exception {
+        ObjectIdentifier identifier = connectionIdentifier("my_conn");
+        catalogManager()
+                .getCatalog(identifier.getCatalogName())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v"), null),
+                        false);
+        assertThat(catalogManager().getConnection(identifier)).isPresent();
+
+        tEnv.executeSql("DROP CONNECTION my_conn");
+
+        assertThat(catalogManager().getConnection(identifier)).isEmpty();
+    }
+
+    @TestTemplate
+    void testDropPermanentConnectionIfExists() {
+        tEnv.executeSql("DROP CONNECTION IF EXISTS my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @TestTemplate
+    void testDropMissing() {
+        assertThatThrownBy(() -> tEnv.executeSql("DROP CONNECTION my_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Connection with identifier '%s' does not exist.",
+                        connectionIdentifier("my_conn").asSummaryString());
+    }
+
+    @TestTemplate
+    void testDropTemporarySystemConnectionRejected() {
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        for (String statement :
+                List.of(
+                        "DROP TEMPORARY SYSTEM CONNECTION my_conn",
+                        "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS my_conn",
+                        "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS missing_conn")) {
+            assertThatThrownBy(() -> tEnv.executeSql(statement))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("DROP TEMPORARY SYSTEM CONNECTION is not supported");
+            assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
+        }
+    }
+
+    @TestTemplate
     void testShowCreatePermanentConnection() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("my_conn");
         catalogManager()
