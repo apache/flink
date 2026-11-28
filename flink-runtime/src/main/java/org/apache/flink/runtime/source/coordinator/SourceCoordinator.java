@@ -35,6 +35,7 @@ import org.apache.flink.api.connector.source.SupportsHandleExecutionAttemptSourc
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -103,9 +104,13 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator<>();
 
-    private volatile Watermark watermarkInGroup;
-
     private final WatermarkAlignmentParams watermarkAlignmentParams;
+
+    private final OperatorID operatorId;
+
+    // Claimed in start() under the CoordinatorStore key lock; read on the coordinator thread and
+    // in close().
+    private volatile long coordinatorAlignmentEpoch;
 
     private final JobID jobID;
 
@@ -172,6 +177,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         this.context = context;
         this.coordinatorStore = coordinatorStore;
         this.watermarkAlignmentParams = watermarkAlignmentParams;
+        this.operatorId = checkNotNull(context.getCoordinatorContext().getOperatorId());
         this.coordinatorListeningID = coordinatorListeningID;
 
         if (watermarkAlignmentParams.isEnabled()
@@ -195,14 +201,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         checkState(
                 watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
-        Watermark globalCombinedWatermark =
+        Optional<Watermark> globalCombinedWatermarkOpt =
                 coordinatorStore.apply(
                         watermarkAlignmentParams.getWatermarkGroup(),
-                        (value) -> {
-                            WatermarkAggregator aggregator = (WatermarkAggregator) value;
-                            return new Watermark(
-                                    aggregator.getAggregatedWatermark().getTimestamp());
-                        });
+                        (value) -> ((EpochWatermarkAggregator) value).getAggregatedWatermark());
+        if (!globalCombinedWatermarkOpt.isPresent()) {
+            LOG.debug(
+                    "Skip distributing maxAllowedWatermark of group={} for source {} - empty group.",
+                    watermarkAlignmentParams.getWatermarkGroup(),
+                    operatorName);
+            return;
+        }
+        Watermark globalCombinedWatermark = globalCombinedWatermarkOpt.get();
 
         long maxAllowedWatermark;
         try {
@@ -300,8 +310,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         if (watermarkAlignmentParams.isEnabled()) {
             LOG.info("Starting schedule the period announceCombinedWatermark task");
-            coordinatorStore.putIfAbsent(
-                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
+            coordinatorStore.compute(
+                    watermarkAlignmentParams.getWatermarkGroup(),
+                    (key, oldValue) -> {
+                        EpochWatermarkAggregator aggregator =
+                                oldValue == null
+                                        ? new EpochWatermarkAggregator()
+                                        : (EpochWatermarkAggregator) oldValue;
+                        coordinatorAlignmentEpoch = aggregator.registerEpoch(operatorId);
+                        return aggregator;
+                    });
             context.schedulePeriodTask(
                     this::announceCombinedWatermark,
                     watermarkAlignmentParams.getUpdateInterval(),
@@ -743,10 +761,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         coordinatorStore.computeIfPresent(
                 watermarkAlignmentParams.getWatermarkGroup(),
                 (key, oldValue) -> {
-                    WatermarkAggregator<String> watermarkAggregator =
-                            (WatermarkAggregator<String>) oldValue;
-                    watermarkAggregator.aggregate(operatorName, newCombinedWatermark);
-                    watermarkInGroup = newCombinedWatermark;
+                    EpochWatermarkAggregator watermarkAggregator =
+                            (EpochWatermarkAggregator) oldValue;
+                    watermarkAggregator.aggregate(
+                            operatorId, coordinatorAlignmentEpoch, newCombinedWatermark);
                     return watermarkAggregator;
                 });
     }
@@ -771,7 +789,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         coordinatorStore.computeIfPresent(
                 watermarkAlignmentParams.getWatermarkGroup(),
                 (key, oldValue) -> {
-                    ((WatermarkAggregator<String>) oldValue).remove(operatorName, watermarkInGroup);
+                    ((EpochWatermarkAggregator) oldValue)
+                            .remove(operatorId, coordinatorAlignmentEpoch);
                     return oldValue;
                 });
     }
@@ -907,24 +926,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
          * @return whether a {@link Watermark} was present for the given {@code key}.
          */
         public boolean remove(T key) {
-            WatermarkElement watermarkElement = watermarks.get(key);
-            return watermarkElement != null && remove(key, watermarkElement.watermark);
-        }
-
-        /**
-         * Removes the {@link Watermark} for the given {@code key} only if it is the {@code
-         * expected} instance.
-         *
-         * @return whether the {@link Watermark} was removed.
-         */
-        public boolean remove(T key, Watermark expected) {
-            WatermarkElement watermarkElement = watermarks.get(key);
-            if (watermarkElement == null || watermarkElement.watermark != expected) {
+            WatermarkElement removedWatermarkElement = watermarks.remove(key);
+            if (removedWatermarkElement == null) {
                 return false;
             }
-            watermarks.remove(key);
-            orderedWatermarks.remove(watermarkElement);
+            orderedWatermarks.remove(removedWatermarkElement);
             return true;
+        }
+
+        public boolean isEmpty() {
+            return watermarks.isEmpty();
         }
 
         public Set<T> keySet() {
@@ -936,6 +947,48 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             return aggregatedWatermarkElement == null
                     ? DEFAULT_WATERMARK
                     : aggregatedWatermarkElement.watermark;
+        }
+    }
+
+    /**
+     * Epoch-fenced wrapper around {@link WatermarkAggregator} stored per alignment group in {@link
+     * CoordinatorStore}. Each {@link SourceCoordinator#start()} claims the next epoch for its
+     * {@link OperatorID} and evicts any prior epoch's watermark, so a slow or timed-out {@link
+     * SourceCoordinator#close()} from an earlier coordinator instance cannot overwrite or delete
+     * the recreated coordinator's watermark.
+     */
+    static class EpochWatermarkAggregator {
+        private final WatermarkAggregator<OperatorID> delegate = new WatermarkAggregator<>();
+        private final Map<OperatorID, Long> activeEpochs = new HashMap<>();
+
+        long registerEpoch(OperatorID operatorId) {
+            long nextEpoch = activeEpochs.getOrDefault(operatorId, 0L) + 1L;
+            activeEpochs.put(operatorId, nextEpoch);
+            delegate.remove(operatorId);
+            return nextEpoch;
+        }
+
+        void aggregate(OperatorID operatorId, long epoch, Watermark watermark) {
+            if (isCurrentEpoch(operatorId, epoch)) {
+                delegate.aggregate(operatorId, watermark);
+            }
+        }
+
+        void remove(OperatorID operatorId, long epoch) {
+            if (isCurrentEpoch(operatorId, epoch)) {
+                delegate.remove(operatorId);
+            }
+        }
+
+        Optional<Watermark> getAggregatedWatermark() {
+            return delegate.isEmpty()
+                    ? Optional.empty()
+                    : Optional.of(delegate.getAggregatedWatermark());
+        }
+
+        private boolean isCurrentEpoch(OperatorID operatorId, long epoch) {
+            Long current = activeEpochs.get(operatorId);
+            return current != null && current == epoch;
         }
     }
 }
