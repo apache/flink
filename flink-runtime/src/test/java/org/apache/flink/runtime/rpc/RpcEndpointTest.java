@@ -26,6 +26,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -37,6 +39,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -396,8 +399,8 @@ class RpcEndpointTest {
     private static void testCancelScheduledTask(
             BiFunction<RpcEndpoint.MainThreadExecutor, CompletableFuture<Void>, ScheduledFuture<?>>
                     scheduler) {
-        final MainThreadExecutable mainThreadExecutable =
-                new TestMainThreadExecutable(Runnable::run);
+        final List<Throwable> gatewayFailures = new ArrayList<>();
+        final MainThreadExecutable mainThreadExecutable = recordingFailuresIn(gatewayFailures);
 
         final ManuallyTriggeredScheduledExecutorService manuallyTriggeredScheduledExecutorService =
                 new ManuallyTriggeredScheduledExecutorService();
@@ -413,7 +416,105 @@ class RpcEndpointTest {
 
         assertThat((Future<?>) scheduledFuture).isCancelled();
         assertThat(actionFuture).isNotDone();
+        assertThat(gatewayFailures).isEmpty();
         mainThreadExecutor.close();
+    }
+
+    @Test
+    void testScheduledRunnableFailureReachesTheMainThread() {
+        final RuntimeException failure = new RuntimeException("Expected test failure");
+        final Runnable failingRunnable =
+                () -> {
+                    throw failure;
+                };
+        final List<Throwable> gatewayFailures = new ArrayList<>();
+
+        final ScheduledFuture<?> scheduledFuture =
+                scheduleAndTrigger(
+                        mainThreadExecutor ->
+                                mainThreadExecutor.schedule(
+                                        failingRunnable, 0, TimeUnit.MILLISECONDS),
+                        gatewayFailures);
+
+        assertThat(gatewayFailures).containsExactly(failure);
+        assertThatThrownBy(scheduledFuture::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCause(failure);
+    }
+
+    @Test
+    void testScheduledRunnableErrorReachesTheMainThread() {
+        final Error failure = new Error("Expected test failure");
+        final Runnable failingRunnable =
+                () -> {
+                    throw failure;
+                };
+        final List<Throwable> gatewayFailures = new ArrayList<>();
+
+        final ScheduledFuture<?> scheduledFuture =
+                scheduleAndTrigger(
+                        mainThreadExecutor ->
+                                mainThreadExecutor.schedule(
+                                        failingRunnable, 0, TimeUnit.MILLISECONDS),
+                        gatewayFailures);
+
+        assertThat(gatewayFailures).containsExactly(failure);
+        assertThatThrownBy(scheduledFuture::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCause(failure);
+    }
+
+    @Test
+    void testScheduledCallableCheckedExceptionReachesTheMainThread() {
+        final Exception failure = new Exception("Expected test failure");
+        final Callable<Integer> failingCallable =
+                () -> {
+                    throw failure;
+                };
+        final List<Throwable> gatewayFailures = new ArrayList<>();
+
+        final ScheduledFuture<?> scheduledFuture =
+                scheduleAndTrigger(
+                        mainThreadExecutor ->
+                                mainThreadExecutor.schedule(
+                                        failingCallable, 0, TimeUnit.MILLISECONDS),
+                        gatewayFailures);
+
+        assertThat(gatewayFailures).hasSize(1);
+        assertThat(gatewayFailures.get(0)).isInstanceOf(RuntimeException.class).hasCause(failure);
+        assertThatThrownBy(scheduledFuture::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCause(failure);
+    }
+
+    private static ScheduledFuture<?> scheduleAndTrigger(
+            Function<RpcEndpoint.MainThreadExecutor, ScheduledFuture<?>> scheduler,
+            List<Throwable> gatewayFailures) {
+        final ManuallyTriggeredScheduledExecutorService manuallyTriggeredScheduledExecutorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        final RpcEndpoint.MainThreadExecutor mainThreadExecutor =
+                new RpcEndpoint.MainThreadExecutor(
+                        recordingFailuresIn(gatewayFailures),
+                        () -> {},
+                        manuallyTriggeredScheduledExecutorService);
+        try {
+            final ScheduledFuture<?> scheduledFuture = scheduler.apply(mainThreadExecutor);
+            manuallyTriggeredScheduledExecutorService.triggerAllNonPeriodicTasks();
+            return scheduledFuture;
+        } finally {
+            mainThreadExecutor.close();
+        }
+    }
+
+    private static TestMainThreadExecutable recordingFailuresIn(List<Throwable> failures) {
+        return new TestMainThreadExecutable(
+                runnable -> {
+                    try {
+                        runnable.run();
+                    } catch (Throwable t) {
+                        failures.add(t);
+                    }
+                });
     }
 
     /**
