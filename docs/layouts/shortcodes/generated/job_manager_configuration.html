@@ -126,7 +126,7 @@
             <td><h5>jobmanager.io-pool.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+            <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. The same size is used for a separate adaptive graph-recovery pool, shared across jobs, so the two pools together can use twice this number of threads. Asynchronous checkpoint-trigger initialization and cleanup continue to share the original IO pool. Synchronous storage operations during graph construction still use recovery workers. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.memory.enable-jvm-direct-memory-limit</h5></td>

@@ -415,6 +415,7 @@ public class AdaptiveScheduler
     private final long initializationTimestamp;
 
     private final Executor ioExecutor;
+    private final Executor recoveryExecutor;
     private final ClassLoader userCodeClassLoader;
 
     private final CheckpointsCleaner checkpointsCleaner;
@@ -473,6 +474,7 @@ public class AdaptiveScheduler
             DeclarativeSlotPool declarativeSlotPool,
             SlotAllocator slotAllocator,
             Executor ioExecutor,
+            Executor recoveryExecutor,
             ClassLoader userCodeClassLoader,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
@@ -500,6 +502,7 @@ public class AdaptiveScheduler
                 declarativeSlotPool,
                 slotAllocator,
                 ioExecutor,
+                recoveryExecutor,
                 userCodeClassLoader,
                 checkpointsCleaner,
                 checkpointRecoveryFactory,
@@ -525,6 +528,7 @@ public class AdaptiveScheduler
             DeclarativeSlotPool declarativeSlotPool,
             SlotAllocator slotAllocator,
             Executor ioExecutor,
+            Executor recoveryExecutor,
             ClassLoader userCodeClassLoader,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
@@ -567,6 +571,7 @@ public class AdaptiveScheduler
         this.declarativeSlotPool = declarativeSlotPool;
         this.initializationTimestamp = initializationTimestamp;
         this.ioExecutor = ioExecutor;
+        this.recoveryExecutor = Preconditions.checkNotNull(recoveryExecutor);
         this.userCodeClassLoader = userCodeClassLoader;
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
         this.fatalErrorHandler = fatalErrorHandler;
@@ -1539,7 +1544,7 @@ public class AdaptiveScheduler
         backgroundTask =
                 backgroundTask.runAfter(
                         () -> createExecutionGraphAndRestoreState(adjustedParallelismStore),
-                        ioExecutor);
+                        recoveryExecutor);
 
         return FutureUtils.switchExecutor(
                 backgroundTask.getResultFuture(), getMainThreadExecutor());
