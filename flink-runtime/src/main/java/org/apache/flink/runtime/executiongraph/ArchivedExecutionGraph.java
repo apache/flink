@@ -36,8 +36,10 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -418,11 +420,28 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 jobResult.getJobName(),
                 jobResult.getJobStatus().orElseThrow(),
                 null,
-                jobResult.getSerializedThrowable().orElse(null),
+                getSerializedThrowable(jobResult),
                 null,
                 jobResult.getStartTime() < 0 ? initializationTimestamp : jobResult.getStartTime(),
                 jobResult.getEndTime(),
                 jobResult.getApplicationId().orElse(null));
+    }
+
+    /**
+     * A failed job needs a failure cause, e.g. for {@link JobResult#createFrom}, but the job result
+     * store may not have recorded one; the Kubernetes store records only the job status.
+     */
+    @Nullable
+    private static SerializedThrowable getSerializedThrowable(JobResult jobResult) {
+        if (jobResult.getSerializedThrowable().isPresent()) {
+            return jobResult.getSerializedThrowable().get();
+        }
+        if (jobResult.getJobStatus().filter(JobStatus.FAILED::equals).isPresent()) {
+            return new SerializedThrowable(
+                    new FlinkException(
+                            "The failure cause was not recorded in the job result store."));
+        }
+        return null;
     }
 
     /**

@@ -22,13 +22,28 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to the Job Result Store. */
 @PublicEvolving
 public class JobResultStoreOptions {
+
+    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
+    public static final ConfigOption<StorageType> STORAGE_TYPE =
+            ConfigOptions.key("job-result-store.storage-type")
+                    .enumType(StorageType.class)
+                    .defaultValue(StorageType.FILE_SYSTEM)
+                    .withDescription(
+                            "Defines where the cluster job results are stored "
+                                    + "for persistence across leadership changes.");
+
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
     public static final ConfigOption<String> STORAGE_PATH =
             ConfigOptions.key("job-result-store.storage-path")
@@ -39,7 +54,7 @@ public class JobResultStoreOptions {
                                     .text(
                                             "Defines where job results should be stored. This should be an "
                                                     + "underlying file-system that provides read-after-write consistency. By "
-                                                    + "default, this is %s.",
+                                                    + "default, this is %s. Only applies if %s is %s.",
                                             TextElement.code(
                                                     FileSystemJobResultStore
                                                             .createDefaultJobResultStorePath(
@@ -52,7 +67,9 @@ public class JobResultStoreOptions {
                                                                             "{%s}",
                                                                             HighAvailabilityOptions
                                                                                     .HA_CLUSTER_ID
-                                                                                    .key()))))
+                                                                                    .key()))),
+                                            TextElement.code(STORAGE_TYPE.key()),
+                                            TextElement.code(StorageType.FILE_SYSTEM.name()))
                                     .build());
 
     /**
@@ -71,4 +88,26 @@ public class JobResultStoreOptions {
                                     + "are, instead, marked as clean to indicate their state. In this "
                                     + "case, Flink no longer has ownership and the resources need to "
                                     + "be cleaned up by the user.");
+
+    /** The storage backing the job result store. */
+    public enum StorageType implements DescribedEnum {
+        FILE_SYSTEM(text("Entries are stored as files under the configured storage path.")),
+        KUBERNETES(
+                text(
+                        "Entries are stored in a Kubernetes ConfigMap created by the cluster. "
+                                + "Requires %s to be %s.",
+                        TextElement.code(HighAvailabilityOptions.HA_MODE.key()),
+                        TextElement.code(HighAvailabilityMode.KUBERNETES.name())));
+
+        private final InlineElement description;
+
+        StorageType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
 }

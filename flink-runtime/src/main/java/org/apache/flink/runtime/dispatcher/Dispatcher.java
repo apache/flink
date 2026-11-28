@@ -2193,7 +2193,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     .handle(
                             (unusedVoid, e) -> {
                                 if (e == null) {
-                                    log.debug(
+                                    log.info(
                                             "Cleanup for the job '{}' has finished. Job has been marked as clean.",
                                             jobId);
                                     jobMarkResultCleanFutures.get(jobId).complete(null);
