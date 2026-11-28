@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.JsonValueOnEmptyOrError
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression, JsonCodeGenUtils}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{isPrimitiveNullable, primitiveDefaultValue, primitiveTypeTermForType, qualifyEnum, qualifyMethod, BINARY_STRING}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
@@ -58,14 +58,16 @@ import org.apache.calcite.sql.SqlJsonEmptyOrError
  * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.type", ...);
  * Object rawResult$4 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.age", ...);
  * }}}
+ *
+ * With a `jsonPathReader`, the input is parsed by it, see [[JsonParseReuse]].
  */
-class JsonValueCallGen extends CallGenerator {
+class JsonValueCallGen(jsonPathReader: String = null) extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
-    val parsed = JsonParseReuse.parseSharedInput(ctx, operands)
+    val parsed = JsonParseReuse.parseSharedInput(ctx, operands, jsonPathReader)
 
     val generated =
       generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
@@ -76,7 +78,7 @@ class JsonValueCallGen extends CallGenerator {
 
             val terms = Seq(
               parsed.resultTerm,
-              s"${argTerms(1)}.toString()",
+              JsonCodeGenUtils.jsonPathArgument(ctx, operands(1), argTerms(1)),
               qualifyEnum(emptyBehavior._1),
               emptyBehavior._2,
               qualifyEnum(errorBehavior._1),

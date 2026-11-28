@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.{JsonQueryOnEmptyOrError, JsonQueryWrapper}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression, JsonCodeGenUtils}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING, GENERIC_ARRAY}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
@@ -57,14 +57,16 @@ import org.apache.flink.table.types.logical.{ArrayType, DecimalType, LogicalType
  * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.type", ...);
  * Object rawResult$4 = SqlJsonUtils.jsonQuery(parseJson$2(field$0), "$.address", ...);
  * }}}
+ *
+ * With a `jsonPathReader`, the input is parsed by it, see [[JsonParseReuse]].
  */
-class JsonQueryCallGen extends CallGenerator {
+class JsonQueryCallGen(jsonPathReader: String = null) extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
-    val parsed = JsonParseReuse.parseSharedInput(ctx, operands)
+    val parsed = JsonParseReuse.parseSharedInput(ctx, operands, jsonPathReader)
 
     generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
       argTerms =>
@@ -92,7 +94,7 @@ class JsonQueryCallGen extends CallGenerator {
 
           val terms = Seq(
             parsed.resultTerm,
-            s"${argTerms(1)}.toString()",
+            JsonCodeGenUtils.jsonPathArgument(ctx, operands(1), argTerms(1)),
             qualifyEnum(jsonQueryReturnType),
             qualifyEnum(wrapperBehavior),
             qualifyEnum(emptyBehavior),

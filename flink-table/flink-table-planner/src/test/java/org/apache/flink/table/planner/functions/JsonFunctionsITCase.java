@@ -504,6 +504,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "account",
                         STRING(),
                         STRING())
+                // a path that isn't a literal
+                .testSqlResult(
+                        "JSON_VALUE(f0, IF(f0 IS NULL, '$.age', '$.type'))", "account", STRING())
                 .testResult(
                         $("f0").jsonValue("$.activated", BOOLEAN()),
                         "JSON_VALUE(f0, '$.activated' RETURNING BOOLEAN)",
@@ -914,6 +917,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").jsonQuery("$.b"),
                                 "JSON_QUERY(f0, '$.b')",
+                                "[1,2]",
+                                DataTypes.STRING())
+                        // a path that isn't a literal
+                        .testSqlResult(
+                                "JSON_QUERY(f0, IF(f0 IS NULL, '$.a', '$.b'))",
                                 "[1,2]",
                                 DataTypes.STRING())
                         .testResult(
