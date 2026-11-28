@@ -127,6 +127,13 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     @GuardedBy("buffers")
     boolean isBlocked = false;
 
+    /**
+     * Whether the current block was caused by {@link Buffer.DataType#RECOVERY_COMPLETION}. Only
+     * such a block lets priority buffers through, see {@link #isBlockedForDelivery()}.
+     */
+    @GuardedBy("buffers")
+    private boolean isBlockedByRecoveryCompletion = false;
+
     int sequenceNumber = 0;
 
     // ------------------------------------------------------------------------
@@ -253,7 +260,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     private boolean needNotifyPriorityEvent() {
         assert Thread.holdsLock(buffers);
         // Priority events (e.g. unaligned checkpoint barriers) must notify downstream even
-        // when the subpartition is blocked.
+        // when the subpartition is blocked by RECOVERY_COMPLETION. Other blocks hold them back
+        // until resumeConsumption(), see isBlockedForDelivery().
         //
         // During recovery, once the upstream output channel state is fully restored, a
         // RECOVERY_COMPLETION event (EndOfOutputChannelStateEvent) is emitted. This event
@@ -266,7 +274,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
         // buffers, the upstream receives an unaligned checkpoint barrier and adds it to this
         // blocked subpartition. The barrier must still be delivered to the downstream
         // immediately, otherwise the checkpoint will hang until it times out.
-        return buffers.getNumPriorityElements() == 1;
+        return buffers.getNumPriorityElements() == 1 && !isBlockedForDelivery();
     }
 
     @GuardedBy("buffers")
@@ -469,9 +477,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     @Nullable
     BufferAndBacklog pollBuffer() {
         synchronized (buffers) {
-            // When blocked (e.g. by RECOVERY_COMPLETION event), only allow priority buffers
-            // (e.g. unaligned checkpoint barriers) to be polled. Regular buffers remain blocked
-            // until resumeConsumption() is called. See needNotifyPriorityEvent() for details.
+            // When blocked by RECOVERY_COMPLETION event, only allow priority buffers (e.g.
+            // unaligned checkpoint barriers) to be polled. Other buffers, and priority buffers
+            // behind any other block, remain blocked until resumeConsumption() is called. See
+            // isBlockedForDelivery() for details.
             if (isBlockedForDelivery()) {
                 return null;
             }
@@ -533,6 +542,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
 
             if (buffer.getDataType().isBlockingUpstream()) {
                 isBlocked = true;
+                isBlockedByRecoveryCompletion =
+                        buffer.getDataType() == Buffer.DataType.RECOVERY_COMPLETION;
             }
 
             updateStatistics(buffer);
@@ -569,6 +580,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
             checkState(isBlocked, "Should be blocked by checkpoint.");
 
             isBlocked = false;
+            isBlockedByRecoveryCompletion = false;
         }
     }
 
@@ -620,12 +632,18 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     }
 
     /**
-     * Blocked for delivery when blocked (e.g. by RECOVERY_COMPLETION) with no priority element
-     * queued; priority buffers (e.g. unaligned barriers) are still delivered while blocked.
+     * A blocked subpartition delivers nothing, except priority buffers (e.g. unaligned barriers)
+     * while it is blocked by RECOVERY_COMPLETION.
+     *
+     * <p>A block by an aligned checkpoint barrier holds back priority buffers too: the downstream
+     * task may not have processed the announcement of that barrier yet, and a newer barrier on the
+     * same channel would make it impossible to convert the announced barrier to a priority event
+     * (FLINK-35335).
      */
     @GuardedBy("buffers")
     private boolean isBlockedForDelivery() {
-        return isBlocked && buffers.getNumPriorityElements() == 0;
+        return isBlocked
+                && (!isBlockedByRecoveryCompletion || buffers.getNumPriorityElements() == 0);
     }
 
     @GuardedBy("buffers")

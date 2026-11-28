@@ -24,6 +24,8 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,6 +33,7 @@ import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +63,12 @@ class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
     static final long NUM_STRINGS = 10_000_000L;
 
+    @BeforeEach
+    void resetFailure() {
+        OnceFailingAggregator.hasFailed = false;
+        OnceFailingAggregator.wasCheckpointedBeforeFailure = false;
+    }
+
     /**
      * Runs the following program.
      *
@@ -78,6 +87,11 @@ class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
                 (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 
         env.enableCheckpointing(200);
+        // A checkpoint taken after some subtasks finished restores them with empty state, which
+        // the legacy functions below cannot handle, and the job would restart forever.
+        env.configure(
+                new Configuration()
+                        .set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false));
 
         DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 
