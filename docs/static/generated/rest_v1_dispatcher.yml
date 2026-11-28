@@ -1237,6 +1237,81 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LogUrlResponse"
+  /jobs/{jobid}/vertices/subtasks/metrics/names:
+    get:
+      description: Provides batch access to aggregated subtask metric names.
+      operationId: getAggregatedSubtaskMetricsNames
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      - name: vertices
+        in: query
+        description: Comma-separated list of 32-character hexadecimal strings to select
+          specific job vertices.
+        required: true
+        style: form
+        schema:
+          $ref: "#/components/schemas/JobVertexID"
+      - name: regex
+        in: query
+        description: Comma-separated list of Java regular expressions to filter metric
+          names by full match.
+        required: false
+        style: form
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AggregatedSubtaskMetricsBatchResponseBody"
+  /jobs/{jobid}/vertices/subtasks/metrics/values:
+    get:
+      description: Provides batch access to aggregated subtask metric values.
+      operationId: getAggregatedSubtaskMetricsValues
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      - name: vertices
+        in: query
+        description: Comma-separated list of 32-character hexadecimal strings to select
+          specific job vertices.
+        required: true
+        style: form
+        schema:
+          $ref: "#/components/schemas/JobVertexID"
+      - name: get
+        in: query
+        description: Comma-separated list of string values to select specific metrics.
+        required: false
+        style: form
+        schema:
+          type: string
+      - name: agg
+        in: query
+        description: "Comma-separated list of aggregation modes which should be calculated.\
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
+        required: false
+        style: form
+        schema:
+          $ref: "#/components/schemas/AggregationMode"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AggregatedSubtaskMetricsBatchResponseBody"
   /jobs/{jobid}/vertices/{vertexid}:
     get:
       description: "Returns details for a task, with a summary for each of its subtasks."
@@ -1890,6 +1965,8 @@ paths:
 components:
   schemas:
     AggregatedMetricsResponseBody:
+      type: object
+    AggregatedSubtaskMetricsBatchResponseBody:
       type: object
     AggregatedTaskDetailsInfo:
       type: object
