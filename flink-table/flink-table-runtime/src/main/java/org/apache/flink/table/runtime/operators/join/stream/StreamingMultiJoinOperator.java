@@ -372,6 +372,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     // changelog modes.
     private final boolean[] isUpsertInput;
     private final boolean[] hasKeyOnlyDeletes;
+    // For each input, the fields in which a NULL means that a record can never be part of a join
+    // result together with a record of another input, so it is not stored.
+    private final int[][] nullFilterFields;
 
     private transient List<MultiJoinStateView> stateHandlers;
     private transient TimestampedCollector<RowData> collector;
@@ -394,7 +397,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             List<RuntimeChangelogMode> inputChangelogModes,
             int[][] conditionFields,
-            GeneratedRecordEqualiser[] conditionFieldsEqualisers) {
+            GeneratedRecordEqualiser[] conditionFieldsEqualisers,
+            int[][] nullFilterFields) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
@@ -406,6 +410,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         this.multiJoinCondition = multiJoinCondition;
         this.conditionFields = conditionFields;
         this.generatedConditionFieldsEqualisers = conditionFieldsEqualisers;
+        this.nullFilterFields = nullFilterFields;
         this.isUpsertInput = new boolean[inputSpecs.size()];
         this.hasKeyOnlyDeletes = new boolean[inputSpecs.size()];
         for (int i = 0; i < inputSpecs.size(); i++) {
@@ -902,6 +907,21 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private void addRecordToState(RowData input, @Nullable RowData joinKey, int inputId)
             throws Exception {
         final boolean isUpsert = isUpsert(input);
+        // A record that can never match isn't stored. Retractions still go to state: removing a
+        // record that was never stored is a no-op, and one stored by an earlier version is removed.
+        // Records of inputs with updates without UPDATE_BEFORE or deletes by key are always
+        // stored, because their next version or delete is completed from state.
+        if (isUpsert
+                && !isUpsertInput[inputId]
+                && !hasKeyOnlyDeletes[inputId]
+                && cannotMatch(input, inputId)) {
+            // Storing an upsert replaces the previous version of the record with the same unique
+            // key, which may arrive without UPDATE_BEFORE, so that version is removed instead.
+            if (inputSpecs.get(inputId).hasUniqueKey()) {
+                stateHandlers.get(inputId).retractRecord(joinKey, input);
+            }
+            return;
+        }
 
         // Always use insert so we store and retract records correctly from state
         input.setRowKind(RowKind.INSERT);
@@ -1001,6 +1021,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                                 element);
             }
         };
+    }
+
+    private boolean cannotMatch(RowData input, int inputId) {
+        for (int field : nullFilterFields[inputId]) {
+            if (input.isNullAt(field)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isUpsert(RowData row) {

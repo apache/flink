@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Tests that the multi-way join handles inputs that update a record without UPDATE_BEFORE and
  * delete it with only its unique key. The joined rows and null padding of the old version of a
@@ -229,6 +231,18 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
                 row(USER, ORDER, PAYMENT, NO_ROW));
     }
 
+    @TestTemplate
+    void testRecordThatCannotMatchIsStored() throws Exception {
+        // the order can never match, but it is stored to complete its key-only delete
+        insertOrder(null, "o1", "B");
+        emitsNothing();
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
+
+        deleteOrder(null, "o1", null);
+        emitsNothing();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+    }
+
     private void insertUserAndOrder() throws Exception {
         insertUser(USER);
         insertOrder(ORDER);
@@ -259,6 +273,12 @@ class StreamingMultiJoinUpsertOperatorTest extends StreamingMultiJoinOperatorTes
     protected List<RuntimeChangelogMode> inputChangelogModes() {
         return Collections.nCopies(
                 inputSpecs.size(), RuntimeChangelogMode.serialize(ChangelogMode.upsert(true)));
+    }
+
+    /** A NULL user_id never matches. */
+    @Override
+    protected int[][] nullFilterFields() {
+        return new int[][] {{0}, {0}, {0}, {0}};
     }
 
     /** Outside the unique keys, the conditions read details of all inputs. */
