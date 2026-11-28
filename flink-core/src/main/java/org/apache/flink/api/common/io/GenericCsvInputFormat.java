@@ -25,6 +25,7 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.SwarUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -510,17 +511,24 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
             }
         } else {
             // field is not quoted
-            while (i < delimLimit && !FieldParser.delimiterNext(bytes, i, delim)) {
-                i++;
+            if (delim.length == 0) {
+                // an empty delimiter matches at once
+                return i;
             }
-
-            if (i >= delimLimit) {
-                // no delimiter found. We are at the end of the record
-                return limit;
-            } else {
-                // delimiter found.
-                return i + delim.length;
+            // jump to each candidate first byte of the delimiter, a word at a time
+            while (i < delimLimit) {
+                final int found = SwarUtils.indexOf(bytes, i, delimLimit - i, delim[0]);
+                if (found < 0) {
+                    break;
+                }
+                // a one-byte delimiter is already matched by indexOf
+                if (delim.length == 1 || FieldParser.delimiterNext(bytes, found, delim)) {
+                    return found + delim.length;
+                }
+                i = found + 1;
             }
+            // no delimiter found. We are at the end of the record
+            return limit;
         }
     }
 
