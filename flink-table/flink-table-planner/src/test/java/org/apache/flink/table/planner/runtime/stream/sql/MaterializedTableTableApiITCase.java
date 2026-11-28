@@ -763,7 +763,7 @@ class MaterializedTableTableApiITCase {
 
         setupSavepointDir(temporaryPath);
 
-        tEnv.executeSql("ALTER MATERIALIZED TABLE users_shops SUSPEND");
+        materializedTable.suspend();
 
         assertThat(materializedTable.getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
         final ContinuousRefreshHandler suspendRefreshHandler = getRefreshHandler();
@@ -772,8 +772,7 @@ class MaterializedTableTableApiITCase {
         assertThat(suspendRefreshHandler.getRestorePath()).isNotEmpty();
         final String actualSavepointPath = suspendRefreshHandler.getRestorePath().get();
 
-        tEnv.executeSql(
-                "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('sink.drop-late-event' = 'false')");
+        materializedTable.resume(Map.of("sink.drop-late-event", "false"));
 
         final ResolvedCatalogMaterializedTable resumedMaterializedTable = getUsersShops();
         assertThat(resumedMaterializedTable.getOptions()).doesNotContainKey("sink.drop-late-event");

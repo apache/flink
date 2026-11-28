@@ -29,7 +29,11 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
+import org.apache.flink.util.Preconditions;
 
+import java.util.Map;
 import java.util.Optional;
 
 /** Implementation of {@link MaterializedTable}. */
@@ -90,6 +94,34 @@ public final class MaterializedTableImpl implements MaterializedTable {
     @Override
     public Optional<String> getRefreshHandlerDescription() {
         return lookUp().getRefreshHandlerDescription();
+    }
+
+    @Override
+    public void suspend() {
+        tableEnvironment.executeInternal(new AlterMaterializedTableSuspendOperation(identifier));
+    }
+
+    @Override
+    public void resume() {
+        resume(Map.of());
+    }
+
+    @Override
+    public void resume(Map<String, String> dynamicOptions) {
+        Preconditions.checkNotNull(dynamicOptions, "Dynamic options must not be null.");
+        tableEnvironment.executeInternal(
+                new AlterMaterializedTableResumeOperation(identifier, Map.copyOf(dynamicOptions)));
+    }
+
+    @Override
+    public boolean drop() {
+        return drop(true);
+    }
+
+    @Override
+    public boolean drop(boolean ignoreIfNotExists) {
+        return tableEnvironment.dropMaterializedTable(
+                identifier.asSerializableString(), ignoreIfNotExists);
     }
 
     private ResolvedCatalogMaterializedTable lookUp() {

@@ -29,7 +29,7 @@ and `execute()` submits the declaration with the semantics of
 # Setup
 
 Continuous refresh jobs need a session cluster as the execution target of the `TableEnvironment`,
-and redeploying a running materialized table needs a savepoint directory
+and redeploying or suspending a running materialized table needs a savepoint directory
 (`execution.checkpointing.savepoint-dir`). See
 [Using Table API]({{< ref "docs/sql/materialized-table/deployment" >}}#using-table-api) for the
 supported targets. The catalog must supply the storage of the materialized table.
@@ -116,9 +116,8 @@ old one.
 
 If the changes are rejected, for example because the new query drops a column or the declared
 refresh strategy differs from the refresh mode, `execute()` fails and leaves the materialized table
-suspended with its previous definition. Resume it with `ALTER MATERIALIZED TABLE ... RESUME` before
-you redeploy, because redeploying a suspended materialized table keeps it suspended and clears its
-savepoint.
+suspended with its previous definition. Resume it with `resume()` before you redeploy, because
+redeploying a suspended materialized table keeps it suspended and clears its savepoint.
 
 If the new refresh job starts but the catalog cannot record it, the job is cancelled and the old
 job restarts from its savepoint. If that cancel fails, the materialized table is rolled back and
@@ -137,6 +136,28 @@ created in SQL or by another program, and resolves the path like `from(path)`. T
 made elsewhere. The lookup fails with a `ValidationException` if no materialized table exists at
 the path, or if a temporary table or view shadows it.
 
+# Suspending and Resuming a Materialized Table
+
+```java
+MaterializedTable revenue = tEnv.fromMaterializedTable("revenue");
+
+revenue.suspend();
+revenue.resume(Map.of("sink.parallelism", "2"));
+```
+
+`suspend()` has the semantics of
+[`ALTER MATERIALIZED TABLE ... SUSPEND`]({{< ref "docs/sql/materialized-table/statements" >}}#suspend):
+a running continuous refresh job is stopped with a savepoint, which needs a savepoint directory
+(see [Setup](#setup)), and the materialized table is recorded as suspended.
+
+`resume()` and `resume(options)` have the semantics of
+[`ALTER MATERIALIZED TABLE ... RESUME`]({{< ref "docs/sql/materialized-table/statements" >}}#resume).
+They start a refresh job that restores the savepoint taken when the refresh job was stopped, by
+`suspend()` or by a rejected redeploy. The refresh job starts without state if the materialized
+table was altered or redeployed while suspended, or if its refresh job stopped in another way and
+the cluster still knows that job. The options apply to this refresh job only and are not stored in
+the catalog. `resume()` returns once the refresh job has been submitted, not when it is running.
+
 # Dropping a Materialized Table
 
 ```java
@@ -149,6 +170,13 @@ a running continuous refresh job is cancelled before the materialized table is r
 catalog. Like `dropTable`, with `ignoreIfNotExists = true`, the default of
 `dropMaterializedTable(path)`, it returns `false` if no materialized table exists at the path, even
 if a table or view exists there instead.
+
+A handle drops its materialized table with `drop()` or `drop(ignoreIfNotExists)`, which behave like
+`dropMaterializedTable` for the handle's identifier, so `drop()` is `drop(true)`.
+
+```java
+boolean dropped = tEnv.fromMaterializedTable("revenue").drop();
+```
 
 # Limitations
 

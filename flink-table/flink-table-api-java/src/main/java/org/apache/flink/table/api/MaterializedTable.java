@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -83,4 +84,57 @@ public interface MaterializedTable {
      * @throws ValidationException if no materialized table exists at its path anymore.
      */
     Optional<String> getRefreshHandlerDescription();
+
+    /**
+     * Suspends this materialized table.
+     *
+     * <p>Fails if no materialized table exists at {@link #getIdentifier()}, if a temporary table or
+     * view shadows it, if it is still initializing or already suspended, or if its refresh job
+     * cannot be stopped.
+     */
+    void suspend();
+
+    /**
+     * Like {@link #resume(Map)}, without dynamic options.
+     *
+     * <p>Fails if no materialized table exists at {@link #getIdentifier()}, if a temporary table or
+     * view shadows it, if it is still initializing, or if its refresh job is still running.
+     */
+    void resume();
+
+    /**
+     * Resumes this materialized table.
+     *
+     * <p>Returns once the refresh job has been submitted, not when it is running.
+     *
+     * <p>Fails if no materialized table exists at {@link #getIdentifier()}, if a temporary table or
+     * view shadows it, if it is still initializing, or if its refresh job is still running.
+     *
+     * @param dynamicOptions dynamic table options for this refresh job only.
+     */
+    void resume(Map<String, String> dynamicOptions);
+
+    /**
+     * Drops this materialized table, like {@link TableEnvironment#dropMaterializedTable(String)}
+     * with {@link #getIdentifier()}. Equivalent to {@code drop(true)}.
+     *
+     * <p>Fails if a temporary table or view shadows the materialized table.
+     *
+     * @return true if a materialized table was found and the drop was executed, false if no
+     *     materialized table exists at the identifier
+     */
+    boolean drop();
+
+    /**
+     * Drops this materialized table, like {@link TableEnvironment#dropMaterializedTable(String,
+     * boolean)} with {@link #getIdentifier()}.
+     *
+     * <p>Fails if a temporary table or view shadows the materialized table.
+     *
+     * @param ignoreIfNotExists if false, fails if no materialized table exists at the identifier,
+     *     including when a table or view exists there instead
+     * @return true if a materialized table was found and the drop was executed, false if none
+     *     exists and ignoreIfNotExists is true
+     */
+    boolean drop(boolean ignoreIfNotExists);
 }
