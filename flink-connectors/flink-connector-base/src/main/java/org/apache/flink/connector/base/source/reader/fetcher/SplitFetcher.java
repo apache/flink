@@ -134,15 +134,21 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
                 // Put an empty synchronization batch to the element queue.
                 // When this batch is recycled, all the records emitted earlier
                 // must have already been processed.
-                elementsQueue.put(
-                        fetcherId(),
+                final RecordsWithSplitIds<E> synchronizationBatch =
                         new RecordsBySplits<E>(Collections.emptyMap(), Collections.emptySet()) {
                             @Override
                             public void recycle() {
                                 super.recycle();
                                 recordsProcessedLatch.countDown();
                             }
-                        });
+                        };
+                // A pending wakeUp makes put() return without enqueueing, and it consumes the
+                // wakeUp flag on the way out. Retry, because a dropped batch is never recycled and
+                // the latch below would never be pulled.
+                boolean enqueued = false;
+                while (!enqueued) {
+                    enqueued = elementsQueue.put(fetcherId(), synchronizationBatch);
+                }
             }
         } catch (Throwable t) {
             errorHandler.accept(t);
