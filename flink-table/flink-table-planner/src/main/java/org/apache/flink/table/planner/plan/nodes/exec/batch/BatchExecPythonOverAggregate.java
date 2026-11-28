@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -44,10 +45,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rex.RexWindowBound;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -97,9 +100,16 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputType = (RowType) inputEdge.getOutputType();
+        final FlinkRelBuilder relBuilder = planner.createRelBuilder();
+        final ClassLoader classLoader = planner.getFlinkContext().getClassLoader();
 
         List<OverSpec.GroupSpec> groups = overSpec.getGroups();
+        SortSpec sortSpec = groups.get(groups.size() - 1).getSort();
         boolean[] isRangeWindows = new boolean[groups.size()];
+        GeneratedRecordComparator[] lowerBoundComparators =
+                new GeneratedRecordComparator[groups.size()];
+        GeneratedRecordComparator[] upperBoundComparators =
+                new GeneratedRecordComparator[groups.size()];
         for (int i = 0; i < groups.size(); i++) {
             OverSpec.GroupSpec group = groups.get(i);
             List<AggregateCall> groupAggCalls = group.getAggCalls();
@@ -131,24 +141,35 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                 }
             } else {
                 isRangeWindows[i] = true;
-                if (isUnboundedWindow(group)) {
-                    lowerBoundary.add(Long.MIN_VALUE);
-                    upperBoundary.add(Long.MAX_VALUE);
-                } else if (isUnboundedPrecedingWindow(group)) {
-                    lowerBoundary.add(Long.MIN_VALUE);
-                    upperBoundary.add(
-                            OverAggregateUtil.getLongBoundary(overSpec, group.getUpperBound()));
-                } else if (isUnboundedFollowingWindow(group)) {
-                    lowerBoundary.add(
-                            OverAggregateUtil.getLongBoundary(overSpec, group.getLowerBound()));
-                    upperBoundary.add(Long.MAX_VALUE);
-                } else if (isSlidingWindow(group)) {
-                    lowerBoundary.add(
-                            OverAggregateUtil.getLongBoundary(overSpec, group.getLowerBound()));
-                    upperBoundary.add(
-                            OverAggregateUtil.getLongBoundary(overSpec, group.getUpperBound()));
-                } else {
-                    throw new TableException("Unsupported range window group spec " + group);
+                // A RANGE bound is applied by its comparator, which compares the ORDER BY key by
+                // its type. The boundary only tells the operator whether that side is unbounded.
+                RexWindowBound lowerBound = group.getLowerBound();
+                RexWindowBound upperBound = group.getUpperBound();
+                lowerBoundary.add(lowerBound.isUnbounded() ? Long.MIN_VALUE : 0L);
+                upperBoundary.add(upperBound.isUnbounded() ? Long.MAX_VALUE : 0L);
+                if (!lowerBound.isUnbounded()) {
+                    lowerBoundComparators[i] =
+                            BatchExecOverAggregate.createBoundComparator(
+                                    relBuilder,
+                                    config,
+                                    classLoader,
+                                    overSpec,
+                                    sortSpec,
+                                    lowerBound,
+                                    true,
+                                    inputType);
+                }
+                if (!upperBound.isUnbounded()) {
+                    upperBoundComparators[i] =
+                            BatchExecOverAggregate.createBoundComparator(
+                                    relBuilder,
+                                    config,
+                                    classLoader,
+                                    overSpec,
+                                    sortSpec,
+                                    upperBound,
+                                    false,
+                                    inputType);
                 }
             }
         }
@@ -161,6 +182,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         inputType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         isRangeWindows,
+                        lowerBoundComparators,
+                        upperBoundComparators,
                         pythonConfig,
                         config,
                         planner.getFlinkContext().getClassLoader());
@@ -176,6 +199,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             RowType inputRowType,
             RowType outputRowType,
             boolean[] isRangeWindows,
+            GeneratedRecordComparator[] lowerBoundComparators,
+            GeneratedRecordComparator[] upperBoundComparators,
             Configuration pythonConfig,
             ExecNodeConfig config,
             ClassLoader classLoader) {
@@ -192,6 +217,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         inputRowType,
                         outputRowType,
                         isRangeWindows,
+                        lowerBoundComparators,
+                        upperBoundComparators,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos);
         return ExecNodeUtil.createOneInputTransformation(
@@ -212,6 +239,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             RowType inputRowType,
             RowType outputRowType,
             boolean[] isRangeWindows,
+            GeneratedRecordComparator[] lowerBoundComparators,
+            GeneratedRecordComparator[] upperBoundComparators,
             int[] udafInputOffsets,
             PythonFunctionInfo[] pythonFunctionInfos) {
         Class<?> clazz =
@@ -226,8 +255,6 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                                 .project(outputRowType);
 
         PartitionSpec partitionSpec = overSpec.getPartition();
-        List<OverSpec.GroupSpec> groups = overSpec.getGroups();
-        SortSpec sortSpec = groups.get(groups.size() - 1).getSort();
 
         try {
             Constructor<?> ctor =
@@ -241,8 +268,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                             long[].class,
                             boolean[].class,
                             int[].class,
-                            int.class,
-                            boolean.class,
+                            GeneratedRecordComparator[].class,
+                            GeneratedRecordComparator[].class,
                             GeneratedProjection.class,
                             GeneratedProjection.class,
                             GeneratedProjection.class);
@@ -257,8 +284,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                             upperBoundary.stream().mapToLong(i -> i).toArray(),
                             isRangeWindows,
                             aggWindowIndex.stream().mapToInt(i -> i).toArray(),
-                            sortSpec.getFieldIndices()[0],
-                            sortSpec.getAscendingOrders()[0],
+                            lowerBoundComparators,
+                            upperBoundComparators,
                             ProjectionCodeGenerator.generateProjection(
                                     new CodeGeneratorContext(config, classLoader),
                                     "UdafInputProjection",
