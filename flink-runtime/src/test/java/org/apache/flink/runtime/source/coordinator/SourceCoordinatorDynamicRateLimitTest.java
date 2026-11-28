@@ -82,17 +82,17 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             SourceCoordinator<?, ?> coordinator =
                     getAndStartNewSourceCoordinator(params, closeableRegistry);
             registerReader(coordinator, 0);
-            completeCheckpointCycle(coordinator, 1L, 0);
+            completeCheckpointCycle(coordinator, 1L, 0, 90, 0, 0);
 
             registerReader(coordinator, 1);
 
             assertThat(getLatestDynamicRateLimitEvent(1))
-                    .isEqualTo(new DynamicRateLimitEvent(250.0 / NUM_SUBTASKS));
+                    .isEqualTo(new DynamicRateLimitEvent(90.0 / NUM_SUBTASKS));
         }
     }
 
     @Test
-    void testFirstCompletedCheckpointBroadcastsTheInitialMaxRate() throws Exception {
+    void testNoRateIsBroadcastWithoutObservedRecordRates() throws Exception {
         try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
             DynamicRateLimitParams params =
                     new DynamicRateLimitParams(true, 10, 100.0, 0.5, 1.1, 0.1, 0.5, 0.8);
@@ -102,8 +102,7 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
 
             completeCheckpointCycle(coordinator, 1L, 0);
 
-            assertThat(getLatestDynamicRateLimitEvent(0))
-                    .isEqualTo(new DynamicRateLimitEvent(100.0 / NUM_SUBTASKS));
+            assertThat(getSentDynamicRateLimitEvents(0)).isEmpty();
         }
     }
 
@@ -123,7 +122,7 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             // the previous target instead of this observation, the result would be 1000.0 * 0.5 =
             // 500.0 rather than 40.0 * 0.5 = 20.0 (split evenly over the subtasks). The slower
             // second checkpoint is a worsening trend, so the rate is throttled down.
-            completeCheckpointCycle(coordinator, 2L, 200, 40);
+            completeCheckpointCycle(coordinator, 2L, 200, 40, 0, 0);
 
             assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
                     .isEqualTo(40.0 * 0.5 / NUM_SUBTASKS);
@@ -141,7 +140,7 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             registerReader(coordinator, 1);
 
             completeCheckpointCycle(coordinator, 1L, 5);
-            completeCheckpointCycle(coordinator, 2L, 300, 30, 20);
+            completeCheckpointCycle(coordinator, 2L, 300, 30, 20, 0);
 
             assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
                     .isEqualTo((30.0 + 20.0) * 0.5 / NUM_SUBTASKS);
@@ -158,7 +157,7 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             registerReader(coordinator, 0);
 
             // a single duration shows no trend, so the observed throughput is kept as the target
-            completeCheckpointCycle(coordinator, 1L, 5, 40);
+            completeCheckpointCycle(coordinator, 1L, 5, 40, 0, 0);
 
             assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
                     .isEqualTo(40.0 / NUM_SUBTASKS);
@@ -177,6 +176,8 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             coordinator.checkpointCoordinator(1L, new CompletableFuture<>());
             CoordinatorTestUtils.waitForCoordinatorToProcessActions(coordinator.getContext());
             reportRecords(coordinator, 0, 1L, 100, 2000);
+            reportRecords(coordinator, 1, 1L, 0, 1000);
+            reportRecords(coordinator, 2, 1L, 0, 1000);
             clock.advanceTime(Duration.ofMillis(5));
             coordinator.notifyCheckpointComplete(1L);
             CoordinatorTestUtils.waitForCoordinatorToProcessActions(coordinator.getContext());
@@ -202,9 +203,8 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             coordinator.notifyCheckpointComplete(1L);
             CoordinatorTestUtils.waitForCoordinatorToProcessActions(coordinator.getContext());
 
-            // falls back to the last target rate
-            assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
-                    .isEqualTo(1000.0 / NUM_SUBTASKS);
+            // no usable record rate was observed, so the rate is not adjusted
+            assertThat(getSentDynamicRateLimitEvents(0)).isEmpty();
         }
     }
 
@@ -217,17 +217,17 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
                     getAndStartNewSourceCoordinator(params, closeableRegistry);
             registerReader(coordinator, 0);
 
-            completeCheckpointCycle(coordinator, 1L, 5);
-            reportRecords(coordinator, 0, 99L, 40, 1000);
-            completeCheckpointCycle(coordinator, 2L, 200);
+            completeCheckpointCycle(coordinator, 1L, 5, 40, 40, 40);
+            reportRecords(coordinator, 0, 99L, 400, 1000);
+            completeCheckpointCycle(coordinator, 2L, 200, 40, 40, 40);
 
             assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
-                    .isEqualTo(1000.0 * 0.5 / NUM_SUBTASKS);
+                    .isEqualTo(40.0 * 0.5);
         }
     }
 
     @Test
-    void testIdleSourceDoesNotCollapseTheRateToItsMinimum() throws Exception {
+    void testIdleSourceDoesNotAdjustTheRate() throws Exception {
         try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
             DynamicRateLimitParams params =
                     new DynamicRateLimitParams(true, 4, 1000.0, 0.5, 1.1, 0.1, 0.5, 0.8);
@@ -240,13 +240,10 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             completeCheckpointCycle(coordinator, 1L, 5, 0);
             completeCheckpointCycle(coordinator, 2L, 5, 0);
 
-            // zero observed throughput is treated as unknown, so the 1000 records/s target is the
-            // baseline rather than collapsing to the 1 record/s minimum
-            double total = 0;
+            // zero observed throughput is treated as unknown, so no rate is adjusted at all
             for (int subtask = 0; subtask < NUM_SUBTASKS; subtask++) {
-                total += getLatestDynamicRateLimitEvent(subtask).getRecordsPerSecond();
+                assertThat(getSentDynamicRateLimitEvents(subtask)).isEmpty();
             }
-            assertThat(total).isCloseTo(1000.0, within(1e-6));
         }
     }
 
@@ -266,11 +263,11 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             CoordinatorTestUtils.waitForCoordinatorToProcessActions(coordinator.getContext());
 
             // checkpoint 1 was aborted, so its report is not used for checkpoint 2
-            completeCheckpointCycle(coordinator, 2L, 5);
-            completeCheckpointCycle(coordinator, 3L, 200);
+            completeCheckpointCycle(coordinator, 2L, 5, 20, 20, 20);
+            completeCheckpointCycle(coordinator, 3L, 200, 20, 20, 20);
 
             assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
-                    .isEqualTo(1000.0 * 0.5 / NUM_SUBTASKS);
+                    .isEqualTo(20.0 * 0.5);
         }
     }
 
@@ -287,7 +284,7 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
 
             // Everyone starts with an even share of 100. Subtasks 1 and 2 only manage 10 records/s
             // (skewed away from them), subtask 0 uses its whole share.
-            completeCheckpointCycle(coordinator, 1L, 5);
+            completeCheckpointCycle(coordinator, 1L, 5, 100, 100, 100);
             completeCheckpointCycle(coordinator, 2L, 5, 100, 10, 10);
 
             // total = 120 * ramp-up 2.0 = 240; idle subtasks need 10 * 1.2 = 12 each
@@ -301,7 +298,7 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    void testFirstCheckpointAfterRestoreKeepsTheRestoredRates() throws Exception {
+    void testFirstCheckpointAfterRestoreReportsTheRateWithoutObservedThroughput() throws Exception {
         try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
             DynamicRateLimitParams params =
                     new DynamicRateLimitParams(true, 4, 1000.0, 0.5, 1.1, 0.1, 0.5, 0.8);
@@ -309,11 +306,12 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
                     getRestoredAndStartedSourceCoordinator(params, closeableRegistry);
             registerReader(coordinator, 0);
 
-            // The restored readers snapshot no throughput for their first checkpoint. Scaling off
-            // the 1000 records/s maximum would override the rates they restored.
+            // With restored state the rate is reported right away, based on the current target,
+            // even though no throughput was observed yet.
             completeCheckpointCycle(coordinator, 101L, 5);
 
-            assertThat(getSentDynamicRateLimitEvents(0)).isEmpty();
+            assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
+                    .isEqualTo(1000.0 / NUM_SUBTASKS);
         }
     }
 
@@ -327,11 +325,11 @@ class SourceCoordinatorDynamicRateLimitTest extends SourceCoordinatorTestBase {
             registerReader(coordinator, 0);
             completeCheckpointCycle(coordinator, 101L, 5);
 
-            completeCheckpointCycle(coordinator, 102L, 5, 40);
+            completeCheckpointCycle(coordinator, 102L, 5, 40, 40, 40);
 
             // 40 records/s observed, ramped up by 1.1 and split over the subtasks
             assertThat(getLatestDynamicRateLimitEvent(0).getRecordsPerSecond())
-                    .isCloseTo(40.0 * 1.1 / NUM_SUBTASKS, within(1e-9));
+                    .isCloseTo(40.0 * 1.1, within(1e-9));
         }
     }
 

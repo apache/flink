@@ -133,10 +133,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
      */
     private boolean dynamicRateAdjusted;
 
-    /**
-     * Whether this coordinator was restored from a checkpoint. The readers then recovered their own
-     * rates, which this coordinator knows nothing about until they report their throughput.
-     */
+    /** Whether this coordinator was restored from a checkpoint. */
     private boolean restoredFromCheckpoint;
 
     private final JobID jobID;
@@ -961,14 +958,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             return;
         }
         // Scale off the observed throughput rather than the last broadcast target, which may
-        // already lag behind it. Fall back to the target if nothing has been observed yet.
+        // already lag behind it. A coordinator restored from state reports a rate right away,
+        // based on the current target. Otherwise wait until a record rate was observed.
         final double observedThroughput = getCurrentTotalThroughput();
-        if (Double.isNaN(observedThroughput) && restoredFromCheckpoint && !dynamicRateAdjusted) {
-            // The first checkpoint after a restore reports no throughput. Falling back to the
-            // configured maximum would override the (possibly throttled) rates the readers
-            // restored, which is what made the job fail in the first place.
+        if (Double.isNaN(observedThroughput) && !restoredFromCheckpoint) {
             LOG.info(
-                    "Keeping the restored rates of source {} until a throughput is observed.",
+                    "Not adjusting the dynamic rate limit of source {}: no record rate observed.",
                     operatorName);
             return;
         }
@@ -1032,10 +1027,17 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     /**
      * Returns the sum of the most recently reported per-subtask throughputs, or {@code Double.NaN}
-     * if no subtask has reported yet or nothing was emitted. An idle source must not be taken as a
-     * baseline, otherwise the rate would collapse to its minimum and could not recover.
+     * if not every subtask has reported yet or nothing was emitted. A partial sum would understate
+     * the total, and an idle source must not be taken as a baseline, otherwise the rate would
+     * collapse to its minimum and could not recover.
      */
     private double getCurrentTotalThroughput() {
+        final int parallelism = context.currentParallelism();
+        for (int subtask = 0; subtask < parallelism; subtask++) {
+            if (!reportedThroughputs.containsKey(subtask)) {
+                return Double.NaN;
+            }
+        }
         final double total =
                 reportedThroughputs.values().stream().mapToDouble(Double::doubleValue).sum();
         return total > 0 ? total : Double.NaN;
